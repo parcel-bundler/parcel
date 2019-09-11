@@ -62,9 +62,9 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       }
 
       writeOut(`Built in ${prettifyTime(event.buildTime)}`);
-      if (options.mode === 'production') {
-        render(<BundleReport bundleGraph={event.bundleGraph} />);
-      }
+      // if (options.mode === 'production') {
+      render(<BundleReport bundleGraph={event.bundleGraph} />);
+      // }
       break;
     case 'buildFailure':
       if (logLevelFilter < logLevels.error) {

@@ -46,7 +46,8 @@ export default new Bundler({
           let bundle = bundleGraph.createBundle({
             entryAsset: asset,
             isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
-            target: bundleGroup.target
+            target: bundleGroup.target,
+            isAsync: dependency.isAsync
           });
           bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           if (dependency.isAsync) {
@@ -128,6 +129,9 @@ export default new Bundler({
 
           for (let asset of assets) {
             if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
+              if (asset.filePath.includes('src/app/navigation')) {
+                debugger;
+              }
               bundleGraph.removeAssetGraphFromBundle(asset, bundle);
             }
           }
@@ -158,6 +162,10 @@ export default new Bundler({
         return;
       }
 
+      if (asset.id === 'd373a26c01e4caafdcdf570384f53aae') {
+        debugger;
+      }
+
       let containingBundles = bundleGraph
         .findBundlesWithAsset(asset)
         // Don't create shared bundles from entry bundles, as that would require
@@ -166,6 +174,10 @@ export default new Bundler({
         .filter(b => !b.isEntry);
 
       if (containingBundles.length > OPTIONS.minBundles) {
+        if (asset.id === 'e9eedd8a9bf73708ca52c39bee88d392') {
+          debugger;
+        }
+
         let id = containingBundles
           .map(b => b.id)
           .sort()
@@ -174,15 +186,12 @@ export default new Bundler({
         let candidate = candidateBundles.get(id);
         if (candidate) {
           candidate.assets.push(asset);
-          for (let bundle of containingBundles) {
-            candidate.sourceBundles.add(bundle);
-          }
-          candidate.size += bundleGraph.getTotalSize(asset);
+          candidate.size += bundleGraph.getTotalSize(asset, containingBundles);
         } else {
           candidateBundles.set(id, {
             assets: [asset],
             sourceBundles: new Set(containingBundles),
-            size: bundleGraph.getTotalSize(asset)
+            size: bundleGraph.getTotalSize(asset, containingBundles)
           });
         }
 
@@ -201,6 +210,10 @@ export default new Bundler({
       .sort((a, b) => b.size - a.size);
 
     for (let {assets, sourceBundles} of sortedCandidates) {
+      if (assets.find(a => a.id === 'e9eedd8a9bf73708ca52c39bee88d392')) {
+        debugger;
+      }
+
       // Find all bundle groups connected to the original bundles
       let bundleGroups = new Set();
 
@@ -231,9 +244,14 @@ export default new Bundler({
         type: firstBundle.type
       });
 
+      require('fs').appendFileSync('/tmp/parcelshared', sharedBundle.id + '\n');
+
       // Remove all of the root assets from each of the original bundles
       for (let asset of assets) {
-        bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
+        if (asset.id === 'e9eedd8a9bf73708ca52c39bee88d392') {
+          debugger;
+        }
+        bundleGraph.addAssetGraphToBundle(asset, sharedBundle, sourceBundles);
         for (let bundle of sourceBundles) {
           bundleGraph.removeAssetGraphFromBundle(asset, bundle);
         }

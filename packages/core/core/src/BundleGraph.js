@@ -79,6 +79,10 @@ export default class BundleGraph {
     this._graph.removeEdge(bundle.id, asset.id);
     this._graph.traverse(node => {
       if (node.type === 'asset' || node.type === 'dependency') {
+        if (node.id === 'e9eedd8a9bf73708ca52c39bee88d392') {
+          asset;
+          debugger;
+        }
         this._graph.removeEdge(bundle.id, node.id, 'contains');
       }
     }, nullthrows(this._graph.getNode(asset.id)));
@@ -312,10 +316,13 @@ export default class BundleGraph {
     return bundles;
   }
 
-  getTotalSize(asset: Asset): number {
+  getTotalSize(asset: Asset, bundles: Array<Bundle>): number {
     let size = 0;
     this._graph.traverse(node => {
       if (node.type === 'asset') {
+        if (node.id === 'e9eedd8a9bf73708ca52c39bee88d392') {
+          debugger;
+        }
         size += node.value.stats.size;
       }
     }, nullthrows(this._graph.getNode(asset.id)));

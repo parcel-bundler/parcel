@@ -20,6 +20,12 @@ export default function BundleReport(
   props: ReportProps
 ): React.Element<typeof Table> {
   let {bundles} = generateBundleReport(props.bundleGraph);
+  require('fs').writeFileSync(
+    '/tmp/parcelbundle',
+    JSON.stringify(bundles, null, 2),
+    'utf8'
+  );
+  return null;
 
   let rows: Array<React.Element<typeof Row>> = [<Row key="first" />];
   for (let bundle of bundles) {

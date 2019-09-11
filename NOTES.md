@@ -1,3 +1,5 @@
 - (upstream) modified `Config#isSource` not to check for a `source` field as a prerequisite for being source. This should probably be upstreamed.
 - (bug) removed an invariant in JSPackager asserting that referenced assets cannot belong to the current bundle. This seems to be a bug where the referenced asset has a contains edge but is not reachable via traversal. It should not have a contains edge.
 - allow url dependencies to be resolved from `node_modules` as a fallback if the relative path doesn't exist. This should be resolved upstream when an implementation of https://github.com/parcel-bundler/parcel/issues/3492 lands.
+- removeAssetGraphFromBundle: should this throw?
+- should bundle objects be referentially equal?

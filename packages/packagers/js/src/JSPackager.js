@@ -84,6 +84,11 @@ export default new Packager({
 
         let output = code[i] || '';
         wrapped +=
+          '\n// ASSET ID ' +
+          asset.id +
+          ' FILEPATH ' +
+          asset.filePath +
+          '\n' +
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
           output +

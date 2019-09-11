@@ -190,10 +190,10 @@ export default class Parcel {
       });
 
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+      // dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
-      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
+      // dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await packageBundles({
         bundleGraph,

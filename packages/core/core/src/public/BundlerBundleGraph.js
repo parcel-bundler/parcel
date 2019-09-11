@@ -120,7 +120,8 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
         env: environmentToInternalEnvironment(
           opts.env ?? nullthrows(opts.entryAsset).env
         ),
-        entryAssetIds: opts.entryAsset ? [opts.entryAsset.id] : [],
+        entryAssetIds:
+          !opts.isAsync && opts.entryAsset ? [opts.entryAsset.id] : [],
         filePath: null,
         isEntry: opts.isEntry,
         target: targetToInternalTarget(opts.target),
@@ -210,8 +211,11 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  getTotalSize(asset: IAsset): number {
-    return this.#graph.getTotalSize(assetToInternalAsset(asset).value);
+  getTotalSize(asset: IAsset, bundles: Array<IBundle>): number {
+    return this.#graph.getTotalSize(
+      assetToInternalAsset(asset).value,
+      bundles.map(bundleToInternalBundle)
+    );
   }
 
   isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {

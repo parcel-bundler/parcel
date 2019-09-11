@@ -47,7 +47,9 @@ export default new Namer({
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
-    let name = nameFromContent(firstBundleInGroup, options.rootDir);
+    let name = firstBundleInGroup.getMainEntry()
+      ? nameFromContent(firstBundleInGroup, options.rootDir)
+      : Math.floor(Math.random() * 100000000000).toString(16);
     if (!bundle.isEntry) {
       name += '.' + bundle.getHash().slice(-8);
     }

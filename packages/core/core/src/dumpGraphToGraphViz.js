@@ -79,6 +79,7 @@ export default async function dumpGraphToGraphViz(
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
+  require('fs').writeFileSync('/tmp/parcelgraphs', tmp + '\n');
 }
 
 function getEnvDescription(env: Environment) {

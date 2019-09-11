@@ -54,30 +54,30 @@ export default class BundlerRunner {
       phase: 'bundling'
     });
 
-    let cacheKey;
-    if (!this.options.disableCache) {
-      cacheKey = await this.getCacheKey(graph);
-      let cachedBundleGraph = await this.options.cache.get(cacheKey);
-      if (cachedBundleGraph) {
-        return cachedBundleGraph;
-      }
-    }
+    // let cacheKey;
+    // if (!this.options.disableCache) {
+    //   cacheKey = await this.getCacheKey(graph);
+    //   let cachedBundleGraph = await this.options.cache.get(cacheKey);
+    //   if (cachedBundleGraph) {
+    //     return cachedBundleGraph;
+    //   }
+    // }
 
     let bundler = await this.config.getBundler();
 
     let bundleGraph = removeAssetGroups(graph);
     // $FlowFixMe
     let internalBundleGraph = new InternalBundleGraph(bundleGraph);
-    await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
+    // await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
     await bundler.bundle({
       bundleGraph: new BundlerBundleGraph(internalBundleGraph, this.options),
       options: this.pluginOptions
     });
-    await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
+    // await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
     for (let bundle of internalBundleGraph.getBundles()) {
       summarizeBundle(bundle, internalBundleGraph);
     }
-    await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
+    // await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
     await bundler.optimize({
       bundleGraph: new BundlerOptimizeBundleGraph(
         internalBundleGraph,
@@ -85,14 +85,53 @@ export default class BundlerRunner {
       ),
       options: this.pluginOptions
     });
-    await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
+    // await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
-    await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
+    // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
-    if (cacheKey != null) {
-      await this.options.cache.set(cacheKey, internalBundleGraph);
-    }
+    let g = new Graph();
+    let asset = nullthrows(
+      bundleGraph.getNode('e9eedd8a9bf73708ca52c39bee88d392')
+    );
+    // let asset = nullthrows(
+    //   bundleGraph.getNode('8bed49c9fa560dcae302ce6537a0aff9')
+    // );
+    g.addNode(asset);
+
+    let seen = new Set();
+    let ancestors = [
+      asset,
+      nullthrows(bundleGraph.getNode('06329b87156ed48fd475f32dffa7e2f4'))
+    ];
+    do {
+      let node = ancestors.pop();
+      seen.add(node.id);
+
+      let parents = [
+        ...bundleGraph.getNodesConnectedTo(node).map(n => [undefined, n]),
+        ...bundleGraph
+          .getNodesConnectedTo(node, 'references')
+          .map(n => ['references', n]),
+        ...bundleGraph
+          .getNodesConnectedTo(node, 'contains')
+          .map(n => ['contains', n])
+      ];
+
+      for (let [type, parent] of parents) {
+        if (!seen.has(parent.id) && parent.type !== 'root') {
+          ancestors.push(parent);
+        }
+        g.addNode(parent);
+        g.addEdge(parent.id, node.id, type);
+      }
+    } while (ancestors.length > 0);
+
+    await dumpGraphToGraphViz(g, 'navigation_asset');
+
+    // if (cacheKey != null) {
+    //   await this.options.cache.set(cacheKey, internalBundleGraph);
+    // }
 
     return internalBundleGraph;
   }

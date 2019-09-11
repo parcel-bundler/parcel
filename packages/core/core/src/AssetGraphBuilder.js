@@ -75,7 +75,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
 
     if (changes) {
-      this.requestGraph.invalidateUnpredictableNodes();
+      // this.requestGraph.invalidateUnpredictableNodes();
       this.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
@@ -92,8 +92,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   |}> {
     await this.requestGraph.completeRequests();
 
-    dumpToGraphViz(this.assetGraph, 'AssetGraph');
-    dumpToGraphViz(this.requestGraph, 'RequestGraph');
+    // dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    // dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     let changedAssets = this.changedAssets;
     this.changedAssets = new Map();
