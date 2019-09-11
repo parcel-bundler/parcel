@@ -46,6 +46,7 @@ export default new Bundler({
           let bundle = bundleGraph.createBundle({
             entryAsset: asset,
             isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
+            isInline: asset.isInline,
             target: bundleGroup.target
           });
           bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
@@ -72,6 +73,7 @@ export default new Bundler({
           );
           let bundle = bundleGraph.createBundle({
             entryAsset: asset,
+            isInline: asset.isInline,
             target: context.bundleGroup.target
           });
           bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
@@ -91,7 +93,8 @@ export default new Bundler({
             bundle = bundleGraph.createBundle({
               entryAsset: asset,
               target: context.bundleGroup.target,
-              isEntry: context.bundleGroupDependency.isEntry
+              isEntry: context.bundleGroupDependency.isEntry,
+              isInline: asset.isInline
             });
             bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
             context.bundleByType.set(bundle.type, bundle);

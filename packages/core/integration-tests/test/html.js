@@ -583,119 +583,164 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should process inline JS', async function() {
+  it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {
-        production: true
-      }
+      {minify: true}
     );
 
-    const bundleContent = (await outputFS.readFile(b.filePath)).toString();
-    assert(!bundleContent.includes('someArgument'));
-  });
+    // inline bundles are not output, but are apart of the bundleGraph
+    assertBundles(b, [
+      {name: 'index.html', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']}
+    ]);
 
-  it.skip('should process inline styles', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-styles/index.html'),
-      {production: true}
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'jpg',
-          assets: ['bg.jpg'],
-          childBundles: []
-        },
-        {
-          type: 'jpg',
-          assets: ['img.jpg'],
-          childBundles: []
-        }
-      ]
-    });
-  });
-
-  it.skip('should process inline styles using lang', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-sass/index.html'),
-      {production: true}
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html']
-    });
+    let files = await outputFS.readdir(distDir);
+    // assert that the inline js files are not output
+    assert(!files.some(filename => filename.includes('js')));
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
+      path.join(distDir, 'index.html'),
+      'utf-8'
     );
 
+    assert(!html.includes('someArgument'));
+  });
+
+  it('should process inline styles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-styles/index.html'),
+      {minify: true}
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'jpg',
+        assets: ['bg.jpg']
+      },
+      {
+        type: 'jpg',
+        assets: ['img.jpg']
+      }
+    ]);
+  });
+
+  it('should process inline styles using lang', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-sass/index.html'),
+      {minify: true}
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      }
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
     assert(html.includes('<style>.index{color:#00f}</style>'));
   });
 
-  it.skip('should process inline non-js scripts', async function() {
+  it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
-      {production: true}
+      {minify: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html']
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.html']
+      }
+    ]);
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
-
     assert(html.includes('alert("Hello, World!")'));
   });
 
-  it.skip('should handle inline css with @imports', async function() {
+  it('should handle inline css with @imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
       {production: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'css',
-          assets: ['test.css']
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html', 'test.css']
+      }
+    ]);
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
-    assert(html.includes('@import'));
+    assert(!html.includes('@import'));
   });
 
-  it.skip('should error on imports and requires in inline <script> tags', async function() {
-    let err;
-    try {
-      await bundle(
-        path.join(__dirname, '/integration/html-inline-js-require/index.html'),
-        {production: true}
-      );
-    } catch (e) {
-      err = e;
-    }
-
-    assert(err);
-    assert.equal(
-      err.message,
-      'Imports and requires are not supported inside inline <script> tags yet.'
+  it('should allow imports and requires in inline <script> tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-require/index.html'),
+      {minify: true}
     );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.html', 'test.js']
+      }
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
+    assert(html.includes('console.log("test")'));
   });
 });

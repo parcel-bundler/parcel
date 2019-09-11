@@ -40,24 +40,30 @@ type AssetOptions = {|
   dependencies?: Map<string, Dependency>,
   includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
+  isInline?: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
-  sideEffects?: boolean
+  sideEffects?: boolean,
+  uniqueKey?: ?string
 |};
 
 export function createAsset(options: AssetOptions): Asset {
   let idBase = options.idBase != null ? options.idBase : options.filePath;
+  let uniqueKey = options.uniqueKey || '';
   return {
     id:
       options.id != null
         ? options.id
-        : md5FromString(idBase + options.type + JSON.stringify(options.env)),
+        : md5FromString(
+            idBase + options.type + JSON.stringify(options.env) + uniqueKey
+          ),
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
+    isInline: options.isInline == null ? false : options.isInline,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
@@ -68,7 +74,8 @@ export function createAsset(options: AssetOptions): Asset {
     meta: options.meta || {},
     stats: options.stats,
     symbols: options.symbols || new Map(),
-    sideEffects: options.sideEffects != null ? options.sideEffects : true
+    sideEffects: options.sideEffects != null ? options.sideEffects : true,
+    uniqueKey: uniqueKey
   };
 }
 
@@ -270,7 +277,8 @@ export default class InternalAsset {
         hash,
         filePath: this.value.filePath,
         type: result.type,
-        isIsolated: result.isIsolated,
+        isIsolated: result.isIsolated || this.value.isIsolated,
+        isInline: result.isInline || this.value.isInline,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
           this.value.type === result.type
@@ -283,7 +291,8 @@ export default class InternalAsset {
           size
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
-        sideEffects: result.sideEffects ?? this.value.sideEffects
+        sideEffects: result.sideEffects ?? this.value.sideEffects,
+        uniqueKey: result.uniqueKey
       }),
       options: this.options,
       content,
