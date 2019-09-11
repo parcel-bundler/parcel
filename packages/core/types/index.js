@@ -504,7 +504,7 @@ export interface BundlerBundleGraph {
   addAssetToBundle(Asset, Bundle): void;
   createAssetReference(Dependency, Asset): void;
   createBundle(CreateBundleOpts): Bundle;
-  createBundleGroup(Dependency, Target): BundleGroup;
+  createBundleGroup(Dependency, Target, ?Bundle): BundleGroup;
   getDependencyAssets(Dependency): Array<Asset>;
   traverse<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>
@@ -516,7 +516,7 @@ export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
   findBundlesWithAsset(Asset): Array<Bundle>;
   getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
-  getTotalSize(Asset): number;
+  getTotalSize(Asset, Array<Bundle>): number;
   isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetFromBundle(Asset, Bundle): void;
   removeAssetGraphFromBundle(Asset, Bundle): void;

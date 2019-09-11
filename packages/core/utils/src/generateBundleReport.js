@@ -5,7 +5,6 @@ import nullthrows from 'nullthrows';
 
 export type BundleReport = {|
   bundles: Array<{|
-    id: string,
     filePath: string,
     size: number,
     time: number,
@@ -38,11 +37,9 @@ export default function generateBundleReport(
       assets.sort((a, b) => b.stats.size - a.stats.size);
 
       return {
-        id: bundle.id,
         filePath: nullthrows(bundle.filePath),
         size: bundle.stats.size,
         time: bundle.stats.time,
-        mainEntry: bundle.getMainEntry() ? bundle.getMainEntry().id : null,
         largestAssets: assets.slice(0, largestAssetCount).map(asset => ({
           filePath: asset.filePath,
           size: asset.stats.size,

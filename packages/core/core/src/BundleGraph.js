@@ -2,8 +2,10 @@
 
 import type {
   BundleGroup,
+  CreateBundleOpts,
   GraphVisitor,
   Symbol,
+  Target,
   TraversalActions
 } from '@parcel/types';
 
@@ -17,6 +19,9 @@ import type {
   DependencyNode
 } from './types';
 import type Graph from './Graph';
+
+import {environmentToInternalEnvironment} from './public/Environment';
+import {targetToInternalTarget} from './public/Target';
 
 import invariant from 'assert';
 import crypto from 'crypto';
@@ -68,20 +73,31 @@ export default class BundleGraph {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
-    this._graph.filteredTraverse(
-      // node => node,
-      node =>
+    this._graph.traverse((node, _, actions) => {
+      if (
+        node.value === asset ||
         node.type !== 'asset' ||
         bundles.some(b => this.bundleHasAsset(b, node.value))
           ? node
-          : null,
-      node => {
-        if (node.type === 'asset' || node.type === 'dependency') {
-          this._graph.addEdge(bundle.id, node.id, 'contains');
+          : null
+      ) {
+        actions.skipChildren();
+        return;
+      }
+
+      if (node.type === 'asset' || node.type === 'dependency') {
+        this._graph.addEdge(bundle.id, node.id, 'contains');
+      }
+      if (node.type === 'dependency') {
+        let bundleGroupNodess = this._graph
+          .getNodesConnectedFrom(node)
+          .filter(n => n.type === 'bundle_group');
+
+        for (let bundleGroupNode of bundleGroupNodess) {
+          this._graph.addEdge(bundle.id, bundleGroupNode.id, 'bundle');
         }
-      },
-      nullthrows(this._graph.getNode(asset.id))
-    );
+      }
+    }, nullthrows(this._graph.getNode(asset.id)));
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
@@ -96,6 +112,76 @@ export default class BundleGraph {
   createAssetReference(dependency: Dependency, asset: Asset): void {
     this._graph.addEdge(dependency.id, asset.id, 'references');
     this._graph.removeEdge(dependency.id, asset.id);
+  }
+
+  createBundle(opts: CreateBundleOpts): Bundle {
+    let bundleId = 'bundle:' + (opts.id ?? nullthrows(opts.entryAsset?.id));
+    let bundleNode = {
+      type: 'bundle',
+      id: bundleId,
+      value: {
+        id: bundleId,
+        type: opts.type ?? nullthrows(opts.entryAsset).type,
+        env: environmentToInternalEnvironment(
+          opts.env ?? nullthrows(opts.entryAsset).env
+        ),
+        entryAssetIds:
+          !opts.isAsync && opts.entryAsset ? [opts.entryAsset.id] : [],
+        filePath: null,
+        isEntry: opts.isEntry,
+        target: targetToInternalTarget(opts.target),
+        name: null,
+        stats: {size: 0, time: 0}
+      }
+    };
+
+    this._graph.addNode(bundleNode);
+    if (opts.entryAsset != null) {
+      this._graph.addEdge(bundleNode.id, opts.entryAsset.id);
+    }
+
+    return bundleNode.value;
+  }
+
+  createBundleGroup(
+    dependency: Dependency,
+    target: Target,
+    parentBundle: ?Bundle
+  ): BundleGroup {
+    let dependencyNode = this._graph.getNode(dependency.id);
+    if (!dependencyNode) {
+      throw new Error('Dependency not found');
+    }
+
+    let resolved = this.getDependencyResolution(dependency);
+    if (!resolved) {
+      throw new Error('Dependency did not resolve to an asset');
+    }
+
+    let bundleGroup: BundleGroup = {
+      target,
+      entryAssetId: resolved.id
+    };
+
+    let bundleGroupNode = {
+      id: getBundleGroupId(bundleGroup),
+      type: 'bundle_group',
+      value: bundleGroup
+    };
+
+    this._graph.addNode(bundleGroupNode);
+    let assetNodes = this._graph.getNodesConnectedFrom(dependencyNode);
+    this._graph.replaceNodesConnectedTo(bundleGroupNode, assetNodes);
+    this._graph.removeEdge(dependencyNode.id, resolved.id);
+    this._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
+
+    this._graph.addEdge(
+      parentBundle ? parentBundle.id : nullthrows(this._graph.rootNodeId),
+      bundleGroupNode.id,
+      'bundle'
+    );
+
+    return bundleGroup;
   }
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
@@ -323,7 +409,18 @@ export default class BundleGraph {
 
   getTotalSize(asset: Asset, bundles: Array<Bundle>): number {
     let size = 0;
-    this._graph.traverse(node => {
+    this._graph.traverse((node, _, actions) => {
+      if (
+        node.value === asset ||
+        node.type !== 'asset' ||
+        bundles.some(b => this.bundleHasAsset(b, node.value))
+          ? node
+          : null
+      ) {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset') {
         size += node.value.stats.size;
       }

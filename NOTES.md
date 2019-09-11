@@ -3,3 +3,6 @@
 - allow url dependencies to be resolved from `node_modules` as a fallback if the relative path doesn't exist. This should be resolved upstream when an implementation of https://github.com/parcel-bundler/parcel/issues/3492 lands.
 - removeAssetGraphFromBundle: should this throw?
 - should bundle objects be referentially equal?
+- removed entry assets from async bundles
+- while traversing for building shared bundles, check if asset is missing in every bundle, and if so, stop
+- rewrote creating bundle => bundle group edges to take place after optimization because this broke situations where a shared bundle had an async import.

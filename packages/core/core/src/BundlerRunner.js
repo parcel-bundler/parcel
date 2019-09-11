@@ -77,6 +77,7 @@ export default class BundlerRunner {
     for (let bundle of internalBundleGraph.getBundles()) {
       summarizeBundle(bundle, internalBundleGraph);
     }
+
     // await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
     await bundler.optimize({
       bundleGraph: new BundlerOptimizeBundleGraph(
@@ -85,49 +86,15 @@ export default class BundlerRunner {
       ),
       options: this.pluginOptions
     });
+
+    debugger;
+
+    // await graphNodes(bundleGraph, ['560d17f35cf9a4e1151721a0297018c6']);
+
     // await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
-    // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
-
-    let g = new Graph();
-    let asset = nullthrows(
-      bundleGraph.getNode('e9eedd8a9bf73708ca52c39bee88d392')
-    );
-    // let asset = nullthrows(
-    //   bundleGraph.getNode('8bed49c9fa560dcae302ce6537a0aff9')
-    // );
-    g.addNode(asset);
-
-    let seen = new Set();
-    let ancestors = [
-      asset,
-      nullthrows(bundleGraph.getNode('06329b87156ed48fd475f32dffa7e2f4'))
-    ];
-    do {
-      let node = ancestors.pop();
-      seen.add(node.id);
-
-      let parents = [
-        ...bundleGraph.getNodesConnectedTo(node).map(n => [undefined, n]),
-        ...bundleGraph
-          .getNodesConnectedTo(node, 'references')
-          .map(n => ['references', n]),
-        ...bundleGraph
-          .getNodesConnectedTo(node, 'contains')
-          .map(n => ['contains', n])
-      ];
-
-      for (let [type, parent] of parents) {
-        if (!seen.has(parent.id) && parent.type !== 'root') {
-          ancestors.push(parent);
-        }
-        g.addNode(parent);
-        g.addEdge(parent.id, node.id, type);
-      }
-    } while (ancestors.length > 0);
-
-    await dumpGraphToGraphViz(g, 'navigation_asset');
+    await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     // if (cacheKey != null) {
     //   await this.options.cache.set(cacheKey, internalBundleGraph);
@@ -362,4 +329,44 @@ function summarizeBundle(
   );
 
   bundle.stats.size = size;
+}
+
+async function graphNodes(bundleGraph, nodeIds: Array<string>) {
+  let g = new Graph();
+  let nodes = nodeIds.map(id => nullthrows(bundleGraph.getNode(id)));
+
+  for (let node of nodes) {
+    g.addNode(node);
+  }
+
+  let seen = new Set();
+  let ancestors = [...nodes];
+  do {
+    let node = ancestors.pop();
+    seen.add(node.id);
+
+    let parents = [
+      ...bundleGraph.getNodesConnectedTo(node).map(n => [undefined, n]),
+      ...bundleGraph
+        // $FlowFixMe
+        .getNodesConnectedTo(node, 'references')
+        .map(n => ['references', n]),
+      ...bundleGraph
+        // $FlowFixMe
+        .getNodesConnectedTo(node, 'contains')
+        .map(n => ['contains', n]),
+      // $FlowFixMe
+      ...bundleGraph.getNodesConnectedTo(node, 'bundle').map(n => ['bundle', n])
+    ];
+
+    for (let [type, parent] of parents) {
+      if (!seen.has(parent.id) && parent.type !== 'root') {
+        ancestors.push(parent);
+      }
+      g.addNode(parent);
+      g.addEdge(parent.id, node.id, type);
+    }
+  } while (ancestors.length > 0);
+
+  await dumpGraphToGraphViz(g, 'navigation_asset');
 }

@@ -14,16 +14,12 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
 
-import nullthrows from 'nullthrows';
-
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToInternalAsset} from './Asset';
 import {getBundleGroupId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
-import {environmentToInternalEnvironment} from './Environment';
-import {targetToInternalTarget} from './Target';
 
 export class BundlerBundleGraph implements IBundlerBundleGraph {
   #graph; // InternalBundleGraph
@@ -44,7 +40,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
   addAssetGraphToBundle(
     asset: IAsset,
     bundle: IBundle,
-    bundles: Array<Bundle>
+    bundles: Array<IBundle>
   ) {
     this.#graph.addAssetGraphToBundle(
       assetToInternalAsset(asset).value,
@@ -53,94 +49,24 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     );
   }
 
-  createBundleGroup(dependency: IDependency, target: Target): BundleGroup {
-    let dependencyNode = this.#graph._graph.getNode(dependency.id);
-    if (!dependencyNode) {
-      throw new Error('Dependency not found');
-    }
-
-    let resolved = this.#graph.getDependencyResolution(
-      dependencyToInternalDependency(dependency)
-    );
-    if (!resolved) {
-      throw new Error('Dependency did not resolve to an asset');
-    }
-
-    let bundleGroup: BundleGroup = {
+  createBundleGroup(
+    dependency: IDependency,
+    target: Target,
+    parentBundle: ?IBundle
+  ): BundleGroup {
+    return this.#graph.createBundleGroup(
+      dependencyToInternalDependency(dependency),
       target,
-      entryAssetId: resolved.id
-    };
-
-    let bundleGroupNode = {
-      id: getBundleGroupId(bundleGroup),
-      type: 'bundle_group',
-      value: bundleGroup
-    };
-
-    this.#graph._graph.addNode(bundleGroupNode);
-    let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
-    this.#graph._graph.replaceNodesConnectedTo(bundleGroupNode, assetNodes);
-    this.#graph._graph.removeEdge(dependencyNode.id, resolved.id);
-    this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
-
-    // Traverse upward and connect this bundle group to the bundle(s) that reference it
-    let connectedFromBundles = [];
-    this.#graph._graph.traverseAncestors(
-      dependencyNode,
-      (node, context, actions) => {
-        if (node.id === dependencyNode.id) {
-          return;
-        }
-
-        if (node.type === 'bundle') {
-          connectedFromBundles.push(node);
-          actions.skipChildren();
-        }
-      }
+      parentBundle ? bundleToInternalBundle(parentBundle) : null
     );
-
-    if (connectedFromBundles.length > 0) {
-      for (let bundleNode of connectedFromBundles) {
-        this.#graph._graph.addEdge(bundleNode.id, bundleGroupNode.id, 'bundle');
-      }
-    } else {
-      this.#graph._graph.addEdge(
-        nullthrows(this.#graph._graph.getRootNode()).id,
-        bundleGroupNode.id,
-        'bundle'
-      );
-    }
-
-    return bundleGroup;
   }
 
   createBundle(opts: CreateBundleOpts): Bundle {
-    let bundleId = 'bundle:' + (opts.id ?? nullthrows(opts.entryAsset?.id));
-    let bundleNode = {
-      type: 'bundle',
-      id: bundleId,
-      value: {
-        id: bundleId,
-        type: opts.type ?? nullthrows(opts.entryAsset).type,
-        env: environmentToInternalEnvironment(
-          opts.env ?? nullthrows(opts.entryAsset).env
-        ),
-        entryAssetIds:
-          !opts.isAsync && opts.entryAsset ? [opts.entryAsset.id] : [],
-        filePath: null,
-        isEntry: opts.isEntry,
-        target: targetToInternalTarget(opts.target),
-        name: null,
-        stats: {size: 0, time: 0}
-      }
-    };
-
-    this.#graph._graph.addNode(bundleNode);
-    if (opts.entryAsset != null) {
-      this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
-    }
-
-    return new Bundle(bundleNode.value, this.#graph, this.#options);
+    return new Bundle(
+      this.#graph.createBundle(opts),
+      this.#graph,
+      this.#options
+    );
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {

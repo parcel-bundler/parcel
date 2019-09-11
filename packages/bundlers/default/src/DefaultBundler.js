@@ -35,10 +35,16 @@ export default new Bundler({
       let dependency = node.value;
       let assets = bundleGraph.getDependencyAssets(dependency);
 
+      let parentBundle;
+      if (context && context.parentNode.type === 'asset') {
+        parentBundle = context.bundleByType.get(context.parentNode.value.type);
+      }
+
       if (dependency.isEntry || dependency.isAsync) {
         let bundleGroup = bundleGraph.createBundleGroup(
           dependency,
-          nullthrows(dependency.target ?? context?.bundleGroup?.target)
+          nullthrows(dependency.target ?? context?.bundleGroup?.target),
+          parentBundle
         );
 
         let bundleByType = new Map<string, Bundle>();
@@ -69,7 +75,8 @@ export default new Bundler({
         if (asset.isIsolated) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,
-            context.bundleGroup.target
+            context.bundleGroup.target,
+            parentBundle
           );
           let bundle = bundleGraph.createBundle({
             entryAsset: asset,

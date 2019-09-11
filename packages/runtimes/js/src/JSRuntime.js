@@ -54,8 +54,6 @@ export default new Runtime({
       let bundles = bundleGraph
         .getBundlesInBundleGroup(bundleGroup)
         .sort(bundle => {
-          if (bundle.id === 'bundle:06329b87156ed48fd475f32dffa7e2f4') debugger;
-
           return bundle
             .getEntryAssets()
             .map(asset => asset.id)

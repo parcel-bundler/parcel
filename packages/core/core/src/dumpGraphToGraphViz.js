@@ -43,7 +43,7 @@ export default async function dumpGraphToGraphViz(
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
     n.set('style', 'filled');
-    let label = `${node.type || 'No Type'}: `;
+    let label = `${node.type || 'No Type'}: [[${node.id}]] `;
     if (node.type === 'dependency') {
       label += node.value.moduleSpecifier;
       let parts = [];
