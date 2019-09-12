@@ -87,14 +87,10 @@ export default class BundlerRunner {
       options: this.pluginOptions
     });
 
-    debugger;
-
-    // await graphNodes(bundleGraph, ['560d17f35cf9a4e1151721a0297018c6']);
-
     // await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
-    await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
+    // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     // if (cacheKey != null) {
     //   await this.options.cache.set(cacheKey, internalBundleGraph);
