@@ -1,6 +1,4 @@
 // @flow strict-local
-import type {Blob} from '@parcel/types';
-
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
 import {Bundle, BundleGraph} from '@parcel/types';
@@ -61,7 +59,7 @@ async function getAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
   assetId
-): Promise<?Blob> {
+): Promise<?string> {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
@@ -77,7 +75,17 @@ async function getAssetContent(
       bundleGraph
     );
 
-    return bundleResult.contents;
+    let inlineSourceMap = '';
+    if (bundleResult.map !== null) {
+      inlineSourceMap = `@ sourceMappingURL=${bundleResult.map.toString()}`;
+      inlineSourceMap =
+        '\n' +
+        (inlineBundle.type === 'js'
+          ? `//${inlineSourceMap}`
+          : `/*${inlineSourceMap}*/`);
+    }
+
+    return bundleResult.contents.toString() + inlineSourceMap;
   }
 
   return null;

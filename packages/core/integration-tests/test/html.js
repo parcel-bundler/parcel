@@ -607,6 +607,12 @@ describe('html', function() {
       'utf-8'
     );
 
+    assert(
+      html.includes(
+        '\n//@ sourceMappingURL=data:application/json;charset=utf-8;base64,ey'
+      )
+    );
+
     assert(!html.includes('someArgument'));
   });
 
