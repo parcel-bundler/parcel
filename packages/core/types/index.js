@@ -485,8 +485,7 @@ export type CreateBundleOpts =
       target: Target,
       isEntry?: ?boolean,
       type?: ?string,
-      env?: ?Environment,
-      isAsync?: boolean
+      env?: ?Environment
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
