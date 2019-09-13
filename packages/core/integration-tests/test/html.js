@@ -610,7 +610,7 @@ describe.only('html', function() {
     assert(!html.includes('someArgument'));
   });
 
-  it.only('should process inline JS', async function() {
+  it('should add an inline sourcemap to inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {minify: false}
