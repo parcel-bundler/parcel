@@ -14,7 +14,13 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, sourceMapPath, options}) {
+  async package({
+    bundle,
+    bundleGraph,
+    generateSourceMap,
+    sourceMapPath,
+    options
+  }) {
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
@@ -126,7 +132,7 @@ export default new Packager({
           'null' +
           ')\n\n' +
           '//# sourceMappingURL=' +
-          sourceMapPath +
+          (bundle.isInline ? await generateSourceMap(map) : sourceMapPath) +
           '\n'),
       map
     };

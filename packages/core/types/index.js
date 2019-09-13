@@ -650,6 +650,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: PluginOptions,
     sourceMapPath: FilePath,
+    generateSourceMap: (map: SourceMap) => Promise<string>,
     getInlineBundleContents: (
       Bundle,
       BundleGraph

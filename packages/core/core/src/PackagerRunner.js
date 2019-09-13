@@ -147,6 +147,8 @@ export default class PackagerRunner {
     let packaged = await packager.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
+      generateSourceMap: map =>
+        this.generateSourceMap(bundleToInternalBundle(bundle), map),
       sourceMapPath: path.basename(bundle.filePath) + '.map',
       options: this.pluginOptions,
       getInlineBundleContents: (
