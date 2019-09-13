@@ -221,6 +221,13 @@ export default class BundleGraph {
       });
   }
 
+  getAssetById(assetId: string): ?Asset {
+    let node = this._graph.getNode(assetId);
+    if (node && node.type === 'asset') {
+      return node.value;
+    }
+  }
+
   getDependencyAssets(dependency: Dependency): Array<Asset> {
     let dependencyNode = nullthrows(this._graph.getNode(dependency.id));
     return this._graph

@@ -27,6 +27,13 @@ export default class BundleGraph implements IBundleGraph {
     this.#options = options;
   }
 
+  getAssetById(assetId: string): ?Asset {
+    let internalAsset = this.#graph.getAssetById(assetId);
+    if (internalAsset) {
+      return assetFromValue(internalAsset, this.#options);
+    }
+  }
+
   getDependencyResolution(dep: IDependency): ?Asset {
     let resolution = this.#graph.getDependencyResolution(
       dependencyToInternalDependency(dep)

@@ -95,7 +95,6 @@ export default class BundlerRunner {
 
     await graphNodes(bundleGraph, []);
 
-    debugger;
     // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     // if (cacheKey != null) {

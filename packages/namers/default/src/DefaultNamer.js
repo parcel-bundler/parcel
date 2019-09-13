@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Bundle, FilePath} from '@parcel/types';
+import type {Bundle, BundleGraph, BundleGroup, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
 import assert from 'assert';
@@ -19,9 +19,8 @@ export default new Namer({
       return bundle.filePath;
     }
 
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(
-      bundleGraph.getBundleGroupsContainingBundle(bundle)[0]
-    );
+    let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
     if (bundle.isEntry) {
       let entryBundlesOfType = bundleGroupBundles.filter(
@@ -47,9 +46,12 @@ export default new Namer({
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
-    let name = firstBundleInGroup.getMainEntry()
-      ? nameFromContent(firstBundleInGroup, options.rootDir)
-      : Math.floor(Math.random() * 100000000000).toString(16);
+    let name = nameFromContent(
+      bundle,
+      bundleGroup,
+      bundleGraph,
+      options.rootDir
+    );
     if (!bundle.isEntry) {
       name += '.' + bundle.getHash().slice(-8);
     }
@@ -57,8 +59,15 @@ export default new Namer({
   }
 });
 
-function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
-  let entryFilePath = nullthrows(bundle.getMainEntry()).filePath;
+function nameFromContent(
+  bundle: Bundle,
+  bundleGroup: BundleGroup,
+  bundleGraph: BundleGraph,
+  rootDir: FilePath
+): string {
+  let entryFilePath = nullthrows(
+    bundleGraph.getAssetById(bundleGroup.entryAssetId)
+  ).filePath;
   let name = path.basename(entryFilePath, path.extname(entryFilePath));
 
   // If this is an entry bundle, use the original relative path.

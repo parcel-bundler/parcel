@@ -564,6 +564,7 @@ export type BundleGroup = {
 };
 
 export interface BundleGraph {
+  getAssetById(id: string): ?Asset;
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundleGroupsReferencedByBundle(
