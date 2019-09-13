@@ -50,13 +50,16 @@ export default new Bundler({
         let bundleByType = new Map<string, Bundle>();
         for (let asset of assets) {
           let bundle = bundleGraph.createBundle({
-            entryAsset: asset,
+            entryAsset: dependency.isAsync ? null : asset,
+            id: asset.id,
+            type: asset.type,
+            env: asset.env,
             isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
-            target: bundleGroup.target,
-            isAsync: dependency.isAsync
+            target: bundleGroup.target
           });
           bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           if (dependency.isAsync) {
+            bundleGraph.addAssetToBundle(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
           }
           bundleByType.set(bundle.type, bundle);
