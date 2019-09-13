@@ -87,9 +87,15 @@ export default class BundlerRunner {
       options: this.pluginOptions
     });
 
+    internalBundleGraph.connectBundleGroups();
+
     // await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
+
+    await graphNodes(bundleGraph, []);
+
+    debugger;
     // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     // if (cacheKey != null) {
@@ -328,6 +334,9 @@ function summarizeBundle(
 }
 
 async function graphNodes(bundleGraph, nodeIds: Array<string>) {
+  if (nodeIds.length === 0) {
+    return;
+  }
   let g = new Graph();
   let nodes = nodeIds.map(id => nullthrows(bundleGraph.getNode(id)));
 
@@ -339,6 +348,7 @@ async function graphNodes(bundleGraph, nodeIds: Array<string>) {
   let ancestors = [...nodes];
   do {
     let node = ancestors.pop();
+    if (!node) return;
     seen.add(node.id);
 
     let parents = [

@@ -184,6 +184,30 @@ export default class BundleGraph {
     return bundleGroup;
   }
 
+  connectBundleGroups(): void {
+    this._graph.filteredTraverse(
+      node => (node.type === 'bundle_group' ? node : null),
+      bundleGroupNode => {
+        let dependencyNodes = this._graph
+          .getNodesConnectedTo(bundleGroupNode)
+          .filter(node => node.type === 'dependency');
+
+        for (let dependencyNode of dependencyNodes) {
+          invariant(dependencyNode.type === 'dependency');
+          for (let bundleNode of this._graph.getNodesConnectedTo(
+            dependencyNode,
+            'contains'
+          )) {
+            invariant(bundleNode.type === 'bundle');
+            this._graph.addEdge(bundleNode.id, bundleGroupNode.id, 'bundle');
+          }
+        }
+      },
+      null,
+      'bundle'
+    );
+  }
+
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
     return this._graph
       .getNodesConnectedTo(
