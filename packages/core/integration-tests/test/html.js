@@ -11,7 +11,7 @@ const {
 } = require('@parcel/test-utils');
 const path = require('path');
 
-describe.only('html', function() {
+describe('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
