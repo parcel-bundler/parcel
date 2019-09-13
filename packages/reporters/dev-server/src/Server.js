@@ -20,6 +20,7 @@ import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
 import httpProxyMiddleware from 'http-proxy-middleware';
+import {URL} from 'url';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,6 +50,7 @@ type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
+  rootPath: ?string;
   bundleGraph: BundleGraph | null;
   error: PrintableError | null;
   server: HTTPServer | HTTPSServer;
@@ -57,6 +59,11 @@ export default class Server extends EventEmitter {
     super();
 
     this.options = options;
+    try {
+      this.rootPath = new URL(options.publicUrl).pathname;
+    } catch (e) {
+      this.rootPath = options.publicUrl;
+    }
     this.pending = true;
     this.bundleGraph = null;
     this.error = null;
@@ -81,8 +88,8 @@ export default class Server extends EventEmitter {
       return this.send500(req, res);
     } else if (
       !pathname ||
-      !pathname.startsWith(this.options.publicUrl) ||
-      path.extname(pathname) === ''
+      ((this.rootPath != null && !pathname.startsWith(this.rootPath)) ||
+        path.extname(pathname) === '')
     ) {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
@@ -98,7 +105,7 @@ export default class Server extends EventEmitter {
       );
     } else {
       // Otherwise, serve the file from the dist folder
-      req.url = pathname.slice(this.options.publicUrl.length);
+      req.url = this.rootPath ? pathname.slice(this.rootPath.length) : pathname;
       return this.serveDist(req, res, () => this.sendIndex(req, res));
     }
   }
