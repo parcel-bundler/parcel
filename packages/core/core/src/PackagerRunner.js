@@ -19,10 +19,15 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 
-import {localResolve} from '@parcel/local-require';
-import {NamedBundle} from './public/Bundle';
+import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
+import {
+  Bundle as BundleType,
+  BundleGraph as BundleGraphType
+} from '@parcel/types';
 import {report} from './ReporterRunner';
-import BundleGraph from './public/BundleGraph';
+import BundleGraph, {
+  bundleGraphToInternalBundleGraph
+} from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -44,37 +49,49 @@ export default class PackagerRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
+  async getBundleResult(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph
+  ): Promise<{|contents: Blob, map: Readable | string | null|}> {
+    let result, cacheKey;
+    if (!this.options.disableCache) {
+      cacheKey = await this.getCacheKey(bundle, bundleGraph);
+      let cacheResult: ?{|
+        contents: Readable,
+        map: ?Readable
+      |} = await this.readFromCache(cacheKey);
+
+      if (cacheResult) {
+        result = cacheResult;
+      }
+    }
+
+    let packaged = await this.package(bundle, bundleGraph);
+    let res = await this.optimize(
+      bundle,
+      bundleGraph,
+      packaged.contents,
+      packaged.map
+    );
+
+    let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+    result = {
+      contents: res.contents,
+      map
+    };
+
+    if (cacheKey != null) {
+      await this.writeToCache(cacheKey, result.contents, map);
+    }
+
+    return result;
+  }
+
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let {inputFS, outputFS} = this.options;
     let start = Date.now();
 
-    let result, cacheKey;
-    if (!this.options.disableCache) {
-      cacheKey = await this.getCacheKey(bundle, bundleGraph);
-      result = await this.readFromCache(cacheKey);
-    }
-
-    if (!result) {
-      let packaged = await this.package(bundle, bundleGraph);
-      let res = await this.optimize(
-        bundle,
-        bundleGraph,
-        packaged.contents,
-        packaged.map
-      );
-
-      let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
-      result = {
-        contents: res.contents,
-        map
-      };
-
-      if (cacheKey != null) {
-        await this.writeToCache(cacheKey, result.contents, map);
-      }
-    }
-
-    let {contents, map} = result;
+    let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
@@ -131,7 +148,22 @@ export default class PackagerRunner {
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
       sourceMapPath: path.basename(bundle.filePath) + '.map',
-      options: this.pluginOptions
+      options: this.pluginOptions,
+      getInlineBundleContents: (
+        bundle: BundleType,
+        bundleGraph: BundleGraphType
+      ) => {
+        if (!bundle.isInline) {
+          throw new Error(
+            'Bundle is not inline and unable to retireve contents'
+          );
+        }
+
+        return this.getBundleResult(
+          bundleToInternalBundle(bundle),
+          bundleGraphToInternalBundleGraph(bundleGraph)
+        );
+      }
     });
 
     return {
@@ -230,7 +262,7 @@ export default class PackagerRunner {
     let optimizers = this.config.getOptimizerNames(filePath);
     let deps = Promise.all(
       [packager, ...optimizers].map(async pkg => {
-        let [, resolvedPkg] = await localResolve(
+        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
           `${pkg}/package.json`,
           `${this.config.filePath}/index` // TODO: is this right?
         );
@@ -251,11 +283,10 @@ export default class PackagerRunner {
 
   async readFromCache(
     cacheKey: string
-  ): Promise<?{
+  ): Promise<?{|
     contents: Readable,
-    map: ?Readable,
-    ...
-  }> {
+    map: ?Readable
+  |}> {
     let contentKey = md5FromString(`${cacheKey}:content`);
     let mapKey = md5FromString(`${cacheKey}:map`);
 

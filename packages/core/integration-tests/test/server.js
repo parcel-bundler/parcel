@@ -6,6 +6,7 @@ const {
   getNextBuild,
   inputFS,
   outputFS,
+  overlayFS,
   defaultConfig,
   ncp
 } = require('@parcel/test-utils');
@@ -14,7 +15,7 @@ const https = require('https');
 const getPort = require('get-port');
 const sinon = require('sinon');
 
-const distDir = path.resolve(__dirname, '../../../../.parcel-cache/dist');
+const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = {
   ...defaultConfig,
   reporters: ['@parcel/reporter-dev-server']
@@ -94,7 +95,7 @@ describe('server', function() {
     await getNextBuild(b);
 
     let data = await get(
-      '/__parcel_source_root/packages/core/integration-tests/test/integration/commonjs/index.js',
+      '/__parcel_source_root/integration/commonjs/index.js',
       port
     );
     let inputFile = await inputFS.readFile(inputPath, 'utf8');
@@ -161,7 +162,7 @@ describe('server', function() {
     let entry = path.join(inputDir, 'index.js');
 
     let b = bundler(entry, {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       config,
       serve: {
         https: false,
@@ -184,8 +185,6 @@ describe('server', function() {
     } catch (err) {
       statusCode = err.statusCode;
       assert(err.data.includes('Expecting Unicode escape sequence'));
-    } finally {
-      await subscription.unsubscribe();
     }
 
     assert.equal(statusCode, 500);

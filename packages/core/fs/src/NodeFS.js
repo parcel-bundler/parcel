@@ -27,6 +27,7 @@ export class NodeFS implements FileSystem {
   stat = promisify(fs.stat);
   readdir = promisify(fs.readdir);
   unlink = promisify(fs.unlink);
+  utimes = promisify(fs.utimes);
   mkdirp = promisify(mkdirp);
   rimraf = promisify(rimraf);
   ncp = promisify(ncp);
@@ -34,6 +35,11 @@ export class NodeFS implements FileSystem {
   createWriteStream = fs.createWriteStream;
   cwd = process.cwd;
   chdir = process.chdir;
+
+  readFileSync = fs.readFileSync;
+  statSync = fs.statSync;
+  realpathSync = fs.realpathSync;
+  existsSync = fs.existsSync;
 
   async realpath(originalPath: string): Promise<string> {
     try {

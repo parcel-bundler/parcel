@@ -1,0 +1,1 @@
+# Fake yarn.lock so that Parcel looks no further for a project root

@@ -8,6 +8,7 @@
 .*/.parcel-cache/.*
 <PROJECT_ROOT>/packages/core/integration-tests/dist/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/input/**
+<PROJECT_ROOT>/packages/core/integration-tests/test/integration/**
 
 [include]
 
@@ -34,4 +35,4 @@ untyped-import
 untyped-type-import
 
 [version]
-0.105.2
+0.107.0

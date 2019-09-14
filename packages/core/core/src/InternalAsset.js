@@ -3,7 +3,7 @@
 import type {
   AST,
   Blob,
-  Config,
+  ConfigResult,
   DependencyOptions,
   File,
   FilePath,
@@ -38,37 +38,44 @@ type AssetOptions = {|
   contentKey?: ?string,
   mapKey?: ?string,
   dependencies?: Map<string, Dependency>,
-  connectedFiles?: Map<FilePath, File>,
+  includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
+  isInline?: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
-  sideEffects?: boolean
+  sideEffects?: boolean,
+  uniqueKey?: ?string
 |};
 
 export function createAsset(options: AssetOptions): Asset {
   let idBase = options.idBase != null ? options.idBase : options.filePath;
+  let uniqueKey = options.uniqueKey || '';
   return {
     id:
       options.id != null
         ? options.id
-        : md5FromString(idBase + options.type + JSON.stringify(options.env)),
+        : md5FromString(
+            idBase + options.type + JSON.stringify(options.env) + uniqueKey
+          ),
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
+    isInline: options.isInline == null ? false : options.isInline,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
     dependencies: options.dependencies || new Map(),
-    connectedFiles: options.connectedFiles || new Map(),
+    includedFiles: options.includedFiles || new Map(),
     outputHash: options.outputHash || '',
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
     symbols: options.symbols || new Map(),
-    sideEffects: options.sideEffects != null ? options.sideEffects : true
+    sideEffects: options.sideEffects != null ? options.sideEffects : true,
+    uniqueKey: uniqueKey
   };
 }
 
@@ -232,16 +239,16 @@ export default class InternalAsset {
     return dep.id;
   }
 
-  async addConnectedFile(file: File) {
+  async addIncludedFile(file: File) {
     if (file.hash == null) {
       file.hash = await md5FromFilePath(this.options.inputFS, file.filePath);
     }
 
-    this.value.connectedFiles.set(file.filePath, file);
+    this.value.includedFiles.set(file.filePath, file);
   }
 
-  getConnectedFiles(): Array<File> {
-    return Array.from(this.value.connectedFiles.values());
+  getIncludedFiles(): Array<File> {
+    return Array.from(this.value.includedFiles.values());
   }
 
   getDependencies(): Array<Dependency> {
@@ -270,20 +277,22 @@ export default class InternalAsset {
         hash,
         filePath: this.value.filePath,
         type: result.type,
-        isIsolated: result.isIsolated,
+        isIsolated: result.isIsolated || this.value.isIsolated,
+        isInline: result.isInline || this.value.isInline,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
           this.value.type === result.type
             ? new Map(this.value.dependencies)
             : new Map(),
-        connectedFiles: new Map(this.value.connectedFiles),
+        includedFiles: new Map(this.value.includedFiles),
         meta: {...this.value.meta, ...result.meta},
         stats: {
           time: 0,
           size
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
-        sideEffects: result.sideEffects ?? this.value.sideEffects
+        sideEffects: result.sideEffects ?? this.value.sideEffects,
+        uniqueKey: result.uniqueKey
       }),
       options: this.options,
       content,
@@ -299,10 +308,10 @@ export default class InternalAsset {
       }
     }
 
-    let connectedFiles = result.connectedFiles;
-    if (connectedFiles) {
-      for (let file of connectedFiles) {
-        asset.addConnectedFile(file);
+    let includedFiles = result.includedFiles;
+    if (includedFiles) {
+      for (let file of includedFiles) {
+        asset.addIncludedFile(file);
       }
     }
 
@@ -316,7 +325,7 @@ export default class InternalAsset {
       parse?: boolean,
       ...
     }
-  ): Promise<Config | null> {
+  ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;
 
@@ -338,7 +347,7 @@ export default class InternalAsset {
     }
 
     for (let file of conf.files) {
-      this.addConnectedFile(file);
+      this.addIncludedFile(file);
     }
 
     return conf.config;

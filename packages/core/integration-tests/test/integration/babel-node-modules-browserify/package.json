@@ -1,4 +1,0 @@
-{
-  "name": "parcel-test-browser-browserslist",
-  "browserslist": ["last 2 Chrome versions", "IE >= 11"]
-}

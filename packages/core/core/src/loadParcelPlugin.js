@@ -1,18 +1,22 @@
 // @flow
 import semver from 'semver';
 
-import {localResolve} from '@parcel/local-require';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
 import type {FilePath, PackageName} from '@parcel/types';
+import type {PackageManager} from '@parcel/package-manager';
 
 const PARCEL_VERSION = require('../package.json').version;
 
 export default async function loadPlugin(
+  packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath
 ) {
-  let [resolved, pkg] = await localResolve(pluginName, `${resolveFrom}/index`);
+  let {resolved, pkg} = await packageManager.resolve(
+    pluginName,
+    `${resolveFrom}/index`
+  );
 
   // Validate the engines.parcel field in the plugin's package.json
   let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
@@ -31,8 +35,7 @@ export default async function loadPlugin(
     );
   }
 
-  // $FlowFixMe
-  let plugin = require(resolved);
+  let plugin = await packageManager.require(resolved, `${resolveFrom}/index`);
   plugin = plugin.default ? plugin.default : plugin;
   plugin = plugin[CONFIG];
   return plugin;

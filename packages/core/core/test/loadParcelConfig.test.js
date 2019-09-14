@@ -13,9 +13,9 @@ import {
   mergeConfigs,
   resolveExtends,
   readAndProcess,
-  resolve
+  resolveParcelConfig
 } from '../src/loadParcelConfig';
-import {inputFS as fs} from '@parcel/test-utils';
+import {DEFAULT_OPTIONS} from './utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
@@ -242,6 +242,12 @@ describe('loadParcelConfig', () => {
         '.parcelrc'
       );
     });
+
+    it('should throw error on empty config file', () => {
+      assert.throws(() => {
+        validateConfigFile({}, '.parcelrc');
+      }, /.parcelrc can't be empty/);
+    });
   });
 
   describe('mergePipelines', () => {
@@ -334,15 +340,18 @@ describe('loadParcelConfig', () => {
 
   describe('mergeConfigs', () => {
     it('should merge configs', () => {
-      let base = new ParcelConfig({
-        filePath: '.parcelrc',
-        resolvers: ['parcel-resolver-base'],
-        transforms: {
-          '*.js': ['parcel-transform-base'],
-          '*.css': ['parcel-transform-css']
+      let base = new ParcelConfig(
+        {
+          filePath: '.parcelrc',
+          resolvers: ['parcel-resolver-base'],
+          transforms: {
+            '*.js': ['parcel-transform-base'],
+            '*.css': ['parcel-transform-css']
+          },
+          bundler: 'parcel-bundler-base'
         },
-        bundler: 'parcel-bundler-base'
-      });
+        DEFAULT_OPTIONS.packageManager
+      );
 
       let ext = {
         filePath: '.parcelrc',
@@ -352,20 +361,23 @@ describe('loadParcelConfig', () => {
         }
       };
 
-      let merged = new ParcelConfig({
-        filePath: '.parcelrc',
-        resolvers: ['parcel-resolver-ext', 'parcel-resolver-base'],
-        transforms: {
-          '*.js': ['parcel-transform-ext', 'parcel-transform-base'],
-          '*.css': ['parcel-transform-css']
+      let merged = new ParcelConfig(
+        {
+          filePath: '.parcelrc',
+          resolvers: ['parcel-resolver-ext', 'parcel-resolver-base'],
+          transforms: {
+            '*.js': ['parcel-transform-ext', 'parcel-transform-base'],
+            '*.css': ['parcel-transform-css']
+          },
+          bundler: 'parcel-bundler-base',
+          runtimes: {},
+          namers: [],
+          optimizers: {},
+          packagers: {},
+          reporters: []
         },
-        bundler: 'parcel-bundler-base',
-        runtimes: {},
-        namers: [],
-        optimizers: {},
-        packagers: {},
-        reporters: []
-      });
+        DEFAULT_OPTIONS.packageManager
+      );
 
       assert.deepEqual(mergeConfigs(base, ext), merged);
     });
@@ -374,9 +386,9 @@ describe('loadParcelConfig', () => {
   describe('resolveExtends', () => {
     it('should resolve a relative path', async () => {
       let resolved = await resolveExtends(
-        fs,
         '../.parcelrc',
-        path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc')
+        path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
+        DEFAULT_OPTIONS
       );
       assert.equal(
         resolved,
@@ -386,9 +398,9 @@ describe('loadParcelConfig', () => {
 
     it('should resolve a package name', async () => {
       let resolved = await resolveExtends(
-        fs,
         '@parcel/config-default',
-        path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc')
+        path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
+        DEFAULT_OPTIONS
       );
       assert.equal(resolved, require.resolve('@parcel/config-default'));
     });
@@ -397,11 +409,9 @@ describe('loadParcelConfig', () => {
   describe('readAndProcess', () => {
     it('should load and merge configs', async () => {
       let defaultConfig = require('@parcel/config-default');
-      // $FlowFixMe
       let {config} = await readAndProcess(
-        fs,
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
-        __dirname
+        DEFAULT_OPTIONS
       );
 
       assert.deepEqual(config.transforms['*.js'], [
@@ -421,14 +431,14 @@ describe('loadParcelConfig', () => {
 
   describe('resolve', () => {
     it('should return null if there is no .parcelrc file found', async () => {
-      let resolved = await resolve(fs, __dirname);
+      let resolved = await resolveParcelConfig(__dirname, DEFAULT_OPTIONS);
       assert.equal(resolved, null);
     });
 
     it('should resolve a config if a .parcelrc file is found', async () => {
-      let resolved = await resolve(
-        fs,
-        path.join(__dirname, 'fixtures', 'config', 'subfolder')
+      let resolved = await resolveParcelConfig(
+        path.join(__dirname, 'fixtures', 'config', 'subfolder'),
+        DEFAULT_OPTIONS
       );
 
       assert(resolved !== null);

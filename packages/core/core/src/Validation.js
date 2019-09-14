@@ -10,10 +10,9 @@ import type {
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 
-import nullthrows from 'nullthrows';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
-import {localRequireFromWorker} from '@parcel/local-require';
 
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
@@ -61,16 +60,17 @@ export default class Validation {
     });
 
     let asset = await this.loadAsset();
+
     let configRequest = {
       filePath: this.request.filePath,
       meta: {
         actionType: 'validation'
-      }
+      },
+      env: this.request.env
     };
 
     let config = await this.loadConfig(configRequest);
     let parcelConfig: ParcelConfig = nullthrows(config.result);
-    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
@@ -86,15 +86,13 @@ export default class Validation {
               this.options.inputFS,
               asset.value.filePath,
               configNames
-            ),
-          localRequire
+            )
         });
       }
 
       await validator.validate({
         asset: new Asset(asset),
         options: pluginOptions,
-        localRequire,
         config
       });
     }

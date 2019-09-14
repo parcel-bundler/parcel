@@ -10,7 +10,7 @@ import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
 export default new Transformer({
-  async getConfig({asset, localRequire}) {
+  async getConfig({asset, options}) {
     let config = await asset.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
       {
@@ -21,11 +21,7 @@ export default new Transformer({
     config = config || {};
 
     // load plugins
-    config.plugins = await loadPlugins(
-      localRequire,
-      config.plugins,
-      asset.filePath
-    );
+    config.plugins = await loadPlugins(config.plugins, asset.filePath, options);
 
     // tells posthtml that we have already called parse
     config.skipParse = true;
@@ -64,7 +60,7 @@ export default new Transformer({
       await Promise.all(
         res.messages.map(({type, file: filePath}) => {
           if (type === 'dependency') {
-            return asset.addConnectedFile({filePath});
+            return asset.addIncludedFile({filePath});
           }
           return Promise.resolve();
         })

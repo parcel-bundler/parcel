@@ -1,17 +1,15 @@
 // @flow strict-local
 
 import type {FilePath, Glob} from '@parcel/types';
+import type {Event} from '@parcel/watcher';
 import type {Config, ParcelOptions} from './types';
 
 import invariant from 'assert';
 //$FlowFixMe
 import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
-import path from 'path';
 
-import {localResolve} from '@parcel/local-require';
-import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {Event} from '@parcel/watcher';
+import {PromiseQueue, md5FromObject} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 import {addDevDependency} from './InternalConfig';
@@ -59,11 +57,11 @@ const nodeFromDepPathRequest = (dep: Dependency) => ({
 });
 
 const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
-  id: md5FromString(
-    `${configRequest.filePath}:${
-      configRequest.plugin != null ? configRequest.plugin : 'parcel'
-    }`
-  ),
+  id: md5FromObject({
+    filePath: configRequest.filePath,
+    plugin: configRequest.plugin,
+    env: configRequest.env
+  }),
   type: 'config_request',
   value: configRequest
 });
@@ -107,6 +105,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   config: ParcelConfig;
   options: ParcelOptions;
   globNodeIds: Set<NodeId> = new Set();
+  // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
+  // filesystem changes alone. They should rerun on each startup of Parcel.
+  unpredicatableNodeIds: Set<NodeId> = new Set();
   depVersionRequestNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe
@@ -115,6 +116,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe
     return deserialized;
   }
@@ -125,6 +127,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       ...super.serialize(),
       invalidNodeIds: this.invalidNodeIds,
       globNodeIds: this.globNodeIds,
+      unpredicatableNodeIds: this.unpredicatableNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
     };
   }
@@ -172,13 +175,16 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   addNode(node: RequestGraphNode) {
-    this.invalidNodeIds.add(node.id);
-    if (node.type === 'glob') {
-      this.globNodeIds.add(node.id);
-    } else if (node.type === 'dep_version_request') {
-      this.depVersionRequestNodeIds.add(node.id);
+    if (!this.hasNode(node.id)) {
+      this.processNode(node);
+
+      if (node.type === 'glob') {
+        this.globNodeIds.add(node.id);
+      } else if (node.type === 'dep_version_request') {
+        this.depVersionRequestNodeIds.add(node.id);
+      }
     }
-    this.processNode(node);
+
     return super.addNode(node);
   }
 
@@ -187,8 +193,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       this.globNodeIds.delete(node.id);
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.delete(node.id);
+    } else if (node.type === 'config_request') {
+      this.unpredicatableNodeIds.delete(node.id);
     }
-    this.invalidNodeIds.delete(node.id);
     return super.removeNode(node);
   }
 
@@ -302,7 +309,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
       return assets;
     } catch (e) {
-      // TODO: add connectedFiles even if it failed so we can try a rebuild if those files change
+      // TODO: add includedFiles even if it failed so we can try a rebuild if those files change
       throw e;
     }
   }
@@ -336,10 +343,11 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     for (let [moduleSpecifier, version] of config.devDeps) {
       let depVersionRequest = {
         moduleSpecifier,
-        resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
+        resolveFrom: config.resolvedPath, // TODO: resolveFrom should be nearest package boundary
+        result: version
       };
       let depVersionRequestNode = nodeFromDepVersionRequest(depVersionRequest);
-      if (!this.hasNode(depVersionRequestNode.id)) {
+      if (!this.hasNode(depVersionRequestNode.id) || version) {
         this.addNode(depVersionRequestNode);
       }
       this.addEdge(configRequestNode.id, depVersionRequestNode.id);
@@ -386,20 +394,31 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       node => node.type === 'file' || node.type === 'glob'
     );
 
+    if (config.shouldInvalidateOnStartup) {
+      this.unpredicatableNodeIds.add(configRequestNode.id);
+    } else {
+      this.unpredicatableNodeIds.delete(configRequestNode.id);
+    }
+
     return config;
   }
 
   async runDepVersionRequest(requestNode: DepVersionRequestNode) {
     let {value: request} = requestNode;
-    let {moduleSpecifier, resolveFrom} = request;
-    let [, resolvedPkg] = await localResolve(
-      `${moduleSpecifier}/package.json`,
-      `${resolveFrom}/index`
-    );
+    let {moduleSpecifier, resolveFrom, result} = request;
 
-    // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
-    let version = nullthrows(resolvedPkg).version;
-    request.result = version;
+    let version = result;
+
+    if (version == null) {
+      let {pkg} = await this.options.packageManager.resolve(
+        `${moduleSpecifier}/package.json`,
+        `${resolveFrom}/index`
+      );
+
+      // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
+      version = nullthrows(pkg).version;
+      request.result = version;
+    }
 
     return version;
   }
@@ -463,6 +482,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         throw new Error(
           `Cannot invalidate node with unrecognized type ${node.type}`
         );
+    }
+  }
+
+  invalidateUnpredictableNodes() {
+    for (let nodeId of this.unpredicatableNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type !== 'file' && node.type !== 'glob');
+      this.invalidateNode(node);
     }
   }
 

@@ -6,10 +6,9 @@ import nullthrows from 'nullthrows';
 
 import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {resolve} from '../src/loadParcelConfig';
 import {createDependency} from '../src/Dependency';
 import {createEnvironment} from '../src/Environment';
-import {inputFS} from '@parcel/test-utils';
+import {resolveParcelConfig} from '../src/loadParcelConfig';
 import {DEFAULT_OPTIONS} from './utils';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
@@ -49,8 +48,9 @@ describe('AssetGraphBuilder', function() {
   });
 
   beforeEach(async () => {
-    config = nullthrows(await resolve(inputFS, path.join(CONFIG_DIR, 'index')))
-      .config;
+    config = nullthrows(
+      await resolveParcelConfig(path.join(CONFIG_DIR, 'index'), DEFAULT_OPTIONS)
+    ).config;
 
     builder = new AssetGraphBuilder();
     await builder.init({

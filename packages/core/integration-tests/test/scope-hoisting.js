@@ -1334,6 +1334,7 @@ describe('scope hoisting', function() {
     });
 
     it('should support wrapping array destructuring declarations', async function() {
+      this.timeout(70000);
       let b = await bundle(
         path.join(
           __dirname,

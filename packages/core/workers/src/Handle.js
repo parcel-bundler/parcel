@@ -13,6 +13,7 @@ export type HandleFunction = (...args: Array<any>) => any;
 
 type HandleOpts = {|
   fn: HandleFunction,
+  childId?: ?number,
   workerApi: WorkerApi
 |};
 
@@ -20,12 +21,14 @@ const handleById: Map<number, Handle> = new Map();
 
 export default class Handle {
   id: number;
+  childId: ?number;
   fn: HandleFunction;
   workerApi: WorkerApi;
 
   constructor(opts: HandleOpts) {
     this.id = ++HANDLE_ID;
     this.fn = opts.fn;
+    this.childId = opts.childId;
     this.workerApi = opts.workerApi;
     handleById.set(this.id, this);
   }
@@ -36,11 +39,12 @@ export default class Handle {
 
   serialize() {
     return {
-      id: this.id
+      id: this.id,
+      childId: this.childId
     };
   }
 
-  static deserialize(opts: {|id: number|}) {
+  static deserialize(opts: {|id: number, childId?: number|}) {
     return function(...args: Array<mixed>) {
       let workerApi;
       if (child) {
@@ -53,6 +57,14 @@ export default class Handle {
           );
         }
         workerApi = handle.workerApi;
+      }
+
+      if (opts.childId != null && child) {
+        throw new Error('Cannot call another child from a child');
+      }
+
+      if (opts.childId != null && workerApi.callChild) {
+        return workerApi.callChild(opts.childId, {handle: opts.id, args});
       }
 
       return workerApi.callMaster({handle: opts.id, args}, true);

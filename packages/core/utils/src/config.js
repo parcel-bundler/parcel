@@ -1,12 +1,12 @@
 // @flow
 
-import type {Config, File, FilePath} from '@parcel/types';
+import type {ConfigResult, File, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import clone from 'clone';
 
 type ConfigOutput = {|
-  config: Config,
+  config: ConfigResult,
   files: Array<File>
 |};
 

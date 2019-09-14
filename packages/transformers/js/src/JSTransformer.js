@@ -75,7 +75,7 @@ export default new Transformer({
     let code = await asset.getCode();
 
     // Inline environment variables
-    if (!asset.env.isNode() && ENV_RE.test(code)) {
+    if (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) {
       walk.simple(ast.program, envVisitor, {asset, env: options.env});
     }
 

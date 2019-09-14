@@ -123,6 +123,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
         entryAssetIds: opts.entryAsset ? [opts.entryAsset.id] : [],
         filePath: null,
         isEntry: opts.isEntry,
+        isInline: opts.isInline,
         target: targetToInternalTarget(opts.target),
         name: null,
         stats: {size: 0, time: 0}
@@ -208,15 +209,6 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
-  }
-
-  getDependenciesInBundle(bundle: IBundle, asset: IAsset): Array<IDependency> {
-    return this.#graph
-      .getDependenciesInBundle(
-        bundleToInternalBundle(bundle),
-        assetToInternalAsset(asset).value
-      )
-      .map(dep => new Dependency(dep));
   }
 
   getTotalSize(asset: IAsset): number {

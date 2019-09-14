@@ -12,7 +12,7 @@ import Parcel, {createWorkerFarm} from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
-import {NodeFS, MemoryFS} from '@parcel/fs';
+import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
@@ -20,31 +20,16 @@ import nullthrows from 'nullthrows';
 import {syncPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
+import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
 export const outputFS = new MemoryFS(workerFarm);
+export const overlayFS = new OverlayFS(outputFS, inputFS);
 
 // Recursively copies a directory from the inputFS to the outputFS
 export async function ncp(source: FilePath, destination: FilePath) {
-  await outputFS.mkdirp(destination);
-  let files = await inputFS.readdir(source);
-  for (let file of files) {
-    let sourcePath = path.join(source, file);
-    let destPath = path.join(destination, file);
-    let stats = await inputFS.stat(sourcePath);
-    if (stats.isFile()) {
-      await new Promise((resolve, reject) => {
-        inputFS
-          .createReadStream(sourcePath)
-          .pipe(outputFS.createWriteStream(destPath))
-          .on('finish', () => resolve())
-          .on('error', reject);
-      });
-    } else if (stats.isDirectory()) {
-      await ncp(sourcePath, destPath);
-    }
-  }
+  await _ncp(inputFS, source, outputFS, destination);
 }
 
 // Mocha is currently run with exit: true because of this issue preventing us
@@ -112,6 +97,12 @@ export function bundler(
     inputFS,
     outputFS,
     workerFarm,
+    packageManager: new NodePackageManager(inputFS),
+    defaultEngines: {
+      browsers: ['last 1 Chrome version'],
+      node: '8'
+    },
+    // $FlowFixMe
     ...opts
   });
 }
@@ -183,7 +174,7 @@ export async function run(
 
   vm.createContext(ctx);
   vm.runInContext(
-    await outputFS.readFile(nullthrows(bundle.filePath), 'utf8'),
+    await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8'),
     ctx
   );
 
@@ -208,21 +199,35 @@ export function assertBundles(
   expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,
-    assets: Array<string>
+    assets: Array<string>,
+    includedFiles?: {
+      [key: string]: Array<string>,
+      ...
+    }
   |}>
 ) {
   let actualBundles = [];
+  const byAlphabet = (a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1);
+
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
+    const includedFiles = {};
+
     bundle.traverseAssets(asset => {
-      assets.push(path.basename(asset.filePath));
+      const name = path.basename(asset.filePath);
+      assets.push(name);
+      includedFiles[name] = asset
+        .getIncludedFiles()
+        .map(({filePath}) => path.basename(filePath))
+        .sort(byAlphabet);
     });
 
-    assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    assets.sort(byAlphabet);
     actualBundles.push({
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
-      assets
+      assets,
+      includedFiles
     });
   });
 
@@ -232,11 +237,12 @@ export function assertBundles(
         'Expected bundle must include an array of expected assets'
       );
     }
-    bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    bundle.assets.sort(byAlphabet);
   }
 
-  expectedBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
-  actualBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  const byAssets = (a, b) => (a.assets[0] < b.assets[0] ? -1 : 1);
+  expectedBundles.sort(byAssets);
+  actualBundles.sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
@@ -268,6 +274,19 @@ export function assertBundles(
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
     }
+
+    if (bundle.includedFiles) {
+      for (let asset of actualBundle.assets) {
+        const files = bundle.includedFiles[asset];
+        if (!files) {
+          continue;
+        }
+        assert.deepEqual(
+          actualBundle.includedFiles[asset],
+          files.sort(byAlphabet)
+        );
+      }
+    }
   }
 }
 
@@ -294,7 +313,7 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
               if (el.tag === 'script') {
                 vm.runInContext(
                   syncPromise(
-                    outputFS.readFile(
+                    overlayFS.readFile(
                       path.join(path.dirname(filePath), el.src),
                       'utf8'
                     )
@@ -334,11 +353,11 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
         return Promise.resolve({
           async arrayBuffer() {
             return new Uint8Array(
-              await outputFS.readFile(path.join(path.dirname(filePath), url))
+              await overlayFS.readFile(path.join(path.dirname(filePath), url))
             ).buffer;
           },
           text() {
-            return outputFS.readFile(
+            return overlayFS.readFile(
               path.join(path.dirname(filePath), url),
               'utf8'
             );
@@ -363,11 +382,11 @@ function prepareNodeContext(filePath, globals) {
       preserveSymlinks: true,
       extensions: ['.js', '.json'],
       readFileSync: (...args) => {
-        return syncPromise(outputFS.readFile(...args));
+        return syncPromise(overlayFS.readFile(...args));
       },
       isFile: file => {
         try {
-          var stat = syncPromise(outputFS.stat(file));
+          var stat = syncPromise(overlayFS.stat(file));
         } catch (err) {
           return false;
         }
@@ -375,7 +394,7 @@ function prepareNodeContext(filePath, globals) {
       },
       isDirectory: file => {
         try {
-          var stat = syncPromise(outputFS.stat(file));
+          var stat = syncPromise(overlayFS.stat(file));
         } catch (err) {
           return false;
         }
@@ -383,15 +402,15 @@ function prepareNodeContext(filePath, globals) {
       }
     });
 
-    // Shim FS module using outputFS
+    // Shim FS module using overlayFS
     if (res === 'fs') {
       return {
         readFile: async (file, encoding, cb) => {
-          let res = await outputFS.readFile(file, encoding);
+          let res = await overlayFS.readFile(file, encoding);
           cb(null, res);
         },
         readFileSync: (file, encoding) => {
-          return syncPromise(outputFS.readFile(file, encoding));
+          return syncPromise(overlayFS.readFile(file, encoding));
         }
       };
     }
@@ -408,7 +427,7 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(syncPromise(outputFS.readFile(res, 'utf8')), ctx);
+    vm.runInContext(syncPromise(overlayFS.readFile(res, 'utf8')), ctx);
     return ctx.module.exports;
   };
 

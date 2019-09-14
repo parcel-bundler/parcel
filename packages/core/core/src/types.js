@@ -20,10 +20,12 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  Config as ThirdPartyConfig
+  ConfigResult
 } from '@parcel/types';
+
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
+import type {PackageManager} from '@parcel/package-manager';
 
 export type Environment = {|
   context: EnvironmentContext,
@@ -63,8 +65,9 @@ export type Asset = {|
   filePath: FilePath,
   type: string,
   dependencies: Map<string, Dependency>,
-  connectedFiles: Map<FilePath, File>,
+  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
+  isInline: boolean,
   outputHash: string,
   env: Environment,
   meta: Meta,
@@ -72,7 +75,8 @@ export type Asset = {|
   contentKey: ?string,
   mapKey: ?string,
   symbols: Map<Symbol, Symbol>,
-  sideEffects: boolean
+  sideEffects: boolean,
+  uniqueKey?: ?string
 |};
 
 export type ParcelOptions = {|
@@ -101,7 +105,8 @@ export type ParcelOptions = {|
 
   inputFS: FileSystem,
   outputFS: FileSystem,
-  cache: Cache
+  cache: Cache,
+  packageManager: PackageManager
 |};
 
 export type NodeId = string;
@@ -180,9 +185,10 @@ export type ConfigRequestNode = {|
 
 export type Config = {|
   searchPath: FilePath,
+  env: Environment,
   resolvedPath: ?FilePath,
   resultHash: ?string,
-  result: ThirdPartyConfig,
+  result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
   watchGlob: ?Glob,
@@ -194,6 +200,7 @@ export type Config = {|
 
 export type ConfigRequest = {|
   filePath: FilePath,
+  env: Environment,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,
@@ -236,6 +243,7 @@ export type Bundle = {|
   env: Environment,
   entryAssetIds: Array<string>,
   isEntry: ?boolean,
+  isInline: ?boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,

@@ -6,12 +6,14 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  Config as ThirdPartyConfig
+  ConfigResult
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
 import path from 'path';
 import {loadConfig} from '@parcel/utils';
+
+import Environment from './Environment';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
@@ -22,6 +24,10 @@ export default class PublicConfig implements IConfig {
   constructor(config: Config, options: ParcelOptions) {
     this.#config = config;
     this.#options = options;
+  }
+
+  get env() {
+    return new Environment(this.#config.env);
   }
 
   get searchPath() {
@@ -77,7 +83,7 @@ export default class PublicConfig implements IConfig {
       exclude?: boolean,
       ...
     }
-  ): Promise<ThirdPartyConfig | null> {
+  ): Promise<ConfigResult | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
@@ -105,7 +111,7 @@ export default class PublicConfig implements IConfig {
       exclude?: boolean,
       ...
     }
-  ): Promise<ThirdPartyConfig | null> {
+  ): Promise<ConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 

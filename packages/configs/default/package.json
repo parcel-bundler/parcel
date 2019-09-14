@@ -33,6 +33,7 @@
     "@parcel/transformer-less": "^2.0.0-alpha.1.1",
     "@parcel/transformer-postcss": "^2.0.0-alpha.1.1",
     "@parcel/transformer-posthtml": "^2.0.0-alpha.1.1",
+    "@parcel/transformer-pug": "^2.0.0-alpha.1.1",
     "@parcel/transformer-raw": "^2.0.0-alpha.1.1",
     "@parcel/transformer-sass": "^2.0.0-alpha.1.1",
     "@parcel/transformer-stylus": "^2.0.0-alpha.1.1",

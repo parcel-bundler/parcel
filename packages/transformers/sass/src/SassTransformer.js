@@ -40,7 +40,11 @@ export default new Transformer({
       config = {};
     }
 
-    config.file = asset.filePath;
+    if (asset.isInline) {
+      config.data = await asset.getCode();
+    } else {
+      config.file = asset.filePath;
+    }
 
     if (config.importer === undefined) {
       config.importer = [];
@@ -50,12 +54,17 @@ export default new Transformer({
 
     config.importer = [...config.importer, resolvePathImporter({resolve})];
 
+    config.indentedSyntax =
+      typeof config.indentedSyntax === 'boolean'
+        ? config.indentedSyntax
+        : asset.type === 'sass';
+
     return config;
   },
 
-  async transform({asset, localRequire, config}) {
+  async transform({asset, options, config}) {
     await warnAboutNodeSassBeingUnsupported(asset.filePath);
-    let sass = await localRequire('sass', asset.filePath);
+    let sass = await options.packageManager.require('sass', asset.filePath);
     const sassRender = promisify(sass.render.bind(sass));
 
     let css;

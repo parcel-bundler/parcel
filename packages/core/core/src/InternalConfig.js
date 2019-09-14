@@ -1,18 +1,14 @@
 // @flow strict-local
 
-import type {
-  FilePath,
-  Glob,
-  PackageName,
-  Config as ThirdPartyConfig
-} from '@parcel/types';
+import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
 
-import type {Config} from './types';
+import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
   searchPath: FilePath,
+  env: Environment,
   resolvedPath?: FilePath,
-  result?: ThirdPartyConfig,
+  result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   watchGlob?: Glob,
   devDeps?: Map<PackageName, ?string>,
@@ -23,6 +19,7 @@ type ConfigOpts = {|
 
 export function createConfig({
   searchPath,
+  env,
   resolvedPath,
   result,
   includedFiles,
@@ -34,6 +31,7 @@ export function createConfig({
 }: ConfigOpts): Config {
   return {
     searchPath,
+    env,
     resolvedPath,
     result: result ?? null,
     resultHash: null,

@@ -152,21 +152,6 @@ export default class BundleGraph {
     });
   }
 
-  getDependenciesInBundle(bundle: Bundle, asset: Asset): Array<Dependency> {
-    let assetNode = this._graph.getNode(asset.id);
-    if (!assetNode) {
-      throw new Error('Asset not found');
-    }
-
-    return this._graph
-      .getNodesConnectedTo(assetNode)
-      .filter(node => this._graph.hasEdge(bundle.id, node.id, 'contains'))
-      .map(node => {
-        invariant(node.type === 'dependency');
-        return node.value;
-      });
-  }
-
   removeAssetFromBundle(asset: Asset, bundle: Bundle): void {
     this._graph.removeEdge(bundle.id, asset.id, 'contains');
   }
@@ -191,12 +176,25 @@ export default class BundleGraph {
   }
 
   isAssetReferencedByAssetType(asset: Asset, type: string): boolean {
+    let referringBundles = new Set(
+      this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(asset.id)),
+        'contains'
+      )
+    );
+
     // is `asset` referenced by a dependency from an asset of `type`
     return this._graph
-      .getNodesConnectedTo(
-        nullthrows(this._graph.getNode(asset.id)),
-        'references'
-      )
+      .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
+      .filter(node => {
+        // Does this dependency belong to a bundle that does not include the
+        // asset it resolves to? If so, this asset is needed by a bundle but
+        // does not belong to it.
+        return this._graph
+          .getNodesConnectedTo(node, 'contains')
+          .filter(node => node.type === 'bundle')
+          .some(b => !referringBundles.has(b));
+      })
       .map(node => {
         invariant(node.type === 'dependency');
         return this._graph.getNodesConnectedTo(node, null);
@@ -253,7 +251,8 @@ export default class BundleGraph {
 
   traverseBundle<TContext>(
     bundle: Bundle,
-    visit: GraphVisitor<AssetNode | DependencyNode, TContext>
+    visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
+    includeAll: boolean = false
   ): ?TContext {
     return this._graph.filteredTraverse(
       (node, actions) => {
@@ -262,7 +261,12 @@ export default class BundleGraph {
         }
 
         if (node.type === 'dependency' || node.type === 'asset') {
-          return node;
+          if (
+            includeAll ||
+            this._graph.hasEdge(bundle.id, node.id, 'contains')
+          ) {
+            return node;
+          }
         }
 
         actions.skipChildren();

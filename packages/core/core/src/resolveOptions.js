@@ -10,6 +10,7 @@ import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
 import Cache from '@parcel/cache';
+import {NodePackageManager} from '@parcel/package-manager';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -29,6 +30,8 @@ export default async function resolveOptions(
 
   let inputFS = initialOptions.inputFS || new NodeFS();
   let outputFS = initialOptions.outputFS || new NodeFS();
+  let packageManager =
+    initialOptions.packageManager || new NodePackageManager(inputFS);
 
   let rootDir =
     initialOptions.rootDir != null
@@ -36,11 +39,11 @@ export default async function resolveOptions(
       : getRootDir(entries);
 
   let projectRootFile =
-    (await resolveConfig(inputFS, path.join(inputFS.cwd(), 'index'), [
+    (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
       ...LOCK_FILE_NAMES,
       '.git',
       '.hg'
-    ])) || path.join(inputFS.cwd(), 'index');
+    ])) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
 
   let lockFile = null;
   let rootFileName = path.basename(projectRootFile);
@@ -91,6 +94,7 @@ export default async function resolveOptions(
     lockFile,
     inputFS,
     outputFS,
-    cache
+    cache,
+    packageManager
   };
 }

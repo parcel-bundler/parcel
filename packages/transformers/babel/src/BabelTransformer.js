@@ -1,31 +1,30 @@
 // @flow
+
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
 import generate from '@babel/generator';
 import semver from 'semver';
-import babel6 from './babel6';
 import babel7 from './babel7';
-import getBabelConfig from './config';
 import {relativeUrl} from '@parcel/utils';
+import {load, rehydrate} from './config';
 
 export default new Transformer({
-  getConfig({asset}) {
-    return getBabelConfig(asset);
+  async loadConfig({config, options}) {
+    await load(config, options);
+  },
+
+  rehydrateConfig({config, options}) {
+    return rehydrate(config, options);
   },
 
   canReuseAST({ast}) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async transform({asset, config, localRequire}) {
-    if (config) {
-      if (config[6]) {
-        asset.ast = await babel6(asset, localRequire, config[6]);
-      }
-
-      if (config[7]) {
-        asset.ast = await babel7(asset, localRequire, config[7]);
-      }
+  async transform({asset, config, options}) {
+    // TODO: come up with a better name
+    if (config?.config) {
+      asset.ast = await babel7(asset, options, config);
     }
 
     return [asset];

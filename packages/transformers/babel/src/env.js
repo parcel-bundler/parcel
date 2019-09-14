@@ -1,101 +1,68 @@
 // @flow
 
-import type {Engines, MutableAsset} from '@parcel/types';
+import type {Config} from '@parcel/types';
+import type {BabelTargets} from './types';
 
 import presetEnv from '@babel/preset-env';
-import semver from 'semver';
-import getTargetEngines from './getTargetEngines';
+
+import getBabelTargets from './getBabelTargets';
+import {enginesToBabelTargets} from './utils';
 
 /**
  * Generates a @babel/preset-env config for an asset.
  * This is done by finding the source module's target engines, and the app's
  * target engines, and doing a diff to include only the necessary plugins.
  */
-export default async function getEnvConfig(
-  asset: MutableAsset,
-  isSourceModule: boolean
-) {
+export default async function getEnvOptions(config: Config) {
   // Load the target engines for the app and generate a @babel/preset-env config
-  let targetEngines = asset.env.engines;
-  let targetEnv = getEnvPlugins(targetEngines, true);
-  if (!targetEnv) {
-    return null;
-  }
+  let appBabelTargets = enginesToBabelTargets(config.env.engines);
 
   // If this is the app module, the source and target will be the same, so just compile everything.
   // Otherwise, load the source engines and generate a babel-present-env config.
-  if (!isSourceModule) {
-    let sourceEngines = await getTargetEngines(asset);
-    let sourceEnv = getEnvPlugins(sourceEngines, false) || targetEnv;
+  if (!(await config.isSource())) {
+    let sourceBabelTargets = await getBabelTargets(config);
 
-    // Do a diff of the returned plugins. We only need to process the remaining plugins to get to the app target.
-    let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
-    targetEnv = targetEnv.filter(plugin => {
-      return !sourcePlugins.has(plugin[0]);
-    });
+    if (
+      !sourceBabelTargets ||
+      !shouldCompileFurther(sourceBabelTargets, appBabelTargets)
+    ) {
+      return null;
+    }
   }
 
   return {
-    internal: true,
-    babelVersion: 7,
-    config: {
-      plugins: targetEnv
-    }
+    targets: appBabelTargets,
+    presets: [
+      [
+        '@parcel/babel-preset-env',
+        {
+          useBuiltIns: 'usage',
+          corejs: 3,
+          shippedProposals: true
+        }
+      ]
+    ]
   };
 }
 
-const envCache = new Map();
-
-function getEnvPlugins(engines: Engines, useBuiltIns = false) {
-  if (!engines) {
-    return null;
-  }
-
-  // "Targets" is the name @babel/preset-env uses for what Parcel calls engines.
-  // This should not be confused with Parcel's own targets.
-  // Unlike Parcel's engines, @babel/preset-env expects to work with minimum
-  // versions, not semver ranges, of its targets.
-  let targets = {};
-  for (let engineName of Object.keys(engines)) {
-    let engineValue = engines[engineName];
-
-    // if the engineValue is a string, it might be a semver range. Use the minimum
-    // possible version instead.
-    if (typeof engineValue === 'string') {
-      let minVersion = getMinSemver(engineValue);
-      targets[engineName] = minVersion ?? engineValue;
-    } else {
-      targets[engineName] = engineValue;
-    }
-  }
-
-  let key = JSON.stringify(targets);
-  if (envCache.has(key)) {
-    return envCache.get(key);
-  }
-
-  let plugins = presetEnv(
+function getNeededPlugins(targets: BabelTargets): Array<mixed> {
+  return presetEnv(
     {assertVersion: () => true},
-    {
-      targets,
-      modules: false,
-      useBuiltIns: useBuiltIns ? 'entry' : false,
-      shippedProposals: true
-    }
-  ).plugins;
-
-  envCache.set(key, plugins);
-  return plugins;
+    {targets: targets}
+  ).plugins.filter(p => p[0]);
 }
 
-// TODO: Replace with `minVersion` (https://github.com/npm/node-semver#ranges-1)
-//       once semver has been upgraded across Parcel.
-function getMinSemver(version) {
-  try {
-    let range = new semver.Range(version);
-    let sorted = range.set.sort((a, b) => a[0].semver.compare(b[0].semver));
-    return sorted[0][0].semver.version;
-  } catch (err) {
-    return null;
-  }
+function shouldCompileFurther(
+  sourceBabelTargets: BabelTargets,
+  appBabelTargets: BabelTargets
+): boolean {
+  let sourcePlugins = new Set(getNeededPlugins(sourceBabelTargets));
+  let appPlugins = getNeededPlugins(appBabelTargets);
+
+  // If there is any app plugin present that was not used to compile the source,
+  // then the asset was built to a higher target and will need to be compiled
+  // further
+  return appPlugins.some(plugin => {
+    return !sourcePlugins.has(plugin);
+  });
 }

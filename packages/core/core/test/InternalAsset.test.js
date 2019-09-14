@@ -18,9 +18,9 @@ describe('InternalAsset', () => {
       }),
       options: DEFAULT_OPTIONS
     });
-    asset.addConnectedFile({filePath: '/foo/file', hash: 'abc'});
-    asset.addConnectedFile({filePath: '/foo/file', hash: 'bcd'});
-    assert.deepEqual(asset.getConnectedFiles(), [
+    asset.addIncludedFile({filePath: '/foo/file', hash: 'abc'});
+    asset.addIncludedFile({filePath: '/foo/file', hash: 'bcd'});
+    assert.deepEqual(asset.getIncludedFiles(), [
       {
         filePath: '/foo/file',
         hash: 'bcd'

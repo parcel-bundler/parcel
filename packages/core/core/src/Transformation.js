@@ -24,13 +24,12 @@ import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
 
 import {createDependency} from './Dependency';
-import {localRequireFromWorker} from '@parcel/local-require';
-
+import PublicConfig from './public/Config';
+import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
-import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 
@@ -241,6 +240,7 @@ export default class Transformation {
   async loadPipeline(filePath: FilePath): Promise<Pipeline> {
     let configRequest = {
       filePath,
+      env: this.request.env,
       meta: {
         actionType: 'transformation'
       }
@@ -249,7 +249,10 @@ export default class Transformation {
 
     let config = await this.loadConfig(configRequest);
     let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(result);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     configs.set('parcel', config);
 
@@ -260,15 +263,28 @@ export default class Transformation {
         let thirdPartyConfig = await this.loadTransformerConfig(
           filePath,
           moduleName,
-          result.resolvedPath
+          result.filePath
         );
+
+        if (thirdPartyConfig.shouldRehydrate) {
+          await plugin.rehydrateConfig({
+            config: new PublicConfig(thirdPartyConfig, this.options),
+            options: this.options
+          });
+        } else if (thirdPartyConfig.shouldReload) {
+          await plugin.loadConfig({
+            config: new PublicConfig(thirdPartyConfig, this.options),
+            options: this.options
+          });
+        }
+
         configs.set(moduleName, thirdPartyConfig);
       }
     }
 
     let pipeline = new Pipeline({
-      id: parcelConfig.getTransformerNames(filePath).join(':'),
-      transformers: await parcelConfig.getTransformers(filePath),
+      names: parcelConfig.getTransformerNames(filePath),
+      plugins: await parcelConfig.getTransformers(filePath),
       configs,
       options: this.options,
       workerApi: this.workerApi
@@ -300,6 +316,7 @@ export default class Transformation {
   ): Promise<Config> {
     let configRequest = {
       filePath,
+      env: this.request.env,
       plugin,
       meta: {
         parcelConfigPath
@@ -310,16 +327,22 @@ export default class Transformation {
 }
 
 type PipelineOpts = {|
-  id: string,
-  transformers: Array<Transformer>,
+  names: Array<PackageName>,
+  plugins: Array<Transformer>,
   configs: ConfigMap,
   options: ParcelOptions,
   workerApi: WorkerApi
 |};
 
+type TransformerWithNameAndConfig = {|
+  name: PackageName,
+  plugin: Transformer,
+  config: ?Config
+|};
+
 class Pipeline {
   id: string;
-  transformers: Array<Transformer>;
+  transformers: Array<TransformerWithNameAndConfig>;
   configs: ConfigMap;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
@@ -328,13 +351,20 @@ class Pipeline {
   postProcess: ?PostProcessFunc;
   workerApi: WorkerApi;
 
-  constructor({id, transformers, configs, options, workerApi}: PipelineOpts) {
-    this.id = id;
-    this.transformers = transformers;
+  constructor({names, plugins, configs, options, workerApi}: PipelineOpts) {
+    this.id = names.join(':');
+
+    this.transformers = names.map((name, i) => ({
+      name,
+      config: configs.get(name)?.result,
+      plugin: plugins[i]
+    }));
     this.configs = configs;
     this.options = options;
-    let parcelConfig = nullthrows(this.configs.get('parcel'));
-    parcelConfig = nullthrows(parcelConfig.result);
+    let parcelConfig = new ParcelConfig(
+      nullthrows(nullthrows(this.configs.get('parcel')).result),
+      this.options.packageManager
+    );
     this.resolverRunner = new ResolverRunner({
       config: parcelConfig,
       options
@@ -360,7 +390,8 @@ class Pipeline {
         } else {
           let transformerResults = await this.runTransformer(
             asset,
-            transformer
+            transformer.plugin,
+            transformer.config
           );
           for (let result of transformerResults) {
             resultingAssets.push(asset.createChildAsset(result));
@@ -379,7 +410,8 @@ class Pipeline {
 
   async runTransformer(
     asset: InternalAsset,
-    transformer: Transformer
+    transformer: Transformer,
+    preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return (await this.resolverRunner.resolve(
@@ -391,16 +423,14 @@ class Pipeline {
       )).filePath;
     };
 
-    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
-
     // Load config for the transformer.
-    let config = null;
+    let config = preloadedConfig;
     if (transformer.getConfig) {
+      // TODO: deprecate getConfig
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.pluginOptions,
-        resolve,
-        localRequire
+        resolve
       });
     }
 
@@ -437,7 +467,6 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
-        localRequire,
         resolve
       })
     );
@@ -489,7 +518,11 @@ async function finalize(
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
     let result = await generate(new MutableAsset(asset));
-    return asset.createChildAsset({type: asset.value.type, ...result});
+    return asset.createChildAsset({
+      type: asset.value.type,
+      uniqueKey: asset.value.uniqueKey,
+      ...result
+    });
   }
   return asset;
 }
@@ -510,11 +543,13 @@ function normalizeAssets(
       map: internalAsset.map,
       // $FlowFixMe
       dependencies: [...internalAsset.value.dependencies.values()],
-      connectedFiles: result.getConnectedFiles(),
+      includedFiles: result.getIncludedFiles(),
       // $FlowFixMe
       env: result.env,
       isIsolated: result.isIsolated,
-      meta: result.meta
+      isInline: result.isInline,
+      meta: result.meta,
+      uniqueKey: internalAsset.value.uniqueKey
     };
   });
 }

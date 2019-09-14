@@ -27,7 +27,6 @@ import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
-import {localResolve} from '@parcel/local-require';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -100,12 +99,12 @@ export default class BundlerRunner {
 
   async getCacheKey(assetGraph: AssetGraph) {
     let bundler = this.config.bundler;
-    let [, resolvedPkg] = await localResolve(
+    let {pkg} = await this.options.packageManager.resolve(
       `${bundler}/package.json`,
       `${this.config.filePath}/index` // TODO: is this right?
     );
 
-    let version = nullthrows(resolvedPkg).version;
+    let version = nullthrows(pkg).version;
     return md5FromObject({
       bundler,
       version,
@@ -227,7 +226,7 @@ export default class BundlerRunner {
 
         for (let asset of assets) {
           if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
-            duplicated.push([asset, dependency]);
+            duplicated.push(asset);
             actions.skipChildren();
           }
         }
@@ -237,11 +236,14 @@ export default class BundlerRunner {
       // the node to it.
       // $FlowFixMe
       bundleGraph._graph.merge(subBundleGraph._graph);
-      summarizeBundle(bundle, bundleGraph);
+      subBundleGraph._graph.traverse(node => {
+        if (node.type === 'asset' || node.type === 'dependency') {
+          bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
+        }
+      });
 
       let entryIsReference = false;
-      for (let [asset, dependency] of duplicated) {
-        bundleGraph.createAssetReference(dependency, asset);
+      for (let asset of duplicated) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
 
         if (entry.id === asset.id) {
@@ -307,14 +309,18 @@ function summarizeBundle(
   bundleGraph: InternalBundleGraph
 ): void {
   let size = 0;
-  bundleGraph.traverseBundle(bundle, node => {
-    if (node.type === 'dependency' || node.type === 'asset') {
-      bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
-    }
-    if (node.type === 'asset') {
-      size += node.value.stats.size;
-    }
-  });
+  bundleGraph.traverseBundle(
+    bundle,
+    node => {
+      if (node.type === 'dependency' || node.type === 'asset') {
+        bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
+      }
+      if (node.type === 'asset') {
+        size += node.value.stats.size;
+      }
+    },
+    true
+  );
 
   bundle.stats.size = size;
 }
