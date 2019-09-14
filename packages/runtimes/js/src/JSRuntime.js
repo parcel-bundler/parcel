@@ -5,6 +5,7 @@ import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
+const MODULE_LOADER = './loaders/esmodule-loader';
 const LOADERS = {
   browser: {
     css: './loaders/browser/css-loader',
@@ -61,11 +62,37 @@ export default new Runtime({
             ? 1
             : -1
         );
+
+      // Optimization if we're only loading one esmodule bundle.
+      // Just use native `import()` in that case without bringing in the whole loader runtime.
+      if (
+        bundle.env.isModule &&
+        bundles.length === 1 &&
+        bundles[0].type === 'js'
+      ) {
+        assets.push({
+          filePath: __filename,
+          // String concatenation instead of literal to stop JSTransformer from
+          // trying to process this import() call.
+          code: `module.exports = import('' + '${urlJoin(
+            nullthrows(bundles[0].target.publicUrl),
+            nullthrows(bundles[0].name)
+          )}');`,
+          dependency
+        });
+        continue;
+      }
+
       let loaderModules = bundles
         .map(b => {
           let loader = loaders[b.type];
           if (!loader) {
             return;
+          }
+
+          // Use esmodule loader if possible
+          if (b.type === 'js' && b.env.isModule) {
+            loader = MODULE_LOADER;
           }
 
           return `[require(${JSON.stringify(loader)}), ${JSON.stringify(

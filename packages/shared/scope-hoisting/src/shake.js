@@ -101,7 +101,10 @@ function remove(path) {
       } else {
         path.remove();
       }
-    } else if (!path.parentPath.isExpressionStatement()) {
+    } else if (
+      !path.parentPath.isExpressionStatement() ||
+      !path.get('right').isPure()
+    ) {
       path.replaceWith(path.node.right);
     } else {
       path.remove();

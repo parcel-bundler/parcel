@@ -22,6 +22,12 @@ export default new Packager({
       return generate(bundle, ast, options);
     }
 
+    if (bundle.env.isModule) {
+      throw new Error(
+        'ESModule output is not supported without scope hoisting.'
+      );
+    }
+
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
     let codeQueue = new PromiseQueue({maxConcurrent: 32});

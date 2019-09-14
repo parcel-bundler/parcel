@@ -68,6 +68,9 @@ const OPTIONS = {
   },
   iframe: {
     src: {isEntry: true}
+  },
+  script(attrs) {
+    return {env: {isModule: attrs.type === 'module'}};
   }
 };
 
@@ -133,7 +136,11 @@ export default function collectDependencies(asset: MutableAsset) {
       if (elements && elements.includes(node.tag)) {
         let depHandler = getAttrDepHandler(attr);
         let options = OPTIONS[node.tag];
-        attrs[attr] = depHandler(asset, attrs[attr], options && options[attr]);
+        let opts =
+          typeof options === 'function'
+            ? options(attrs)
+            : options && options[attr];
+        attrs[attr] = depHandler(asset, attrs[attr], opts);
         ast.isDirty = true;
       }
     }

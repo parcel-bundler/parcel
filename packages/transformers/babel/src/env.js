@@ -38,7 +38,10 @@ export default async function getEnvOptions(config: Config) {
         {
           useBuiltIns: 'usage',
           corejs: 3,
-          shippedProposals: true
+          shippedProposals: true,
+          ignoreBrowserslistConfig: true,
+          targets: appBabelTargets,
+          exclude: ['es.promise']
         }
       ]
     ]

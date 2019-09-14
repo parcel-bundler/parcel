@@ -49,9 +49,11 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
-  let hasChildBundles = bundle.hasChildBundles();
+  let hasChildBundles = bundleGraph
+    .getChildBundles(bundle)
+    .some(bundle => bundle.type !== 'js' || !bundle.env.isModule);
   let needsPrelude = isEntry && hasChildBundles;
-  let registerEntry = !isEntry || hasChildBundles;
+  let registerEntry = (!isEntry && !bundle.env.isModule) || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
@@ -161,7 +163,8 @@ async function processAsset(bundle: Bundle, asset: Asset) {
 function parse(code, filename) {
   let ast = babylon.parse(code, {
     sourceFilename: filename,
-    allowReturnOutsideFunction: true
+    allowReturnOutsideFunction: true,
+    plugins: ['dynamicImport']
   });
 
   return ast.program.body;

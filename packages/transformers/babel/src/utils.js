@@ -26,8 +26,9 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
     }
   }
 
-  if (Object.keys(targets).length === 0 && env.isModule && env.isBrowser()) {
+  if (env.isModule && env.isBrowser()) {
     targets.esmodules = true;
+    delete targets.browsers;
   }
 
   return targets;
