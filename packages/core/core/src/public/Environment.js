@@ -47,6 +47,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.includeNodeModules;
   }
 
+  get isModule(): boolean {
+    return this.#environment.isModule;
+  }
+
   isBrowser() {
     return BROWSER_ENVS.has(this.#environment.context);
   }

@@ -10,7 +10,7 @@ export function generate(bundle: Bundle, ast: AST, options: PluginOptions) {
     comments: !options.minify
   });
 
-  if (!options.minify) {
+  if (!options.minify && !bundle.env.isModule) {
     code = `\n${code}\n`;
   }
 
@@ -18,9 +18,11 @@ export function generate(bundle: Bundle, ast: AST, options: PluginOptions) {
   let interpreter: ?string = bundle.target.env.isBrowser()
     ? null
     : nullthrows(bundle.getMainEntry()).meta.interpreter;
+  let hashBang = interpreter != null ? `#!${interpreter}\n` : '';
+
   return {
-    contents: `${
-      interpreter != null ? `#!${interpreter}\n` : ''
-    }(function(){${code}})();`
+    contents: bundle.env.isModule
+      ? hashBang + code
+      : `${hashBang}(function(){${code}})();`
   };
 }

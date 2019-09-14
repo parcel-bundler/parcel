@@ -48,6 +48,8 @@ export function hoist(asset: MutableAsset) {
 const VISITOR = {
   Program: {
     enter(path, asset: MutableAsset) {
+      asset.meta.exportsIdentifier = getName(asset, 'exports');
+
       traverse.cache.clearScope();
       path.scope.crawl();
 

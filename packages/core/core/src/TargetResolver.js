@@ -169,6 +169,8 @@ export default class TargetResolver {
       pkg.browser || pkgTargets.browser || (node && !browsers)
         ? 'node'
         : 'browser';
+    let moduleContext =
+      pkg.browser || pkgTargets.browser ? 'browser' : mainContext;
 
     for (let targetName of COMMON_TARGETS) {
       let targetDist;
@@ -205,8 +207,11 @@ export default class TargetResolver {
             context:
               descriptor.context ?? targetName === 'browser'
                 ? 'browser'
+                : targetName === 'module'
+                ? moduleContext
                 : mainContext,
-            includeNodeModules: descriptor.includeNodeModules
+            includeNodeModules: descriptor.includeNodeModules,
+            isModule: descriptor.isModule ?? targetName === 'module'
           }),
           sourceMap: descriptor.sourceMap
         });
@@ -239,7 +244,8 @@ export default class TargetResolver {
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
-            includeNodeModules: descriptor.includeNodeModules
+            includeNodeModules: descriptor.includeNodeModules,
+            isModule: descriptor.isModule
           }),
           sourceMap: descriptor.sourceMap
         });

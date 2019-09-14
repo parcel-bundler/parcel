@@ -5,7 +5,7 @@ import * as t from '@babel/types';
  * removing unused exports. All other dead code removal happens in workers on each
  * individual file by babel-minify.
  */
-export default function treeShake(scope) {
+export default function treeShake(scope, exportedIdentifiers) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
@@ -19,7 +19,7 @@ export default function treeShake(scope) {
       let binding = getUnusedBinding(scope.path, name);
 
       // If it is not safe to remove the binding don't touch it.
-      if (!binding) {
+      if (!binding || exportedIdentifiers.has(name)) {
         return;
       }
 

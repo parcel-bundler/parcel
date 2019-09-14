@@ -10,7 +10,8 @@ const DEFAULT_ENGINES = {
 export function createEnvironment({
   context,
   engines,
-  includeNodeModules
+  includeNodeModules,
+  isModule = false
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -62,7 +63,8 @@ export function createEnvironment({
   return {
     context,
     engines,
-    includeNodeModules
+    includeNodeModules,
+    isModule
   };
 }
 

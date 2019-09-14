@@ -17,6 +17,7 @@ import traverse from '@babel/traverse';
 import treeShake from './shake';
 import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
+import rename from './renamer';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -41,6 +42,14 @@ export function link({
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
+
+  let exportedIdentifiers = new Map();
+  let entry = bundle.getMainEntry();
+  if (entry && bundle.isEntry) {
+    for (let [exportName, symbol] of entry.symbols) {
+      exportedIdentifiers.set(symbol, exportName);
+    }
+  }
 
   // Build a mapping of all imported identifiers to replace.
   bundle.traverseAssets(asset => {
@@ -383,10 +392,74 @@ export function link({
     Program: {
       // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
       exit(path) {
-        treeShake(path.scope);
+        treeShake(path.scope, exportedIdentifiers);
+
+        let exported = new Set();
+        path.traverse({
+          Declaration(path) {
+            if (
+              !bundle.env.isModule ||
+              path.isExportDeclaration() ||
+              path.parentPath.isExportDeclaration()
+            ) {
+              return;
+            }
+
+            let bindingIdentifiers = path.getBindingIdentifierPaths(
+              false,
+              true
+            );
+            let ids = Object.keys(bindingIdentifiers);
+            let exportedIds = ids.filter(
+              id =>
+                exportedIdentifiers.has(id) &&
+                exportedIdentifiers.get(id) !== 'default'
+            );
+            let defaultExport = ids.find(
+              id => exportedIdentifiers.get(id) === 'default'
+            );
+
+            if (exportedIds.length === ids.length) {
+              path.replaceWith(t.exportNamedDeclaration(path.node, []));
+              for (let id of exportedIds) {
+                let exportName = nullthrows(exportedIdentifiers.get(id));
+                rename(path.scope, id, exportName);
+                exported.add(exportName);
+              }
+            } else if (
+              ids.length === 1 &&
+              defaultExport &&
+              !path.isVariableDeclaration()
+            ) {
+              path.replaceWith(t.exportDefaultDeclaration(path.node));
+            } else {
+              if (defaultExport) {
+                path.insertAfter(
+                  t.exportDefaultDeclaration(t.identifier(defaultExport))
+                );
+              }
+
+              if (exportedIds.length > 0) {
+                let specifiers = [];
+                for (let id of exportedIds) {
+                  let exportName = exportedIdentifiers.get(id);
+                  rename(path.scope, id, exportName);
+                  exported.add(exportName);
+                  specifiers.push(
+                    t.exportSpecifier(
+                      t.identifier(exportName),
+                      t.identifier(exportName)
+                    )
+                  );
+                }
+                path.insertAfter(t.exportNamedDeclaration(null, specifiers));
+              }
+            }
+          }
+        });
 
         if (options.minify) {
-          mangleScope(path.scope);
+          mangleScope(path.scope, exported);
         }
       }
     }

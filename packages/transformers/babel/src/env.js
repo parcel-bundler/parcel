@@ -15,7 +15,7 @@ import {enginesToBabelTargets} from './utils';
  */
 export default async function getEnvOptions(config: Config) {
   // Load the target engines for the app and generate a @babel/preset-env config
-  let appBabelTargets = enginesToBabelTargets(config.env.engines);
+  let appBabelTargets = enginesToBabelTargets(config.env);
 
   // If this is the app module, the source and target will be the same, so just compile everything.
   // Otherwise, load the source engines and generate a babel-present-env config.

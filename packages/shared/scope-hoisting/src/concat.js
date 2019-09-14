@@ -121,21 +121,21 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
-    let exportsIdentifier = getName(entry, 'exports');
-    let code = await entry.getCode();
-    if (code.includes(exportsIdentifier)) {
+    if (!bundle.env.isModule) {
+      let exportsIdentifier = entry.meta.exportsIdentifier;
+      invariant(typeof exportsIdentifier === 'string');
       result.push(
         ...parse(`
-        if (typeof exports === "object" && typeof module !== "undefined") {
-          // CommonJS
-          module.exports = ${exportsIdentifier};
-        } else if (typeof define === "function" && define.amd) {
-          // RequireJS
-          define(function () {
-            return ${exportsIdentifier};
-          });
-        }
-      `)
+          if (typeof exports === "object" && typeof module !== "undefined") {
+            // CommonJS
+            module.exports = ${exportsIdentifier};
+          } else if (typeof define === "function" && define.amd) {
+            // RequireJS
+            define(function () {
+              return ${exportsIdentifier};
+            });
+          }
+        `)
       );
     }
   }

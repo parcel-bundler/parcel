@@ -84,6 +84,7 @@ export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
   includeNodeModules?: boolean,
+  isModule?: boolean,
   publicUrl?: string,
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions
@@ -98,6 +99,7 @@ export type EnvironmentOpts = {
   context?: EnvironmentContext,
   engines?: Engines,
   includeNodeModules?: boolean,
+  isModule?: boolean,
   ...
 };
 
@@ -105,6 +107,7 @@ export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
   +includeNodeModules: boolean;
+  +isModule: boolean;
 
   isBrowser(): boolean;
   isNode(): boolean;

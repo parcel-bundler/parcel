@@ -1,19 +1,19 @@
 // @flow
 
-import type {Engines} from '@parcel/types';
+import type {Environment} from '@parcel/types';
 import type {BabelTargets} from './types';
 
 import invariant from 'assert';
 import semver from 'semver';
 
-export function enginesToBabelTargets(engines: Engines): BabelTargets {
+export function enginesToBabelTargets(env: Environment): BabelTargets {
   // "Targets" is the name @babel/preset-env uses for what Parcel calls engines.
   // This should not be confused with Parcel's own targets.
   // Unlike Parcel's engines, @babel/preset-env expects to work with minimum
   // versions, not semver ranges, of its targets.
   let targets = {};
-  for (let engineName of Object.keys(engines)) {
-    let engineValue = engines[engineName];
+  for (let engineName of Object.keys(env.engines)) {
+    let engineValue = env.engines[engineName];
 
     // if the engineValue is a string, it might be a semver range. Use the minimum
     // possible version instead.
@@ -24,6 +24,10 @@ export function enginesToBabelTargets(engines: Engines): BabelTargets {
       let minVersion = getMinSemver(engineValue);
       targets[engineName] = minVersion ?? engineValue;
     }
+  }
+
+  if (Object.keys(targets).length === 0 && env.isModule && env.isBrowser()) {
+    targets.esmodules = true;
   }
 
   return targets;
