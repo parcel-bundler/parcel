@@ -7,6 +7,7 @@ import invariant from 'assert';
 import semver from 'semver';
 
 // List of browsers to exclude when the esmodule target is specified.
+// Based on https://caniuse.com/#feat=es6-module
 const ESMODULE_BROWSERS = [
   'not ie <= 11',
   'not edge < 16',
