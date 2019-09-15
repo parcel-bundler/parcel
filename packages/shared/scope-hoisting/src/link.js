@@ -17,7 +17,7 @@ import traverse from '@babel/traverse';
 import treeShake from './shake';
 import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
-import rename from './renamer';
+import addExports from './export';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -394,69 +394,11 @@ export function link({
       exit(path) {
         treeShake(path.scope, exportedIdentifiers);
 
+        // If outputing an ES module, add export statements to exported declarations.
         let exported = new Set();
-        path.traverse({
-          Declaration(path) {
-            if (
-              !bundle.env.isModule ||
-              path.isExportDeclaration() ||
-              path.parentPath.isExportDeclaration()
-            ) {
-              return;
-            }
-
-            let bindingIdentifiers = path.getBindingIdentifierPaths(
-              false,
-              true
-            );
-            let ids = Object.keys(bindingIdentifiers);
-            let exportedIds = ids.filter(
-              id =>
-                exportedIdentifiers.has(id) &&
-                exportedIdentifiers.get(id) !== 'default'
-            );
-            let defaultExport = ids.find(
-              id => exportedIdentifiers.get(id) === 'default'
-            );
-
-            if (exportedIds.length === ids.length) {
-              path.replaceWith(t.exportNamedDeclaration(path.node, []));
-              for (let id of exportedIds) {
-                let exportName = nullthrows(exportedIdentifiers.get(id));
-                rename(path.scope, id, exportName);
-                exported.add(exportName);
-              }
-            } else if (
-              ids.length === 1 &&
-              defaultExport &&
-              !path.isVariableDeclaration()
-            ) {
-              path.replaceWith(t.exportDefaultDeclaration(path.node));
-            } else {
-              if (defaultExport) {
-                path.insertAfter(
-                  t.exportDefaultDeclaration(t.identifier(defaultExport))
-                );
-              }
-
-              if (exportedIds.length > 0) {
-                let specifiers = [];
-                for (let id of exportedIds) {
-                  let exportName = exportedIdentifiers.get(id);
-                  rename(path.scope, id, exportName);
-                  exported.add(exportName);
-                  specifiers.push(
-                    t.exportSpecifier(
-                      t.identifier(exportName),
-                      t.identifier(exportName)
-                    )
-                  );
-                }
-                path.insertAfter(t.exportNamedDeclaration(null, specifiers));
-              }
-            }
-          }
-        });
+        if (bundle.env.isModule) {
+          exported = addExports(path, exportedIdentifiers);
+        }
 
         if (options.minify) {
           mangleScope(path.scope, exported);

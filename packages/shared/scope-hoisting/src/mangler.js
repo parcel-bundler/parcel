@@ -1,3 +1,5 @@
+// @flow
+import type {Symbol} from '@parcel/types';
 import rename from './renamer';
 import * as t from '@babel/types';
 
@@ -13,7 +15,10 @@ const CHARSET = (
  * Based on code from babel-minify!
  * https://github.com/babel/minify/blob/master/packages/babel-plugin-minify-mangle-names/src/charset.js
  */
-export default function mangleScope(scope, exportedIdentifiers) {
+export default function mangleScope(
+  scope: any,
+  exportedIdentifiers: Set<Symbol>
+) {
   let newNames = new Set();
 
   // Sort bindings so that more frequently referenced bindings get shorter names.
