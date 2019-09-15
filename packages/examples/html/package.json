@@ -6,6 +6,11 @@
   "scripts": {
     "demo": "parcel build src/index.html"
   },
+  "browserslist": [
+    "last 2 versions",
+    "not edge < 76",
+    "not firefox < 67"
+  ],
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.1.1",
     "parcel": "^2.0.0-alpha.1.1"

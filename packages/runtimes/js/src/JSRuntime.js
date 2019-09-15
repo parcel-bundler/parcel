@@ -4,8 +4,44 @@ import {Runtime} from '@parcel/plugin';
 import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
+// $FlowFixMe
+import browserslist from 'browserslist';
+
+// List of browsers to exclude when the esmodule target is specified.
+// Based on https://caniuse.com/#feat=es6-module
+const ESMODULE_BROWSERS = [
+  'not ie <= 11',
+  'not edge < 16',
+  'not firefox < 60',
+  'not chrome < 61',
+  'not safari < 11',
+  'not opera < 48',
+  'not ios < 11',
+  'not op_mini all',
+  'not android < 76',
+  'not blackberry > 0',
+  'not op_mob > 0',
+  'not and_chr < 76',
+  'not and_ff < 68',
+  'not ie_mob > 0',
+  'not and_uc > 0',
+  'not samsung < 8.2',
+  'not and_qq > 0',
+  'not baidu > 0',
+  'not kaios > 0'
+];
+
+// https://caniuse.com/#feat=es6-module-dynamic-import
+const DYNAMIC_IMPORT_BROWSERS = [
+  'not edge < 76',
+  'not firefox < 67',
+  'not chrome < 63',
+  'not safari < 11.1',
+  'not opera < 50'
+];
 
 const MODULE_LOADER = './loaders/esmodule-loader';
+const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
 const LOADERS = {
   browser: {
     css: './loaders/browser/css-loader',
@@ -42,6 +78,24 @@ export default new Runtime({
       return assets;
     }
 
+    // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
+    let needsDynamicImportPolyfill = false;
+    if (bundle.env.isBrowser() && bundle.env.isModule) {
+      let targetBrowsers = bundle.env.engines.browsers;
+      let browsers =
+        targetBrowsers != null && !Array.isArray(targetBrowsers)
+          ? [targetBrowsers]
+          : targetBrowsers || [];
+      let esmoduleBrowsers = browserslist([...browsers, ...ESMODULE_BROWSERS]);
+      let dynamicImportBrowsers = browserslist([
+        ...browsers,
+        ...ESMODULE_BROWSERS,
+        ...DYNAMIC_IMPORT_BROWSERS
+      ]);
+      needsDynamicImportPolyfill =
+        esmoduleBrowsers.length !== dynamicImportBrowsers.length;
+    }
+
     for (let {
       bundleGroup,
       dependency
@@ -70,11 +124,14 @@ export default new Runtime({
         bundles.length === 1 &&
         bundles[0].type === 'js'
       ) {
+        let _import = needsDynamicImportPolyfill
+          ? `require('${IMPORT_POLYFILL}')`
+          : 'import';
         assets.push({
           filePath: __filename,
           // String concatenation instead of literal to stop JSTransformer from
           // trying to process this import() call.
-          code: `module.exports = import('' + '${urlJoin(
+          code: `module.exports = ${_import}('' + '${urlJoin(
             nullthrows(bundles[0].target.publicUrl),
             nullthrows(bundles[0].name)
           )}');`,
@@ -92,7 +149,9 @@ export default new Runtime({
 
           // Use esmodule loader if possible
           if (b.type === 'js' && b.env.isModule) {
-            loader = MODULE_LOADER;
+            loader = needsDynamicImportPolyfill
+              ? IMPORT_POLYFILL
+              : MODULE_LOADER;
           }
 
           return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
