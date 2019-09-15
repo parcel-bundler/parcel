@@ -6,6 +6,29 @@ import type {BabelTargets} from './types';
 import invariant from 'assert';
 import semver from 'semver';
 
+// List of browsers to exclude when the esmodule target is specified.
+const ESMODULE_BROWSERS = [
+  'not ie <= 11',
+  'not edge < 16',
+  'not firefox < 60',
+  'not chrome < 61',
+  'not safari < 11',
+  'not opera < 48',
+  'not ios_saf < 11',
+  'not op_mini all',
+  'not android < 76',
+  'not blackberry > 0',
+  'not op_mob > 0',
+  'not and_chr < 76',
+  'not and_ff < 68',
+  'not ie_mob > 0',
+  'not and_uc > 0',
+  'not samsung < 8.2',
+  'not and_qq > 0',
+  'not baidu > 0',
+  'not kaios > 0'
+];
+
 export function enginesToBabelTargets(env: Environment): BabelTargets {
   // "Targets" is the name @babel/preset-env uses for what Parcel calls engines.
   // This should not be confused with Parcel's own targets.
@@ -27,8 +50,15 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
   }
 
   if (env.isModule && env.isBrowser()) {
-    targets.esmodules = true;
-    delete targets.browsers;
+    // If there is already a browsers target, add a blacklist to exclude
+    // instead of using babel's esmodules target. This allows specifying
+    // a newer set of browsers than the baseline esmodule support list.
+    // See https://github.com/babel/babel/issues/8809.
+    if (targets.browsers) {
+      targets.browsers = [...targets.browsers, ...ESMODULE_BROWSERS];
+    } else {
+      targets.esmodules = true;
+    }
   }
 
   return targets;
