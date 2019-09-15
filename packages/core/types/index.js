@@ -59,6 +59,7 @@ export type Engines = {
 
 export type TargetSourceMapOptions = {
   sourceRoot?: string,
+  inline?: boolean,
   inlineSources?: boolean,
   ...
 };

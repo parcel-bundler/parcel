@@ -148,7 +148,8 @@ export default class PackagerRunner {
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
       getSourceMapReference: map => {
-        return bundle.isInline
+        return bundle.isInline ||
+          (bundle.target.sourceMap && bundle.target.sourceMap.inline)
           ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
           : path.basename(bundle.filePath) + '.map';
       },
@@ -254,7 +255,9 @@ export default class PackagerRunner {
         ? url.format(url.parse(sourceRoot + '/'))
         : undefined,
       inlineSources,
-      inlineMap: !!bundle.isInline
+      inlineMap:
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
     });
   }
 
