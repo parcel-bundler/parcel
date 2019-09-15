@@ -121,11 +121,11 @@ export default class BundlerRunner {
     );
 
     let bundlePaths = bundles.map(b => b.filePath);
-    // assert.deepEqual(
-    //   bundlePaths,
-    //   unique(bundlePaths),
-    //   'Bundles must have unique filePaths'
-    // );
+    assert.deepEqual(
+      bundlePaths,
+      unique(bundlePaths),
+      'Bundles must have unique filePaths'
+    );
   }
 
   async nameBundle(

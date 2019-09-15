@@ -501,6 +501,7 @@ export default class BundleGraph {
       hash.update(this.getContentHash(childBundle));
     }, bundle);
 
+    hash.update(JSON.stringify(bundle.env));
     return hash.digest('hex');
   }
 }
