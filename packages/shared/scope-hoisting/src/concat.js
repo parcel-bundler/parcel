@@ -46,12 +46,17 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
-  // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
-  // registering modules dynamically at runtime.
+  // If this is an entry bundle and it has non esmodule child bundles,
+  // we need to add the prelude code, which allows registering modules dynamically at runtime.
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
-  let hasChildBundles = bundleGraph
-    .getChildBundles(bundle)
-    .some(bundle => bundle.type !== 'js' || !bundle.env.isModule);
+  let bundleGroups = bundleGraph.getBundleGroupsReferencedByBundle(bundle);
+  let bundles = bundleGroups.reduce((p, {bundleGroup}) => {
+    let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    return p.concat(bundles);
+  }, []);
+  let hasChildBundles = bundles.some(
+    bundle => bundle.type !== 'js' || !bundle.env.isModule
+  );
   let needsPrelude = isEntry && hasChildBundles;
   let registerEntry = (!isEntry && !bundle.env.isModule) || hasChildBundles;
   if (needsPrelude) {

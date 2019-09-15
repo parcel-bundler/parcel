@@ -591,7 +591,6 @@ export interface BundleGraph {
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-  getChildBundles(bundle: Bundle): Array<Bundle>;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>

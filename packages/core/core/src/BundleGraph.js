@@ -291,17 +291,6 @@ export default class BundleGraph {
     return this._graph.getNodesConnectedFrom(bundleNode, 'bundle').length > 0;
   }
 
-  getChildBundles(bundle: Bundle): Array<Bundle> {
-    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
-    return this._graph
-      .getNodesConnectedFrom(bundleNode, 'bundle')
-      .filter(node => node.type === 'bundle')
-      .map(node => {
-        invariant(node.type === 'bundle');
-        return node.value;
-      });
-  }
-
   traverseBundles<TContext>(
     visit: GraphVisitor<Bundle, TContext>,
     startBundle?: Bundle

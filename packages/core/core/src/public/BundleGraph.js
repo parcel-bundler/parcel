@@ -145,10 +145,4 @@ export default class BundleGraph implements IBundleGraph {
       )
     );
   }
-
-  getChildBundles(bundle: IBundle): Array<IBundle> {
-    return this.#graph
-      .getChildBundles(bundleToInternalBundle(bundle))
-      .map(b => new Bundle(b, this.#graph, this.#options));
-  }
 }
