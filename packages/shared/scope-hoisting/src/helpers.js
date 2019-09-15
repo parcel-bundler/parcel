@@ -29,4 +29,13 @@ function $parcel$missingModule(name) {
   throw err;
 }
 
-var $parcel$global = this;
+var $parcel$global =
+  typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof self !== 'undefined'
+    ? self
+    : typeof window !== 'undefined'
+    ? window
+    : typeof global !== 'undefined'
+    ? global
+    : {};

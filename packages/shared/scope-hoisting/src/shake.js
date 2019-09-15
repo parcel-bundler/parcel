@@ -63,7 +63,12 @@ function isPure(binding) {
     binding.path.get('id').isIdentifier()
   ) {
     let init = binding.path.get('init');
-    return init.isPure() || init.isIdentifier() || init.isThisExpression();
+    return (
+      init.isPure() ||
+      init.isIdentifier() ||
+      init.isThisExpression() ||
+      binding.path.node.id.name === '$parcel$global'
+    );
   }
 
   return binding.path.isPure();
