@@ -59,10 +59,11 @@ export default class Server extends EventEmitter {
     super();
 
     this.options = options;
-    this.rootPath =
-      typeof options.publicUrl === 'string'
-        ? new URL(options.publicUrl).pathname
-        : null;
+    try {
+      this.rootPath = new URL(options.publicUrl).pathname;
+    } catch (e) {
+      this.rootPath = options.publicUrl;
+    }
     this.pending = true;
     this.bundleGraph = null;
     this.error = null;
