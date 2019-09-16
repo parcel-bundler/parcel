@@ -397,6 +397,7 @@ export default class SourceMap {
               path.join(rootDir || '', sourceName),
               'utf8'
             );
+
             if (content) {
               generator.setSourceContent(sourceName, content);
             }
