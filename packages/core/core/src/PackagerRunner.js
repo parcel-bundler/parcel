@@ -147,7 +147,12 @@ export default class PackagerRunner {
     let packaged = await packager.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
-      sourceMapPath: path.basename(bundle.filePath) + '.map',
+      getSourceMapReference: map => {
+        return bundle.isInline ||
+          (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+          ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+          : path.basename(bundle.filePath) + '.map';
+      },
       options: this.pluginOptions,
       getInlineBundleContents: (
         bundle: BundleType,
@@ -155,7 +160,7 @@ export default class PackagerRunner {
       ) => {
         if (!bundle.isInline) {
           throw new Error(
-            'Bundle is not inline and unable to retireve contents'
+            'Bundle is not inline and unable to retrieve contents'
           );
         }
 
@@ -249,7 +254,10 @@ export default class PackagerRunner {
       sourceRoot: !inlineSources
         ? url.format(url.parse(sourceRoot + '/'))
         : undefined,
-      inlineSources
+      inlineSources,
+      inlineMap:
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
     });
   }
 
