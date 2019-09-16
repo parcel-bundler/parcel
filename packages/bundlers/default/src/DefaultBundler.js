@@ -50,7 +50,7 @@ export default new Bundler({
         let bundleByType = new Map<string, Bundle>();
         for (let asset of assets) {
           let bundle = bundleGraph.createBundle({
-            entryAsset: dependency.isAsync ? null : asset,
+            entryAsset: dependency.isAsync && !dependency.isURL ? null : asset,
             id: asset.id,
             type: asset.type,
             env: asset.env,
