@@ -98,14 +98,13 @@ function isUnusedWildcard(path) {
 
 function remove(path) {
   if (path.isAssignmentExpression()) {
-    if (path.parentPath.isSequenceExpression()) {
-      if (path.parent.expressions.length == 1) {
-        // replace sequence expression with it's sole child
-        path.parentPath.replaceWith(path);
-        remove(path.parentPath);
-      } else {
-        path.remove();
-      }
+    if (
+      path.parentPath.isSequenceExpression() &&
+      path.parent.expressions.length === 1
+    ) {
+      // replace sequence expression with it's sole child
+      path.parentPath.replaceWith(path);
+      remove(path.parentPath);
     } else if (
       !path.parentPath.isExpressionStatement() ||
       !path.get('right').isPure()

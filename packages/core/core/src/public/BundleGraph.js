@@ -145,4 +145,10 @@ export default class BundleGraph implements IBundleGraph {
       )
     );
   }
+
+  findBundlesWithAsset(asset: IAsset): Array<IBundle> {
+    return this.#graph
+      .findBundlesWithAsset(assetToInternalAsset(asset).value)
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
 }

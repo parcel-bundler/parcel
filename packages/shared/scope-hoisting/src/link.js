@@ -18,6 +18,7 @@ import treeShake from './shake';
 import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
 import addExports from './export';
+import {urlJoin} from '@parcel/utils';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -43,6 +44,8 @@ export function link({
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
+  let imported = new Set();
+
   let exportedIdentifiers = new Map();
   let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
@@ -62,6 +65,11 @@ export function link({
           imports.set(local, [resolved, imported]);
         }
       }
+    }
+
+    if (bundleGraph.isAssetReferencedByAssetType(asset, 'js')) {
+      let exportsId = getName(asset, 'exports');
+      exportedIdentifiers.set(exportsId, exportsId);
     }
   });
 
@@ -94,6 +102,8 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !assets.has(mod.id)) {
+      let bundles = bundleGraph.findBundlesWithAsset(mod);
+      console.log(mod.filePath, bundles.map(b => b.filePath));
       node = REQUIRE_TEMPLATE({ID: t.stringLiteral(module.id)}).expression;
       return interop(module, symbol, path, node);
     }
@@ -250,7 +260,27 @@ export function link({
               node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else if (mod.type === 'js') {
-            node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+            if (imported.has(mod)) {
+              return;
+            }
+
+            imported.add(mod);
+            let bundles = bundleGraph.findBundlesWithAsset(mod);
+            // node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+            if (!isUnusedValue(path)) {
+              node = getIdentifier(mod, 'exports');
+            }
+
+            path.scope
+              .getProgramParent()
+              .path.unshiftContainer('body', [
+                t.importDeclaration(
+                  node ? [t.importSpecifier(node, node)] : [],
+                  t.stringLiteral(
+                    urlJoin(bundles[0].target.publicUrl, bundles[0].name)
+                  )
+                )
+              ]);
           }
 
           if (node) {

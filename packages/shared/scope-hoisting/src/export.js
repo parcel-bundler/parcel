@@ -13,7 +13,11 @@ export default function addExports(
 
   path.traverse({
     Declaration(path) {
-      if (path.isExportDeclaration() || path.parentPath.isExportDeclaration()) {
+      if (
+        path.isExportDeclaration() ||
+        path.parentPath.isExportDeclaration() ||
+        path.isImportDeclaration()
+      ) {
         return;
       }
 

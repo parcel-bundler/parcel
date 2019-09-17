@@ -595,6 +595,7 @@ export interface BundleGraph {
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
+  findBundlesWithAsset(Asset): Array<Bundle>;
 }
 
 export type BundleResult = {|

@@ -117,24 +117,27 @@ export default new Runtime({
             : -1
         );
 
-      // Optimization if we're only loading one esmodule bundle.
+      // Optimization if we're only loading esmodule bundles.
       // Just use native `import()` in that case without bringing in the whole loader runtime.
       if (
         bundle.env.isModule &&
-        bundles.length === 1 &&
-        bundles[0].type === 'js'
+        bundles.every(b => b.type === 'js' && b.env.isModule)
       ) {
         let _import = needsDynamicImportPolyfill
           ? `require('${IMPORT_POLYFILL}')`
           : 'import';
+        let imports = bundles.map(
+          b =>
+            `${_import}('' + '${urlJoin(
+              nullthrows(b.target.publicUrl),
+              nullthrows(b.name)
+            )}')`
+        );
         assets.push({
           filePath: __filename,
           // String concatenation instead of literal to stop JSTransformer from
           // trying to process this import() call.
-          code: `module.exports = ${_import}('' + '${urlJoin(
-            nullthrows(bundles[0].target.publicUrl),
-            nullthrows(bundles[0].name)
-          )}');`,
+          code: `module.exports = ${imports.join(', ')};`,
           dependency
         });
         continue;

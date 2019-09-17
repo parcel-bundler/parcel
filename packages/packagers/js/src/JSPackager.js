@@ -19,7 +19,7 @@ export default new Packager({
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
-      return generate(bundle, ast, options);
+      return generate(bundleGraph, bundle, ast, options);
     }
 
     if (bundle.env.isModule) {

@@ -1,5 +1,5 @@
 import('./async');
-// import('./async2');
+import('./async2');
 
 class Test {}
 new Test();
