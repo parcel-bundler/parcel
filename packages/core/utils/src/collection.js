@@ -4,6 +4,13 @@ export function unique<T>(array: Array<T>): Array<T> {
   return [...new Set(array)];
 }
 
+export function flatMap<T, U>(
+  array: Array<T>,
+  project: (T, number, Array<T>) => Array<U>
+): Array<U> {
+  return array.map(project).reduce((memo, val) => memo.concat(val), []);
+}
+
 export function objectSortedEntries(obj: {
   +[string]: mixed,
   ...

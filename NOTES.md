@@ -6,3 +6,5 @@
 - removed entry assets from async bundles
 - while traversing for building shared bundles, check if asset is missing in every bundle, and if so, stop
 - rewrote creating bundle => bundle group edges to take place after optimization because this broke situations where a shared bundle had an async import.
+- commented out assertion in BundlerRunner to suppress 'Bundles must have unique filePaths' error
+- (upstream) rewrote getBundleGroupsReferencedByBundle in BundleGraph.js to filter for dependency nodes instead of just finding the first one
