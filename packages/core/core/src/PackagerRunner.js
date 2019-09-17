@@ -62,7 +62,7 @@ export default class PackagerRunner {
       |} = await this.readFromCache(cacheKey);
 
       if (cacheResult) {
-        result = cacheResult;
+        return cacheResult;
       }
     }
 
