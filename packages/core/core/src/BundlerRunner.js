@@ -127,12 +127,12 @@ export default class BundlerRunner {
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph))
     );
 
-    let bundlePaths = bundles.map(b => b.filePath);
-    assert.deepEqual(
-      bundlePaths,
-      unique(bundlePaths),
-      'Bundles must have unique filePaths'
-    );
+    // let bundlePaths = bundles.map(b => b.filePath);
+    // assert.deepEqual(
+    //   bundlePaths,
+    //   unique(bundlePaths),
+    //   'Bundles must have unique filePaths'
+    // );
   }
 
   async nameBundle(
@@ -198,6 +198,10 @@ export default class BundlerRunner {
     runtimeAssets: Array<RuntimeAsset>
   ) {
     for (let {code, filePath, dependency, isEntry} of runtimeAssets) {
+      // if (dependency.sourceAssetId === '30c91c73800a5d29d80ac8294f7e5ebe') {
+      //   debugger;
+      // }
+
       let builder = new AssetGraphBuilder();
       await builder.init({
         options: this.options,
@@ -249,21 +253,15 @@ export default class BundlerRunner {
         }
       });
 
-      let entryIsReference = false;
       for (let asset of duplicated) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-
-        if (entry.id === asset.id) {
-          entryIsReference = true;
-        }
       }
 
       bundleGraph._graph.addEdge(
         dependency
           ? dependency.id
           : nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-        entry.id,
-        entryIsReference ? 'references' : null
+        entry.id
       );
 
       if (isEntry) {
