@@ -68,12 +68,17 @@ export default class PackagerRunner {
         map
       };
 
-      if (cacheKey != null) {
+      if (
+        cacheKey != null &&
+        // TODO This skips caching all packages that return Readable streams.
+        !(result.contents instanceof Readable)
+      ) {
         await this.writeToCache(cacheKey, result.contents, map);
       }
     }
 
     let {contents, map} = result;
+
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
@@ -84,6 +89,7 @@ export default class PackagerRunner {
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
     let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
+
     let options = publicBundle.env.isBrowser()
       ? undefined
       : {
@@ -93,8 +99,18 @@ export default class PackagerRunner {
         };
 
     let size;
+    // console.log('PACKAGING', filePath);
     if (contents instanceof Readable) {
+      // invariant(contents.bytesRead === 0);
       size = await writeFileStream(outputFS, filePath, contents, options);
+      console.log(
+        'wrote',
+        size,
+        'to',
+        filePath,
+        'from bytes',
+        contents.bytesRead
+      );
     } else {
       await outputFS.writeFile(filePath, contents, options);
       size = contents.length;
@@ -265,8 +281,16 @@ export default class PackagerRunner {
 
     let mapExists = await this.options.cache.blobExists(mapKey);
 
+    let contents = this.options.cache.getStream(contentKey);
+    // let oldRead = contents.read;
+    // contents.read = function newRead(size) {
+    //   console.trace('BEING READ FROM');
+    //   oldRead.call(contents, size);
+    //   debugger;
+    // };
+
     return {
-      contents: this.options.cache.getStream(contentKey),
+      contents,
       map: mapExists ? this.options.cache.getStream(mapKey) : null
     };
   }
