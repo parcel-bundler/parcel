@@ -78,6 +78,8 @@ export default class BundlerRunner {
       summarizeBundle(bundle, internalBundleGraph);
     }
 
+    internalBundleGraph.connectBundleGroups();
+
     // await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
     await bundler.optimize({
       bundleGraph: new BundlerOptimizeBundleGraph(
@@ -93,7 +95,7 @@ export default class BundlerRunner {
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
 
-    await graphNodes(bundleGraph, []);
+    await graphNodes(bundleGraph, ['d5717aaa06434ee15cd3350952c9075a']);
 
     // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 

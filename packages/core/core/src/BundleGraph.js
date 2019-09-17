@@ -104,6 +104,12 @@ export default class BundleGraph {
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     this._graph.removeEdge(bundle.id, asset.id);
     this._graph.traverse(node => {
+      if (
+        node.id === 'd5717aaa06434ee15cd3350952c9075a' &&
+        bundle.id === 'bundle:b62e2effd6611fc26da1cadc271ca02a'
+      ) {
+        debugger;
+      }
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.removeEdge(bundle.id, node.id, 'contains');
       }
@@ -348,8 +354,17 @@ export default class BundleGraph {
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
-    let parentNodes = this._graph.getNodesConnectedTo(
+    let inboundNodes = this._graph.getNodesConnectedTo(
       nullthrows(this._graph.getNode(bundle.id)),
+      'bundle'
+    );
+    invariant(
+      inboundNodes.length === 1 && inboundNodes[0].type === 'bundle_group'
+    );
+    let bundleGroupNode = inboundNodes[0];
+
+    let parentNodes = this._graph.getNodesConnectedTo(
+      bundleGroupNode,
       'bundle'
     );
 
