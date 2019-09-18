@@ -143,6 +143,26 @@ export default new Runtime({
         continue;
       }
 
+      if (
+        bundle.env.outputFormat === 'commonjs' &&
+        bundles.every(b => b.type === 'js')
+      ) {
+        let p = path.relative(
+          path.dirname(bundle.filePath),
+          bundles[bundles.length - 1].filePath
+        );
+        if (p[0] !== '.') {
+          p = './' + p;
+        }
+
+        assets.push({
+          filePath: __filename,
+          code: `module.exports = require('' + '${p}');`,
+          dependency
+        });
+        continue;
+      }
+
       let loaderModules = bundles
         .map(b => {
           let loader = loaders[b.type];

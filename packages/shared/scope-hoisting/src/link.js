@@ -21,6 +21,7 @@ import {getName, getIdentifier} from './utils';
 import {urlJoin} from '@parcel/utils';
 import * as esmodule from './formats/esmodule';
 import * as browser from './formats/browser';
+import * as commonjs from './formats/commonjs';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -31,7 +32,8 @@ const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
 
 const FORMATS = {
   esmodule,
-  browser
+  browser,
+  commonjs
 };
 
 export function link({

@@ -318,9 +318,6 @@ const VISITOR = {
       path.scope.hasBinding('require');
 
     if (ignore) {
-      if (isRequire) {
-        callee.name = 'parcelRequire';
-      }
       return;
     }
 
