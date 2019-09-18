@@ -30,13 +30,15 @@ export function generate(
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
   // at the right time (after other bundle dependencies are loaded).
   let contents = '';
-  // if (isAsync) {
-  //   contents = `${hashBang}parcelRequire.registerBundle(${JSON.stringify(nullthrows(entry).id)},function(){${code}});`
-  // } else {
-  contents = bundle.env.isModule
-    ? hashBang + code
-    : `${hashBang}(function(){${code}})();`;
-  // }
+  if (isAsync && !bundle.env.isModule) {
+    contents = `${hashBang}parcelRequire.registerBundle(${JSON.stringify(
+      nullthrows(entry).id
+    )},function(){${code}});`;
+  } else {
+    contents = bundle.env.isModule
+      ? hashBang + code
+      : `${hashBang}(function(){${code}})();`;
+  }
 
   return {contents};
 }

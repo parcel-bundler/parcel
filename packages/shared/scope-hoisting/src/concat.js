@@ -49,16 +49,8 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   // If this is an entry bundle and it has non esmodule child bundles,
   // we need to add the prelude code, which allows registering modules dynamically at runtime.
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
-  let bundleGroups = bundleGraph.getBundleGroupsReferencedByBundle(bundle);
-  let hasChildBundles = bundleGroups.some(({bundleGroup}) => {
-    let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-    return (
-      bundles.length !== 1 ||
-      bundles[0].type !== 'js' ||
-      !bundles[0].env.isModule
-    );
-  });
-  let needsPrelude = false; //isEntry && hasChildBundles;
+  let hasChildBundles = bundle.hasChildBundles();
+  let needsPrelude = isEntry && hasChildBundles && !bundle.env.isModule;
   let registerEntry = !isEntry || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
@@ -106,18 +98,19 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
-      // if (
-      //   bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
-      //   (!context.parent && registerEntry)
-      // ) {
-      //   let exportsId = getName(asset, 'exports');
-      //   statements.push(
-      //     ...parse(`
-      //       ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
-      //       parcelRequire.register("${asset.id}", ${exportsId});
-      //     `)
-      //   );
-      // }
+      if (
+        !bundle.env.isModule &&
+        (bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
+          (!context.parent && registerEntry))
+      ) {
+        let exportsId = getName(asset, 'exports');
+        statements.push(
+          ...parse(`
+            ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
+            parcelRequire.register("${asset.id}", ${exportsId});
+          `)
+        );
+      }
 
       if (context.parent) {
         context.parent.set(asset.id, statements);

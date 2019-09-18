@@ -128,6 +128,8 @@ export default new Runtime({
           : 'import';
         let imports = bundles.map(
           b =>
+            // String concatenation instead of literal to stop JSTransformer from
+            // trying to process this import() call.
             `${_import}('' + '${urlJoin(
               nullthrows(b.target.publicUrl),
               nullthrows(b.name)
@@ -135,8 +137,6 @@ export default new Runtime({
         );
         assets.push({
           filePath: __filename,
-          // String concatenation instead of literal to stop JSTransformer from
-          // trying to process this import() call.
           code: `module.exports = ${imports.join(', ')};`,
           dependency
         });

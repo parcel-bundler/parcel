@@ -7,21 +7,21 @@ function loadBundlesLazy(bundles) {
 
   var id = bundles[bundles.length - 1];
 
-  // try {
-  // return Promise.resolve(require(id));
-  // } catch (err) {
-  // if (err.code === 'MODULE_NOT_FOUND') {
-  return new Promise(function(resolve, reject) {
-    loadBundles(bundles.slice(0, -1))
-      .then(function() {
-        // return require(id);
-      })
-      .then(resolve, reject);
-  });
-  // }
+  try {
+    return Promise.resolve(require(id));
+  } catch (err) {
+    if (err.code === 'MODULE_NOT_FOUND') {
+      return new Promise(function(resolve, reject) {
+        loadBundles(bundles.slice(0, -1))
+          .then(function() {
+            return require(id);
+          })
+          .then(resolve, reject);
+      });
+    }
 
-  // throw err;
-  // }
+    throw err;
+  }
 }
 
 function loadBundles(bundles) {
@@ -53,7 +53,7 @@ function loadBundle([bundleLoader, bundle]) {
     return (bundles[bundle] = bundleLoader(getBundleURL() + bundle)
       .then(function(resolved) {
         if (resolved) {
-          // module.bundle.register(id, resolved);
+          module.bundle.register(id, resolved);
         }
 
         return resolved;

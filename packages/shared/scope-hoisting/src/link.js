@@ -260,27 +260,31 @@ export function link({
               node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else if (mod.type === 'js') {
-            if (imported.has(mod)) {
-              return;
-            }
+            if (bundle.env.isModule) {
+              if (imported.has(mod)) {
+                return;
+              }
 
-            imported.add(mod);
-            let bundles = bundleGraph.findBundlesWithAsset(mod);
-            // node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
-            if (!isUnusedValue(path)) {
-              node = getIdentifier(mod, 'exports');
-            }
+              imported.add(mod);
+              let bundles = bundleGraph.findBundlesWithAsset(mod);
+              // node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+              if (!isUnusedValue(path)) {
+                node = getIdentifier(mod, 'exports');
+              }
 
-            path.scope
-              .getProgramParent()
-              .path.unshiftContainer('body', [
-                t.importDeclaration(
-                  node ? [t.importSpecifier(node, node)] : [],
-                  t.stringLiteral(
-                    urlJoin(bundles[0].target.publicUrl, bundles[0].name)
+              path.scope
+                .getProgramParent()
+                .path.unshiftContainer('body', [
+                  t.importDeclaration(
+                    node ? [t.importSpecifier(node, node)] : [],
+                    t.stringLiteral(
+                      urlJoin(bundles[0].target.publicUrl, bundles[0].name)
+                    )
                   )
-                )
-              ]);
+                ]);
+            } else {
+              node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+            }
           }
 
           if (node) {
