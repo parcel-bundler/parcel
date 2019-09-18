@@ -99,18 +99,8 @@ export default class PackagerRunner {
         };
 
     let size;
-    // console.log('PACKAGING', filePath);
     if (contents instanceof Readable) {
-      // invariant(contents.bytesRead === 0);
       size = await writeFileStream(outputFS, filePath, contents, options);
-      console.log(
-        'wrote',
-        size,
-        'to',
-        filePath,
-        'from bytes',
-        contents.bytesRead
-      );
     } else {
       await outputFS.writeFile(filePath, contents, options);
       size = contents.length;
@@ -281,16 +271,8 @@ export default class PackagerRunner {
 
     let mapExists = await this.options.cache.blobExists(mapKey);
 
-    let contents = this.options.cache.getStream(contentKey);
-    // let oldRead = contents.read;
-    // contents.read = function newRead(size) {
-    //   console.trace('BEING READ FROM');
-    //   oldRead.call(contents, size);
-    //   debugger;
-    // };
-
     return {
-      contents,
+      contents: this.options.cache.getStream(contentKey),
       map: mapExists ? this.options.cache.getStream(mapKey) : null
     };
   }

@@ -54,14 +54,14 @@ export default class BundlerRunner {
       phase: 'bundling'
     });
 
-    // let cacheKey;
-    // if (!this.options.disableCache) {
-    //   cacheKey = await this.getCacheKey(graph);
-    //   let cachedBundleGraph = await this.options.cache.get(cacheKey);
-    //   if (cachedBundleGraph) {
-    //     return cachedBundleGraph;
-    //   }
-    // }
+    let cacheKey;
+    if (!this.options.disableCache) {
+      cacheKey = await this.getCacheKey(graph);
+      let cachedBundleGraph = await this.options.cache.get(cacheKey);
+      if (cachedBundleGraph) {
+        return cachedBundleGraph;
+      }
+    }
 
     let bundler = await this.config.getBundler();
 
@@ -95,13 +95,11 @@ export default class BundlerRunner {
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
 
-    await graphNodes(bundleGraph, ['d5717aaa06434ee15cd3350952c9075a']);
-
     // await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
-    // if (cacheKey != null) {
-    //   await this.options.cache.set(cacheKey, internalBundleGraph);
-    // }
+    if (cacheKey != null) {
+      await this.options.cache.set(cacheKey, internalBundleGraph);
+    }
 
     return internalBundleGraph;
   }
