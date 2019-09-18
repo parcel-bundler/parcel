@@ -655,7 +655,7 @@ export type Packager = {|
     getInlineBundleContents: (
       Bundle,
       BundleGraph
-    ) => Async<{|contents: Blob, map: Readable | string | null|}>,
+    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
     ...
   }): Async<BundleResult>
 |};
