@@ -67,7 +67,7 @@ export default class BundlerRunner {
 
     let bundleGraph = removeAssetGroups(graph);
     // $FlowFixMe
-    let internalBundleGraph = new InternalBundleGraph(bundleGraph);
+    let internalBundleGraph = new InternalBundleGraph({graph: bundleGraph});
     await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
     await bundler.bundle({
       bundleGraph: new BundlerBundleGraph(internalBundleGraph, this.options),
@@ -175,6 +175,7 @@ export default class BundlerRunner {
           options: this.pluginOptions
         });
         if (applied) {
+          internalBundleGraph._bundleContentHashes.delete(bundle.id);
           await this.addRuntimesToBundle(
             bundle,
             internalBundleGraph,
@@ -207,12 +208,12 @@ export default class BundlerRunner {
       let {assetGraph} = await builder.build();
 
       let entry = assetGraph.getEntryAssets()[0];
-      let subBundleGraph = new InternalBundleGraph(
+      let subBundleGraph = new InternalBundleGraph({
         // $FlowFixMe
-        removeAssetGroups(
+        graph: removeAssetGroups(
           assetGraph.getSubGraph(nullthrows(assetGraph.getNode(entry.id)))
         )
-      );
+      });
 
       // Exclude modules that are already included in an ancestor bundle
       let duplicated = [];

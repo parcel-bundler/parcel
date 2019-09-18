@@ -46,11 +46,13 @@ export function runPackage(
     bundle,
     bundleGraph,
     config,
+    cacheKey,
     options
   }: {
     bundle: Bundle,
     bundleGraph: BundleGraph,
     config: ParcelConfig,
+    cacheKey: string,
     options: ParcelOptions,
     ...
   }
@@ -58,5 +60,5 @@ export function runPackage(
   return new PackagerRunner({
     config,
     options
-  }).writeBundle(bundle, bundleGraph);
+  }).packageAndWriteBundle(bundle, bundleGraph, cacheKey);
 }

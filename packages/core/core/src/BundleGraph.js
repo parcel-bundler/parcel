@@ -41,28 +41,40 @@ type BundleGraphEdgeTypes =
   | 'references';
 
 export default class BundleGraph {
-  // A cache of bundle content hashes. Currently, a new BundleGraph is created in response
-  // to any asset change, so this doesn't need much invalidation. However, currently namers run
-  // before runtimes, and can access `getHash` despite runtimes altering bundle content later.
-  // TODO: Implement invalidation since runtimes can alter bundle contents?
-  _bundleContentHashes: Map<string, string> = new Map();
+  // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
+  // property so it is possible to reach in and mutate the graph without invalidating these hashes.
+  // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
+  // BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+  _bundleContentHashes: Map<string, string>;
   _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
 
-  constructor(graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>) {
+  constructor({
+    graph,
+    bundleContentHashes
+  }: {|
+    graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
+    bundleContentHashes?: Map<string, string>
+  |}) {
     this._graph = graph;
+    this._bundleContentHashes = bundleContentHashes || new Map();
   }
 
   static deserialize(opts: {
     _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
+    _bundleContentHashes: Map<string, string>,
     ...
   }): BundleGraph {
-    return new BundleGraph(opts._graph);
+    return new BundleGraph({
+      graph: opts._graph,
+      bundleContentHashes: opts._bundleContentHashes
+    });
   }
 
   addAssetToBundle(asset: Asset, bundle: Bundle) {
     // This asset should be reached via traversal
     this._graph.addEdge(bundle.id, asset.id);
     this._graph.addEdge(bundle.id, asset.id, 'contains');
+    this._bundleContentHashes.delete(bundle.id);
   }
 
   addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
@@ -74,6 +86,7 @@ export default class BundleGraph {
         this._graph.addEdge(bundle.id, node.id, 'contains');
       }
     }, nullthrows(this._graph.getNode(asset.id)));
+    this._bundleContentHashes.delete(bundle.id);
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
@@ -83,6 +96,7 @@ export default class BundleGraph {
         this._graph.removeEdge(bundle.id, node.id, 'contains');
       }
     }, nullthrows(this._graph.getNode(asset.id)));
+    this._bundleContentHashes.delete(bundle.id);
   }
 
   createAssetReference(dependency: Dependency, asset: Asset): void {
@@ -155,6 +169,7 @@ export default class BundleGraph {
 
   removeAssetFromBundle(asset: Asset, bundle: Bundle): void {
     this._graph.removeEdge(bundle.id, asset.id, 'contains');
+    this._bundleContentHashes.delete(bundle.id);
   }
 
   traverseAssets<TContext>(
