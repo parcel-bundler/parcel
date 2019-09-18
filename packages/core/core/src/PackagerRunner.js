@@ -52,17 +52,18 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph
-  ): Promise<{|contents: Blob, map: Readable | string | null|}> {
+  ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
     let result, cacheKey;
     if (!this.options.disableCache) {
       cacheKey = await this.getCacheKey(bundle, bundleGraph);
-      let cacheResult: ?{|
-        contents: Readable,
-        map: ?Readable
-      |} = await this.readFromCache(cacheKey);
+      let cacheResult = await this.readFromCache(cacheKey);
 
       if (cacheResult) {
-        return cacheResult;
+        // NOTE: Returning a new object for flow
+        return {
+          contents: cacheResult.contents,
+          map: cacheResult.map
+        };
       }
     }
 
