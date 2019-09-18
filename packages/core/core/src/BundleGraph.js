@@ -135,6 +135,7 @@ export default class BundleGraph {
         entryAssetIds: opts.entryAsset ? [opts.entryAsset.id] : [],
         filePath: null,
         isEntry: opts.isEntry,
+        isInline: opts.isInline,
         target: targetToInternalTarget(opts.target),
         name: null,
         stats: {size: 0, time: 0}

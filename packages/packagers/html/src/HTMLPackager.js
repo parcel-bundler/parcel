@@ -1,7 +1,9 @@
 // @flow strict-local
+import type {Blob} from '@parcel/types';
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
+import {Bundle, BundleGraph} from '@parcel/types';
 import posthtml from 'posthtml';
 import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -19,7 +21,7 @@ const metadataContent = new Set([
 ]);
 
 export default new Packager({
-  async package({bundle, bundleGraph}) {
+  async package({bundle, bundleGraph, getInlineBundleContents}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -47,12 +49,70 @@ export default new Packager({
     }, []);
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, bundles)
+      insertBundleReferences.bind(this, bundles),
+      replaceInlineAssetContent.bind(this, bundleGraph, getInlineBundleContents)
     ]).process(code);
 
     return {contents: html};
   }
 });
+
+async function getAssetContent(
+  bundleGraph: BundleGraph,
+  getInlineBundleContents,
+  assetId
+): Promise<?Blob> {
+  let inlineBundle: ?Bundle;
+  bundleGraph.traverseBundles((bundle, context, {stop}) => {
+    let mainAsset = bundle.getMainEntry();
+    if (mainAsset && mainAsset.uniqueKey === assetId) {
+      inlineBundle = bundle;
+      stop();
+    }
+  });
+
+  if (inlineBundle) {
+    const bundleResult = await getInlineBundleContents(
+      inlineBundle,
+      bundleGraph
+    );
+
+    return bundleResult.contents;
+  }
+
+  return null;
+}
+
+async function replaceInlineAssetContent(
+  bundleGraph: BundleGraph,
+  getInlineBundleContents,
+  tree
+) {
+  const inlineNodes = [];
+  tree.walk(node => {
+    if (node.attrs && node.attrs['data-parcel-key']) {
+      inlineNodes.push(node);
+    }
+    return node;
+  });
+
+  for (let node of inlineNodes) {
+    let newContent = await getAssetContent(
+      bundleGraph,
+      getInlineBundleContents,
+      node.attrs['data-parcel-key']
+    );
+
+    if (newContent != null) {
+      node.content = newContent;
+
+      // remove attr from output
+      delete node.attrs['data-parcel-key'];
+    }
+  }
+
+  return tree;
+}
 
 function insertBundleReferences(siblingBundles, tree) {
   const bundles = [];

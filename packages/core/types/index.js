@@ -59,6 +59,7 @@ export type Engines = {
 
 export type TargetSourceMapOptions = {
   sourceRoot?: string,
+  inline?: boolean,
   inlineSources?: boolean,
   ...
 };
@@ -269,9 +270,11 @@ interface BaseAsset {
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
+  +isInline: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
+  +uniqueKey: ?string;
 
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
@@ -293,6 +296,7 @@ interface BaseAsset {
 export interface MutableAsset extends BaseAsset {
   ast: ?AST;
   isIsolated: boolean;
+  isInline: boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
@@ -368,10 +372,12 @@ export interface TransformerResult {
   dependencies?: $ReadOnlyArray<DependencyOptions>;
   includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
+  isInline?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
+  uniqueKey?: ?string;
 }
 
 type Async<T> = T | Promise<T>;
@@ -484,6 +490,7 @@ export type CreateBundleOpts =
       entryAsset: Asset,
       target: Target,
       isEntry?: ?boolean,
+      isInline?: ?boolean,
       type?: ?string,
       env?: ?Environment
     |}
@@ -494,6 +501,7 @@ export type CreateBundleOpts =
       entryAsset?: ?Asset,
       target: Target,
       isEntry?: ?boolean,
+      isInline?: ?boolean,
       type: string,
       env: Environment
     |};
@@ -536,6 +544,7 @@ export interface Bundle {
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;
+  +isInline: ?boolean;
   +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
@@ -642,7 +651,11 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    sourceMapPath: FilePath,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
+    getInlineBundleContents: (
+      Bundle,
+      BundleGraph
+    ) => Async<{|contents: Blob, map: Readable | string | null|}>,
     ...
   }): Async<BundleResult>
 |};

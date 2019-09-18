@@ -13,10 +13,24 @@ import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
+
 import {assetFromValue, assetToInternalAsset, Asset} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
+
+// Friendly access for other modules within this package that need access
+// to the internal bundle.
+const _bundleGraphToInternalBundleGraph: WeakMap<
+  IBundleGraph,
+  InternalBundleGraph
+> = new WeakMap();
+export function bundleGraphToInternalBundleGraph(
+  bundleGraph: IBundleGraph
+): InternalBundleGraph {
+  return nullthrows(_bundleGraphToInternalBundleGraph.get(bundleGraph));
+}
 
 export default class BundleGraph implements IBundleGraph {
   #graph; // InternalBundleGraph
@@ -25,6 +39,7 @@ export default class BundleGraph implements IBundleGraph {
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     this.#graph = graph;
     this.#options = options;
+    _bundleGraphToInternalBundleGraph.set(this, graph);
   }
 
   getAssetById(assetId: string): ?Asset {

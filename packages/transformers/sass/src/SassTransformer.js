@@ -40,7 +40,11 @@ export default new Transformer({
       config = {};
     }
 
-    config.file = asset.filePath;
+    if (asset.isInline) {
+      config.data = await asset.getCode();
+    } else {
+      config.file = asset.filePath;
+    }
 
     if (config.importer === undefined) {
       config.importer = [];
@@ -49,6 +53,11 @@ export default new Transformer({
     }
 
     config.importer = [...config.importer, resolvePathImporter({resolve})];
+
+    config.indentedSyntax =
+      typeof config.indentedSyntax === 'boolean'
+        ? config.indentedSyntax
+        : asset.type === 'sass';
 
     return config;
   },

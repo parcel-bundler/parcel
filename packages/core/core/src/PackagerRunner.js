@@ -19,9 +19,15 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 
-import {NamedBundle} from './public/Bundle';
+import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
+import {
+  Bundle as BundleType,
+  BundleGraph as BundleGraphType
+} from '@parcel/types';
 import {report} from './ReporterRunner';
-import BundleGraph from './public/BundleGraph';
+import BundleGraph, {
+  bundleGraphToInternalBundleGraph
+} from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -43,42 +49,53 @@ export default class PackagerRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
+  async getBundleResult(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph
+  ): Promise<{|contents: Blob, map: Readable | string | null|}> {
+    let result, cacheKey;
+    if (!this.options.disableCache) {
+      cacheKey = await this.getCacheKey(bundle, bundleGraph);
+      let cacheResult: ?{|
+        contents: Readable,
+        map: ?Readable
+      |} = await this.readFromCache(cacheKey);
+
+      if (cacheResult) {
+        result = cacheResult;
+      }
+    }
+
+    let packaged = await this.package(bundle, bundleGraph);
+    let res = await this.optimize(
+      bundle,
+      bundleGraph,
+      packaged.contents,
+      packaged.map
+    );
+
+    let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+    result = {
+      contents: res.contents,
+      map
+    };
+
+    if (
+      cacheKey != null &&
+      // TODO This skips caching all packages that return Readable streams.
+      !(result.contents instanceof Readable)
+    ) {
+      await this.writeToCache(cacheKey, result.contents, map);
+    }
+
+    return result;
+  }
+
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let {inputFS, outputFS} = this.options;
     let start = Date.now();
 
-    let result, cacheKey;
-    if (!this.options.disableCache) {
-      cacheKey = await this.getCacheKey(bundle, bundleGraph);
-      result = await this.readFromCache(cacheKey);
-    }
-
-    if (!result) {
-      let packaged = await this.package(bundle, bundleGraph);
-      let res = await this.optimize(
-        bundle,
-        bundleGraph,
-        packaged.contents,
-        packaged.map
-      );
-
-      let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
-      result = {
-        contents: res.contents,
-        map
-      };
-
-      if (
-        cacheKey != null &&
-        // TODO This skips caching all packages that return Readable streams.
-        !(result.contents instanceof Readable)
-      ) {
-        await this.writeToCache(cacheKey, result.contents, map);
-      }
-    }
-
-    let {contents, map} = result;
-
+    let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
@@ -135,8 +152,28 @@ export default class PackagerRunner {
     let packaged = await packager.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
-      sourceMapPath: path.basename(bundle.filePath) + '.map',
-      options: this.pluginOptions
+      getSourceMapReference: map => {
+        return bundle.isInline ||
+          (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+          ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+          : path.basename(bundle.filePath) + '.map';
+      },
+      options: this.pluginOptions,
+      getInlineBundleContents: (
+        bundle: BundleType,
+        bundleGraph: BundleGraphType
+      ) => {
+        if (!bundle.isInline) {
+          throw new Error(
+            'Bundle is not inline and unable to retrieve contents'
+          );
+        }
+
+        return this.getBundleResult(
+          bundleToInternalBundle(bundle),
+          bundleGraphToInternalBundleGraph(bundleGraph)
+        );
+      }
     });
 
     return {
@@ -222,7 +259,10 @@ export default class PackagerRunner {
       sourceRoot: !inlineSources
         ? url.format(url.parse(sourceRoot + '/'))
         : undefined,
-      inlineSources
+      inlineSources,
+      inlineMap:
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
     });
   }
 
@@ -256,11 +296,10 @@ export default class PackagerRunner {
 
   async readFromCache(
     cacheKey: string
-  ): Promise<?{
+  ): Promise<?{|
     contents: Readable,
-    map: ?Readable,
-    ...
-  }> {
+    map: ?Readable
+  |}> {
     let contentKey = md5FromString(`${cacheKey}:content`);
     let mapKey = md5FromString(`${cacheKey}:map`);
 
