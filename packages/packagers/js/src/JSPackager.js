@@ -22,9 +22,11 @@ export default new Packager({
       return generate(bundleGraph, bundle, ast, options);
     }
 
-    if (bundle.env.isModule) {
+    if (bundle.env.outputFormat) {
       throw new Error(
-        'ESModule output is not supported without scope hoisting.'
+        `${
+          bundle.env.outputFormat
+        } output is not supported without scope hoisting.`
       );
     }
 

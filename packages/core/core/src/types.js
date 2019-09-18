@@ -20,7 +20,8 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  ConfigResult
+  ConfigResult,
+  OutputFormat
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -31,7 +32,7 @@ export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules: boolean,
-  isModule: boolean
+  outputFormat?: OutputFormat
 |};
 
 export type Target = {|

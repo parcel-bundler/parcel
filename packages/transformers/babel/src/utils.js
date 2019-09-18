@@ -50,7 +50,7 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
     }
   }
 
-  if (env.isModule && env.isBrowser()) {
+  if (env.outputFormat === 'esmodule' && env.isBrowser()) {
     // If there is already a browsers target, add a blacklist to exclude
     // instead of using babel's esmodules target. This allows specifying
     // a newer set of browsers than the baseline esmodule support list.

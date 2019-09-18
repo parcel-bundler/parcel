@@ -23,19 +23,19 @@ export function generate(
 
   let entry = bundle.getMainEntry();
   let isAsync = bundleGraph.hasParentBundleOfType(bundle, 'js') && entry;
-  if (!options.minify && (isAsync || !bundle.env.isModule)) {
+  if (!options.minify && (isAsync || !bundle.env.outputFormat)) {
     code = `\n${code}\n`;
   }
 
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
   // at the right time (after other bundle dependencies are loaded).
   let contents = '';
-  if (isAsync && !bundle.env.isModule) {
+  if (isAsync && !bundle.env.outputFormat) {
     contents = `${hashBang}parcelRequire.registerBundle(${JSON.stringify(
       nullthrows(entry).id
     )},function(){${code}});`;
   } else {
-    contents = bundle.env.isModule
+    contents = bundle.env.outputFormat
       ? hashBang + code
       : `${hashBang}(function(){${code}})();`;
   }

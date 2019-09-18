@@ -40,4 +40,5 @@ globalObject.parcelRequire.register = function register(id, exports) {
 
 globalObject.parcelRequire.registerBundle = function registerBundle(id, fn) {
   $parcel$bundles[id] = fn;
+  $parcel$modules[id] = {};
 };

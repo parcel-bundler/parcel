@@ -80,7 +80,7 @@ export default new Runtime({
 
     // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
     let needsDynamicImportPolyfill = false;
-    if (bundle.env.isBrowser() && bundle.env.isModule) {
+    if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
       let targetBrowsers = bundle.env.engines.browsers;
       let browsers =
         targetBrowsers != null && !Array.isArray(targetBrowsers)
@@ -120,8 +120,8 @@ export default new Runtime({
       // Optimization if we're only loading esmodule bundles.
       // Just use native `import()` in that case without bringing in the whole loader runtime.
       if (
-        bundle.env.isModule &&
-        bundles.every(b => b.type === 'js' && b.env.isModule)
+        bundle.env.outputFormat === 'esmodule' &&
+        bundles.every(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
       ) {
         let _import = needsDynamicImportPolyfill
           ? `require('${IMPORT_POLYFILL}')`
@@ -151,7 +151,7 @@ export default new Runtime({
           }
 
           // Use esmodule loader if possible
-          if (b.type === 'js' && b.env.isModule) {
+          if (b.type === 'js' && b.env.outputFormat === 'esmodule') {
             loader = needsDynamicImportPolyfill
               ? IMPORT_POLYFILL
               : MODULE_LOADER;

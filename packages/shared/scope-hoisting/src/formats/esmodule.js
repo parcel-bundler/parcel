@@ -1,14 +1,48 @@
 // @flow
-import type {Symbol} from '@parcel/types';
-import nullthrows from 'nullthrows';
-import rename from './renamer';
-import * as t from '@babel/types';
 
-// Adds export statements for the declarations of each of the exported identifiers.
-export default function addExports(
-  path: any,
-  exportedIdentifiers: Map<Symbol, Symbol>
+import type {Asset, Bundle, Symbol} from '@parcel/types';
+import * as t from '@babel/types';
+import {urlJoin} from '@parcel/utils';
+import {getIdentifier} from '../utils';
+import nullthrows from 'nullthrows';
+import invariant from 'assert';
+import rename from '../renamer';
+
+export function generateImports(bundle: Bundle, assets: Set<Asset>) {
+  let specifiers = [...assets].map(asset => {
+    let id = t.identifier(asset.meta.exportsIdentifier);
+    return t.importSpecifier(id, id);
+  });
+
+  return [
+    t.importDeclaration(
+      specifiers,
+      t.stringLiteral(
+        urlJoin(nullthrows(bundle.target.publicUrl), nullthrows(bundle.name))
+      )
+    )
+  ];
+}
+
+export function generateExports(
+  bundle: Bundle,
+  referencedAssets: Set<Asset>,
+  path: any
 ) {
+  let exportedIdentifiers = new Map();
+  let entry = bundle.getMainEntry();
+  if (entry && bundle.isEntry) {
+    for (let [exportName, symbol] of entry.symbols) {
+      exportedIdentifiers.set(symbol, exportName);
+    }
+  }
+
+  for (let asset of referencedAssets) {
+    let exportsId = asset.meta.exportsIdentifier;
+    invariant(typeof exportsId === 'string');
+    exportedIdentifiers.set(exportsId, exportsId);
+  }
+
   let exported = new Set<Symbol>();
 
   path.traverse({

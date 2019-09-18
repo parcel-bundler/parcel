@@ -11,7 +11,7 @@ export function createEnvironment({
   context,
   engines,
   includeNodeModules,
-  isModule = false
+  outputFormat
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -64,7 +64,7 @@ export function createEnvironment({
     context,
     engines,
     includeNodeModules,
-    isModule
+    outputFormat
   };
 }
 

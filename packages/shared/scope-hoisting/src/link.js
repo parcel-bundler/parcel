@@ -10,6 +10,7 @@ import type {
 } from '@parcel/types';
 
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import {relative} from 'path';
 import template from '@babel/template';
 import * as t from '@babel/types';
@@ -17,8 +18,9 @@ import traverse from '@babel/traverse';
 import treeShake from './shake';
 import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
-import addExports from './export';
 import {urlJoin} from '@parcel/utils';
+import * as esmodule from './formats/esmodule';
+import * as browser from './formats/browser';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -26,6 +28,11 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
+
+const FORMATS = {
+  esmodule,
+  browser
+};
 
 export function link({
   bundle,
@@ -39,25 +46,22 @@ export function link({
   options: PluginOptions,
   ...
 }) {
+  let format = FORMATS[bundle.env.outputFormat || 'browser'];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
-  let imported = new Set();
-
-  let exportedIdentifiers = new Map();
-  let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
-    for (let [exportName, symbol] of entry.symbols) {
-      exportedIdentifiers.set(symbol, exportName);
-    }
-  }
+  let importedBundles = new Map();
+  let referencedAssets = new Set();
 
   // Build a mapping of all imported identifiers to replace.
   bundle.traverseAssets(asset => {
     assets.set(asset.id, asset);
-    exportsMap.set(getName(asset, 'exports'), asset);
+    let exportsIdentifier = asset.meta.exportsIdentifier;
+    invariant(typeof exportsIdentifier === 'string');
+    exportsMap.set(exportsIdentifier, asset);
+
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep);
       if (resolved) {
@@ -68,8 +72,7 @@ export function link({
     }
 
     if (bundleGraph.isAssetReferencedByAssetType(asset, 'js')) {
-      let exportsId = getName(asset, 'exports');
-      exportedIdentifiers.set(exportsId, exportsId);
+      referencedAssets.add(asset);
     }
   });
 
@@ -82,7 +85,8 @@ export function link({
 
     // If this is a wildcard import, resolve to the exports object.
     if (asset && identifier === '*') {
-      identifier = getName(asset, 'exports');
+      identifier = asset.meta.exportsIdentifier;
+      invariant(typeof identifier === 'string');
     }
 
     if (replacements && identifier && replacements.has(identifier)) {
@@ -116,7 +120,9 @@ export function link({
 
     // If it is CommonJS, look for an exports object.
     if (!node && mod.meta.isCommonJS) {
-      node = findSymbol(path, getName(mod, 'exports'));
+      let exportsIdentifier = mod.meta.exportsIdentifier;
+      invariant(typeof exportsIdentifier === 'string');
+      node = findSymbol(path, exportsIdentifier);
       if (!node) {
         return null;
       }
@@ -152,7 +158,7 @@ export function link({
           })
         );
 
-        let binding = path.scope.getBinding(getName(mod, 'exports'));
+        let binding = path.scope.getBinding(mod.meta.exportsIdentifier);
         if (binding) {
           binding.reference(decl.get('declarations.0.init'));
         }
@@ -225,7 +231,8 @@ export function link({
           if (assets.get(mod.id)) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
-              let name = getName(mod, 'exports');
+              let name = mod.meta.exportsIdentifier;
+              invariant(typeof name === 'string');
               node = t.identifier(replacements.get(name) || name);
 
               // Insert __esModule interop flag if the required module is an ES6 module with a default export.
@@ -260,30 +267,17 @@ export function link({
               node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else if (mod.type === 'js') {
-            if (bundle.env.isModule) {
-              if (imported.has(mod)) {
-                return;
-              }
+            let bundles = bundleGraph.findBundlesWithAsset(mod);
+            if (!importedBundles.has(bundles[0].id)) {
+              importedBundles.set(bundles[0].id, [bundles[0], new Set()]);
+            }
 
-              imported.add(mod);
-              let bundles = bundleGraph.findBundlesWithAsset(mod);
-              // node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
-              if (!isUnusedValue(path)) {
-                node = getIdentifier(mod, 'exports');
-              }
-
-              path.scope
-                .getProgramParent()
-                .path.unshiftContainer('body', [
-                  t.importDeclaration(
-                    node ? [t.importSpecifier(node, node)] : [],
-                    t.stringLiteral(
-                      urlJoin(bundles[0].target.publicUrl, bundles[0].name)
-                    )
-                  )
-                ]);
-            } else {
-              node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+            let [, importedAssets] = nullthrows(
+              importedBundles.get(bundles[0].id)
+            );
+            if (!isUnusedValue(path)) {
+              importedAssets.add(mod);
+              node = t.identifier(mod.meta.exportsIdentifier);
             }
           }
 
@@ -424,16 +418,17 @@ export function link({
       }
     },
     Program: {
-      // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
       exit(path) {
-        treeShake(path.scope, exportedIdentifiers);
-
-        // If outputing an ES module, add export statements to exported declarations.
-        let exported = new Set();
-        if (bundle.env.isModule) {
-          exported = addExports(path, exportedIdentifiers);
+        let imports = [];
+        for (let [bundle, assets] of importedBundles.values()) {
+          imports.push(...format.generateImports(bundle, assets));
         }
 
+        path.scope.getProgramParent().path.unshiftContainer('body', imports);
+
+        let exported = format.generateExports(bundle, referencedAssets, path);
+
+        treeShake(path.scope, exported);
         if (options.minify) {
           mangleScope(path.scope, exported);
         }

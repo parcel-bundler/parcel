@@ -70,7 +70,12 @@ const OPTIONS = {
     src: {isEntry: true}
   },
   script(attrs, options: PluginOptions) {
-    return {env: {isModule: attrs.type === 'module' && options.scopeHoist}};
+    return {
+      env: {
+        outputFormat:
+          attrs.type === 'module' && options.scopeHoist ? 'esmodule' : undefined
+      }
+    };
   }
 };
 

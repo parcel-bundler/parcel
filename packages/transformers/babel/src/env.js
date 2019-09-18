@@ -33,7 +33,7 @@ export default async function getEnvOptions(config: Config) {
   // core-js includes a promise polyfill when it sees import(), but all module supporting browsers
   // already support promises natively by definition, so exclude it here.
   let exclude = [];
-  if (config.env.isModule) {
+  if (config.env.outputFormat === 'esmodule') {
     exclude.push('es.promise');
   }
 

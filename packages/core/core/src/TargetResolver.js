@@ -197,6 +197,13 @@ export default class TargetResolver {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
+        let defaultOutputFormat;
+        if (targetName === 'module') {
+          defaultOutputFormat = 'esmodule';
+        } else if (targetName === 'main' && mainContext === 'node') {
+          defaultOutputFormat = 'commonjs';
+        }
+
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -211,7 +218,7 @@ export default class TargetResolver {
                 ? moduleContext
                 : mainContext,
             includeNodeModules: descriptor.includeNodeModules,
-            isModule: descriptor.isModule ?? targetName === 'module'
+            outputFormat: descriptor.outputFormat ?? defaultOutputFormat
           }),
           sourceMap: descriptor.sourceMap
         });
@@ -245,7 +252,7 @@ export default class TargetResolver {
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
-            isModule: descriptor.isModule
+            outputFormat: descriptor.outputFormat
           }),
           sourceMap: descriptor.sourceMap
         });
