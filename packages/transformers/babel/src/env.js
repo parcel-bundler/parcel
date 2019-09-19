@@ -30,25 +30,17 @@ export default async function getEnvOptions(config: Config) {
     }
   }
 
-  // core-js includes a promise polyfill when it sees import(), but all module supporting browsers
-  // already support promises natively by definition, so exclude it here.
-  let exclude = [];
-  if (config.env.outputFormat === 'esmodule') {
-    exclude.push('es.promise');
-  }
-
   return {
     targets: appBabelTargets,
     presets: [
       [
         '@parcel/babel-preset-env',
         {
-          useBuiltIns: 'usage',
+          useBuiltIns: 'entry',
           corejs: 3,
           shippedProposals: true,
           ignoreBrowserslistConfig: true,
-          targets: appBabelTargets,
-          exclude
+          targets: appBabelTargets
         }
       ]
     ]
