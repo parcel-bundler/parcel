@@ -115,11 +115,20 @@ export default new Packager({
     });
 
     let entries = bundle.getEntryAssets();
-    let entryAsset = entries[entries.length - 1];
-    // $FlowFixMe
-    let interpreter: ?string = bundle.target.env.isBrowser()
-      ? null
-      : entryAsset.meta.interpreter;
+    let interpreter: ?string = null;
+
+    let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
+    if (isEntry) {
+      let entryAsset = entries[entries.length - 1];
+      // $FlowFixMe
+      interpreter = bundle.target.env.isBrowser()
+        ? null
+        : entryAsset.meta.interpreter;
+    } else {
+      // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
+      // as there might be dependencies in a sibling bundle that hasn't loaded yet.
+      entries.pop();
+    }
 
     return {
       contents:
