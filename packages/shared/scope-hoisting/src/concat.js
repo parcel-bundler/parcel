@@ -50,7 +50,8 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   // we need to add the prelude code, which allows registering modules dynamically at runtime.
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = isEntry && hasChildBundles && !bundle.env.outputFormat;
+  let needsPrelude =
+    isEntry && hasChildBundles && bundle.env.outputFormat === 'global';
   let registerEntry = !isEntry || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
@@ -106,27 +107,6 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       }
     }
   });
-
-  let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
-    if (!bundle.env.outputFormat) {
-      let exportsIdentifier = entry.meta.exportsIdentifier;
-      invariant(typeof exportsIdentifier === 'string');
-      result.push(
-        ...parse(`
-          if (typeof exports === "object" && typeof module !== "undefined") {
-            // CommonJS
-            module.exports = ${exportsIdentifier};
-          } else if (typeof define === "function" && define.amd) {
-            // RequireJS
-            define(function () {
-              return ${exportsIdentifier};
-            });
-          }
-        `)
-      );
-    }
-  }
 
   return t.file(t.program(result));
 }

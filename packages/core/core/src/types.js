@@ -32,7 +32,7 @@ export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules: boolean,
-  outputFormat?: OutputFormat
+  outputFormat: OutputFormat
 |};
 
 export type Target = {|

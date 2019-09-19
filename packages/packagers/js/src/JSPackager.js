@@ -22,7 +22,7 @@ export default new Packager({
       return generate(bundleGraph, bundle, ast, options);
     }
 
-    if (bundle.env.outputFormat) {
+    if (bundle.env.outputFormat !== 'global') {
       throw new Error(
         `${
           bundle.env.outputFormat

@@ -80,7 +80,7 @@ export type EnvironmentContext =
   | 'electron-main'
   | 'electron-renderer';
 
-export type OutputFormat = 'esmodule' | 'commonjs';
+export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
@@ -108,7 +108,7 @@ export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
   +includeNodeModules: boolean;
-  +outputFormat: ?OutputFormat;
+  +outputFormat: OutputFormat;
 
   isBrowser(): boolean;
   isNode(): boolean;

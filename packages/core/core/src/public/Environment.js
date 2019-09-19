@@ -48,7 +48,7 @@ export default class Environment implements IEnvironment {
     return this.#environment.includeNodeModules;
   }
 
-  get outputFormat(): ?OutputFormat {
+  get outputFormat(): OutputFormat {
     return this.#environment.outputFormat;
   }
 

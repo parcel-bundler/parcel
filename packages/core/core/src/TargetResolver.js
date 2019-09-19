@@ -172,6 +172,18 @@ export default class TargetResolver {
     let moduleContext =
       pkg.browser || pkgTargets.browser ? 'browser' : mainContext;
 
+    let defaultEngines =
+      options.defaultEngines ??
+      (options.mode === 'production'
+        ? DEFAULT_PRODUCTION_ENGINES
+        : DEFAULT_DEVELOPMENT_ENGINES);
+    let context = browsers || !node ? 'browser' : 'node';
+    if (context === 'browser' && pkgEngines.browsers == null) {
+      pkgEngines.browsers = defaultEngines.browsers;
+    } else if (context === 'node' && pkgEngines.node == null) {
+      pkgEngines.node = defaultEngines.node;
+    }
+
     for (let targetName of COMMON_TARGETS) {
       let targetDist;
       if (
@@ -197,13 +209,6 @@ export default class TargetResolver {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
-        let defaultOutputFormat;
-        if (targetName === 'module') {
-          defaultOutputFormat = 'esmodule';
-        } else if (targetName === 'main' && mainContext === 'node') {
-          defaultOutputFormat = 'commonjs';
-        }
-
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -218,7 +223,10 @@ export default class TargetResolver {
                 ? moduleContext
                 : mainContext,
             includeNodeModules: descriptor.includeNodeModules,
-            outputFormat: descriptor.outputFormat ?? defaultOutputFormat
+            outputFormat:
+              descriptor.outputFormat ?? targetName === 'module'
+                ? 'esmodule'
+                : 'commonjs'
           }),
           sourceMap: descriptor.sourceMap
         });
@@ -261,19 +269,6 @@ export default class TargetResolver {
 
     // If no explicit targets were defined, add a default.
     if (targets.size === 0) {
-      let context = browsers || !node ? 'browser' : 'node';
-      let defaultEngines =
-        options.defaultEngines ??
-        (options.mode === 'production'
-          ? DEFAULT_PRODUCTION_ENGINES
-          : DEFAULT_DEVELOPMENT_ENGINES);
-
-      if (context === 'browser' && pkgEngines.browsers == null) {
-        pkgEngines.browsers = defaultEngines.browsers;
-      } else if (context === 'node' && pkgEngines.node == null) {
-        pkgEngines.node = defaultEngines.node;
-      }
-
       targets.set('default', {
         name: 'default',
         distDir: path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),

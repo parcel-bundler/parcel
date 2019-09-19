@@ -60,6 +60,19 @@ export function createEnvironment({
     }
   }
 
+  if (outputFormat == null) {
+    switch (context) {
+      case 'node':
+      case 'electron-main':
+      case 'electron-renderer':
+        outputFormat = 'commonjs';
+        break;
+      default:
+        outputFormat = 'global';
+        break;
+    }
+  }
+
   return {
     context,
     engines,
@@ -79,6 +92,6 @@ export function mergeEnvironments(
 
   return {
     ...a,
-    ...b
+    ...(b && createEnvironment(b))
   };
 }

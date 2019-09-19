@@ -20,7 +20,7 @@ import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
 import {urlJoin} from '@parcel/utils';
 import * as esmodule from './formats/esmodule';
-import * as browser from './formats/browser';
+import * as global from './formats/global';
 import * as commonjs from './formats/commonjs';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
@@ -32,7 +32,7 @@ const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
 
 const FORMATS = {
   esmodule,
-  browser,
+  global,
   commonjs
 };
 
@@ -48,7 +48,7 @@ export function link({
   options: PluginOptions,
   ...
 }) {
-  let format = FORMATS[bundle.env.outputFormat || 'browser'];
+  let format = FORMATS[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();

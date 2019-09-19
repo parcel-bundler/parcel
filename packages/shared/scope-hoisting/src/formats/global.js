@@ -7,6 +7,7 @@ import {getIdentifier} from '../utils';
 import nullthrows from 'nullthrows';
 import rename from '../renamer';
 import template from '@babel/template';
+import invariant from 'assert';
 
 const IMPORT_TEMPLATE = template('var IDENTIFIER = parcelRequire(ASSET_ID)');
 const EXPORT_TEMPLATE = template(
@@ -32,8 +33,14 @@ export function generateExports(
   referencedAssets: Set<Asset>,
   path: any
 ) {
+  let exported = new Set<Symbol>();
   let statements = [];
+
   for (let asset of referencedAssets) {
+    let exportsId = asset.meta.exportsIdentifier;
+    invariant(typeof exportsId === 'string');
+    exported.add(exportsId);
+
     statements.push(
       EXPORT_TEMPLATE({
         ASSET_ID: t.stringLiteral(asset.id),
@@ -42,6 +49,20 @@ export function generateExports(
     );
   }
 
+  let entry = bundle.getMainEntry();
+  if (entry && bundle.isEntry) {
+    let exportsId = entry.meta.exportsIdentifier;
+    invariant(typeof exportsId === 'string');
+    exported.add(exportsId);
+
+    statements.push(
+      EXPORT_TEMPLATE({
+        ASSET_ID: t.stringLiteral(entry.id),
+        IDENTIFIER: t.identifier(entry.meta.exportsIdentifier)
+      })
+    );
+  }
+
   path.pushContainer('body', statements);
-  return new Set();
+  return exported;
 }

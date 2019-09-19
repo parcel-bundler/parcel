@@ -149,7 +149,7 @@ export default new Runtime({
       ) {
         let p = path.relative(
           path.dirname(bundle.filePath),
-          bundles[bundles.length - 1].filePath
+          nullthrows(bundles[bundles.length - 1].filePath)
         );
         if (p[0] !== '.') {
           p = './' + p;
