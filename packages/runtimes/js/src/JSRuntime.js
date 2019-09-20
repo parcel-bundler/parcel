@@ -157,7 +157,7 @@ export default new Runtime({
 
         assets.push({
           filePath: __filename,
-          code: `module.exports = require('' + '${p}');`,
+          code: `module.exports = Promise.resolve(require('' + '${p}'));`,
           dependency
         });
         continue;
