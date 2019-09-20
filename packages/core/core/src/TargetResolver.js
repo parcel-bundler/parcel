@@ -217,16 +217,16 @@ export default class TargetResolver {
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
-              descriptor.context ?? targetName === 'browser'
+              descriptor.context ??
+              (targetName === 'browser'
                 ? 'browser'
                 : targetName === 'module'
                 ? moduleContext
-                : mainContext,
-            includeNodeModules: descriptor.includeNodeModules,
+                : mainContext),
+            includeNodeModules: descriptor.includeNodeModules ?? false,
             outputFormat:
-              descriptor.outputFormat ?? targetName === 'module'
-                ? 'esmodule'
-                : 'commonjs'
+              descriptor.outputFormat ??
+              (targetName === 'module' ? 'esmodule' : 'commonjs')
           }),
           sourceMap: descriptor.sourceMap
         });
@@ -239,7 +239,8 @@ export default class TargetResolver {
         continue;
       }
 
-      let distPath = pkg[name];
+      let descriptor = pkgTargets[name];
+      let distPath = descriptor.distPath;
       let distDir;
       let distEntry;
       if (distPath == null) {
@@ -249,7 +250,6 @@ export default class TargetResolver {
         distEntry = path.basename(distPath);
       }
 
-      let descriptor = pkgTargets[name];
       if (descriptor) {
         targets.set(name, {
           name,

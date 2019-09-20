@@ -87,6 +87,7 @@ export type PackageTargetDescriptor = {|
   includeNodeModules?: boolean,
   outputFormat?: OutputFormat,
   publicUrl?: string,
+  distPath?: FilePath,
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions
 |};
