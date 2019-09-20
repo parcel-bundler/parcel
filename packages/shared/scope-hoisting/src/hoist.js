@@ -336,10 +336,7 @@ const VISITOR = {
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
       let bail = path.findParent(
-        p =>
-          p.isConditionalExpression() ||
-          p.isLogicalExpression() ||
-          p.isSequenceExpression()
+        p => p.isConditionalExpression() || p.isLogicalExpression()
       );
       if (!parent.isProgram() || bail) {
         dep.meta.shouldWrap = true;

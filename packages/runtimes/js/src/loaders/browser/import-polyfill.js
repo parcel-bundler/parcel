@@ -1,20 +1,10 @@
-let cache = {};
+const cache = require('../../cache');
 
-module.exports = function importModule(bundle) {
+module.exports = cache(function importModule(bundle) {
   return new Promise((resolve, reject) => {
-    // Resolve url to absolute
-    let a = document.createElement('a');
-    a.href = bundle;
-
-    // Check the cache
-    if (cache[a.href]) {
-      return resolve(cache[a.href]);
-    }
-
     // Add a global function to handle when the script loads.
     let globalName = `i${('' + Math.random()).slice(2)}`;
     global[globalName] = m => {
-      cache[a.href] = m;
       resolve(m);
       cleanup();
     };
@@ -31,7 +21,7 @@ module.exports = function importModule(bundle) {
     script.async = true;
     script.type = 'module';
     script.charset = 'utf-8';
-    script.textContent = `import * as m from '${a.href}'; ${globalName}(m);`;
+    script.textContent = `import * as m from '${bundle}'; ${globalName}(m);`;
     script.onerror = function(e) {
       reject(e);
       cleanup();
@@ -39,4 +29,4 @@ module.exports = function importModule(bundle) {
 
     document.head.appendChild(script);
   });
-};
+});

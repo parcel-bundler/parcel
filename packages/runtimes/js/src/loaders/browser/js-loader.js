@@ -1,4 +1,6 @@
-module.exports = function loadJSBundle(bundle) {
+const cache = require('../../cache');
+
+module.exports = cache(function loadJSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     var script = document.createElement('script');
     script.async = true;
@@ -17,4 +19,4 @@ module.exports = function loadJSBundle(bundle) {
 
     document.getElementsByTagName('head')[0].appendChild(script);
   });
-};
+});

@@ -40,7 +40,6 @@ const DYNAMIC_IMPORT_BROWSERS = [
   'not opera < 50'
 ];
 
-const MODULE_LOADER = './loaders/esmodule-loader';
 const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
 const LOADERS = {
   browser: {
@@ -117,50 +116,10 @@ export default new Runtime({
             : -1
         );
 
-      // Optimization if we're only loading esmodule bundles.
-      // Just use native `import()` in that case without bringing in the whole loader runtime.
-      if (
-        bundle.env.outputFormat === 'esmodule' &&
-        bundles.every(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
-      ) {
-        let _import = needsDynamicImportPolyfill
-          ? `require('${IMPORT_POLYFILL}')`
-          : 'import';
-        let imports = bundles.map(
-          b =>
-            // String concatenation instead of literal to stop JSTransformer from
-            // trying to process this import() call.
-            `${_import}('' + '${urlJoin(
-              nullthrows(b.target.publicUrl),
-              nullthrows(b.name)
-            )}')`
-        );
-        assets.push({
-          filePath: __filename,
-          code: `module.exports = ${imports.join(', ')};`,
-          dependency
-        });
-        continue;
-      }
-
-      if (
-        bundle.env.outputFormat === 'commonjs' &&
-        bundles.every(b => b.type === 'js')
-      ) {
-        let p = path.relative(
-          path.dirname(bundle.filePath),
-          nullthrows(bundles[bundles.length - 1].filePath)
-        );
-        if (p[0] !== '.') {
-          p = './' + p;
-        }
-
-        assets.push({
-          filePath: __filename,
-          code: `module.exports = Promise.resolve(require('' + '${p}'));`,
-          dependency
-        });
-        continue;
+      // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
+      // Importing of the other bundles will be handled by the bundle group entry.
+      if (bundle.env.outputFormat === 'commonjs') {
+        bundles = bundles.slice(-1);
       }
 
       let loaderModules = bundles
@@ -172,23 +131,41 @@ export default new Runtime({
 
           // Use esmodule loader if possible
           if (b.type === 'js' && b.env.outputFormat === 'esmodule') {
-            loader = needsDynamicImportPolyfill
-              ? IMPORT_POLYFILL
-              : MODULE_LOADER;
+            if (!needsDynamicImportPolyfill) {
+              return `import('' + '${relative(bundle, b)}')`;
+            }
+
+            loader = IMPORT_POLYFILL;
+          } else if (b.type === 'js' && b.env.outputFormat === 'commonjs') {
+            return `Promise.resolve(require('' + '${relative(bundle, b)}'))`;
           }
 
-          return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
-            path.relative(path.dirname(bundle.filePath), nullthrows(b.filePath))
-          )}]`;
+          let url = urlJoin(nullthrows(b.target.publicUrl), nullthrows(b.name));
+
+          return `require(${JSON.stringify(loader)})('${url}')`;
         })
         .filter(Boolean);
 
       if (loaderModules.length > 0) {
+        let loaders = loaderModules.join(', ');
+        if (
+          loaderModules.length > 1 &&
+          (bundle.env.outputFormat === 'global' ||
+            !bundles.every(b => b.type === 'js'))
+        ) {
+          loaders = `Promise.all([${loaders}])`;
+          if (bundle.env.outputFormat === 'global') {
+            loaders += `.then(() => parcelRequire('${
+              bundleGroup.entryAssetId
+            }'))`;
+          } else {
+            loaders += `.then(r => r[r.length - 1])`;
+          }
+        }
+
         assets.push({
           filePath: __filename,
-          code: `module.exports = require('./bundle-loader')([${loaderModules.join(
-            ', '
-          )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
+          code: `module.exports = ${loaders};`,
           dependency
         });
       } else {
@@ -219,3 +196,12 @@ export default new Runtime({
     return assets;
   }
 });
+
+function relative(from, to) {
+  let p = path.relative(path.dirname(from.filePath), nullthrows(to.filePath));
+  if (p[0] !== '.') {
+    p = './' + p;
+  }
+
+  return p;
+}

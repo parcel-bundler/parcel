@@ -90,8 +90,8 @@ export function mergeEnvironments(
     return a;
   }
 
-  return {
+  return createEnvironment({
     ...a,
-    ...(b && createEnvironment(b))
-  };
+    ...b
+  });
 }
