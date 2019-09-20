@@ -198,10 +198,6 @@ export default class BundlerRunner {
     runtimeAssets: Array<RuntimeAsset>
   ) {
     for (let {code, filePath, dependency, isEntry} of runtimeAssets) {
-      // if (dependency.sourceAssetId === '30c91c73800a5d29d80ac8294f7e5ebe') {
-      //   debugger;
-      // }
-
       let builder = new AssetGraphBuilder();
       await builder.init({
         options: this.options,
