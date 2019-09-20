@@ -92,6 +92,8 @@ export default class BundlerRunner {
     internalBundleGraph.connectBundleGroups();
 
     // await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
+    debugger;
+
     await this.nameBundles(internalBundleGraph);
     await this.applyRuntimes(internalBundleGraph);
 
@@ -127,12 +129,12 @@ export default class BundlerRunner {
       bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph))
     );
 
-    // let bundlePaths = bundles.map(b => b.filePath);
-    // assert.deepEqual(
-    //   bundlePaths,
-    //   unique(bundlePaths),
-    //   'Bundles must have unique filePaths'
-    // );
+    let bundlePaths = bundles.map(b => b.filePath);
+    assert.deepEqual(
+      bundlePaths,
+      unique(bundlePaths),
+      'Bundles must have unique filePaths'
+    );
   }
 
   async nameBundle(
