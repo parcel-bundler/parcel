@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@parcel/bundler-default": "^2.0.0-alpha.1.1",
+    "@parcel/reporter-loc": "^2.0.0-alpha.1",
     "@parcel/namer-default": "^2.0.0-alpha.1.1",
     "@parcel/optimizer-cssnano": "^2.0.0-alpha.1.1",
     "@parcel/optimizer-terser": "^2.0.0-alpha.1.1",
