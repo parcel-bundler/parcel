@@ -59,7 +59,7 @@ export function link({
 
   // Build a mapping of all imported identifiers to replace.
   bundle.traverseAssets(asset => {
-    assets.set(asset.id, asset);
+    assets.set(asset.meta.id, asset);
     let exportsIdentifier = asset.meta.exportsIdentifier;
     invariant(typeof exportsIdentifier === 'string');
     exportsMap.set(exportsIdentifier, asset);
@@ -107,7 +107,7 @@ export function link({
     }
 
     // If the module is not in this bundle, create a `require` call for it.
-    if (!node && !assets.has(mod.id)) {
+    if (!node && !assets.has(mod.meta.id)) {
       let bundles = bundleGraph.findBundlesWithAsset(mod);
       console.log(mod.filePath, bundles.map(b => b.filePath));
       node = REQUIRE_TEMPLATE({ID: t.stringLiteral(module.id)}).expression;
@@ -209,11 +209,14 @@ export function link({
         }
 
         let asset = nullthrows(assets.get(id.value));
-        let dep = nullthrows(
-          bundleGraph
-            .getDependencies(asset)
-            .find(dep => dep.moduleSpecifier === source.value)
-        );
+        let dep = bundleGraph
+          .getDependencies(asset)
+          .find(dep => dep.moduleSpecifier === source.value);
+        if (!dep) {
+          console.log(dep);
+          return;
+        }
+
         let mod = bundleGraph.getDependencyResolution(dep);
 
         if (!mod) {
@@ -230,7 +233,7 @@ export function link({
           }
         } else {
           let node;
-          if (assets.get(mod.id)) {
+          if (assets.get(mod.meta.id)) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
               let name = mod.meta.exportsIdentifier;
@@ -428,7 +431,12 @@ export function link({
 
         path.scope.getProgramParent().path.unshiftContainer('body', imports);
 
-        let exported = format.generateExports(bundle, referencedAssets, path);
+        let exported = format.generateExports(
+          bundleGraph,
+          bundle,
+          referencedAssets,
+          path
+        );
 
         treeShake(path.scope, exported);
         if (options.minify) {

@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, Symbol} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
 import * as t from '@babel/types';
 import path from 'path';
 import {getIdentifier} from '../utils';
@@ -33,6 +33,7 @@ export function generateImports(bundle: Bundle, assets: Set<Asset>) {
 }
 
 export function generateExports(
+  bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: any
@@ -67,6 +68,7 @@ export function generateExports(
         }
 
         binding.path.remove();
+        exported.add('exports');
       } else {
         exported.add(exportsId);
         statements.push(

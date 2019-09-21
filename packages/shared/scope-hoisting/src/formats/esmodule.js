@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, Symbol} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
 import * as t from '@babel/types';
 import {urlJoin} from '@parcel/utils';
 import {getIdentifier} from '../utils';
@@ -25,6 +25,7 @@ export function generateImports(bundle: Bundle, assets: Set<Asset>) {
 }
 
 export function generateExports(
+  bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: any
@@ -32,8 +33,8 @@ export function generateExports(
   let exportedIdentifiers = new Map();
   let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
-    for (let [exportName, symbol] of entry.symbols) {
-      exportedIdentifiers.set(symbol, exportName);
+    for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      exportedIdentifiers.set(symbol, exportSymbol);
     }
   }
 

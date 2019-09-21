@@ -48,6 +48,7 @@ export function hoist(asset: MutableAsset) {
 const VISITOR = {
   Program: {
     enter(path, asset: MutableAsset) {
+      asset.meta.id = asset.id;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
 
       traverse.cache.clearScope();
@@ -368,10 +369,6 @@ const VISITOR = {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
-    if (!dep) {
-      path.remove();
-      return;
-    }
 
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -379,12 +376,14 @@ const VISITOR = {
       let id = getIdentifier(asset, 'import', specifier.local.name);
       rename(path.scope, specifier.local.name, id.name);
 
-      if (t.isImportDefaultSpecifier(specifier)) {
-        dep.symbols.set('default', id.name);
-      } else if (t.isImportSpecifier(specifier)) {
-        dep.symbols.set(specifier.imported.name, id.name);
-      } else if (t.isImportNamespaceSpecifier(specifier)) {
-        dep.symbols.set('*', id.name);
+      if (dep) {
+        if (t.isImportDefaultSpecifier(specifier)) {
+          dep.symbols.set('default', id.name);
+        } else if (t.isImportSpecifier(specifier)) {
+          dep.symbols.set(specifier.imported.name, id.name);
+        } else if (t.isImportNamespaceSpecifier(specifier)) {
+          dep.symbols.set('*', id.name);
+        }
       }
     }
 

@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, Symbol} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
 import * as t from '@babel/types';
 import {urlJoin} from '@parcel/utils';
 import {getIdentifier} from '../utils';
@@ -29,6 +29,7 @@ export function generateImports(bundle: Bundle, assets: Set<Asset>) {
 }
 
 export function generateExports(
+  bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: any

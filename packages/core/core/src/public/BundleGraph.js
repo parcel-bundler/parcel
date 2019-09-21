@@ -135,6 +135,15 @@ export default class BundleGraph implements IBundleGraph {
     };
   }
 
+  getExportedSymbols(asset: IAsset) {
+    let res = this.#graph.getExportedSymbols(assetToInternalAsset(asset).value);
+    return res.map(e => ({
+      asset: assetFromValue(e.asset, this.#options),
+      exportSymbol: e.exportSymbol,
+      symbol: e.symbol
+    }));
+  }
+
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<IBundle, TContext>
   ): ?TContext {
