@@ -3,7 +3,8 @@ import type {
   Environment as IEnvironment,
   EnvironmentContext,
   Engines,
-  OutputFormat
+  OutputFormat,
+  PackageName
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
@@ -44,7 +45,7 @@ export default class Environment implements IEnvironment {
     return this.#environment.engines;
   }
 
-  get includeNodeModules(): boolean {
+  get includeNodeModules(): boolean | Array<PackageName> {
     return this.#environment.includeNodeModules;
   }
 

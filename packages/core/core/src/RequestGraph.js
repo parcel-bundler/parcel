@@ -315,18 +315,11 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   async resolvePath(dep: Dependency) {
-    try {
-      let assetRequest = await this.resolverRunner.resolve(dep);
-
+    let assetRequest = await this.resolverRunner.resolve(dep);
+    if (assetRequest) {
       this.connectFile(nodeFromDepPathRequest(dep), assetRequest.filePath);
-      return assetRequest;
-    } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND' && dep.isOptional) {
-        return null;
-      }
-
-      throw err;
     }
+    return assetRequest;
   }
 
   async loadConfig(configRequest: ConfigRequest, parentNodeId: NodeId) {

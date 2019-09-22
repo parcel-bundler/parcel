@@ -1,14 +1,23 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  Symbol,
+  ModuleSpecifier
+} from '@parcel/types';
 import * as t from '@babel/types';
-import {urlJoin} from '@parcel/utils';
-import {getIdentifier} from '../utils';
+import {relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import rename from '../renamer';
 
-export function generateImports(bundle: Bundle, assets: Set<Asset>) {
+export function generateBundleImports(
+  from: Bundle,
+  bundle: Bundle,
+  assets: Set<Asset>
+) {
   let specifiers = [...assets].map(asset => {
     let id = t.identifier(asset.meta.exportsIdentifier);
     return t.importSpecifier(id, id);
@@ -17,9 +26,30 @@ export function generateImports(bundle: Bundle, assets: Set<Asset>) {
   return [
     t.importDeclaration(
       specifiers,
-      t.stringLiteral(
-        urlJoin(nullthrows(bundle.target.publicUrl), nullthrows(bundle.name))
-      )
+      t.stringLiteral(relativeBundlePath(from, bundle))
+    )
+  ];
+}
+
+export function generateExternalImport(
+  source: ModuleSpecifier,
+  specifiers: Map<Symbol, Symbol>
+) {
+  return [
+    t.importDeclaration(
+      [...specifiers].map(([imported, symbol]) => {
+        if (imported === 'default') {
+          return t.importDefaultSpecifier(t.identifier(symbol));
+        } else if (imported === '*') {
+          return t.importNamespaceSpecifier(t.identifier(symbol));
+        } else {
+          return t.importSpecifier(
+            t.identifier(symbol),
+            t.identifier(imported)
+          );
+        }
+      }),
+      t.stringLiteral(source)
     )
   ];
 }

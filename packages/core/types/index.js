@@ -84,7 +84,7 @@ export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean,
+  includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
   publicUrl?: string,
   distPath?: FilePath,
@@ -100,7 +100,7 @@ export type TargetDescriptor = {|
 export type EnvironmentOpts = {
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean,
+  includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
   ...
 };
@@ -108,7 +108,7 @@ export type EnvironmentOpts = {
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
-  +includeNodeModules: boolean;
+  +includeNodeModules: boolean | Array<PackageName>;
   +outputFormat: OutputFormat;
 
   isBrowser(): boolean;
@@ -607,7 +607,8 @@ export type BundleResult = {|
 |};
 
 export type ResolveResult = {|
-  filePath: FilePath,
+  filePath?: FilePath,
+  isExcluded?: boolean,
   sideEffects?: boolean,
   code?: string
 |};

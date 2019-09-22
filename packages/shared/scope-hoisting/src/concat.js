@@ -218,10 +218,12 @@ function findRequires(
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === args[1].value);
         if (!dep) {
-          // throw new Error(`Could not find dep for "${args[1].value}`);
-          return;
+          throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
+        let resolution = bundleGraph.getDependencyResolution(dep);
+        if (resolution) {
+          result.push(resolution);
+        }
       }
     }
   });

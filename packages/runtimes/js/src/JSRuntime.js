@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin} from '@parcel/utils';
+import {urlJoin, relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import path from 'path';
 // $FlowFixMe
 import browserslist from 'browserslist';
 
@@ -132,12 +131,15 @@ export default new Runtime({
           // Use esmodule loader if possible
           if (b.type === 'js' && b.env.outputFormat === 'esmodule') {
             if (!needsDynamicImportPolyfill) {
-              return `import('' + '${relative(bundle, b)}')`;
+              return `import('' + '${relativeBundlePath(bundle, b)}')`;
             }
 
             loader = IMPORT_POLYFILL;
           } else if (b.type === 'js' && b.env.outputFormat === 'commonjs') {
-            return `Promise.resolve(require('' + '${relative(bundle, b)}'))`;
+            return `Promise.resolve(require('' + '${relativeBundlePath(
+              bundle,
+              b
+            )}'))`;
           }
 
           let url = urlJoin(nullthrows(b.target.publicUrl), nullthrows(b.name));
@@ -196,12 +198,3 @@ export default new Runtime({
     return assets;
   }
 });
-
-function relative(from, to) {
-  let p = path.relative(path.dirname(from.filePath), nullthrows(to.filePath));
-  if (p[0] !== '.') {
-    p = './' + p;
-  }
-
-  return p;
-}

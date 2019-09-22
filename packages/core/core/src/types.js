@@ -31,7 +31,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules: boolean,
+  includeNodeModules: boolean | Array<PackageName>,
   outputFormat: OutputFormat
 |};
 
