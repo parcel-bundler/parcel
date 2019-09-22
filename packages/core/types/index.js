@@ -59,6 +59,7 @@ export type Engines = {
 
 export type TargetSourceMapOptions = {
   sourceRoot?: string,
+  inline?: boolean,
   inlineSources?: boolean,
   ...
 };
@@ -649,11 +650,11 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    sourceMapPath: FilePath,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
     getInlineBundleContents: (
       Bundle,
       BundleGraph
-    ) => Async<{|contents: Blob, map: Readable | string | null|}>,
+    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
     ...
   }): Async<BundleResult>
 |};
