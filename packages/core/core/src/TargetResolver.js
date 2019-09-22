@@ -241,7 +241,7 @@ export default class TargetResolver {
       }
 
       let descriptor = pkgTargets[name];
-      let distPath = descriptor.distPath;
+      let distPath = pkg[name];
       let distDir;
       let distEntry;
       if (distPath == null) {

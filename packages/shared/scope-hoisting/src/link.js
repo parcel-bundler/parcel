@@ -177,9 +177,9 @@ export function link({
       if (!path.scope.getBinding(name)) {
         // Hoist to the nearest path with the same scope as the exports is declared in
         let binding = path.scope.getBinding(mod.meta.exportsIdentifier);
-        let parent = path.findParent(
-          p => p.scope === binding.scope && p.isStatement()
-        );
+        let parent = binding
+          ? path.findParent(p => p.scope === binding.scope && p.isStatement())
+          : path.getStatementParent();
 
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
@@ -279,12 +279,11 @@ export function link({
         }
 
         let asset = nullthrows(assets.get(id.value));
-        let dep = bundleGraph
-          .getDependencies(asset)
-          .find(dep => dep.moduleSpecifier === source.value);
-        if (!dep) {
-          return;
-        }
+        let dep = nullthrows(
+          bundleGraph
+            .getDependencies(asset)
+            .find(dep => dep.moduleSpecifier === source.value)
+        );
 
         let mod = bundleGraph.getDependencyResolution(dep);
         let node;
@@ -298,9 +297,10 @@ export function link({
             path.remove();
           } else {
             addExternalModule(path, dep);
+            path.remove();
           }
         } else {
-          if (assets.get(assertString(mod.meta.id))) {
+          if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
               let name = assertString(mod.meta.exportsIdentifier);
@@ -345,7 +345,7 @@ export function link({
                 bundle: bundles[0],
                 assets: new Set()
               };
-              importedFiles.set(bundles[0].id, imported);
+              importedFiles.set(bundles[0].filePath, imported);
             }
 
             if (!isUnusedValue(path)) {
@@ -354,12 +354,12 @@ export function link({
               node = t.identifier(mod.meta.exportsIdentifier);
             }
           }
-        }
 
-        if (node) {
-          path.replaceWith(node);
-        } else {
-          path.remove();
+          if (node) {
+            path.replaceWith(node);
+          } else {
+            path.remove();
+          }
         }
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;

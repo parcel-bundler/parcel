@@ -156,13 +156,15 @@ export default new Runtime({
             !bundles.every(b => b.type === 'js'))
         ) {
           loaders = `Promise.all([${loaders}])`;
-          if (bundle.env.outputFormat === 'global') {
-            loaders += `.then(() => parcelRequire('${
-              bundleGroup.entryAssetId
-            }'))`;
-          } else {
+          if (bundle.env.outputFormat !== 'global') {
             loaders += `.then(r => r[r.length - 1])`;
           }
+        }
+
+        if (bundle.env.outputFormat === 'global') {
+          loaders += `.then(() => parcelRequire('${
+            bundleGroup.entryAssetId
+          }'))`;
         }
 
         assets.push({

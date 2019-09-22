@@ -57,7 +57,12 @@ export function generateExports(
   }
 
   let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
+  let hasChildBundles = bundle.hasChildBundles();
+  if (
+    entry &&
+    (bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+      bundle.hasChildBundles())
+  ) {
     let exportsId = entry.meta.exportsIdentifier;
     invariant(typeof exportsId === 'string');
     exported.add(exportsId);

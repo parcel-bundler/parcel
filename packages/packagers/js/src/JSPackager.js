@@ -22,11 +22,9 @@ export default new Packager({
       return generate(bundleGraph, bundle, ast, options);
     }
 
-    if (bundle.env.outputFormat !== 'global') {
+    if (bundle.env.outputFormat === 'esmodule') {
       throw new Error(
-        `${
-          bundle.env.outputFormat
-        } output is not supported without scope hoisting.`
+        `esmodule output is not supported without scope hoisting.`
       );
     }
 
@@ -124,7 +122,7 @@ export default new Packager({
       interpreter = bundle.target.env.isBrowser()
         ? null
         : entryAsset.meta.interpreter;
-    } else {
+    } else if (bundle.env.outputFormat === 'global') {
       // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries.pop();

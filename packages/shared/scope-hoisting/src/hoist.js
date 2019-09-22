@@ -332,6 +332,8 @@ const VISITOR = {
         return;
       }
 
+      asset.meta.isCommonJS = true;
+
       // If this require call does not occur in the top-level, e.g. in a function
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
