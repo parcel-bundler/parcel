@@ -64,7 +64,7 @@ export default new Runtime({
     // (e.g. WASM, HTML). These should be preloaded prior to the bundle being executed. Replace the entry asset(s)
     // with the preload module.
 
-    if (bundle.type !== 'js') {
+    if (bundle.type !== 'js' || bundle.env.isLibrary) {
       return;
     }
 

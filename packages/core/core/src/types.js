@@ -32,7 +32,8 @@ export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules: boolean | Array<PackageName>,
-  outputFormat: OutputFormat
+  outputFormat: OutputFormat,
+  isLibrary: boolean
 |};
 
 export type Target = {|

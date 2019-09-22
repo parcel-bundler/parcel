@@ -56,6 +56,30 @@ export function link({
   let importedFiles = new Map();
   let referencedAssets = new Set();
 
+  // If building a library, the target is actually another bundler rather
+  // than the final output that could be loaded in a browser. So, loader
+  // runtimes are excluded, and instead we add imports into the entry bundle
+  // of each bundle group pointing at the sibling bundles. These can be
+  // picked up by another bundler later at which point runtimes will be added.
+  if (bundle.env.isLibrary) {
+    let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
+    for (let bundleGroup of bundleGroups) {
+      if (bundleGroup.entryAssetId !== bundle.id) {
+        continue;
+      }
+
+      let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+      for (let b of bundles) {
+        if (b.id !== bundle.id) {
+          importedFiles.set(b.filePath, {
+            bundle: b,
+            assets: new Set()
+          });
+        }
+      }
+    }
+  }
+
   // Build a mapping of all imported identifiers to replace.
   bundle.traverseAssets(asset => {
     assets.set(asset.meta.id, asset);
@@ -192,6 +216,49 @@ export function link({
     );
   }
 
+  function addExternalModule(path, dep) {
+    let importedFile = importedFiles.get(dep.moduleSpecifier);
+    if (!importedFile) {
+      importedFile = {
+        source: dep.moduleSpecifier,
+        specifiers: new Map()
+      };
+
+      importedFiles.set(dep.moduleSpecifier, importedFile);
+    }
+
+    let programScope = path.scope.getProgramParent();
+
+    invariant(importedFile.specifiers != null);
+    let specifiers = importedFile.specifiers;
+
+    for (let [imported, symbol] of dep.symbols) {
+      let renamed = specifiers.get(imported);
+      if (renamed) {
+        replacements.set(symbol, renamed);
+        continue;
+      }
+
+      renamed = replacements.get(symbol);
+      if (!renamed) {
+        renamed = imported;
+        if (imported === 'default' || imported === '*') {
+          renamed = programScope.generateUid(dep.moduleSpecifier);
+        } else if (
+          programScope.hasBinding(imported) ||
+          programScope.hasReference(imported)
+        ) {
+          programScope.generateUid(imported);
+        }
+
+        programScope.references[renamed] = true;
+        replacements.set(symbol, renamed);
+      }
+
+      specifiers.set(imported, renamed);
+    }
+  }
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -217,7 +284,6 @@ export function link({
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === source.value);
         if (!dep) {
-          console.log(dep);
           return;
         }
 
@@ -232,43 +298,7 @@ export function link({
           } else if (dep.isWeak) {
             path.remove();
           } else {
-            // External module
-            let importedFile = importedFiles.get(dep.moduleSpecifier);
-            if (!importedFile) {
-              importedFile = {
-                source: dep.moduleSpecifier,
-                specifiers: new Map()
-              };
-
-              importedFiles.set(dep.moduleSpecifier, importedFile);
-            }
-
-            let programScope = path.scope.getProgramParent();
-
-            for (let [imported, symbol] of dep.symbols) {
-              if (importedFile.specifiers.has(imported)) {
-                replacements.set(symbol, importedFile.specifiers.get(imported));
-                continue;
-              }
-
-              let renamed = replacements.get(symbol);
-              if (!renamed) {
-                renamed = imported;
-                if (imported === 'default' || imported === '*') {
-                  renamed = programScope.generateUid(dep.moduleSpecifier);
-                } else if (
-                  programScope.hasBinding(imported) ||
-                  programScope.hasReference(imported)
-                ) {
-                  programScope.generateUid(imported);
-                }
-
-                programScope.references[renamed] = true;
-                replacements.set(symbol, renamed);
-              }
-
-              importedFile.specifiers.set(imported, renamed);
-            }
+            addExternalModule(path, dep);
           }
         } else {
           if (assets.get(mod.meta.id)) {

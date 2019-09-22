@@ -226,7 +226,8 @@ export default class TargetResolver {
             includeNodeModules: descriptor.includeNodeModules ?? false,
             outputFormat:
               descriptor.outputFormat ??
-              (targetName === 'module' ? 'esmodule' : 'commonjs')
+              (targetName === 'module' ? 'esmodule' : 'commonjs'),
+            isLibrary: true
           }),
           sourceMap: descriptor.sourceMap
         });
@@ -260,7 +261,8 @@ export default class TargetResolver {
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
-            outputFormat: descriptor.outputFormat
+            outputFormat: descriptor.outputFormat,
+            isLibrary: descriptor.isLibrary
           }),
           sourceMap: descriptor.sourceMap
         });

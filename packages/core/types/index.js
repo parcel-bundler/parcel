@@ -102,6 +102,7 @@ export type EnvironmentOpts = {
   engines?: Engines,
   includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
+  isLibrary?: boolean,
   ...
 };
 
@@ -110,6 +111,7 @@ export interface Environment {
   +engines: Engines;
   +includeNodeModules: boolean | Array<PackageName>;
   +outputFormat: OutputFormat;
+  +isLibrary: boolean;
 
   isBrowser(): boolean;
   isNode(): boolean;

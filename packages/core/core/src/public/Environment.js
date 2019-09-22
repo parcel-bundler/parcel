@@ -53,6 +53,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.outputFormat;
   }
 
+  get isLibrary(): boolean {
+    return this.#environment.isLibrary;
+  }
+
   isBrowser() {
     return BROWSER_ENVS.has(this.#environment.context);
   }
