@@ -127,7 +127,7 @@ export function generateExternalImport(
   } else if (specifiers.has('*')) {
     statements.push(
       ASSIGN_TEMPLATE({
-        SPECIFIERS: t.identifier(specifiers.get('default')),
+        SPECIFIERS: t.identifier(specifiers.get('*')),
         MODULE: NAMESPACE_TEMPLATE({
           NAMESPACE: t.objectExpression([]),
           MODULE: REQUIRE_TEMPLATE({

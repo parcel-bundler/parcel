@@ -35,23 +35,42 @@ export function generateExternalImport(
   source: ModuleSpecifier,
   specifiers: Map<Symbol, Symbol>
 ) {
-  return [
-    t.importDeclaration(
-      [...specifiers].map(([imported, symbol]) => {
-        if (imported === 'default') {
-          return t.importDefaultSpecifier(t.identifier(symbol));
-        } else if (imported === '*') {
-          return t.importNamespaceSpecifier(t.identifier(symbol));
-        } else {
-          return t.importSpecifier(
-            t.identifier(symbol),
-            t.identifier(imported)
-          );
-        }
-      }),
-      t.stringLiteral(source)
-    )
-  ];
+  let defaultSpecifier = null;
+  let namespaceSpecifier = null;
+  let namedSpecifiers = [];
+  for (let [imported, symbol] of specifiers) {
+    if (imported === 'default') {
+      defaultSpecifier = t.importDefaultSpecifier(t.identifier(symbol));
+    } else if (imported === '*') {
+      namespaceSpecifier = t.importNamespaceSpecifier(t.identifier(symbol));
+    } else {
+      namedSpecifiers.push(
+        t.importSpecifier(t.identifier(symbol), t.identifier(imported))
+      );
+    }
+  }
+
+  let statements = [];
+
+  // ESModule syntax allows combining default and namespace specifiers, or default and named, but not all three.
+
+  if (namespaceSpecifier) {
+    let s = [namespaceSpecifier];
+    if (defaultSpecifier) {
+      s.unshift(defaultSpecifier);
+    }
+    statements.push(t.importDeclaration(s, t.stringLiteral(source)));
+  } else if (defaultSpecifier) {
+    namedSpecifiers.unshift(defaultSpecifier);
+  }
+
+  if (namedSpecifiers.length > 0 || statements.length === 0) {
+    statements.push(
+      t.importDeclaration(namedSpecifiers, t.stringLiteral(source))
+    );
+  }
+
+  return statements;
 }
 
 export function generateExports(

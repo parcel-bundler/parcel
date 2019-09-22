@@ -1,5 +1,5 @@
 function $parcel$interopDefault(a) {
-  return a && a.__esModule ? {d: a.default} : {d: a};
+  return a && a.__esModule ? a.default : a;
 }
 
 function $parcel$defineInteropFlag(a) {

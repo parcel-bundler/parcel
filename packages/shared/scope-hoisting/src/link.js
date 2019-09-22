@@ -64,10 +64,6 @@ export function link({
   if (bundle.env.isLibrary) {
     let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
     for (let bundleGroup of bundleGroups) {
-      if (bundleGroup.entryAssetId !== bundle.id) {
-        continue;
-      }
-
       let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
       for (let b of bundles) {
         if (b.id !== bundle.id) {
@@ -195,7 +191,7 @@ export function link({
         parent.scope.registerDeclaration(decl);
       }
 
-      return t.memberExpression(t.identifier(name), t.identifier('d'));
+      return t.identifier(name);
     }
 
     // if there is a CommonJS export return $id$exports.name
@@ -256,6 +252,8 @@ export function link({
 
       specifiers.set(imported, renamed);
     }
+
+    return specifiers.get('*');
   }
 
   traverse(ast, {
@@ -296,8 +294,12 @@ export function link({
           } else if (dep.isWeak) {
             path.remove();
           } else {
-            addExternalModule(path, dep);
-            path.remove();
+            let name = addExternalModule(path, dep);
+            if (isUnusedValue(path) || !name) {
+              path.remove();
+            } else {
+              path.replaceWith(t.identifier(name));
+            }
           }
         } else {
           if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
@@ -497,6 +499,9 @@ export function link({
     },
     Program: {
       exit(path) {
+        // Recrawl to get all bindings.
+        path.scope.crawl();
+
         let imports = [];
         for (let file of importedFiles.values()) {
           if (file.bundle) {
