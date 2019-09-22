@@ -7,7 +7,8 @@ import type {
   BundleGroup,
   Dependency as IDependency,
   GraphTraversalCallback,
-  Symbol
+  Symbol,
+  SymbolResolution
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
@@ -123,7 +124,7 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  resolveSymbol(asset: IAsset, symbol: Symbol) {
+  resolveSymbol(asset: IAsset, symbol: Symbol): SymbolResolution {
     let res = this.#graph.resolveSymbol(
       assetToInternalAsset(asset).value,
       symbol
@@ -135,7 +136,7 @@ export default class BundleGraph implements IBundleGraph {
     };
   }
 
-  getExportedSymbols(asset: IAsset) {
+  getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
     let res = this.#graph.getExportedSymbols(assetToInternalAsset(asset).value);
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),

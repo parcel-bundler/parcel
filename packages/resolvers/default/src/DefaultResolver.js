@@ -12,6 +12,7 @@ import path from 'path';
 import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
+import invariant from 'assert';
 // import nodeBuiltins from 'node-libs-browser';
 
 // Throw user friendly errors on special webpack loader syntax
@@ -28,10 +29,11 @@ export default new Resolver({
       );
     }
 
-    const resolved = await new NodeResolver({
+    const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
-    }).resolve(dependency);
+    });
+    const resolved = await resolver.resolve(dependency);
 
     if (!resolved) {
       return null;
@@ -41,6 +43,7 @@ export default new Resolver({
       return {isExcluded: true};
     }
 
+    invariant(resolved.path != null);
     let result: ResolveResult = {
       filePath: resolved.path
     };
@@ -198,6 +201,7 @@ class NodeResolver {
 
     if (Array.isArray(env.includeNodeModules)) {
       let parts = this.getModuleParts(name);
+      // $FlowFixMe - flow is dumb
       return env.includeNodeModules.includes(parts[0]);
     }
 

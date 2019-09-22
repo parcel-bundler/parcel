@@ -2,10 +2,6 @@
 
 import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
 import * as t from '@babel/types';
-import {urlJoin} from '@parcel/utils';
-import {getIdentifier} from '../utils';
-import nullthrows from 'nullthrows';
-import rename from '../renamer';
 import template from '@babel/template';
 import invariant from 'assert';
 
@@ -14,7 +10,11 @@ const EXPORT_TEMPLATE = template(
   'parcelRequire.register(ASSET_ID, IDENTIFIER)'
 );
 
-export function generateImports(bundle: Bundle, assets: Set<Asset>) {
+export function generateBundleImports(
+  from: Bundle,
+  bundle: Bundle,
+  assets: Set<Asset>
+) {
   let statements = [];
   for (let asset of assets) {
     statements.push(
@@ -26,6 +26,12 @@ export function generateImports(bundle: Bundle, assets: Set<Asset>) {
   }
 
   return statements;
+}
+
+export function generateExternalImport() {
+  throw new Error(
+    'External modules are not supported when building for browser'
+  );
 }
 
 export function generateExports(

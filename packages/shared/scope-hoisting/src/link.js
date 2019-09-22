@@ -80,12 +80,15 @@ export function link({
     }
   }
 
+  function assertString(v): string {
+    invariant(typeof v === 'string');
+    return v;
+  }
+
   // Build a mapping of all imported identifiers to replace.
   bundle.traverseAssets(asset => {
-    assets.set(asset.meta.id, asset);
-    let exportsIdentifier = asset.meta.exportsIdentifier;
-    invariant(typeof exportsIdentifier === 'string');
-    exportsMap.set(exportsIdentifier, asset);
+    assets.set(assertString(asset.meta.id), asset);
+    exportsMap.set(assertString(asset.meta.exportsIdentifier), asset);
 
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep);
@@ -110,8 +113,7 @@ export function link({
 
     // If this is a wildcard import, resolve to the exports object.
     if (asset && identifier === '*') {
-      identifier = asset.meta.exportsIdentifier;
-      invariant(typeof identifier === 'string');
+      identifier = assertString(asset.meta.exportsIdentifier);
     }
 
     if (replacements && identifier && replacements.has(identifier)) {
@@ -130,9 +132,8 @@ export function link({
     }
 
     // If the module is not in this bundle, create a `require` call for it.
-    if (!node && !assets.has(mod.meta.id)) {
-      let bundles = bundleGraph.findBundlesWithAsset(mod);
-      console.log(mod.filePath, bundles.map(b => b.filePath));
+    if (!node && !assets.has(assertString(mod.meta.id))) {
+      // TODO: ????
       node = REQUIRE_TEMPLATE({ID: t.stringLiteral(module.id)}).expression;
       return interop(module, symbol, path, node);
     }
@@ -145,9 +146,7 @@ export function link({
 
     // If it is CommonJS, look for an exports object.
     if (!node && mod.meta.isCommonJS) {
-      let exportsIdentifier = mod.meta.exportsIdentifier;
-      invariant(typeof exportsIdentifier === 'string');
-      node = findSymbol(path, exportsIdentifier);
+      node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
       if (!node) {
         return null;
       }
@@ -301,11 +300,10 @@ export function link({
             addExternalModule(path, dep);
           }
         } else {
-          if (assets.get(mod.meta.id)) {
+          if (assets.get(assertString(mod.meta.id))) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
-              let name = mod.meta.exportsIdentifier;
-              invariant(typeof name === 'string');
+              let name = assertString(mod.meta.exportsIdentifier);
               node = t.identifier(replacements.get(name) || name);
 
               // Insert __esModule interop flag if the required module is an ES6 module with a default export.
@@ -351,6 +349,7 @@ export function link({
             }
 
             if (!isUnusedValue(path)) {
+              invariant(imported.assets != null);
               imported.assets.add(mod);
               node = t.identifier(mod.meta.exportsIdentifier);
             }
@@ -506,6 +505,7 @@ export function link({
             );
           } else {
             imports.push(
+              // $FlowFixMe
               ...format.generateExternalImport(
                 file.source,
                 file.specifiers,

@@ -52,7 +52,6 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let hasChildBundles = bundle.hasChildBundles();
   let needsPrelude =
     isEntry && hasChildBundles && bundle.env.outputFormat === 'global';
-  let registerEntry = !isEntry || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }

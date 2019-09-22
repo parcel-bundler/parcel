@@ -237,7 +237,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       case 'dep_path_request':
         promise = this.queue.add(() =>
           this.resolvePath(requestNode.value).then(result => {
-            this.onDepPathRequestComplete(requestNode, result);
+            if (result) {
+              this.onDepPathRequestComplete(requestNode, result);
+            }
             return result;
           })
         );
