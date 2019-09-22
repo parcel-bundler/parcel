@@ -55,7 +55,9 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             engines: {
               browsers: ['> 0.25%']
-            }
+            },
+            outputFormat: 'global',
+            isLibrary: false
           },
           sourceMap: undefined
         },
@@ -68,7 +70,9 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             engines: {
               node: '>= 8.0.0'
-            }
+            },
+            outputFormat: 'commonjs',
+            isLibrary: false
           },
           sourceMap: undefined
         }
@@ -90,7 +94,9 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         },
@@ -100,11 +106,13 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            context: 'node',
+            context: 'browser',
             engines: {
-              node: '>= 12.0.0'
+              browsers: ['last 1 version']
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'esmodule',
+            isLibrary: true
           },
           sourceMap: {
             inlineSources: true
@@ -120,7 +128,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['last 1 version']
             },
-            includeNodeModules: true
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         }
@@ -142,7 +152,9 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         },
@@ -159,7 +171,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['last 1 version']
             },
-            includeNodeModules: true
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false
           },
           sourceMap: undefined
         },
@@ -176,7 +190,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['ie11']
             },
-            includeNodeModules: true
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false
           },
           sourceMap: undefined
         }
@@ -200,7 +216,9 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         },
@@ -214,7 +232,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['last 1 version']
             },
-            includeNodeModules: true
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         }
