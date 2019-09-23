@@ -478,7 +478,10 @@ export default class BundleGraph {
     for (let dep of deps) {
       if (dep.symbols.get('*') === '*') {
         let resolved = nullthrows(this.getDependencyResolution(dep));
-        symbols.push(...this.getExportedSymbols(resolved));
+        let exported = this.getExportedSymbols(resolved).filter(
+          s => s.exportSymbol !== 'default'
+        );
+        symbols.push(...exported);
       }
     }
 

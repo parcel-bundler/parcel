@@ -129,8 +129,7 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !assets.has(assertString(mod.meta.id))) {
-      // TODO: ????
-      node = REQUIRE_TEMPLATE({ID: t.stringLiteral(module.id)}).expression;
+      node = addBundleImport(mod, path);
       return interop(module, symbol, path, node);
     }
 
@@ -256,6 +255,24 @@ export function link({
     return specifiers.get('*');
   }
 
+  function addBundleImport(mod, path) {
+    let bundles = bundleGraph.findBundlesWithAsset(mod);
+    let imported = importedFiles.get(bundles[0].filePath);
+    if (!imported) {
+      imported = {
+        bundle: bundles[0],
+        assets: new Set()
+      };
+      importedFiles.set(bundles[0].filePath, imported);
+    }
+
+    if (!isUnusedValue(path)) {
+      invariant(imported.assets != null);
+      imported.assets.add(mod);
+      return t.identifier(mod.meta.exportsIdentifier);
+    }
+  }
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -340,21 +357,7 @@ export function link({
               node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else if (mod.type === 'js') {
-            let bundles = bundleGraph.findBundlesWithAsset(mod);
-            let imported = importedFiles.get(bundles[0].filePath);
-            if (!imported) {
-              imported = {
-                bundle: bundles[0],
-                assets: new Set()
-              };
-              importedFiles.set(bundles[0].filePath, imported);
-            }
-
-            if (!isUnusedValue(path)) {
-              invariant(imported.assets != null);
-              imported.assets.add(mod);
-              node = t.identifier(mod.meta.exportsIdentifier);
-            }
+            node = addBundleImport(mod, path);
           }
 
           if (node) {

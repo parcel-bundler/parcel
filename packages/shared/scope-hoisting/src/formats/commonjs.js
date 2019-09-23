@@ -178,7 +178,7 @@ export function generateExports(
   }
 
   let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
+  if (entry) {
     let exportsId = entry.meta.exportsIdentifier;
     invariant(typeof exportsId === 'string');
 

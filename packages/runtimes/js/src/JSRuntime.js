@@ -64,7 +64,7 @@ export default new Runtime({
     // (e.g. WASM, HTML). These should be preloaded prior to the bundle being executed. Replace the entry asset(s)
     // with the preload module.
 
-    if (bundle.type !== 'js' || bundle.env.isLibrary) {
+    if (bundle.type !== 'js') {
       return;
     }
 
@@ -117,7 +117,9 @@ export default new Runtime({
 
       // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
       // Importing of the other bundles will be handled by the bundle group entry.
-      if (bundle.env.outputFormat === 'commonjs') {
+      // Do the same thing in library mode for ES modules, as we are building for another bundler
+      // and the imports for sibling bundles will be in the target bundle.
+      if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
         bundles = bundles.slice(-1);
       }
 

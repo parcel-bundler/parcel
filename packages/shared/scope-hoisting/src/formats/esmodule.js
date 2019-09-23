@@ -81,7 +81,7 @@ export function generateExports(
 ) {
   let exportedIdentifiers = new Map();
   let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
+  if (entry) {
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
       exportedIdentifiers.set(symbol, exportSymbol);
     }
