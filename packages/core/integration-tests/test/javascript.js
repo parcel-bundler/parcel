@@ -1474,4 +1474,12 @@ describe('javascript', function() {
       }
     ]);
   });
+
+  it('should import the same dependency multiple times in the same bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/same-dependency-multiple-times/a1.js')
+    );
+
+    await run(b);
+  });
 });
