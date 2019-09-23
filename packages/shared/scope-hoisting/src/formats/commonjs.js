@@ -71,6 +71,10 @@ export function generateExternalImport(
     }
   }
 
+  // Attempt to combine require calls as much as possible. Namespace, default, and named specifiers
+  // cannot be combined, so in the case where we have more than one type, assign the require() result
+  // to a variable first and then create additional variables for each specifier based on that.
+  // Otherwise, if just one category is imported, just assign and require all at once.
   if (categories.size > 1) {
     let name = scope.generateUid(source);
     statements.push(

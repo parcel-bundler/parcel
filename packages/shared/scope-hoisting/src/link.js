@@ -211,6 +211,7 @@ export function link({
   }
 
   function addExternalModule(path, dep) {
+    // Find an existing import for this specifier, or create a new one.
     let importedFile = importedFiles.get(dep.moduleSpecifier);
     if (!importedFile) {
       importedFile = {
@@ -226,7 +227,9 @@ export function link({
     invariant(importedFile.specifiers != null);
     let specifiers = importedFile.specifiers;
 
+    // For each of the imported symbols, add to the list of imported specifiers.
     for (let [imported, symbol] of dep.symbols) {
+      // If already imported, just add the already renamed variable to the mapping.
       let renamed = specifiers.get(imported);
       if (renamed) {
         replacements.set(symbol, renamed);
@@ -235,6 +238,9 @@ export function link({
 
       renamed = replacements.get(symbol);
       if (!renamed) {
+        // Rename the specifier to something nicer. Try to use the imported
+        // name, except for default and namespace imports, and if the name is
+        // already in scope.
         renamed = imported;
         if (imported === 'default' || imported === '*') {
           renamed = programScope.generateUid(dep.moduleSpecifier);
@@ -256,6 +262,7 @@ export function link({
   }
 
   function addBundleImport(mod, path) {
+    // Find the first bundle containing this assed, and create an import for it if needed.
     let bundles = bundleGraph.findBundlesWithAsset(mod);
     let imported = importedFiles.get(bundles[0].filePath);
     if (!imported) {
@@ -266,6 +273,7 @@ export function link({
       importedFiles.set(bundles[0].filePath, imported);
     }
 
+    // If not unused, add the asset to the list of specifiers to import.
     if (!isUnusedValue(path)) {
       invariant(imported.assets != null);
       imported.assets.add(mod);
@@ -505,6 +513,7 @@ export function link({
         // Recrawl to get all bindings.
         path.scope.crawl();
 
+        // Insert imports for external bundles
         let imports = [];
         for (let file of importedFiles.values()) {
           if (file.bundle) {
@@ -525,6 +534,7 @@ export function link({
 
         path.scope.getProgramParent().path.unshiftContainer('body', imports);
 
+        // Generate exports
         let exported = format.generateExports(
           bundleGraph,
           bundle,
