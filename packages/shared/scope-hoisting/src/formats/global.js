@@ -57,7 +57,6 @@ export function generateExports(
   }
 
   let entry = bundle.getMainEntry();
-  let hasChildBundles = bundle.hasChildBundles();
   if (
     entry &&
     (bundleGraph.hasParentBundleOfType(bundle, 'js') ||

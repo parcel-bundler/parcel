@@ -27,7 +27,6 @@ const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
-const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
 
 const FORMATS = {
   esmodule,

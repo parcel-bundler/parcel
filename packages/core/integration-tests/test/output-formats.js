@@ -363,7 +363,7 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
-          async1
+          async2
         )
       );
     });
