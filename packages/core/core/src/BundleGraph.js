@@ -78,11 +78,14 @@ export default class BundleGraph {
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     this._graph.removeEdge(bundle.id, asset.id);
-    this._graph.traverse(node => {
-      if (node.type === 'asset' || node.type === 'dependency') {
+    this.traverseBundle(
+      bundle,
+      node => {
         this._graph.removeEdge(bundle.id, node.id, 'contains');
-      }
-    }, nullthrows(this._graph.getNode(asset.id)));
+      },
+      false,
+      nullthrows(this._graph.getNode(asset.id))
+    );
   }
 
   createAssetReference(dependency: Dependency, asset: Asset): void {
@@ -253,7 +256,8 @@ export default class BundleGraph {
   traverseBundle<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
-    includeAll: boolean = false
+    includeAll: boolean = false,
+    startNode?: BundleGraphNode = nullthrows(this._graph.getNode(bundle.id))
   ): ?TContext {
     return this._graph.filteredTraverse(
       (node, actions) => {
@@ -273,7 +277,7 @@ export default class BundleGraph {
         actions.skipChildren();
       },
       visit,
-      nullthrows(this._graph.getNode(bundle.id))
+      startNode
     );
   }
 
