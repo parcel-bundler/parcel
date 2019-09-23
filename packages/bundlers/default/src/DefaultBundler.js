@@ -151,7 +151,10 @@ export default new Bundler({
           let assets = bundleGraph.getDependencyAssets(dependency);
 
           for (let asset of assets) {
-            if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
+            if (
+              bundle.hasAsset(asset) &&
+              bundleGraph.isAssetInAncestorBundles(bundle, asset)
+            ) {
               bundleGraph.removeAssetGraphFromBundle(asset, bundle);
             }
           }
