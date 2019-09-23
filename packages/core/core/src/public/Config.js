@@ -10,12 +10,9 @@ import type {
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
-import path from 'path';
 import {loadConfig} from '@parcel/utils';
 
 import Environment from './Environment';
-
-const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
@@ -36,6 +33,10 @@ export default class PublicConfig implements IConfig {
 
   get result() {
     return this.#config.result;
+  }
+
+  get isSource() {
+    return this.#config.isSource;
   }
 
   setResolvedPath(filePath: FilePath) {
@@ -122,17 +123,5 @@ export default class PublicConfig implements IConfig {
 
     this.#config.pkg = await this.getConfig(['package.json']);
     return this.#config.pkg;
-  }
-
-  async isSource() {
-    let pkg = await this.getPackage();
-    return (
-      !!(
-        pkg &&
-        pkg.source != null &&
-        (await this.#options.inputFS.realpath(this.searchPath)) !==
-          this.searchPath
-      ) || !this.#config.searchPath.includes(NODE_MODULES)
-    );
   }
 }

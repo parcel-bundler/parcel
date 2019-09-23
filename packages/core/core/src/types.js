@@ -68,6 +68,7 @@ export type Asset = {|
   includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
+  isSource: boolean,
   outputHash: string,
   env: Environment,
   meta: Meta,
@@ -184,6 +185,7 @@ export type ConfigRequestNode = {|
 |};
 
 export type Config = {|
+  isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   resolvedPath: ?FilePath,
@@ -201,6 +203,7 @@ export type Config = {|
 export type ConfigRequest = {|
   filePath: FilePath,
   env: Environment,
+  isSource: boolean,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,

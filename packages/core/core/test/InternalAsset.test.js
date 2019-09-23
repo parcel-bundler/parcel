@@ -14,7 +14,8 @@ describe('InternalAsset', () => {
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
-        type: 'js'
+        type: 'js',
+        isSource: true
       }),
       options: DEFAULT_OPTIONS
     });
@@ -34,7 +35,8 @@ describe('InternalAsset', () => {
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
-        type: 'js'
+        type: 'js',
+        isSource: true
       }),
       options: DEFAULT_OPTIONS
     });
@@ -52,7 +54,8 @@ describe('InternalAsset', () => {
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
-        type: 'js'
+        type: 'js',
+        isSource: true
       }),
       options: DEFAULT_OPTIONS
     });

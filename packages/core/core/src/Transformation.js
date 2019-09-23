@@ -90,7 +90,10 @@ export default class Transformation {
     });
 
     let asset = await this.loadAsset();
-    let pipeline = await this.loadPipeline(this.request.filePath);
+    let pipeline = await this.loadPipeline(
+      this.request.filePath,
+      asset.value.isSource
+    );
     let results = await this.runPipeline(pipeline, asset);
     let assets = results.map(a => a.value);
 
@@ -99,7 +102,7 @@ export default class Transformation {
 
   async loadAsset(): Promise<InternalAsset> {
     let {filePath, env, code, sideEffects} = this.request;
-    let {content, size, hash} = await summarizeRequest(
+    let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       this.request
     );
@@ -112,6 +115,7 @@ export default class Transformation {
       value: createAsset({
         idBase,
         filePath,
+        isSource,
         type: path.extname(filePath).slice(1),
         hash,
         env,
@@ -147,11 +151,12 @@ export default class Transformation {
     for (let asset of assets) {
       let nextPipeline;
       if (asset.value.type !== initialType) {
-        nextPipeline = await this.loadNextPipeline(
-          initialAsset.value.filePath,
-          asset.value.type,
-          pipeline
-        );
+        nextPipeline = await this.loadNextPipeline({
+          filePath: initialAsset.value.filePath,
+          isSource: asset.value.isSource,
+          nextType: asset.value.type,
+          currentPipeline: pipeline
+        });
       }
 
       if (nextPipeline) {
@@ -237,10 +242,11 @@ export default class Transformation {
     });
   }
 
-  async loadPipeline(filePath: FilePath): Promise<Pipeline> {
+  async loadPipeline(filePath: FilePath, isSource: boolean): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
+      isSource,
       meta: {
         actionType: 'transformation'
       }
@@ -260,20 +266,22 @@ export default class Transformation {
       let plugin = await parcelConfig.loadPlugin(moduleName);
       // TODO: implement loadPlugin in existing plugins that require config
       if (plugin.loadConfig) {
-        let thirdPartyConfig = await this.loadTransformerConfig(
+        let thirdPartyConfig = await this.loadTransformerConfig({
           filePath,
-          moduleName,
-          result.filePath
-        );
+          plugin: moduleName,
+          parcelConfigPath: result.filePath,
+          isSource
+        });
 
+        let config = new PublicConfig(thirdPartyConfig, this.options);
         if (thirdPartyConfig.shouldRehydrate) {
           await plugin.rehydrateConfig({
-            config: new PublicConfig(thirdPartyConfig, this.options),
+            config,
             options: this.options
           });
         } else if (thirdPartyConfig.shouldReload) {
           await plugin.loadConfig({
-            config: new PublicConfig(thirdPartyConfig, this.options),
+            config,
             options: this.options
           });
         }
@@ -293,14 +301,20 @@ export default class Transformation {
     return pipeline;
   }
 
-  async loadNextPipeline(
+  async loadNextPipeline({
+    filePath,
+    isSource,
+    nextType,
+    currentPipeline
+  }: {|
     filePath: string,
+    isSource: boolean,
     nextType: string,
     currentPipeline: Pipeline
-  ): Promise<?Pipeline> {
+  |}): Promise<?Pipeline> {
     let nextFilePath =
       filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
-    let nextPipeline = await this.loadPipeline(nextFilePath);
+    let nextPipeline = await this.loadPipeline(nextFilePath, isSource);
 
     if (nextPipeline.id === currentPipeline.id) {
       return null;
@@ -309,15 +323,22 @@ export default class Transformation {
     return nextPipeline;
   }
 
-  loadTransformerConfig(
+  loadTransformerConfig({
+    filePath,
+    plugin,
+    parcelConfigPath,
+    isSource
+  }: {|
     filePath: FilePath,
     plugin: PackageName,
-    parcelConfigPath: FilePath
-  ): Promise<Config> {
+    parcelConfigPath: FilePath,
+    isSource: boolean
+  |}): Promise<Config> {
     let configRequest = {
       filePath,
       env: this.request.env,
       plugin,
+      isSource,
       meta: {
         parcelConfigPath
       }
