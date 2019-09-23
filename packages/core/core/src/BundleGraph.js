@@ -21,6 +21,7 @@ import type Graph from './Graph';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
+import {flatMap} from '@parcel/utils';
 
 import {getBundleGroupId} from './utils';
 import {mapVisitor} from './Graph';
@@ -369,39 +370,25 @@ export default class BundleGraph {
       'bundle'
     );
 
-    return (
-      groupNodes
-        .map(groupNode => {
-          let dependencyNode = this._graph
-            .getNodesConnectedTo(groupNode)
-            .find(
-              node =>
-                node.type === 'dependency' &&
-                this._graph.hasEdge(bundle.id, node.id, 'contains')
-            );
-
+    return flatMap(groupNodes, groupNode => {
+      return this._graph
+        .getNodesConnectedTo(groupNode)
+        .filter(
+          node =>
+            node.type === 'dependency' &&
+            this._graph.hasEdge(bundle.id, node.id, 'contains')
+        )
+        .map(dependencyNode => {
           // TODO: Enforce non-null when bundle groups have the correct bundles
           // pointing to them
-          invariant(
-            dependencyNode == null || dependencyNode.type === 'dependency'
-          );
+          invariant(dependencyNode.type === 'dependency');
 
           return {
             bundleGroup: groupNode.value,
-            dependency: dependencyNode?.value
+            dependency: dependencyNode.value
           };
-        })
-        // TODO: Remove this filter when bundle groups have the correct bundles
-        // pointing to them
-        .filter(({dependency}) => dependency != null)
-        .map(({bundleGroup, dependency}) => {
-          invariant(dependency != null);
-          return {
-            bundleGroup,
-            dependency
-          };
-        })
-    );
+        });
+    });
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
