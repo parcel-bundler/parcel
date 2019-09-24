@@ -40,12 +40,13 @@ type Opts = {|
 export default class PackagerRunner {
   config: ParcelConfig;
   options: ParcelOptions;
+  farm: ?WorkerFarm;
   pluginOptions: PluginOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
   writeBundleFromWorker: ({
     bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph,
+    bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
     options: ParcelOptions,
@@ -57,6 +58,7 @@ export default class PackagerRunner {
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
 
+    this.farm = farm;
     this.writeBundleFromWorker = farm
       ? farm.createHandle('runPackage')
       : () => {
@@ -66,7 +68,34 @@ export default class PackagerRunner {
         };
   }
 
-  async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
+  async writeBundles(bundleGraph: InternalBundleGraph) {
+    let farm = nullthrows(this.farm);
+    // TODO: maybe avoid doing this if we don't have to?
+    let {ref, dispose} = await farm.createSharedReference(bundleGraph);
+
+    let promises = [];
+    for (let bundle of bundleGraph.getBundles()) {
+      // skip inline bundles, they will be processed via the parent bundle
+      if (bundle.isInline) {
+        continue;
+      }
+
+      promises.push(
+        this.writeBundle(bundle, bundleGraph, ref).then(stats => {
+          bundle.stats = stats;
+        })
+      );
+    }
+
+    await Promise.all(promises);
+    await dispose();
+  }
+
+  async writeBundle(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+    bundleGraphReference: number
+  ) {
     let start = Date.now();
 
     let cacheKey = await this.getCacheKey(bundle, bundleGraph);
@@ -74,8 +103,8 @@ export default class PackagerRunner {
       (await this.writeBundleFromCache({bundle, bundleGraph, cacheKey})) ||
       (await this.writeBundleFromWorker({
         bundle,
-        bundleGraph,
         cacheKey,
+        bundleGraphReference,
         options: this.options,
         config: this.config
       }));
