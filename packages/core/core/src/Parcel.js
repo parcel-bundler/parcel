@@ -40,6 +40,7 @@ export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
   #bundlerRunner; // BundlerRunner
+  #packagerRunner; // PackagerRunner
   #config;
   #farm; // WorkerFarm
   #initialized = false; // boolean
@@ -102,6 +103,11 @@ export default class Parcel {
       entries: resolvedOptions.entries,
       targets: resolvedOptions.targets,
       workerFarm: this.#farm
+    });
+    this.#packagerRunner = new PackagerRunner({
+      config,
+      options: resolvedOptions,
+      farm: this.#farm
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');
@@ -195,12 +201,7 @@ export default class Parcel {
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await packageBundles({
-        bundleGraph,
-        config: this.#config,
-        options,
-        farm: this.#farm
-      });
+      await this.#packagerRunner.writeBundles(bundleGraph);
 
       let event = {
         type: 'buildSuccess',
@@ -313,36 +314,38 @@ export default class Parcel {
   }
 }
 
-function packageBundles({
-  bundleGraph,
-  config,
-  options,
-  farm
-}: {
-  bundleGraph: InternalBundleGraph,
-  config: ParcelConfig,
-  options: ParcelOptions,
-  farm: WorkerFarm,
-  ...
-}): Promise<mixed> {
-  let promises = [];
-  for (let bundle of bundleGraph.getBundles()) {
-    // skip inline bundles, they will be processed via the parent bundle
-    if (bundle.isInline) {
-      continue;
-    }
+// function packageBundles({
+//   bundleGraph,
+//   config,
+//   options,
+//   farm
+// }: {
+//   bundleGraph: InternalBundleGraph,
+//   config: ParcelConfig,
+//   options: ParcelOptions,
+//   farm: WorkerFarm,
+//   ...
+// }): Promise<mixed> {
+//   // let {ref, dispose} = await this.#farm.createSharedReference()
 
-    promises.push(
-      new PackagerRunner({config, options, farm})
-        .writeBundle(bundle, bundleGraph)
-        .then(stats => {
-          bundle.stats = stats;
-        })
-    );
-  }
+//   let promises = [];
+//   for (let bundle of bundleGraph.getBundles()) {
+//     // skip inline bundles, they will be processed via the parent bundle
+//     if (bundle.isInline) {
+//       continue;
+//     }
 
-  return Promise.all(promises);
-}
+//     promises.push(
+//       new PackagerRunner({config, options, farm})
+//         .writeBundle(bundle, bundleGraph)
+//         .then(stats => {
+//           bundle.stats = stats;
+//         })
+//     );
+//   }
+
+//   return Promise.all(promises);
+// }
 
 export class BuildError extends Error {
   name = 'BuildError';
