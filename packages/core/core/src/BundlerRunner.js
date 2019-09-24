@@ -238,21 +238,15 @@ export default class BundlerRunner {
         }
       });
 
-      let entryIsReference = false;
       for (let asset of duplicated) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-
-        if (entry.id === asset.id) {
-          entryIsReference = true;
-        }
       }
 
       bundleGraph._graph.addEdge(
         dependency
           ? dependency.id
           : nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-        entry.id,
-        entryIsReference ? 'references' : null
+        entry.id
       );
 
       if (isEntry) {
