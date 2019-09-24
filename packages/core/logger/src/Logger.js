@@ -67,7 +67,7 @@ let consolePatched = false;
 // TODO: Implement the rest of the console api as needed.
 // TODO: Does this need to be disposable/reversible?
 export function patchConsole() {
-  if (consolePatched || process.env.NODE_ENV === 'test') {
+  if (consolePatched) {
     return;
   }
 
