@@ -662,7 +662,8 @@ describe('javascript', function() {
 
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/import-raw/index.js')
+      path.join(__dirname, '/integration/import-raw/index.js'),
+      {disableCache: false}
     );
 
     assertBundles(b, [
@@ -679,7 +680,8 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(await outputFS.exists(path.join(distDir, output())));
+    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert.equal(stats.size, 9);
   });
 
   it('should minify JS in production mode', async function() {
