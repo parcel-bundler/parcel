@@ -274,8 +274,7 @@ export default class BundleGraph {
 
   traverseBundle<TContext>(
     bundle: Bundle,
-    visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
-    includeAll: boolean = false
+    visit: GraphVisitor<AssetNode | DependencyNode, TContext>
   ): ?TContext {
     return this._graph.filteredTraverse(
       (node, actions) => {
@@ -284,10 +283,7 @@ export default class BundleGraph {
         }
 
         if (node.type === 'dependency' || node.type === 'asset') {
-          if (
-            includeAll ||
-            this._graph.hasEdge(bundle.id, node.id, 'contains')
-          ) {
+          if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
             return node;
           }
         }
