@@ -509,10 +509,12 @@ export type CreateBundleOpts =
 export interface BundlerBundleGraph {
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   addAssetToBundle(Asset, Bundle): void;
+  addAssetGraphToBundle(Asset, Bundle): void;
   createAssetReference(Dependency, Asset): void;
   createBundle(CreateBundleOpts): Bundle;
   createBundleGroup(Dependency, Target): BundleGroup;
   getDependencyAssets(Dependency): Array<Asset>;
+  getDependencyResolution(Dependency): ?Asset;
   traverse<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>
   ): ?TContext;

@@ -4,7 +4,7 @@ import type {Asset, Bundle} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {md5FromString} from '@parcel/utils';
+import {DefaultMap, md5FromString} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 const OPTIONS = {
@@ -24,61 +24,55 @@ export default new Bundler({
 
   bundle({bundleGraph}) {
     // Step 1: create bundles for each of the explicit code split points.
-    bundleGraph.traverse((node, context) => {
-      if (node.type !== 'dependency') {
-        return {
-          ...context,
-          parentNode: node
-        };
-      }
-
-      let dependency = node.value;
-      let assets = bundleGraph.getDependencyAssets(dependency);
-
-      if (dependency.isEntry || dependency.isAsync) {
-        let bundleGroup = bundleGraph.createBundleGroup(
-          dependency,
-          nullthrows(dependency.target ?? context?.bundleGroup?.target)
-        );
-
-        let bundleByType = new Map<string, Bundle>();
-        for (let asset of assets) {
-          let bundle = bundleGraph.createBundle({
-            entryAsset: asset,
-            isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
-            isInline: asset.isInline,
-            target: bundleGroup.target
-          });
-          bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-          if (dependency.isAsync) {
-            bundleGraph.createAssetReference(dependency, asset);
-          }
-          bundleByType.set(bundle.type, bundle);
+    bundleGraph.traverse({
+      enter: (node, context) => {
+        if (node.type !== 'dependency') {
+          return {
+            ...context,
+            parentNode: node
+          };
         }
 
-        return {
-          bundleGroup,
-          bundleGroupDependency: dependency,
-          bundleByType,
-          parentNode: node
-        };
-      }
+        let dependency = node.value;
+        let assets = bundleGraph.getDependencyAssets(dependency);
+        let resolution = bundleGraph.getDependencyResolution(dependency);
 
-      invariant(context != null);
-      for (let asset of assets) {
-        if (asset.isIsolated) {
+        if (
+          dependency.isEntry ||
+          dependency.isAsync ||
+          resolution?.isIsolated
+        ) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,
-            context.bundleGroup.target
+            nullthrows(dependency.target ?? context?.bundleGroup?.target)
           );
-          let bundle = bundleGraph.createBundle({
-            entryAsset: asset,
-            isInline: asset.isInline,
-            target: context.bundleGroup.target
-          });
-          bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-          bundleGraph.createAssetReference(dependency, asset);
-        } else {
+          let bundleTypes: Set<string> = new Set();
+
+          let bundleDescriptors = [];
+          for (let asset of assets) {
+            bundleDescriptors.push({
+              entryAsset: asset,
+              isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
+              isInline: asset.isInline,
+              target: bundleGroup.target
+            });
+            bundleTypes.add(asset.type);
+          }
+
+          return {
+            bundleDescriptors,
+            bundleGroup,
+            bundleTypes,
+            bundleByType: new Map<string, Bundle>(),
+            bundleGroupDependency: dependency,
+            pendingAssetsByType: new DefaultMap<string, Array<Asset>>(() => []),
+            parentNode: node
+          };
+        }
+
+        let bundleDescriptors = [];
+        invariant(context != null);
+        for (let asset of assets) {
           invariant(context.parentNode.type === 'asset');
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
@@ -86,28 +80,55 @@ export default new Bundler({
           }
 
           let existingBundle = context.bundleByType.get(asset.type);
-          let bundle;
           if (existingBundle) {
-            bundle = existingBundle;
+            // If a bundle of this type has already been created in this group,
+            // merge this subgraph into it.
+            bundleGraph.addAssetGraphToBundle(asset, existingBundle);
+            bundleGraph.createAssetReference(dependency, asset);
+          } else if (context.bundleTypes.has(asset.type)) {
+            // If a bundle of this type has not been created in this group,
+            // but will be, add this subgraph to the pending queue.
+            context.pendingAssetsByType.get(asset.type).push(asset);
+            bundleGraph.createAssetReference(dependency, asset);
           } else {
-            bundle = bundleGraph.createBundle({
+            bundleDescriptors.push({
               entryAsset: asset,
               target: context.bundleGroup.target,
               isEntry: context.bundleGroupDependency.isEntry,
               isInline: asset.isInline
             });
-            bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
-            context.bundleByType.set(bundle.type, bundle);
+            context.bundleTypes.add(asset.type);
           }
-          bundleGraph.addAssetToBundle(asset, bundle);
-          bundleGraph.createAssetReference(dependency, asset);
+        }
+
+        return {
+          ...context,
+          bundleDescriptors,
+          parentNode: node
+        };
+      },
+      exit: (node, context) => {
+        invariant(context != null);
+        if (node.type !== 'dependency') {
+          return;
+        }
+
+        let dependency = node.value;
+        for (let descriptor of context.bundleDescriptors) {
+          let bundle = bundleGraph.createBundle(descriptor);
+          context.bundleByType.set(bundle.type, bundle);
+          bundleGraph.createAssetReference(dependency, descriptor.entryAsset);
+          bundleGraph.addAssetGraphToBundle(descriptor.entryAsset, bundle);
+          bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
+
+          // If there are any asset subgraphs enqueued, merge them into this bundle.
+          let pending = context.pendingAssetsByType.get(bundle.type);
+          let asset;
+          while ((asset = pending.pop())) {
+            bundleGraph.addAssetGraphToBundle(asset, bundle);
+          }
         }
       }
-
-      return {
-        ...context,
-        parentNode: node
-      };
     });
   },
 

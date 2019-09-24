@@ -74,10 +74,6 @@ export default class BundlerRunner {
       options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
-    for (let bundle of internalBundleGraph.getBundles()) {
-      summarizeBundle(bundle, internalBundleGraph);
-    }
-    await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
     await bundler.optimize({
       bundleGraph: new BundlerOptimizeBundleGraph(
         internalBundleGraph,
@@ -302,25 +298,4 @@ function removeAssetGroups(
   }
 
   return graph;
-}
-
-function summarizeBundle(
-  bundle: InternalBundle,
-  bundleGraph: InternalBundleGraph
-): void {
-  let size = 0;
-  bundleGraph.traverseBundle(
-    bundle,
-    node => {
-      if (node.type === 'dependency' || node.type === 'asset') {
-        bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
-      }
-      if (node.type === 'asset') {
-        size += node.value.stats.size;
-      }
-    },
-    true
-  );
-
-  bundle.stats.size = size;
 }

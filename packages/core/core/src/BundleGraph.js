@@ -69,9 +69,21 @@ export default class BundleGraph {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
-    this._graph.traverse(node => {
+    this._graph.traverse((node, _, actions) => {
+      if (node.type === 'bundle_group') {
+        actions.skipChildren();
+      }
+
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.addEdge(bundle.id, node.id, 'contains');
+      }
+
+      if (node.type === 'dependency') {
+        for (let bundleGroupNode of this._graph
+          .getNodesConnectedFrom(node)
+          .filter(node => node.type === 'bundle_group')) {
+          this._graph.addEdge(bundle.id, bundleGroupNode.id, 'bundle');
+        }
       }
     }, nullthrows(this._graph.getNode(asset.id)));
   }

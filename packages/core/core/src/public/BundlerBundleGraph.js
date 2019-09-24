@@ -78,27 +78,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     this.#graph._graph.removeEdge(dependencyNode.id, resolved.id);
     this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
 
-    // Traverse upward and connect this bundle group to the bundle(s) that reference it
-    let connectedFromBundles = [];
-    this.#graph._graph.traverseAncestors(
-      dependencyNode,
-      (node, context, actions) => {
-        if (node.id === dependencyNode.id) {
-          return;
-        }
-
-        if (node.type === 'bundle') {
-          connectedFromBundles.push(node);
-          actions.skipChildren();
-        }
-      }
-    );
-
-    if (connectedFromBundles.length > 0) {
-      for (let bundleNode of connectedFromBundles) {
-        this.#graph._graph.addEdge(bundleNode.id, bundleGroupNode.id, 'bundle');
-      }
-    } else {
+    if (dependency.isEntry) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.getRootNode()).id,
         bundleGroupNode.id,
@@ -131,10 +111,6 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     };
 
     this.#graph._graph.addNode(bundleNode);
-    if (opts.entryAsset != null) {
-      this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
-    }
-
     return new Bundle(bundleNode.value, this.#graph, this.#options);
   }
 
@@ -158,6 +134,16 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))
       .map(asset => assetFromValue(asset, this.#options));
+  }
+
+  getDependencyResolution(dependency: IDependency): ?IAsset {
+    let resolved = this.#graph.getDependencyResolution(
+      dependencyToInternalDependency(dependency)
+    );
+
+    if (resolved) {
+      return assetFromValue(resolved, this.#options);
+    }
   }
 
   traverse<TContext>(
