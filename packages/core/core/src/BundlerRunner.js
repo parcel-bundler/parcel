@@ -18,10 +18,7 @@ import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import Graph from './Graph';
-import {
-  BundlerBundleGraph,
-  BundlerOptimizeBundleGraph
-} from './public/BundlerBundleGraph';
+import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
@@ -69,16 +66,17 @@ export default class BundlerRunner {
     // $FlowFixMe
     let internalBundleGraph = new InternalBundleGraph(bundleGraph);
     await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
+    let mutableBundleGraph = new MutableBundleGraph(
+      internalBundleGraph,
+      this.options
+    );
     await bundler.bundle({
-      bundleGraph: new BundlerBundleGraph(internalBundleGraph, this.options),
+      bundleGraph: mutableBundleGraph,
       options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
     await bundler.optimize({
-      bundleGraph: new BundlerOptimizeBundleGraph(
-        internalBundleGraph,
-        this.options
-      ),
+      bundleGraph: mutableBundleGraph,
       options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');

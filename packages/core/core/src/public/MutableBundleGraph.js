@@ -7,8 +7,7 @@ import type {
   CreateBundleOpts,
   Dependency as IDependency,
   GraphVisitor,
-  BundlerBundleGraph as IBundlerBundleGraph,
-  BundlerOptimizeBundleGraph as IBundlerOptimizeBundleGraph,
+  MutableBundleGraph as IMutableBundleGraph,
   BundlerBundleGraphTraversable,
   Target
 } from '@parcel/types';
@@ -25,20 +24,13 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 
-export class BundlerBundleGraph implements IBundlerBundleGraph {
+export default class MutableBundleGraph implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     this.#graph = graph;
     this.#options = options;
-  }
-
-  addAssetToBundle(asset: IAsset, bundle: IBundle) {
-    this.#graph.addAssetToBundle(
-      assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
-    );
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
@@ -166,18 +158,6 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
       ALL_EDGE_TYPES
     );
   }
-}
-
-export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
-  implements IBundlerOptimizeBundleGraph {
-  #graph; // InternalBundleGraph
-  #options; // ParcelOptions
-
-  constructor(graph: InternalBundleGraph, options: ParcelOptions) {
-    super(graph, options);
-    this.#graph = graph;
-    this.#options = options;
-  }
 
   findBundlesWithAsset(asset: IAsset): Array<IBundle> {
     return this.#graph
@@ -210,13 +190,6 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
 
   removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
-      assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
-    );
-  }
-
-  removeAssetFromBundle(asset: IAsset, bundle: IBundle) {
-    this.#graph.removeAssetFromBundle(
       assetToInternalAsset(asset).value,
       bundleToInternalBundle(bundle)
     );
