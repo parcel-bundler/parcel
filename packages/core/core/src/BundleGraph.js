@@ -59,12 +59,6 @@ export default class BundleGraph {
     return new BundleGraph(opts._graph);
   }
 
-  addAssetToBundle(asset: Asset, bundle: Bundle) {
-    // This asset should be reached via traversal
-    this._graph.addEdge(bundle.id, asset.id);
-    this._graph.addEdge(bundle.id, asset.id, 'contains');
-  }
-
   addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
@@ -183,10 +177,6 @@ export default class BundleGraph {
       invariant(node.type === 'dependency');
       return node.value;
     });
-  }
-
-  removeAssetFromBundle(asset: Asset, bundle: Bundle): void {
-    this._graph.removeEdge(bundle.id, asset.id, 'contains');
   }
 
   traverseAssets<TContext>(
