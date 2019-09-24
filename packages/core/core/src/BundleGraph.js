@@ -94,6 +94,26 @@ export default class BundleGraph {
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.removeEdge(bundle.id, node.id, 'contains');
       }
+
+      if (node.type === 'dependency') {
+        for (let bundleGroupNode of this._graph
+          .getNodesConnectedFrom(node)
+          .filter(node => node.type === 'bundle_group')) {
+          let inboundDependencies = this._graph
+            .getNodesConnectedTo(bundleGroupNode)
+            .filter(node => node.type === 'dependency');
+
+          // If every inbound dependency to this bundle group does not belong to this bundle,
+          // then the connection between this bundle and the group is safe to remove.
+          if (
+            inboundDependencies.every(
+              depNode => !this._graph.hasEdge(bundle.id, depNode.id, 'contains')
+            )
+          ) {
+            this._graph.removeEdge(bundle.id, bundleGroupNode.id, 'bundle');
+          }
+        }
+      }
     }, nullthrows(this._graph.getNode(asset.id)));
   }
 
