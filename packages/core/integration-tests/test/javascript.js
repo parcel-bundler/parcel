@@ -653,7 +653,7 @@ describe('javascript', function() {
         assets: ['a.js', 'c.js', 'JSRuntime.js']
       },
       {
-        assets: ['b.js', 'c.js']
+        assets: ['b.js', 'c.js', 'JSRuntime.js']
       },
       {
         assets: ['1.js']
