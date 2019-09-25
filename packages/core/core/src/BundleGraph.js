@@ -84,7 +84,10 @@ export default class BundleGraph {
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
-    this._graph.removeEdge(bundle.id, asset.id);
+    if (this._graph.hasEdge(bundle.id, asset.id)) {
+      this._graph.removeEdge(bundle.id, asset.id);
+    }
+
     this._graph.traverse((node, context, actions) => {
       if (node.type === 'bundle_group') {
         actions.skipChildren();
@@ -123,7 +126,9 @@ export default class BundleGraph {
 
   createAssetReference(dependency: Dependency, asset: Asset): void {
     this._graph.addEdge(dependency.id, asset.id, 'references');
-    this._graph.removeEdge(dependency.id, asset.id);
+    if (this._graph.hasEdge(dependency.id, asset.id)) {
+      this._graph.removeEdge(dependency.id, asset.id);
+    }
   }
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
