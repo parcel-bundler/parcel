@@ -240,9 +240,17 @@ export function assertBundles(
     bundle.assets.sort(byAlphabet);
   }
 
-  const byAssets = (a, b) => (a.assets[0] < b.assets[0] ? -1 : 1);
-  expectedBundles.sort(byAssets);
-  actualBundles.sort(byAssets);
+  const byName = (a, b) => {
+    if (typeof a.name === 'string' && typeof b.name === 'string') {
+      return a.name.localeCompare(b.name);
+    }
+
+    return 0;
+  };
+
+  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  expectedBundles.sort(byName).sort(byAssets);
+  actualBundles.sort(byName).sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,

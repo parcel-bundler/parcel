@@ -14,7 +14,7 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, sourceMapPath, options}) {
+  async package({bundle, bundleGraph, getSourceMapReference, options}) {
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
@@ -128,6 +128,8 @@ export default new Packager({
       entries.pop();
     }
 
+    let sourceMapReference = await getSourceMapReference(map);
+
     return {
       contents:
         // If the entry asset included a hashbang, repeat it at the top of the bundle
@@ -141,7 +143,7 @@ export default new Packager({
           'null' +
           ')\n\n' +
           '//# sourceMappingURL=' +
-          sourceMapPath +
+          sourceMapReference +
           '\n'),
       map
     };

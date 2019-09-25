@@ -591,11 +591,11 @@ describe('html', function() {
 
     // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
-      {name: 'index.html', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']}
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']}
     ]);
 
     let files = await outputFS.readdir(distDir);
@@ -610,6 +610,37 @@ describe('html', function() {
     assert(!html.includes('someArgument'));
   });
 
+  it('should add an inline sourcemap to inline JS', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js/index.html'),
+      {minify: false}
+    );
+
+    // inline bundles are not output, but are apart of the bundleGraph
+    assertBundles(b, [
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']}
+    ]);
+
+    let files = await outputFS.readdir(distDir);
+    // assert that the inline js files are not output
+    assert(!files.some(filename => filename.includes('js')));
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf-8'
+    );
+
+    assert(
+      html.includes(
+        '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,ey'
+      )
+    );
+  });
+
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
@@ -617,10 +648,6 @@ describe('html', function() {
     );
 
     await assertBundles(b, [
-      {
-        name: 'index.html',
-        assets: ['index.html']
-      },
       {
         type: 'css',
         assets: ['index.html']
@@ -644,6 +671,10 @@ describe('html', function() {
       {
         type: 'jpg',
         assets: ['img.jpg']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
       }
     ]);
   });
@@ -656,11 +687,11 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'css',
         assets: ['index.html']
       },
       {
-        type: 'css',
+        name: 'index.html',
         assets: ['index.html']
       }
     ]);
@@ -680,11 +711,11 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'js',
         assets: ['index.html']
       },
       {
-        type: 'js',
+        name: 'index.html',
         assets: ['index.html']
       }
     ]);
@@ -704,12 +735,12 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
-        assets: ['index.html']
-      },
-      {
         type: 'css',
         assets: ['index.html', 'test.css']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
       }
     ]);
 
@@ -728,12 +759,12 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
-        assets: ['index.html']
-      },
-      {
         type: 'js',
         assets: ['index.html', 'test.js']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
       }
     ]);
 

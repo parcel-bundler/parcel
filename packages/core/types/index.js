@@ -59,6 +59,7 @@ export type Engines = {
 
 export type TargetSourceMapOptions = {
   sourceRoot?: string,
+  inline?: boolean,
   inlineSources?: boolean,
   ...
 };
@@ -511,33 +512,6 @@ export type CreateBundleOpts =
       env: Environment
     |};
 
-export interface BundlerBundleGraph {
-  addBundleToBundleGroup(Bundle, BundleGroup): void;
-  addAssetToBundle(Asset, Bundle): void;
-  createAssetReference(Dependency, Asset): void;
-  createBundle(CreateBundleOpts): Bundle;
-  createBundleGroup(Dependency, Target): BundleGroup;
-  getDependencyAssets(Dependency): Array<Asset>;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>
-  ): ?TContext;
-}
-
-export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
-  addAssetGraphToBundle(Asset, Bundle): void;
-  findBundlesWithAsset(Asset): Array<Bundle>;
-  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
-  getTotalSize(Asset): number;
-  isAssetInAncestorBundles(Bundle, Asset): boolean;
-  removeAssetFromBundle(Asset, Bundle): void;
-  removeAssetGraphFromBundle(Asset, Bundle): void;
-  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>
-  ): ?TContext;
-}
-
 export type SymbolResolution = {|
   asset: Asset,
   exportSymbol: Symbol | string,
@@ -575,6 +549,29 @@ export type BundleGroup = {
   entryAssetId: string,
   ...
 };
+
+export interface MutableBundleGraph {
+  addAssetGraphToBundle(Asset, Bundle): void;
+  addBundleToBundleGroup(Bundle, BundleGroup): void;
+  createAssetReference(Dependency, Asset): void;
+  createBundle(CreateBundleOpts): Bundle;
+  createBundleGroup(Dependency, Target): BundleGroup;
+  findBundlesWithAsset(Asset): Array<Bundle>;
+  getDependencyAssets(Dependency): Array<Asset>;
+  getDependencyResolution(Dependency): ?Asset;
+  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getTotalSize(Asset): number;
+  isAssetInAncestorBundles(Bundle, Asset): boolean;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+  ): ?TContext;
+  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
+  traverseContents<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+  ): ?TContext;
+}
 
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
@@ -617,12 +614,12 @@ export type ResolveResult = {|
 
 export type Bundler = {|
   bundle({
-    bundleGraph: BundlerBundleGraph,
+    bundleGraph: MutableBundleGraph,
     options: PluginOptions,
     ...
   }): Async<void>,
   optimize({
-    bundleGraph: BundlerOptimizeBundleGraph,
+    bundleGraph: MutableBundleGraph,
     options: PluginOptions,
     ...
   }): Async<void>
@@ -658,11 +655,11 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    sourceMapPath: FilePath,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
     getInlineBundleContents: (
       Bundle,
       BundleGraph
-    ) => Async<{|contents: Blob, map: Readable | string | null|}>,
+    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
     ...
   }): Async<BundleResult>
 |};
