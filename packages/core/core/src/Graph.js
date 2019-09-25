@@ -193,10 +193,29 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   // Removes edge and node the edge is to if the node is orphaned
   removeEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null) {
+    if (
+      !this.outboundEdges
+        .get(from)
+        .get(type)
+        .has(to)
+    ) {
+      throw new Error(`Outbound edge from ${from} to ${to} not found!`);
+    }
+
+    if (
+      !this.inboundEdges
+        .get(to)
+        .get(type)
+        .has(from)
+    ) {
+      throw new Error(`Inbound edge from ${to} to ${from} not found!`);
+    }
+
     this.outboundEdges
       .get(from)
       .get(type)
       .delete(to);
+
     this.inboundEdges
       .get(to)
       .get(type)
