@@ -66,6 +66,7 @@ export default class BundleGraph {
     this._graph.traverse((node, _, actions) => {
       if (node.type === 'bundle_group') {
         actions.skipChildren();
+        return;
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
@@ -84,9 +85,18 @@ export default class BundleGraph {
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     this._graph.removeEdge(bundle.id, asset.id);
-    this._graph.traverse(node => {
+    this._graph.traverse((node, context, actions) => {
+      if (node.type === 'bundle_group') {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset' || node.type === 'dependency') {
-        this._graph.removeEdge(bundle.id, node.id, 'contains');
+        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+          this._graph.removeEdge(bundle.id, node.id, 'contains');
+        } else {
+          actions.skipChildren();
+        }
       }
 
       if (node.type === 'dependency') {
