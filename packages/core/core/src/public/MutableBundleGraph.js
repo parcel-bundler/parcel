@@ -111,7 +111,9 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
     for (let entryAsset of bundle.getEntryAssets()) {
-      this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);
+      if (this.#graph._graph.hasEdge(bundleGroupId, entryAsset.id)) {
+        this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);
+      }
     }
   }
 
