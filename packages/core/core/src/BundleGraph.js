@@ -59,35 +59,76 @@ export default class BundleGraph {
     return new BundleGraph(opts._graph);
   }
 
-  addAssetToBundle(asset: Asset, bundle: Bundle) {
-    // This asset should be reached via traversal
-    this._graph.addEdge(bundle.id, asset.id);
-    this._graph.addEdge(bundle.id, asset.id, 'contains');
-  }
-
   addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
-    this._graph.traverse(node => {
+    this._graph.traverse((node, _, actions) => {
+      if (node.type === 'bundle_group') {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.addEdge(bundle.id, node.id, 'contains');
+      }
+
+      if (node.type === 'dependency') {
+        for (let bundleGroupNode of this._graph
+          .getNodesConnectedFrom(node)
+          .filter(node => node.type === 'bundle_group')) {
+          this._graph.addEdge(bundle.id, bundleGroupNode.id, 'bundle');
+        }
       }
     }, nullthrows(this._graph.getNode(asset.id)));
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
-    this._graph.removeEdge(bundle.id, asset.id);
-    this._graph.traverse(node => {
+    if (this._graph.hasEdge(bundle.id, asset.id)) {
+      this._graph.removeEdge(bundle.id, asset.id);
+    }
+
+    this._graph.traverse((node, context, actions) => {
+      if (node.type === 'bundle_group') {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset' || node.type === 'dependency') {
-        this._graph.removeEdge(bundle.id, node.id, 'contains');
+        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+          this._graph.removeEdge(bundle.id, node.id, 'contains');
+        } else {
+          actions.skipChildren();
+        }
+      }
+
+      if (node.type === 'dependency') {
+        for (let bundleGroupNode of this._graph
+          .getNodesConnectedFrom(node)
+          .filter(node => node.type === 'bundle_group')) {
+          let inboundDependencies = this._graph
+            .getNodesConnectedTo(bundleGroupNode)
+            .filter(node => node.type === 'dependency');
+
+          // If every inbound dependency to this bundle group does not belong to this bundle,
+          // then the connection between this bundle and the group is safe to remove.
+          if (
+            inboundDependencies.every(
+              depNode => !this._graph.hasEdge(bundle.id, depNode.id, 'contains')
+            )
+          ) {
+            this._graph.removeEdge(bundle.id, bundleGroupNode.id, 'bundle');
+          }
+        }
       }
     }, nullthrows(this._graph.getNode(asset.id)));
   }
 
   createAssetReference(dependency: Dependency, asset: Asset): void {
     this._graph.addEdge(dependency.id, asset.id, 'references');
-    this._graph.removeEdge(dependency.id, asset.id);
+    if (this._graph.hasEdge(dependency.id, asset.id)) {
+      this._graph.removeEdge(dependency.id, asset.id);
+    }
   }
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
@@ -151,10 +192,6 @@ export default class BundleGraph {
       invariant(node.type === 'dependency');
       return node.value;
     });
-  }
-
-  removeAssetFromBundle(asset: Asset, bundle: Bundle): void {
-    this._graph.removeEdge(bundle.id, asset.id, 'contains');
   }
 
   traverseAssets<TContext>(
@@ -223,8 +260,17 @@ export default class BundleGraph {
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
-    let parentNodes = this._graph.getNodesConnectedTo(
+    let inboundNodes = this._graph.getNodesConnectedTo(
       nullthrows(this._graph.getNode(bundle.id)),
+      'bundle'
+    );
+    invariant(
+      inboundNodes.length === 1 && inboundNodes[0].type === 'bundle_group'
+    );
+    let bundleGroupNode = inboundNodes[0];
+
+    let parentNodes = this._graph.getNodesConnectedTo(
+      bundleGroupNode,
       'bundle'
     );
 
@@ -252,8 +298,7 @@ export default class BundleGraph {
 
   traverseBundle<TContext>(
     bundle: Bundle,
-    visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
-    includeAll: boolean = false
+    visit: GraphVisitor<AssetNode | DependencyNode, TContext>
   ): ?TContext {
     return this._graph.filteredTraverse(
       (node, actions) => {
@@ -262,10 +307,7 @@ export default class BundleGraph {
         }
 
         if (node.type === 'dependency' || node.type === 'asset') {
-          if (
-            includeAll ||
-            this._graph.hasEdge(bundle.id, node.id, 'contains')
-          ) {
+          if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
             return node;
           }
         }
