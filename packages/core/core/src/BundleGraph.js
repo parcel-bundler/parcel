@@ -260,8 +260,17 @@ export default class BundleGraph {
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
-    let parentNodes = this._graph.getNodesConnectedTo(
+    let inboundNodes = this._graph.getNodesConnectedTo(
       nullthrows(this._graph.getNode(bundle.id)),
+      'bundle'
+    );
+    invariant(
+      inboundNodes.length === 1 && inboundNodes[0].type === 'bundle_group'
+    );
+    let bundleGroupNode = inboundNodes[0];
+
+    let parentNodes = this._graph.getNodesConnectedTo(
+      bundleGroupNode,
       'bundle'
     );
 
