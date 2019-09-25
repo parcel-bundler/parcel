@@ -1,7 +1,8 @@
 // @flow
 
-import type {Blob, FilePath, BundleResult} from '@parcel/types';
+import type {Blob, FilePath, BundleResult, Stats} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
+import type WorkerFarm from '@parcel/workers';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
@@ -32,6 +33,7 @@ import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
+  farm?: WorkerFarm,
   options: ParcelOptions
 |};
 
@@ -41,20 +43,110 @@ export default class PackagerRunner {
   pluginOptions: PluginOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
+  writeBundleFromWorker: ({
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+    config: ParcelConfig,
+    cacheKey: string,
+    options: ParcelOptions,
+    ...
+  }) => Promise<Stats>;
 
-  constructor({config, options}: Opts) {
+  constructor({config, farm, options}: Opts) {
     this.config = config;
     this.options = options;
-    this.distExists = new Set();
     this.pluginOptions = new PluginOptions(this.options);
+
+    this.writeBundleFromWorker = farm
+      ? farm.createHandle('runPackage')
+      : () => {
+          throw new Error(
+            'Cannot call PackagerRunner.writeBundleFromWorker() in a worker'
+          );
+        };
+  }
+
+  async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
+    let start = Date.now();
+
+    let cacheKey = await this.getCacheKey(bundle, bundleGraph);
+    let {size} =
+      (await this.writeBundleFromCache({bundle, bundleGraph, cacheKey})) ||
+      (await this.writeBundleFromWorker({
+        bundle,
+        bundleGraph,
+        cacheKey,
+        options: this.options,
+        config: this.config
+      }));
+
+    return {
+      time: Date.now() - start,
+      size
+    };
+  }
+
+  async writeBundleFromCache({
+    bundle,
+    bundleGraph,
+    cacheKey
+  }: {|
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+    cacheKey: string
+  |}) {
+    if (this.options.disableCache) {
+      return;
+    }
+
+    let cacheResult = await this.readFromCache(cacheKey);
+    if (cacheResult == null) {
+      return;
+    }
+
+    let {contents, map} = cacheResult;
+    let {size} = await this.writeToDist({
+      bundle,
+      bundleGraph,
+      contents,
+      map
+    });
+
+    return {size};
+  }
+
+  async packageAndWriteBundle(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+    cacheKey: string
+  ) {
+    let start = Date.now();
+
+    let {contents, map} = await this.getBundleResult(
+      bundle,
+      bundleGraph,
+      cacheKey
+    );
+    let {size} = await this.writeToDist({
+      bundle,
+      bundleGraph,
+      contents,
+      map
+    });
+
+    return {
+      time: Date.now() - start,
+      size
+    };
   }
 
   async getBundleResult(
     bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph
+    bundleGraph: InternalBundleGraph,
+    cacheKey: ?string
   ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
-    let result, cacheKey;
-    if (!this.options.disableCache) {
+    let result;
+    if (!cacheKey && !this.options.disableCache) {
       cacheKey = await this.getCacheKey(bundle, bundleGraph);
       let cacheResult = await this.readFromCache(cacheKey);
 
@@ -86,51 +178,6 @@ export default class PackagerRunner {
     }
 
     return result;
-  }
-
-  async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
-    let {inputFS, outputFS} = this.options;
-    let start = Date.now();
-
-    let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
-    let filePath = nullthrows(bundle.filePath);
-    let dir = path.dirname(filePath);
-    if (!this.distExists.has(dir)) {
-      await outputFS.mkdirp(dir);
-      this.distExists.add(dir);
-    }
-
-    // Use the file mode from the entry asset as the file mode for the bundle.
-    // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
-    let options = publicBundle.env.isBrowser()
-      ? undefined
-      : {
-          mode: (await inputFS.stat(
-            nullthrows(publicBundle.getMainEntry()).filePath
-          )).mode
-        };
-
-    let size;
-    if (contents instanceof Readable) {
-      size = await writeFileStream(outputFS, filePath, contents, options);
-    } else {
-      await outputFS.writeFile(filePath, contents, options);
-      size = contents.length;
-    }
-
-    if (map != null) {
-      if (map instanceof Readable) {
-        await writeFileStream(outputFS, filePath + '.map', map);
-      } else {
-        await outputFS.writeFile(filePath + '.map', map);
-      }
-    }
-
-    return {
-      time: Date.now() - start,
-      size
-    };
   }
 
   async package(
@@ -267,13 +314,14 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph
   ): string {
     let filePath = nullthrows(bundle.filePath);
+    // TODO: include packagers and optimizers used in inline bundles as well
     let packager = this.config.getPackagerName(filePath);
     let optimizers = this.config.getOptimizerNames(filePath);
     let deps = Promise.all(
       [packager, ...optimizers].map(async pkg => {
         let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
           `${pkg}/package.json`,
-          `${this.config.filePath}/index` // TODO: is this right?
+          `${this.config.filePath}/index`
         );
 
         let version = nullthrows(resolvedPkg).version;
@@ -310,6 +358,52 @@ export default class PackagerRunner {
       contents: this.options.cache.getStream(contentKey),
       map: mapExists ? this.options.cache.getStream(mapKey) : null
     };
+  }
+
+  async writeToDist({
+    bundle,
+    bundleGraph,
+    contents,
+    map
+  }: {|
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+    contents: Blob,
+    map: ?(Readable | string)
+  |}) {
+    let {inputFS, outputFS} = this.options;
+    let filePath = nullthrows(bundle.filePath);
+    let dir = path.dirname(filePath);
+    await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
+
+    // Use the file mode from the entry asset as the file mode for the bundle.
+    // Don't do this for browser builds, as the executable bit in particular is unnecessary.
+    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
+    let writeOptions = publicBundle.env.isBrowser()
+      ? undefined
+      : {
+          mode: (await inputFS.stat(
+            nullthrows(publicBundle.getMainEntry()).filePath
+          )).mode
+        };
+
+    let size;
+    if (contents instanceof Readable) {
+      size = await writeFileStream(outputFS, filePath, contents, writeOptions);
+    } else {
+      await outputFS.writeFile(filePath, contents, writeOptions);
+      size = contents.length;
+    }
+
+    if (map != null) {
+      if (map instanceof Readable) {
+        await writeFileStream(outputFS, filePath + '.map', map);
+      } else {
+        await outputFS.writeFile(filePath + '.map', map);
+      }
+    }
+
+    return {size};
   }
 
   async writeToCache(cacheKey: string, contents: Blob, map: ?Blob) {
