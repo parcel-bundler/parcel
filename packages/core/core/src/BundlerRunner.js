@@ -2,11 +2,9 @@
 
 import type {Namer, RuntimeAsset} from '@parcel/types';
 import type {
-  AssetNode,
   Bundle as InternalBundle,
-  DependencyNode,
   ParcelOptions,
-  RootNode
+  BundleGraphNode
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
@@ -255,10 +253,8 @@ export default class BundlerRunner {
   }
 }
 
-function removeAssetGroups(
-  assetGraph: AssetGraph
-): Graph<AssetNode | DependencyNode | RootNode> {
-  let graph = new Graph<AssetNode | DependencyNode | RootNode>();
+function removeAssetGroups(assetGraph: AssetGraph): Graph<BundleGraphNode> {
+  let graph = new Graph<BundleGraphNode>();
   // $FlowFixMe
   graph.setRootNode(nullthrows(assetGraph.getRootNode()));
   let assetGroupIds = new Set();

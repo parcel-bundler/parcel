@@ -21,7 +21,8 @@ import type {
   Symbol,
   TargetSourceMapOptions,
   ConfigResult,
-  OutputFormat
+  OutputFormat,
+  TargetDescriptor
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -88,7 +89,8 @@ export type ParcelOptions = {|
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
   env: {+[string]: string, ...},
-  targets: Array<Target>,
+  targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
+  defaultEngines?: Engines,
 
   disableCache: boolean,
   cacheDir: FilePath,
@@ -167,15 +169,31 @@ export type AssetRequestNode = {|
   value: AssetRequest
 |};
 
+export type EntrySpecifierNode = {|
+  id: string,
+  +type: 'entry_specifier',
+  value: ModuleSpecifier
+|};
+
+export type EntryFileNode = {|
+  id: string,
+  +type: 'entry_file',
+  value: ModuleSpecifier
+|};
+
 export type AssetGraphNode =
   | AssetGroupNode
   | AssetNode
   | DependencyNode
+  | EntrySpecifierNode
+  | EntryFileNode
   | RootNode;
 
 export type BundleGraphNode =
   | AssetNode
   | DependencyNode
+  | EntrySpecifierNode
+  | EntryFileNode
   | RootNode
   | BundleGroupNode
   | BundleNode;
@@ -222,8 +240,27 @@ export type DepVersionRequest = {|
   result?: Semver
 |};
 
+export type EntryRequest = {|
+  specifier: ModuleSpecifier,
+  result?: FilePath
+|};
+
+export type EntryRequestNode = {|
+  id: string,
+  +type: 'entry_request',
+  value: string
+|};
+
+export type TargetRequestNode = {|
+  id: string,
+  +type: 'target_request',
+  value: FilePath
+|};
+
 export type RequestGraphNode = RequestNode | FileNode | GlobNode;
 export type RequestNode =
+  | EntryRequestNode
+  | TargetRequestNode
   | DepPathRequestNode
   | AssetRequestNode
   | ConfigRequestNode

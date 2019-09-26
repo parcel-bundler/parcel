@@ -2,17 +2,22 @@
 
 import type {
   TargetDescriptor,
+  File,
   FilePath,
-  InitialParcelOptions,
   PackageJSON
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {Target} from './types';
+import type {ParcelOptions, Target} from './types';
 
 import {loadConfig} from '@parcel/utils';
 import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
+
+type TargetResolveResult = {|
+  targets: Array<Target>,
+  files: Array<File>
+|};
 
 const DEFAULT_DEVELOPMENT_ENGINES = {
   node: 'current',
@@ -41,11 +46,12 @@ export default class TargetResolver {
   async resolve(
     rootDir: FilePath,
     cacheDir: FilePath,
-    initialOptions: InitialParcelOptions
-  ): Promise<Array<Target>> {
+    initialOptions: ParcelOptions
+  ): Promise<TargetResolveResult> {
     let optionTargets = initialOptions.targets;
 
     let targets: Array<Target>;
+    let files: Array<File> = [];
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
         if (optionTargets.length === 0) {
@@ -59,12 +65,13 @@ export default class TargetResolver {
           initialOptions
         );
         targets = optionTargets.map(target => {
-          let matchingTarget = packageTargets.get(target);
+          let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
             throw new Error(`Could not find target with name ${target}`);
           }
           return matchingTarget;
         });
+        files = packageTargets.files;
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
@@ -121,17 +128,15 @@ export default class TargetResolver {
           rootDir,
           initialOptions
         );
-        targets = Array.from(packageTargets.values());
+        targets = Array.from(packageTargets.targets.values());
+        files = packageTargets.files;
       }
     }
 
-    return targets;
+    return {targets, files};
   }
 
-  async resolvePackageTargets(
-    rootDir: FilePath,
-    options: InitialParcelOptions
-  ): Promise<Map<string, Target>> {
+  async resolvePackageTargets(rootDir: FilePath, options: ParcelOptions) {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json'
     ]);
@@ -282,6 +287,9 @@ export default class TargetResolver {
       });
     }
 
-    return targets;
+    return {
+      targets,
+      files: conf ? conf.files : []
+    };
   }
 }

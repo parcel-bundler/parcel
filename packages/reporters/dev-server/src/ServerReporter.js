@@ -3,6 +3,7 @@
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import Server from './Server';
+import path from 'path';
 
 let servers: Map<number, Server> = new Map();
 export default new Reporter({
@@ -17,12 +18,11 @@ export default new Reporter({
         // is wrong.
         invariant(server == null);
 
-        let target = options.targets[0];
         let serverOptions = {
           ...serve,
           projectRoot: options.projectRoot,
           cacheDir: options.cacheDir,
-          distDir: target.distDir,
+          distDir: path.join(options.cacheDir, 'dist'),
           // Override the target's publicUrl as that is likely meant for production.
           // This could be configurable in the future.
           publicUrl: serve.publicUrl ?? '/',

@@ -3,7 +3,7 @@
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
-import type {GraphVisitor} from '@parcel/types';
+import type {GraphVisitor, FilePath} from '@parcel/types';
 import type {Target} from './types';
 import {md5FromObject} from '@parcel/utils';
 
@@ -51,6 +51,18 @@ const nodeFromAsset = (asset: Asset) => ({
   value: asset
 });
 
+const nodeFromEntrySpecifier = (entry: string) => ({
+  id: 'entry_specifier:' + entry,
+  type: 'entry_specifier',
+  value: entry
+});
+
+const nodeFromEntryFile = (entry: string) => ({
+  id: 'entry_file:' + entry,
+  type: 'entry_file',
+  value: entry
+});
+
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
@@ -76,29 +88,15 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved = onNodeRemoved;
   }
 
-  initialize({entries, targets, assetGroup}: InitOpts) {
+  initialize({entries, assetGroup}: InitOpts) {
     let rootNode = {id: '@@root', type: 'root', value: null};
     this.setRootNode(rootNode);
 
     let nodes = [];
     if (entries) {
-      if (!targets) {
-        throw new Error('Targets are required when entries are specified');
-      }
-
       for (let entry of entries) {
-        for (let target of targets) {
-          let node = nodeFromDep(
-            createDependency({
-              moduleSpecifier: entry,
-              target: target,
-              env: target.env,
-              isEntry: true
-            })
-          );
-
-          nodes.push(node);
-        }
+        let node = nodeFromEntrySpecifier(entry);
+        nodes.push(node);
       }
     } else if (assetGroup) {
       let node = nodeFromAssetGroup(assetGroup);
@@ -118,6 +116,26 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
+  }
+
+  resolveEntry(entry: string, resolved: Array<FilePath>) {
+    let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
+    this.replaceNodesConnectedTo(nodeFromEntrySpecifier(entry), entryFileNodes);
+  }
+
+  resolveTargets(entryFile: FilePath, targets: Array<Target>) {
+    let depNodes = targets.map(target =>
+      nodeFromDep(
+        createDependency({
+          moduleSpecifier: entryFile,
+          target: target,
+          env: target.env,
+          isEntry: true
+        })
+      )
+    );
+
+    this.replaceNodesConnectedTo(nodeFromEntryFile(entryFile), depNodes);
   }
 
   resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {

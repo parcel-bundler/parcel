@@ -4,7 +4,7 @@ import type {ConfigRequest, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 
 import nullthrows from 'nullthrows';
-import {md5FromString} from '@parcel/utils';
+import {md5FromString, PromiseQueue} from '@parcel/utils';
 
 import {createConfig} from './InternalConfig';
 import Config from './public/Config';
@@ -14,12 +14,20 @@ import loadPlugin from './loadParcelPlugin';
 export default class ConfigLoader {
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
+  queue: PromiseQueue<any>;
 
   constructor(options: ParcelOptions) {
     this.options = options;
+    this.queue = new PromiseQueue({maxConcurrent: 32});
   }
 
   load(configRequest: ConfigRequest) {
+    let promise = this.queue.add(() => this._load(configRequest));
+    this.queue.run();
+    return promise;
+  }
+
+  _load(configRequest: ConfigRequest) {
     if (!configRequest.plugin) {
       return this.loadParcelConfig(configRequest);
     }
