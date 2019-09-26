@@ -231,8 +231,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let hash = crypto.createHash('md5');
     // TODO: sort??
-    this.traverseAssets(asset => {
-      hash.update(asset.outputHash);
+    this.traverse(node => {
+      if (node.type === 'asset') {
+        hash.update(node.value.outputHash);
+      } else if (node.type === 'dependency' && node.value.target) {
+        hash.update(JSON.stringify(node.value.target));
+      }
     });
 
     this.hash = hash.digest('hex');

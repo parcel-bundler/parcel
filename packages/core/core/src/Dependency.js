@@ -31,7 +31,7 @@ export function createDependency(opts: DependencyOpts): Dependency {
     md5FromString(
       `${opts.sourceAssetId ?? ''}:${opts.moduleSpecifier}:${JSON.stringify(
         opts.env
-      )}`
+      )}:${JSON.stringify(opts.target)}`
     );
 
   return {

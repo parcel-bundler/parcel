@@ -540,6 +540,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     switch (node.type) {
       case 'asset_request':
       case 'dep_path_request':
+      case 'entry_request':
+      case 'target_request':
         this.invalidNodeIds.add(node.id);
         break;
       case 'config_request':
@@ -602,7 +604,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           for (let connectedNode of connectedNodes) {
             if (
               connectedNode.type === 'asset_request' ||
-              connectedNode.type === 'config_request'
+              connectedNode.type === 'config_request' ||
+              connectedNode.type === 'entry_request' ||
+              connectedNode.type === 'target_request'
             ) {
               this.invalidateNode(connectedNode);
               isInvalid = true;
