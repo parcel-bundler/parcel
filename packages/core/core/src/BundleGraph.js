@@ -518,7 +518,7 @@ export default class BundleGraph {
     let hash = crypto.createHash('md5');
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.update(asset.outputHash);
+      hash.update([asset.outputHash, asset.filePath].join(':'));
     });
 
     let hashHex = hash.digest('hex');
