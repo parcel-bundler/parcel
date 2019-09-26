@@ -9952,6 +9952,11 @@ postcss@^7.0.0, postcss@^7.0.1, postcss@^7.0.11, postcss@^7.0.14, postcss@^7.0.1
     source-map "^0.6.1"
     supports-color "^6.1.0"
 
+posthtml-attrs-sorter@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/posthtml-attrs-sorter/-/posthtml-attrs-sorter-1.1.0.tgz#ada71e3b7f6a4ad6cfdf4ecb9e3fc14a091410e3"
+  integrity sha1-raceO39qStbP307Lnj/BSgkUEOM=
+
 posthtml-extend@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/posthtml-extend/-/posthtml-extend-0.2.1.tgz#d023ce7ce4dd6071071b50e315dfefa87da8a979"
