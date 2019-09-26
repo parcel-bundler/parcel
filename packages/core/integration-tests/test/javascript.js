@@ -565,6 +565,40 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
+  it('should duplicate a module if it is not present in every parent bundle', async function() {
+    let b = await bundle(
+      ['a.js', 'b.js'].map(entry =>
+        path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry)
+      )
+    );
+    assertBundles(b, [
+      {
+        assets: ['c.js', 'common.js']
+      },
+      {
+        name: 'b.js',
+        assets: [
+          'b.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        name: 'a.js',
+        assets: [
+          'a.js',
+          'common.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      }
+    ]);
+  });
+
   it('should support shared modules with async imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-deep/index.js')
@@ -585,7 +619,7 @@ describe('javascript', function() {
         assets: ['a.js', 'c.js', 'JSRuntime.js']
       },
       {
-        assets: ['b.js', 'c.js']
+        assets: ['b.js', 'c.js', 'JSRuntime.js']
       },
       {
         assets: ['1.js']
@@ -1407,10 +1441,13 @@ describe('javascript', function() {
 
   it('should not create shared bundles from contents of entries', async () => {
     let b = await bundle(
-      [
-        '/integration/no-shared-bundles-from-entries/a.js',
-        '/integration/no-shared-bundles-from-entries/b.js'
-      ].map(entry => path.join(__dirname, entry))
+      ['a.js', 'b.js'].map(entry =>
+        path.join(
+          __dirname,
+          '/integration/no-shared-bundles-from-entries/',
+          entry
+        )
+      )
     );
 
     assertBundles(b, [
@@ -1423,5 +1460,13 @@ describe('javascript', function() {
         assets: ['b.js', 'lodash.js']
       }
     ]);
+  });
+
+  it('should import the same dependency multiple times in the same bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/same-dependency-multiple-times/a1.js')
+    );
+
+    await run(b);
   });
 });
