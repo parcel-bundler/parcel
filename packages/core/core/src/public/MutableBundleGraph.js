@@ -7,8 +7,7 @@ import type {
   CreateBundleOpts,
   Dependency as IDependency,
   GraphVisitor,
-  BundlerBundleGraph as IBundlerBundleGraph,
-  BundlerOptimizeBundleGraph as IBundlerOptimizeBundleGraph,
+  MutableBundleGraph as IMutableBundleGraph,
   BundlerBundleGraphTraversable,
   Target
 } from '@parcel/types';
@@ -25,20 +24,13 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 
-export class BundlerBundleGraph implements IBundlerBundleGraph {
+export default class MutableBundleGraph implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     this.#graph = graph;
     this.#options = options;
-  }
-
-  addAssetToBundle(asset: IAsset, bundle: IBundle) {
-    this.#graph.addAssetToBundle(
-      assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
-    );
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
@@ -78,27 +70,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     this.#graph._graph.removeEdge(dependencyNode.id, resolved.id);
     this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
 
-    // Traverse upward and connect this bundle group to the bundle(s) that reference it
-    let connectedFromBundles = [];
-    this.#graph._graph.traverseAncestors(
-      dependencyNode,
-      (node, context, actions) => {
-        if (node.id === dependencyNode.id) {
-          return;
-        }
-
-        if (node.type === 'bundle') {
-          connectedFromBundles.push(node);
-          actions.skipChildren();
-        }
-      }
-    );
-
-    if (connectedFromBundles.length > 0) {
-      for (let bundleNode of connectedFromBundles) {
-        this.#graph._graph.addEdge(bundleNode.id, bundleGroupNode.id, 'bundle');
-      }
-    } else {
+    if (dependency.isEntry) {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.getRootNode()).id,
         bundleGroupNode.id,
@@ -131,10 +103,6 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     };
 
     this.#graph._graph.addNode(bundleNode);
-    if (opts.entryAsset != null) {
-      this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
-    }
-
     return new Bundle(bundleNode.value, this.#graph, this.#options);
   }
 
@@ -143,7 +111,9 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
     for (let entryAsset of bundle.getEntryAssets()) {
-      this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);
+      if (this.#graph._graph.hasEdge(bundleGroupId, entryAsset.id)) {
+        this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);
+      }
     }
   }
 
@@ -158,6 +128,16 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))
       .map(asset => assetFromValue(asset, this.#options));
+  }
+
+  getDependencyResolution(dependency: IDependency): ?IAsset {
+    let resolved = this.#graph.getDependencyResolution(
+      dependencyToInternalDependency(dependency)
+    );
+
+    if (resolved) {
+      return assetFromValue(resolved, this.#options);
+    }
   }
 
   traverse<TContext>(
@@ -179,18 +159,6 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
       // $FlowFixMe
       ALL_EDGE_TYPES
     );
-  }
-}
-
-export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
-  implements IBundlerOptimizeBundleGraph {
-  #graph; // InternalBundleGraph
-  #options; // ParcelOptions
-
-  constructor(graph: InternalBundleGraph, options: ParcelOptions) {
-    super(graph, options);
-    this.#graph = graph;
-    this.#options = options;
   }
 
   findBundlesWithAsset(asset: IAsset): Array<IBundle> {
@@ -224,13 +192,6 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
 
   removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
-      assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
-    );
-  }
-
-  removeAssetFromBundle(asset: IAsset, bundle: IBundle) {
-    this.#graph.removeAssetFromBundle(
       assetToInternalAsset(asset).value,
       bundleToInternalBundle(bundle)
     );

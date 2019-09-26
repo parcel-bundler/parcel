@@ -591,11 +591,11 @@ describe('html', function() {
 
     // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
-      {name: 'index.html', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']}
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']}
     ]);
 
     let files = await outputFS.readdir(distDir);
@@ -618,11 +618,11 @@ describe('html', function() {
 
     // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
-      {name: 'index.html', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
       {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']}
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']}
     ]);
 
     let files = await outputFS.readdir(distDir);
@@ -649,10 +649,6 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
-        assets: ['index.html']
-      },
-      {
         type: 'css',
         assets: ['index.html']
       },
@@ -675,6 +671,10 @@ describe('html', function() {
       {
         type: 'jpg',
         assets: ['img.jpg']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
       }
     ]);
   });
@@ -687,11 +687,11 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'css',
         assets: ['index.html']
       },
       {
-        type: 'css',
+        name: 'index.html',
         assets: ['index.html']
       }
     ]);
@@ -711,11 +711,11 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
+        type: 'js',
         assets: ['index.html']
       },
       {
-        type: 'js',
+        name: 'index.html',
         assets: ['index.html']
       }
     ]);
@@ -735,12 +735,12 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
-        assets: ['index.html']
-      },
-      {
         type: 'css',
         assets: ['index.html', 'test.css']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
       }
     ]);
 
@@ -759,12 +759,12 @@ describe('html', function() {
 
     await assertBundles(b, [
       {
-        name: 'index.html',
-        assets: ['index.html']
-      },
-      {
         type: 'js',
         assets: ['index.html', 'test.js']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
       }
     ]);
 
