@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "posthtml-attrs-sorter": {
+      "order": ["id", "class"]
+    }
+  }
+}
