@@ -70,7 +70,6 @@ export default class PackagerRunner {
 
   async writeBundles(bundleGraph: InternalBundleGraph) {
     let farm = nullthrows(this.farm);
-    // TODO: maybe avoid doing this if we don't have to?
     let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
     let promises = [];

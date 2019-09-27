@@ -330,6 +330,7 @@ export default class WorkerFarm extends EventEmitter {
       handle.dispose();
     }
     this.handles = new Map();
+    this.sharedReferences = new Map();
 
     await Promise.all(
       Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
@@ -373,7 +374,7 @@ export default class WorkerFarm extends EventEmitter {
             args: [ref, value],
             resolve,
             reject,
-            retries: 0 // ? Is this right?
+            retries: 0
           });
         })
       );
@@ -394,7 +395,7 @@ export default class WorkerFarm extends EventEmitter {
                 args: [ref],
                 resolve,
                 reject,
-                retries: 0 // ? Is this right?
+                retries: 0
               });
             })
           );

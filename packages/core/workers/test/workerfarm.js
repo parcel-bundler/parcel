@@ -231,4 +231,53 @@ describe('WorkerFarm', function() {
     await workerfarm.end();
     assert.equal(workerfarm.handles.size, 0);
   });
+
+  it('Should support shared references in workers', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: false,
+      workerPath: require.resolve(
+        './integration/workerfarm/shared-reference.js'
+      )
+    });
+
+    let sharedValue = 'Something to be shared';
+    let {ref, dispose} = await workerfarm.createSharedReference(sharedValue);
+    let result = await workerfarm.run(ref);
+    assert.equal(result, 'Something to be shared');
+    await dispose();
+    result = await workerfarm.run(ref);
+    assert.equal(result, 'Shared reference does not exist');
+  });
+
+  it('Should support shared references in local worker', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: true,
+      workerPath: require.resolve(
+        './integration/workerfarm/shared-reference.js'
+      )
+    });
+
+    let sharedValue = 'Something to be shared';
+    let {ref, dispose} = await workerfarm.createSharedReference(sharedValue);
+    let result = await workerfarm.run(ref);
+    assert.equal(result, 'Something to be shared');
+    await dispose();
+    result = await workerfarm.run(ref);
+    assert.equal(result, 'Shared reference does not exist');
+  });
+
+  it('Should dispose of shared references when ending', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: false,
+      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js')
+    });
+
+    workerfarm.createSharedReference('Something to be shared');
+    assert.equal(workerfarm.sharedReferences.size, 1);
+    await workerfarm.end();
+    assert.equal(workerfarm.sharedReferences.size, 0);
+  });
 });
