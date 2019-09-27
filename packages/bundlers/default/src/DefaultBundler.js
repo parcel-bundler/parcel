@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Asset, Bundle} from '@parcel/types';
+import type {Asset, Bundle, MutableBundleGraph} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
@@ -116,29 +116,7 @@ export default new Bundler({
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles({
       exit(bundle) {
-        if (bundle.env.isIsolated()) {
-          // If a bundle's environment is isolated, it can't access assets present
-          // in any ancestor bundles. Don't deduplicate any assets.
-          return;
-        }
-
-        bundle.traverse(node => {
-          if (node.type !== 'dependency') {
-            return;
-          }
-
-          let dependency = node.value;
-          let assets = bundleGraph.getDependencyAssets(dependency);
-
-          for (let asset of assets) {
-            if (
-              bundle.hasAsset(asset) &&
-              bundleGraph.isAssetInAncestorBundles(bundle, asset)
-            ) {
-              bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-            }
-          }
-        });
+        deduplicateBundle(bundleGraph, bundle);
       }
     });
 
@@ -250,6 +228,34 @@ export default new Bundler({
       for (let bundleGroup of bundleGroups) {
         bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
       }
+
+      deduplicateBundle(bundleGraph, sharedBundle);
     }
   }
 });
+
+function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
+  if (bundle.env.isIsolated()) {
+    // If a bundle's environment is isolated, it can't access assets present
+    // in any ancestor bundles. Don't deduplicate any assets.
+    return;
+  }
+
+  bundle.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dependency = node.value;
+    let assets = bundleGraph.getDependencyAssets(dependency);
+
+    for (let asset of assets) {
+      if (
+        bundle.hasAsset(asset) &&
+        bundleGraph.isAssetInAncestorBundles(bundle, asset)
+      ) {
+        bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+      }
+    }
+  });
+}
