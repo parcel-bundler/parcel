@@ -34,6 +34,11 @@ const FORMATS = {
   commonjs
 };
 
+function assertString(v): string {
+  invariant(typeof v === 'string');
+  return v;
+}
+
 export function link({
   bundle,
   bundleGraph,
@@ -73,11 +78,6 @@ export function link({
         }
       }
     }
-  }
-
-  function assertString(v): string {
-    invariant(typeof v === 'string');
-    return v;
   }
 
   // Build a mapping of all imported identifiers to replace.
