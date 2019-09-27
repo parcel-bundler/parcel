@@ -56,7 +56,10 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
     // a newer set of browsers than the baseline esmodule support list.
     // See https://github.com/babel/babel/issues/8809.
     if (targets.browsers) {
-      targets.browsers = [...targets.browsers, ...ESMODULE_BROWSERS];
+      let browsers = Array.isArray(targets.browsers)
+        ? targets.browsers
+        : [targets.browsers];
+      targets.browsers = [...browsers, ...ESMODULE_BROWSERS];
     } else {
       targets.esmodules = true;
     }
