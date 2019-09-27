@@ -17,10 +17,8 @@ type TypescriptTranspilerOptions = {
 };
 
 export default new Transformer({
-  async loadConfig({config}) {
-    let configResult = await config.getConfig(['tsconfig.json']);
-
-    config.setResult(configResult);
+  getConfig({asset}) {
+    return asset.getConfig(['tsconfig.json']);
   },
 
   async transform({asset, config, options}) {
