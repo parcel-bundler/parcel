@@ -577,21 +577,14 @@ describe('javascript', function() {
       },
       {
         name: 'b.js',
-        assets: [
-          'b.js',
-          'bundle-loader.js',
-          'bundle-url.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['b.js', 'cache.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         name: 'a.js',
         assets: [
           'a.js',
           'common.js',
-          'bundle-loader.js',
-          'bundle-url.js',
+          'cache.js',
           'js-loader.js',
           'JSRuntime.js'
         ]

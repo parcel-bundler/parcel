@@ -434,7 +434,10 @@ describe('output formats', function() {
       assert(html.includes('<link rel="stylesheet" href="/esm-browser-css'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('esm-browser-css')).filePath,
+        b
+          .getBundles()
+          .find(b => b.type === 'js' && b.name.startsWith('esm-browser-css'))
+          .filePath,
         'utf8'
       );
       assert(entry.includes('Promise.all'));
@@ -442,7 +445,8 @@ describe('output formats', function() {
       assert(/import\('' \+ '\.\/async\..+?\.js'\)/.test(entry));
 
       let async = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('async')).filePath,
+        b.getBundles().find(b => b.type === 'js' && b.name.startsWith('async'))
+          .filePath,
         'utf8'
       );
       assert(async.includes('export const foo'));
