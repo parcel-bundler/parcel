@@ -1,6 +1,6 @@
-const cache = require('../../cache');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = cache(function loadWASMBundle(bundle) {
+module.exports = cacheLoader(function loadWASMBundle(bundle) {
   return fetch(bundle)
     .then(function(res) {
       if (WebAssembly.instantiateStreaming) {

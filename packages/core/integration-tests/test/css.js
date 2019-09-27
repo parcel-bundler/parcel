@@ -72,7 +72,7 @@ describe('css', () => {
       {
         name: 'index.js',
         assets: [
-          'cache.js',
+          'cacheLoader.js',
           'css-loader.js',
           'index.js',
           'js-loader.js',

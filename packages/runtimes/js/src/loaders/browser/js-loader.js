@@ -1,6 +1,6 @@
-const cache = require('../../cache');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = cache(function loadJSBundle(bundle) {
+module.exports = cacheLoader(function loadJSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     var script = document.createElement('script');
     script.async = true;

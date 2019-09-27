@@ -1,6 +1,6 @@
-const cache = require('../../cache');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = cache(function loadHTMLBundle(bundle) {
+module.exports = cacheLoader(function loadHTMLBundle(bundle) {
   return fetch(bundle).then(function(res) {
     return res.text();
   });

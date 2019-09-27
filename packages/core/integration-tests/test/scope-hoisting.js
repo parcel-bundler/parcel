@@ -1358,7 +1358,7 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
-        assets: ['cache.js', 'index.js', 'js-loader.js', 'JSRuntime.js']
+        assets: ['cacheLoader.js', 'index.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         type: 'js',

@@ -1,6 +1,6 @@
-const cache = require('../../cache');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = cache(function importModule(bundle) {
+module.exports = cacheLoader(function importModule(bundle) {
   return new Promise((resolve, reject) => {
     // Add a global function to handle when the script loads.
     let globalName = `i${('' + Math.random()).slice(2)}`;

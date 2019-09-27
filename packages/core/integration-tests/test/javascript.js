@@ -233,7 +233,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cache.js', 'js-loader.js', 'JSRuntime.js']
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js']
@@ -391,7 +391,7 @@ describe('javascript', function() {
       assets: [
         'index.js',
         'worker-client.js',
-        'cache.js',
+        'cacheLoader.js',
         'js-loader.js',
         'wasm-loader.js'
       ],
@@ -405,7 +405,7 @@ describe('javascript', function() {
           type: 'map'
         },
         {
-          assets: ['worker.js', 'cache.js', 'wasm-loader.js'],
+          assets: ['worker.js', 'cacheLoader.js', 'wasm-loader.js'],
           childBundles: [
             {
               type: 'map'
@@ -443,7 +443,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cache.js', 'js-loader.js', 'JSRuntime.js']
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js', 'test.txt.js']
@@ -466,7 +466,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cache.js', 'js-loader.js', 'JSRuntime.js']
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js']
@@ -494,7 +494,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'cache.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js'
@@ -523,7 +523,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'cache.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js'
@@ -550,7 +550,7 @@ describe('javascript', function() {
         assets: [
           'index.js',
           'common.js',
-          'cache.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js'
         ]
@@ -577,14 +577,14 @@ describe('javascript', function() {
       },
       {
         name: 'b.js',
-        assets: ['b.js', 'cache.js', 'js-loader.js', 'JSRuntime.js']
+        assets: ['b.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         name: 'a.js',
         assets: [
           'a.js',
           'common.js',
-          'cache.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js'
         ]
@@ -602,7 +602,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'cache.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js'
@@ -1289,7 +1289,7 @@ describe('javascript', function() {
 
     assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'cache.js', 'html-loader.js'],
+      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
       childBundles: [
         {
           type: 'html',
@@ -1326,7 +1326,7 @@ describe('javascript', function() {
 
     assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'cache.js', 'html-loader.js'],
+      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
       childBundles: [
         {
           type: 'html',
@@ -1362,7 +1362,7 @@ describe('javascript', function() {
 
     assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'cache.js', 'html-loader.js'],
+      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
       childBundles: [
         {
           type: 'html',
@@ -1413,7 +1413,7 @@ describe('javascript', function() {
           'index.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'cache.js',
+          'cacheLoader.js',
           'js-loader.js'
         ]
       },

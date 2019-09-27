@@ -1,7 +1,7 @@
 const fs = require('fs');
-const cache = require('../../cache');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = cache(function loadWASMBundle(bundle) {
+module.exports = cacheLoader(function loadWASMBundle(bundle) {
   return new Promise(function(resolve, reject) {
     fs.readFile(__dirname + bundle, function(err, data) {
       if (err) {

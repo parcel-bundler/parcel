@@ -21,7 +21,7 @@ import type Graph from './Graph';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap} from '@parcel/utils';
+import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId} from './utils';
 import {mapVisitor} from './Graph';
@@ -553,7 +553,7 @@ export default class BundleGraph {
       hash.update(this.getContentHash(childBundle));
     }, bundle);
 
-    hash.update(JSON.stringify(bundle.env));
+    hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
   }
 }

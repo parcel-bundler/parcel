@@ -1,6 +1,6 @@
-const cache = require('../../cache');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = cache(function loadCSSBundle(bundle) {
+module.exports = cacheLoader(function loadCSSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
