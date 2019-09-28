@@ -261,7 +261,7 @@ export function link({
   }
 
   function addBundleImport(mod, path) {
-    // Find the first bundle containing this assed, and create an import for it if needed.
+    // Find the first bundle containing this asset, and create an import for it if needed.
     let bundles = bundleGraph.findBundlesWithAsset(mod);
     let imported = importedFiles.get(bundles[0].filePath);
     if (!imported) {
