@@ -84,6 +84,12 @@ export function generateExports(
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      // If there is an existing binding with the exported name (e.g. an import),
+      // rename it so we can use the name for the export instead.
+      if (path.scope.hasBinding(exportSymbol)) {
+        rename(path.scope, exportSymbol, path.scope.generateUid(exportSymbol));
+      }
+
       exportedIdentifiers.set(symbol, exportSymbol);
     }
   }
@@ -123,9 +129,6 @@ export function generateExports(
         path.replaceWith(t.exportNamedDeclaration(path.node, []));
         for (let id of exportedIds) {
           let exportName = nullthrows(exportedIdentifiers.get(id));
-          if (path.scope.hasBinding(exportName)) {
-            rename(path.scope, exportName, path.scope.generateUid(exportName));
-          }
           rename(path.scope, id, exportName);
           exported.add(exportName);
         }
@@ -150,13 +153,6 @@ export function generateExports(
           let specifiers = [];
           for (let id of exportedIds) {
             let exportName = nullthrows(exportedIdentifiers.get(id));
-            if (path.scope.hasBinding(exportName)) {
-              rename(
-                path.scope,
-                exportName,
-                path.scope.generateUid(exportName)
-              );
-            }
             rename(path.scope, id, exportName);
             exported.add(exportName);
             specifiers.push(

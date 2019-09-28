@@ -226,7 +226,7 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert.equal(err.message, "b.js does not export 'default'");
+        assert(err.message.endsWith("b.js does not export 'default'"));
       }
 
       assert(threw);

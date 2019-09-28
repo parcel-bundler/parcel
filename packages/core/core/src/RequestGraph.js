@@ -165,7 +165,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     workerFarm
   }: RequestGraphOpts) {
     this.options = options;
-    this.queue = new PromiseQueue({maxConcurrent: 10});
+    this.queue = new PromiseQueue();
     this.validationQueue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;

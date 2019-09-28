@@ -4,6 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
+import {DEFAULT_OPTIONS} from './utils';
 
 import TargetResolver from '../src/TargetResolver';
 
@@ -34,6 +35,7 @@ describe('TargetResolver', () => {
   it('resolves exactly specified targets', async () => {
     assert.deepEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, cacheDir, {
+        ...DEFAULT_OPTIONS,
         targets: {
           customA: {
             context: 'browser',
@@ -84,7 +86,11 @@ describe('TargetResolver', () => {
 
   it('resolves common targets from package.json', async () => {
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, cacheDir, {}),
+      await targetResolver.resolve(
+        COMMON_TARGETS_FIXTURE_PATH,
+        cacheDir,
+        DEFAULT_OPTIONS
+      ),
       [
         {
           name: 'main',
@@ -142,7 +148,11 @@ describe('TargetResolver', () => {
 
   it('resolves custom targets from package.json', async () => {
     assert.deepEqual(
-      await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH, cacheDir, {}),
+      await targetResolver.resolve(
+        CUSTOM_TARGETS_FIXTURE_PATH,
+        cacheDir,
+        DEFAULT_OPTIONS
+      ),
       [
         {
           name: 'main',
@@ -234,6 +244,7 @@ describe('TargetResolver', () => {
   it('resolves a subset of package.json targets when given a list of names', async () => {
     assert.deepEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, cacheDir, {
+        ...DEFAULT_OPTIONS,
         targets: ['main', 'browser']
       }),
       [

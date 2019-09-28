@@ -145,6 +145,7 @@ export default new Transformer({
 
     let {root} = await postcss(config.plugins).process(ast.program, config);
     ast.program = root;
+    ast.isDirty = true;
 
     let assets = [asset];
     if (asset.meta.cssModules) {

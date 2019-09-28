@@ -83,6 +83,7 @@ export default async function resolveOptions(
     cacheDir,
     entries,
     rootDir,
+    defaultEngines: initialOptions.defaultEngines,
     targets: initialOptions.targets,
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
