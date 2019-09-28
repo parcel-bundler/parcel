@@ -14,7 +14,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   entries: [],
   logLevel: 'info',
   rootDir: __dirname,
-  targets: [],
+  targets: undefined,
   projectRoot: '',
   lockFile: undefined,
   autoinstall: false,

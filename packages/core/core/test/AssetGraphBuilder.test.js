@@ -63,13 +63,6 @@ describe('AssetGraphBuilder', function() {
   });
 
   it('creates an AssetGraphBuilder', () => {
-    invariant(
-      builder.assetGraph.nodes.has(
-        createDependency({
-          moduleSpecifier: './module-b',
-          env: DEFAULT_ENV
-        }).id
-      )
-    );
+    invariant(builder.assetGraph.nodes.has('entry_specifier:./module-b'));
   });
 });

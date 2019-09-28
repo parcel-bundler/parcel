@@ -49,38 +49,41 @@ describe('TargetResolver', () => {
           }
         }
       }),
-      [
-        {
-          name: 'customA',
-          publicUrl: undefined,
-          distDir: path.resolve('customA'),
-          env: {
-            context: 'browser',
-            includeNodeModules: true,
-            engines: {
-              browsers: ['> 0.25%']
+      {
+        files: [],
+        targets: [
+          {
+            name: 'customA',
+            publicUrl: undefined,
+            distDir: path.resolve('customA'),
+            env: {
+              context: 'browser',
+              includeNodeModules: true,
+              engines: {
+                browsers: ['> 0.25%']
+              },
+              outputFormat: 'global',
+              isLibrary: false
             },
-            outputFormat: 'global',
-            isLibrary: false
+            sourceMap: undefined
           },
-          sourceMap: undefined
-        },
-        {
-          name: 'customB',
-          publicUrl: undefined,
-          distDir: path.resolve('customB'),
-          env: {
-            context: 'node',
-            includeNodeModules: false,
-            engines: {
-              node: '>= 8.0.0'
+          {
+            name: 'customB',
+            publicUrl: undefined,
+            distDir: path.resolve('customB'),
+            env: {
+              context: 'node',
+              includeNodeModules: false,
+              engines: {
+                node: '>= 8.0.0'
+              },
+              outputFormat: 'commonjs',
+              isLibrary: false
             },
-            outputFormat: 'commonjs',
-            isLibrary: false
-          },
-          sourceMap: undefined
-        }
-      ]
+            sourceMap: undefined
+          }
+        ]
+      }
     );
   });
 
@@ -91,58 +94,69 @@ describe('TargetResolver', () => {
         cacheDir,
         DEFAULT_OPTIONS
       ),
-      [
-        {
-          name: 'main',
-          distDir: path.join(__dirname, 'fixtures/common-targets/dist/main'),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'node',
-            engines: {
-              node: '>= 8.0.0'
+      {
+        files: [
+          {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')}
+        ],
+        targets: [
+          {
+            name: 'main',
+            distDir: path.join(__dirname, 'fixtures/common-targets/dist/main'),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'node',
+              engines: {
+                node: '>= 8.0.0'
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: true
             },
-            includeNodeModules: false,
-            outputFormat: 'commonjs',
-            isLibrary: true
+            sourceMap: undefined
           },
-          sourceMap: undefined
-        },
-        {
-          name: 'module',
-          distDir: path.join(__dirname, 'fixtures/common-targets/dist/module'),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'browser',
-            engines: {
-              browsers: ['last 1 version']
+          {
+            name: 'module',
+            distDir: path.join(
+              __dirname,
+              'fixtures/common-targets/dist/module'
+            ),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['last 1 version']
+              },
+              includeNodeModules: false,
+              outputFormat: 'esmodule',
+              isLibrary: true
             },
-            includeNodeModules: false,
-            outputFormat: 'esmodule',
-            isLibrary: true
+            sourceMap: {
+              inlineSources: true
+            }
           },
-          sourceMap: {
-            inlineSources: true
+          {
+            name: 'browser',
+            distDir: path.join(
+              __dirname,
+              'fixtures/common-targets/dist/browser'
+            ),
+            distEntry: 'index.js',
+            publicUrl: '/assets',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['last 1 version']
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: true
+            },
+            sourceMap: undefined
           }
-        },
-        {
-          name: 'browser',
-          distDir: path.join(__dirname, 'fixtures/common-targets/dist/browser'),
-          distEntry: 'index.js',
-          publicUrl: '/assets',
-          env: {
-            context: 'browser',
-            engines: {
-              browsers: ['last 1 version']
-            },
-            includeNodeModules: false,
-            outputFormat: 'commonjs',
-            isLibrary: true
-          },
-          sourceMap: undefined
-        }
-      ]
+        ]
+      }
     );
   });
 
@@ -153,91 +167,103 @@ describe('TargetResolver', () => {
         cacheDir,
         DEFAULT_OPTIONS
       ),
-      [
-        {
-          name: 'main',
-          distDir: path.join(__dirname, 'fixtures/custom-targets/dist/main'),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'node',
-            engines: {
-              node: '>= 8.0.0'
+      {
+        files: [
+          {filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json')}
+        ],
+        targets: [
+          {
+            name: 'main',
+            distDir: path.join(__dirname, 'fixtures/custom-targets/dist/main'),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'node',
+              engines: {
+                node: '>= 8.0.0'
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: true
             },
-            includeNodeModules: false,
-            outputFormat: 'commonjs',
-            isLibrary: true
+            sourceMap: undefined
           },
-          sourceMap: undefined
-        },
-        {
-          name: 'browserModern',
-          distDir: path.join(
-            __dirname,
-            'fixtures/custom-targets/dist/browserModern'
-          ),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'browser',
-            engines: {
-              browsers: ['last 1 version']
+          {
+            name: 'browserModern',
+            distDir: path.join(
+              __dirname,
+              'fixtures/custom-targets/dist/browserModern'
+            ),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['last 1 version']
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false
             },
-            includeNodeModules: true,
-            outputFormat: 'global',
-            isLibrary: false
+            sourceMap: undefined
           },
-          sourceMap: undefined
-        },
-        {
-          name: 'browserLegacy',
-          distDir: path.join(
-            __dirname,
-            'fixtures/custom-targets/dist/browserLegacy'
-          ),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'browser',
-            engines: {
-              browsers: ['ie11']
+          {
+            name: 'browserLegacy',
+            distDir: path.join(
+              __dirname,
+              'fixtures/custom-targets/dist/browserLegacy'
+            ),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['ie11']
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false
             },
-            includeNodeModules: true,
-            outputFormat: 'global',
-            isLibrary: false
-          },
-          sourceMap: undefined
-        }
-      ]
+            sourceMap: undefined
+          }
+        ]
+      }
     );
   });
 
   it('resolves main target with context from package.json', async () => {
     assert.deepEqual(
-      await targetResolver.resolve(CONTEXT_FIXTURE_PATH, cacheDir, {}),
-      [
-        {
-          name: 'main',
-          distDir: path.join(__dirname, 'fixtures/context/dist/main'),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'node',
-            engines: {
-              browsers: [
-                'last 1 Chrome version',
-                'last 1 Safari version',
-                'last 1 Firefox version',
-                'last 1 Edge version'
-              ]
+      await targetResolver.resolve(
+        CONTEXT_FIXTURE_PATH,
+        cacheDir,
+        DEFAULT_OPTIONS
+      ),
+      {
+        files: [{filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json')}],
+        targets: [
+          {
+            name: 'main',
+            distDir: path.join(__dirname, 'fixtures/context/dist/main'),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'node',
+              engines: {
+                browsers: [
+                  'last 1 Chrome version',
+                  'last 1 Safari version',
+                  'last 1 Firefox version',
+                  'last 1 Edge version'
+                ]
+              },
+              includeNodeModules: false,
+              isLibrary: true,
+              outputFormat: 'commonjs'
             },
-            includeNodeModules: false,
-            outputFormat: 'commonjs',
-            isLibrary: true
-          },
-          sourceMap: undefined
-        }
-      ]
+            sourceMap: undefined
+          }
+        ]
+      }
     );
   });
 
@@ -247,40 +273,48 @@ describe('TargetResolver', () => {
         ...DEFAULT_OPTIONS,
         targets: ['main', 'browser']
       }),
-      [
-        {
-          name: 'main',
-          distDir: path.join(__dirname, 'fixtures/common-targets/dist/main'),
-          distEntry: 'index.js',
-          publicUrl: '/',
-          env: {
-            context: 'node',
-            engines: {
-              node: '>= 8.0.0'
+      {
+        files: [
+          {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')}
+        ],
+        targets: [
+          {
+            name: 'main',
+            distDir: path.join(__dirname, 'fixtures/common-targets/dist/main'),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'node',
+              engines: {
+                node: '>= 8.0.0'
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: true
             },
-            includeNodeModules: false,
-            outputFormat: 'commonjs',
-            isLibrary: true
+            sourceMap: undefined
           },
-          sourceMap: undefined
-        },
-        {
-          name: 'browser',
-          distDir: path.join(__dirname, 'fixtures/common-targets/dist/browser'),
-          distEntry: 'index.js',
-          publicUrl: '/assets',
-          env: {
-            context: 'browser',
-            engines: {
-              browsers: ['last 1 version']
+          {
+            name: 'browser',
+            distDir: path.join(
+              __dirname,
+              'fixtures/common-targets/dist/browser'
+            ),
+            distEntry: 'index.js',
+            publicUrl: '/assets',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['last 1 version']
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: true
             },
-            includeNodeModules: false,
-            outputFormat: 'commonjs',
-            isLibrary: true
-          },
-          sourceMap: undefined
-        }
-      ]
+            sourceMap: undefined
+          }
+        ]
+      }
     );
   });
 });
