@@ -231,7 +231,7 @@ export type SourceLocation = {|
 
 export type Meta = {
   [string]: JSONValue,
-  globals?: Map<string, {code: string, ...}>,
+  globals?: Map<string, ?{code: string, deps?: Array<string>, ...}>,
   ...
 };
 
