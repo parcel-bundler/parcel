@@ -37,7 +37,21 @@ export function glob(
           cb(err);
         }
       },
+      lstat: async (p, cb) => {
+        // Our FileSystem interface doesn't have lstat support at the moment,
+        // but this is fine for our purposes since we follow symlinks by default.
+        try {
+          cb(null, await fs.stat(p));
+        } catch (err) {
+          cb(err);
+        }
+      },
       readdir: async (p, opts, cb) => {
+        if (typeof opts === 'function') {
+          cb = opts;
+          opts = null;
+        }
+
         try {
           cb(null, await fs.readdir(p, opts));
         } catch (err) {
