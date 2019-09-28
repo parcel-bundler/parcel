@@ -6,7 +6,6 @@ import nullthrows from 'nullthrows';
 
 import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {createDependency} from '../src/Dependency';
 import {createEnvironment} from '../src/Environment';
 import {resolveParcelConfig} from '../src/loadParcelConfig';
 import {DEFAULT_OPTIONS} from './utils';

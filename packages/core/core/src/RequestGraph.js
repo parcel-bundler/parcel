@@ -10,7 +10,7 @@ import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import {PromiseQueue, md5FromObject} from '@parcel/utils';
+import {PromiseQueue, md5FromObject, isGlob} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 import {addDevDependency} from './InternalConfig';
@@ -269,12 +269,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         promise = this.queue.add(() => this.resolveTargetRequest(requestNode));
         break;
       case 'asset_request':
-        promise = this.queue.add(() =>
-          this.transform(requestNode).then(result => {
-            this.onAssetRequestComplete(requestNode, result);
-            return result;
-          })
-        );
+        promise = this.queue.add(() => this.transform(requestNode));
 
         if (
           !requestNode.value.filePath.includes('node_modules') &&
@@ -349,6 +344,11 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         asset.stats.time = time;
       }
 
+      // Ignore in case the request was deleted while transforming
+      if (!this.getNode(requestNode.id)) {
+        return;
+      }
+
       let configRequestNodes = configRequests.map(configRequest => {
         let id = nodeFromConfigRequest(configRequest).id;
         return nullthrows(this.getNode(id));
@@ -359,6 +359,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         node => node.type === 'config_request'
       );
 
+      this.onAssetRequestComplete(requestNode, assets);
       return assets;
     } catch (e) {
       // TODO: add includedFiles even if it failed so we can try a rebuild if those files change
@@ -373,6 +374,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // resolution so we invalidate when they change.
     for (let file of result.connectedFiles) {
       this.connectFile(entryRequestNode, file);
+    }
+
+    // If the entry specifier is a glob, add a glob node so
+    // we invalidate when a new file matches.
+    if (isGlob(entryRequestNode.value)) {
+      this.connectGlob(entryRequestNode, entryRequestNode.value);
     }
 
     this.onEntryRequestComplete(entryRequestNode.value, result.entryFiles);

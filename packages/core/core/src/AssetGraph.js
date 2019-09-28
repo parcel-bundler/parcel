@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 
 import type {GraphVisitor, FilePath} from '@parcel/types';
 import type {Target} from './types';
@@ -139,9 +138,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 
   resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
-    if (!assetGroup) return;
+    let depNode = this.nodes.get(dependency.id);
+    if (!assetGroup || !depNode) return;
 
-    let depNode = nullthrows(this.nodes.get(dependency.id));
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
 
     // Defer transforming this dependency if it is marked as weak, there are no side effects,
@@ -173,7 +172,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    assetGroupNode = nullthrows(this.nodes.get(assetGroupNode.id));
+    assetGroupNode = this.nodes.get(assetGroupNode.id);
+    if (!assetGroupNode) {
+      return;
+    }
 
     let assetNodes = [];
     for (let asset of assets) {

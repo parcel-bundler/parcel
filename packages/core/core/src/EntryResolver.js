@@ -3,6 +3,12 @@ import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 import type {ParcelOptions} from './types';
 import path from 'path';
+import {isGlob, glob} from '@parcel/utils';
+
+type EntryResult = {|
+  entryFiles: Array<FilePath>,
+  connectedFiles: Array<FilePath>
+|};
 
 export class EntryResolver {
   fs: FileSystem;
@@ -13,7 +19,22 @@ export class EntryResolver {
     this.options = options;
   }
 
-  async resolveEntry(entry: FilePath) {
+  async resolveEntry(entry: FilePath): Promise<EntryResult> {
+    if (isGlob(entry)) {
+      let files = await glob(entry, this.fs, {
+        absolute: true,
+        onlyFiles: false
+      });
+      let results = await Promise.all(files.map(f => this.resolveEntry(f)));
+      return results.reduce(
+        (p, res) => ({
+          entryFiles: p.entryFiles.concat(res.entryFiles),
+          connectedFiles: p.connectedFiles.concat(res.connectedFiles)
+        }),
+        {entryFiles: [], connectedFiles: []}
+      );
+    }
+
     let stat;
     try {
       stat = await this.fs.stat(entry);

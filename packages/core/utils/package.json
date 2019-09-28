@@ -19,7 +19,7 @@
     "@parcel/logger": "^2.0.0-alpha.1.1",
     "clone": "^2.1.1",
     "deasync": "^0.1.14",
-    "fast-glob": "^2.2.2",
+    "fast-glob": "^3.0.4",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "json5": "^1.0.1",
