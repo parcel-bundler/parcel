@@ -213,8 +213,17 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           env: {
             context: 'node',
-            engines: {},
-            includeNodeModules: false
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version'
+              ]
+            },
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         }
