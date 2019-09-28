@@ -106,6 +106,11 @@ export type EnvironmentOpts = {
   ...
 };
 
+export type VersionMap = {
+  [string]: string,
+  ...
+};
+
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
@@ -117,6 +122,7 @@ export interface Environment {
   isNode(): boolean;
   isElectron(): boolean;
   isIsolated(): boolean;
+  matchesEngines(minVersions: VersionMap): boolean;
 }
 
 type PackageDependencies = {|

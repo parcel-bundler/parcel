@@ -34,4 +34,3 @@ export * from './serializer';
 export * from './stream';
 export * from './resolve';
 export * from './relativeBundlePath';
-export * from './envMatches';

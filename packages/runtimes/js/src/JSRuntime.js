@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin, relativeBundlePath, envMatches} from '@parcel/utils';
+import {urlJoin, relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // List of browsers that support dynamic import natively
@@ -54,8 +54,7 @@ export default new Runtime({
     // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
     let needsDynamicImportPolyfill = false;
     if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
-      needsDynamicImportPolyfill = !envMatches(
-        bundle.env,
+      needsDynamicImportPolyfill = !bundle.env.matchesEngines(
         DYNAMIC_IMPORT_BROWSERS
       );
     }

@@ -10,7 +10,7 @@ import type {
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
-import {relativeBundlePath, envMatches} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
 const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
@@ -37,7 +37,7 @@ const DESTRUCTURING_ENGINES = {
 function generateDestructuringAssignment(env, specifiers, value, scope) {
   // If destructuring is not supported, generate a series of variable declarations
   // with member expressions for each property.
-  if (!envMatches(env, DESTRUCTURING_ENGINES)) {
+  if (!env.matchesEngines(DESTRUCTURING_ENGINES)) {
     let statements = [];
     if (!t.isIdentifier(value) && specifiers.length > 1) {
       let name = scope.generateUid();
