@@ -1,43 +1,18 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin, relativeBundlePath} from '@parcel/utils';
+import {urlJoin, relativeBundlePath, envMatches} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-// $FlowFixMe
-import browserslist from 'browserslist';
 
-// List of browsers to exclude when the esmodule target is specified.
-// Based on https://caniuse.com/#feat=es6-module
-const ESMODULE_BROWSERS = [
-  'not ie <= 11',
-  'not edge < 16',
-  'not firefox < 60',
-  'not chrome < 61',
-  'not safari < 11',
-  'not opera < 48',
-  'not ios < 11',
-  'not op_mini all',
-  'not android < 76',
-  'not blackberry > 0',
-  'not op_mob > 0',
-  'not and_chr < 76',
-  'not and_ff < 68',
-  'not ie_mob > 0',
-  'not and_uc > 0',
-  'not samsung < 8.2',
-  'not and_qq > 0',
-  'not baidu > 0',
-  'not kaios > 0'
-];
-
+// List of browsers that support dynamic import natively
 // https://caniuse.com/#feat=es6-module-dynamic-import
-const DYNAMIC_IMPORT_BROWSERS = [
-  'not edge < 76',
-  'not firefox < 67',
-  'not chrome < 63',
-  'not safari < 11.1',
-  'not opera < 50'
-];
+const DYNAMIC_IMPORT_BROWSERS = {
+  edge: '76',
+  firefox: '67',
+  chrome: '63',
+  safari: '11.1',
+  opera: '50'
+};
 
 const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
 const LOADERS = {
@@ -79,19 +54,10 @@ export default new Runtime({
     // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
     let needsDynamicImportPolyfill = false;
     if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
-      let targetBrowsers = bundle.env.engines.browsers;
-      let browsers =
-        targetBrowsers != null && !Array.isArray(targetBrowsers)
-          ? [targetBrowsers]
-          : targetBrowsers || [];
-      let esmoduleBrowsers = browserslist([...browsers, ...ESMODULE_BROWSERS]);
-      let dynamicImportBrowsers = browserslist([
-        ...browsers,
-        ...ESMODULE_BROWSERS,
-        ...DYNAMIC_IMPORT_BROWSERS
-      ]);
-      needsDynamicImportPolyfill =
-        esmoduleBrowsers.length !== dynamicImportBrowsers.length;
+      needsDynamicImportPolyfill = !envMatches(
+        bundle.env,
+        DYNAMIC_IMPORT_BROWSERS
+      );
     }
 
     for (let {
