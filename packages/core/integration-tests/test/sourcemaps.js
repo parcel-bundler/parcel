@@ -968,7 +968,35 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  // TODO: Write a test for inlineSources
+  it('Should be able to create a sourcemap with inlined sources', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-inline-sources/index.js'
+    );
+    await bundle(sourceFilename);
+
+    let distDir = path.join(
+      __dirname,
+      '/integration/sourcemap-inline-sources/dist/'
+    );
+
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapData) {
+      throw new Error('Could not load map');
+    }
+
+    let sourceContent = await inputFS.readFile(sourceFilename, 'utf-8');
+
+    let map = mapData.map;
+    assert.equal(map.file, 'index.js.map');
+    assert.deepEqual(map.sources, [
+      'integration/sourcemap-inline-sources/index.js'
+    ]);
+    assert.equal(map.sourcesContent[0], sourceContent);
+  });
 
   it('Should be able to create inline sourcemaps', async function() {
     let sourceFilename = path.join(
