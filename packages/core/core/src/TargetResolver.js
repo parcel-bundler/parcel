@@ -203,9 +203,8 @@ export default class TargetResolver {
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
-              descriptor.context ?? targetName === 'browser'
-                ? 'browser'
-                : mainContext,
+              descriptor.context ??
+              (targetName === 'browser' ? 'browser' : mainContext),
             includeNodeModules: descriptor.includeNodeModules
           }),
           sourceMap: descriptor.sourceMap
