@@ -194,15 +194,14 @@ class NodeResolver {
     return resolved;
   }
 
-  shouldIncludeNodeModule(env, name) {
-    if (env.includeNodeModules === false) {
+  shouldIncludeNodeModule({includeNodeModules}, name) {
+    if (includeNodeModules === false) {
       return false;
     }
 
-    if (Array.isArray(env.includeNodeModules)) {
+    if (Array.isArray(includeNodeModules)) {
       let parts = this.getModuleParts(name);
-      // $FlowFixMe - flow is dumb
-      return env.includeNodeModules.includes(parts[0]);
+      return includeNodeModules.includes(parts[0]);
     }
 
     return true;
