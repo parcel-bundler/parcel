@@ -301,6 +301,7 @@ export default class PackagerRunner {
     let mapFilename = filePath + '.map';
     return map.stringify({
       file: path.basename(mapFilename),
+      fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources
         ? url.format(url.parse(sourceRoot + '/'))

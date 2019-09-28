@@ -17,6 +17,8 @@ const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   'fixtures/custom-targets'
 );
 
+const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
+
 describe('TargetResolver', () => {
   let targetResolver;
   let cacheDir;
@@ -177,6 +179,26 @@ describe('TargetResolver', () => {
               browsers: ['ie11']
             },
             includeNodeModules: true
+          },
+          sourceMap: undefined
+        }
+      ]
+    );
+  });
+
+  it('resolves main target with context from package.json', async () => {
+    assert.deepEqual(
+      await targetResolver.resolve(CONTEXT_FIXTURE_PATH, cacheDir, {}),
+      [
+        {
+          name: 'main',
+          distDir: path.join(__dirname, 'fixtures/context/dist/main'),
+          distEntry: 'index.js',
+          publicUrl: '/',
+          env: {
+            context: 'node',
+            engines: {},
+            includeNodeModules: false
           },
           sourceMap: undefined
         }
