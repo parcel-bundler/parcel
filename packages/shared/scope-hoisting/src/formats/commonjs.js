@@ -10,7 +10,7 @@ import type {
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
-import {relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath, envMatches} from '@parcel/utils';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
 const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
@@ -21,10 +21,60 @@ const NAMESPACE_TEMPLATE = template(
   '$parcel$exportWildcard(NAMESPACE, MODULE)'
 );
 
+// List of engines that support object destructuring syntax
+const DESTRUCTURING_ENGINES = {
+  chrome: '51',
+  edge: '15',
+  firefox: '53',
+  safari: '10',
+  node: '6.5',
+  ios: '10',
+  samsung: '5',
+  opera: '38',
+  electron: '1.2'
+};
+
+function generateDestructuringAssignment(env, specifiers, value, scope) {
+  // If destructuring is not supported, generate a series of variable declarations
+  // with member expressions for each property.
+  if (!envMatches(env, DESTRUCTURING_ENGINES)) {
+    let statements = [];
+    if (!t.isIdentifier(value) && specifiers.length > 1) {
+      let name = scope.generateUid();
+      statements.push(
+        ASSIGN_TEMPLATE({
+          SPECIFIERS: t.identifier(name),
+          MODULE: value
+        })
+      );
+      value = t.identifier(name);
+    }
+
+    for (let specifier of specifiers) {
+      statements.push(
+        ASSIGN_TEMPLATE({
+          SPECIFIERS: specifier.key,
+          MODULE: t.memberExpression(value, specifier.value)
+        })
+      );
+    }
+
+    return statements;
+  }
+
+  return [
+    ASSIGN_TEMPLATE({
+      SPECIFIERS: t.objectPattern(specifiers),
+      MODULE: value
+    })
+  ];
+}
+
 export function generateBundleImports(
   from: Bundle,
   bundle: Bundle,
-  assets: Set<Asset>
+  assets: Set<Asset>,
+  scope: any
 ) {
   let specifiers = [...assets].map(asset => {
     let id = t.identifier(asset.meta.exportsIdentifier);
@@ -36,16 +86,19 @@ export function generateBundleImports(
   });
 
   if (specifiers.length > 0) {
-    statement = ASSIGN_TEMPLATE({
-      SPECIFIERS: t.objectPattern(specifiers),
-      MODULE: statement.expression
-    });
+    return generateDestructuringAssignment(
+      bundle.env,
+      specifiers,
+      statement.expression,
+      scope
+    );
   }
 
   return [statement];
 }
 
 export function generateExternalImport(
+  bundle: Bundle,
   source: ModuleSpecifier,
   specifiers: Map<Symbol, Symbol>,
   scope: any
@@ -111,10 +164,12 @@ export function generateExternalImport(
 
     if (properties.length > 0) {
       statements.push(
-        ASSIGN_TEMPLATE({
-          SPECIFIERS: t.objectPattern(properties),
-          MODULE: t.identifier(name)
-        })
+        ...generateDestructuringAssignment(
+          bundle.env,
+          properties,
+          t.identifier(name),
+          scope
+        )
       );
     }
   } else if (specifiers.has('default')) {
@@ -142,12 +197,14 @@ export function generateExternalImport(
     );
   } else if (properties.length > 0) {
     statements.push(
-      ASSIGN_TEMPLATE({
-        SPECIFIERS: t.objectPattern(properties),
-        MODULE: REQUIRE_TEMPLATE({
+      ...generateDestructuringAssignment(
+        bundle.env,
+        properties,
+        REQUIRE_TEMPLATE({
           BUNDLE: t.stringLiteral(source)
-        }).expression
-      })
+        }).expression,
+        scope
+      )
     );
   } else {
     statements.push(

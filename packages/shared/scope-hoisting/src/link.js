@@ -517,12 +517,19 @@ export function link({
         for (let file of importedFiles.values()) {
           if (file.bundle) {
             imports.push(
-              ...format.generateBundleImports(bundle, file.bundle, file.assets)
+              // $FlowFixMe
+              ...format.generateBundleImports(
+                bundle,
+                file.bundle,
+                file.assets,
+                path.scope
+              )
             );
           } else {
             imports.push(
               // $FlowFixMe
               ...format.generateExternalImport(
+                bundle,
                 file.source,
                 file.specifiers,
                 path.scope

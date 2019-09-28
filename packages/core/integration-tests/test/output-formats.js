@@ -62,7 +62,7 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('exports.bar'));
-      assert(/var {\s*add\s*} = require\("lodash"\)/);
+      assert(/var {\s*add\s*} = require\("lodash"\)/.test(dist));
       assert.equal((await run(b)).bar, 3);
     });
 
@@ -117,6 +117,64 @@ describe('output formats', function() {
       assert(dist.includes('var _lodash = $parcel$interopDefault(_lodash3)'));
       assert(/var {\s*add\s*} = _lodash3/);
       assert.equal((await run(b)).bar, 6);
+    });
+
+    it('should support commonjs output with old node without destructuring (single)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-destructuring-node/single.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.bar'));
+      assert(dist.includes('var add = require("lodash").add'));
+      assert.equal((await run(b)).bar, 3);
+    });
+
+    it('should support commonjs output with old node without destructuring (multiple)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-destructuring-node/multiple.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.bar'));
+      assert(dist.includes('var _temp = require("lodash")'));
+      assert(dist.includes('var add = _temp.add'));
+      assert(dist.includes('var subtract = _temp.subtract'));
+      assert.equal((await run(b)).bar, 2);
+    });
+
+    it('should support commonjs output with old browsers without destructuring (single)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-destructuring-browsers/single.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.bar'));
+      assert(dist.includes('var add = require("lodash").add'));
+    });
+
+    it('should support commonjs output with old node without destructuring (multiple)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-destructuring-browsers/multiple.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.bar'));
+      assert(dist.includes('var _temp = require("lodash")'));
+      assert(dist.includes('var add = _temp.add'));
+      assert(dist.includes('var subtract = _temp.subtract'));
     });
 
     it('should support importing sibling bundles in library mode', async function() {

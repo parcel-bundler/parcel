@@ -32,6 +32,7 @@ export function generateBundleImports(
 }
 
 export function generateExternalImport(
+  bundle: Bundle,
   source: ModuleSpecifier,
   specifiers: Map<Symbol, Symbol>
 ) {
