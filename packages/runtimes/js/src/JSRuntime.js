@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin, relativeBundlePath, envMatches} from '@parcel/utils';
+import {urlJoin, relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // List of browsers that support dynamic import natively

@@ -10,7 +10,7 @@ import type {
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
-import {relativeBundlePath, envMatches} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
 const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
