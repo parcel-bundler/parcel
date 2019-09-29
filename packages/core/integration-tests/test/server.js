@@ -1,7 +1,7 @@
-const assert = require('assert');
-const path = require('path');
-const logger = require('@parcel/logger');
-const {
+import assert from 'assert';
+import path from 'path';
+import logger from '@parcel/logger';
+import {
   bundler,
   getNextBuild,
   inputFS,
@@ -9,11 +9,11 @@ const {
   overlayFS,
   defaultConfig,
   ncp
-} = require('@parcel/test-utils');
-const http = require('http');
-const https = require('https');
-const getPort = require('get-port');
-const sinon = require('sinon');
+} from '@parcel/test-utils';
+import http from 'http';
+import https from 'https';
+import getPort from 'get-port';
+import sinon from 'sinon';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = {
