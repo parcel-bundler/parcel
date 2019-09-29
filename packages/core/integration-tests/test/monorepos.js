@@ -402,6 +402,9 @@ describe('monorepos', function() {
     );
 
     evt = await getNextBuild(b);
+    if (evt.type === 'buildFailure') {
+      console.log(evt);
+    }
     assertBundles(evt.bundleGraph, [
       {
         name: 'pkg-a.cjs.js',
