@@ -4,10 +4,9 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 
 export function relativeBundlePath(from: Bundle, to: Bundle) {
-  let p = path.posix.relative(
-    path.posix.dirname(nullthrows(from.filePath)),
-    nullthrows(to.filePath)
-  );
+  let p = path
+    .relative(path.dirname(nullthrows(from.filePath)), nullthrows(to.filePath))
+    .replace(/\\/g, '/');
   if (p[0] !== '.') {
     p = './' + p;
   }
