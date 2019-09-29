@@ -82,7 +82,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
           for (let depAsset of findRequires(bundleGraph, asset, statement)) {
-            if (depAsset && !statementIndices.has(depAsset.id)) {
+            if (!statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
           }
@@ -203,7 +203,7 @@ function findRequires(
   bundleGraph: BundleGraph,
   asset: Asset,
   ast: mixed
-): Array<?Asset> {
+): Array<Asset> {
   let result = [];
   walk.simple(ast, {
     CallExpression(node) {
