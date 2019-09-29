@@ -14,12 +14,11 @@ const jsonConfig = {
 };
 
 describe('json reporter', () => {
-  it.skip('logs bundling a commonjs bundle to stdout as json', async () => {
+  it('logs bundling a commonjs bundle to stdout as json', async () => {
     let oldConsoleLog = console.log;
     let i = 0;
     // $FlowFixMe
     console.log = function log(msg) {
-      oldConsoleLog('MESSAGE', msg);
       let parsed = JSON.parse(msg);
       if (i === 0) {
         assert.deepEqual(parsed, {type: 'buildStart'});
