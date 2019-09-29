@@ -5,12 +5,10 @@ import type {Event} from '@parcel/watcher';
 import type {Config, ParcelOptions, Target} from './types';
 
 import invariant from 'assert';
-//$FlowFixMe
-import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import {PromiseQueue, md5FromObject, isGlob} from '@parcel/utils';
+import {PromiseQueue, md5FromObject, isGlob, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 import {addDevDependency} from './InternalConfig';
@@ -625,7 +623,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           let globNode = this.getNode(id);
           invariant(globNode && globNode.type === 'glob');
 
-          if (isMatch(path, globNode.value)) {
+          if (isGlobMatch(path, globNode.value)) {
             let connectedNodes = this.getNodesConnectedTo(globNode);
             for (let connectedNode of connectedNodes) {
               invariant(

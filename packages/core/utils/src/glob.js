@@ -1,10 +1,11 @@
 // @flow
 
-import type {FilePath} from '@parcel/types';
+import type {FilePath, Glob} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 import _isGlob from 'is-glob';
 import fastGlob, {type FastGlobOptions} from 'fast-glob';
+import {isMatch} from 'micromatch';
 
 function normalisePath(p: string): string {
   return p.replace(/\\/g, '/');
@@ -12,6 +13,10 @@ function normalisePath(p: string): string {
 
 export function isGlob(p: FilePath) {
   return _isGlob(normalisePath(p));
+}
+
+export function isGlobMatch(filePath: FilePath, glob: Glob) {
+  return isMatch(normalisePath(filePath), glob);
 }
 
 export function globSync(
