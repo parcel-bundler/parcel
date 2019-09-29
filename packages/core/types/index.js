@@ -81,10 +81,12 @@ export type EnvironmentContext =
   | 'electron-main'
   | 'electron-renderer';
 
+export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean,
+  includeNodeModules?: boolean | Array<PackageName>,
+  outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions
@@ -98,19 +100,29 @@ export type TargetDescriptor = {|
 export type EnvironmentOpts = {
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean,
+  includeNodeModules?: boolean | Array<PackageName>,
+  outputFormat?: OutputFormat,
+  isLibrary?: boolean,
+  ...
+};
+
+export type VersionMap = {
+  [string]: string,
   ...
 };
 
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
-  +includeNodeModules: boolean;
+  +includeNodeModules: boolean | Array<PackageName>;
+  +outputFormat: OutputFormat;
+  +isLibrary: boolean;
 
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
   isIsolated(): boolean;
+  matchesEngines(minVersions: VersionMap): boolean;
 }
 
 type PackageDependencies = {|
@@ -586,9 +598,11 @@ export interface BundleGraph {
   isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
+  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
+  findBundlesWithAsset(Asset): Array<Bundle>;
 }
 
 export type BundleResult = {|
@@ -598,7 +612,8 @@ export type BundleResult = {|
 |};
 
 export type ResolveResult = {|
-  filePath: FilePath,
+  filePath?: FilePath,
+  isExcluded?: boolean,
   sideEffects?: boolean,
   code?: string
 |};

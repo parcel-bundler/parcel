@@ -1,6 +1,6 @@
-const assert = require('assert');
-const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
-const commandExists = require('command-exists');
+import assert from 'assert';
+import {bundle, assertBundleTree, run} from '@parcel/test-utils';
+import commandExists from 'command-exists';
 
 describe.skip('kotlin', function() {
   if (!commandExists.sync('java')) {

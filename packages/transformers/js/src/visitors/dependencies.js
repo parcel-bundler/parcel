@@ -144,13 +144,6 @@ function addDependency(asset, node, opts = {}) {
   //   throw err;
   // }
 
-  if (asset.env.includeNodeModules === false) {
-    const isRelativeImport = /^[/~.]/.test(node.value);
-    if (!isRelativeImport) {
-      return;
-    }
-  }
-
   asset.addDependency(
     Object.assign(
       {

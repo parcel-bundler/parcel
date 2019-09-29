@@ -10,7 +10,9 @@ describe('Environment', () => {
       engines: {
         browsers: ['> 0.25%']
       },
-      includeNodeModules: true
+      includeNodeModules: true,
+      outputFormat: 'global',
+      isLibrary: false
     });
   });
 
@@ -20,7 +22,9 @@ describe('Environment', () => {
       engines: {
         node: '>= 10.0.0'
       },
-      includeNodeModules: false
+      includeNodeModules: false,
+      outputFormat: 'commonjs',
+      isLibrary: false
     });
   });
 
@@ -32,7 +36,9 @@ describe('Environment', () => {
         engines: {
           browsers: ['last 1 version']
         },
-        includeNodeModules: true
+        includeNodeModules: true,
+        outputFormat: 'global',
+        isLibrary: false
       }
     );
   });
@@ -43,7 +49,9 @@ describe('Environment', () => {
       engines: {
         node: '>= 8.0.0'
       },
-      includeNodeModules: false
+      includeNodeModules: false,
+      outputFormat: 'commonjs',
+      isLibrary: false
     });
   });
 
@@ -53,7 +61,9 @@ describe('Environment', () => {
       engines: {
         browsers: ['> 0.25%']
       },
-      includeNodeModules: true
+      includeNodeModules: true,
+      outputFormat: 'global',
+      isLibrary: false
     });
   });
 });
