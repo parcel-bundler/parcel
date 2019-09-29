@@ -319,6 +319,55 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should support bundling workers of type module', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers-module/index.js'),
+      {scopeHoist: true}
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['dedicated-worker.js']
+      },
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        assets: ['shared-worker.js']
+      }
+    ]);
+
+    let entryBundle;
+    b.traverseBundles((bundle, ctx, traversal) => {
+      if (bundle.isEntry) {
+        entryBundle = bundle;
+        traversal.stop();
+      }
+    });
+
+    let dedicated, shared;
+    entryBundle.traverseAssets((a, ctx, traversal) => {
+      if (a.filePath.contains('shared-worker')) {
+        shared = a;
+      } else if (a.filePath.contains('dedicated-worker')) {
+        shared = a;
+      }
+      if (dedicated && shared) traversal.stop();
+    });
+
+    assert(dedicated);
+    assert(shared);
+
+    dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
+    shared = await outputFS.readFile(shared.filePath, 'utf8');
+    assert.equal(
+      dedicated,
+      'import o from"foo";console.log("DedicatedWorker",o);'
+    );
+    assert.equal(shared, 'import o from"foo";console.log("SharedWorker",o);');
+  });
+
   it('should support bundling workers with different order', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers/index-alternative.js')
