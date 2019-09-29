@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, assertBundleTree, outputFS} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, assertBundleTree, outputFS} from '@parcel/test-utils';
 
 describe.skip('markdown', function() {
   it('should support bundling Markdown', async function() {
