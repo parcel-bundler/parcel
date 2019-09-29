@@ -127,6 +127,12 @@ export default class AssetGraphBuilder extends EventEmitter {
       case 'asset_group':
         this.requestGraph.removeById(node.id);
         break;
+      case 'entry_specifier':
+        this.requestGraph.removeById('entry_request:' + node.value);
+        break;
+      case 'entry_file':
+        this.requestGraph.removeById('target_request:' + node.value);
+        break;
     }
   }
 

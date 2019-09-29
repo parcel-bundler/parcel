@@ -343,7 +343,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       }
 
       // Ignore in case the request was deleted while transforming
-      if (!this.getNode(requestNode.id)) {
+      if (!this.hasNode(requestNode.id)) {
         return;
       }
 
@@ -409,6 +409,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   async loadConfig(configRequest: ConfigRequest, parentNodeId: NodeId) {
+    if (!this.hasNode(parentNodeId)) {
+      return this.configLoader.load(configRequest);
+    }
+
     let configRequestNode = nodeFromConfigRequest(configRequest);
     if (!this.hasNode(configRequestNode.id)) {
       this.addNode(configRequestNode);
@@ -417,6 +421,11 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
     let config = nullthrows(await this.getSubTaskResult(configRequestNode));
     invariant(config.devDeps != null);
+
+    // ConfigRequest node might have been deleted while waiting for config to resolve
+    if (!this.hasNode(configRequestNode.id)) {
+      return config;
+    }
 
     let depVersionRequestNodes = [];
     for (let [moduleSpecifier, version] of config.devDeps) {
@@ -523,6 +532,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   connectFile(requestNode: RequestNode, filePath: FilePath) {
+    if (!this.hasNode(requestNode.id)) {
+      return;
+    }
+
     let fileNode = nodeFromFilePath(filePath);
     if (!this.hasNode(fileNode.id)) {
       this.addNode(fileNode);
@@ -534,6 +547,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   connectGlob(requestNode: RequestNode, glob: Glob) {
+    if (!this.hasNode(requestNode.id)) {
+      return;
+    }
+
     let globNode = nodeFromGlob(glob);
     if (!this.hasNode(globNode.id)) {
       this.addNode(globNode);

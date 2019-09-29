@@ -259,6 +259,10 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     replaceFilter?: TNode => boolean,
     type?: TEdgeType | null = null
   ): void {
+    if (!this.nodes.has(fromNode.id)) {
+      return;
+    }
+
     let outboundEdges = this.outboundEdges.get(fromNode.id).get(type);
     let childrenToRemove = new Set(
       replaceFilter
