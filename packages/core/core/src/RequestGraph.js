@@ -349,6 +349,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
       let configRequestNodes = configRequests.map(configRequest => {
         let id = nodeFromConfigRequest(configRequest).id;
+        if (!this.getNode(id)) {
+          console.log('DEBUG', configRequest, this.getNode(requestNode.id));
+        }
         return nullthrows(this.getNode(id));
       });
       this.replaceNodesConnectedTo(
