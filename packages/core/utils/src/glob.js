@@ -7,23 +7,23 @@ import _isGlob from 'is-glob';
 import fastGlob, {type FastGlobOptions} from 'fast-glob';
 import {isMatch} from 'micromatch';
 
-function normalisePath(p: string): string {
+function normalizePath(p: string): string {
   return p.replace(/\\/g, '/');
 }
 
 export function isGlob(p: FilePath) {
-  return _isGlob(normalisePath(p));
+  return _isGlob(normalizePath(p));
 }
 
 export function isGlobMatch(filePath: FilePath, glob: Glob) {
-  return isMatch(normalisePath(filePath), glob);
+  return isMatch(filePath, normalizePath(glob));
 }
 
 export function globSync(
   p: FilePath,
   options: FastGlobOptions<FilePath>
 ): Array<FilePath> {
-  return fastGlob.sync(normalisePath(p), options);
+  return fastGlob.sync(normalizePath(p), options);
 }
 
 export function glob(
@@ -66,5 +66,5 @@ export function glob(
     }
   };
 
-  return fastGlob(normalisePath(p), options);
+  return fastGlob(normalizePath(p), options);
 }
