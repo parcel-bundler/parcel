@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle: _bundle, run, outputFS} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle as _bundle, run, outputFS} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -398,7 +398,6 @@ describe('output formats', function() {
         .getBundles()
         .find(b => b.name.startsWith('async1') && !index.includes(b.name));
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-
       assert(shared.includes('export var $'));
 
       let async1 = await outputFS.readFile(
