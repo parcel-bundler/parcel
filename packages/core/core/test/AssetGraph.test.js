@@ -294,7 +294,7 @@ describe('AssetGraph', () => {
       entries: ['./index']
     });
 
-    graph.resolveEntry('/path/to/index', ['/path/to/index/src/main.js']);
+    graph.resolveEntry('./index', ['/path/to/index/src/main.js']);
     graph.resolveTargets('/path/to/index/src/main.js', TARGETS);
 
     let dep = createDependency({

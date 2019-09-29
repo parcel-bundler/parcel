@@ -172,23 +172,21 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    assetGroupNode = this.nodes.get(assetGroupNode.id);
-    if (!assetGroupNode) {
+    if (!this.hasNode(assetGroupNode.id)) {
       return;
     }
 
-    let assetNodes = [];
+    let assetNodes = assets.map(asset => nodeFromAsset(asset));
+    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+
     for (let asset of assets) {
-      let assetNode = nodeFromAsset(asset);
-      assetNodes.push(assetNode);
       let depNodes = [];
       for (let dep of asset.dependencies.values()) {
         let depNode = nodeFromDep(dep);
         depNodes.push(this.nodes.get(depNode.id) || depNode);
       }
-      this.replaceNodesConnectedTo(assetNode, depNodes);
+      this.replaceNodesConnectedTo(nodeFromAsset(asset), depNodes);
     }
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
