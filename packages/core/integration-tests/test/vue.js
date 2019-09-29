@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, assertBundleTree, run, outputFS} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, assertBundleTree, run, outputFS} from '@parcel/test-utils';
 
 describe.skip('vue', function() {
   it('should produce a basic vue bundle', async function() {

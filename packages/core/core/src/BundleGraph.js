@@ -80,6 +80,10 @@ export default class BundleGraph {
         return;
       }
 
+      if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
+        bundle.stats.size += node.value.stats.size;
+      }
+
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.addEdge(bundle.id, node.id, 'contains');
       }
@@ -109,6 +113,9 @@ export default class BundleGraph {
       if (node.type === 'asset' || node.type === 'dependency') {
         if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
           this._graph.removeEdge(bundle.id, node.id, 'contains');
+          if (node.type === 'asset') {
+            bundle.stats.size -= asset.stats.size;
+          }
         } else {
           actions.skipChildren();
         }
@@ -370,7 +377,12 @@ export default class BundleGraph {
 
   getTotalSize(asset: Asset): number {
     let size = 0;
-    this._graph.traverse(node => {
+    this._graph.traverse((node, _, actions) => {
+      if (node.type === 'bundle_group') {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset') {
         size += node.value.stats.size;
       }
