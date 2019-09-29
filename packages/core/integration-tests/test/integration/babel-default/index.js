@@ -1,4 +1,6 @@
 import Foo from './foo';
 
-export {Foo};
-export class Bar {}
+class Bar {}
+
+// Make sure that scope hoisting retains these variables
+output = {Foo, Bar};

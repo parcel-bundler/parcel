@@ -46,12 +46,12 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
-  // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
-  // registering modules dynamically at runtime.
+  // If this is an entry bundle and it has non esmodule child bundles,
+  // we need to add the prelude code, which allows registering modules dynamically at runtime.
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = isEntry && hasChildBundles;
-  let registerEntry = !isEntry || hasChildBundles;
+  let needsPrelude =
+    isEntry && hasChildBundles && bundle.env.outputFormat === 'global';
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
@@ -98,18 +98,6 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
-      if (
-        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
-        (!context.parent && registerEntry)
-      ) {
-        let exportsId = getName(asset, 'exports');
-        statements.push(
-          ...parse(`
-          ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
-          parcelRequire.register("${asset.id}", ${exportsId});
-        `)
-        );
-      }
 
       if (context.parent) {
         context.parent.set(asset.id, statements);
@@ -118,27 +106,6 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       }
     }
   });
-
-  let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
-    let exportsIdentifier = getName(entry, 'exports');
-    let code = await entry.getCode();
-    if (code.includes(exportsIdentifier)) {
-      result.push(
-        ...parse(`
-        if (typeof exports === "object" && typeof module !== "undefined") {
-          // CommonJS
-          module.exports = ${exportsIdentifier};
-        } else if (typeof define === "function" && define.amd) {
-          // RequireJS
-          define(function () {
-            return ${exportsIdentifier};
-          });
-        }
-      `)
-      );
-    }
-  }
 
   return t.file(t.program(result));
 }
@@ -161,7 +128,8 @@ async function processAsset(bundle: Bundle, asset: Asset) {
 function parse(code, filename) {
   let ast = babylon.parse(code, {
     sourceFilename: filename,
-    allowReturnOutsideFunction: true
+    allowReturnOutsideFunction: true,
+    plugins: ['dynamicImport']
   });
 
   return ast.program.body;
@@ -251,7 +219,10 @@ function findRequires(
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
+        let resolution = bundleGraph.getDependencyResolution(dep);
+        if (resolution) {
+          result.push(resolution);
+        }
       }
     }
   });

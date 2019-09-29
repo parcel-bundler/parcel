@@ -21,7 +21,7 @@ import type Graph from './Graph';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap} from '@parcel/utils';
+import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId} from './utils';
 import {mapVisitor} from './Graph';
@@ -521,6 +521,27 @@ export default class BundleGraph {
     return {asset, exportSymbol: symbol, symbol: identifier};
   }
 
+  getExportedSymbols(asset: Asset) {
+    let symbols = [];
+
+    for (let symbol of asset.symbols.keys()) {
+      symbols.push(this.resolveSymbol(asset, symbol));
+    }
+
+    let deps = this.getDependencies(asset);
+    for (let dep of deps) {
+      if (dep.symbols.get('*') === '*') {
+        let resolved = nullthrows(this.getDependencyResolution(dep));
+        let exported = this.getExportedSymbols(resolved).filter(
+          s => s.exportSymbol !== 'default'
+        );
+        symbols.push(...exported);
+      }
+    }
+
+    return symbols;
+  }
+
   getContentHash(bundle: Bundle): string {
     let existingHash = this._bundleContentHashes.get(bundle.id);
     if (existingHash != null) {
@@ -544,6 +565,7 @@ export default class BundleGraph {
       hash.update(this.getContentHash(childBundle));
     }, bundle);
 
+    hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
   }
 }

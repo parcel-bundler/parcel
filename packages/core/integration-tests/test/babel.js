@@ -123,7 +123,7 @@ describe('babel', function() {
     // Check that core-js's globalThis polyfill is referenced.
     // NOTE: This may change if core-js internals change.
     assert(file.includes('esnext.global-this'));
-    assert(!file.includes('regenerator'));
+    assert(!file.includes('es.array.concat'));
   });
 
   it.skip('should support compiling with babel using browserslist for different environments', async function() {
@@ -333,7 +333,7 @@ describe('babel', function() {
     );
     await bundle(path.join(tmpDir, '/input/index.js'), {
       targets: {
-        main: {
+        modern: {
           engines: {
             node: '^4.0.0'
           },
@@ -355,7 +355,7 @@ describe('babel', function() {
     );
     await bundle(path.join(tmpDir, '/input/index.js'), {
       targets: {
-        main: {
+        modern: {
           engines: {
             node: '^4.0.0'
           },

@@ -1,3 +1,3 @@
 import b from './b';
 
-export {b};
+output = {b};
