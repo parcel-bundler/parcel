@@ -16,7 +16,7 @@ import {
 } from '@parcel/test-utils';
 import {symlinkSync} from 'fs';
 
-const inputDir = path.join(__dirname, '/input');
+const inputDir = path.join(__dirname, '/watcher');
 const distDir = path.join(inputDir, 'dist');
 
 describe('watcher', function() {
