@@ -39,16 +39,15 @@ const COMMON_TARGETS = ['main', 'module', 'browser'];
 
 export default class TargetResolver {
   fs: FileSystem;
-  constructor(fs: FileSystem) {
-    this.fs = fs;
+  options: ParcelOptions;
+
+  constructor(options: ParcelOptions) {
+    this.fs = options.inputFS;
+    this.options = options;
   }
 
-  async resolve(
-    rootDir: FilePath,
-    cacheDir: FilePath,
-    initialOptions: ParcelOptions
-  ): Promise<TargetResolveResult> {
-    let optionTargets = initialOptions.targets;
+  async resolve(rootDir: FilePath): Promise<TargetResolveResult> {
+    let optionTargets = this.options.targets;
 
     let targets: Array<Target>;
     let files: Array<File> = [];
@@ -60,10 +59,7 @@ export default class TargetResolver {
 
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        let packageTargets = await this.resolvePackageTargets(
-          rootDir,
-          initialOptions
-        );
+        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
@@ -88,7 +84,7 @@ export default class TargetResolver {
         });
       }
 
-      if (initialOptions.serve) {
+      if (this.options.serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -103,17 +99,17 @@ export default class TargetResolver {
     } else {
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (initialOptions.serve) {
+      if (this.options.serve) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
-        let serveOptions = initialOptions.serve;
+        let serveOptions = this.options.serve;
         targets = [
           {
             name: 'default',
             // For serve, write the `dist` to inside the parcel cache, which is
             // temporary, likely in a .gitignore or similar, but still readily
             // available for introspection by the user if necessary.
-            distDir: path.resolve(cacheDir, DEFAULT_DIST_DIRNAME),
+            distDir: path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
             publicUrl: serveOptions.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
@@ -124,10 +120,7 @@ export default class TargetResolver {
           }
         ];
       } else {
-        let packageTargets = await this.resolvePackageTargets(
-          rootDir,
-          initialOptions
-        );
+        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = Array.from(packageTargets.targets.values());
         files = packageTargets.files;
       }
@@ -136,7 +129,7 @@ export default class TargetResolver {
     return {targets, files};
   }
 
-  async resolvePackageTargets(rootDir: FilePath, options: ParcelOptions) {
+  async resolvePackageTargets(rootDir: FilePath) {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json'
     ]);
@@ -178,8 +171,8 @@ export default class TargetResolver {
       pkg.browser || pkgTargets.browser ? 'browser' : mainContext;
 
     let defaultEngines =
-      options.defaultEngines ??
-      (options.mode === 'production'
+      this.options.defaultEngines ??
+      (this.options.mode === 'production'
         ? DEFAULT_PRODUCTION_ENGINES
         : DEFAULT_DEVELOPMENT_ENGINES);
     let context = browsers || !node ? 'browser' : 'node';

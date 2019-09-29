@@ -21,10 +21,8 @@ const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
 
 describe('TargetResolver', () => {
-  let targetResolver;
   let cacheDir;
   beforeEach(() => {
-    targetResolver = new TargetResolver(fs);
     cacheDir = tempy.directory();
   });
 
@@ -33,22 +31,24 @@ describe('TargetResolver', () => {
   });
 
   it('resolves exactly specified targets', async () => {
-    assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, cacheDir, {
-        ...DEFAULT_OPTIONS,
-        targets: {
-          customA: {
-            context: 'browser',
-            distDir: 'customA'
-          },
-          customB: {
-            distDir: 'customB',
-            engines: {
-              node: '>= 8.0.0'
-            }
+    let targetResolver = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        customA: {
+          context: 'browser',
+          distDir: 'customA'
+        },
+        customB: {
+          distDir: 'customB',
+          engines: {
+            node: '>= 8.0.0'
           }
         }
-      }),
+      }
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       {
         files: [],
         targets: [
@@ -88,12 +88,10 @@ describe('TargetResolver', () => {
   });
 
   it('resolves common targets from package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+
     assert.deepEqual(
-      await targetResolver.resolve(
-        COMMON_TARGETS_FIXTURE_PATH,
-        cacheDir,
-        DEFAULT_OPTIONS
-      ),
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       {
         files: [
           {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')}
@@ -161,12 +159,9 @@ describe('TargetResolver', () => {
   });
 
   it('resolves custom targets from package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     assert.deepEqual(
-      await targetResolver.resolve(
-        CUSTOM_TARGETS_FIXTURE_PATH,
-        cacheDir,
-        DEFAULT_OPTIONS
-      ),
+      await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH),
       {
         files: [
           {filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json')}
@@ -232,47 +227,43 @@ describe('TargetResolver', () => {
   });
 
   it('resolves main target with context from package.json', async () => {
-    assert.deepEqual(
-      await targetResolver.resolve(
-        CONTEXT_FIXTURE_PATH,
-        cacheDir,
-        DEFAULT_OPTIONS
-      ),
-      {
-        files: [{filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json')}],
-        targets: [
-          {
-            name: 'main',
-            distDir: path.join(__dirname, 'fixtures/context/dist/main'),
-            distEntry: 'index.js',
-            publicUrl: '/',
-            env: {
-              context: 'node',
-              engines: {
-                browsers: [
-                  'last 1 Chrome version',
-                  'last 1 Safari version',
-                  'last 1 Firefox version',
-                  'last 1 Edge version'
-                ]
-              },
-              includeNodeModules: false,
-              isLibrary: true,
-              outputFormat: 'commonjs'
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    assert.deepEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), {
+      files: [{filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json')}],
+      targets: [
+        {
+          name: 'main',
+          distDir: path.join(__dirname, 'fixtures/context/dist/main'),
+          distEntry: 'index.js',
+          publicUrl: '/',
+          env: {
+            context: 'node',
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version'
+              ]
             },
-            sourceMap: undefined
-          }
-        ]
-      }
-    );
+            includeNodeModules: false,
+            isLibrary: true,
+            outputFormat: 'commonjs'
+          },
+          sourceMap: undefined
+        }
+      ]
+    });
   });
 
   it('resolves a subset of package.json targets when given a list of names', async () => {
+    let targetResolver = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: ['main', 'browser']
+    });
+
     assert.deepEqual(
-      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH, cacheDir, {
-        ...DEFAULT_OPTIONS,
-        targets: ['main', 'browser']
-      }),
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       {
         files: [
           {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')}

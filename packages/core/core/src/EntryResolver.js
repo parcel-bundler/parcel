@@ -1,22 +1,20 @@
 // @flow
 import type {FileSystem} from '@parcel/fs';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, File} from '@parcel/types';
 import type {ParcelOptions} from './types';
 import path from 'path';
 import {isGlob, glob} from '@parcel/utils';
 
 type EntryResult = {|
-  entryFiles: Array<FilePath>,
-  connectedFiles: Array<FilePath>
+  entries: Array<FilePath>,
+  files: Array<File>
 |};
 
 export class EntryResolver {
   fs: FileSystem;
-  options: ParcelOptions;
 
-  constructor(fs: FileSystem, options: ParcelOptions) {
-    this.fs = fs;
-    this.options = options;
+  constructor(options: ParcelOptions) {
+    this.fs = options.inputFS;
   }
 
   async resolveEntry(entry: FilePath): Promise<EntryResult> {
@@ -28,10 +26,10 @@ export class EntryResolver {
       let results = await Promise.all(files.map(f => this.resolveEntry(f)));
       return results.reduce(
         (p, res) => ({
-          entryFiles: p.entryFiles.concat(res.entryFiles),
-          connectedFiles: p.connectedFiles.concat(res.connectedFiles)
+          entries: p.entries.concat(res.entries),
+          files: p.files.concat(res.files)
         }),
-        {entryFiles: [], connectedFiles: []}
+        {entries: [], files: []}
       );
     }
 
@@ -67,16 +65,16 @@ export class EntryResolver {
         }
 
         return {
-          entryFiles: [source],
-          connectedFiles: [pkg.filePath]
+          entries: [source],
+          files: [{filePath: pkg.filePath}]
         };
       }
 
       throw new Error(`Could not find entry: ${entry}`);
     } else if (stat.isFile()) {
       return {
-        entryFiles: [entry],
-        connectedFiles: []
+        entries: [entry],
+        files: []
       };
     }
 

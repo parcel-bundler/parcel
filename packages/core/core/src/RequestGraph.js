@@ -171,8 +171,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.onTargetRequestComplete = onTargetRequestComplete;
     this.config = config;
 
-    this.entryResolver = new EntryResolver(this.options.inputFS, this.options);
-    this.targetResolver = new TargetResolver(this.options.inputFS);
+    this.entryResolver = new EntryResolver(this.options);
+    this.targetResolver = new TargetResolver(this.options);
 
     this.resolverRunner = new ResolverRunner({
       config,
@@ -370,8 +370,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
     // Connect files like package.json that affect the entry
     // resolution so we invalidate when they change.
-    for (let file of result.connectedFiles) {
-      this.connectFile(entryRequestNode, file);
+    for (let file of result.files) {
+      this.connectFile(entryRequestNode, file.filePath);
     }
 
     // If the entry specifier is a glob, add a glob node so
@@ -380,16 +380,16 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       this.connectGlob(entryRequestNode, entryRequestNode.value);
     }
 
-    this.onEntryRequestComplete(entryRequestNode.value, result.entryFiles);
+    this.onEntryRequestComplete(entryRequestNode.value, result.entries);
   }
 
   async resolveTargetRequest(targetRequestNode: TargetRequestNode) {
     let result = await this.targetResolver.resolve(
-      path.dirname(targetRequestNode.value),
-      this.options.cacheDir,
-      this.options
+      path.dirname(targetRequestNode.value)
     );
 
+    // Connect files like package.json that affect the target
+    // resolution so we invalidate when they change.
     for (let file of result.files) {
       this.connectFile(targetRequestNode, file.filePath);
     }

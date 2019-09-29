@@ -21,16 +21,6 @@ const distDir = path.join(inputDir, 'dist');
 
 describe('watcher', function() {
   let subscription;
-
-  before(async () => {
-    await fs.rimraf(inputDir);
-    await fs.mkdirp(inputDir);
-  });
-
-  beforeEach(async () => {
-    await outputFS.rimraf(inputDir);
-  });
-
   afterEach(async () => {
     if (subscription) {
       await subscription.unsubscribe();
