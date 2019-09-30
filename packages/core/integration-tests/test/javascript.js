@@ -11,6 +11,7 @@ import {
   inputFS
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise} from '@parcel/utils';
+import {NodePackageManager} from '@parcel/package-manager';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -286,155 +287,6 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it('Should not run parcel over external modules', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/dynamic-external/index.js')
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js']
-      }
-    ]);
-  });
-
-  it('should support bundling workers', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'common.js', 'worker-client.js', 'feature.js']
-      },
-      {
-        assets: ['service-worker.js']
-      },
-      {
-        assets: ['shared-worker.js']
-      },
-      {
-        assets: ['worker.js', 'common.js']
-      }
-    ]);
-  });
-
-  it('should support bundling workers with different order', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/workers/index-alternative.js')
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index-alternative.js',
-        assets: [
-          'index-alternative.js',
-          'common.js',
-          'worker-client.js',
-          'feature.js'
-        ]
-      },
-      {
-        assets: ['service-worker.js']
-      },
-      {
-        assets: ['shared-worker.js']
-      },
-      {
-        assets: ['worker.js', 'common.js']
-      }
-    ]);
-  });
-
-  it('should support bundling service-workers', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/service-worker/a/index.js')
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'index.js']
-      },
-      {
-        assets: ['worker-nested.js']
-      },
-      {
-        assets: ['worker-outside.js']
-      }
-    ]);
-  });
-
-  it('should support bundling workers with circular dependencies', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/worker-circular/index.js')
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js']
-      },
-      {
-        assets: ['worker.js', 'worker-dep.js']
-      }
-    ]);
-  });
-
-  it.skip('should support bundling in workers with other loaders', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/workers-with-other-loaders/index.js')
-    );
-
-    assertBundles(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'worker-client.js',
-        'cacheLoader.js',
-        'js-loader.js',
-        'wasm-loader.js'
-      ],
-      childBundles: [
-        {
-          type: 'wasm',
-          assets: ['add.wasm'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        },
-        {
-          assets: ['worker.js', 'cacheLoader.js', 'wasm-loader.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
-  });
-
-  it('should not deduplicate assets from a parent bundle in workers', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/worker-no-deduplicate/index.js')
-    );
-
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js', 'lodash.js']
-      },
-      {
-        assets: ['worker-a.js', 'lodash.js']
-      },
-      {
-        assets: ['worker-b.js', 'lodash.js']
-      }
-    ]);
-  });
-
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
@@ -474,6 +326,46 @@ describe('javascript', function() {
     ]);
 
     let output = (await run(b)).default;
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should return all exports as an object when using ES modules (modern)', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-esm-modern/index.js'),
+      {scopeHoist: true}
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['local.js']
+      }
+    ]);
+
+    const entry = b
+      .getBundles()
+      .find(v => v.getMainEntry().filePath.endsWith('index.js')).filePath;
+
+    const contents = await outputFS.readFile(entry, 'utf8');
+    assert(contents.includes('import('));
+
+    // Node doesn't natively support dynamic import yet
+    await outputFS.writeFile(
+      entry,
+      contents.replace('import(', '__dynamicImport(')
+    );
+
+    let pkg = new NodePackageManager(outputFS);
+
+    let output = await run(b, {
+      __dynamicImport(v) {
+        return Promise.resolve(pkg.requireSync(v, entry));
+      }
+    });
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -621,6 +513,155 @@ describe('javascript', function() {
 
     let {default: promise} = await run(b);
     assert.ok(await promise);
+  });
+
+  it('Should not run parcel over external modules', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/external/index.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      }
+    ]);
+  });
+
+  it('should support bundling workers', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'common.js', 'worker-client.js', 'feature.js']
+      },
+      {
+        assets: ['service-worker.js']
+      },
+      {
+        assets: ['shared-worker.js']
+      },
+      {
+        assets: ['worker.js', 'common.js']
+      }
+    ]);
+  });
+
+  it('should support bundling workers with different order', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers/index-alternative.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index-alternative.js',
+        assets: [
+          'index-alternative.js',
+          'common.js',
+          'worker-client.js',
+          'feature.js'
+        ]
+      },
+      {
+        assets: ['service-worker.js']
+      },
+      {
+        assets: ['shared-worker.js']
+      },
+      {
+        assets: ['worker.js', 'common.js']
+      }
+    ]);
+  });
+
+  it('should support bundling service-workers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/service-worker/a/index.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.js']
+      },
+      {
+        assets: ['worker-nested.js']
+      },
+      {
+        assets: ['worker-outside.js']
+      }
+    ]);
+  });
+
+  it('should support bundling workers with circular dependencies', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-circular/index.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        assets: ['worker.js', 'worker-dep.js']
+      }
+    ]);
+  });
+
+  it.skip('should support bundling in workers with other loaders', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers-with-other-loaders/index.js')
+    );
+
+    assertBundles(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'worker-client.js',
+        'cacheLoader.js',
+        'js-loader.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'wasm',
+          assets: ['add.wasm'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        },
+        {
+          assets: ['worker.js', 'cacheLoader.js', 'wasm-loader.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('should not deduplicate assets from a parent bundle in workers', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-no-deduplicate/index.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'lodash.js']
+      },
+      {
+        assets: ['worker-a.js', 'lodash.js']
+      },
+      {
+        assets: ['worker-b.js', 'lodash.js']
+      }
+    ]);
   });
 
   it('should support requiring JSON files', async function() {
