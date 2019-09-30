@@ -338,20 +338,14 @@ describe('javascript', function() {
       }
     ]);
 
-    let entryBundle;
-    b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.isEntry) {
-        entryBundle = bundle;
-        traversal.stop();
-      }
-    });
-
     let dedicated, shared;
-    entryBundle.traverseAssets((a, ctx, traversal) => {
-      if (a.filePath.contains('shared-worker')) {
-        shared = a;
-      } else if (a.filePath.contains('dedicated-worker')) {
-        shared = a;
+    b.traverseBundles((bundle, ctx, traversal) => {
+      if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+        shared = bundle;
+      } else if (
+        bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+      ) {
+        dedicated = bundle;
       }
       if (dedicated && shared) traversal.stop();
     });
@@ -361,11 +355,8 @@ describe('javascript', function() {
 
     dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
     shared = await outputFS.readFile(shared.filePath, 'utf8');
-    assert.equal(
-      dedicated,
-      'import o from"foo";console.log("DedicatedWorker",o);'
-    );
-    assert.equal(shared, 'import o from"foo";console.log("SharedWorker",o);');
+    assert(/import .* from ?"foo";/.test(dedicated));
+    assert(/import .* from ?"foo";/.test(shared));
   });
 
   it('should support bundling workers with different order', async function() {
