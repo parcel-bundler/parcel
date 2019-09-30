@@ -27,7 +27,7 @@ type Opts = {|
   config: ParcelConfig,
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetRequest?: AssetRequest,
+  assetRequests?: Array<AssetRequest>,
   workerFarm: WorkerFarm
 |};
 
@@ -44,7 +44,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     options,
     entries,
     targets,
-    assetRequest,
+    assetRequests,
     workerFarm
   }: Opts) {
     this.options = options;
@@ -81,7 +81,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       this.assetGraph.initialize({
         entries,
         targets,
-        assetGroup: assetRequest
+        assetGroups: assetRequests
       });
     }
   }

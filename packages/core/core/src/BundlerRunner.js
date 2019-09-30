@@ -190,11 +190,13 @@ export default class BundlerRunner {
       await builder.init({
         options: this.options,
         config: this.config,
-        assetRequest: {
-          code,
-          filePath,
-          env: bundle.env
-        },
+        assetRequests: [
+          {
+            code,
+            filePath,
+            env: bundle.env
+          }
+        ],
         workerFarm: this.farm
       });
 
