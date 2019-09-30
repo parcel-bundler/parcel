@@ -28,7 +28,10 @@ export default new Optimizer({
     let config = {
       warnings: true,
       ...userConfig?.config,
-      sourceMap: {filename: path.relative(options.projectRoot, bundle.filePath)}
+      sourceMap: {
+        filename: path.relative(options.projectRoot, bundle.filePath)
+      },
+      module: bundle.env.outputFormat === 'esmodule'
     };
 
     let sourceMap = null;

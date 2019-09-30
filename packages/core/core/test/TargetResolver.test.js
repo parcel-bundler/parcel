@@ -17,6 +17,8 @@ const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   'fixtures/custom-targets'
 );
 
+const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
+
 describe('TargetResolver', () => {
   let targetResolver;
   let cacheDir;
@@ -55,7 +57,9 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             engines: {
               browsers: ['> 0.25%']
-            }
+            },
+            outputFormat: 'global',
+            isLibrary: false
           },
           sourceMap: undefined
         },
@@ -68,7 +72,9 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             engines: {
               node: '>= 8.0.0'
-            }
+            },
+            outputFormat: 'commonjs',
+            isLibrary: false
           },
           sourceMap: undefined
         }
@@ -90,7 +96,9 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         },
@@ -100,11 +108,13 @@ describe('TargetResolver', () => {
           distEntry: 'index.js',
           publicUrl: '/',
           env: {
-            context: 'node',
+            context: 'browser',
             engines: {
-              node: '>= 12.0.0'
+              browsers: ['last 1 version']
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'esmodule',
+            isLibrary: true
           },
           sourceMap: {
             inlineSources: true
@@ -120,7 +130,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['last 1 version']
             },
-            includeNodeModules: true
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         }
@@ -142,7 +154,9 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         },
@@ -159,7 +173,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['last 1 version']
             },
-            includeNodeModules: true
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false
           },
           sourceMap: undefined
         },
@@ -176,7 +192,38 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['ie11']
             },
-            includeNodeModules: true
+            includeNodeModules: true,
+            outputFormat: 'global',
+            isLibrary: false
+          },
+          sourceMap: undefined
+        }
+      ]
+    );
+  });
+
+  it('resolves main target with context from package.json', async () => {
+    assert.deepEqual(
+      await targetResolver.resolve(CONTEXT_FIXTURE_PATH, cacheDir, {}),
+      [
+        {
+          name: 'main',
+          distDir: path.join(__dirname, 'fixtures/context/dist/main'),
+          distEntry: 'index.js',
+          publicUrl: '/',
+          env: {
+            context: 'node',
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version'
+              ]
+            },
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         }
@@ -200,7 +247,9 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             },
-            includeNodeModules: false
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         },
@@ -214,7 +263,9 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['last 1 version']
             },
-            includeNodeModules: true
+            includeNodeModules: false,
+            outputFormat: 'commonjs',
+            isLibrary: true
           },
           sourceMap: undefined
         }

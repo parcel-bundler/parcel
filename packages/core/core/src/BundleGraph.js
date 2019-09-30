@@ -21,7 +21,7 @@ import type Graph from './Graph';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap} from '@parcel/utils';
+import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId} from './utils';
 import {mapVisitor} from './Graph';
@@ -80,6 +80,10 @@ export default class BundleGraph {
         return;
       }
 
+      if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
+        bundle.stats.size += node.value.stats.size;
+      }
+
       if (node.type === 'asset' || node.type === 'dependency') {
         this._graph.addEdge(bundle.id, node.id, 'contains');
       }
@@ -109,6 +113,9 @@ export default class BundleGraph {
       if (node.type === 'asset' || node.type === 'dependency') {
         if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
           this._graph.removeEdge(bundle.id, node.id, 'contains');
+          if (node.type === 'asset') {
+            bundle.stats.size -= asset.stats.size;
+          }
         } else {
           actions.skipChildren();
         }
@@ -370,7 +377,12 @@ export default class BundleGraph {
 
   getTotalSize(asset: Asset): number {
     let size = 0;
-    this._graph.traverse(node => {
+    this._graph.traverse((node, _, actions) => {
+      if (node.type === 'bundle_group') {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset') {
         size += node.value.stats.size;
       }
@@ -509,6 +521,27 @@ export default class BundleGraph {
     return {asset, exportSymbol: symbol, symbol: identifier};
   }
 
+  getExportedSymbols(asset: Asset) {
+    let symbols = [];
+
+    for (let symbol of asset.symbols.keys()) {
+      symbols.push(this.resolveSymbol(asset, symbol));
+    }
+
+    let deps = this.getDependencies(asset);
+    for (let dep of deps) {
+      if (dep.symbols.get('*') === '*') {
+        let resolved = nullthrows(this.getDependencyResolution(dep));
+        let exported = this.getExportedSymbols(resolved).filter(
+          s => s.exportSymbol !== 'default'
+        );
+        symbols.push(...exported);
+      }
+    }
+
+    return symbols;
+  }
+
   getContentHash(bundle: Bundle): string {
     let existingHash = this._bundleContentHashes.get(bundle.id);
     if (existingHash != null) {
@@ -532,6 +565,7 @@ export default class BundleGraph {
       hash.update(this.getContentHash(childBundle));
     }, bundle);
 
+    hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
   }
 }

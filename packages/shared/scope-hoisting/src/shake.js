@@ -5,7 +5,7 @@ import * as t from '@babel/types';
  * removing unused exports. All other dead code removal happens in workers on each
  * individual file by babel-minify.
  */
-export default function treeShake(scope) {
+export default function treeShake(scope, exportedIdentifiers) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
@@ -19,7 +19,7 @@ export default function treeShake(scope) {
       let binding = getUnusedBinding(scope.path, name);
 
       // If it is not safe to remove the binding don't touch it.
-      if (!binding) {
+      if (!binding || exportedIdentifiers.has(name)) {
         return;
       }
 
@@ -63,7 +63,12 @@ function isPure(binding) {
     binding.path.get('id').isIdentifier()
   ) {
     let init = binding.path.get('init');
-    return init.isPure() || init.isIdentifier() || init.isThisExpression();
+    return (
+      init.isPure() ||
+      init.isIdentifier() ||
+      init.isThisExpression() ||
+      binding.path.node.id.name === '$parcel$global'
+    );
   }
 
   return binding.path.isPure();
@@ -93,15 +98,17 @@ function isUnusedWildcard(path) {
 
 function remove(path) {
   if (path.isAssignmentExpression()) {
-    if (path.parentPath.isSequenceExpression()) {
-      if (path.parent.expressions.length == 1) {
-        // replace sequence expression with it's sole child
-        path.parentPath.replaceWith(path);
-        remove(path.parentPath);
-      } else {
-        path.remove();
-      }
-    } else if (!path.parentPath.isExpressionStatement()) {
+    if (
+      path.parentPath.isSequenceExpression() &&
+      path.parent.expressions.length === 1
+    ) {
+      // replace sequence expression with it's sole child
+      path.parentPath.replaceWith(path);
+      remove(path.parentPath);
+    } else if (
+      !path.parentPath.isExpressionStatement() ||
+      !path.get('right').isPure()
+    ) {
       path.replaceWith(path.node.right);
     } else {
       path.remove();

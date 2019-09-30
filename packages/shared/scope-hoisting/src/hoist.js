@@ -48,6 +48,9 @@ export function hoist(asset: MutableAsset) {
 const VISITOR = {
   Program: {
     enter(path, asset: MutableAsset) {
+      asset.meta.id = asset.id;
+      asset.meta.exportsIdentifier = getName(asset, 'exports');
+
       traverse.cache.clearScope();
       path.scope.crawl();
 
@@ -316,9 +319,6 @@ const VISITOR = {
       path.scope.hasBinding('require');
 
     if (ignore) {
-      if (isRequire) {
-        callee.name = 'parcelRequire';
-      }
       return;
     }
 
@@ -332,15 +332,14 @@ const VISITOR = {
         return;
       }
 
+      asset.meta.isCommonJS = true;
+
       // If this require call does not occur in the top-level, e.g. in a function
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
       let bail = path.findParent(
-        p =>
-          p.isConditionalExpression() ||
-          p.isLogicalExpression() ||
-          p.isSequenceExpression()
+        p => p.isConditionalExpression() || p.isLogicalExpression()
       );
       if (!parent.isProgram() || bail) {
         dep.meta.shouldWrap = true;
@@ -372,10 +371,6 @@ const VISITOR = {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
-    if (!dep) {
-      path.remove();
-      return;
-    }
 
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -383,12 +378,14 @@ const VISITOR = {
       let id = getIdentifier(asset, 'import', specifier.local.name);
       rename(path.scope, specifier.local.name, id.name);
 
-      if (t.isImportDefaultSpecifier(specifier)) {
-        dep.symbols.set('default', id.name);
-      } else if (t.isImportSpecifier(specifier)) {
-        dep.symbols.set(specifier.imported.name, id.name);
-      } else if (t.isImportNamespaceSpecifier(specifier)) {
-        dep.symbols.set('*', id.name);
+      if (dep) {
+        if (t.isImportDefaultSpecifier(specifier)) {
+          dep.symbols.set('default', id.name);
+        } else if (t.isImportSpecifier(specifier)) {
+          dep.symbols.set(specifier.imported.name, id.name);
+        } else if (t.isImportNamespaceSpecifier(specifier)) {
+          dep.symbols.set('*', id.name);
+        }
       }
     }
 
