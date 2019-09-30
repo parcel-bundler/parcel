@@ -1,18 +1,8 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin, relativeBundlePath} from '@parcel/utils';
+import {urlJoin, relativeBundlePath, supportsFeature} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-
-// List of browsers that support dynamic import natively
-// https://caniuse.com/#feat=es6-module-dynamic-import
-const DYNAMIC_IMPORT_BROWSERS = {
-  edge: '76',
-  firefox: '67',
-  chrome: '63',
-  safari: '11.1',
-  opera: '50'
-};
 
 const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
 const LOADERS = {
@@ -54,9 +44,7 @@ export default new Runtime({
     // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
     let needsDynamicImportPolyfill = false;
     if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
-      needsDynamicImportPolyfill = !bundle.env.matchesEngines(
-        DYNAMIC_IMPORT_BROWSERS
-      );
+      needsDynamicImportPolyfill = !supportsFeature.dynamicImport(bundle.env);
     }
 
     for (let {
@@ -128,7 +116,10 @@ export default new Runtime({
           }
         }
 
-        if (bundle.env.outputFormat === 'global') {
+        if (
+          bundle.env.outputFormat === 'global' &&
+          !bundles.every(b => b.env.outputFormat === 'esmodule')
+        ) {
           loaders += `.then(() => parcelRequire('${
             bundleGroup.entryAssetId
           }'))`;

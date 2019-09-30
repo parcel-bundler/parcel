@@ -18,6 +18,7 @@ export {default as PromiseQueue} from './PromiseQueue';
 // $FlowFixMe this is untyped
 export {default as promisify} from './promisify';
 export {default as syncPromise} from './syncPromise';
+export {default as supportsFeature} from './supportsFeature';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
 export {default as loadSourceMapUrl} from './loadSourceMapUrl';

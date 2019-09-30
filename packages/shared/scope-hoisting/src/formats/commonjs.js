@@ -10,7 +10,7 @@ import type {
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
-import {relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath, supportsFeature} from '@parcel/utils';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
 const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
@@ -21,23 +21,10 @@ const NAMESPACE_TEMPLATE = template(
   '$parcel$exportWildcard(NAMESPACE, MODULE)'
 );
 
-// List of engines that support object destructuring syntax
-const DESTRUCTURING_ENGINES = {
-  chrome: '51',
-  edge: '15',
-  firefox: '53',
-  safari: '10',
-  node: '6.5',
-  ios: '10',
-  samsung: '5',
-  opera: '38',
-  electron: '1.2'
-};
-
 function generateDestructuringAssignment(env, specifiers, value, scope) {
   // If destructuring is not supported, generate a series of variable declarations
   // with member expressions for each property.
-  if (!env.matchesEngines(DESTRUCTURING_ENGINES)) {
+  if (!supportsFeature.destructuring(env)) {
     let statements = [];
     if (!t.isIdentifier(value) && specifiers.length > 1) {
       let name = scope.generateUid();
