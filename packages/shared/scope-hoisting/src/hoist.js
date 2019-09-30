@@ -473,7 +473,12 @@ const VISITOR = {
           if (existing) {
             id.name = existing;
           } else {
-            dep.symbols.set(imported, id.name);
+            // this will merge with the existing dependency
+            asset.addDependency({
+              moduleSpecifier: dep.moduleSpecifier,
+              symbols: new Map([[imported, id.name]]),
+              isWeak: true
+            });
           }
         }
 

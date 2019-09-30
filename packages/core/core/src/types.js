@@ -52,7 +52,7 @@ export type Dependency = {|
   isEntry: boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: boolean,
+  isWeak: ?boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,

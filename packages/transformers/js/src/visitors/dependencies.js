@@ -15,13 +15,13 @@ export default {
   ExportNamedDeclaration(node, asset) {
     asset.meta.isES6Module = true;
     if (node.source) {
-      addDependency(asset, node.source, {isWeak: true});
+      addDependency(asset, node.source);
     }
   },
 
   ExportAllDeclaration(node, asset) {
     asset.meta.isES6Module = true;
-    addDependency(asset, node.source, {isWeak: true});
+    addDependency(asset, node.source);
   },
 
   ExportDefaultDeclaration(node, asset) {
@@ -144,16 +144,11 @@ function addDependency(asset, node, opts = {}) {
   //   throw err;
   // }
 
-  asset.addDependency(
-    Object.assign(
-      {
-        moduleSpecifier: node.value,
-        loc: node.loc && node.loc.start,
-        isWeak: false
-      },
-      opts
-    )
-  );
+  asset.addDependency({
+    moduleSpecifier: node.value,
+    loc: node.loc && node.loc.start,
+    ...opts
+  });
 }
 
 function addURLDependency(asset, node, opts = {}) {
