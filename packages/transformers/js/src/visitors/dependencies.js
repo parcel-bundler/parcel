@@ -144,11 +144,15 @@ function addDependency(asset, node, opts = {}) {
   //   throw err;
   // }
 
-  asset.addDependency({
-    moduleSpecifier: node.value,
-    loc: node.loc && node.loc.start,
-    ...opts
-  });
+  asset.addDependency(
+    Object.assign(
+      {
+        moduleSpecifier: node.value,
+        loc: node.loc && node.loc.start
+      },
+      opts
+    )
+  );
 }
 
 function addURLDependency(asset, node, opts = {}) {
