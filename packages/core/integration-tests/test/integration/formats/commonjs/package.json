@@ -1,0 +1,5 @@
+{
+  "name": "commonjs",
+  "private": true,
+  "main": "dist/index.js"
+}

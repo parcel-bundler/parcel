@@ -23,10 +23,10 @@ export default new Transformer({
     };
   },
 
-  transform({asset}) {
+  transform({asset, options}) {
     // Handle .htm
     asset.type = 'html';
-    collectDependencies(asset);
+    collectDependencies(asset, options);
     return [asset, ...extractInlineAssets(asset)];
   },
 

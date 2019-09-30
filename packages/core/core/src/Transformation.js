@@ -414,13 +414,15 @@ class Pipeline {
     preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      return (await this.resolverRunner.resolve(
-        createDependency({
-          env: asset.value.env,
-          moduleSpecifier: to,
-          sourcePath: from
-        })
-      )).filePath;
+      return nullthrows(
+        await this.resolverRunner.resolve(
+          createDependency({
+            env: asset.value.env,
+            moduleSpecifier: to,
+            sourcePath: from
+          })
+        )
+      ).filePath;
     };
 
     // Load config for the transformer.

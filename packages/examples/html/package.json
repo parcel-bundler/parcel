@@ -4,29 +4,16 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel serve src/index.html"
+    "demo": "parcel build src/index.html"
   },
+  "browserslist": [
+    "last 2 versions",
+    "not edge < 76",
+    "not firefox < 67"
+  ],
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.1.1",
     "parcel": "^2.0.0-alpha.1.1"
-  },
-  "browser": "dist/legacy/index.html",
-  "browserModern": "dist/modern/index.html",
-  "targets": {
-    "browserModern": {
-      "engines": {
-        "browsers": [
-          "last 1 Chrome version"
-        ]
-      }
-    },
-    "browser": {
-      "engines": {
-        "browsers": [
-          "> 0.25%"
-        ]
-      }
-    }
   },
   "dependencies": {
     "lodash": "^4.17.11",

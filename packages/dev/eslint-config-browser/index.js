@@ -1,6 +1,6 @@
 module.exports = {
   extends: '@parcel/eslint-config',
-  parser: 'espree',
+  parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 5
   },

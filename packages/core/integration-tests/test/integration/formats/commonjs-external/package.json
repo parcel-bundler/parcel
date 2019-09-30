@@ -1,0 +1,8 @@
+{
+  "name": "commonjs-external",
+  "private": true,
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">= 10.x"
+  }
+}
