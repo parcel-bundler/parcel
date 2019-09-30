@@ -1,34 +1,34 @@
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
-import {isURL} from '@parcel/utils';
+import {isURL, supportsFeature} from '@parcel/utils';
 import nodeBuiltins from 'node-libs-browser';
 import {hasBinding} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 export default {
-  ImportDeclaration(node, asset) {
+  ImportDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     addDependency(asset, node.source);
   },
 
-  ExportNamedDeclaration(node, asset) {
+  ExportNamedDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     if (node.source) {
       addDependency(asset, node.source);
     }
   },
 
-  ExportAllDeclaration(node, asset) {
+  ExportAllDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     addDependency(asset, node.source);
   },
 
-  ExportDefaultDeclaration(node, asset) {
+  ExportDefaultDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
   },
 
-  CallExpression(node, asset, ancestors) {
+  CallExpression(node, {asset, options}, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -57,7 +57,13 @@ export default {
         return;
       }
 
-      addDependency(asset, args[0], {isAsync: true});
+      addDependency(asset, args[0], {
+        isAsync: true,
+        env:
+          supportsFeature.dynamicImport(asset.env) && options.scopeHoist
+            ? {outputFormat: 'esmodule'}
+            : undefined
+      });
 
       node.callee = types.identifier('require');
       asset.ast.isDirty = true;
@@ -79,7 +85,7 @@ export default {
     }
   },
 
-  NewExpression(node, asset) {
+  NewExpression(node, {asset}) {
     const {callee, arguments: args} = node;
 
     const isWebWorker =

@@ -51,7 +51,19 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
   let needsPrelude =
-    isEntry && hasChildBundles && bundle.env.outputFormat === 'global';
+    isEntry &&
+    hasChildBundles &&
+    bundle.env.outputFormat === 'global' &&
+    // has global children
+    bundleGraph.traverseBundles((b, _, actions) => {
+      if (bundle.id !== b.id && b.env.outputFormat === 'global') {
+        actions.stop();
+        return true;
+      } else {
+        return false;
+      }
+    }, bundle);
+
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }

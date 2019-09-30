@@ -62,16 +62,27 @@ export function generateExports(
     (bundleGraph.hasParentBundleOfType(bundle, 'js') ||
       bundle.hasChildBundles())
   ) {
-    let exportsId = entry.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
-    exported.add(exportsId);
+    let hasGlobalChildren = bundleGraph.traverseBundles((b, _, actions) => {
+      if (bundle.id !== b.id && b.env.outputFormat === 'global') {
+        actions.stop();
+        return true;
+      } else {
+        return false;
+      }
+    }, bundle);
 
-    statements.push(
-      EXPORT_TEMPLATE({
-        ASSET_ID: t.stringLiteral(entry.id),
-        IDENTIFIER: t.identifier(entry.meta.exportsIdentifier)
-      })
-    );
+    if (hasGlobalChildren) {
+      let exportsId = entry.meta.exportsIdentifier;
+      invariant(typeof exportsId === 'string');
+      exported.add(exportsId);
+
+      statements.push(
+        EXPORT_TEMPLATE({
+          ASSET_ID: t.stringLiteral(entry.id),
+          IDENTIFIER: t.identifier(entry.meta.exportsIdentifier)
+        })
+      );
+    }
   }
 
   path.pushContainer('body', statements);
