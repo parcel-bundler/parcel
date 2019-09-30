@@ -1,6 +1,13 @@
 // @flow
 
-import type {Blob, FilePath, BundleResult, Stats} from '@parcel/types';
+import type {
+  Blob,
+  FilePath,
+  BundleResult,
+  Bundle as BundleType,
+  BundleGraph as BundleGraphType,
+  Stats
+} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
@@ -21,10 +28,6 @@ import path from 'path';
 import url from 'url';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
-import {
-  Bundle as BundleType,
-  BundleGraph as BundleGraphType
-} from '@parcel/types';
 import {report} from './ReporterRunner';
 import BundleGraph, {
   bundleGraphToInternalBundleGraph
@@ -298,6 +301,7 @@ export default class PackagerRunner {
     let mapFilename = filePath + '.map';
     return map.stringify({
       file: path.basename(mapFilename),
+      fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources
         ? url.format(url.parse(sourceRoot + '/'))

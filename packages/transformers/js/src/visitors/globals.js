@@ -1,3 +1,8 @@
+// @flow
+
+import type {MutableAsset} from '@parcel/types';
+
+import nullthrows from 'nullthrows';
 import Path from 'path';
 import * as types from '@babel/types';
 import {hasBinding} from './utils';
@@ -30,34 +35,34 @@ const VARS = {
 };
 
 export default {
-  Identifier(node, asset, ancestors) {
+  Identifier(node: any, asset: MutableAsset, ancestors: any) {
     let parent = ancestors[ancestors.length - 2];
     if (
       VARS.hasOwnProperty(node.name) &&
-      !asset.meta.globals.has(node.name) &&
+      !nullthrows(asset.meta.globals).has(node.name) &&
       types.isReferenced(node, parent) &&
       !hasBinding(ancestors, node.name)
     ) {
-      asset.meta.globals.set(node.name, VARS[node.name](asset));
+      nullthrows(asset.meta.globals).set(node.name, VARS[node.name](asset));
     }
   },
 
-  Declaration(node, asset, ancestors) {
+  Declaration(node: any, asset: MutableAsset, ancestors: any) {
     // If there is a global declaration of one of the variables, remove our declaration
     let identifiers = types.getBindingIdentifiers(node);
     for (let id in identifiers) {
       if (VARS.hasOwnProperty(id) && !inScope(ancestors)) {
         // Don't delete entirely, so we don't add it again when the declaration is referenced
-        asset.meta.globals.set(id, null);
+        nullthrows(asset.meta.globals).set(id, null);
       }
     }
   },
 
   Program: {
-    exit(node, asset) {
+    exit(node: any, asset: MutableAsset) {
       // Add dependencies at the end so that items that were deleted later don't leave
       // their dependencies around.
-      for (let g of asset.meta.globals.values()) {
+      for (let g of nullthrows(asset.meta.globals).values()) {
         if (g && g.deps) {
           for (let dep of g.deps) {
             asset.addDependency({moduleSpecifier: dep});

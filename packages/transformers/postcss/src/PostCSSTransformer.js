@@ -70,7 +70,7 @@ export default new Transformer({
 
     let plugins = await loadPlugins(configFilePlugins, asset.filePath, options);
 
-    if (originalModulesConfig) {
+    if (originalModulesConfig || configFile.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath
@@ -148,13 +148,22 @@ export default new Transformer({
 
     let assets = [asset];
     if (asset.meta.cssModules) {
+      let code = JSON.stringify(asset.meta.cssModules, null, 2);
+      let deps = asset.getDependencies().filter(dep => !dep.isURL);
+      if (deps.length > 0) {
+        code = `
+          module.exports = Object.assign({}, ${deps
+            .map(dep => `require(${JSON.stringify(dep.moduleSpecifier)})`)
+            .join(', ')}, ${code});
+        `;
+      } else {
+        code = `module.exports = ${code};`;
+      }
+
       assets.push({
         type: 'js',
         filePath: asset.filePath + '.js',
-        code:
-          'module.exports = ' +
-          JSON.stringify(asset.meta.cssModules, null, 2) +
-          ';'
+        code
       });
     }
     return assets;
