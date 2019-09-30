@@ -146,13 +146,15 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<IBundle, TContext>
+    visit: GraphTraversalCallback<IBundle, TContext>,
+    startBundle?: IBundle
   ): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
         bundle => new Bundle(bundle, this.#graph, this.#options),
         visit
-      )
+      ),
+      startBundle ? bundleToInternalBundle(startBundle) : null
     );
   }
 

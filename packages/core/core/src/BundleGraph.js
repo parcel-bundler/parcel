@@ -356,7 +356,7 @@ export default class BundleGraph {
 
   traverseBundles<TContext>(
     visit: GraphVisitor<Bundle, TContext>,
-    startBundle?: Bundle
+    startBundle?: ?Bundle
   ): ?TContext {
     return this._graph.filteredTraverse(
       node => (node.type === 'bundle' ? node.value : null),

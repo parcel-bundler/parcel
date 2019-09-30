@@ -600,7 +600,8 @@ export interface BundleGraph {
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<Bundle, TContext>
+    visit: GraphTraversalCallback<Bundle, TContext>,
+    startBundle?: Bundle
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
 }
