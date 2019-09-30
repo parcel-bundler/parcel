@@ -1,10 +1,11 @@
 {
   "bundler": "@parcel/bundler-default",
   "transforms": {
-    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+    "*.{js,mjs,jsm,jsx,es6}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
     ],
+    "*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
@@ -34,6 +35,7 @@
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
+    "*.ts": "@parcel/packager-ts",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

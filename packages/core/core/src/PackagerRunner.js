@@ -457,6 +457,14 @@ export default class PackagerRunner {
   }
 }
 
+function getContentKey(cacheKey: string) {
+  return md5FromString(`${cacheKey}:content`);
+}
+
+function getMapKey(cacheKey: string) {
+  return md5FromString(`${cacheKey}:map`);
+}
+
 function writeFileStream(
   fs: FileSystem,
   filePath: FilePath,

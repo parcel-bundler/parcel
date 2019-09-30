@@ -39,6 +39,7 @@
     "@parcel/transformer-stylus": "^2.0.0-alpha.1.1",
     "@parcel/transformer-sugarss": "^2.0.0-alpha.1.1",
     "@parcel/transformer-toml": "^2.0.0-alpha.1.1",
+    "@parcel/transformer-typescript-types": "^2.0.0-alpha.1.1",
     "@parcel/transformer-yaml": "^2.0.0-alpha.1.1"
   }
 }

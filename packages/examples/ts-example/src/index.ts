@@ -15,3 +15,4 @@ export function foo() {
 var x = 2;
 var p = x + 2, q = 3;
 export {p};
+export {Test} from './other';
