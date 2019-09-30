@@ -1,13 +1,13 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   bundler,
   run,
   assertBundleTree,
   outputFS
-} = require('@parcel/test-utils');
-const commandExists = require('command-exists');
+} from '@parcel/test-utils';
+import commandExists from 'command-exists';
 
 describe.skip('rust', function() {
   if (typeof WebAssembly === 'undefined' || !commandExists.sync('rustup')) {

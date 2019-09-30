@@ -1,6 +1,7 @@
-var fs = require('fs');
+const fs = require('fs');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = function loadHTMLBundle(bundle) {
+module.exports = cacheLoader(function loadHTMLBundle(bundle) {
   return new Promise(function(resolve, reject) {
     fs.readFile(__dirname + bundle, 'utf8', function(err, data) {
       if (err) {
@@ -14,4 +15,4 @@ module.exports = function loadHTMLBundle(bundle) {
       }
     });
   });
-};
+});

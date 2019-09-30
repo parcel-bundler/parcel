@@ -1,4 +1,4 @@
-const {bundle, assertBundleTree} = require('@parcel/test-utils');
+import {bundle, assertBundleTree} from '@parcel/test-utils';
 
 describe.skip('schema ld+json', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {

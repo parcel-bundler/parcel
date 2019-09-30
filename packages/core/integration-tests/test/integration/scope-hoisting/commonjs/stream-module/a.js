@@ -1,1 +1,1 @@
-module.exports = require('stream');
+output = require('stream');

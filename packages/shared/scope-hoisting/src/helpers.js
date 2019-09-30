@@ -1,5 +1,5 @@
 function $parcel$interopDefault(a) {
-  return a && a.__esModule ? {d: a.default} : {d: a};
+  return a && a.__esModule ? a.default : a;
 }
 
 function $parcel$defineInteropFlag(a) {
@@ -29,4 +29,13 @@ function $parcel$missingModule(name) {
   throw err;
 }
 
-var $parcel$global = this;
+var $parcel$global =
+  typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof self !== 'undefined'
+    ? self
+    : typeof window !== 'undefined'
+    ? window
+    : typeof global !== 'undefined'
+    ? global
+    : {};

@@ -1,11 +1,11 @@
-const assert = require('assert');
-const path = require('path');
-const {
-  bundle: _bundle,
+import assert from 'assert';
+import path from 'path';
+import {
+  bundle as _bundle,
   run,
   outputFS,
   assertBundles
-} = require('@parcel/test-utils');
+} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -484,7 +484,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output.default, 2);
+      assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
         path.join(__dirname, '/../dist/a.js'),
@@ -504,7 +504,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output.default, 9);
+      assert.deepEqual(output, 9);
 
       let contents = await outputFS.readFile(
         path.join(__dirname, '/../dist/a.js'),
@@ -829,7 +829,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.equal(output.default, 27);
+      assert.equal(output, 27);
     });
 
     it('define exports in the outermost scope', async function() {
@@ -1358,13 +1358,7 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-loader.js',
-          'bundle-url.js',
-          'index.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['cacheLoader.js', 'index.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         type: 'js',
