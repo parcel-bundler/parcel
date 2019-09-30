@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset, PluginOptions} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
@@ -12,28 +12,28 @@ import invariant from 'assert';
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 export default ({
-  ImportDeclaration(node, asset) {
+  ImportDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     addDependency(asset, node.source);
   },
 
-  ExportNamedDeclaration(node, asset) {
+  ExportNamedDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     if (node.source) {
       addDependency(asset, node.source);
     }
   },
 
-  ExportAllDeclaration(node, asset) {
+  ExportAllDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     addDependency(asset, node.source);
   },
 
-  ExportDefaultDeclaration(node, asset) {
+  ExportDefaultDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
   },
 
-  CallExpression(node, asset, ancestors) {
+  CallExpression(node, {asset}, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -87,7 +87,7 @@ export default ({
     }
   },
 
-  NewExpression(node, asset, ancestors) {
+  NewExpression(node, {asset, options}, ancestors) {
     let {callee, arguments: args} = node;
 
     let isWebWorker =
@@ -111,7 +111,7 @@ export default ({
       addURLDependency(asset, args[0], {
         env: {
           context: 'web-worker',
-          outputFormat: isModule ? 'esmodule' : undefined
+          outputFormat: isModule && options.scopeHoist ? 'esmodule' : undefined
         }
       });
       return;
@@ -120,7 +120,7 @@ export default ({
 }: {
   [key: string]: (
     node: any,
-    asset: MutableAsset,
+    {|asset: MutableAsset, options: PluginOptions|},
     ancestors: Array<any>
   ) => void,
   ...
