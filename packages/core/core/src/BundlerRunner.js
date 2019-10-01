@@ -162,7 +162,10 @@ export default class BundlerRunner {
     throw new Error('Unable to name bundle');
   }
 
-  async applyRuntimes(bundleGraph: InternalBundleGraph): Promise<void> {
+  async applyRuntimes(
+    bundleGraph: InternalBundleGraph,
+    priorRuntimesAssetGraph: ?AssetGraph
+  ): Promise<AssetGraph> {
     let tuples: Array<{|
       bundle: InternalBundle,
       assetRequest: AssetRequest,
@@ -198,18 +201,23 @@ export default class BundlerRunner {
       }
     }
 
-    let builder = new AssetGraphBuilder();
-    await builder.init({
-      options: this.options,
-      config: this.config,
-      assetRequests: tuples.map(t => t.assetRequest),
-      workerFarm: this.farm
-    });
+    let runtimesAssetGraph;
+    if (priorRuntimesAssetGraph == null) {
+      let builder = new AssetGraphBuilder();
+      await builder.init({
+        options: this.options,
+        config: this.config,
+        assetRequests: tuples.map(t => t.assetRequest),
+        workerFarm: this.farm
+      });
 
-    // build a graph of all of the runtime assets
-    let {assetGraph} = await builder.build();
+      // build a graph of all of the runtime assets
+      runtimesAssetGraph = (await builder.build()).assetGraph;
+    } else {
+      runtimesAssetGraph = priorRuntimesAssetGraph;
+    }
 
-    let runtimesGraph = removeAssetGroups(assetGraph);
+    let runtimesGraph = removeAssetGroups(runtimesAssetGraph);
 
     // merge the transformed asset into the bundle's graph, and connect
     // the node to it.
@@ -218,7 +226,9 @@ export default class BundlerRunner {
 
     for (let {bundle, assetRequest, dependency, isEntry} of tuples) {
       let assetGroupNode = nodeFromAssetGroup(assetRequest);
-      let assetGroupAssets = assetGraph.getNodesConnectedFrom(assetGroupNode);
+      let assetGroupAssets = runtimesAssetGraph.getNodesConnectedFrom(
+        assetGroupNode
+      );
       invariant(assetGroupAssets.length === 1);
       let runtimeNode = assetGroupAssets[0];
       invariant(runtimeNode.type === 'asset');
@@ -266,6 +276,8 @@ export default class BundlerRunner {
         bundle.entryAssetIds.unshift(runtimeNode.id);
       }
     }
+
+    return runtimesAssetGraph;
   }
 }
 
