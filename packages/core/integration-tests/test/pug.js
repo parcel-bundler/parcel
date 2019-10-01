@@ -1,11 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {
-  bundle,
-  assertBundles,
-  outputFS,
-  distDir
-} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, assertBundles, outputFS, distDir} from '@parcel/test-utils';
 
 describe('pug', function() {
   it('should support bundling HTML', async function() {

@@ -20,7 +20,8 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  ConfigResult
+  ConfigResult,
+  OutputFormat
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -30,7 +31,9 @@ import type {PackageManager} from '@parcel/package-manager';
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules: boolean
+  includeNodeModules: boolean | Array<PackageName>,
+  outputFormat: OutputFormat,
+  isLibrary: boolean
 |};
 
 export type Target = {|

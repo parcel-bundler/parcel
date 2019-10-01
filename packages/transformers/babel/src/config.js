@@ -71,7 +71,7 @@ export async function load(config: Config, options: PluginOptions) {
       config.setResult({
         internal: false,
         config: partialConfig.options,
-        targets: enginesToBabelTargets(config.env.engines)
+        targets: enginesToBabelTargets(config.env)
       });
 
       await definePluginDependencies(config);
@@ -291,6 +291,6 @@ export async function reload(config: Config, options: PluginOptions) {
   config.setResult({
     internal: false,
     config: partialConfig.options,
-    targets: enginesToBabelTargets(config.env.engines)
+    targets: enginesToBabelTargets(config.env)
   });
 }

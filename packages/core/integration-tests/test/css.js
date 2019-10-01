@@ -1,13 +1,13 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   run,
   assertBundles,
   distDir,
   removeDistDirectory,
   outputFS
-} = require('@parcel/test-utils');
+} from '@parcel/test-utils';
 
 describe('css', () => {
   afterEach(async () => {
@@ -72,8 +72,7 @@ describe('css', () => {
       {
         name: 'index.js',
         assets: [
-          'bundle-loader.js',
-          'bundle-url.js',
+          'cacheLoader.js',
           'css-loader.js',
           'index.js',
           'js-loader.js',

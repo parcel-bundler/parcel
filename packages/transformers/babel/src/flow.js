@@ -1,6 +1,6 @@
 // @flow
 
-import {Config} from '@parcel/types';
+import type {Config} from '@parcel/types';
 import type {BabelConfig} from './types';
 
 /**
