@@ -1,3 +1,3 @@
-module.exports = {
+output = {
   b: require('./b')
 };

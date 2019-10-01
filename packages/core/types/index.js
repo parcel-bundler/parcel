@@ -59,6 +59,7 @@ export type Engines = {
 
 export type TargetSourceMapOptions = {
   sourceRoot?: string,
+  inline?: boolean,
   inlineSources?: boolean,
   ...
 };
@@ -80,10 +81,12 @@ export type EnvironmentContext =
   | 'electron-main'
   | 'electron-renderer';
 
+export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean,
+  includeNodeModules?: boolean | Array<PackageName>,
+  outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions
@@ -97,19 +100,29 @@ export type TargetDescriptor = {|
 export type EnvironmentOpts = {
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean,
+  includeNodeModules?: boolean | Array<PackageName>,
+  outputFormat?: OutputFormat,
+  isLibrary?: boolean,
+  ...
+};
+
+export type VersionMap = {
+  [string]: string,
   ...
 };
 
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
-  +includeNodeModules: boolean;
+  +includeNodeModules: boolean | Array<PackageName>;
+  +outputFormat: OutputFormat;
+  +isLibrary: boolean;
 
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
   isIsolated(): boolean;
+  matchesEngines(minVersions: VersionMap): boolean;
 }
 
 type PackageDependencies = {|
@@ -218,7 +231,7 @@ export type SourceLocation = {|
 
 export type Meta = {
   [string]: JSONValue,
-  globals?: Map<string, {code: string, ...}>,
+  globals?: Map<string, ?{code: string, deps?: Array<string>, ...}>,
   ...
 };
 
@@ -269,9 +282,11 @@ interface BaseAsset {
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
+  +isInline: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
+  +uniqueKey: ?string;
 
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
@@ -293,6 +308,7 @@ interface BaseAsset {
 export interface MutableAsset extends BaseAsset {
   ast: ?AST;
   isIsolated: boolean;
+  isInline: boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
@@ -368,10 +384,12 @@ export interface TransformerResult {
   dependencies?: $ReadOnlyArray<DependencyOptions>;
   includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
+  isInline?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
+  uniqueKey?: ?string;
 }
 
 type Async<T> = T | Promise<T>;
@@ -484,6 +502,7 @@ export type CreateBundleOpts =
       entryAsset: Asset,
       target: Target,
       isEntry?: ?boolean,
+      isInline?: ?boolean,
       type?: ?string,
       env?: ?Environment
     |}
@@ -494,37 +513,10 @@ export type CreateBundleOpts =
       entryAsset?: Asset,
       target: Target,
       isEntry?: ?boolean,
+      isInline?: ?boolean,
       type: string,
       env: Environment
     |};
-
-export interface BundlerBundleGraph {
-  addBundleToBundleGroup(Bundle, BundleGroup): void;
-  addAssetToBundle(Asset, Bundle): void;
-  createAssetReference(Dependency, Asset): void;
-  createBundle(CreateBundleOpts): Bundle;
-  createBundleGroup(Dependency, Target): BundleGroup;
-  getDependencyAssets(Dependency): Array<Asset>;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>
-  ): ?TContext;
-}
-
-export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
-  addAssetGraphToBundle(Asset, Bundle): void;
-  findBundlesWithAsset(Asset): Array<Bundle>;
-  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
-  getDependenciesInBundle(Bundle, Asset): Array<Dependency>;
-  getTotalSize(Asset): number;
-  isAssetInAncestorBundles(Bundle, Asset): boolean;
-  removeAssetFromBundle(Asset, Bundle): void;
-  removeAssetGraphFromBundle(Asset, Bundle): void;
-  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>
-  ): ?TContext;
-}
 
 export type SymbolResolution = {|
   asset: Asset,
@@ -537,6 +529,7 @@ export interface Bundle {
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;
+  +isInline: ?boolean;
   +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
@@ -563,6 +556,29 @@ export type BundleGroup = {
   ...
 };
 
+export interface MutableBundleGraph {
+  addAssetGraphToBundle(Asset, Bundle): void;
+  addBundleToBundleGroup(Bundle, BundleGroup): void;
+  createAssetReference(Dependency, Asset): void;
+  createBundle(CreateBundleOpts): Bundle;
+  createBundleGroup(Dependency, Target): BundleGroup;
+  findBundlesWithAsset(Asset): Array<Bundle>;
+  getDependencyAssets(Dependency): Array<Asset>;
+  getDependencyResolution(Dependency): ?Asset;
+  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getTotalSize(Asset): number;
+  isAssetInAncestorBundles(Bundle, Asset): boolean;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+  ): ?TContext;
+  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
+  traverseContents<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+  ): ?TContext;
+}
+
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
@@ -582,9 +598,11 @@ export interface BundleGraph {
   isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
+  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
+  findBundlesWithAsset(Asset): Array<Bundle>;
 }
 
 export type BundleResult = {|
@@ -594,19 +612,20 @@ export type BundleResult = {|
 |};
 
 export type ResolveResult = {|
-  filePath: FilePath,
+  filePath?: FilePath,
+  isExcluded?: boolean,
   sideEffects?: boolean,
   code?: string
 |};
 
 export type Bundler = {|
   bundle({
-    bundleGraph: BundlerBundleGraph,
+    bundleGraph: MutableBundleGraph,
     options: PluginOptions,
     ...
   }): Async<void>,
   optimize({
-    bundleGraph: BundlerOptimizeBundleGraph,
+    bundleGraph: MutableBundleGraph,
     options: PluginOptions,
     ...
   }): Async<void>
@@ -642,7 +661,11 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    sourceMapPath: FilePath,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
+    getInlineBundleContents: (
+      Bundle,
+      BundleGraph
+    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
     ...
   }): Async<BundleResult>
 |};

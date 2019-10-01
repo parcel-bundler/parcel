@@ -25,11 +25,11 @@ import {md5FromObject} from '@parcel/utils';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
+import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
-import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 
@@ -249,7 +249,10 @@ export default class Transformation {
 
     let config = await this.loadConfig(configRequest);
     let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(result, this.options.packageManager);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     configs.set('parcel', config);
 
@@ -358,8 +361,10 @@ class Pipeline {
     }));
     this.configs = configs;
     this.options = options;
-    let parcelConfig = nullthrows(this.configs.get('parcel'));
-    parcelConfig = nullthrows(parcelConfig.result);
+    let parcelConfig = new ParcelConfig(
+      nullthrows(nullthrows(this.configs.get('parcel')).result),
+      this.options.packageManager
+    );
     this.resolverRunner = new ResolverRunner({
       config: parcelConfig,
       options
@@ -409,13 +414,15 @@ class Pipeline {
     preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      return (await this.resolverRunner.resolve(
-        createDependency({
-          env: asset.value.env,
-          moduleSpecifier: to,
-          sourcePath: from
-        })
-      )).filePath;
+      return nullthrows(
+        await this.resolverRunner.resolve(
+          createDependency({
+            env: asset.value.env,
+            moduleSpecifier: to,
+            sourcePath: from
+          })
+        )
+      ).filePath;
     };
 
     // Load config for the transformer.
@@ -513,7 +520,11 @@ async function finalize(
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
     let result = await generate(new MutableAsset(asset));
-    return asset.createChildAsset({type: asset.value.type, ...result});
+    return asset.createChildAsset({
+      type: asset.value.type,
+      uniqueKey: asset.value.uniqueKey,
+      ...result
+    });
   }
   return asset;
 }
@@ -538,7 +549,9 @@ function normalizeAssets(
       // $FlowFixMe
       env: result.env,
       isIsolated: result.isIsolated,
-      meta: result.meta
+      isInline: result.isInline,
+      meta: result.meta,
+      uniqueKey: internalAsset.value.uniqueKey
     };
   });
 }

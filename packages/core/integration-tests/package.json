@@ -33,6 +33,7 @@
     "parcel-bundler": "^1.12.4-alpha.0",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
+    "tempy": "^0.3.0",
     "ws": "^5.1.1"
   }
 }

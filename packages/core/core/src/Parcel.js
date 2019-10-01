@@ -7,10 +7,9 @@ import type {
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
-  ModuleSpecifier,
-  Stats
+  ModuleSpecifier
 } from '@parcel/types';
-import type {Bundle as IBundle, ParcelOptions} from './types';
+import type {ParcelOptions} from './types';
 import type InternalBundleGraph from './BundleGraph';
 import type ParcelConfig from './ParcelConfig';
 
@@ -24,6 +23,7 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
+import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -199,7 +199,7 @@ export default class Parcel {
         bundleGraph,
         config: this.#config,
         options,
-        runPackage: this.#runPackage
+        farm: this.#farm
       });
 
       let event = {
@@ -317,26 +317,27 @@ function packageBundles({
   bundleGraph,
   config,
   options,
-  runPackage
+  farm
 }: {
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
   options: ParcelOptions,
-  runPackage: ({
-    bundle: IBundle,
-    bundleGraph: InternalBundleGraph,
-    config: ParcelConfig,
-    options: ParcelOptions,
-    ...
-  }) => Promise<Stats>,
+  farm: WorkerFarm,
   ...
 }): Promise<mixed> {
   let promises = [];
   for (let bundle of bundleGraph.getBundles()) {
+    // skip inline bundles, they will be processed via the parent bundle
+    if (bundle.isInline) {
+      continue;
+    }
+
     promises.push(
-      runPackage({bundle, bundleGraph, config, options}).then(stats => {
-        bundle.stats = stats;
-      })
+      new PackagerRunner({config, options, farm})
+        .writeBundle(bundle, bundleGraph)
+        .then(stats => {
+          bundle.stats = stats;
+        })
     );
   }
 

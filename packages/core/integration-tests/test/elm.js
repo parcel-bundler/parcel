@@ -1,5 +1,5 @@
-const assert = require('assert');
-const {bundle, assertBundleTree, run, outputFS} = require('@parcel/test-utils');
+import assert from 'assert';
+import {bundle, assertBundleTree, run, outputFS} from '@parcel/test-utils';
 
 describe.skip('elm', function() {
   it('should produce a basic Elm bundle', async function() {

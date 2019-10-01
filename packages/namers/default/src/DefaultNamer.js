@@ -19,9 +19,8 @@ export default new Namer({
       return bundle.filePath;
     }
 
-    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(
-      bundleGraph.getBundleGroupsContainingBundle(bundle)[0]
-    );
+    let bundleGroup = bundleGraph.getBundleGroupsContainingBundle(bundle)[0];
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
     if (bundle.isEntry) {
       let entryBundlesOfType = bundleGroupBundles.filter(
@@ -34,9 +33,14 @@ export default new Namer({
       );
     }
 
-    let firstBundleInGroup = bundleGroupBundles[0];
+    let mainBundle = nullthrows(
+      bundleGroupBundles.find(
+        b => b.getMainEntry()?.id === bundleGroup.entryAssetId
+      )
+    );
+
     if (
-      bundle.id === firstBundleInGroup.id &&
+      bundle.id === mainBundle.id &&
       bundle.isEntry &&
       bundle.target &&
       bundle.target.distEntry != null
@@ -47,7 +51,7 @@ export default new Namer({
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
-    let name = nameFromContent(firstBundleInGroup, options.rootDir);
+    let name = nameFromContent(mainBundle, options.rootDir);
     if (!bundle.isEntry) {
       name += '.' + bundle.getHash().slice(-8);
     }
@@ -57,10 +61,15 @@ export default new Namer({
 
 function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
   let entryFilePath = nullthrows(bundle.getMainEntry()).filePath;
-  let name = path.basename(entryFilePath, path.extname(entryFilePath));
+  let name = basenameWithoutExtension(entryFilePath);
 
   // If this is an entry bundle, use the original relative path.
   if (bundle.isEntry) {
+    // Match name of target entry if possible, but with a different extension.
+    if (bundle.target.distEntry != null) {
+      return basenameWithoutExtension(bundle.target.distEntry);
+    }
+
     return path
       .join(path.relative(rootDir, path.dirname(entryFilePath)), name)
       .replace(/\.\.(\/|\\)/g, '__$1');
@@ -74,4 +83,8 @@ function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
 
     return name;
   }
+}
+
+function basenameWithoutExtension(file) {
+  return path.basename(file, path.extname(file));
 }

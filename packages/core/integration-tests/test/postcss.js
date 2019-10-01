@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   run,
   assertBundles,
@@ -9,11 +9,11 @@ const {
   outputFS,
   overlayFS,
   ncp
-} = require('@parcel/test-utils');
-const {
+} from '@parcel/test-utils';
+import {
   NodePackageManager,
   MockPackageInstaller
-} = require('@parcel/package-manager');
+} from '@parcel/package-manager';
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {

@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   bundler,
   run,
@@ -9,8 +9,8 @@ const {
   distDir,
   outputFS,
   inputFS
-} = require('@parcel/test-utils');
-const {makeDeferredWithPromise} = require('@parcel/utils');
+} from '@parcel/test-utils';
+import {makeDeferredWithPromise} from '@parcel/utils';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -233,13 +233,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js']
@@ -259,13 +253,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['index.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js']
@@ -403,8 +391,7 @@ describe('javascript', function() {
       assets: [
         'index.js',
         'worker-client.js',
-        'bundle-loader.js',
-        'bundle-url.js',
+        'cacheLoader.js',
         'js-loader.js',
         'wasm-loader.js'
       ],
@@ -418,12 +405,7 @@ describe('javascript', function() {
           type: 'map'
         },
         {
-          assets: [
-            'worker.js',
-            'bundle-loader.js',
-            'bundle-url.js',
-            'wasm-loader.js'
-          ],
+          assets: ['worker.js', 'cacheLoader.js', 'wasm-loader.js'],
           childBundles: [
             {
               type: 'map'
@@ -461,13 +443,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js', 'test.txt.js']
@@ -490,13 +466,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         assets: ['local.js']
@@ -524,8 +494,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js'
@@ -554,8 +523,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js'
@@ -582,8 +550,7 @@ describe('javascript', function() {
         assets: [
           'index.js',
           'common.js',
-          'bundle-loader.js',
-          'bundle-url.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js'
         ]
@@ -598,6 +565,33 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
+  it('should duplicate a module if it is not present in every parent bundle', async function() {
+    let b = await bundle(
+      ['a.js', 'b.js'].map(entry =>
+        path.join(__dirname, 'integration/dynamic-hoist-no-dedupe', entry)
+      )
+    );
+    assertBundles(b, [
+      {
+        assets: ['c.js', 'common.js']
+      },
+      {
+        name: 'b.js',
+        assets: ['b.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        name: 'a.js',
+        assets: [
+          'a.js',
+          'common.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      }
+    ]);
+  });
+
   it('should support shared modules with async imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-deep/index.js')
@@ -608,8 +602,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
-          'bundle-loader.js',
-          'bundle-url.js',
+          'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js'
@@ -626,8 +619,8 @@ describe('javascript', function() {
       }
     ]);
 
-    let output = await run(b);
-    assert.deepEqual(output, {default: {asdf: 1}});
+    let {default: promise} = await run(b);
+    assert.ok(await promise);
   });
 
   it('should support requiring JSON files', async function() {
@@ -1296,12 +1289,7 @@ describe('javascript', function() {
 
     assertBundles(b, {
       name: 'index.js',
-      assets: [
-        'index.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'html-loader.js'
-      ],
+      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
       childBundles: [
         {
           type: 'html',
@@ -1338,12 +1326,7 @@ describe('javascript', function() {
 
     assertBundles(b, {
       name: 'index.js',
-      assets: [
-        'index.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'html-loader.js'
-      ],
+      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
       childBundles: [
         {
           type: 'html',
@@ -1379,12 +1362,7 @@ describe('javascript', function() {
 
     assertBundles(b, {
       name: 'index.js',
-      assets: [
-        'index.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'html-loader.js'
-      ],
+      assets: ['index.js', 'cacheLoader.js', 'html-loader.js'],
       childBundles: [
         {
           type: 'html',
@@ -1435,8 +1413,7 @@ describe('javascript', function() {
           'index.js',
           'JSRuntime.js',
           'JSRuntime.js',
-          'bundle-url.js',
-          'bundle-loader.js',
+          'cacheLoader.js',
           'js-loader.js'
         ]
       },
@@ -1457,10 +1434,13 @@ describe('javascript', function() {
 
   it('should not create shared bundles from contents of entries', async () => {
     let b = await bundle(
-      [
-        '/integration/no-shared-bundles-from-entries/a.js',
-        '/integration/no-shared-bundles-from-entries/b.js'
-      ].map(entry => path.join(__dirname, entry))
+      ['a.js', 'b.js'].map(entry =>
+        path.join(
+          __dirname,
+          '/integration/no-shared-bundles-from-entries/',
+          entry
+        )
+      )
     );
 
     assertBundles(b, [
@@ -1473,5 +1453,13 @@ describe('javascript', function() {
         assets: ['b.js', 'lodash.js']
       }
     ]);
+  });
+
+  it('should import the same dependency multiple times in the same bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/same-dependency-multiple-times/a1.js')
+    );
+
+    await run(b);
   });
 });

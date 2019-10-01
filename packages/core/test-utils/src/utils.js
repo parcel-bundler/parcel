@@ -24,8 +24,13 @@ import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
-export const outputFS = new MemoryFS(workerFarm);
-export const overlayFS = new OverlayFS(outputFS, inputFS);
+export let outputFS = new MemoryFS(workerFarm);
+export let overlayFS = new OverlayFS(outputFS, inputFS);
+
+beforeEach(() => {
+  outputFS = new MemoryFS(workerFarm);
+  overlayFS = new OverlayFS(outputFS, inputFS);
+});
 
 // Recursively copies a directory from the inputFS to the outputFS
 export async function ncp(source: FilePath, destination: FilePath) {
@@ -199,21 +204,35 @@ export function assertBundles(
   expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,
-    assets: Array<string>
+    assets: Array<string>,
+    includedFiles?: {
+      [key: string]: Array<string>,
+      ...
+    }
   |}>
 ) {
   let actualBundles = [];
+  const byAlphabet = (a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1);
+
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
+    const includedFiles = {};
+
     bundle.traverseAssets(asset => {
-      assets.push(path.basename(asset.filePath));
+      const name = path.basename(asset.filePath);
+      assets.push(name);
+      includedFiles[name] = asset
+        .getIncludedFiles()
+        .map(({filePath}) => path.basename(filePath))
+        .sort(byAlphabet);
     });
 
-    assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    assets.sort(byAlphabet);
     actualBundles.push({
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
-      assets
+      assets,
+      includedFiles
     });
   });
 
@@ -223,11 +242,20 @@ export function assertBundles(
         'Expected bundle must include an array of expected assets'
       );
     }
-    bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    bundle.assets.sort(byAlphabet);
   }
 
-  expectedBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
-  actualBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  const byName = (a, b) => {
+    if (typeof a.name === 'string' && typeof b.name === 'string') {
+      return a.name.localeCompare(b.name);
+    }
+
+    return 0;
+  };
+
+  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  expectedBundles.sort(byName).sort(byAssets);
+  actualBundles.sort(byName).sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
@@ -258,6 +286,19 @@ export function assertBundles(
 
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
+    }
+
+    if (bundle.includedFiles) {
+      for (let asset of actualBundle.assets) {
+        const files = bundle.includedFiles[asset];
+        if (!files) {
+          continue;
+        }
+        assert.deepEqual(
+          actualBundle.includedFiles[asset],
+          files.sort(byAlphabet)
+        );
+      }
     }
   }
 }

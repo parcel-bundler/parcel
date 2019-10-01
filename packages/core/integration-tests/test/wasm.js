@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, run, assertBundleTree, deferred} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, run, assertBundleTree, deferred} from '@parcel/test-utils';
 
 describe.skip('wasm', function() {
   if (typeof WebAssembly === 'undefined') {

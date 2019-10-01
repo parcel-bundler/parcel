@@ -20,7 +20,8 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  ConfigResult
+  ConfigResult,
+  OutputFormat
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -30,7 +31,9 @@ import type {PackageManager} from '@parcel/package-manager';
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules: boolean
+  includeNodeModules: boolean | Array<PackageName>,
+  outputFormat: OutputFormat,
+  isLibrary: boolean
 |};
 
 export type Target = {|
@@ -67,6 +70,7 @@ export type Asset = {|
   dependencies: Map<string, Dependency>,
   includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
+  isInline: boolean,
   outputHash: string,
   env: Environment,
   meta: Meta,
@@ -74,7 +78,8 @@ export type Asset = {|
   contentKey: ?string,
   mapKey: ?string,
   symbols: Map<Symbol, Symbol>,
-  sideEffects: boolean
+  sideEffects: boolean,
+  uniqueKey?: ?string
 |};
 
 export type ParcelOptions = {|
@@ -241,6 +246,7 @@ export type Bundle = {|
   env: Environment,
   entryAssetIds: Array<string>,
   isEntry: ?boolean,
+  isInline: ?boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,

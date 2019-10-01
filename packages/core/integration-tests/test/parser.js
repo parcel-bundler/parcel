@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, assertBundleTree, inputFS: fs} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, assertBundleTree, inputFS as fs} from '@parcel/test-utils';
 
 describe.skip('parser', function() {
   it('should support case-insensitive file extension', async function() {
