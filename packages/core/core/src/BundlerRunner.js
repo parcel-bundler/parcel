@@ -7,6 +7,7 @@ import type {
   Bundle as InternalBundle,
   DependencyNode,
   ParcelOptions,
+  NodeId,
   RootNode
 } from './types';
 import type ParcelConfig from './ParcelConfig';
@@ -208,15 +209,12 @@ export default class BundlerRunner {
     // build a graph of all of the runtime assets
     let {assetGraph} = await builder.build();
 
-    let runtimesBundleGraph = new InternalBundleGraph({
-      // $FlowFixMe
-      graph: removeAssetGroups(assetGraph)
-    });
+    let runtimesGraph = removeAssetGroups(assetGraph);
 
     // merge the transformed asset into the bundle's graph, and connect
     // the node to it.
     // $FlowFixMe
-    bundleGraph._graph.merge(runtimesBundleGraph._graph);
+    bundleGraph._graph.merge(runtimesGraph);
 
     for (let {bundle, assetRequest, dependency, isEntry} of tuples) {
       let assetGroupNode = nodeFromAssetGroup(assetRequest);
@@ -225,31 +223,37 @@ export default class BundlerRunner {
       let runtimeNode = assetGroupAssets[0];
       invariant(runtimeNode.type === 'asset');
 
-      let duplicated = [];
-      runtimesBundleGraph._graph.traverse((node, _, actions) => {
+      let duplicatedAssetIds: Set<NodeId> = new Set();
+      runtimesGraph.traverse((node, _, actions) => {
         if (node.type !== 'dependency') {
           return;
         }
 
-        let assets = runtimesBundleGraph.getDependencyAssets(node.value);
+        let assets = runtimesGraph
+          .getNodesConnectedFrom(node)
+          .map(assetNode => {
+            invariant(assetNode.type === 'asset');
+            return assetNode.value;
+          });
 
         for (let asset of assets) {
           if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
-            duplicated.push(asset);
+            duplicatedAssetIds.add(asset.id);
             actions.skipChildren();
           }
         }
       }, runtimeNode);
 
-      runtimesBundleGraph._graph.traverse(node => {
+      runtimesGraph.traverse((node, _, actions) => {
         if (node.type === 'asset' || node.type === 'dependency') {
+          if (duplicatedAssetIds.has(node.id)) {
+            actions.skipChildren();
+            return;
+          }
+
           bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
         }
       }, runtimeNode);
-
-      for (let asset of duplicated) {
-        bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-      }
 
       bundleGraph._graph.addEdge(
         dependency
