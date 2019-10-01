@@ -4,111 +4,17 @@ import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 
-import type {FileSystem} from '@parcel/fs';
-import type {FilePath} from '@parcel/types';
-
 import typeof TypeScriptModule from 'typescript';
-import typeof {ScriptTarget} from 'typescript';
-import type {CompilerHost, CompilerOptions} from 'typescript';
-
-class ParcelCompilerHost {
-  fs: FileSystem;
-  ts: TypeScriptModule;
-  outputCode: ?string;
-  outputMap: ?string;
-
-  constructor(fs: FileSystem, ts: TypeScriptModule) {
-    this.fs = fs;
-    this.ts = ts;
-  }
-
-  getSourceFile(
-    filePath: FilePath,
-    languageVersion: $Values<ScriptTarget>,
-    onError?: (message: string) => void
-  ) {
-    const sourceText = this.readFile(filePath);
-    return sourceText !== undefined
-      ? this.ts.createSourceFile(filePath, sourceText, languageVersion)
-      : undefined;
-  }
-
-  getDefaultLibFileName() {
-    return 'lib.d.ts';
-  }
-
-  writeFile(filePath: FilePath, content: string) {
-    console.log('write', filePath);
-    if (path.extname(filePath) === '.map') {
-      this.outputMap = content;
-    } else {
-      this.outputCode = content;
-    }
-  }
-
-  getCurrentDirectory() {
-    return this.fs.cwd();
-  }
-
-  fileExists(filePath: FilePath) {
-    try {
-      return this.fs.statSync(filePath).isFile();
-    } catch (err) {
-      return false;
-    }
-  }
-
-  readFile(filePath: FilePath) {
-    try {
-      return this.fs.readFileSync(filePath, 'utf8');
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        return undefined;
-      }
-
-      throw err;
-    }
-  }
-
-  directoryExists(filePath: FilePath) {
-    try {
-      return this.fs.statSync(filePath).isDirectory();
-    } catch (err) {
-      return false;
-    }
-  }
-
-  realpath(filePath: FilePath) {
-    try {
-      return this.fs.realpathSync(filePath);
-    } catch (err) {
-      return filePath;
-    }
-  }
-
-  // getDirectories(filePath: FilePath) {
-  //   return this.fs.readdirSync(filePath);
-  // }
-
-  getCanonicalFileName(fileName) {
-    return this.ts.sys.useCaseSensitiveFileNames
-      ? fileName
-      : fileName.toLowerCase();
-  }
-
-  useCaseSensitiveFileNames() {
-    return this.ts.sys.useCaseSensitiveFileNames;
-  }
-
-  getNewLine() {
-    return this.ts.sys.newLine;
-  }
-}
+import type {CompilerOptions} from 'typescript';
+import {ParcelCompilerHost} from './CompilerHost';
+import {TSModuleGraph} from './TSModuleGraph';
+import nullthrows from 'nullthrows';
+import {collect} from './collect';
+import {shake} from './shake';
 
 export default new Transformer({
   async loadConfig({config}) {
     let configResult = await config.getConfig(['tsconfig.json']);
-
     config.setResult(configResult);
   },
 
@@ -119,9 +25,6 @@ export default new Transformer({
     );
 
     let opts: CompilerOptions = {
-      // React is the default. Users can override this by supplying their own tsconfig,
-      // which many TypeScript users will already have for typechecking, etc.
-      jsx: 'React',
       ...config?.compilerOptions,
       // Always emit output
       noEmit: false,
@@ -134,29 +37,36 @@ export default new Transformer({
     };
 
     let host = new ParcelCompilerHost(options.inputFS, ts);
+    // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
-    console.log(program);
-    console.log(program.getSourceFiles());
 
     let includedFiles = program
       .getSourceFiles()
       .map(file => ({filePath: file.fileName}));
 
-    let typeChecker = program.getTypeChecker();
-    console.log(
-      typeChecker.getSymbolAtLocation(program.getSourceFiles()[1]).exports
+    let mainModuleName = path.basename(
+      asset.filePath,
+      path.extname(asset.filePath)
     );
+    let moduleGraph = new TSModuleGraph(ts, mainModuleName);
 
-    let res = program.emit();
-    console.log(res);
-    console.log(host.outputCode, host.outputMap);
+    program.emit(undefined, undefined, undefined, true, {
+      afterDeclarations: [
+        // 1. Build module graph
+        context => sourceFile => {
+          return collect(ts, moduleGraph, context, sourceFile);
+        },
+        // 2. Tree shake and rename types
+        context => sourceFile => {
+          return shake(ts, moduleGraph, context, sourceFile);
+        }
+      ]
+    });
 
-    host.outputCode = host.outputCode.substring(
-      0,
-      host.outputCode.lastIndexOf('//# sourceMappingURL')
-    );
+    let code = nullthrows(host.outputCode);
+    code = code.substring(0, code.lastIndexOf('//# sourceMappingURL'));
 
-    let map = JSON.parse(host.outputMap);
+    let map = JSON.parse(nullthrows(host.outputMap));
     map.sources = map.sources.map(source =>
       path.join(path.dirname(asset.filePath), source)
     );
@@ -164,7 +74,7 @@ export default new Transformer({
     return [
       {
         type: 'ts',
-        code: host.outputCode,
+        code,
         map: await SourceMap.fromRawSourceMap(map),
         includedFiles
       }

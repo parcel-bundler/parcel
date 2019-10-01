@@ -12,6 +12,11 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.1.1"
+    "@parcel/plugin": "^2.0.0-alpha.1.1",
+    "@parcel/source-map": "^2.0.0-alpha.1.1",
+    "nullthrows": "^1.1.1"
+  },
+  "peerDependencies": {
+    "typescript": "^3.0.0"
   }
 }
