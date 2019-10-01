@@ -1,8 +1,9 @@
 // @flow strict-local
 
-import type {Namer, RuntimeAsset} from '@parcel/types';
+import type {Dependency, Namer} from '@parcel/types';
 import type {
   AssetNode,
+  AssetRequest,
   Bundle as InternalBundle,
   DependencyNode,
   ParcelOptions,
@@ -12,9 +13,10 @@ import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
 
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import AssetGraph from './AssetGraph';
+import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import Graph from './Graph';
@@ -159,67 +161,77 @@ export default class BundlerRunner {
     throw new Error('Unable to name bundle');
   }
 
-  async applyRuntimes(internalBundleGraph: InternalBundleGraph): Promise<void> {
-    for (let bundle of internalBundleGraph.getBundles()) {
+  async applyRuntimes(bundleGraph: InternalBundleGraph): Promise<void> {
+    let tuples: Array<{|
+      bundle: InternalBundle,
+      assetRequest: AssetRequest,
+      dependency: ?Dependency,
+      isEntry: ?boolean
+    |}> = [];
+
+    for (let bundle of bundleGraph.getBundles()) {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
         let applied = await runtime.apply({
-          bundle: new NamedBundle(bundle, internalBundleGraph, this.options),
-          bundleGraph: new BundleGraph(internalBundleGraph, this.options),
+          bundle: new NamedBundle(bundle, bundleGraph, this.options),
+          bundleGraph: new BundleGraph(bundleGraph, this.options),
           options: this.pluginOptions
         });
+
         if (applied) {
-          internalBundleGraph._bundleContentHashes.delete(bundle.id);
-          await this.addRuntimesToBundle(
-            bundle,
-            internalBundleGraph,
-            Array.isArray(applied) ? applied : [applied]
-          );
+          let runtimeAssets = Array.isArray(applied) ? applied : [applied];
+          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+            let assetRequest = {
+              code,
+              filePath,
+              env: bundle.env
+            };
+            tuples.push({
+              bundle,
+              assetRequest,
+              dependency: dependency,
+              isEntry
+            });
+          }
         }
       }
     }
-  }
 
-  async addRuntimesToBundle(
-    bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph,
-    runtimeAssets: Array<RuntimeAsset>
-  ) {
-    for (let {code, filePath, dependency, isEntry} of runtimeAssets) {
-      let builder = new AssetGraphBuilder();
-      await builder.init({
-        options: this.options,
-        config: this.config,
-        assetRequests: [
-          {
-            code,
-            filePath,
-            env: bundle.env
-          }
-        ],
-        workerFarm: this.farm
-      });
+    let builder = new AssetGraphBuilder();
+    await builder.init({
+      options: this.options,
+      config: this.config,
+      assetRequests: tuples.map(t => t.assetRequest),
+      workerFarm: this.farm
+    });
 
-      // build a graph of just the transformed asset
-      let {assetGraph} = await builder.build();
+    // build a graph of all of the runtime assets
+    let {assetGraph} = await builder.build();
 
-      let entry = assetGraph.getEntryAssets()[0];
-      let subBundleGraph = new InternalBundleGraph({
-        // $FlowFixMe
-        graph: removeAssetGroups(
-          assetGraph.getSubGraph(nullthrows(assetGraph.getNode(entry.id)))
-        )
-      });
+    let runtimesBundleGraph = new InternalBundleGraph({
+      // $FlowFixMe
+      graph: removeAssetGroups(assetGraph)
+    });
 
-      // Exclude modules that are already included in an ancestor bundle
+    // merge the transformed asset into the bundle's graph, and connect
+    // the node to it.
+    // $FlowFixMe
+    bundleGraph._graph.merge(runtimesBundleGraph._graph);
+
+    for (let {bundle, assetRequest, dependency, isEntry} of tuples) {
+      let assetGroupNode = nodeFromAssetGroup(assetRequest);
+      let assetGroupAssets = assetGraph.getNodesConnectedFrom(assetGroupNode);
+      invariant(assetGroupAssets.length === 1);
+      let runtimeNode = assetGroupAssets[0];
+      invariant(runtimeNode.type === 'asset');
+
       let duplicated = [];
-      subBundleGraph.traverseContents((node, _, actions) => {
+      runtimesBundleGraph._graph.traverse((node, _, actions) => {
         if (node.type !== 'dependency') {
           return;
         }
 
-        let dependency = node.value;
-        let assets = subBundleGraph.getDependencyAssets(dependency);
+        let assets = runtimesBundleGraph.getDependencyAssets(node.value);
 
         for (let asset of assets) {
           if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
@@ -227,17 +239,13 @@ export default class BundlerRunner {
             actions.skipChildren();
           }
         }
-      });
+      }, runtimeNode);
 
-      // merge the transformed asset into the bundle's graph, and connect
-      // the node to it.
-      // $FlowFixMe
-      bundleGraph._graph.merge(subBundleGraph._graph);
-      subBundleGraph._graph.traverse(node => {
+      runtimesBundleGraph._graph.traverse(node => {
         if (node.type === 'asset' || node.type === 'dependency') {
           bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
         }
-      });
+      }, runtimeNode);
 
       for (let asset of duplicated) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
@@ -247,11 +255,11 @@ export default class BundlerRunner {
         dependency
           ? dependency.id
           : nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-        entry.id
+        runtimeNode.id
       );
 
       if (isEntry) {
-        bundle.entryAssetIds.unshift(entry.id);
+        bundle.entryAssetIds.unshift(runtimeNode.id);
       }
     }
   }
