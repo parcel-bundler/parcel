@@ -144,7 +144,7 @@ async function serve(bundler, port, host, useHTTPS = false) {
 
     server.once('listening', () => {
       let addon =
-        server.address().port !== port
+        server.address().port !== Number.parseInt(port)
           ? `- ${logger.chalk.yellow(
               `configured port ${port} could not be used.`
             )}`
