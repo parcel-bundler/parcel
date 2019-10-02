@@ -74,6 +74,7 @@ export default async function applyRuntimes({
     runtimesBuilder,
     connections
   );
+
   let runtimesGraph = removeAssetGroups(runtimesAssetGraph);
 
   // merge the transformed asset into the bundle's graph, and connect
@@ -163,18 +164,12 @@ async function reconcileNewRuntimes(
   let toAdd = setDifference(newRequestIds, oldRequestIds);
   let toRemove = setDifference(oldRequestIds, newRequestIds);
 
-  let newEntryNodes = assetGraph
-    .getNodesConnectedFrom(nullthrows(assetGraph.getRootNode()))
-    .filter(node => !toRemove.has(node.id))
-    .concat(
-      Array.from(toAdd).map(requestId =>
-        nullthrows(assetRequestNodesById.get(requestId))
-      )
-    );
-
   assetGraph.replaceNodesConnectedTo(
     nullthrows(assetGraph.getRootNode()),
-    newEntryNodes
+    [...toAdd].map(requestId =>
+      nullthrows(assetRequestNodesById.get(requestId))
+    ),
+    node => toRemove.has(node.id)
   );
 
   // rebuild the graph
