@@ -86,7 +86,7 @@ export default class Parcel {
     this.#farm =
       this.#initialOptions.workerFarm ??
       createWorkerFarm({
-        patchConsole: true
+        patchConsole: resolvedOptions.patchConsole
       });
 
     this.#bundlerRunner = new BundlerRunner({
