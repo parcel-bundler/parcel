@@ -40,7 +40,7 @@ describe('AssetGraphBuilder', function() {
   let workerFarm;
 
   before(() => {
-    workerFarm = createWorkerFarm();
+    workerFarm = createWorkerFarm({patchConsole: true});
   });
 
   after(async () => {
