@@ -500,8 +500,12 @@ export default class BundleGraph {
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
-        return this.resolveSymbol(resolved, depSymbol);
+        let resolvedAsset = nullthrows(this.getDependencyResolution(dep));
+        let {asset, symbol: resolvedSymbol} = this.resolveSymbol(
+          resolvedAsset,
+          depSymbol
+        );
+        return {asset, symbol: resolvedSymbol, exportSymbol: symbol};
       }
 
       // If this module exports wildcards, resolve the original module.
@@ -510,7 +514,11 @@ export default class BundleGraph {
         let resolved = nullthrows(this.getDependencyResolution(dep));
         let result = this.resolveSymbol(resolved, symbol);
         if (result.symbol != null) {
-          return result;
+          return {
+            asset: result.asset,
+            symbol: result.symbol,
+            exportSymbol: symbol
+          };
         }
       }
     }
