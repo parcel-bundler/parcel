@@ -49,7 +49,7 @@ export function shake(
       }
     }
 
-    if (isDeclaration(node)) {
+    if (isDeclaration(ts, node)) {
       let name = getExportedName(ts, node) || node.name.text;
 
       // Remove unused declarations

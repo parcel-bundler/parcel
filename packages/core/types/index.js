@@ -71,6 +71,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: ?string;
+  +pipeline: ?string;
 }
 
 export type EnvironmentContext =
@@ -87,6 +88,7 @@ export type PackageTargetDescriptor = {|
   engines?: Engines,
   includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
+  pipeline?: string,
   publicUrl?: string,
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions
@@ -265,6 +267,7 @@ export interface Dependency {
   +sourceAssetId: ?string;
   +sourcePath: ?string;
   +symbols: Map<Symbol, Symbol>;
+  +pipeline: ?string;
 }
 
 export type File = {

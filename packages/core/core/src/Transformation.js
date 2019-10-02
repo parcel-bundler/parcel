@@ -92,7 +92,8 @@ export default class Transformation {
     let asset = await this.loadAsset();
     let pipeline = await this.loadPipeline(
       this.request.filePath,
-      asset.value.isSource
+      asset.value.isSource,
+      this.request.pipeline
     );
     let results = await this.runPipeline(pipeline, asset);
     let assets = results.map(a => a.value);
@@ -242,11 +243,16 @@ export default class Transformation {
     });
   }
 
-  async loadPipeline(filePath: FilePath, isSource: boolean): Promise<Pipeline> {
+  async loadPipeline(
+    filePath: FilePath,
+    isSource: boolean,
+    pipelineName?: ?string
+  ): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
       isSource,
+      pipeline: pipelineName,
       meta: {
         actionType: 'transformation'
       }
@@ -291,8 +297,8 @@ export default class Transformation {
     }
 
     let pipeline = new Pipeline({
-      names: parcelConfig.getTransformerNames(filePath),
-      plugins: await parcelConfig.getTransformers(filePath),
+      names: parcelConfig.getTransformerNames(filePath, pipelineName),
+      plugins: await parcelConfig.getTransformers(filePath, pipelineName),
       configs,
       options: this.options,
       workerApi: this.workerApi

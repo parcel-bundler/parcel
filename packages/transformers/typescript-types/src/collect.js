@@ -72,7 +72,7 @@ export function collect(
       }
     }
 
-    if (isDeclaration(node)) {
+    if (isDeclaration(ts, node)) {
       if (node.name) {
         currentModule.addLocal(node.name.text, node);
       }

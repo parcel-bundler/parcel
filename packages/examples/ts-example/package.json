@@ -10,7 +10,9 @@
     "@parcel/babel-register": "^2.0.0-alpha.1.1",
     "@parcel/core": "^2.0.0-alpha.1.1"
   },
-  "main": "dist/test.d.ts",
+  "main": "dist/main.js",
+  "module": "dist/module.js",
+  "types": "dist/types.d.ts",
   "dependencies": {
     "lodash": "^4.17.11",
     "react": "^16.6.3",

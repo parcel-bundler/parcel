@@ -35,7 +35,7 @@ const DEFAULT_PRODUCTION_ENGINES = {
 };
 
 const DEFAULT_DIST_DIRNAME = 'dist';
-const COMMON_TARGETS = ['main', 'module', 'browser'];
+const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 
 export default class TargetResolver {
   fs: FileSystem;
@@ -212,6 +212,8 @@ export default class TargetResolver {
           distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? '/',
+          pipeline:
+            descriptor.pipeline ?? (targetName === 'types' ? 'ts-types' : null),
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:

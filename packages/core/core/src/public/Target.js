@@ -45,4 +45,8 @@ export default class Target implements ITarget {
   get publicUrl(): ?string {
     return this.#target.publicUrl;
   }
+
+  get pipeline(): ?string {
+    return this.#target.pipeline;
+  }
 }

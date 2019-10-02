@@ -22,7 +22,8 @@ type DependencyOpts = {|
   env: Environment,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol>
+  symbols?: Map<Symbol, Symbol>,
+  pipeline?: ?string
 |};
 
 export function createDependency(opts: DependencyOpts): Dependency {
@@ -31,7 +32,8 @@ export function createDependency(opts: DependencyOpts): Dependency {
     md5FromString(
       `${opts.sourceAssetId ?? ''}:${opts.moduleSpecifier}:${JSON.stringify(
         opts.env
-      )}:${opts.target ? JSON.stringify(opts.target) : ''}`
+      )}:${opts.target ? JSON.stringify(opts.target) : ''}:${opts.pipeline ??
+        ''}`
     );
 
   return {
