@@ -12,6 +12,7 @@ import type {
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
+import type RequestGraph from './RequestGraph';
 
 import assert from 'assert';
 import invariant from 'assert';
@@ -26,7 +27,12 @@ import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
+import {
+  normalizeSeparators,
+  setDifference,
+  unique,
+  md5FromObject
+} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -40,6 +46,10 @@ export default class BundlerRunner {
   config: ParcelConfig;
   pluginOptions: PluginOptions;
   farm: WorkerFarm;
+  priorRuntimeGraphs: ?{|
+    assetGraph: AssetGraph,
+    requestGraph: RequestGraph
+  |};
 
   constructor(opts: Opts) {
     this.options = opts.options;
@@ -84,7 +94,10 @@ export default class BundlerRunner {
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
-    await this.applyRuntimes(internalBundleGraph);
+    this.priorRuntimeGraphs = await this.applyRuntimes(
+      internalBundleGraph,
+      this.priorRuntimeGraphs
+    );
     await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     if (cacheKey != null) {
@@ -164,8 +177,11 @@ export default class BundlerRunner {
 
   async applyRuntimes(
     bundleGraph: InternalBundleGraph,
-    priorRuntimesAssetGraph: ?AssetGraph
-  ): Promise<AssetGraph> {
+    priorGraphs: ?{|
+      assetGraph: AssetGraph,
+      requestGraph: RequestGraph
+    |}
+  ): Promise<{|assetGraph: AssetGraph, requestGraph: RequestGraph|}> {
     let tuples: Array<{|
       bundle: InternalBundle,
       assetRequest: AssetRequest,
@@ -201,8 +217,8 @@ export default class BundlerRunner {
       }
     }
 
-    let runtimesAssetGraph;
-    if (priorRuntimesAssetGraph == null) {
+    let assetGraph, requestGraph;
+    if (priorGraphs && priorGraphs.assetGraph == null) {
       let builder = new AssetGraphBuilder();
       await builder.init({
         options: this.options,
@@ -212,12 +228,47 @@ export default class BundlerRunner {
       });
 
       // build a graph of all of the runtime assets
-      runtimesAssetGraph = (await builder.build()).assetGraph;
+      assetGraph = (await builder.build()).assetGraph;
+      requestGraph = builder.requestGraph;
     } else {
-      runtimesAssetGraph = priorRuntimesAssetGraph;
+      invariant(priorGraphs != null);
+      invariant(priorGraphs.requestGraph != null);
+      assetGraph = priorGraphs.assetGraph;
+      requestGraph = priorGraphs.requestGraph;
+
+      let assetRequestsById = new Map(
+        tuples
+          .map(t => t.assetRequest)
+          .map(request => [nodeFromAssetGroup(request).id, request])
+      );
+      let newRequestIds = new Set(assetRequestsById.keys());
+      let oldRequestIds = new Set(
+        assetGraph.getEntryAssets().map(asset => {
+          let inboundNodes = assetGraph.getNodesConnectedTo(
+            nullthrows(assetGraph.getNode(asset.id))
+          );
+          invariant(
+            inboundNodes.length === 1 && inboundNodes[0].type === 'asset_group'
+          );
+          return inboundNodes[0].id;
+        })
+      );
+
+      let toAdd = setDifference(newRequestIds, oldRequestIds);
+      let toRemove = setDifference(oldRequestIds, newRequestIds);
+
+      for (let requestId of toAdd) {
+        requestGraph.addAssetRequest(
+          requestId,
+          nullthrows(assetRequestsById.get(requestId))
+        );
+      }
+      for (let requestId of toRemove) {
+        assetGraph.removeById(requestId);
+      }
     }
 
-    let runtimesGraph = removeAssetGroups(runtimesAssetGraph);
+    let runtimesGraph = removeAssetGroups(assetGraph);
 
     // merge the transformed asset into the bundle's graph, and connect
     // the node to it.
@@ -226,9 +277,7 @@ export default class BundlerRunner {
 
     for (let {bundle, assetRequest, dependency, isEntry} of tuples) {
       let assetGroupNode = nodeFromAssetGroup(assetRequest);
-      let assetGroupAssets = runtimesAssetGraph.getNodesConnectedFrom(
-        assetGroupNode
-      );
+      let assetGroupAssets = assetGraph.getNodesConnectedFrom(assetGroupNode);
       invariant(assetGroupAssets.length === 1);
       let runtimeNode = assetGroupAssets[0];
       invariant(runtimeNode.type === 'asset');
@@ -277,7 +326,7 @@ export default class BundlerRunner {
       }
     }
 
-    return runtimesAssetGraph;
+    return {assetGraph, requestGraph};
   }
 }
 
