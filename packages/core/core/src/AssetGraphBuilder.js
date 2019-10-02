@@ -38,6 +38,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
   cacheKey: string;
+  initialized: boolean = false;
 
   async init({
     config,
@@ -84,6 +85,8 @@ export default class AssetGraphBuilder extends EventEmitter {
         assetGroups: assetRequests
       });
     }
+
+    this.initialized = true;
   }
 
   async build(): Promise<{|
