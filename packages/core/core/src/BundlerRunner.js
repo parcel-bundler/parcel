@@ -1,12 +1,12 @@
 // @flow strict-local
 
 import type {Namer} from '@parcel/types';
-import type {Bundle as InternalBundle, ParcelOptions} from './types';
-import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
+import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type AssetGraphBuilder from './AssetGraphBuilder';
+import type ParcelConfig from './ParcelConfig';
 
 import assert from 'assert';
-import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import AssetGraph from './AssetGraph';
@@ -14,7 +14,6 @@ import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {removeAssetGroups} from './BundleGraph';
 import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle} from './public/Bundle';
-import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
@@ -24,6 +23,7 @@ import applyRuntimes from './applyRuntimes';
 type Opts = {|
   options: ParcelOptions,
   config: ParcelConfig,
+  runtimesBuilder: AssetGraphBuilder,
   workerFarm: WorkerFarm
 |};
 
@@ -32,19 +32,18 @@ export default class BundlerRunner {
   config: ParcelConfig;
   pluginOptions: PluginOptions;
   farm: WorkerFarm;
-  runtimesBuilder: AssetGraphBuilder = new AssetGraphBuilder();
+  runtimesBuilder: AssetGraphBuilder;
   isBundling: boolean = false;
 
   constructor(opts: Opts) {
     this.options = opts.options;
     this.config = opts.config;
     this.pluginOptions = new PluginOptions(this.options);
+    this.runtimesBuilder = opts.runtimesBuilder;
     this.farm = opts.workerFarm;
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
-    invariant(!this.isBundling);
-    this.isBundling = true;
     report({
       type: 'buildProgress',
       phase: 'bundling'
@@ -81,14 +80,6 @@ export default class BundlerRunner {
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
 
-    if (!this.runtimesBuilder.initialized) {
-      await this.runtimesBuilder.init({
-        options: this.options,
-        config: this.config,
-        workerFarm: this.farm
-      });
-    }
-
     await applyRuntimes({
       bundleGraph: internalBundleGraph,
       runtimesBuilder: this.runtimesBuilder,
@@ -101,8 +92,6 @@ export default class BundlerRunner {
     if (cacheKey != null) {
       await this.options.cache.set(cacheKey, internalBundleGraph);
     }
-
-    this.isBundling = false;
 
     return internalBundleGraph;
   }

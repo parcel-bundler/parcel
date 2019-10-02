@@ -25,6 +25,7 @@ import path from 'path';
 type Opts = {|
   options: ParcelOptions,
   config: ParcelConfig,
+  name: string,
   entries?: Array<string>,
   targets?: Array<Target>,
   assetRequests?: Array<AssetRequest>,
@@ -38,10 +39,10 @@ export default class AssetGraphBuilder extends EventEmitter {
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
   cacheKey: string;
-  initialized: boolean = false;
 
   async init({
     config,
+    name,
     options,
     entries,
     targets,
@@ -51,6 +52,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.options = options;
     let {minify, hot, scopeHoist} = options;
     this.cacheKey = md5FromObject({
+      name,
       options: {minify, hot, scopeHoist},
       entries,
       targets
@@ -85,8 +87,6 @@ export default class AssetGraphBuilder extends EventEmitter {
         assetGroups: assetRequests
       });
     }
-
-    this.initialized = true;
   }
 
   async build(): Promise<{|
