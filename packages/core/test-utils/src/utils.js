@@ -22,7 +22,7 @@ import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
 
-const workerFarm = createWorkerFarm({patchConsole: true});
+const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
 export let outputFS = new MemoryFS(workerFarm);
 export let overlayFS = new OverlayFS(outputFS, inputFS);
