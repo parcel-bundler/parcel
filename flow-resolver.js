@@ -2,7 +2,6 @@
 
 // https://github.com/yarnpkg/yarn/blob/master/src/util/generate-pnp-map-api.tpl.js
 
-const fs = require('fs');
 const StringDecoder = require('string_decoder');
 const {
   resolveSource
@@ -36,7 +35,6 @@ const decoder = new StringDecoder.StringDecoder();
 process.stdin.on('data', chunk => {
   buffer += decoder.write(chunk);
 
-  // try {
   do {
     const index = buffer.indexOf('\n');
     if (index === -1) {
@@ -47,8 +45,6 @@ process.stdin.on('data', chunk => {
     buffer = buffer.slice(index + 1);
 
     processRequest(line);
+    // eslint-disable-next-line no-constant-condition
   } while (true);
-  // } catch (e) {
-  //   fs.appendFileSync('/Users/niklas/Desktop/log.txt', e.message);
-  // }
 });

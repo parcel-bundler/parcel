@@ -4,7 +4,7 @@ const path = require('path');
 function resolveSource(specifier, from) {
   return resolve.sync(specifier, {
     basedir: path.dirname(from),
-    packageFilter(pkg, x) {
+    packageFilter(pkg) {
       if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
         if (pkg.source) {
           pkg.main = pkg.source;

@@ -21,7 +21,10 @@ export async function resolve(
   opts?: ResolveOptions
 ): Promise<ResolveResult> {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
-    opts.packageFilter = (pkg, x) => {
+    // $FlowFixMe
+    opts = opts || {};
+    // $FlowFixMe
+    opts.packageFilter = pkg => {
       if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
         if (pkg.source) {
           pkg.main = pkg.source;
@@ -77,7 +80,10 @@ export function resolveSync(
   opts?: ResolveOptions
 ): ResolveResult {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
-    opts.packageFilter = (pkg, x) => {
+    // $FlowFixMe
+    opts = opts || {};
+    // $FlowFixMe
+    opts.packageFilter = pkg => {
       if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
         if (pkg.source) {
           pkg.main = pkg.source;
