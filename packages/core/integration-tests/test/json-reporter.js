@@ -3,7 +3,6 @@
 /* eslint-disable no-console */
 
 import assert from 'assert';
-import invariant from 'assert';
 import path from 'path';
 import {bundle} from '@parcel/test-utils';
 import defaultConfigContents from '@parcel/config-default';
@@ -38,7 +37,7 @@ describe('json reporter', () => {
       .map(call => JSON.parse(call.lastArg));
     for (let [iStr, parsed] of Object.entries(parsedCalls)) {
       parsed = (parsed: any);
-      invariant(typeof iStr === 'string');
+      assert(typeof iStr === 'string');
       let i = parseInt(iStr, 10);
 
       if (i === 0) {
