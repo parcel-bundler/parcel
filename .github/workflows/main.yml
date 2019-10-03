@@ -10,4 +10,4 @@ jobs:
       - name: PR Benchmarks
         uses: DeMoorJasper/parcel-benchmark-action@master
         env:
-          BOT_GITHUB_PASSWORD: ${{ secrets.BOT_GITHUB_PASSWORD }}
+          PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
