@@ -1,6 +1,7 @@
-var fs = require('fs');
+const fs = require('fs');
+const cacheLoader = require('../../cacheLoader');
 
-module.exports = function loadWASMBundle(bundle) {
+module.exports = cacheLoader(function loadWASMBundle(bundle) {
   return new Promise(function(resolve, reject) {
     fs.readFile(__dirname + bundle, function(err, data) {
       if (err) {
@@ -16,4 +17,4 @@ module.exports = function loadWASMBundle(bundle) {
     .then(function(wasmModule) {
       return wasmModule.instance.exports;
     });
-};
+});

@@ -12,6 +12,7 @@ import path from 'path';
 import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
+import invariant from 'assert';
 // import nodeBuiltins from 'node-libs-browser';
 
 // Throw user friendly errors on special webpack loader syntax
@@ -28,15 +29,21 @@ export default new Resolver({
       );
     }
 
-    const resolved = await new NodeResolver({
+    const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
-    }).resolve(dependency);
+    });
+    const resolved = await resolver.resolve(dependency);
 
     if (!resolved) {
       return null;
     }
 
+    if (resolved.isExcluded != null) {
+      return {isExcluded: true};
+    }
+
+    invariant(resolved.path != null);
     let result: ResolveResult = {
       filePath: resolved.path
     };
@@ -108,7 +115,8 @@ class NodeResolver {
   async resolve({
     moduleSpecifier: filename,
     sourcePath: parent,
-    isURL
+    isURL,
+    env
   }: Dependency) {
     // Check if this is a glob
     if (isGlob(filename)) {
@@ -130,7 +138,10 @@ class NodeResolver {
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule(filename, parent, isURL);
+    let module = await this.resolveModule(filename, parent, isURL, env);
+    if (!module) {
+      return {isExcluded: true};
+    }
 
     if (module.moduleDir) {
       return this.loadNodeModules(module, extensions);
@@ -141,7 +152,7 @@ class NodeResolver {
     }
   }
 
-  async resolveModule(filename, parent, isURL) {
+  async resolveModule(filename, parent, isURL, env) {
     let dir = parent ? path.dirname(parent) : this.options.inputFS.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
@@ -157,6 +168,10 @@ class NodeResolver {
       return {
         filePath: filename
       };
+    }
+
+    if (!this.shouldIncludeNodeModule(env, filename)) {
+      return null;
     }
 
     // Resolve the module in node_modules
@@ -177,6 +192,19 @@ class NodeResolver {
     }
 
     return resolved;
+  }
+
+  shouldIncludeNodeModule({includeNodeModules}, name) {
+    if (includeNodeModules === false) {
+      return false;
+    }
+
+    if (Array.isArray(includeNodeModules)) {
+      let parts = this.getModuleParts(name);
+      return includeNodeModules.includes(parts[0]);
+    }
+
+    return true;
   }
 
   getCacheKey(filename, parent) {

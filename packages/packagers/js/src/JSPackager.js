@@ -19,7 +19,13 @@ export default new Packager({
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
-      return generate(bundle, ast, options);
+      return generate(bundleGraph, bundle, ast, options);
+    }
+
+    if (bundle.env.outputFormat === 'esmodule') {
+      throw new Error(
+        `esmodule output is not supported without scope hoisting.`
+      );
     }
 
     // For development, we just concatenate all of the code together
@@ -107,11 +113,20 @@ export default new Packager({
     });
 
     let entries = bundle.getEntryAssets();
-    let entryAsset = entries[entries.length - 1];
-    // $FlowFixMe
-    let interpreter: ?string = bundle.target.env.isBrowser()
-      ? null
-      : entryAsset.meta.interpreter;
+    let interpreter: ?string = null;
+
+    let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
+    if (isEntry) {
+      let entryAsset = entries[entries.length - 1];
+      // $FlowFixMe
+      interpreter = bundle.target.env.isBrowser()
+        ? null
+        : entryAsset.meta.interpreter;
+    } else if (bundle.env.outputFormat === 'global') {
+      // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
+      // as there might be dependencies in a sibling bundle that hasn't loaded yet.
+      entries.pop();
+    }
 
     let sourceMapReference = await getSourceMapReference(map);
 

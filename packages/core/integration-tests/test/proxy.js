@@ -1,13 +1,13 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundler,
   getNextBuild,
   inputFS,
   defaultConfig
-} = require('@parcel/test-utils');
-const http = require('http');
-const getPort = require('get-port');
+} from '@parcel/test-utils';
+import http from 'http';
+import getPort from 'get-port';
 
 const config = {
   ...defaultConfig,

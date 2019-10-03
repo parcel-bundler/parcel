@@ -1,4 +1,6 @@
-module.exports = function loadWASMBundle(bundle) {
+const cacheLoader = require('../../cacheLoader');
+
+module.exports = cacheLoader(function loadWASMBundle(bundle) {
   return fetch(bundle)
     .then(function(res) {
       if (WebAssembly.instantiateStreaming) {
@@ -12,4 +14,4 @@ module.exports = function loadWASMBundle(bundle) {
     .then(function(wasmModule) {
       return wasmModule.instance.exports;
     });
-};
+});

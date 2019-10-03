@@ -1,20 +1,20 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   bundler,
   getNextBuild,
   removeDistDirectory,
   run,
-  inputFS: fs,
+  inputFS as fs,
   outputFS,
   distDir,
   sleep
-} = require('@parcel/test-utils');
-const os = require('os');
-const {spawnSync} = require('child_process');
-const {symlinkSync} = require('fs');
-const tempy = require('tempy');
+} from '@parcel/test-utils';
+import os from 'os';
+import {spawnSync} from 'child_process';
+import {symlinkSync} from 'fs';
+import tempy from 'tempy';
 
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
@@ -123,7 +123,7 @@ describe('babel', function() {
     // Check that core-js's globalThis polyfill is referenced.
     // NOTE: This may change if core-js internals change.
     assert(file.includes('esnext.global-this'));
-    assert(!file.includes('regenerator'));
+    assert(!file.includes('es.array.concat'));
   });
 
   it.skip('should support compiling with babel using browserslist for different environments', async function() {
@@ -333,7 +333,7 @@ describe('babel', function() {
     );
     await bundle(path.join(tmpDir, '/input/index.js'), {
       targets: {
-        main: {
+        modern: {
           engines: {
             node: '^4.0.0'
           },
@@ -355,7 +355,7 @@ describe('babel', function() {
     );
     await bundle(path.join(tmpDir, '/input/index.js'), {
       targets: {
-        main: {
+        modern: {
           engines: {
             node: '^4.0.0'
           },

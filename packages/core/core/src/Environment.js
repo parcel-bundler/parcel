@@ -10,7 +10,9 @@ const DEFAULT_ENGINES = {
 export function createEnvironment({
   context,
   engines,
-  includeNodeModules
+  includeNodeModules,
+  outputFormat,
+  isLibrary = false
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -59,10 +61,25 @@ export function createEnvironment({
     }
   }
 
+  if (outputFormat == null) {
+    switch (context) {
+      case 'node':
+      case 'electron-main':
+      case 'electron-renderer':
+        outputFormat = 'commonjs';
+        break;
+      default:
+        outputFormat = 'global';
+        break;
+    }
+  }
+
   return {
     context,
     engines,
-    includeNodeModules
+    includeNodeModules,
+    outputFormat,
+    isLibrary
   };
 }
 
@@ -75,8 +92,8 @@ export function mergeEnvironments(
     return a;
   }
 
-  return {
+  return createEnvironment({
     ...a,
     ...b
-  };
+  });
 }
