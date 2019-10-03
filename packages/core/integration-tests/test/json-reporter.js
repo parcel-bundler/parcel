@@ -17,7 +17,7 @@ const jsonConfig = {
 
 const DIST_INDEX = 'dist' + path.sep + 'index.js';
 
-describe.skip('json reporter', () => {
+describe('json reporter', () => {
   let consoleStub;
   beforeEach(() => {
     consoleStub = sinon.stub(console, 'log');
