@@ -1,0 +1,58 @@
+const resolve = require('resolve');
+const path = require('path');
+
+function resolveSource(specifier, from) {
+  return resolve.sync(specifier, {
+    basedir: path.dirname(from),
+    packageFilter(pkg, x) {
+      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+        if (pkg.source) {
+          pkg.main = pkg.source;
+        }
+      }
+      return pkg;
+    }
+  });
+}
+
+let sourceFieldCache = new Map();
+function getSourceField(specifier, from) {
+  let key = `${specifier}:${from}`;
+  if (sourceFieldCache.has(key)) {
+    return sourceFieldCache.get(key);
+  }
+
+  let result = resolveSource(specifier, from);
+  sourceFieldCache.set(key, result);
+  return result;
+}
+
+module.exports = ({types: t}) => ({
+  name: 'module-translate',
+  visitor: {
+    ImportDeclaration({node}, state) {
+      let source = node.source;
+      if (t.isStringLiteral(source)) {
+        source.value = getSourceField(
+          source.value,
+          state.file.opts.filename || process.cwd()
+        );
+      }
+    },
+    CallExpression({node, scope}, state) {
+      if (
+        t.isIdentifier(node.callee, {name: 'require'}) &&
+        !scope.hasBinding(node.callee.value) &&
+        node.arguments.length === 1 &&
+        t.isStringLiteral(node.arguments[0])
+      ) {
+        node.arguments[0].value = getSourceField(
+          node.arguments[0].value,
+          state.file.opts.filename || process.cwd()
+        );
+      }
+    }
+  }
+});
+
+module.exports.resolveSource = resolveSource;
