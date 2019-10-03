@@ -7,10 +7,7 @@ import {generateBundleReport} from '@parcel/utils';
 export default new Reporter({
   async report(event, options) {
     if (event.type === 'buildSuccess') {
-      let metricsFilePath = path.join(
-        options.projectRoot,
-        'parcel-metrics.json'
-      );
+      let metricsFilePath = path.join(process.cwd(), 'parcel-metrics.json');
 
       let metrics = {
         buildTime: event.buildTime,

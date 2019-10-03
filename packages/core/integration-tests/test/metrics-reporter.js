@@ -18,17 +18,15 @@ describe('Build Metrics Reporter', () => {
       logLevel: 'info'
     });
 
-    let dirContent = await outputFS.readdir(__dirname);
+    let cwd = process.cwd();
+    let dirContent = await outputFS.readdir(cwd);
     assert(
       dirContent.includes('parcel-metrics.json'),
       'Should create a parcel-metrics.json file'
     );
 
     let metrics = JSON.parse(
-      await outputFS.readFile(
-        path.join(__dirname, 'parcel-metrics.json'),
-        'utf8'
-      )
+      await outputFS.readFile(path.join(cwd, 'parcel-metrics.json'), 'utf8')
     );
 
     assert(!!metrics.buildTime, 'Should contain buildTime');
