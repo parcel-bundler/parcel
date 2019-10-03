@@ -6,7 +6,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/DefaultResolver",
+  "main": "lib/DefaultResolver.js",
+  "source": "src/DefaultResolver.js",
   "engines": {
     "parcel": "^2.0.0-alpha.1.1"
   },

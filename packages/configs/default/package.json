@@ -6,6 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "index.json",
   "scripts": {
     "test-ci": "mocha"
   },
@@ -40,5 +41,10 @@
     "@parcel/transformer-sugarss": "^2.0.0-alpha.1.1",
     "@parcel/transformer-toml": "^2.0.0-alpha.1.1",
     "@parcel/transformer-yaml": "^2.0.0-alpha.1.1"
+  },
+  "devDependencies": {
+    "@parcel/reporter-cli": "^2.0.0-alpha.1",
+    "@parcel/reporter-dev-server": "^2.0.0-alpha.1",
+    "@parcel/reporter-hmr-server": "^2.0.0-alpha.1"
   }
 }

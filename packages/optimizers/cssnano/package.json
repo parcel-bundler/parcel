@@ -6,7 +6,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/CSSNanoOptimizer.js",
+  "main": "lib/CSSNanoOptimizer.js",
+  "source": "src/CSSNanoOptimizer.js",
   "engines": {
     "parcel": "^2.0.0-alpha.1.1"
   },

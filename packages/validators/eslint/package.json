@@ -6,7 +6,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/EslintValidator.js",
+  "main": "lib/EslintValidator.js",
+  "source": "src/EslintValidator.js",
   "engines": {
     "node": ">= 8.0.0",
     "parcel": "^2.0.0-alpha.1.1"

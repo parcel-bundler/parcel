@@ -2,12 +2,13 @@
   "name": "@parcel/reporter-dev-server",
   "version": "2.0.0-alpha.1.1",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/ServerReporter.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "lib/ServerReporter.js",
+  "source": "src/ServerReporter.js",
   "engines": {
     "node": ">= 6.0.0",
     "parcel": "^2.0.0-alpha.1.1"

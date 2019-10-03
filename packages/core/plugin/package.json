@@ -6,10 +6,11 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "lib/PluginAPI.js",
+  "source": "src/PluginAPI.js",
   "engines": {
     "node": ">= 8.0.0"
   },
-  "main": "./src/PluginAPI.js",
   "dependencies": {
     "@parcel/types": "^2.0.0-alpha.1.1"
   }

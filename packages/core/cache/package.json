@@ -6,7 +6,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/Cache",
+  "main": "lib/Cache.js",
+  "source": "src/Cache.js",
   "engines": {
     "node": ">= 8.0.0"
   },

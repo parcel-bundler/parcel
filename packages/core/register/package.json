@@ -1,8 +1,13 @@
 {
   "name": "@parcel/register",
   "version": "2.0.0-alpha.1.1",
-  "main": "./src/register.js",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/register.js",
+  "source": "src/register.js",
   "engines": {
     "node": ">= 8.0.0"
   },

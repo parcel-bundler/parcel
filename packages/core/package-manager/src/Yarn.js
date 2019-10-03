@@ -53,6 +53,8 @@ export class Yarn implements PackageInstaller {
     cwd,
     saveDev = true
   }: InstallerOptions): Promise<void> {
+    console.log(modules, cwd);
+    throw new Error('!!!!');
     let args = ['add', '--json', ...modules];
     if (saveDev) {
       args.push('-D');

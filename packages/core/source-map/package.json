@@ -1,8 +1,13 @@
 {
   "name": "@parcel/source-map",
   "version": "2.0.0-alpha.1.1",
-  "main": "./src/SourceMap.js",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/SourceMap.js",
+  "source": "src/SourceMap.js",
   "scripts": {},
   "engines": {
     "node": ">= 8.0.0"
