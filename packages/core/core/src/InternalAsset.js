@@ -241,11 +241,7 @@ export default class InternalAsset {
     return dep.id;
   }
 
-  async addIncludedFile(file: File) {
-    if (file.hash == null) {
-      file.hash = await md5FromFilePath(this.options.inputFS, file.filePath);
-    }
-
+  addIncludedFile(file: File) {
     this.value.includedFiles.set(file.filePath, file);
   }
 

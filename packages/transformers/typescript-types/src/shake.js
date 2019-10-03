@@ -11,6 +11,11 @@ export function shake(
   context: any,
   sourceFile: any
 ) {
+  // We traverse things out of order which messes with typescript's internal state.
+  // We don't rely on the lexical environment, so just overwrite with noops to avoid errors.
+  context.suspendLexicalEnvironment = () => {};
+  context.resumeLexicalEnvironment = () => {};
+
   // Propagate exports from the main module to determine what types should be included
   let exportedNames = moduleGraph.propagate(context);
 
@@ -80,6 +85,11 @@ export function shake(
         }
 
         node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.ExportKeyword));
+      } else if (
+        ts.isFunctionDeclaration(node) ||
+        ts.isClassDeclaration(node)
+      ) {
+        node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.DeclareKeyword));
       }
     }
 

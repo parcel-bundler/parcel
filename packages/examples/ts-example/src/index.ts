@@ -17,7 +17,7 @@ export function foo() {
 var x = 2;
 var p = x + 2, q = 3;
 export {p as hi};
-export {Test as Hello} from './other';
+// export {Test as Hello} from './other';
 // export * from './other';
 
 export {default as a} from './other';

@@ -42,6 +42,7 @@ export default new Transformer({
 
     let includedFiles = program
       .getSourceFiles()
+      .filter(file => file.fileName !== asset.filePath)
       .map(file => ({filePath: file.fileName}));
 
     let mainModuleName = path.basename(

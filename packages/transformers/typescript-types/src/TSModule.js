@@ -22,7 +22,7 @@ export class TSModule {
 
   addImport(local: string, specifier: string, imported: string) {
     this.imports.set(local, {specifier, imported});
-    this.names.set(local, local);
+    this.names.set(local, imported);
   }
 
   addExport(name: string, imported: string, specifier: ?string) {
