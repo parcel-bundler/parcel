@@ -11,8 +11,8 @@ const metricsConfig = {
   filePath: require.resolve('@parcel/config-default')
 };
 
-describe.only('Build Metrics Reporter', () => {
-  it.only('Should dump bundle metrics to parcel-metrics.json', async () => {
+describe('Build Metrics Reporter', () => {
+  it('Should dump bundle metrics to parcel-metrics.json', async () => {
     await bundle(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultConfig: metricsConfig,
       logLevel: 'info'
