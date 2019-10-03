@@ -61,10 +61,15 @@ export default new Namer({
 
 function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
   let entryFilePath = nullthrows(bundle.getMainEntry()).filePath;
-  let name = path.basename(entryFilePath, path.extname(entryFilePath));
+  let name = basenameWithoutExtension(entryFilePath);
 
   // If this is an entry bundle, use the original relative path.
   if (bundle.isEntry) {
+    // Match name of target entry if possible, but with a different extension.
+    if (bundle.target.distEntry != null) {
+      return basenameWithoutExtension(bundle.target.distEntry);
+    }
+
     return path
       .join(path.relative(rootDir, path.dirname(entryFilePath)), name)
       .replace(/\.\.(\/|\\)/g, '__$1');
@@ -78,4 +83,8 @@ function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
 
     return name;
   }
+}
+
+function basenameWithoutExtension(file) {
+  return path.basename(file, path.extname(file));
 }

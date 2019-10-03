@@ -13,6 +13,7 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import InternalBundleGraph from '../BundleGraph';
@@ -76,6 +77,19 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         bundleGroupNode.id,
         'bundle'
       );
+    } else {
+      let inboundBundleNodes = this.#graph._graph.getNodesConnectedTo(
+        dependencyNode,
+        'contains'
+      );
+      for (let inboundBundleNode of inboundBundleNodes) {
+        invariant(inboundBundleNode.type === 'bundle');
+        this.#graph._graph.addEdge(
+          inboundBundleNode.id,
+          bundleGroupNode.id,
+          'bundle'
+        );
+      }
     }
 
     return bundleGroup;

@@ -1,4 +1,6 @@
-module.exports = function loadCSSBundle(bundle) {
+const cacheLoader = require('../../cacheLoader');
+
+module.exports = cacheLoader(function loadCSSBundle(bundle) {
   return new Promise(function(resolve, reject) {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -15,4 +17,4 @@ module.exports = function loadCSSBundle(bundle) {
 
     document.getElementsByTagName('head')[0].appendChild(link);
   });
-};
+});
