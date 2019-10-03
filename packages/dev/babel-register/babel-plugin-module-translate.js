@@ -39,17 +39,29 @@ module.exports = ({types: t}) => ({
         );
       }
     },
-    CallExpression({node, scope}, state) {
+    CallExpression(path, state) {
+      let {node} = path;
       if (
         t.isIdentifier(node.callee, {name: 'require'}) &&
-        !scope.hasBinding(node.callee.value) &&
+        !path.scope.hasBinding(node.callee.value) &&
         node.arguments.length === 1 &&
         t.isStringLiteral(node.arguments[0])
       ) {
-        node.arguments[0].value = getSourceField(
-          node.arguments[0].value,
-          state.file.opts.filename || process.cwd()
-        );
+        try {
+          node.arguments[0].value = getSourceField(
+            node.arguments[0].value,
+            state.file.opts.filename || process.cwd()
+          );
+        } catch (e) {
+          let exprStmtParent = path
+            .getAncestry()
+            .find(v => v.isExpressionStatement());
+          if (exprStmtParent) {
+            exprStmtParent.replaceWith(
+              t.throwStatement(t.stringLiteral(e.message))
+            );
+          }
+        }
       }
     }
   }
