@@ -1,0 +1,13 @@
+on: pull_request
+
+name: Generate benchmarks
+
+jobs:
+  prBenchmarks:
+    name: PR Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Benchmarks
+        uses: DeMoorJasper/parcel-benchmark-action@master
+        env:
+          BOT_GITHUB_PASSWORD: ${{ secrets.BOT_GITHUB_PASSWORD }}
