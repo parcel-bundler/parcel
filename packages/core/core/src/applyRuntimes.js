@@ -150,15 +150,7 @@ async function reconcileNewRuntimes(
   );
   let newRequestIds = new Set(assetRequestNodesById.keys());
   let oldRequestIds = new Set(
-    assetGraph.getEntryAssets().map(asset => {
-      let inboundNodes = assetGraph.getNodesConnectedTo(
-        nullthrows(assetGraph.getNode(asset.id))
-      );
-      invariant(
-        inboundNodes.length === 1 && inboundNodes[0].type === 'asset_group'
-      );
-      return inboundNodes[0].id;
-    })
+    assetGraph.getEntryAssetGroupNodes().map(node => node.id)
   );
 
   let toAdd = setDifference(newRequestIds, oldRequestIds);
