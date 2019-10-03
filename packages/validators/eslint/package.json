@@ -2,6 +2,9 @@
   "name": "@parcel/validator-eslint",
   "version": "2.0.0-alpha.1.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
