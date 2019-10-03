@@ -17,7 +17,7 @@ import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 
-import {syncPromise} from '@parcel/utils';
+import {makeDeferredWithPromise, syncPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -159,20 +159,29 @@ export async function run(
   let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 
-  var ctx;
+  let ctx, promises;
   switch (target) {
-    case 'browser':
-      ctx = prepareBrowserContext(nullthrows(bundle.filePath), globals);
+    case 'browser': {
+      let prepared = prepareBrowserContext(
+        nullthrows(bundle.filePath),
+        globals
+      );
+      ctx = prepared.ctx;
+      promises = prepared.promises;
       break;
+    }
     case 'node':
       ctx = prepareNodeContext(nullthrows(bundle.filePath), globals);
       break;
-    case 'electron':
-      ctx = Object.assign(
-        prepareBrowserContext(nullthrows(bundle.filePath), globals),
-        prepareNodeContext(nullthrows(bundle.filePath), globals)
-      );
+    case 'electron': {
+      let browser = prepareBrowserContext(nullthrows(bundle.filePath), globals);
+      ctx = {
+        ...browser.ctx,
+        ...prepareNodeContext(nullthrows(bundle.filePath), globals)
+      };
+      promises = browser.promises;
       break;
+    }
     default:
       throw new Error('Unknown target ' + target);
   }
@@ -182,6 +191,11 @@ export async function run(
     await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8'),
     ctx
   );
+
+  if (promises) {
+    // await any ongoing dynamic imports during the run
+    await Promise.all(promises);
+  }
 
   if (opts.require !== false) {
     if (ctx.parcelRequire) {
@@ -307,11 +321,16 @@ export function normaliseNewlines(text: string): string {
   return text.replace(/(\r\n|\n|\r)/g, '\n');
 }
 
-function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
+function prepareBrowserContext(
+  filePath: FilePath,
+  globals: mixed
+): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
   // for testing dynamic imports
   const fakeElement = {
     remove() {}
   };
+
+  let promises = [];
 
   const fakeDocument = {
     createElement(tag) {
@@ -322,6 +341,8 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
       return [
         {
           appendChild(el) {
+            let {deferred, promise} = makeDeferredWithPromise();
+            promises.push(promise);
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
@@ -336,6 +357,7 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
               }
 
               el.onload();
+              deferred.resolve();
             }, 0);
           }
         }
@@ -365,15 +387,19 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
-            return new Uint8Array(
-              await overlayFS.readFile(path.join(path.dirname(filePath), url))
-            ).buffer;
+            let readFilePromise = overlayFS.readFile(
+              path.join(path.dirname(filePath), url)
+            );
+            promises.push(readFilePromise);
+            return new Uint8Array(await readFilePromise).buffer;
           },
           text() {
-            return overlayFS.readFile(
+            let readFilePromise = overlayFS.readFile(
               path.join(path.dirname(filePath), url),
               'utf8'
             );
+            promises.push(readFilePromise);
+            return readFilePromise;
           }
         });
       }
@@ -382,7 +408,7 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
   );
 
   ctx.window = ctx;
-  return ctx;
+  return {ctx, promises};
 }
 
 const nodeCache = {};
