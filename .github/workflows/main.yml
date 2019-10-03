@@ -8,6 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: PR Benchmarks
-        uses: DeMoorJasper/parcel-benchmark-action@master
+        uses: parcel-bundler/parcel-benchmark-action@master
         env:
           PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}
