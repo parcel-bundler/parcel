@@ -18,10 +18,7 @@ import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import Graph from './Graph';
-import {
-  BundlerBundleGraph,
-  BundlerOptimizeBundleGraph
-} from './public/BundlerBundleGraph';
+import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
@@ -67,22 +64,19 @@ export default class BundlerRunner {
 
     let bundleGraph = removeAssetGroups(graph);
     // $FlowFixMe
-    let internalBundleGraph = new InternalBundleGraph(bundleGraph);
+    let internalBundleGraph = new InternalBundleGraph({graph: bundleGraph});
     await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
+    let mutableBundleGraph = new MutableBundleGraph(
+      internalBundleGraph,
+      this.options
+    );
     await bundler.bundle({
-      bundleGraph: new BundlerBundleGraph(internalBundleGraph, this.options),
+      bundleGraph: mutableBundleGraph,
       options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
-    for (let bundle of internalBundleGraph.getBundles()) {
-      summarizeBundle(bundle, internalBundleGraph);
-    }
-    await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
     await bundler.optimize({
-      bundleGraph: new BundlerOptimizeBundleGraph(
-        internalBundleGraph,
-        this.options
-      ),
+      bundleGraph: mutableBundleGraph,
       options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
@@ -175,6 +169,7 @@ export default class BundlerRunner {
           options: this.pluginOptions
         });
         if (applied) {
+          internalBundleGraph._bundleContentHashes.delete(bundle.id);
           await this.addRuntimesToBundle(
             bundle,
             internalBundleGraph,
@@ -207,12 +202,12 @@ export default class BundlerRunner {
       let {assetGraph} = await builder.build();
 
       let entry = assetGraph.getEntryAssets()[0];
-      let subBundleGraph = new InternalBundleGraph(
+      let subBundleGraph = new InternalBundleGraph({
         // $FlowFixMe
-        removeAssetGroups(
+        graph: removeAssetGroups(
           assetGraph.getSubGraph(nullthrows(assetGraph.getNode(entry.id)))
         )
-      );
+      });
 
       // Exclude modules that are already included in an ancestor bundle
       let duplicated = [];
@@ -242,21 +237,15 @@ export default class BundlerRunner {
         }
       });
 
-      let entryIsReference = false;
       for (let asset of duplicated) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-
-        if (entry.id === asset.id) {
-          entryIsReference = true;
-        }
       }
 
       bundleGraph._graph.addEdge(
         dependency
           ? dependency.id
           : nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-        entry.id,
-        entryIsReference ? 'references' : null
+        entry.id
       );
 
       if (isEntry) {
@@ -302,25 +291,4 @@ function removeAssetGroups(
   }
 
   return graph;
-}
-
-function summarizeBundle(
-  bundle: InternalBundle,
-  bundleGraph: InternalBundleGraph
-): void {
-  let size = 0;
-  bundleGraph.traverseBundle(
-    bundle,
-    node => {
-      if (node.type === 'dependency' || node.type === 'asset') {
-        bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
-      }
-      if (node.type === 'asset') {
-        size += node.value.stats.size;
-      }
-    },
-    true
-  );
-
-  bundle.stats.size = size;
 }

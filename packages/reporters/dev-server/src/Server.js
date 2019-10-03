@@ -21,6 +21,7 @@ import ejs from 'ejs';
 import connect from 'connect';
 import httpProxyMiddleware from 'http-proxy-middleware';
 import {URL} from 'url';
+import mime from 'mime';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -205,6 +206,7 @@ export default class Server extends EventEmitter {
 
     setHeaders(res);
     res.setHeader('Content-Length', '' + stat.size);
+    res.setHeader('Content-Type', mime.getType(filePath));
     if (req.method === 'HEAD') {
       res.end();
       return;

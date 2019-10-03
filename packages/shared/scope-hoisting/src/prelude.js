@@ -1,4 +1,5 @@
 var $parcel$modules = {};
+var $parcel$bundles = {};
 
 var globalObject =
   typeof globalThis !== 'undefined'
@@ -12,6 +13,12 @@ var globalObject =
     : {};
 
 globalObject.parcelRequire = function(name) {
+  // Execute the bundle wrapper function if there is one registered.
+  if (name in $parcel$bundles) {
+    $parcel$bundles[name]();
+    delete $parcel$bundles[name];
+  }
+
   if (name in $parcel$modules) {
     return $parcel$modules[name];
   }
@@ -29,4 +36,9 @@ globalObject.parcelRequire = function(name) {
 
 globalObject.parcelRequire.register = function register(id, exports) {
   $parcel$modules[id] = exports;
+};
+
+globalObject.parcelRequire.registerBundle = function registerBundle(id, fn) {
+  $parcel$bundles[id] = fn;
+  $parcel$modules[id] = {};
 };
