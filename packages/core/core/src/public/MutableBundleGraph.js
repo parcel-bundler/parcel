@@ -117,6 +117,9 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     };
 
     this.#graph._graph.addNode(bundleNode);
+    if (opts.entryAsset) {
+      this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
+    }
     return new Bundle(bundleNode.value, this.#graph, this.#options);
   }
 

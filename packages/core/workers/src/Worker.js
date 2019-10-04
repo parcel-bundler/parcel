@@ -18,7 +18,8 @@ export type WorkerCall = {|
 
 type WorkerOpts = {|
   forcedKillTime: number,
-  backend: BackendType
+  backend: BackendType,
+  patchConsole?: boolean
 |};
 
 let WORKER_ID = 0;
@@ -73,7 +74,12 @@ export default class Worker extends EventEmitter {
     await new Promise((resolve, reject) => {
       this.call({
         method: 'childInit',
-        args: [forkModule],
+        args: [
+          forkModule,
+          {
+            patchConsole: !!this.options.patchConsole
+          }
+        ],
         retries: 0,
         resolve,
         reject

@@ -44,7 +44,6 @@ export class Child {
       this.handleEnd.bind(this)
     );
 
-    patchConsole();
     // Monitior all logging events inside this child process and forward to
     // the main process via the bus.
     this.loggerDisposable = Logger.onLog(event => {
@@ -109,7 +108,11 @@ export class Child {
       }
     } else if (method === 'childInit') {
       try {
-        let [moduleName] = args;
+        let [moduleName, childOptions] = args;
+        if (childOptions.patchConsole) {
+          patchConsole();
+        }
+
         result = responseFromContent(this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);
