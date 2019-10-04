@@ -120,6 +120,7 @@ describe('AssetGraph', () => {
         id: '1',
         filePath,
         type: 'js',
+        isSource: true,
         hash: '#1',
         stats,
         dependencies: new Map([
@@ -139,6 +140,7 @@ describe('AssetGraph', () => {
         id: '2',
         filePath,
         type: 'js',
+        isSource: true,
         hash: '#2',
         stats,
         dependencies: new Map([
@@ -158,6 +160,7 @@ describe('AssetGraph', () => {
         id: '3',
         filePath,
         type: 'js',
+        isSource: true,
         hash: '#3',
         dependencies: new Map(),
         env: DEFAULT_ENV,
@@ -183,6 +186,7 @@ describe('AssetGraph', () => {
         id: '1',
         filePath,
         type: 'js',
+        isSource: true,
         hash: '#1',
         stats,
         dependencies: new Map([
@@ -202,6 +206,7 @@ describe('AssetGraph', () => {
         id: '2',
         filePath,
         type: 'js',
+        isSource: true,
         hash: '#2',
         stats,
         dependencies: new Map(),
@@ -240,6 +245,7 @@ describe('AssetGraph', () => {
         id: '1',
         filePath,
         type: 'js',
+        isSource: true,
         hash: '#1',
         stats,
         dependencies: new Map([
