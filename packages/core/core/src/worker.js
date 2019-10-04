@@ -1,7 +1,7 @@
 // @flow strict-local
-
+import invariant from 'assert';
 import type {Bundle, ParcelOptions} from './types';
-import type BundleGraph from './BundleGraph';
+import BundleGraph from './BundleGraph';
 import type {WorkerApi} from '@parcel/workers';
 
 import Transformation, {type TransformationOpts} from './Transformation';
@@ -44,19 +44,21 @@ export function runPackage(
   workerApi: WorkerApi,
   {
     bundle,
-    bundleGraph,
+    bundleGraphReference,
     config,
     cacheKey,
     options
   }: {
     bundle: Bundle,
-    bundleGraph: BundleGraph,
+    bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
     options: ParcelOptions,
     ...
   }
 ) {
+  let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
+  invariant(bundleGraph instanceof BundleGraph);
   return new PackagerRunner({
     config,
     options
