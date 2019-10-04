@@ -69,6 +69,7 @@ let serve = program
     'set the port to serve on. defaults to 1234',
     parseInt
   )
+  .option('--public-url <url>', 'set the path prefix to use in serve mode')
   .option(
     '--host <host>',
     'set the host to listen on, defaults to listening on all interfaces'
@@ -197,8 +198,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let serve = false;
   if (command.name() === 'serve') {
-    let port = command.port || 1234;
-    let host = command.host;
+    let {port = 1234, host, publicUrl} = command;
     port = await getPort({port, host});
 
     if (command.port && port !== command.port) {
@@ -211,7 +211,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     serve = {
       https,
       port,
-      host
+      host,
+      publicUrl
     };
   }
 
