@@ -34,14 +34,15 @@ import logger from '@parcel/logger';
 
 let profileId = 1;
 
-type FarmOptions = {|
+export type FarmOptions = {|
   maxConcurrentWorkers: number,
   maxConcurrentCallsPerWorker: number,
   forcedKillTime: number,
   useLocalWorker: boolean,
   warmWorkers: boolean,
   workerPath?: FilePath,
-  backend: BackendType
+  backend: BackendType,
+  patchConsole?: boolean
 |};
 
 type WorkerModule = {|
@@ -177,7 +178,8 @@ export default class WorkerFarm extends EventEmitter {
   startChild() {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
-      backend: this.options.backend
+      backend: this.options.backend,
+      patchConsole: this.options.patchConsole
     });
 
     worker.fork(nullthrows(this.options.workerPath));
