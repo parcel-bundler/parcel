@@ -93,6 +93,10 @@ class BaseAsset {
     return this.#asset.value.isInline;
   }
 
+  get isSource(): boolean {
+    return this.#asset.value.isSource;
+  }
+
   get sideEffects(): boolean {
     return this.#asset.value.sideEffects;
   }

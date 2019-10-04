@@ -81,7 +81,7 @@ export default new Transformer({
 
     // Collect dependencies
     if (canHaveDependencies(code) || ast.isDirty) {
-      walk.ancestor(ast.program, collectDependencies, asset);
+      walk.ancestor(ast.program, collectDependencies, {asset, options});
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.

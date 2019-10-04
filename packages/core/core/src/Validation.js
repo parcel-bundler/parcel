@@ -63,6 +63,7 @@ export default class Validation {
 
     let configRequest = {
       filePath: this.request.filePath,
+      isSource: asset.value.isSource,
       meta: {
         actionType: 'validation'
       },
@@ -100,7 +101,7 @@ export default class Validation {
 
   async loadAsset(): Promise<InternalAsset> {
     let {filePath, env, code, sideEffects} = this.request;
-    let {content, size, hash} = await summarizeRequest(
+    let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       this.request
     );
@@ -113,6 +114,7 @@ export default class Validation {
       value: createAsset({
         idBase,
         filePath: filePath,
+        isSource,
         type: path.extname(filePath).slice(1),
         hash,
         env: env,

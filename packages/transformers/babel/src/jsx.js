@@ -19,7 +19,7 @@ const JSX_PRAGMA = {
  * and changes the pragma accordingly.
  */
 export default async function getJSXOptions(config: Config) {
-  if (!(await config.isSource())) {
+  if (!config.isSource) {
     return null;
   }
 
