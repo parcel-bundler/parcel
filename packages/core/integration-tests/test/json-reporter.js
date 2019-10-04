@@ -3,6 +3,7 @@
 /* eslint-disable no-console */
 
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {bundle} from '@parcel/test-utils';
 import defaultConfigContents from '@parcel/config-default';
