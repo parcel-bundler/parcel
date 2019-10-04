@@ -1,16 +1,22 @@
 // @flow strict-local
 
+import type {GraphVisitor} from '@parcel/types';
+import type {
+  Asset,
+  AssetGraphNode,
+  AssetGroup,
+  AssetGroupNode,
+  Dependency,
+  DependencyNode,
+  Target
+} from './types';
+
+import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-
-import type {GraphVisitor} from '@parcel/types';
-import type {Target} from './types';
-import {md5FromObject} from '@parcel/utils';
-
-import type {Asset, Dependency} from './types';
-import Graph, {type GraphOpts} from './Graph';
-import type {AssetGraphNode, AssetGroup, DependencyNode} from './types';
 import crypto from 'crypto';
+
+import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
@@ -22,7 +28,7 @@ type AssetGraphOpts = {|
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetGroup?: AssetGroup
+  assetGroups?: Array<AssetGroup>
 |};
 
 type SerializedAssetGraph = {|
@@ -76,7 +82,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved = onNodeRemoved;
   }
 
-  initialize({entries, targets, assetGroup}: InitOpts) {
+  initialize({entries, targets, assetGroups}: InitOpts) {
     let rootNode = {id: '@@root', type: 'root', value: null};
     this.setRootNode(rootNode);
 
@@ -100,9 +106,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           nodes.push(node);
         }
       }
-    } else if (assetGroup) {
-      let node = nodeFromAssetGroup(assetGroup);
-      nodes.push(node);
+    } else if (assetGroups) {
+      nodes.push(
+        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup))
+      );
     }
 
     this.replaceNodesConnectedTo(rootNode, nodes);
@@ -127,11 +134,16 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
 
     // Defer transforming this dependency if it is marked as weak, there are no side effects,
-    // and no re-exported symbols are used by ancestor dependencies.
+    // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
+    // using a wildcard.
     // This helps with performance building large libraries like `lodash-es`, which re-exports
     // a huge number of functions since we can avoid even transforming the files that aren't used.
     let defer = false;
-    if (dependency.isWeak && assetGroup.sideEffects === false) {
+    if (
+      dependency.isWeak &&
+      assetGroup.sideEffects === false &&
+      !dependency.symbols.has('*')
+    ) {
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = invertMap(dependency.symbols);
       let firstAsset = assets[0];
@@ -194,6 +206,17 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       visit,
       startNode
     );
+  }
+
+  getEntryAssetGroupNodes(): Array<AssetGroupNode> {
+    let entryNodes = [];
+    this.traverse((node, _, actions) => {
+      if (node.type === 'asset_group') {
+        entryNodes.push(node);
+        actions.skipChildren();
+      }
+    });
+    return entryNodes;
   }
 
   getEntryAssets(): Array<Asset> {

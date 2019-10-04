@@ -116,7 +116,7 @@ async function buildDefaultBabelConfig(config: Config) {
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
   } else {
-    babelOptions = await getFlowOptions(config);
+    babelOptions = getFlowOptions(config);
   }
 
   let babelTargets;

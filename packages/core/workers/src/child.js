@@ -37,6 +37,7 @@ export class Child {
   profiler: ?Profiler;
   workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
+  sharedReferences: Map<number, mixed> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -57,7 +58,8 @@ export class Child {
       awaitResponse: ?boolean = true
     ): Promise<mixed> => this.addCall(request, awaitResponse),
     createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
-      this.createReverseHandle(fn)
+      this.createReverseHandle(fn),
+    getSharedReference: (ref: number) => this.sharedReferences.get(ref)
   };
 
   messageListener(message: WorkerMessage): void | Promise<void> {
@@ -131,6 +133,12 @@ export class Child {
       } catch (e) {
         result = errorResponseFromError(e);
       }
+    } else if (method === 'createSharedReference') {
+      this.sharedReferences.set(args[0], args[1]);
+      result = responseFromContent(null);
+    } else if (method === 'deleteSharedReference') {
+      this.sharedReferences.delete(args[0]);
+      result = responseFromContent(null);
     } else {
       try {
         result = responseFromContent(
