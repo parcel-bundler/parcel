@@ -132,14 +132,15 @@ describe('WorkerFarm', function() {
     await workerfarm.end();
   });
 
-  it('Forwards stdio from the child process and levels event source', async () => {
+  it('Forwards stdio from the child process and levels event source if patchConsole is true', async () => {
     let events = [];
     let logDisposable = Logger.onLog(event => events.push(event));
 
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/console.js')
+      workerPath: require.resolve('./integration/workerfarm/console.js'),
+      patchConsole: true
     });
 
     await workerfarm.run();

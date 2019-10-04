@@ -10,6 +10,8 @@ import type {
   ModuleSpecifier
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
+import type InternalBundleGraph from './BundleGraph';
+import type {FarmOptions} from '@parcel/workers';
 
 import invariant from 'assert';
 import {createDependency} from './Dependency';
@@ -81,7 +83,11 @@ export default class Parcel {
       resolvedOptions
     );
     this.#config = config;
-    this.#farm = this.#initialOptions.workerFarm ?? createWorkerFarm();
+    this.#farm =
+      this.#initialOptions.workerFarm ??
+      createWorkerFarm({
+        patchConsole: resolvedOptions.patchConsole
+      });
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
@@ -327,8 +333,9 @@ export class BuildError extends Error {
 
 export {default as Asset} from './InternalAsset';
 
-export function createWorkerFarm() {
+export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({
+    ...options,
     workerPath: require.resolve('./worker')
   });
 }
