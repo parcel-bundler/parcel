@@ -319,6 +319,46 @@ describe('javascript', function() {
     ]);
   });
 
+  it('should support bundling workers of type module', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers-module/index.js'),
+      {scopeHoist: true}
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['dedicated-worker.js']
+      },
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        assets: ['shared-worker.js']
+      }
+    ]);
+
+    let dedicated, shared;
+    b.traverseBundles((bundle, ctx, traversal) => {
+      if (bundle.getMainEntry().filePath.endsWith('shared-worker.js')) {
+        shared = bundle;
+      } else if (
+        bundle.getMainEntry().filePath.endsWith('dedicated-worker.js')
+      ) {
+        dedicated = bundle;
+      }
+      if (dedicated && shared) traversal.stop();
+    });
+
+    assert(dedicated);
+    assert(shared);
+
+    dedicated = await outputFS.readFile(dedicated.filePath, 'utf8');
+    shared = await outputFS.readFile(shared.filePath, 'utf8');
+    assert(/import .* from ?"foo";/.test(dedicated));
+    assert(/import .* from ?"foo";/.test(shared));
+  });
+
   it('should support bundling workers with different order', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/workers/index-alternative.js')

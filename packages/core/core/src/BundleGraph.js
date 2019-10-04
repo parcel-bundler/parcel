@@ -280,21 +280,18 @@ export default class BundleGraph {
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
-    let inboundNodes = this._graph.getNodesConnectedTo(
-      nullthrows(this._graph.getNode(bundle.id)),
-      'bundle'
-    );
-    invariant(
-      inboundNodes.length === 1 && inboundNodes[0].type === 'bundle_group'
-    );
-    let bundleGroupNode = inboundNodes[0];
-
-    let parentNodes = this._graph.getNodesConnectedTo(
-      bundleGroupNode,
-      'bundle'
+    let parentBundleNodes = flatMap(
+      this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(bundle.id)),
+        'bundle'
+      ),
+      bundleGroupNode => {
+        invariant(bundleGroupNode.type === 'bundle_group');
+        return this._graph.getNodesConnectedTo(bundleGroupNode, 'bundle');
+      }
     );
 
-    return parentNodes.every(parentNode => {
+    return parentBundleNodes.every(parentNode => {
       let inBundle;
 
       this._graph.traverseAncestors(
@@ -551,7 +548,7 @@ export default class BundleGraph {
     let hash = crypto.createHash('md5');
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.update(asset.outputHash);
+      hash.update([asset.outputHash, asset.filePath].join(':'));
     });
 
     let hashHex = hash.digest('hex');
