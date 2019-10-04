@@ -33,15 +33,17 @@ import fs from 'fs';
 import logger from '@parcel/logger';
 
 let profileId = 1;
+let referenceId = 1;
 
-type FarmOptions = {|
+export type FarmOptions = {|
   maxConcurrentWorkers: number,
   maxConcurrentCallsPerWorker: number,
   forcedKillTime: number,
   useLocalWorker: boolean,
   warmWorkers: boolean,
   workerPath?: FilePath,
-  backend: BackendType
+  backend: BackendType,
+  patchConsole?: boolean
 |};
 
 type WorkerModule = {|
@@ -51,6 +53,7 @@ type WorkerModule = {|
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
   createReverseHandle(fn: HandleFunction): Handle,
+  getSharedReference(ref: number): mixed,
   callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>
 |};
 
@@ -69,6 +72,7 @@ export default class WorkerFarm extends EventEmitter {
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
+  sharedReferences: Map<number, mixed> = new Map();
   profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
@@ -78,7 +82,7 @@ export default class WorkerFarm extends EventEmitter {
       maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
       forcedKillTime: 500,
       warmWorkers: false,
-      useLocalWorker: true,
+      useLocalWorker: true, // TODO: setting this to false makes some tests fail, figure out why
       backend: detectBackend(),
       ...farmOptions
     };
@@ -116,7 +120,8 @@ export default class WorkerFarm extends EventEmitter {
           reject,
           retries: 0
         });
-      })
+      }),
+    getSharedReference: (ref: number) => this.sharedReferences.get(ref)
   };
 
   warmupWorker(method: string, args: Array<any>): void {
@@ -177,7 +182,8 @@ export default class WorkerFarm extends EventEmitter {
   startChild() {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
-      backend: this.options.backend
+      backend: this.options.backend,
+      patchConsole: this.options.patchConsole
     });
 
     worker.fork(nullthrows(this.options.workerPath));
@@ -326,6 +332,7 @@ export default class WorkerFarm extends EventEmitter {
       handle.dispose();
     }
     this.handles = new Map();
+    this.sharedReferences = new Map();
 
     await Promise.all(
       Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
@@ -355,6 +362,49 @@ export default class WorkerFarm extends EventEmitter {
     let handle = new Handle({fn, workerApi: this.workerApi});
     this.handles.set(handle.id, handle);
     return handle;
+  }
+
+  async createSharedReference(value: mixed) {
+    let ref = referenceId++;
+    this.sharedReferences.set(ref, value);
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method: 'createSharedReference',
+            args: [ref, value],
+            resolve,
+            reject,
+            retries: 0
+          });
+        })
+      );
+    }
+
+    await Promise.all(promises);
+
+    return {
+      ref,
+      dispose: () => {
+        this.sharedReferences.delete(ref);
+        let promises = [];
+        for (let worker of this.workers.values()) {
+          promises.push(
+            new Promise((resolve, reject) => {
+              worker.call({
+                method: 'deleteSharedReference',
+                args: [ref],
+                resolve,
+                reject,
+                retries: 0
+              });
+            })
+          );
+        }
+        return Promise.all(promises);
+      }
+    };
   }
 
   async startProfile() {
