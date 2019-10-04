@@ -206,6 +206,13 @@ export default class PackagerRunner {
 
     if (cacheKey != null) {
       await this.writeToCache(cacheKey, result.contents, map);
+
+      if (result.contents instanceof Readable) {
+        return {
+          contents: this.options.cache.getStream(getContentKey(cacheKey)),
+          map: result.map
+        };
+      }
     }
 
     return result;
@@ -376,8 +383,8 @@ export default class PackagerRunner {
     contents: Readable,
     map: ?Readable
   |}> {
-    let contentKey = md5FromString(`${cacheKey}:content`);
-    let mapKey = md5FromString(`${cacheKey}:map`);
+    let contentKey = getContentKey(cacheKey);
+    let mapKey = getMapKey(cacheKey);
 
     let contentExists = await this.options.cache.blobExists(contentKey);
     if (!contentExists) {
@@ -439,12 +446,12 @@ export default class PackagerRunner {
   }
 
   async writeToCache(cacheKey: string, contents: Blob, map: ?Blob) {
-    let contentKey = md5FromString(`${cacheKey}:content`);
+    let contentKey = getContentKey(cacheKey);
 
     await this.options.cache.setStream(contentKey, blobToStream(contents));
 
     if (map != null) {
-      let mapKey = md5FromString(`${cacheKey}:map`);
+      let mapKey = getMapKey(cacheKey);
       await this.options.cache.setStream(mapKey, blobToStream(map));
     }
   }
@@ -530,4 +537,12 @@ function replaceReferences(
   }
 
   return output;
+}
+
+function getContentKey(cacheKey: string) {
+  return md5FromString(`${cacheKey}:content`);
+}
+
+function getMapKey(cacheKey: string) {
+  return md5FromString(`${cacheKey}:map`);
 }

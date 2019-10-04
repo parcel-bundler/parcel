@@ -25,9 +25,10 @@ import path from 'path';
 type Opts = {|
   options: ParcelOptions,
   config: ParcelConfig,
+  name: string,
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetRequest?: AssetRequest,
+  assetRequests?: Array<AssetRequest>,
   workerFarm: WorkerFarm
 |};
 
@@ -41,15 +42,17 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async init({
     config,
+    name,
     options,
     entries,
     targets,
-    assetRequest,
+    assetRequests,
     workerFarm
   }: Opts) {
     this.options = options;
     let {minify, hot, scopeHoist} = options;
     this.cacheKey = md5FromObject({
+      name,
       options: {minify, hot, scopeHoist},
       entries,
       targets
@@ -81,7 +84,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       this.assetGraph.initialize({
         entries,
         targets,
-        assetGroup: assetRequest
+        assetGroups: assetRequests
       });
     }
   }
