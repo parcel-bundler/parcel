@@ -22,7 +22,7 @@ type AssetGraphOpts = {|
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetGroup?: AssetGroup
+  assetGroups?: Array<AssetGroup>
 |};
 
 type SerializedAssetGraph = {|
@@ -76,7 +76,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved = onNodeRemoved;
   }
 
-  initialize({entries, targets, assetGroup}: InitOpts) {
+  initialize({entries, targets, assetGroups}: InitOpts) {
     let rootNode = {id: '@@root', type: 'root', value: null};
     this.setRootNode(rootNode);
 
@@ -100,9 +100,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           nodes.push(node);
         }
       }
-    } else if (assetGroup) {
-      let node = nodeFromAssetGroup(assetGroup);
-      nodes.push(node);
+    } else if (assetGroups) {
+      nodes.push(
+        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup))
+      );
     }
 
     this.replaceNodesConnectedTo(rootNode, nodes);
