@@ -98,6 +98,7 @@ function isUnusedWildcard(path) {
 
 function remove(path) {
   if (path.isAssignmentExpression()) {
+    let right;
     if (
       path.parentPath.isSequenceExpression() &&
       path.parent.expressions.length === 1
@@ -106,12 +107,14 @@ function remove(path) {
       path.parentPath.replaceWith(path);
       remove(path.parentPath);
     } else if (
-      !path.parentPath.isExpressionStatement() ||
-      !path.get('right').isPure()
+      //e.g. `exports.foo = bar;`, `bar` needs to be pure (an Identifier isn't ?!)
+      path.parentPath.isExpressionStatement() &&
+      ((right = path.get('right')).isPure() || right.isIdentifier())
     ) {
-      path.replaceWith(path.node.right);
-    } else {
       path.remove();
+    } else {
+      // right side isn't pure
+      path.replaceWith(path.node.right);
     }
   } else if (isExportAssignment(path)) {
     remove(path.parentPath.parentPath);

@@ -14,9 +14,10 @@ import type {
   BundleGraphNode,
   BundleGroupNode,
   Dependency,
-  DependencyNode
+  DependencyNode,
+  RootNode
 } from './types';
-import type Graph from './Graph';
+import type AssetGraph from './AssetGraph';
 
 import invariant from 'assert';
 import crypto from 'crypto';
@@ -24,7 +25,7 @@ import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId} from './utils';
-import {mapVisitor} from './Graph';
+import Graph, {mapVisitor} from './Graph';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -280,21 +281,18 @@ export default class BundleGraph {
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
-    let inboundNodes = this._graph.getNodesConnectedTo(
-      nullthrows(this._graph.getNode(bundle.id)),
-      'bundle'
-    );
-    invariant(
-      inboundNodes.length === 1 && inboundNodes[0].type === 'bundle_group'
-    );
-    let bundleGroupNode = inboundNodes[0];
-
-    let parentNodes = this._graph.getNodesConnectedTo(
-      bundleGroupNode,
-      'bundle'
+    let parentBundleNodes = flatMap(
+      this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(bundle.id)),
+        'bundle'
+      ),
+      bundleGroupNode => {
+        invariant(bundleGroupNode.type === 'bundle_group');
+        return this._graph.getNodesConnectedTo(bundleGroupNode, 'bundle');
+      }
     );
 
-    return parentNodes.every(parentNode => {
+    return parentBundleNodes.every(parentNode => {
       let inBundle;
 
       this._graph.traverseAncestors(
@@ -551,7 +549,7 @@ export default class BundleGraph {
     let hash = crypto.createHash('md5');
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.update(asset.outputHash);
+      hash.update([asset.outputHash, asset.filePath].join(':'));
     });
 
     let hashHex = hash.digest('hex');
@@ -568,4 +566,42 @@ export default class BundleGraph {
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
   }
+}
+
+export function removeAssetGroups(
+  assetGraph: AssetGraph
+): Graph<AssetNode | DependencyNode | RootNode> {
+  let graph = new Graph<AssetNode | DependencyNode | RootNode>();
+  // $FlowFixMe
+  graph.setRootNode(nullthrows(assetGraph.getRootNode()));
+  let assetGroupIds = new Set();
+
+  assetGraph.traverse(node => {
+    if (node.type === 'asset_group') {
+      assetGroupIds.add(node.id);
+    } else {
+      graph.addNode(node);
+    }
+  });
+
+  for (let edge of assetGraph.getAllEdges()) {
+    let fromIds;
+    if (assetGroupIds.has(edge.from)) {
+      fromIds = [...assetGraph.inboundEdges.get(edge.from).get(null)];
+    } else {
+      fromIds = [edge.from];
+    }
+
+    for (let from of fromIds) {
+      if (assetGroupIds.has(edge.to)) {
+        for (let to of assetGraph.outboundEdges.get(edge.to).get(null)) {
+          graph.addEdge(from, to);
+        }
+      } else {
+        graph.addEdge(from, edge.to);
+      }
+    }
+  }
+
+  return graph;
 }

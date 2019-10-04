@@ -19,7 +19,7 @@ export default async function getEnvOptions(config: Config) {
 
   // If this is the app module, the source and target will be the same, so just compile everything.
   // Otherwise, load the source engines and generate a babel-present-env config.
-  if (!(await config.isSource())) {
+  if (!config.isSource) {
     let sourceBabelTargets = await getBabelTargets(config);
 
     if (

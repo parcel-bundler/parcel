@@ -17,7 +17,7 @@ type DependencyOpts = {|
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
-  isWeak?: boolean,
+  isWeak?: ?boolean,
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
@@ -43,9 +43,10 @@ export function createDependency(opts: DependencyOpts): Dependency {
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {meta, symbols, ...other} = b;
+  let {meta, symbols, isWeak, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
+  a.isWeak = a.isWeak === isWeak ? a.isWeak : a.isWeak ?? isWeak;
   for (let [k, v] of symbols) {
     a.symbols.set(k, v);
   }
