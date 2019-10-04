@@ -3,7 +3,6 @@
 import type {Namer} from '@parcel/types';
 import type WorkerFarm from '@parcel/workers';
 import type AssetGraphBuilder from './AssetGraphBuilder';
-import type ParcelConfig from './ParcelConfig';
 
 import assert from 'assert';
 import path from 'path';
