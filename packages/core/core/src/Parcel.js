@@ -10,7 +10,6 @@ import type {
   ModuleSpecifier
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
-import type InternalBundleGraph from './BundleGraph';
 import type {FarmOptions} from '@parcel/workers';
 
 import invariant from 'assert';
