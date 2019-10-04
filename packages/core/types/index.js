@@ -243,7 +243,7 @@ export type DependencyOptions = {|
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
-  isWeak?: boolean,
+  isWeak?: ?boolean,
   loc?: SourceLocation,
   env?: EnvironmentOpts,
   meta?: Meta,
@@ -258,7 +258,7 @@ export interface Dependency {
   +isEntry: boolean;
   +isOptional: boolean;
   +isURL: boolean;
-  +isWeak: boolean;
+  +isWeak: ?boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
