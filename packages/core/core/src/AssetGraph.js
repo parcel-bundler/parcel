@@ -1,16 +1,22 @@
 // @flow strict-local
 
+import type {GraphVisitor} from '@parcel/types';
+import type {
+  Asset,
+  AssetGraphNode,
+  AssetGroup,
+  AssetGroupNode,
+  Dependency,
+  DependencyNode,
+  Target
+} from './types';
+
+import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-
-import type {GraphVisitor} from '@parcel/types';
-import type {Target} from './types';
-import {md5FromObject} from '@parcel/utils';
-
-import type {Asset, Dependency} from './types';
-import Graph, {type GraphOpts} from './Graph';
-import type {AssetGraphNode, AssetGroup, DependencyNode} from './types';
 import crypto from 'crypto';
+
+import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
@@ -200,6 +206,17 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       visit,
       startNode
     );
+  }
+
+  getEntryAssetGroupNodes(): Array<AssetGroupNode> {
+    let entryNodes = [];
+    this.traverse((node, _, actions) => {
+      if (node.type === 'asset_group') {
+        entryNodes.push(node);
+        actions.skipChildren();
+      }
+    });
+    return entryNodes;
   }
 
   getEntryAssets(): Array<Asset> {

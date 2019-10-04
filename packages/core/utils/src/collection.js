@@ -45,3 +45,13 @@ function sortEntry(entry: mixed) {
 
   return entry;
 }
+
+export function setDifference<T>(a: Set<T>, b: Set<T>): Set<T> {
+  let difference = new Set();
+  for (let e of a) {
+    if (!b.has(e)) {
+      difference.add(e);
+    }
+  }
+  return difference;
+}
