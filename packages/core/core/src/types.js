@@ -53,7 +53,7 @@ export type Dependency = {|
   isEntry: boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: boolean,
+  isWeak: ?boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -72,6 +72,7 @@ export type Asset = {|
   includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
+  isSource: boolean,
   outputHash: string,
   env: Environment,
   meta: Meta,
@@ -106,7 +107,7 @@ export type ParcelOptions = {|
   projectRoot: FilePath,
   lockFile: ?FilePath,
   profile: boolean,
-  patchConsole: ?boolean,
+  patchConsole: boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -205,6 +206,7 @@ export type ConfigRequestNode = {|
 |};
 
 export type Config = {|
+  isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   resolvedPath: ?FilePath,
@@ -222,6 +224,7 @@ export type Config = {|
 export type ConfigRequest = {|
   filePath: FilePath,
   env: Environment,
+  isSource: boolean,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,

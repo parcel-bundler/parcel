@@ -53,6 +53,7 @@ describe('AssetGraphBuilder', function() {
 
     builder = new AssetGraphBuilder();
     await builder.init({
+      name: 'test',
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],

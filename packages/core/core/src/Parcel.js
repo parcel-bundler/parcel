@@ -10,8 +10,7 @@ import type {
   ModuleSpecifier
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
-import type InternalBundleGraph from './BundleGraph';
-import type ParcelConfig from './ParcelConfig';
+import type {FarmOptions} from '@parcel/workers';
 
 import invariant from 'assert';
 import {createDependency} from './Dependency';
@@ -39,7 +38,9 @@ export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
+  #runtimesAssetGraphBuilder; // AssetGraphBuilder
   #bundlerRunner; // BundlerRunner
+  #packagerRunner; // PackagerRunner
   #config;
   #farm; // WorkerFarm
   #initialized = false; // boolean
@@ -82,10 +83,34 @@ export default class Parcel {
       resolvedOptions
     );
     this.#config = config;
-    this.#farm = this.#initialOptions.workerFarm ?? createWorkerFarm();
+    this.#farm =
+      this.#initialOptions.workerFarm ??
+      createWorkerFarm({
+        patchConsole: resolvedOptions.patchConsole
+      });
+
+    this.#assetGraphBuilder = new AssetGraphBuilder();
+    this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
+
+    await Promise.all([
+      this.#assetGraphBuilder.init({
+        name: 'MainAssetGraph',
+        options: resolvedOptions,
+        config,
+        entries: resolvedOptions.entries,
+        workerFarm: this.#farm
+      }),
+      this.#runtimesAssetGraphBuilder.init({
+        name: 'RuntimesAssetGraph',
+        options: resolvedOptions,
+        config,
+        workerFarm: this.#farm
+      })
+    ]);
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
+      runtimesBuilder: this.#runtimesAssetGraphBuilder,
       config,
       workerFarm: this.#farm
     });
@@ -95,12 +120,10 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.#assetGraphBuilder = new AssetGraphBuilder();
-    await this.#assetGraphBuilder.init({
-      options: resolvedOptions,
+    this.#packagerRunner = new PackagerRunner({
       config,
-      entries: resolvedOptions.entries,
-      workerFarm: this.#farm
+      options: resolvedOptions,
+      farm: this.#farm
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');
@@ -114,7 +137,10 @@ export default class Parcel {
     }
 
     let result = await this.build(startTime);
-    await this.#assetGraphBuilder.writeToCache();
+    await Promise.all([
+      this.#assetGraphBuilder.writeToCache(),
+      this.#runtimesAssetGraphBuilder.writeToCache()
+    ]);
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
@@ -171,7 +197,10 @@ export default class Parcel {
           await nullthrows(this.#watcherSubscription).unsubscribe();
           this.#watcherSubscription = null;
           await this.#reporterRunner.report({type: 'watchEnd'});
-          await this.#assetGraphBuilder.writeToCache();
+          await Promise.all([
+            this.#assetGraphBuilder.writeToCache(),
+            this.#runtimesAssetGraphBuilder.writeToCache()
+          ]);
         }
       }
     };
@@ -194,12 +223,7 @@ export default class Parcel {
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await packageBundles({
-        bundleGraph,
-        config: this.#config,
-        options,
-        farm: this.#farm
-      });
+      await this.#packagerRunner.writeBundles(bundleGraph);
 
       let event = {
         type: 'buildSuccess',
@@ -312,37 +336,6 @@ export default class Parcel {
   }
 }
 
-function packageBundles({
-  bundleGraph,
-  config,
-  options,
-  farm
-}: {
-  bundleGraph: InternalBundleGraph,
-  config: ParcelConfig,
-  options: ParcelOptions,
-  farm: WorkerFarm,
-  ...
-}): Promise<mixed> {
-  let promises = [];
-  for (let bundle of bundleGraph.getBundles()) {
-    // skip inline bundles, they will be processed via the parent bundle
-    if (bundle.isInline) {
-      continue;
-    }
-
-    promises.push(
-      new PackagerRunner({config, options, farm})
-        .writeBundle(bundle, bundleGraph)
-        .then(stats => {
-          bundle.stats = stats;
-        })
-    );
-  }
-
-  return Promise.all(promises);
-}
-
 export class BuildError extends Error {
   name = 'BuildError';
   error: mixed;
@@ -358,8 +351,9 @@ export class BuildError extends Error {
 
 export {default as Asset} from './InternalAsset';
 
-export function createWorkerFarm() {
+export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({
+    ...options,
     workerPath: require.resolve('./worker')
   });
 }

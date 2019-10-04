@@ -242,7 +242,7 @@ export type DependencyOptions = {|
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
-  isWeak?: boolean,
+  isWeak?: ?boolean,
   loc?: SourceLocation,
   env?: EnvironmentOpts,
   meta?: Meta,
@@ -257,7 +257,7 @@ export interface Dependency {
   +isEntry: boolean;
   +isOptional: boolean;
   +isURL: boolean;
-  +isWeak: boolean;
+  +isWeak: ?boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
@@ -282,6 +282,7 @@ interface BaseAsset {
   +meta: Meta;
   +isIsolated: boolean;
   +isInline: boolean;
+  +isSource: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
@@ -326,6 +327,7 @@ export interface Asset extends BaseAsset {
 }
 
 export interface Config {
+  +isSource: boolean;
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
@@ -356,7 +358,6 @@ export interface Config {
     }
   ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
-  isSource(): Promise<boolean>;
   shouldRehydrate(): void;
   shouldReload(): void;
   shouldInvalidateOnStartup(): void;
@@ -384,6 +385,7 @@ export interface TransformerResult {
   includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
   isInline?: boolean;
+  isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
   symbols?: Map<Symbol, Symbol>;
