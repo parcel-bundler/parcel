@@ -59,11 +59,10 @@ export default class BundleGraph {
     this._bundleContentHashes = bundleContentHashes || new Map();
   }
 
-  static deserialize(opts: {
+  static deserialize(opts: {|
     _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    _bundleContentHashes: Map<string, string>,
-    ...
-  }): BundleGraph {
+    _bundleContentHashes: Map<string, string>
+  |}): BundleGraph {
     return new BundleGraph({
       graph: opts._graph,
       bundleContentHashes: opts._bundleContentHashes

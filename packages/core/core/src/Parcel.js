@@ -55,16 +55,14 @@ export default class Parcel {
   #watchAbortController; // AbortController
   #watchQueue = new PromiseQueue<?BuildEvent>({maxConcurrent: 1}); // PromiseQueue<?BuildEvent>
   #watchEvents = new ValueEmitter<
-    | {
+    | {|
         +error: Error,
-        +buildEvent?: void,
-        ...
-      }
-    | {
+        +buildEvent?: void
+      |}
+    | {|
         +buildEvent: BuildEvent,
-        +error?: void,
-        ...
-      }
+        +error?: void
+      |}
   >();
   #watcherSubscription; // AsyncSubscription
   #watcherCount = 0; // number
@@ -287,12 +285,11 @@ export default class Parcel {
     filePath,
     env,
     code
-  }: {
+  }: {|
     filePath: FilePath,
     env: EnvironmentOpts,
-    code?: string,
-    ...
-  }) {
+    code?: string
+  |}) {
     let [result] = await Promise.all([
       this.#assetGraphBuilder.runTransform({
         filePath,
@@ -310,12 +307,11 @@ export default class Parcel {
     moduleSpecifier,
     sourcePath,
     env
-  }: {
+  }: {|
     moduleSpecifier: ModuleSpecifier,
     sourcePath: FilePath,
-    env: EnvironmentOpts,
-    ...
-  }): Promise<FilePath> {
+    env: EnvironmentOpts
+  |}): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
       createDependency({
         moduleSpecifier,
