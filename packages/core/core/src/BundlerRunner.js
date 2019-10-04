@@ -2,7 +2,6 @@
 
 import type {Namer} from '@parcel/types';
 import type WorkerFarm from '@parcel/workers';
-import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type AssetGraphBuilder from './AssetGraphBuilder';
 import type ParcelConfig from './ParcelConfig';
 
