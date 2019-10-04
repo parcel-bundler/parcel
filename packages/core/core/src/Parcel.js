@@ -22,6 +22,7 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
+import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -118,6 +119,12 @@ export default class Parcel {
     this.#reporterRunner = new ReporterRunner({
       config,
       options: resolvedOptions
+    });
+
+    this.#packagerRunner = new PackagerRunner({
+      config,
+      options: resolvedOptions,
+      farm: this.#farm
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');
