@@ -88,11 +88,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodeIds: Set<NodeId> = new Set();
-  runTransform: TransformationOpts => Promise<{
+  runTransform: TransformationOpts => Promise<{|
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>,
-    ...
-  }>;
+    configRequests: Array<ConfigRequest>
+  |}>;
   runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;

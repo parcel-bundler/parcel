@@ -233,15 +233,14 @@ export type RequestNode =
   | DepVersionRequestNode;
 export type SubRequestNode = ConfigRequestNode | DepVersionRequestNode;
 
-export type CacheEntry = {
+export type CacheEntry = {|
   filePath: FilePath,
   env: Environment,
   hash: string,
   assets: Array<Asset>,
   // Initial assets, pre-post processing
-  initialAssets: ?Array<Asset>,
-  ...
-};
+  initialAssets: ?Array<Asset>
+|};
 
 export type Bundle = {|
   id: string,

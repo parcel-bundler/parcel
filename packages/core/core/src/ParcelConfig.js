@@ -22,11 +22,11 @@ import loadPlugin from './loadParcelPlugin';
 
 type Pipeline = Array<PackageName>;
 type GlobMap<T> = {[Glob]: T, ...};
-type SerializedParcelConfig = {
+type SerializedParcelConfig = {|
+  $$raw: boolean,
   config: ResolvedParcelConfigFile,
-  packageManager: PackageManager,
-  ...
-};
+  packageManager: PackageManager
+|};
 
 export default class ParcelConfig {
   packageManager: PackageManager;
