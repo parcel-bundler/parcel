@@ -5,6 +5,7 @@ import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
 import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
+  isSource: boolean,
   searchPath: FilePath,
   env: Environment,
   resolvedPath?: FilePath,
@@ -18,6 +19,7 @@ type ConfigOpts = {|
 |};
 
 export function createConfig({
+  isSource,
   searchPath,
   env,
   resolvedPath,
@@ -30,6 +32,7 @@ export function createConfig({
   shouldInvalidateOnStartup
 }: ConfigOpts): Config {
   return {
+    isSource,
     searchPath,
     env,
     resolvedPath,

@@ -1,34 +1,39 @@
+// @flow
+
+import type {MutableAsset, PluginOptions} from '@parcel/types';
+
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL} from '@parcel/utils';
 import nodeBuiltins from 'node-libs-browser';
 import {hasBinding} from './utils';
+import invariant from 'assert';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
-export default {
-  ImportDeclaration(node, asset) {
+export default ({
+  ImportDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     addDependency(asset, node.source);
   },
 
-  ExportNamedDeclaration(node, asset) {
+  ExportNamedDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     if (node.source) {
       addDependency(asset, node.source);
     }
   },
 
-  ExportAllDeclaration(node, asset) {
+  ExportAllDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
     addDependency(asset, node.source);
   },
 
-  ExportDefaultDeclaration(node, asset) {
+  ExportDefaultDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
   },
 
-  CallExpression(node, asset, ancestors) {
+  CallExpression(node, {asset}, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -60,13 +65,16 @@ export default {
       addDependency(asset, args[0], {isAsync: true});
 
       node.callee = types.identifier('require');
+      invariant(asset.ast);
       asset.ast.isDirty = true;
       return;
     }
 
     const isRegisterServiceWorker =
       types.isStringLiteral(args[0]) &&
-      types.matchesPattern(callee, serviceWorkerPattern);
+      types.matchesPattern(callee, serviceWorkerPattern) &&
+      !hasBinding(ancestors, 'navigator') &&
+      !isInFalsyBranch(ancestors);
 
     if (isRegisterServiceWorker) {
       // Treat service workers as an entry point so filenames remain consistent across builds.
@@ -79,21 +87,44 @@ export default {
     }
   },
 
-  NewExpression(node, asset) {
-    const {callee, arguments: args} = node;
+  NewExpression(node, {asset, options}, ancestors) {
+    let {callee, arguments: args} = node;
 
-    const isWebWorker =
+    let isWebWorker =
       callee.type === 'Identifier' &&
       (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
-      args.length === 1 &&
-      types.isStringLiteral(args[0]);
+      !hasBinding(ancestors, callee.name) &&
+      !isInFalsyBranch(ancestors) &&
+      types.isStringLiteral(args[0]) &&
+      (args.length === 1 || args.length === 2);
 
     if (isWebWorker) {
-      addURLDependency(asset, args[0], {env: {context: 'web-worker'}});
+      let isModule = false;
+      if (types.isObjectExpression(args[1])) {
+        let prop = args[1].properties.find(v =>
+          types.isIdentifier(v.key, {name: 'type'})
+        );
+        if (prop && types.isStringLiteral(prop.value))
+          isModule = prop.value.value === 'module';
+      }
+
+      addURLDependency(asset, args[0], {
+        env: {
+          context: 'web-worker',
+          outputFormat: isModule && options.scopeHoist ? 'esmodule' : undefined
+        }
+      });
       return;
     }
   }
-};
+}: {
+  [key: string]: (
+    node: any,
+    {|asset: MutableAsset, options: PluginOptions|},
+    ancestors: Array<any>
+  ) => void,
+  ...
+});
 
 function isInFalsyBranch(ancestors) {
   // Check if any ancestors are if statements
@@ -144,15 +175,11 @@ function addDependency(asset, node, opts = {}) {
   //   throw err;
   // }
 
-  asset.addDependency(
-    Object.assign(
-      {
-        moduleSpecifier: node.value,
-        loc: node.loc && node.loc.start
-      },
-      opts
-    )
-  );
+  asset.addDependency({
+    moduleSpecifier: node.value,
+    loc: node.loc && node.loc.start,
+    ...opts
+  });
 }
 
 function addURLDependency(asset, node, opts = {}) {
@@ -160,5 +187,6 @@ function addURLDependency(asset, node, opts = {}) {
     loc: node.loc && node.loc.start,
     ...opts
   });
+  invariant(asset.ast);
   asset.ast.isDirty = true;
 }

@@ -74,4 +74,13 @@ describe('content hashing', function() {
 
     assert.notEqual(filename, newFilename);
   });
+
+  it('should consider bundles with identical contents coming from different filepaths unique', async () => {
+    await _bundle(
+      path.join(
+        __dirname,
+        'integration/same-contents-different-filepaths/index.js'
+      )
+    );
+  });
 });
