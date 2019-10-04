@@ -27,21 +27,24 @@ export function shake(
 
     // Flatten all module declarations into the top-level scope
     if (ts.isModuleDeclaration(node)) {
+      let isFirstModule = !currentModule;
       currentModule = moduleGraph.getModule(node.name.text);
-      return ts.visitEachChild(node, visit, context).body.statements;
+      let statements = ts.visitEachChild(node, visit, context).body.statements;
+
+      if (isFirstModule) {
+        statements.unshift(...generateImports(ts, moduleGraph));
+      }
+
+      return statements;
     }
 
     if (!currentModule) {
       return ts.visitEachChild(node, visit, context);
     }
 
-    // Remove imports to flattened modules
+    // Remove inline imports. They are hoisted to the top of the output.
     if (ts.isImportDeclaration(node)) {
-      if (moduleGraph.getModule(node.moduleSpecifier.text)) {
-        return null;
-      }
-
-      return node;
+      return null;
     }
 
     // Remove exports from flattened modules
@@ -147,4 +150,62 @@ export function shake(
   };
 
   return ts.visitNode(sourceFile, visit);
+}
+
+function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
+  let importStatements = [];
+  for (let [specifier, names] of moduleGraph.getAllImports()) {
+    let defaultSpecifier;
+    let namespaceSpecifier;
+    let namedSpecifiers = [];
+    for (let [name, imported] of names) {
+      if (imported === 'default') {
+        defaultSpecifier = ts.createIdentifier(name);
+      } else if (imported === '*') {
+        namespaceSpecifier = ts.createNamespaceImport(
+          ts.createIdentifier(name)
+        );
+      } else {
+        namedSpecifiers.push(
+          ts.createImportSpecifier(
+            name === imported ? undefined : ts.createIdentifier(name),
+            ts.createIdentifier(imported)
+          )
+        );
+      }
+    }
+
+    if (namespaceSpecifier) {
+      let importClause = ts.createImportClause(
+        defaultSpecifier,
+        namespaceSpecifier
+      );
+      importStatements.push(
+        ts.createImportDeclaration(
+          undefined,
+          undefined,
+          importClause,
+          ts.createLiteral(specifier)
+        )
+      );
+      defaultSpecifier = undefined;
+    }
+
+    if (defaultSpecifier || namedSpecifiers.length > 0) {
+      let importClause = ts.createImportClause(
+        defaultSpecifier,
+        ts.createNamedImports(namedSpecifiers)
+      );
+      importStatements.push(
+        ts.createImportDeclaration(
+          undefined,
+          undefined,
+          importClause,
+          ts.createLiteral(specifier)
+        )
+      );
+    }
+  }
+
+  return importStatements;
 }

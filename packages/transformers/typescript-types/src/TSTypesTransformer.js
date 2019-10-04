@@ -45,10 +45,9 @@ export default new Transformer({
       .filter(file => file.fileName !== asset.filePath)
       .map(file => ({filePath: file.fileName}));
 
-    let mainModuleName = path.basename(
-      asset.filePath,
-      path.extname(asset.filePath)
-    );
+    let mainModuleName = path
+      .relative(program.getCommonSourceDirectory(), asset.filePath)
+      .slice(0, -path.extname(asset.filePath).length);
     let moduleGraph = new TSModuleGraph(ts, mainModuleName);
 
     program.emit(undefined, undefined, undefined, true, {

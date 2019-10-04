@@ -320,7 +320,11 @@ export default class Transformation {
   |}): Promise<?Pipeline> {
     let nextFilePath =
       filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
-    let nextPipeline = await this.loadPipeline(nextFilePath, isSource);
+    let nextPipeline = await this.loadPipeline(
+      nextFilePath,
+      isSource,
+      this.request.pipeline
+    );
 
     if (nextPipeline.id === currentPipeline.id) {
       return null;

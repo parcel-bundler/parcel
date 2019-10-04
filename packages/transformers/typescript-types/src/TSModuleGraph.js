@@ -33,6 +33,7 @@ export class TSModuleGraph {
 
     // If name is imported, mark used in the original module
     if (module.imports.has(name)) {
+      module.used.add(name);
       let {specifier, imported} = nullthrows(module.imports.get(name));
       let m = this.getModule(specifier);
       if (!m) {
@@ -50,24 +51,17 @@ export class TSModuleGraph {
 
     // Visit all child nodes of the original binding and mark any referenced types as used.
     let visit = (node: any) => {
-      if (ts.isTypeReferenceNode(node)) {
-        if (
-          ts.isQualifiedName(node.typeName) &&
-          ts.isIdentifier(node.typeName.left)
-        ) {
-          let resolved = this.resolveImport(
-            module,
-            node.typeName.left.text,
-            node.typeName.right.text
-          );
-          if (resolved) {
-            this.markUsed(resolved.module, resolved.imported, context);
-          }
-        } else if (ts.isIdentifier(node.typeName)) {
-          this.markUsed(module, node.typeName.text, context);
+      if (ts.isQualifiedName(node) && ts.isIdentifier(node.left)) {
+        let resolved = this.resolveImport(
+          module,
+          node.left.text,
+          node.right.text
+        );
+        if (resolved) {
+          this.markUsed(resolved.module, resolved.imported, context);
         }
-
-        return node;
+      } else if (ts.isIdentifier(node)) {
+        this.markUsed(module, node.text, context);
       }
 
       return ts.visitEachChild(node, visit, context);
@@ -145,6 +139,27 @@ export class TSModuleGraph {
     return res;
   }
 
+  getAllImports() {
+    // Build a map of all imports for external modules
+    let importsBySpecifier = new Map();
+    for (let module of this.modules.values()) {
+      for (let [name, imp] of module.imports) {
+        if (module.used.has(name) && !this.modules.has(imp.specifier)) {
+          let importMap = importsBySpecifier.get(imp.specifier);
+          if (!importMap) {
+            importMap = new Map();
+            importsBySpecifier.set(imp.specifier, importMap);
+          }
+
+          name = module.names.get(name) || name;
+          importMap.set(name, imp.imported);
+        }
+      }
+    }
+
+    return importsBySpecifier;
+  }
+
   propagate(context: any) {
     // Resolve all exported values, and mark them as used.
     let names = Object.create(null);
@@ -163,7 +178,7 @@ export class TSModuleGraph {
           continue;
         }
 
-        if (!m.used.has(orig)) {
+        if (!m.used.has(orig) || m.imports.get(orig)) {
           continue;
         }
 

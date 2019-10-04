@@ -25,7 +25,7 @@ export function collect(
       return ts.visitEachChild(node, visit, context);
     }
 
-    if (ts.isImportDeclaration(node)) {
+    if (ts.isImportDeclaration(node) && node.importClause) {
       if (node.importClause.namedBindings) {
         if (node.importClause.namedBindings.elements) {
           for (let element of node.importClause.namedBindings.elements) {
