@@ -14,9 +14,10 @@ import type {
   BundleGraphNode,
   BundleGroupNode,
   Dependency,
-  DependencyNode
+  DependencyNode,
+  RootNode
 } from './types';
-import type Graph from './Graph';
+import type AssetGraph from './AssetGraph';
 
 import invariant from 'assert';
 import crypto from 'crypto';
@@ -24,7 +25,7 @@ import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId} from './utils';
-import {mapVisitor} from './Graph';
+import Graph, {mapVisitor} from './Graph';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -565,4 +566,42 @@ export default class BundleGraph {
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
   }
+}
+
+export function removeAssetGroups(
+  assetGraph: AssetGraph
+): Graph<AssetNode | DependencyNode | RootNode> {
+  let graph = new Graph<AssetNode | DependencyNode | RootNode>();
+  // $FlowFixMe
+  graph.setRootNode(nullthrows(assetGraph.getRootNode()));
+  let assetGroupIds = new Set();
+
+  assetGraph.traverse(node => {
+    if (node.type === 'asset_group') {
+      assetGroupIds.add(node.id);
+    } else {
+      graph.addNode(node);
+    }
+  });
+
+  for (let edge of assetGraph.getAllEdges()) {
+    let fromIds;
+    if (assetGroupIds.has(edge.from)) {
+      fromIds = [...assetGraph.inboundEdges.get(edge.from).get(null)];
+    } else {
+      fromIds = [edge.from];
+    }
+
+    for (let from of fromIds) {
+      if (assetGroupIds.has(edge.to)) {
+        for (let to of assetGraph.outboundEdges.get(edge.to).get(null)) {
+          graph.addEdge(from, to);
+        }
+      } else {
+        graph.addEdge(from, edge.to);
+      }
+    }
+  }
+
+  return graph;
 }

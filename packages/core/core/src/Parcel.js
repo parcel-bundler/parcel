@@ -38,6 +38,7 @@ export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
+  #runtimesAssetGraphBuilder; // AssetGraphBuilder
   #bundlerRunner; // BundlerRunner
   #packagerRunner; // PackagerRunner
   #config;
@@ -88,8 +89,29 @@ export default class Parcel {
         patchConsole: resolvedOptions.patchConsole
       });
 
+    this.#assetGraphBuilder = new AssetGraphBuilder();
+    this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
+
+    await Promise.all([
+      this.#assetGraphBuilder.init({
+        name: 'MainAssetGraph',
+        options: resolvedOptions,
+        config,
+        entries: resolvedOptions.entries,
+        targets: resolvedOptions.targets,
+        workerFarm: this.#farm
+      }),
+      this.#runtimesAssetGraphBuilder.init({
+        name: 'RuntimesAssetGraph',
+        options: resolvedOptions,
+        config,
+        workerFarm: this.#farm
+      })
+    ]);
+
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
+      runtimesBuilder: this.#runtimesAssetGraphBuilder,
       config,
       workerFarm: this.#farm
     });
@@ -99,14 +121,6 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.#assetGraphBuilder = new AssetGraphBuilder();
-    await this.#assetGraphBuilder.init({
-      options: resolvedOptions,
-      config,
-      entries: resolvedOptions.entries,
-      targets: resolvedOptions.targets,
-      workerFarm: this.#farm
-    });
     this.#packagerRunner = new PackagerRunner({
       config,
       options: resolvedOptions,
@@ -124,7 +138,10 @@ export default class Parcel {
     }
 
     let result = await this.build(startTime);
-    await this.#assetGraphBuilder.writeToCache();
+    await Promise.all([
+      this.#assetGraphBuilder.writeToCache(),
+      this.#runtimesAssetGraphBuilder.writeToCache()
+    ]);
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
@@ -181,7 +198,10 @@ export default class Parcel {
           await nullthrows(this.#watcherSubscription).unsubscribe();
           this.#watcherSubscription = null;
           await this.#reporterRunner.report({type: 'watchEnd'});
-          await this.#assetGraphBuilder.writeToCache();
+          await Promise.all([
+            this.#assetGraphBuilder.writeToCache(),
+            this.#runtimesAssetGraphBuilder.writeToCache()
+          ]);
         }
       }
     };
