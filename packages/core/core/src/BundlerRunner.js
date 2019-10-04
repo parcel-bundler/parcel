@@ -1,6 +1,8 @@
 // @flow strict-local
 
 import type {Namer} from '@parcel/types';
+import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
 import type AssetGraphBuilder from './AssetGraphBuilder';
 

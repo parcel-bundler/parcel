@@ -22,7 +22,6 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
-import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
