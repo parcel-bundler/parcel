@@ -376,17 +376,27 @@ const VISITOR = {
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       let id = getIdentifier(asset, 'import', specifier.local.name);
-      rename(path.scope, specifier.local.name, id.name);
 
       if (dep) {
+        let imported;
         if (t.isImportDefaultSpecifier(specifier)) {
-          dep.symbols.set('default', id.name);
+          imported = 'default';
         } else if (t.isImportSpecifier(specifier)) {
-          dep.symbols.set(specifier.imported.name, id.name);
+          imported = specifier.imported.name;
         } else if (t.isImportNamespaceSpecifier(specifier)) {
-          dep.symbols.set('*', id.name);
+          imported = '*';
+        } else {
+          throw new Error('Unknown import construct');
+        }
+
+        let existing = dep.symbols.get(imported);
+        if (existing) {
+          id.name = existing;
+        } else {
+          dep.symbols.set(imported, id.name);
         }
       }
+      rename(path.scope, specifier.local.name, id.name);
     }
 
     addImport(asset, path);
@@ -433,9 +443,6 @@ const VISITOR = {
     if (!asset.symbols.has('default')) {
       asset.symbols.set('default', identifier.name);
     }
-
-    // Mark the asset as an ES6 module, so we handle imports correctly in the packager.
-    asset.meta.isES6Module = true;
   },
 
   ExportNamedDeclaration(path, asset: MutableAsset) {
@@ -452,22 +459,30 @@ const VISITOR = {
           imported = '*';
         } else if (t.isExportSpecifier(specifier)) {
           imported = specifier.local.name;
+        } else {
+          throw new Error('Unknown export construct');
         }
 
         let id = getIdentifier(asset, 'import', exported.name);
-        asset.symbols.set(exported.name, id.name);
 
         let dep = asset
           .getDependencies()
           .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
-          // this will merge with the existing dependency
-          asset.addDependency({
-            moduleSpecifier: dep.moduleSpecifier,
-            symbols: new Map([[imported, id.name]]),
-            isWeak: true
-          });
+          let existing = dep.symbols.get(imported);
+          if (existing) {
+            id.name = existing;
+          } else {
+            // this will merge with the existing dependency
+            asset.addDependency({
+              moduleSpecifier: dep.moduleSpecifier,
+              symbols: new Map([[imported, id.name]]),
+              isWeak: true
+            });
+          }
         }
+
+        asset.symbols.set(exported.name, id.name);
 
         path.insertAfter(
           EXPORT_ASSIGN_TEMPLATE({
@@ -498,9 +513,6 @@ const VISITOR = {
 
       path.remove();
     }
-
-    // Mark the asset as an ES6 module, so we handle imports correctly in the packager.
-    asset.meta.isES6Module = true;
   },
 
   ExportAllDeclaration(path, asset: MutableAsset) {
@@ -510,8 +522,6 @@ const VISITOR = {
     if (dep) {
       dep.symbols.set('*', '*');
     }
-
-    asset.meta.isES6Module = true;
 
     path.replaceWith(
       EXPORT_ALL_TEMPLATE({

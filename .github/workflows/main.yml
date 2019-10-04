@@ -1,0 +1,13 @@
+on: pull_request
+
+name: Generate benchmarks
+
+jobs:
+  prBenchmarks:
+    name: PR Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Benchmarks
+        uses: parcel-bundler/parcel-benchmark-action@master
+        env:
+          PARCEL_BENCHMARK_APIKEY: ${{ secrets.PARCEL_BENCHMARK_APIKEY }}

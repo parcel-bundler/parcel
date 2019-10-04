@@ -82,7 +82,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
           for (let depAsset of findRequires(bundleGraph, asset, statement)) {
-            if (depAsset && !statementIndices.has(depAsset.id)) {
+            if (!statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
           }
@@ -219,6 +219,8 @@ function findRequires(
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
+        // can be undefined if AssetGraph#resolveDependency optimized
+        // ("deferred") this dependency away as an unused reexport
         let resolution = bundleGraph.getDependencyResolution(dep);
         if (resolution) {
           result.push(resolution);

@@ -28,8 +28,9 @@ export default class ConfigLoader {
   }
 
   async loadParcelConfig(configRequest: ConfigRequest) {
-    let {filePath, env} = configRequest;
+    let {filePath, isSource, env} = configRequest;
     let config = createConfig({
+      isSource,
       searchPath: filePath,
       env
     });
@@ -72,10 +73,12 @@ export default class ConfigLoader {
   async loadPluginConfig({
     plugin,
     env,
+    isSource,
     filePath,
     meta: {parcelConfigPath}
   }: ConfigRequest) {
     let config = createConfig({
+      isSource,
       searchPath: filePath,
       env
     });
