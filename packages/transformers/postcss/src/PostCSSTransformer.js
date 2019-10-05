@@ -70,6 +70,7 @@ export default new Transformer({
       configFilePlugins['postcss-modules'] != null
     ) {
       originalModulesConfig = configFilePlugins['postcss-modules'];
+      // $FlowFixMe
       delete configFilePlugins['postcss-modules'];
     }
 
