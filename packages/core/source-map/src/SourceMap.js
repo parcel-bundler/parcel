@@ -97,7 +97,10 @@ export default class SourceMap {
 
     let sourcemap: RawSourceMap =
       typeof map === 'string' ? JSON.parse(map) : map;
-    if (sourcemap.sourceRoot != null) delete sourcemap.sourceRoot;
+    if (sourcemap.sourceRoot != null) {
+      // $FlowFixMe
+      delete sourcemap.sourceRoot;
+    }
     return new SourceMapConsumer(sourcemap);
   }
 
