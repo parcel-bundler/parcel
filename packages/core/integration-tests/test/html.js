@@ -549,6 +549,24 @@ describe('html', function() {
     ]);
   });
 
+  // Based on https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
+  it('should bundle scripts inside svg', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-svg-script/index.html')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['script.js']
+      }
+    ]);
+  });
+
   it('should support data attribute of object element', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-object/index.html')
