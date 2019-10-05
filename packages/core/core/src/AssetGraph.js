@@ -141,7 +141,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       )
     );
 
-    this.replaceNodesConnectedTo(nodeFromEntryFile(entryFile), depNodes);
+    let entryNode = nodeFromEntryFile(entryFile);
+    if (this.hasNode(entryNode.id)) {
+      this.replaceNodesConnectedTo(entryNode, depNodes);
+    }
   }
 
   resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
@@ -192,12 +195,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
 
     for (let asset of assets) {
+      let assetNode = nodeFromAsset(asset);
+      assetNodes.push(assetNode);
+    }
+    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+
+    for (let assetNode of assetNodes) {
       let depNodes = [];
-      for (let dep of asset.dependencies.values()) {
+      invariant(assetNode.type === 'asset');
+      for (let dep of assetNode.value.dependencies.values()) {
         let depNode = nodeFromDep(dep);
         depNodes.push(this.nodes.get(depNode.id) || depNode);
       }
-      this.replaceNodesConnectedTo(nodeFromAsset(asset), depNodes);
+      this.replaceNodesConnectedTo(assetNode, depNodes);
     }
   }
 

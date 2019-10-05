@@ -402,6 +402,7 @@ describe('monorepos', function() {
     );
 
     evt = await getNextBuild(b);
+    assert(evt.type === 'buildSuccess');
     assertBundles(evt.bundleGraph, [
       {
         name: 'pkg-a.cjs.js',
