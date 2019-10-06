@@ -12,7 +12,7 @@ export function generate(
 ) {
   let {code} = babelGenerate(ast, {
     minified: options.minify,
-    comments: !options.minify
+    comments: true // retain /*@__PURE__*/ comments for terser
   });
 
   // $FlowFixMe
