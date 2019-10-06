@@ -23,8 +23,6 @@ untyped-type-import=error
 esproposal.export_star_as=enable
 esproposal.nullish_coalescing=enable
 esproposal.optional_chaining=enable
-module.system=haste
-module.resolver=./flow-resolver.js
 
 [strict]
 nonstrict-import
