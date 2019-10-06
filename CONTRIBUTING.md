@@ -50,7 +50,7 @@ yarn test
 Run the development version of Parcel:
 
 ```sh
-./packages/core/parcel/src/bin.js -V
+./packages/core/parcel/src/bin.js build index.html
 ```
 
 [babel]: http://babeljs.io/
