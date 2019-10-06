@@ -304,6 +304,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         // ? Should these be updated before it comes off the queue?
         this.invalidNodeIds.delete(requestNode.id);
       } catch (e) {
+        console.log(e);
         // Do nothing
         // Main tasks will be caught by the queue
         // Sub tasks will end up rejecting the main task promise

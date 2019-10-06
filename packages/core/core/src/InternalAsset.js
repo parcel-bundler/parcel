@@ -343,7 +343,8 @@ export default class InternalAsset {
       this.options.inputFS,
       this.value.filePath,
       filePaths,
-      parse == null ? null : {parse}
+      parse == null ? null : {parse},
+      this.options.projectRoot
     );
     if (!conf) {
       return null;

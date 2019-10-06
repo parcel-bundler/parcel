@@ -20,12 +20,30 @@ const PARSERS = {
 };
 
 const existsCache = new Map();
+const inProgress = new Map();
 
 export async function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions,
+  root: FilePath
+) {
+  let key = path.dirname(filepath) + filenames.join(':');
+  if (inProgress.has(key)) {
+    return inProgress.get(key);
+  }
+
+  let promise = _resolveConfig(fs, filepath, filenames, root).finally(() => {
+    // inProgress.delete(key);
+  });
+  inProgress.set(key, promise);
+  return promise;
+}
+
+async function _resolveConfig(
+  fs: FileSystem,
+  filepath: FilePath,
+  filenames: Array<FilePath>,
   root: FilePath = path.parse(filepath).root
 ): Promise<FilePath | null> {
   filepath = path.dirname(filepath);
@@ -42,17 +60,18 @@ export async function resolveConfig(
     }
   }
 
-  return resolveConfig(fs, filepath, filenames, opts);
+  return resolveConfig(fs, filepath, filenames, root);
 }
 
 export async function loadConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions
+  opts: ?ConfigOptions,
+  root
 ): Promise<ConfigOutput | null> {
   filepath = await fs.realpath(filepath);
-  let configFile = await resolveConfig(fs, filepath, filenames, opts);
+  let configFile = await resolveConfig(fs, filepath, filenames, root);
   if (configFile) {
     try {
       let extname = path.extname(configFile).slice(1);

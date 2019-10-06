@@ -51,9 +51,12 @@ export async function resolveParcelConfig(
   filePath: FilePath,
   options: ParcelOptions
 ) {
-  let configPath = await resolveConfig(options.inputFS, filePath, [
-    '.parcelrc'
-  ]);
+  let configPath = await resolveConfig(
+    options.inputFS,
+    filePath,
+    ['.parcelrc'],
+    options.projectRoot
+  );
   if (!configPath) {
     return null;
   }

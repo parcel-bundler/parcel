@@ -6,7 +6,13 @@ import type {ResolveResult} from '@parcel/utils';
 
 import {installPackage} from './installPackage';
 import {dirname} from 'path';
-import {registerSerializableClass, resolve, resolveSync} from '@parcel/utils';
+import {
+  registerSerializableClass,
+  resolve,
+  resolveSync,
+  NodeResolver,
+  NodeResolverSync
+} from '@parcel/utils';
 import pkg from '../package.json';
 // $FlowFixMe
 import Module from 'module';
@@ -22,10 +28,14 @@ export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   installer: ?PackageInstaller;
   cache: Map<ModuleSpecifier, ResolveResult> = new Map();
+  promiseCache: Map<ModuleSpecifier, Promise<ResolveResult>> = new Map();
 
   constructor(fs: FileSystem, installer?: ?PackageInstaller) {
     this.fs = fs;
     this.installer = installer;
+    this.resolver = new NodeResolver(fs);
+    this.syncResolver = new NodeResolverSync(fs);
+    this.realpathCache = new Map();
   }
 
   static deserialize(opts: any) {
@@ -50,6 +60,16 @@ export class NodePackageManager implements PackageManager {
     return this.load(resolved, from);
   }
 
+  realpathSync(filePath: FilePath) {
+    if (this.realpathCache.has(filePath)) {
+      return this.realpathCache.get(filePath);
+    }
+
+    let realpath = this.fs.realpathSync(filePath);
+    this.realpathCache.set(filePath, realpath);
+    return realpath;
+  }
+
   load(resolved: FilePath, from: FilePath) {
     if (!path.isAbsolute(resolved)) {
       // Node builtin module
@@ -57,7 +77,7 @@ export class NodePackageManager implements PackageManager {
       return require(resolved);
     }
 
-    let filePath = this.fs.realpathSync(resolved);
+    let filePath = this.realpathSync(resolved);
     const cachedModule = Module._cache[filePath];
     if (cachedModule !== undefined) {
       return cachedModule.exports;
@@ -90,7 +110,23 @@ export class NodePackageManager implements PackageManager {
     return m.exports;
   }
 
-  async resolve(
+  resolve(
+    name: ModuleSpecifier,
+    from: FilePath,
+    triedInstall: boolean = false
+  ) {
+    let basedir = dirname(from);
+    let key = basedir + ':' + name;
+    if (this.promiseCache.has(key)) {
+      return this.promiseCache.get(key);
+    }
+
+    let promise = this._resolve(name, from, triedInstall);
+    this.promiseCache.set(key, promise);
+    return promise;
+  }
+
+  async _resolve(
     name: ModuleSpecifier,
     from: FilePath,
     triedInstall: boolean = false
@@ -100,7 +136,7 @@ export class NodePackageManager implements PackageManager {
     let resolved = this.cache.get(key);
     if (!resolved) {
       try {
-        resolved = await resolve(this.fs, name, {
+        resolved = await this.resolver.resolve(name, {
           basedir,
           extensions: Object.keys(Module._extensions)
         });
@@ -119,7 +155,7 @@ export class NodePackageManager implements PackageManager {
 
   resolveSync(name: ModuleSpecifier, from: FilePath) {
     let basedir = dirname(from);
-    return resolveSync(this.fs, name, {
+    return this.syncResolver.resolve(name, {
       basedir,
       extensions: Object.keys(Module._extensions)
     });
@@ -130,6 +166,8 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     opts?: InstallOptions
   ) {
+    console.log('INSTALL', modules);
+    return;
     await installPackage(this.fs, modules, from, {
       packageInstaller: this.installer,
       ...opts

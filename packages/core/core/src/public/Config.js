@@ -90,7 +90,8 @@ export default class PublicConfig implements IConfig {
       this.#options.inputFS,
       searchPath,
       filePaths,
-      parse == null ? null : {parse}
+      parse == null ? null : {parse},
+      this.#options.projectRoot
     );
     if (conf == null) {
       return null;

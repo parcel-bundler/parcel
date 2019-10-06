@@ -108,6 +108,13 @@ export default class Parcel {
       })
     ]);
 
+    let opts = this.#assetGraphBuilder.getWatcherOptions();
+    await resolvedOptions.inputFS.cacheRoot(resolvedOptions.projectRoot, opts);
+    await resolvedOptions.inputFS.cacheRoot(
+      '/Users/devongovett/projects/bundler1',
+      {ignore: ['.git', '.parcel-cache']}
+    );
+
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
       runtimesBuilder: this.#runtimesAssetGraphBuilder,
@@ -241,6 +248,7 @@ export default class Parcel {
       await this.#assetGraphBuilder.validate();
       return event;
     } catch (e) {
+      console.log(e);
       if (e instanceof BuildAbortError) {
         throw e;
       }
