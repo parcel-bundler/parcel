@@ -562,7 +562,11 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['script.js']
+        assets: ['script-a.js']
+      },
+      {
+        type: 'js',
+        assets: ['script-b.js']
       }
     ]);
   });
