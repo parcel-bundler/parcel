@@ -108,12 +108,12 @@ export default class Parcel {
       })
     ]);
 
-    let opts = this.#assetGraphBuilder.getWatcherOptions();
-    await resolvedOptions.inputFS.cacheRoot(resolvedOptions.projectRoot, opts);
-    await resolvedOptions.inputFS.cacheRoot(
-      '/Users/devongovett/projects/bundler1',
-      {ignore: ['.git', '.parcel-cache']}
-    );
+    // let opts = this.#assetGraphBuilder.getWatcherOptions();
+    // await resolvedOptions.inputFS.cacheRoot(resolvedOptions.projectRoot, opts);
+    // await resolvedOptions.inputFS.cacheRoot(
+    //   '/Users/devongovett/dev/parcel',
+    //   {ignore: ['.git', '.parcel-cache']}
+    // );
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,

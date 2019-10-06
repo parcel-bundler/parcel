@@ -68,10 +68,9 @@ export class NodeResolver {
     // Find the nearest package.json file within the current node_modules folder
     let root = path.parse(dir).root;
     while (dir !== root && path.basename(dir) !== 'node_modules') {
-      try {
-        return await this.readPackage(dir);
-      } catch (err) {
-        // ignore
+      let file = path.join(dir, 'package.json');
+      if (await this.isFile(file)) {
+        return this.readPackage(dir);
       }
 
       dir = path.dirname(dir);
@@ -316,10 +315,9 @@ export class NodeResolverSync {
     // Find the nearest package.json file within the current node_modules folder
     let root = path.parse(dir).root;
     while (dir !== root && path.basename(dir) !== 'node_modules') {
-      try {
+      let file = path.join(dir, 'package.json');
+      if (this.isFile(file)) {
         return this.readPackage(dir);
-      } catch (err) {
-        // ignore
       }
 
       dir = path.dirname(dir);

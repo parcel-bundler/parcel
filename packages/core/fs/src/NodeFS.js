@@ -59,7 +59,6 @@ export class NodeFS implements FileSystem {
       return this.cacheRoots.get(matches[0]);
     }
 
-    console.log('NO ROOT', filePath, [...this.cacheRoots.keys()]);
     return null;
   }
 
@@ -73,11 +72,11 @@ export class NodeFS implements FileSystem {
   }
 
   async stat(path, ...args) {
-    if (this.existsCached(path) === false) {
-      let err = new Error('ENOENT');
-      err.code = 'ENOENT';
-      return err;
-    }
+    // if (this.existsCached(path) === false) {
+    //   let err = new Error('ENOENT');
+    //   err.code = 'ENOENT';
+    //   return err;
+    // }
 
     let start = performance.now();
     try {
@@ -91,11 +90,11 @@ export class NodeFS implements FileSystem {
   }
 
   statSync(path, ...args) {
-    if (this.existsCached(path) === false) {
-      let err = new Error('ENOENT');
-      err.code = 'ENOENT';
-      return err;
-    }
+    // if (this.existsCached(path) === false) {
+    //   let err = new Error('ENOENT');
+    //   err.code = 'ENOENT';
+    //   return err;
+    // }
 
     let start = performance.now();
     try {
@@ -119,10 +118,10 @@ export class NodeFS implements FileSystem {
   }
 
   exists(filePath: FilePath): Promise<boolean> {
-    let exists = this.existsCached(filePath);
-    if (exists != null) {
-      return exists;
-    }
+    // let exists = this.existsCached(filePath);
+    // if (exists != null) {
+    //   return exists;
+    // }
 
     let start = performance.now();
     return new Promise(resolve => {
@@ -137,10 +136,10 @@ export class NodeFS implements FileSystem {
   }
 
   existsSync(filePath: FilePath) {
-    let exists = this.existsCached(filePath);
-    if (exists != null) {
-      return exists;
-    }
+    // let exists = this.existsCached(filePath);
+    // if (exists != null) {
+    //   return exists;
+    // }
 
     let start = performance.now();
     try {
@@ -178,7 +177,6 @@ export class NodeFS implements FileSystem {
   }
 
   async cacheRoot(dir: FilePath, opts: WatcherOptions) {
-    return;
     let files = await watcher.getTree(dir, opts);
 
     let set = new Set();
