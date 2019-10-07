@@ -51,6 +51,7 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions
 ): Promise<ConfigOutput | null> {
+  filepath = await fs.realpath(filepath);
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
     try {
