@@ -1,5 +1,5 @@
 // @flow
-import type {FileSystem} from './types';
+import type {FileSystem, ReaddirOptions} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -91,18 +91,18 @@ export class OverlayFS implements FileSystem {
     );
   }
 
-  async readdir(path: FilePath): Promise<FilePath[]> {
+  async readdir(path: FilePath, opts?: ReaddirOptions): Promise<any> {
     // Read from both filesystems and merge the results
     let writable = [];
     let readable = [];
     try {
-      writable = await this.writable.readdir(path);
+      writable = await this.writable.readdir(path, opts);
     } catch (err) {
       // do nothing
     }
 
     try {
-      readable = await this.readable.readdir(path);
+      readable = await this.readable.readdir(path, opts);
     } catch (err) {
       // do nothing
     }
