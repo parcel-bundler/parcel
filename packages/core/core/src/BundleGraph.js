@@ -501,10 +501,17 @@ export default class BundleGraph {
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
         let resolvedAsset = nullthrows(this.getDependencyResolution(dep));
-        let {asset, symbol: resolvedSymbol} = this.resolveSymbol(
+        let {asset, symbol: resolvedSymbol, exportSymbol} = this.resolveSymbol(
           resolvedAsset,
           depSymbol
         );
+
+        // If it didn't resolve to anything (likely CommonJS), pass through where we got to
+        if (resolvedSymbol == null) {
+          return {asset, symbol: resolvedSymbol, exportSymbol};
+        }
+
+        // Otherwise, keep the original symbol name along with the resolved symbol
         return {asset, symbol: resolvedSymbol, exportSymbol: symbol};
       }
 
