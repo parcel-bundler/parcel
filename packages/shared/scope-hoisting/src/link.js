@@ -127,14 +127,14 @@ export function link({
     }
 
     // If the module is not in this bundle, create a `require` call for it.
-    if (!node && !assets.has(assertString(mod.meta.id))) {
+    if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
       node = addBundleImport(mod, path);
-      return interop(module, symbol, path, node);
+      return node ? interop(module, symbol, path, node) : null;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      let relativePath = relative(options.rootDir, mod.filePath);
+      let relativePath = relative(options.inputFS.cwd(), mod.filePath);
       throw new Error(`${relativePath} does not export '${symbol}'`);
     }
 
@@ -171,9 +171,16 @@ export function link({
       if (!path.scope.getBinding(name)) {
         // Hoist to the nearest path with the same scope as the exports is declared in
         let binding = path.scope.getBinding(mod.meta.exportsIdentifier);
-        let parent = binding
-          ? path.findParent(p => p.scope === binding.scope && p.isStatement())
-          : path.getStatementParent();
+        let parent;
+        if (binding) {
+          parent = path.findParent(
+            p => p.scope === binding.scope && p.isStatement()
+          );
+        }
+
+        if (!parent) {
+          parent = path.getStatementParent();
+        }
 
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
@@ -273,7 +280,7 @@ export function link({
     }
 
     // If not unused, add the asset to the list of specifiers to import.
-    if (!isUnusedValue(path)) {
+    if (!isUnusedValue(path) && mod.meta.exportsIdentifier) {
       invariant(imported.assets != null);
       imported.assets.add(mod);
       return t.identifier(mod.meta.exportsIdentifier);
@@ -538,7 +545,12 @@ export function link({
           }
         }
 
-        path.scope.getProgramParent().path.unshiftContainer('body', imports);
+        let paths = path.unshiftContainer('body', imports);
+        for (let path of paths) {
+          if (path.isDeclaration()) {
+            path.scope.registerDeclaration(path);
+          }
+        }
 
         // Generate exports
         let exported = format.generateExports(

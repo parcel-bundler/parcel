@@ -19,10 +19,11 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
-  href: ['link', 'a', 'use'],
+  // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
+  href: ['link', 'a', 'use', 'script'],
   srcset: ['img', 'source'],
   poster: ['video'],
-  'xlink:href': ['use', 'image'],
+  'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
   data: ['object']
 };

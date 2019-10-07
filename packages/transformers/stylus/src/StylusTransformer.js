@@ -68,9 +68,13 @@ async function getDependencies(
         if (isGlob(importedPath)) {
           deps.set(
             importedPath,
-            glob(path.resolve(path.dirname(filepath), importedPath), {
-              onlyFiles: true
-            }).then(entries =>
+            glob(
+              path.resolve(path.dirname(filepath), importedPath),
+              parcelOptions.inputFS,
+              {
+                onlyFiles: true
+              }
+            ).then(entries =>
               Promise.all(
                 entries.map(entry =>
                   resolve(
