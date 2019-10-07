@@ -43,7 +43,9 @@ export default new Transformer({
     let canonicalFilePath = host.getCanonicalFileName(asset.filePath);
     let includedFiles = program
       .getSourceFiles()
-      .filter(file => file.fileName !== canonicalFilePath)
+      .filter(
+        file => host.getCanonicalFileName(file.fileName) !== canonicalFilePath
+      )
       .map(file => ({filePath: file.fileName}));
 
     let mainModuleName = path
