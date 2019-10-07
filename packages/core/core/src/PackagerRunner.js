@@ -50,15 +50,18 @@ export default class PackagerRunner {
   writeBundleFromWorker: ({
     bundle: InternalBundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    configRef: number,
     cacheKey: string,
     options: ParcelOptions,
+    optionsRef: number,
     ...
   }) => Promise<Stats>;
 
-  constructor({config, farm, options}: Opts) {
+  constructor({config, configRef, farm, options, optionsRef}: Opts) {
     this.config = config;
+    this.configRef = configRef;
     this.options = options;
+    this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
 
     this.farm = farm;
@@ -107,8 +110,8 @@ export default class PackagerRunner {
         bundle,
         cacheKey,
         bundleGraphReference,
-        options: this.options,
-        config: this.config
+        optionsRef: this.optionsRef,
+        configRef: this.configRef
       }));
 
     return {

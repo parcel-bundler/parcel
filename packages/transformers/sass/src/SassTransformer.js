@@ -1,9 +1,8 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import {promisify, resolve} from '@parcel/utils';
+import {promisify} from '@parcel/utils';
 import logger from '@parcel/logger';
-import {dirname} from 'path';
 import {NodeFS} from '@parcel/fs';
 
 // E.g: ~library/file.sass
@@ -12,11 +11,11 @@ const fs = new NodeFS();
 
 let didWarnAboutNodeSass = false;
 
-async function warnAboutNodeSassBeingUnsupported(filePath) {
+async function warnAboutNodeSassBeingUnsupported(filePath, packageManager) {
   if (!didWarnAboutNodeSass) {
     try {
       // TODO: replace this with the actual filesystem later
-      await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
+      await packageManager.resolve('node-sass', filePath);
       logger.warn(
         '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
       );
@@ -63,7 +62,10 @@ export default new Transformer({
   },
 
   async transform({asset, options, config}) {
-    await warnAboutNodeSassBeingUnsupported(asset.filePath);
+    await warnAboutNodeSassBeingUnsupported(
+      asset.filePath,
+      options.packageManager
+    );
     let sass = await options.packageManager.require('sass', asset.filePath);
     const sassRender = promisify(sass.render.bind(sass));
 

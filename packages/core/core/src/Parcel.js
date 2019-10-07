@@ -92,10 +92,17 @@ export default class Parcel {
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
 
+    let {ref} = await this.#farm.createSharedReference(resolvedOptions);
+    this.optionsRef = ref;
+
+    let r = await this.#farm.createSharedReference(config);
+    this.configRef = r.ref;
+
     await Promise.all([
       this.#assetGraphBuilder.init({
         name: 'MainAssetGraph',
         options: resolvedOptions,
+        optionsRef: this.optionsRef,
         config,
         entries: resolvedOptions.entries,
         workerFarm: this.#farm
@@ -103,17 +110,11 @@ export default class Parcel {
       this.#runtimesAssetGraphBuilder.init({
         name: 'RuntimesAssetGraph',
         options: resolvedOptions,
+        optionsRef: this.optionsRef,
         config,
         workerFarm: this.#farm
       })
     ]);
-
-    // let opts = this.#assetGraphBuilder.getWatcherOptions();
-    // await resolvedOptions.inputFS.cacheRoot(resolvedOptions.projectRoot, opts);
-    // await resolvedOptions.inputFS.cacheRoot(
-    //   '/Users/devongovett/dev/parcel',
-    //   {ignore: ['.git', '.parcel-cache']}
-    // );
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
@@ -129,7 +130,9 @@ export default class Parcel {
 
     this.#packagerRunner = new PackagerRunner({
       config,
+      configRef: this.configRef,
       options: resolvedOptions,
+      optionsRef: this.optionsRef,
       farm: this.#farm
     });
 
@@ -248,7 +251,6 @@ export default class Parcel {
       await this.#assetGraphBuilder.validate();
       return event;
     } catch (e) {
-      console.log(e);
       if (e instanceof BuildAbortError) {
         throw e;
       }

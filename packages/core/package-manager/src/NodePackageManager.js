@@ -2,17 +2,12 @@
 import type {FilePath, ModuleSpecifier} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager, PackageInstaller, InstallOptions} from './types';
-import type {ResolveResult} from '@parcel/utils';
 
 import {installPackage} from './installPackage';
 import {dirname} from 'path';
-import {
-  registerSerializableClass,
-  resolve,
-  resolveSync,
-  NodeResolver,
-  NodeResolverSync
-} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/utils';
+import {NodeResolver} from './resolver/NodeResolver';
+import {NodeResolverSync} from './resolver/NodeResolverSync';
 import pkg from '../package.json';
 // $FlowFixMe
 import Module from 'module';
@@ -27,14 +22,15 @@ import nativeFS from 'fs';
 export class NodePackageManager implements PackageManager {
   fs: FileSystem;
   installer: ?PackageInstaller;
-  cache: Map<ModuleSpecifier, ResolveResult> = new Map();
-  promiseCache: Map<ModuleSpecifier, Promise<ResolveResult>> = new Map();
+  resolver: NodeResolver;
+  syncResolver: NodeResolverSync;
+  realpathCache: Map<FilePath, FilePath>;
 
   constructor(fs: FileSystem, installer?: ?PackageInstaller) {
     this.fs = fs;
     this.installer = installer;
-    this.resolver = new NodeResolver(fs);
-    this.syncResolver = new NodeResolverSync(fs);
+    this.resolver = new NodeResolver(this.fs);
+    this.syncResolver = new NodeResolverSync(this.fs);
     this.realpathCache = new Map();
   }
 
@@ -110,55 +106,26 @@ export class NodePackageManager implements PackageManager {
     return m.exports;
   }
 
-  resolve(
+  async resolve(
     name: ModuleSpecifier,
     from: FilePath,
     triedInstall: boolean = false
   ) {
     let basedir = dirname(from);
-    let key = basedir + ':' + name;
-    if (this.promiseCache.has(key)) {
-      return this.promiseCache.get(key);
-    }
-
-    let promise = this._resolve(name, from, triedInstall);
-    this.promiseCache.set(key, promise);
-    return promise;
-  }
-
-  async _resolve(
-    name: ModuleSpecifier,
-    from: FilePath,
-    triedInstall: boolean = false
-  ) {
-    let basedir = dirname(from);
-    let key = basedir + ':' + name;
-    let resolved = this.cache.get(key);
-    if (!resolved) {
-      try {
-        resolved = await this.resolver.resolve(name, {
-          basedir,
-          extensions: Object.keys(Module._extensions)
-        });
-      } catch (e) {
-        if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-          await this.install([name], from);
-          return this.resolve(name, from, true);
-        }
-        throw e;
+    try {
+      return await this.resolver.resolve(name, basedir);
+    } catch (e) {
+      if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
+        await this.install([name], from);
+        return this.resolve(name, from, true);
       }
-      this.cache.set(key, resolved);
+      throw e;
     }
-
-    return resolved;
   }
 
   resolveSync(name: ModuleSpecifier, from: FilePath) {
     let basedir = dirname(from);
-    return this.syncResolver.resolve(name, {
-      basedir,
-      extensions: Object.keys(Module._extensions)
-    });
+    return this.syncResolver.resolve(name, basedir);
   }
 
   async install(
@@ -166,8 +133,6 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     opts?: InstallOptions
   ) {
-    console.log('INSTALL', modules);
-    return;
     await installPackage(this.fs, modules, from, {
       packageInstaller: this.installer,
       ...opts

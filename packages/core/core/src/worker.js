@@ -17,27 +17,23 @@ registerCoreWithSerializer();
 
 // Remove the workerApi type from the TransformationOpts and ValidationOpts types:
 // https://github.com/facebook/flow/issues/2835
-type TransformationOptsWithoutWorkerApi = $Diff<
+type RunTransformOpts = $Diff<
   TransformationOpts,
-  {|workerApi: mixed|}
+  {|workerApi: mixed, options: ParcelOptions|}
 >;
-type ValidationOptsWithoutWorkerApi = $Diff<
+type RunValidateOpts = $Diff<
   ValidationOpts,
-  {|workerApi: mixed|}
+  {|workerApi: mixed, options: ParcelOptions|}
 >;
 
-export function runTransform(
-  workerApi: WorkerApi,
-  opts: TransformationOptsWithoutWorkerApi
-) {
-  return new Transformation({workerApi, ...opts}).run();
+export function runTransform(workerApi: WorkerApi, opts: RunTransformOpts) {
+  let options: ParcelOptions = workerApi.getSharedReference(opts.optionsRef);
+  return new Transformation({workerApi, options, ...opts}).run();
 }
 
-export function runValidate(
-  workerApi: WorkerApi,
-  opts: ValidationOptsWithoutWorkerApi
-) {
-  return new Validation({workerApi, ...opts}).run();
+export function runValidate(workerApi: WorkerApi, opts: RunValidateOpts) {
+  let options: ParcelOptions = workerApi.getSharedReference(opts.optionsRef);
+  return new Validation({workerApi, options, ...opts}).run();
 }
 
 export function runPackage(
@@ -45,20 +41,22 @@ export function runPackage(
   {
     bundle,
     bundleGraphReference,
-    config,
+    configRef,
     cacheKey,
-    options
+    optionsRef
   }: {
     bundle: Bundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    configRef: number,
     cacheKey: string,
-    options: ParcelOptions,
+    optionsRef: number,
     ...
   }
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
+  let options: ParcelOptions = workerApi.getSharedReference(optionsRef);
+  let config: ParcelConfig = workerApi.getSharedReference(configRef);
   return new PackagerRunner({
     config,
     options

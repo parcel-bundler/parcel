@@ -33,14 +33,17 @@ export async function resolveConfig(
     return inProgress.get(key);
   }
 
-  let promise = _resolveConfig(fs, filepath, filenames, root).finally(() => {
-    // inProgress.delete(key);
-  });
+  let promise = resolveConfigUncached(fs, filepath, filenames, root).finally(
+    () => {
+      inProgress.delete(key);
+    }
+  );
+
   inProgress.set(key, promise);
   return promise;
 }
 
-async function _resolveConfig(
+async function resolveConfigUncached(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,

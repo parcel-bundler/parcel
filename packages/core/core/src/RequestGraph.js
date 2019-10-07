@@ -160,9 +160,11 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     onTargetRequestComplete,
     config,
     options,
+    optionsRef,
     workerFarm
   }: RequestGraphOpts) {
     this.options = options;
+    this.optionsRef = optionsRef;
     this.queue = new PromiseQueue();
     this.validationQueue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
@@ -182,6 +184,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.farm = workerFarm;
     this.runTransform = this.farm.createHandle('runTransform');
     this.runValidate = this.farm.createHandle('runValidate');
+
     // $FlowFixMe
     this.loadConfigHandle = this.farm.createReverseHandle(
       this.loadConfig.bind(this)
@@ -320,7 +323,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         request: requestNode.value,
         loadConfig: this.loadConfigHandle,
         parentNodeId: requestNode.id,
-        options: this.options
+        optionsRef: this.optionsRef
       });
     } catch (e) {
       throw e;
@@ -335,7 +338,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         request,
         loadConfig: this.loadConfigHandle,
         parentNodeId: requestNode.id,
-        options: this.options
+        optionsRef: this.optionsRef
       });
 
       let time = Date.now() - start;

@@ -32,5 +32,4 @@ export * from './md5';
 export * from './path';
 export * from './serializer';
 export * from './stream';
-export * from './resolve';
 export * from './relativeBundlePath';

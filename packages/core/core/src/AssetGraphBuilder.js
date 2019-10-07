@@ -44,6 +44,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   async init({
     config,
     options,
+    optionsRef,
     entries,
     name,
     assetRequests,
@@ -71,6 +72,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.requestGraph.initOptions({
       config,
       options,
+      optionsRef,
       onEntryRequestComplete: this.handleCompletedEntryRequest.bind(this),
       onTargetRequestComplete: this.handleCompletedTargetRequest.bind(this),
       onAssetRequestComplete: this.handleCompletedAssetRequest.bind(this),
@@ -79,7 +81,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
 
     if (changes) {
-      // this.requestGraph.invalidateUnpredictableNodes();
+      this.requestGraph.invalidateUnpredictableNodes();
       this.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
