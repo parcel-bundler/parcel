@@ -36,5 +36,10 @@ export default function registerCoreWithSerializer() {
 }
 
 function register(ctor: Class<*>): void {
-  registerSerializableClass(packageVersion + ':' + ctor.name, ctor);
+  registerSerializableClass(
+    (typeof ctor.VERSION === 'string' ? ctor.VERSION : packageVersion) +
+      ':' +
+      ctor.name,
+    ctor
+  );
 }
