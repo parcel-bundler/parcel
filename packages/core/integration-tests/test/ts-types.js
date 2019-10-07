@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS, inputFS} from '@parcel/test-utils';
 
-describe('typescript types', function() {
+describe.only('typescript types', function() {
   it('should generate a typescript declaration file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts')
@@ -19,10 +19,12 @@ describe('typescript types', function() {
       }
     ]);
 
-    let dist = await outputFS.readFile(
-      path.join(__dirname, '/integration/ts-types/main/dist/types.d.ts'),
-      'utf8'
-    );
+    let dist = await outputFS
+      .readFile(
+        path.join(__dirname, '/integration/ts-types/main/dist/types.d.ts'),
+        'utf8'
+      )
+      .replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/main/expected.d.ts'),
       'utf8'
@@ -49,10 +51,12 @@ describe('typescript types', function() {
       }
     ]);
 
-    let dist = await outputFS.readFile(
-      path.join(__dirname, '/integration/ts-types/importing/dist/types.d.ts'),
-      'utf8'
-    );
+    let dist = await outputFS
+      .readFile(
+        path.join(__dirname, '/integration/ts-types/importing/dist/types.d.ts'),
+        'utf8'
+      )
+      .replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/importing/expected.d.ts'),
       'utf8'
@@ -79,10 +83,12 @@ describe('typescript types', function() {
       }
     ]);
 
-    let dist = await outputFS.readFile(
-      path.join(__dirname, '/integration/ts-types/exporting/dist/types.d.ts'),
-      'utf8'
-    );
+    let dist = await outputFS
+      .readFile(
+        path.join(__dirname, '/integration/ts-types/exporting/dist/types.d.ts'),
+        'utf8'
+      )
+      .replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/exporting/expected.d.ts'),
       'utf8'
