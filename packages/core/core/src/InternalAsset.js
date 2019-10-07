@@ -21,7 +21,6 @@ import SourceMap from '@parcel/source-map';
 import {
   bufferStream,
   loadConfig,
-  md5FromFilePath,
   md5FromString,
   blobToStream,
   TapStream
