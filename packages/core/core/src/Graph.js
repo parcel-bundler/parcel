@@ -20,6 +20,8 @@ type AdjacencyList<TEdgeType> = DefaultMap<
 export const ALL_EDGE_TYPES = '@@all_edge_types';
 
 export default class Graph<TNode: Node, TEdgeType: string | null = null> {
+  static VERSION = '1';
+
   nodes: Map<NodeId, TNode>;
   inboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
     () => new DefaultMap(() => new Set())

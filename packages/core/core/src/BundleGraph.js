@@ -41,6 +41,8 @@ type BundleGraphEdgeTypes =
   | 'references';
 
 export default class BundleGraph {
+  static VERSION = Graph.VERSION + ':1';
+
   // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
   // property so it is possible to reach in and mutate the graph without invalidating these hashes.
   // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the

@@ -102,6 +102,8 @@ const nodeFromTargetRequest = (entry: FilePath) => ({
 });
 
 export default class RequestGraph extends Graph<RequestGraphNode> {
+  static VERSION = Graph.VERSION + ':1';
+
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodeIds: Set<NodeId> = new Set();

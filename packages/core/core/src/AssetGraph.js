@@ -69,6 +69,8 @@ const nodeFromEntryFile = (entry: string) => ({
 });
 
 export default class AssetGraph extends Graph<AssetGraphNode> {
+  static VERSION = Graph.VERSION + ':1';
+
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
