@@ -14,8 +14,7 @@ import type {
   BundleGraphNode,
   BundleGroupNode,
   Dependency,
-  DependencyNode,
-  RootNode
+  DependencyNode
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -569,8 +568,8 @@ export default class BundleGraph {
 
 export function removeAssetGroups(
   assetGraph: AssetGraph
-): Graph<AssetNode | DependencyNode | RootNode> {
-  let graph = new Graph<AssetNode | DependencyNode | RootNode>();
+): Graph<BundleGraphNode> {
+  let graph = new Graph<BundleGraphNode>();
   // $FlowFixMe
   graph.setRootNode(nullthrows(assetGraph.getRootNode()));
   let assetGroupIds = new Set();

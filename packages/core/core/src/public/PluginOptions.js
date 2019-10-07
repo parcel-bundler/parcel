@@ -4,13 +4,11 @@ import type {
   FilePath,
   LogLevel,
   PluginOptions as IPluginOptions,
-  ServerOptions,
-  Target as ITarget
+  ServerOptions
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
-import Target from './Target';
 
 export default class PluginOptions implements IPluginOptions {
   #options; // ParcelOptions
@@ -67,10 +65,6 @@ export default class PluginOptions implements IPluginOptions {
 
   get projectRoot(): FilePath {
     return this.#options.projectRoot;
-  }
-
-  get targets(): Array<ITarget> {
-    return this.#options.targets.map(target => new Target(target));
   }
 
   get inputFS(): FileSystem {

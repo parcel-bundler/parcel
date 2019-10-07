@@ -84,6 +84,12 @@ export function generateExports(
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      // If there is an existing binding with the exported name (e.g. an import),
+      // rename it so we can use the name for the export instead.
+      if (path.scope.hasBinding(exportSymbol)) {
+        rename(path.scope, exportSymbol, path.scope.generateUid(exportSymbol));
+      }
+
       exportedIdentifiers.set(symbol, exportSymbol);
     }
   }

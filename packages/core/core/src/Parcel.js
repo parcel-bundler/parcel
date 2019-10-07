@@ -96,7 +96,6 @@ export default class Parcel {
         options: resolvedOptions,
         config,
         entries: resolvedOptions.entries,
-        targets: resolvedOptions.targets,
         workerFarm: this.#farm
       }),
       this.#runtimesAssetGraphBuilder.init({
