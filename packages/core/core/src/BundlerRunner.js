@@ -103,10 +103,11 @@ export default class BundlerRunner {
       `${this.config.filePath}/index` // TODO: is this right?
     );
 
-    let version = nullthrows(pkg).version;
+    let bundlerVersion = nullthrows(pkg).version;
     return md5FromObject({
       bundler,
-      version,
+      bundlerVersion,
+      bundleGraphVersion: InternalBundleGraph.VERSION,
       hash: assetGraph.getHash()
     });
   }

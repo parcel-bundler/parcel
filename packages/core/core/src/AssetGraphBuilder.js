@@ -183,8 +183,12 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   getCacheKeys() {
-    let assetGraphKey = md5FromString(`${this.cacheKey}:assetGraph`);
-    let requestGraphKey = md5FromString(`${this.cacheKey}:requestGraph`);
+    let assetGraphKey = md5FromString(
+      `${this.cacheKey}:assetGraph:${AssetGraph.VERSION}`
+    );
+    let requestGraphKey = md5FromString(
+      `${this.cacheKey}:requestGraph:${RequestGraph.VERSION}`
+    );
     let snapshotKey = md5FromString(`${this.cacheKey}:snapshot`);
     return {assetGraphKey, requestGraphKey, snapshotKey};
   }
