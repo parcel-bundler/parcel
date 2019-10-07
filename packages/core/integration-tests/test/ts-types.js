@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS, inputFS} from '@parcel/test-utils';
 
-describe.only('typescript types', function() {
+describe('typescript types', function() {
   it('should generate a typescript declaration file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts')
@@ -19,12 +19,10 @@ describe.only('typescript types', function() {
       }
     ]);
 
-    let dist = await outputFS
-      .readFile(
-        path.join(__dirname, '/integration/ts-types/main/dist/types.d.ts'),
-        'utf8'
-      )
-      .replace(/\r\n/g, '\n');
+    let dist = (await outputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/main/dist/types.d.ts'),
+      'utf8'
+    )).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/main/expected.d.ts'),
       'utf8'
@@ -51,12 +49,10 @@ describe.only('typescript types', function() {
       }
     ]);
 
-    let dist = await outputFS
-      .readFile(
-        path.join(__dirname, '/integration/ts-types/importing/dist/types.d.ts'),
-        'utf8'
-      )
-      .replace(/\r\n/g, '\n');
+    let dist = (await outputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/importing/dist/types.d.ts'),
+      'utf8'
+    )).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/importing/expected.d.ts'),
       'utf8'
@@ -83,12 +79,10 @@ describe.only('typescript types', function() {
       }
     ]);
 
-    let dist = await outputFS
-      .readFile(
-        path.join(__dirname, '/integration/ts-types/exporting/dist/types.d.ts'),
-        'utf8'
-      )
-      .replace(/\r\n/g, '\n');
+    let dist = (await outputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/exporting/dist/types.d.ts'),
+      'utf8'
+    )).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/exporting/expected.d.ts'),
       'utf8'
