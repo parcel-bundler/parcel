@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS, inputFS} from '@parcel/test-utils';
 
-describe.only('typescript types', function() {
+describe('typescript types', function() {
   it('should generate a typescript declaration file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts')

@@ -141,7 +141,7 @@ export class TSModuleGraph {
 
   getAllImports() {
     // Build a map of all imports for external modules
-    let importsBySpecifier = new Map();
+    let importsBySpecifier: Map<string, Map<string, string>> = new Map();
     for (let module of this.modules.values()) {
       for (let [name, imp] of module.imports) {
         if (module.used.has(name) && !this.modules.has(imp.specifier)) {

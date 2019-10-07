@@ -43,8 +43,7 @@ export type Target = {|
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
   name: string,
-  publicUrl: ?string,
-  pipeline?: ?string
+  publicUrl: ?string
 |};
 
 export type Dependency = {|

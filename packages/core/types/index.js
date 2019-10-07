@@ -71,7 +71,6 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: ?string;
-  +pipeline: ?string;
 }
 
 export type EnvironmentContext =
@@ -88,7 +87,6 @@ export type PackageTargetDescriptor = {|
   engines?: Engines,
   includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
-  pipeline?: string,
   publicUrl?: string,
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions
@@ -319,7 +317,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   setBuffer(Buffer): void;
   setStream(Readable): void;
-  addIncludedFile(file: File): Promise<void>;
+  addIncludedFile(file: File): void;
   addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 }

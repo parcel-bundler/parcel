@@ -185,6 +185,7 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
           undefined,
           undefined,
           importClause,
+          // $FlowFixMe
           ts.createLiteral(specifier)
         )
       );
@@ -201,6 +202,7 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
           undefined,
           undefined,
           importClause,
+          // $FlowFixMe
           ts.createLiteral(specifier)
         )
       );

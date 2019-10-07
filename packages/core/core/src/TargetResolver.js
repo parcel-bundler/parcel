@@ -212,8 +212,6 @@ export default class TargetResolver {
           distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? '/',
-          pipeline:
-            descriptor.pipeline ?? (targetName === 'types' ? 'ts-types' : null),
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
