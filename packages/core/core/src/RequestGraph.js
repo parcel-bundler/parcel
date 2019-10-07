@@ -457,10 +457,15 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async runConfigRequest(configRequestNode: ConfigRequestNode) {
     let configRequest = configRequestNode.value;
     let config = await this.configLoader.load(configRequest);
+
+    // Config request could have been deleted while loading
+    if (!this.hasNode(configRequestNode.id)) {
+      return config;
+    }
+
     configRequest.result = config;
 
     let invalidationNodes = [];
-
     if (config.resolvedPath != null) {
       invalidationNodes.push(nodeFromFilePath(config.resolvedPath));
     }
