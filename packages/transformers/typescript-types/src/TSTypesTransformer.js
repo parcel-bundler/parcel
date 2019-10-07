@@ -40,12 +40,12 @@ export default new Transformer({
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
-    let canonicalFilePath = host.getCanonicalFileName(asset.filePath);
     let includedFiles = program
       .getSourceFiles()
-      .filter(
-        file => host.getCanonicalFileName(file.fileName) !== canonicalFilePath
-      )
+      .filter(file => {
+        console.log(file.fileName, asset.filePath);
+        return file.fileName !== asset.filePath;
+      })
       .map(file => ({filePath: file.fileName}));
 
     let mainModuleName = path
