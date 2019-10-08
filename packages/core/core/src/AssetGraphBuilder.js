@@ -2,6 +2,7 @@
 
 import type WorkerFarm from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
+import type {FilePath} from '@parcel/types';
 import type {
   Asset,
   AssetGraphNode,
@@ -42,10 +43,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async init({
     config,
-    name,
     options,
     entries,
-    targets,
+    name,
     assetRequests,
     workerFarm
   }: Opts) {
@@ -54,8 +54,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.cacheKey = md5FromObject({
       name,
       options: {minify, hot, scopeHoist},
-      entries,
-      targets
+      entries
     });
 
     let changes = await this.readFromCache();
@@ -72,6 +71,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.requestGraph.initOptions({
       config,
       options,
+      onEntryRequestComplete: this.handleCompletedEntryRequest.bind(this),
+      onTargetRequestComplete: this.handleCompletedTargetRequest.bind(this),
       onAssetRequestComplete: this.handleCompletedAssetRequest.bind(this),
       onDepPathRequestComplete: this.handleCompletedDepPathRequest.bind(this),
       workerFarm
@@ -83,7 +84,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     } else {
       this.assetGraph.initialize({
         entries,
-        targets,
         assetGroups: assetRequests
       });
     }
@@ -110,6 +110,12 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   handleNodeAddedToAssetGraph(node: AssetGraphNode) {
     switch (node.type) {
+      case 'entry_specifier':
+        this.requestGraph.addEntryRequest(node.value);
+        break;
+      case 'entry_file':
+        this.requestGraph.addTargetRequest(node.value);
+        break;
       case 'dependency':
         this.requestGraph.addDepPathRequest(node.value);
         break;
@@ -127,12 +133,24 @@ export default class AssetGraphBuilder extends EventEmitter {
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
     switch (node.type) {
       case 'dependency':
-        this.requestGraph.removeById(node.id);
-        break;
       case 'asset_group':
         this.requestGraph.removeById(node.id);
         break;
+      case 'entry_specifier':
+        this.requestGraph.removeById('entry_request:' + node.value);
+        break;
+      case 'entry_file':
+        this.requestGraph.removeById('target_request:' + node.value);
+        break;
     }
+  }
+
+  handleCompletedEntryRequest(entry: string, resolved: Array<FilePath>) {
+    this.assetGraph.resolveEntry(entry, resolved);
+  }
+
+  handleCompletedTargetRequest(entryFile: FilePath, targets: Array<Target>) {
+    this.assetGraph.resolveTargets(entryFile, targets);
   }
 
   handleCompletedAssetRequest(
@@ -157,11 +175,10 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   getWatcherOptions() {
-    let targetDirs = this.options.targets.map(target => target.distDir);
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(this.options.projectRoot, dir)
     );
-    let ignore = [this.options.cacheDir, ...targetDirs, ...vcsDirs];
+    let ignore = [this.options.cacheDir, ...vcsDirs];
     return {ignore};
   }
 

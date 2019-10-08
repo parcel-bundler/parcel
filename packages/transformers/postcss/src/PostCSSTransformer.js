@@ -81,8 +81,8 @@ export default new Transformer({
         postcssModules({
           getJSON: (filename, json) => (asset.meta.cssModules = json),
           Loader: createLoader(asset, resolve),
-          generateScopedName: (name, filename) =>
-            `_${name}_${md5FromString(filename).substr(0, 5)}`,
+          generateScopedName: (name, filename, css) =>
+            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
           ...originalModulesConfig
         })
       );
@@ -146,6 +146,7 @@ export default new Transformer({
 
     let {root} = await postcss(config.plugins).process(ast.program, config);
     ast.program = root;
+    ast.isDirty = true;
 
     let assets = [asset];
     if (asset.meta.cssModules) {
