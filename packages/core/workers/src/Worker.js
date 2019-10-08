@@ -102,14 +102,22 @@ export default class Worker extends EventEmitter {
     let idx = this.callId++;
     this.calls.set(idx, call);
 
-    this.send({
-      type: 'request',
-      idx: idx,
-      child: this.id,
-      handle: call.handle,
-      method: call.method,
-      args: call.args
-    });
+    let doCall = () => {
+      this.send({
+        type: 'request',
+        idx: idx,
+        child: this.id,
+        handle: call.handle,
+        method: call.method,
+        args: call.args
+      });
+    };
+
+    if (this.ready || call.method === 'childInit') {
+      doCall();
+    } else {
+      this.once('ready', doCall);
+    }
   }
 
   receive(message: WorkerMessage): void {
