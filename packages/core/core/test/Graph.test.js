@@ -18,6 +18,52 @@ describe('Graph', () => {
     assert.equal(graph.nodes.get(node.id), node);
   });
 
+  it("errors when removeNode is called with a node that doesn't belong", () => {
+    let graph = new Graph();
+    assert.throws(() => {
+      graph.removeNode({id: 'dne', value: null});
+    }, /Does not have node/);
+  });
+
+  it('errors when traversing a graph with no root', () => {
+    let graph = new Graph();
+
+    assert.throws(() => {
+      graph.traverse(() => {});
+    }, /A start node is required to traverse/);
+  });
+
+  it("errors when traversing a graph with a startNode that doesn't belong", () => {
+    let graph = new Graph();
+
+    assert.throws(() => {
+      graph.traverse(() => {}, {id: 'dne', value: null});
+    }, /Does not have node/);
+  });
+
+  it("errors if replaceNodesConnectedTo is called with a node that doesn't belong", () => {
+    let graph = new Graph();
+    assert.throws(() => {
+      graph.replaceNodesConnectedTo({id: 'dne', value: null}, []);
+    }, /Does not have node/);
+  });
+
+  it("errors when adding an edge to a node that doesn't exist", () => {
+    let graph = new Graph();
+    graph.addNode({id: 'foo', value: null});
+    assert.throws(() => {
+      graph.addEdge('foo', 'dne');
+    }, /"to" node 'dne' not found/);
+  });
+
+  it("errors when adding an edge from a node that doesn't exist", () => {
+    let graph = new Graph();
+    graph.addNode({id: 'foo', value: null});
+    assert.throws(() => {
+      graph.addEdge('dne', 'foo');
+    }, /"from" node 'dne' not found/);
+  });
+
   it('hasNode should return a boolean based on whether the node exists in the graph', () => {
     let graph = new Graph();
     let node = {id: 'a', value: 'a'};
@@ -28,6 +74,8 @@ describe('Graph', () => {
 
   it('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
+    graph.addNode({id: 'a', value: null});
+    graph.addNode({id: 'b', value: null});
     graph.addEdge('a', 'b');
     assert(graph.hasEdge('a', 'b'));
   });
@@ -39,6 +87,7 @@ describe('Graph', () => {
     let nodeC = {id: 'c', value: 'c'};
     graph.addNode(nodeA);
     graph.addNode(nodeB);
+    graph.addNode(nodeC);
     graph.addEdge('a', 'b');
     graph.addEdge('a', 'c', 'edgetype');
     assert(graph.isOrphanedNode(nodeA));

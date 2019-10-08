@@ -37,6 +37,14 @@ export default async function loadPlugin(
 
   let plugin = await packageManager.require(resolved, `${resolveFrom}/index`);
   plugin = plugin.default ? plugin.default : plugin;
+  if (!plugin) {
+    throw new Error(`Plugin ${pluginName} has no exports.`);
+  }
   plugin = plugin[CONFIG];
+  if (!plugin) {
+    throw new Error(
+      `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`
+    );
+  }
   return plugin;
 }

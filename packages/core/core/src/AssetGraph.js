@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {GraphVisitor} from '@parcel/types';
+import type {GraphVisitor, FilePath} from '@parcel/types';
 import type {
   Asset,
   AssetGraphNode,
@@ -13,7 +13,6 @@ import type {
 
 import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import crypto from 'crypto';
 
 import Graph, {type GraphOpts} from './Graph';
@@ -57,6 +56,18 @@ const nodeFromAsset = (asset: Asset) => ({
   value: asset
 });
 
+const nodeFromEntrySpecifier = (entry: string) => ({
+  id: 'entry_specifier:' + entry,
+  type: 'entry_specifier',
+  value: entry
+});
+
+const nodeFromEntryFile = (entry: string) => ({
+  id: 'entry_file:' + entry,
+  type: 'entry_file',
+  value: entry
+});
+
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
@@ -82,29 +93,15 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved = onNodeRemoved;
   }
 
-  initialize({entries, targets, assetGroups}: InitOpts) {
+  initialize({entries, assetGroups}: InitOpts) {
     let rootNode = {id: '@@root', type: 'root', value: null};
     this.setRootNode(rootNode);
 
     let nodes = [];
     if (entries) {
-      if (!targets) {
-        throw new Error('Targets are required when entries are specified');
-      }
-
       for (let entry of entries) {
-        for (let target of targets) {
-          let node = nodeFromDep(
-            createDependency({
-              moduleSpecifier: entry,
-              target: target,
-              env: target.env,
-              isEntry: true
-            })
-          );
-
-          nodes.push(node);
-        }
+        let node = nodeFromEntrySpecifier(entry);
+        nodes.push(node);
       }
     } else if (assetGroups) {
       nodes.push(
@@ -127,10 +124,33 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return super.removeNode(node);
   }
 
-  resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
-    if (!assetGroup) return;
+  resolveEntry(entry: string, resolved: Array<FilePath>) {
+    let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
+    this.replaceNodesConnectedTo(nodeFromEntrySpecifier(entry), entryFileNodes);
+  }
 
-    let depNode = nullthrows(this.nodes.get(dependency.id));
+  resolveTargets(entryFile: FilePath, targets: Array<Target>) {
+    let depNodes = targets.map(target =>
+      nodeFromDep(
+        createDependency({
+          moduleSpecifier: entryFile,
+          target: target,
+          env: target.env,
+          isEntry: true
+        })
+      )
+    );
+
+    let entryNode = nodeFromEntryFile(entryFile);
+    if (this.hasNode(entryNode.id)) {
+      this.replaceNodesConnectedTo(entryNode, depNodes);
+    }
+  }
+
+  resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
+    let depNode = this.nodes.get(dependency.id);
+    if (!assetGroup || !depNode) return;
+
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
 
     // Defer transforming this dependency if it is marked as weak, there are no side effects,
@@ -167,20 +187,28 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    assetGroupNode = nullthrows(this.nodes.get(assetGroupNode.id));
+    if (!this.hasNode(assetGroupNode.id)) {
+      return;
+    }
 
-    let assetNodes = [];
+    let assetNodes = assets.map(asset => nodeFromAsset(asset));
+    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+
     for (let asset of assets) {
       let assetNode = nodeFromAsset(asset);
       assetNodes.push(assetNode);
+    }
+    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+
+    for (let assetNode of assetNodes) {
       let depNodes = [];
-      for (let dep of asset.dependencies.values()) {
+      invariant(assetNode.type === 'asset');
+      for (let dep of assetNode.value.dependencies.values()) {
         let depNode = nodeFromDep(dep);
         depNodes.push(this.nodes.get(depNode.id) || depNode);
       }
       this.replaceNodesConnectedTo(assetNode, depNodes);
     }
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
@@ -236,8 +264,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let hash = crypto.createHash('md5');
     // TODO: sort??
-    this.traverseAssets(asset => {
-      hash.update(asset.outputHash);
+    this.traverse(node => {
+      if (node.type === 'asset') {
+        hash.update(node.value.outputHash);
+      } else if (node.type === 'dependency' && node.value.target) {
+        hash.update(JSON.stringify(node.value.target));
+      }
     });
 
     this.hash = hash.digest('hex');

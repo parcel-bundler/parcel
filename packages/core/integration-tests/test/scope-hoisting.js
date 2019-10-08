@@ -4,7 +4,8 @@ import {
   bundle as _bundle,
   run,
   outputFS,
-  assertBundles
+  assertBundles,
+  distDir
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
@@ -226,7 +227,7 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert.equal(err.message, "b.js does not export 'default'");
+        assert(err.message.endsWith("b.js does not export 'default'"));
       }
 
       assert(threw);
@@ -523,7 +524,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(contents.includes('foo'));
@@ -543,11 +544,30 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 9);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(/.\+./.test(contents));
       assert(!/.-./.test(contents));
+    });
+
+    it('removes unused transpiled classes using terser when minified', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-classes-babel/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 3);
+
+      let contents = await outputFS.readFile(
+        path.join(distDir, 'a.js'),
+        'utf8'
+      );
+      assert(!contents.includes('method'));
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {
@@ -608,7 +628,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(!/bar/.test(contents));
@@ -1238,7 +1258,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(contents.includes('foo'));
