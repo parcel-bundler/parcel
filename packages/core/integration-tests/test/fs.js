@@ -86,6 +86,15 @@ describe('fs', function() {
       assert.equal(output, 'hello');
     });
 
+    it('should inline a file with fs ES6 import and scope hoisting', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-import/index.js'),
+        {scopeHoist: true}
+      );
+      let output = await run(b);
+      assert.equal(output, 'hello');
+    });
+
     it('should inline a file with fs ES6 import and path.join', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-import-path-join/index.js')

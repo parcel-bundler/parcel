@@ -1,2 +1,3 @@
 import fs from 'fs';
-module.exports = fs.readFileSync(__dirname + '/test.txt', 'utf8');
+import path from 'path';
+module.exports = fs.readFileSync(path.join(__dirname, '/test.txt'), 'utf8');
