@@ -1,6 +1,5 @@
 // @flow
 
-import invariant from 'assert';
 import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
@@ -152,7 +151,9 @@ function getUsedExports(
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
-      markUsed(asset, symbol);
+      if (symbol) {
+        markUsed(asset, symbol);
+      }
     }
   }
 
