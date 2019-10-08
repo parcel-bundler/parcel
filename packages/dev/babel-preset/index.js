@@ -5,7 +5,8 @@ module.exports = () => ({
       {
         targets: {
           node: 8
-        }
+        },
+        modules: false
       }
     ],
     require('@babel/preset-react'),
