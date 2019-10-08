@@ -267,7 +267,7 @@ class NodeResolver {
     // Find a package.json file in the current package.
     let pkg = await this.findPackage(path.dirname(filename));
 
-    // First try as a file, then as a directory.includeNodeModule
+    // First try as a file, then as a directory.
     return (
       (await this.loadAsFile(filename, extensions, pkg)) ||
       (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await

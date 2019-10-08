@@ -12,7 +12,7 @@ import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
+const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
