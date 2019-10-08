@@ -3,12 +3,16 @@
 import type {InitialParcelOptions} from '@parcel/types';
 
 import {register as _register} from '@parcel/core';
+import {NodePackageManager} from '@parcel/package-manager';
+import {NodeFS} from '@parcel/fs';
 // $FlowFixMe this is untyped
 import defaultConfigContents from '@parcel/config-default';
 
+let packageManager = new NodePackageManager(new NodeFS());
 let defaultConfig = {
   ...defaultConfigContents,
-  filePath: require.resolve('@parcel/config-default')
+  filePath: packageManager.resolveSync('@parcel/config-default', __filename)
+    .resolved
 };
 
 function register(opts?: InitialParcelOptions) {
