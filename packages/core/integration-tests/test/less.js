@@ -160,6 +160,9 @@ describe('less', function() {
       {
         name: 'index.css',
         assets: ['index.module.less']
+      },
+      {
+        assets: ['img.svg']
       }
     ]);
 
