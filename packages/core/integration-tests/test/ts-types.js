@@ -89,4 +89,34 @@ describe('typescript types', function() {
     );
     assert.equal(dist, expected);
   });
+
+  it('should generate ts declarations with imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/ts-types/externals/index.tsx')
+    );
+
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.tsx', 'other.tsx']
+      },
+      {
+        type: 'ts',
+        assets: ['index.tsx'],
+        includedFiles: {
+          'index.ts': ['other.tsx']
+        }
+      }
+    ]);
+
+    let dist = (await outputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/externals/dist/types.d.ts'),
+      'utf8'
+    )).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/externals/expected.d.ts'),
+      'utf8'
+    );
+    assert.equal(dist, expected);
+  });
 });
