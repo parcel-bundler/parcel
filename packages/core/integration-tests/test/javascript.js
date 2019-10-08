@@ -209,7 +209,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     let [fs, filepath] = output();
-    assert.equal(filepath, '/app/index.js');
+    assert.equal(filepath, path.posix.join('app', 'index.js'));
     assert.equal(typeof fs, 'object');
     assert.deepEqual(Object.keys(fs), Object.keys({}));
   });
@@ -229,7 +229,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     let [fs, filepath] = output();
-    assert.equal(filepath, '/app/index.js');
+    assert.equal(filepath, path.join('app', 'index.js'));
     assert.equal(typeof fs.readFile, 'function');
   });
 
