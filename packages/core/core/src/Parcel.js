@@ -137,6 +137,7 @@ export default class Parcel {
       await this.init();
     }
 
+    await this.#packagerRunner.purgeDistDirs();
     let result = await this.build(startTime);
     await Promise.all([
       this.#assetGraphBuilder.writeToCache(),

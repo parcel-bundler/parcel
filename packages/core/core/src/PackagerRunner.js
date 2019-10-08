@@ -455,6 +455,14 @@ export default class PackagerRunner {
       await this.options.cache.setStream(mapKey, blobToStream(map));
     }
   }
+
+  async purgeDistDirs() {
+    return Promise.all(
+      this.options.targets.map(target =>
+        this.options.outputFS.rimraf(target.distDir)
+      )
+    );
+  }
 }
 
 function writeFileStream(
