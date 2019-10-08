@@ -47,12 +47,16 @@ async function resolveConfigUncached(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  root: FilePath = path.parse(filepath).root
+  root: FilePath
 ): Promise<FilePath | null> {
   filepath = path.dirname(filepath);
 
   // Don't traverse above the module root
-  if (filepath === root || path.basename(filepath) === 'node_modules') {
+  if (
+    filepath === root ||
+    filepath === path.parse(filepath).root ||
+    path.basename(filepath) === 'node_modules'
+  ) {
     return null;
   }
 
