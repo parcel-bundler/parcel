@@ -33,7 +33,8 @@ export default new Transformer({
       declarationMap: true,
       isolatedModules: false,
       emitDeclarationOnly: true,
-      outFile: 'index.d.ts'
+      outFile: 'index.d.ts',
+      moduleResolution: ts.ModuleResolutionKind.NodeJs
     };
 
     let host = new ParcelCompilerHost(options.inputFS, ts);
