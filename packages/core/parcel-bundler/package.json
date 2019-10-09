@@ -127,7 +127,7 @@
     "parcel1": "bin/cli.js"
   },
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "lint-staged": {
     "*.{js,json,md}": [
