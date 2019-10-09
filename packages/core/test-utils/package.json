@@ -11,7 +11,7 @@
   "main": "lib/utils.js",
   "source": "src/utils.js",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
     "@parcel/config-default": "^2.0.0-alpha.1.1",

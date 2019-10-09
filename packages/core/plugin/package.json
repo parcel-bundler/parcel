@@ -12,7 +12,7 @@
   "main": "lib/PluginAPI.js",
   "source": "src/PluginAPI.js",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
     "@parcel/types": "^2.0.0-alpha.1.1"

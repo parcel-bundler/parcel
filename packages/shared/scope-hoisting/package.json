@@ -13,7 +13,7 @@
   "main": "lib/index.js",
   "source": "src/index.js",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
     "@babel/generator": "^7.3.3",

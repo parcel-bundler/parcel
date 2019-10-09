@@ -12,7 +12,7 @@
   "main": "lib/Cache.js",
   "source": "src/Cache.js",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
     "@parcel/logger": "^2.0.0-alpha.1.1",
