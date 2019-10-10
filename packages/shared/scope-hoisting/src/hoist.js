@@ -175,6 +175,7 @@ const VISITOR = {
     if (t.matchesPattern(path.node, 'module.exports')) {
       path.replaceWith(getExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
+      asset.meta.hasCommonJSExports = true;
     }
 
     if (t.matchesPattern(path.node, 'module.id')) {
@@ -294,6 +295,8 @@ const VISITOR = {
       }
 
       asset.meta.isCommonJS = true;
+    } else {
+      asset.meta.hasCommonJSExports = true;
     }
   },
 

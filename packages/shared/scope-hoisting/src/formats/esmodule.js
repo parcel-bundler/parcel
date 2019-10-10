@@ -81,6 +81,7 @@ export function generateExports(
   path: any
 ) {
   let exportedIdentifiers = new Map();
+  let commonJSSyntheticDefaultExportIdentifier: ?string;
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
@@ -91,6 +92,12 @@ export function generateExports(
       }
 
       exportedIdentifiers.set(symbol, exportSymbol);
+    }
+
+    if (entry.meta.hasCommonJSExports) {
+      let exportsId = entry.meta.exportsIdentifier;
+      invariant(typeof exportsId === 'string');
+      commonJSSyntheticDefaultExportIdentifier = exportsId;
     }
   }
 
@@ -122,6 +129,13 @@ export function generateExports(
       let defaultExport = ids.find(
         id => exportedIdentifiers.get(id) === 'default'
       );
+      let hasCommonJSSyntheticDefaultExportIdentifier =
+        commonJSSyntheticDefaultExportIdentifier &&
+        ids.includes(commonJSSyntheticDefaultExportIdentifier);
+
+      invariant(
+        !(defaultExport && hasCommonJSSyntheticDefaultExportIdentifier)
+      );
 
       // If all exports in the binding are named exports, export the entire declaration.
       // Also rename all of the identifiers to their exported name.
@@ -146,6 +160,19 @@ export function generateExports(
         if (defaultExport) {
           path.insertAfter(
             t.exportDefaultDeclaration(t.identifier(defaultExport))
+          );
+        }
+
+        if (hasCommonJSSyntheticDefaultExportIdentifier) {
+          // This has to be an ExportNamedDeclaration because
+          // an ExportDefaultDeclaration doesn't export a live binding.
+          path.insertAfter(
+            t.exportNamedDeclaration(null, [
+              t.exportSpecifier(
+                t.identifier(commonJSSyntheticDefaultExportIdentifier),
+                t.identifier('default')
+              )
+            ])
           );
         }
 
