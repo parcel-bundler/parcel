@@ -48,7 +48,10 @@ export default new Transformer({
 
   transform({asset}) {
     let ast = asset.ast;
-    if (!ast) {
+    // Check for `hasDependencies` being false here as well, as it's possible
+    // another transformer (such as PostCSSTransformer) has already parsed an
+    // ast and CSSTransformer's parse was never called.
+    if (!ast || asset.meta.hasDependencies === false) {
       return [asset];
     }
 

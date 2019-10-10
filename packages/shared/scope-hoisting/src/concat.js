@@ -1,6 +1,5 @@
 // @flow
 
-import invariant from 'assert';
 import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
@@ -70,9 +69,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      invariant(context != null);
-
-      if (shouldExcludeAsset(asset, usedExports)) {
+      if (!context || shouldExcludeAsset(asset, usedExports)) {
         return;
       }
 
@@ -150,6 +147,16 @@ function getUsedExports(
   bundleGraph: BundleGraph
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
+
+  let entry = bundle.getMainEntry();
+  if (entry) {
+    for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      if (symbol) {
+        markUsed(asset, symbol);
+      }
+    }
+  }
+
   bundle.traverseAssets(asset => {
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolvedAsset = bundleGraph.getDependencyResolution(dep);
