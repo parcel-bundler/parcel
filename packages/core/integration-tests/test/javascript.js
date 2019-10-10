@@ -194,6 +194,45 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should bundle builtins for a browser environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/include_builtins-browser/main.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'main.js',
+        assets: ['_empty.js', 'browser.js', 'index.js', 'main.js']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    let [fs, filepath] = output();
+    assert.equal(filepath, path.posix.join('app', 'index.js'));
+    assert.equal(typeof fs, 'object');
+    assert.deepEqual(Object.keys(fs), Object.keys({}));
+  });
+
+  it('should not bundle builtins for a node environment if includeNodeModules is specified', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/include_builtins-node/main.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'main.js',
+        assets: ['main.js']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    let [fs, filepath] = output();
+    assert.equal(filepath, path.join('app', 'index.js'));
+    assert.equal(typeof fs.readFile, 'function');
+  });
+
   it.skip('should bundle node_modules on --target=electron and --bundle-node-modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/node_require/main.js'),
