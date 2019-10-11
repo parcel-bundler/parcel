@@ -1,6 +1,7 @@
 {
   "bundler": "@parcel/bundler-default",
   "transforms": {
+    "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
@@ -34,6 +35,7 @@
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
+    "*.ts": "@parcel/packager-ts",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

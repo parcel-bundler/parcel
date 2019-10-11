@@ -87,4 +87,8 @@ export default class Dependency implements IDependency {
   get symbols(): Map<Symbol, Symbol> {
     return this.#dep.symbols;
   }
+
+  get pipeline(): ?string {
+    return this.#dep.pipeline;
+  }
 }

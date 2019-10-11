@@ -48,7 +48,8 @@ export default class ResolverRunner {
           filePath: result.filePath,
           sideEffects: result.sideEffects,
           code: result.code,
-          env: dependency.env
+          env: dependency.env,
+          pipeline: dependency.pipeline
         };
       }
     }

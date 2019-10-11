@@ -364,6 +364,16 @@ describe('output formats', function() {
       assert(dist.includes('import "./index.css"'));
     });
 
+    it('should rename imports that conflict with exports', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-conflict/a.js')
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('import { foo as _foo } from "foo";'));
+      assert(dist.includes('export const foo = _foo + 3;'));
+    });
+
     it('should support async imports', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-async/index.js')

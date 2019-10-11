@@ -214,7 +214,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File): Promise<void> {
+  addIncludedFile(file: File) {
     return this.#asset.addIncludedFile(file);
   }
 
