@@ -19,6 +19,7 @@ import {md5FromObject, md5FromString} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import type ParcelConfig from './ParcelConfig';
 import RequestGraph from './RequestGraph';
+import {PARCEL_VERSION} from './constants';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
 import path from 'path';
@@ -52,6 +53,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.options = options;
     let {minify, hot, scopeHoist} = options;
     this.cacheKey = md5FromObject({
+      parcelVersion: PARCEL_VERSION,
       name,
       options: {minify, hot, scopeHoist},
       entries
