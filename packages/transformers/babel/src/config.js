@@ -8,7 +8,6 @@ import path from 'path';
 import {loadPartialConfig, createConfigItem} from '@babel/core';
 import {md5FromObject} from '@parcel/utils';
 import logger from '@parcel/logger';
-import semver from 'semver';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
