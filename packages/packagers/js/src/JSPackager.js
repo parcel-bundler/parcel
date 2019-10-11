@@ -9,7 +9,7 @@ import {countLines, PromiseQueue} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
-  .readFileSync(__dirname + '/prelude.js', 'utf8')
+  .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
   .trim()
   .replace(/;$/, '');
 

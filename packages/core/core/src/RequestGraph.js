@@ -65,7 +65,8 @@ const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
   id: md5FromObject({
     filePath: configRequest.filePath,
     plugin: configRequest.plugin,
-    env: configRequest.env
+    env: configRequest.env,
+    pipeline: configRequest.pipeline
   }),
   type: 'config_request',
   value: configRequest

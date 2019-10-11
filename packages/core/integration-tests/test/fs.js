@@ -10,7 +10,7 @@ import {
 } from '@parcel/test-utils';
 
 describe('fs', function() {
-  afterEach(async () => {
+  beforeEach(async () => {
     await removeDistDirectory();
   });
 
@@ -78,6 +78,22 @@ describe('fs', function() {
       assert.equal(output, 'hello');
     });
 
+    it('should inline a file with fs ES6 import', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-import/index.js')
+      );
+      let output = await run(b);
+      assert.equal(output.default, 'hello');
+    });
+
+    it('should inline a file with fs ES6 import and path.join', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-import-path-join/index.js')
+      );
+      let output = await run(b);
+      assert.equal(output.default, 'hello');
+    });
+
     it('should not evaluate fs calls when package.browser.fs is false', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/resolve-entries/ignore-fs.js')
@@ -134,7 +150,7 @@ describe('fs', function() {
   });
 
   describe('node environment', function() {
-    it('should leave an attempt to read a file unchanged', async function() {
+    it('should not inline a file in a node environment', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-node/index.js')
       );
@@ -160,7 +176,7 @@ describe('fs', function() {
   });
 
   describe.skip('electron environment', function() {
-    it('should leave an attempt to read a file unchanged', async function() {
+    it('should not inline a file in an Electron environment', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
         target: 'electron'
       });

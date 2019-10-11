@@ -188,11 +188,19 @@ function evaluate(path, vars) {
     }
   });
 
-  let res = path.evaluate();
-
-  if (!res.confident) {
-    throw new NodeNotEvaluatedError(path.node);
+  if (
+    path.isCallExpression() &&
+    referencesImport(path, 'path', 'join') &&
+    path.node.arguments.every(n => t.isStringLiteral(n))
+  ) {
+    // e.g. path.join("literal", "another_literal")
+    return Path.join(...path.node.arguments.map(n => n.value));
+  } else {
+    // try to evaluate other cases
+    let res = path.evaluate();
+    if (!res.confident) {
+      throw new NodeNotEvaluatedError(path.node);
+    }
+    return res.value;
   }
-
-  return res.value;
 }

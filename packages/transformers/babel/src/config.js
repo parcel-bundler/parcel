@@ -8,7 +8,6 @@ import path from 'path';
 import {loadPartialConfig, createConfigItem} from '@babel/core';
 import {md5FromObject} from '@parcel/utils';
 import logger from '@parcel/logger';
-import semver from 'semver';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
@@ -22,6 +21,11 @@ const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 export async function load(config: Config, options: PluginOptions) {
   if (config.result != null) {
     return reload(config, options);
+  }
+
+  // Don't look for a custom babel config if inside node_modules
+  if (!config.isSource) {
+    return buildDefaultBabelConfig(config);
   }
 
   let partialConfig = loadPartialConfig({
@@ -88,25 +92,6 @@ export async function load(config: Config, options: PluginOptions) {
       config.shouldInvalidateOnStartup();
     }
   } else {
-    let {pkg} = await options.packageManager.resolve(
-      'core-js',
-      config.searchPath
-    );
-
-    if (!pkg) {
-      throw new Error(
-        "core-js@3 is required to use Parcel's babel integration"
-      );
-    }
-
-    if (!semver.satisfies(pkg.version, '^3.0.0')) {
-      throw new Error(
-        `core-js@3 is required to use Parcel's babel integration. Detected version ${
-          pkg.version
-        }.`
-      );
-    }
-
     await buildDefaultBabelConfig(config);
   }
 }
