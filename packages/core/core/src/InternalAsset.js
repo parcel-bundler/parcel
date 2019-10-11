@@ -27,6 +27,7 @@ import {
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
+import {PARCEL_VERSION} from './constants';
 
 type AssetOptions = {|
   id?: string,
@@ -138,7 +139,7 @@ export default class InternalAsset {
     // and hash while it's being written to the cache.
     let [contentKey, mapKey] = await Promise.all([
       this.options.cache.setStream(
-        this.generateCacheKey('content' + pipelineKey),
+        this.getCacheKey('content' + pipelineKey),
         contentStream.pipe(
           new TapStream(buf => {
             size += buf.length;
@@ -149,7 +150,7 @@ export default class InternalAsset {
       this.map == null
         ? Promise.resolve()
         : this.options.cache.set(
-            this.generateCacheKey('map' + pipelineKey),
+            this.getCacheKey('map' + pipelineKey),
             this.map
           )
     ]);
@@ -218,8 +219,10 @@ export default class InternalAsset {
     this.map = map;
   }
 
-  generateCacheKey(key: string): string {
-    return md5FromString(key + this.value.id + (this.value.hash || ''));
+  getCacheKey(key: string): string {
+    return md5FromString(
+      PARCEL_VERSION + key + this.value.id + (this.value.hash || '')
+    );
   }
 
   addDependency(opts: DependencyOptions) {

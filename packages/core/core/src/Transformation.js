@@ -32,6 +32,7 @@ import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
+import {PARCEL_VERSION} from './constants';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
@@ -236,6 +237,7 @@ export default class Transformation {
     }));
 
     return md5FromObject({
+      parcelVersion: PARCEL_VERSION,
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
