@@ -290,8 +290,8 @@ class NodeResolver {
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
-        let stats = await this.options.inputFS.stat(moduleDir);
-        if (stats.isDirectory()) {
+        let n = await this.options.inputFS.check(moduleDir);
+        if (n === 1) {
           return {
             moduleName: parts[0],
             subPath: parts[1],
@@ -328,12 +328,14 @@ class NodeResolver {
   }
 
   async isFile(file) {
-    try {
-      let stat = await this.options.inputFS.stat(file);
-      return stat.isFile() || stat.isFIFO();
-    } catch (err) {
-      return false;
-    }
+    // try {
+    //   let stat = await this.options.inputFS.stat(file);
+    //   return stat.isFile() || stat.isFIFO();
+    // } catch (err) {
+    //   return false;
+    // }
+    let n = await this.options.inputFS.check(file);
+    return n === 0;
   }
 
   async loadDirectory(

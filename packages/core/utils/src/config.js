@@ -62,7 +62,8 @@ async function resolveConfigUncached(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    if (await fs.exists(file)) {
+    // if (await fs.exists(file)) {
+    if ((await fs.check(file)) === 0) {
       return file;
     }
   }

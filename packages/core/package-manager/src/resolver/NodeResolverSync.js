@@ -83,32 +83,33 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
     }
   }
 
-  statSync(file: FilePath) {
-    if (this.statCache.has(file)) {
-      let res = this.statCache.get(file);
-      if (res instanceof Error) {
-        throw res;
-      }
-      return res;
-    }
+  // statSync(file: FilePath) {
+  //   if (this.statCache.has(file)) {
+  //     let res = this.statCache.get(file);
+  //     if (res instanceof Error) {
+  //       throw res;
+  //     }
+  //     return res;
+  //   }
 
-    try {
-      let stat = this.fs.statSync(file);
-      this.statCache.set(file, stat);
-      return stat;
-    } catch (err) {
-      this.statCache.set(file, err);
-      throw err;
-    }
-  }
+  //   try {
+  //     let stat = this.fs.statSync(file);
+  //     this.statCache.set(file, stat);
+  //     return stat;
+  //   } catch (err) {
+  //     this.statCache.set(file, err);
+  //     throw err;
+  //   }
+  // }
 
   isFile(file: FilePath) {
-    try {
-      let stat = this.statSync(file);
-      return stat.isFile() || stat.isFIFO();
-    } catch (err) {
-      return false;
-    }
+    // try {
+    //   let stat = this.statSync(file);
+    //   return stat.isFile() || stat.isFIFO();
+    // } catch (err) {
+    //   return false;
+    // }
+    return this.fs.checkSync(file) === 0;
   }
 
   loadDirectory(dir: FilePath, pkg: ?InternalPackageJSON = null) {
@@ -176,8 +177,9 @@ export class NodeResolverSync extends NodeResolverBase<ResolveResult> {
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
-        let stats = this.statSync(moduleDir);
-        if (stats.isDirectory()) {
+        // let stats = this.statSync(moduleDir);
+        // if (stats.isDirectory()) {
+        if (this.fs.checkSync(moduleDir) === 1) {
           return {
             moduleName: parts[0],
             subPath: parts[1],

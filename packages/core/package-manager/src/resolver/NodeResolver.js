@@ -86,23 +86,25 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
     }
   }
 
-  stat(file: FilePath) {
-    if (this.statCache.has(file)) {
-      return this.statCache.get(file);
-    }
+  // stat(file: FilePath) {
+  //   if (this.statCache.has(file)) {
+  //     return this.statCache.get(file);
+  //   }
 
-    let statPromise = this.fs.stat(file);
-    this.statCache.set(file, statPromise);
-    return statPromise;
-  }
+  //   let statPromise = this.fs.stat(file);
+  //   this.statCache.set(file, statPromise);
+  //   return statPromise;
+  // }
 
   async isFile(file: FilePath) {
-    try {
-      let stat = await this.stat(file);
-      return stat.isFile() || stat.isFIFO();
-    } catch (err) {
-      return false;
-    }
+    // try {
+    //   let stat = await this.stat(file);
+    //   return stat.isFile() || stat.isFIFO();
+    // } catch (err) {
+    //   return false;
+    // }
+    let n = await this.fs.check(file);
+    return n === 0;
   }
 
   async loadDirectory(dir: FilePath, pkg: ?InternalPackageJSON = null) {
@@ -172,8 +174,10 @@ export class NodeResolver extends NodeResolverBase<Promise<ResolveResult>> {
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
-        let stats = await this.stat(moduleDir);
-        if (stats.isDirectory()) {
+        // let stats = await this.stat(moduleDir);
+        let n = await this.fs.check(moduleDir);
+        // if (stats.isDirectory()) {
+        if (n === 1) {
           return {
             moduleName: parts[0],
             subPath: parts[1],

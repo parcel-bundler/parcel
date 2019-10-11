@@ -57,6 +57,14 @@ export class NodeFS implements FileSystem {
     });
   }
 
+  check(filePath: FilePath): Promise<number> {
+    return watcher.check(filePath);
+  }
+
+  checkSync(filePath: FilePath): number {
+    return watcher.checkSync(filePath);
+  }
+
   watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
