@@ -444,7 +444,7 @@ This is the "browser" target's entry point for the package.
 
 ```json
 {
-  "browser": "distflinesof/browser/index.js"
+  "browser": "dist/browser/index.js"
 }
 ```
 

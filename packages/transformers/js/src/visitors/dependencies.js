@@ -5,7 +5,6 @@ import type {MutableAsset, PluginOptions} from '@parcel/types';
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL} from '@parcel/utils';
-import nodeBuiltins from 'node-libs-browser';
 import {hasBinding} from './utils';
 import invariant from 'assert';
 
@@ -158,11 +157,6 @@ function evaluateExpression(node) {
 }
 
 function addDependency(asset, node, opts = {}) {
-  // Don't bundle node builtins
-  if (asset.env.context === 'node' && node.value in nodeBuiltins) {
-    return;
-  }
-
   // If this came from an inline <script> tag, throw an error.
   // TODO: run JSPackager on inline script tags.
   // let inlineHTML =

@@ -11,7 +11,7 @@
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.less": ["@parcel/transformer-less"],
-    "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
+    "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
     "*.sss": ["@parcel/transformer-sugarss"],
     "*.{htm,html}": [
       "@parcel/transformer-posthtml",
