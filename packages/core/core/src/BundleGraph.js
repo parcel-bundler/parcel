@@ -586,10 +586,12 @@ export function removeAssetGroups(
   assetGraph: AssetGraph
 ): Graph<BundleGraphNode> {
   let graph = new Graph<BundleGraphNode>();
-  // $FlowFixMe
-  graph.setRootNode(nullthrows(assetGraph.getRootNode()));
-  let assetGroupIds = new Set();
 
+  let rootNode = assetGraph.getRootNode();
+  invariant(rootNode != null && rootNode.type === 'root');
+  graph.setRootNode(rootNode);
+
+  let assetGroupIds = new Set();
   assetGraph.traverse(node => {
     if (node.type === 'asset_group') {
       assetGroupIds.add(node.id);

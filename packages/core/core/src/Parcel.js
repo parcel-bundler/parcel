@@ -22,7 +22,8 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
+import AssetGraphBuilder from './AssetGraphBuilder';
+import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
@@ -242,10 +243,11 @@ export default class Parcel {
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
+      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(bundleGraph);
+      assertSignalNotAborted(signal);
 
       let event = {
         type: 'buildSuccess',

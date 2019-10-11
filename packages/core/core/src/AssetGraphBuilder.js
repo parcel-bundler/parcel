@@ -233,7 +233,3 @@ export default class AssetGraphBuilder extends EventEmitter {
     );
   }
 }
-
-export class BuildAbortError extends Error {
-  name = 'BuildAbortError';
-}
