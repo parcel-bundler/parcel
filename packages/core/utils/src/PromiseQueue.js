@@ -21,6 +21,10 @@ export default class PromiseQueue<T> {
     this._maxConcurrent = opts.maxConcurrent;
   }
 
+  getNumWaiting(): number {
+    return this._queue.length;
+  }
+
   add(fn: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
       let i = this._count++;

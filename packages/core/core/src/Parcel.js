@@ -342,7 +342,7 @@ export default class Parcel {
         }
 
         let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
-        if (isInvalid && this.#watchQueue._queue.length === 0) {
+        if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
           }
