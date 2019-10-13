@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/diagnostic",
+  "version": "2.0.0-alpha.1.1",
+  "license": "MIT",
+  "main": "./src/diagnostic.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "engines": {
+    "node": ">= 10.0.0"
+  }
+}
