@@ -545,11 +545,10 @@ export function link({
           }
         }
 
-        let paths = path.unshiftContainer('body', imports);
-        for (let path of paths) {
-          if (path.isDeclaration()) {
-            path.scope.registerDeclaration(path);
-          }
+        if (imports.length > 0) {
+          // Add import statements and update scope to collect references
+          path.unshiftContainer('body', imports);
+          path.scope.crawl();
         }
 
         // Generate exports

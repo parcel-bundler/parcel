@@ -19,6 +19,7 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 import applyRuntimes from './applyRuntimes';
+import {PARCEL_VERSION} from './constants';
 
 type Opts = {|
   options: ParcelOptions,
@@ -105,6 +106,7 @@ export default class BundlerRunner {
 
     let version = nullthrows(pkg).version;
     return md5FromObject({
+      parcelVersion: PARCEL_VERSION,
       bundler,
       version,
       hash: assetGraph.getHash()
