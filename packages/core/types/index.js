@@ -262,6 +262,7 @@ export interface Dependency {
   +sourceAssetId: ?string;
   +sourcePath: ?string;
   +symbols: Map<Symbol, Symbol>;
+  +pipeline: ?string;
 }
 
 export type File = {|
@@ -311,7 +312,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   setBuffer(Buffer): void;
   setStream(Readable): void;
-  addIncludedFile(file: File): Promise<void>;
+  addIncludedFile(file: File): void;
   addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 }

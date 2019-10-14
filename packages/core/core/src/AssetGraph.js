@@ -134,6 +134,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       nodeFromDep(
         createDependency({
           moduleSpecifier: entryFile,
+          pipeline: target.name,
           target: target,
           env: target.env,
           isEntry: true

@@ -33,6 +33,7 @@ import BundleGraph, {
   bundleGraphToInternalBundleGraph
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
+import {PARCEL_VERSION} from './constants';
 
 type Opts = {|
   config: ParcelConfig,
@@ -370,6 +371,7 @@ export default class PackagerRunner {
     // TODO: add third party configs to the cache key
     let {minify, scopeHoist, sourceMaps} = this.options;
     return md5FromObject({
+      parcelVersion: PARCEL_VERSION,
       deps,
       opts: {minify, scopeHoist, sourceMaps},
       hash: bundleGraph.getHash(bundle)

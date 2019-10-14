@@ -1,6 +1,5 @@
 // @flow
 
-import invariant from 'assert';
 import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
@@ -12,10 +11,10 @@ import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
+const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
+const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
 
 type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
@@ -70,9 +69,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      invariant(context != null);
-
-      if (shouldExcludeAsset(asset, usedExports)) {
+      if (!context || shouldExcludeAsset(asset, usedExports)) {
         return;
       }
 
@@ -150,6 +147,16 @@ function getUsedExports(
   bundleGraph: BundleGraph
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
+
+  let entry = bundle.getMainEntry();
+  if (entry) {
+    for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      if (symbol) {
+        markUsed(asset, symbol);
+      }
+    }
+  }
+
   bundle.traverseAssets(asset => {
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolvedAsset = bundleGraph.getDependencyResolution(dep);
