@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-preset-env",
-  "version": "2.0.0-alpha.2",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
