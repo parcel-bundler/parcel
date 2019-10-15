@@ -18,7 +18,8 @@ function reloadCSS() {
   cssTimeout = setTimeout(function () {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
-      if (bundle.getBaseURL(links[i].href) === bundle.getBundleURL()) {
+      let bundleUrl = bundle.getBundleURL();
+      if (bundle.getBaseURL(links[i].href).slice(0, bundleUrl.length) === bundleUrl) {
         updateLink(links[i]);
       }
     }
