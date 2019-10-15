@@ -392,6 +392,24 @@ describe('output formats', function() {
       assert(async.includes('export const foo'));
     });
 
+    it('should support async imports of commonjs modules', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-async-commonjs/index.js')
+      );
+
+      let index = await outputFS.readFile(
+        b.getBundles().find(b => b.name.startsWith('index')).filePath,
+        'utf8'
+      );
+      assert(/import\('' \+ '\.\/async\..+?\.js'\)/.test(index));
+
+      let async = await outputFS.readFile(
+        b.getBundles().find(b => b.name.startsWith('async')).filePath,
+        'utf8'
+      );
+      assert(/export\s*\{\s*[\w$]+\s*as\s*default/.test(async));
+    });
+
     it('should support async split bundles', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-split/index.js')
