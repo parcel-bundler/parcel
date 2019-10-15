@@ -2,6 +2,7 @@
 
 import type {MutableAsset} from '@parcel/types';
 
+import invariant from 'assert';
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import template from '@babel/template';
@@ -153,6 +154,11 @@ const VISITOR = {
         ) {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
         }
+      }
+
+      if (asset.meta.hasCommonJSExports && asset.symbols.size == 0) {
+        invariant(typeof asset.meta.exportsIdentifier === 'string');
+        asset.symbols.set('default', asset.meta.exportsIdentifier);
       }
 
       path.stop();

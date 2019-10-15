@@ -81,7 +81,10 @@ export function generateExports(
   path: any
 ) {
   let exportedIdentifiers = new Map();
-  let commonJSSyntheticDefaultExportIdentifier: ?string;
+  // The synthetic default CommonJS export needs to be a
+  // ExportNamedDeclaration because it exports a live binding
+  // (as opposed to a ExportDefaultDeclaration).
+  let applySyntheticCommonJSExport = false;
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
@@ -94,10 +97,8 @@ export function generateExports(
       exportedIdentifiers.set(symbol, exportSymbol);
     }
 
-    if (entry.meta.hasCommonJSExports) {
-      let exportsId = entry.meta.exportsIdentifier;
-      invariant(typeof exportsId === 'string');
-      commonJSSyntheticDefaultExportIdentifier = exportsId;
+    if (entry.meta.hasCommonJSExports && !entry.meta.isES6Module) {
+      applySyntheticCommonJSExport = true;
     }
   }
 
@@ -120,7 +121,7 @@ export function generateExports(
       }
 
       let bindingIdentifiers = path.getBindingIdentifierPaths(false, true);
-      let ids = Object.keys(bindingIdentifiers);
+      let ids: Array<string> = Object.keys(bindingIdentifiers);
       let exportedIds = ids.filter(
         id =>
           exportedIdentifiers.has(id) &&
@@ -128,13 +129,6 @@ export function generateExports(
       );
       let defaultExport = ids.find(
         id => exportedIdentifiers.get(id) === 'default'
-      );
-      let hasCommonJSSyntheticDefaultExportIdentifier =
-        commonJSSyntheticDefaultExportIdentifier &&
-        ids.includes(commonJSSyntheticDefaultExportIdentifier);
-
-      invariant(
-        !(defaultExport && hasCommonJSSyntheticDefaultExportIdentifier)
       );
 
       // If all exports in the binding are named exports, export the entire declaration.
@@ -153,26 +147,31 @@ export function generateExports(
         defaultExport &&
         !path.isVariableDeclaration()
       ) {
-        path.replaceWith(t.exportDefaultDeclaration(path.node));
+        if (applySyntheticCommonJSExport) {
+          path.insertAfter(
+            t.exportNamedDeclaration(null, [
+              t.exportSpecifier(
+                t.identifier(defaultExport),
+                t.identifier('default')
+              )
+            ])
+          );
+        } else {
+          path.replaceWith(t.exportDefaultDeclaration(path.node));
+        }
 
         // Otherwise, add export statements after for each identifier.
       } else {
         if (defaultExport) {
           path.insertAfter(
-            t.exportDefaultDeclaration(t.identifier(defaultExport))
-          );
-        }
-
-        if (hasCommonJSSyntheticDefaultExportIdentifier) {
-          // This has to be an ExportNamedDeclaration because
-          // an ExportDefaultDeclaration doesn't export a live binding.
-          path.insertAfter(
-            t.exportNamedDeclaration(null, [
-              t.exportSpecifier(
-                t.identifier(commonJSSyntheticDefaultExportIdentifier),
-                t.identifier('default')
-              )
-            ])
+            applySyntheticCommonJSExport
+              ? t.exportNamedDeclaration(null, [
+                  t.exportSpecifier(
+                    t.identifier(defaultExport),
+                    t.identifier('default')
+                  )
+                ])
+              : t.exportDefaultDeclaration(t.identifier(defaultExport))
           );
         }
 
