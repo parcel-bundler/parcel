@@ -104,6 +104,7 @@ export default class Parcel {
         options: resolvedOptions,
         optionsRef: this.optionsRef,
         config,
+        configRef: this.configRef,
         entries: resolvedOptions.entries,
         workerFarm: this.#farm
       }),
@@ -112,6 +113,7 @@ export default class Parcel {
         options: resolvedOptions,
         optionsRef: this.optionsRef,
         config,
+        configRef: this.configRef,
         workerFarm: this.#farm
       })
     ]);
@@ -251,6 +253,7 @@ export default class Parcel {
       await this.#assetGraphBuilder.validate();
       return event;
     } catch (e) {
+      console.log(e);
       if (e instanceof BuildAbortError) {
         throw e;
       }

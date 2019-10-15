@@ -28,7 +28,8 @@ type RunValidateOpts = $Diff<
 
 export function runTransform(workerApi: WorkerApi, opts: RunTransformOpts) {
   let options: ParcelOptions = workerApi.getSharedReference(opts.optionsRef);
-  return new Transformation({workerApi, options, ...opts}).run();
+  let config: ParcelConfig = workerApi.getSharedReference(opts.configRef);
+  return new Transformation({workerApi, options, config, ...opts}).run();
 }
 
 export function runValidate(workerApi: WorkerApi, opts: RunValidateOpts) {

@@ -5,6 +5,7 @@ import type ParcelConfig from './ParcelConfig';
 
 import nullthrows from 'nullthrows';
 import {md5FromString, PromiseQueue} from '@parcel/utils';
+import path from 'path';
 
 import {createConfig} from './InternalConfig';
 import Config from './public/Config';
@@ -19,6 +20,7 @@ export default class ConfigLoader {
   constructor(options: ParcelOptions) {
     this.options = options;
     this.queue = new PromiseQueue({maxConcurrent: 32});
+    this.parcelConfigCache = new Map();
   }
 
   load(configRequest: ConfigRequest) {
@@ -44,9 +46,17 @@ export default class ConfigLoader {
     });
     let publicConfig = new Config(config, this.options);
 
-    let {config: parcelConfig, extendedFiles} = nullthrows(
-      await loadParcelConfig(filePath, this.options)
-    );
+    let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
+    let searchPath = path.join(dir, 'index');
+
+    let c = this.parcelConfigCache.get(dir);
+    if (!c) {
+      console.log('search', searchPath);
+      c = nullthrows(await loadParcelConfig(searchPath, this.options));
+      this.parcelConfigCache.set(dir, c);
+    }
+
+    let {config: parcelConfig, extendedFiles} = c;
 
     publicConfig.setResolvedPath(parcelConfig.filePath);
     publicConfig.setResult(parcelConfig.getConfig());

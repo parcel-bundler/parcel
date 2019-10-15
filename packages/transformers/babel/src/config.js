@@ -24,6 +24,10 @@ export async function load(config: Config, options: PluginOptions) {
     return reload(config, options);
   }
 
+  if (!config.isSource) {
+    return buildDefaultBabelConfig(config);
+  }
+
   let partialConfig = loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
@@ -88,25 +92,6 @@ export async function load(config: Config, options: PluginOptions) {
       config.shouldInvalidateOnStartup();
     }
   } else {
-    let {pkg} = await options.packageManager.resolve(
-      'core-js',
-      config.searchPath
-    );
-
-    if (!pkg) {
-      throw new Error(
-        "core-js@3 is required to use Parcel's babel integration"
-      );
-    }
-
-    if (!semver.satisfies(pkg.version, '^3.0.0')) {
-      throw new Error(
-        `core-js@3 is required to use Parcel's babel integration. Detected version ${
-          pkg.version
-        }.`
-      );
-    }
-
     await buildDefaultBabelConfig(config);
   }
 }

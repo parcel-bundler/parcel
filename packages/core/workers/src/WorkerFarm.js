@@ -228,7 +228,11 @@ export default class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let worker of this.workers.values()) {
+    let workers = [...this.workers.values()].sort(
+      (a, b) => a.calls.size - b.calls.size
+    );
+
+    for (let worker of workers) {
       if (!this.callQueue.length) {
         break;
       }

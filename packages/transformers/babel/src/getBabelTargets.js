@@ -25,6 +25,7 @@ type BrowserslistConfig = {|[string]: string | Array<string>|};
 export default async function getBabelTargets(
   config: Config
 ): Promise<?BabelTargets> {
+  return null;
   let targets = {};
   let compileTarget = BROWSER_CONTEXT.has(config.env.context)
     ? 'browsers'

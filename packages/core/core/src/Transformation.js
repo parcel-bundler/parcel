@@ -59,6 +59,7 @@ export default class Transformation {
 
   constructor({
     request,
+    config,
     loadConfig,
     parentNodeId,
     options,
@@ -70,6 +71,7 @@ export default class Transformation {
       this.configRequests.push(configRequest);
       return loadConfig(configRequest, parentNodeId);
     };
+    this.config = config;
     this.options = options;
     this.workerApi = workerApi;
 

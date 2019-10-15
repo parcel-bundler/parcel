@@ -159,6 +159,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     onEntryRequestComplete,
     onTargetRequestComplete,
     config,
+    configRef,
     options,
     optionsRef,
     workerFarm
@@ -172,6 +173,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.onEntryRequestComplete = onEntryRequestComplete;
     this.onTargetRequestComplete = onTargetRequestComplete;
     this.config = config;
+    this.configRef = configRef;
 
     this.entryResolver = new EntryResolver(this.options);
     this.targetResolver = new TargetResolver(this.options);
@@ -336,6 +338,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       let request = requestNode.value;
       let {assets, configRequests} = await this.runTransform({
         request,
+        config: this.configRef,
         loadConfig: this.loadConfigHandle,
         parentNodeId: requestNode.id,
         optionsRef: this.optionsRef

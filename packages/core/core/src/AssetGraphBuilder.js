@@ -43,6 +43,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async init({
     config,
+    configRef,
     options,
     optionsRef,
     entries,
@@ -71,6 +72,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.requestGraph.initOptions({
       config,
+      configRef,
       options,
       optionsRef,
       onEntryRequestComplete: this.handleCompletedEntryRequest.bind(this),

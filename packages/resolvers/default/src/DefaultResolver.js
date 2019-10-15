@@ -18,6 +18,7 @@ import invariant from 'assert';
 // Throw user friendly errors on special webpack loader syntax
 // ex. `imports-loader?$=jquery!./example.js`
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
+let resolver;
 
 export default new Resolver({
   async resolve({dependency, options}) {
@@ -29,10 +30,12 @@ export default new Resolver({
       );
     }
 
-    const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
-      options
-    });
+    if (!resolver) {
+      resolver = new NodeResolver({
+        extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
+        options
+      });
+    }
     const resolved = await resolver.resolve(dependency);
 
     if (!resolved) {
@@ -109,6 +112,7 @@ class NodeResolver {
     );
     this.options = opts.options;
     this.packageCache = new Map();
+    this.statCache = new Map();
     this.rootPackage = null;
   }
 
@@ -125,6 +129,8 @@ class NodeResolver {
       }
       return {path: path.resolve(path.dirname(parent), filename)};
     }
+
+    // console.log('RESOLVE', filename, parent)
 
     // Get file extensions to search
     let extensions = this.extensions.slice();
@@ -280,17 +286,32 @@ class NodeResolver {
 
     let parts = this.getModuleParts(filename);
     let root = path.parse(dir).root;
+    let inNodeModules = dir.includes(path.sep + 'node_modules' + path.sep);
+
+    if (inNodeModules) {
+      dir = this.getNearestModulePath(dir, root);
+    }
 
     while (dir !== root) {
+      if (
+        path.basename(dir)[0] === '@' &&
+        path.basename(path.dirname(dir)) === 'node_modules'
+      ) {
+        dir = path.dirname(path.dirname(dir));
+      }
+
       // Skip node_modules directories
       if (path.basename(dir) === 'node_modules') {
         dir = path.dirname(dir);
       }
 
       try {
+        await this.stat(dir, 'node_modules');
+
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
-        let stats = await this.options.inputFS.stat(moduleDir);
+        // console.log(moduleDir)
+        let stats = await this.stat(moduleDir);
         if (stats.isDirectory()) {
           return {
             moduleName: parts[0],
@@ -303,9 +324,34 @@ class NodeResolver {
         // ignore
       }
 
+      // if (inNodeModules) {
+      //   dir = this.getNearestModulePath(dir, root);
+      // } else {
       // Move up a directory
       dir = path.dirname(dir);
+      // }
     }
+  }
+
+  getNearestModulePath(dir, root) {
+    let parts = [];
+    while (dir !== root) {
+      let name = path.basename(dir);
+      if (name === 'node_modules') {
+        break;
+      }
+
+      parts.unshift(name);
+      dir = path.dirname(dir);
+    }
+
+    if (parts[0][0] === '@') {
+      dir = path.join(dir, parts[0], parts[1]);
+    } else {
+      dir = path.join(dir, parts[0]);
+    }
+
+    return dir;
   }
 
   async loadNodeModules(module, extensions: Array<string>) {
@@ -327,9 +373,21 @@ class NodeResolver {
     }
   }
 
+  stat(file: FilePath) {
+    if (this.statCache.has(file)) {
+      return this.statCache.get(file);
+    }
+
+    // console.log('STAT', file)
+
+    let statPromise = this.options.inputFS.stat(file);
+    this.statCache.set(file, statPromise);
+    return statPromise;
+  }
+
   async isFile(file) {
     try {
-      let stat = await this.options.inputFS.stat(file);
+      let stat = await this.stat(file);
       return stat.isFile() || stat.isFIFO();
     } catch (err) {
       return false;
@@ -403,10 +461,20 @@ class NodeResolver {
       browser = browser[pkg.name];
     }
 
+    let mainFields = [pkg.source, browser];
+
+    // If scope hoisting is enabled, we can get smaller builds using esmodule input, so choose `module` over `main`.
+    // Otherwise, we'd be wasting time transforming esmodules to commonjs, so choose `main` over `module`.
+    if (this.options.scopeHoist) {
+      mainFields.push(pkg.module, pkg.main);
+    } else {
+      mainFields.push(pkg.main, pkg.module);
+    }
+
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    return [pkg.source, browser, pkg.module, pkg.main]
+    return mainFields
       .filter(entry => typeof entry === 'string')
       .map(main => {
         // Default to index file if no main field find

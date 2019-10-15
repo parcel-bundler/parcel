@@ -35,7 +35,7 @@ export async function resolveConfig(
 
   let promise = resolveConfigUncached(fs, filepath, filenames, root).finally(
     () => {
-      inProgress.delete(key);
+      // inProgress.delete(key);
     }
   );
 
@@ -49,11 +49,12 @@ async function resolveConfigUncached(
   filenames: Array<FilePath>,
   root: FilePath
 ): Promise<FilePath | null> {
+  // console.log('load', require('worker_threads').threadId, filepath, filenames)
   filepath = path.dirname(filepath);
 
   // Don't traverse above the module root
   if (
-    filepath === root ||
+    // filepath === root ||
     filepath === path.parse(filepath).root ||
     path.basename(filepath) === 'node_modules'
   ) {
@@ -63,6 +64,7 @@ async function resolveConfigUncached(
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
     if (await fs.exists(file)) {
+      // if ((await fs.check(file)) === 0) {
       return file;
     }
   }

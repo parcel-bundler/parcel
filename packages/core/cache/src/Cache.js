@@ -7,17 +7,40 @@ import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import logger from '@parcel/logger';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
+import {
+  serialize,
+  deserialize,
+  prepareForSerialization,
+  restoreDeserializedObject,
+  registerSerializableClass,
+  bufferStream,
+  blobToStream
+} from '@parcel/utils';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
+import sharedObject from 'shared-object';
 
 export default class Cache {
   fs: FileSystem;
   dir: FilePath;
 
-  constructor(fs: FileSystem, cacheDir: FilePath) {
+  constructor(fs: FileSystem, cacheDir: FilePath, obj) {
     this.fs = fs;
     this.dir = cacheDir;
+    this.obj = obj || sharedObject.create({});
+  }
+
+  static deserialize(opts) {
+    return new Cache(opts.fs, opts.dir, sharedObject.get(opts.handle));
+  }
+
+  serialize() {
+    return {
+      $$raw: false,
+      fs: this.fs,
+      dir: this.dir,
+      handle: sharedObject.getHandle(this.obj)
+    };
   }
 
   _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
@@ -29,10 +52,15 @@ export default class Cache {
   }
 
   getStream(key: string): Readable {
+    // let buffer = Buffer.from(this.obj[key], 'base64');
+    // return blobToStream(buffer);
     return this.fs.createReadStream(this._getCachePath(key, '.blob'));
   }
 
-  setStream(key: string, stream: Readable): Promise<string> {
+  async setStream(key: string, stream: Readable): Promise<string> {
+    // let buffer = await bufferStream(stream);
+    // this.obj[key] = buffer.toString('base64');
+    // return key;
     return new Promise((resolve, reject) => {
       stream
         .pipe(this.fs.createWriteStream(this._getCachePath(key, '.blob')))
@@ -55,6 +83,11 @@ export default class Cache {
   }
 
   async get(key: string) {
+    // if (key in this.obj) {
+    // console.log("EXISTS", this.obj)
+    // return restoreDeserializedObject(this.obj[key]);
+    // }
+
     try {
       let data = await this.fs.readFile(this._getCachePath(key));
       return deserialize(data);
@@ -68,6 +101,8 @@ export default class Cache {
   }
 
   async set(key: string, value: mixed) {
+    // this.obj[key] = prepareForSerialization(value);
+
     try {
       let blobPath = this._getCachePath(key);
       let data = serialize(value);
