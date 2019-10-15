@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-ts",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,6 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.1.1"
+    "@parcel/plugin": "^2.0.0-alpha.2"
   }
 }
