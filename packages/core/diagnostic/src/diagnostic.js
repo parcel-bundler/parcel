@@ -9,7 +9,13 @@ export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
 export type DiagnosticCodeHighlight = {|
   start: DiagnosticHighlightLocation,
-  end: DiagnosticHighlightLocation
+  end: DiagnosticHighlightLocation,
+  hint?: string
+|};
+
+export type DiagnosticCodeFrame = {|
+  code: string,
+  codeHighlights: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>
 |};
 
 // A Diagnostic is a style agnostic way of emitting errors, warnings and info
@@ -24,8 +30,7 @@ export type Diagnostic = {|
   language?: string,
 
   // Codeframe data
-  code?: string,
-  codeHighlights?: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>,
+  codeframe?: DiagnosticCodeFrame,
 
   // Hints to resolve issues faster
   hints?: string | Array<string>,

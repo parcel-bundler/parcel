@@ -7,12 +7,13 @@ import type {
   TextLogEvent,
   ProgressLogEvent
 } from '@parcel/types';
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {Diagnostic, DiagnosticCodeFrame} from '@parcel/diagnostic';
 
 import {Box, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
 import * as Emoji from './emoji';
+import formatCodeFrame from './formatCodeFrame';
 
 type LogProps = {
   event: LogEvent,
@@ -58,13 +59,39 @@ export function Log({event}: LogProps) {
 
 function Hints({hints}: {hints: Array<string>, ...}) {
   return (
-    // $FlowFixMe, this is supported according to the docs...
-    <Box flexDirection="column">
-      <Box>Hints:</Box>
+    <div>
+      <div>Hints:</div>
       {hints.map((hint, i) => {
-        return <Box key={i}>- {hint}</Box>;
+        return <div key={i}>- {hint}</div>;
       })}
-    </Box>
+    </div>
+  );
+}
+
+function CodeFrame(props: {
+  codeframe: DiagnosticCodeFrame,
+  filename?: string,
+  language?: string,
+  ...
+}) {
+  let {codeframe, filename} = props;
+
+  let formattedCodeFrame = formatCodeFrame(codeframe);
+  let highlight = Array.isArray(codeframe.codeHighlights)
+    ? codeframe.codeHighlights[0]
+    : codeframe.codeHighlights;
+
+  if (!highlight) {
+    return null;
+  }
+
+  return (
+    <div>
+      {`${typeof filename !== 'string' ? '' : filename}@${
+        highlight.start.line
+      }:${highlight.start.column}`}
+      <div>{formattedCodeFrame}</div>
+    </div>
   );
 }
 
@@ -78,23 +105,33 @@ function DiagnosticContainer({
   emoji: string,
   ...
 }) {
-  let {origin, message, stack, hints} = diagnostic;
-
-  // TODO: Generate codeframe and some metadata if possible
+  let {
+    origin,
+    message,
+    stack,
+    hints,
+    codeframe,
+    filename,
+    language
+  } = diagnostic;
 
   return (
     <React.Fragment>
       <Color keyword={color}>
-        <Color bold>
-          {emoji} {origin}
-        </Color>{' '}
-        {message}
+        <Color bold>{`${emoji} ${origin}`}</Color> {message}
       </Color>
       {stack != null && stack !== '' ? (
-        <Box>
+        <div>
           <Color gray>{stack}</Color>
-        </Box>
+        </div>
       ) : null}
+      {codeframe && (
+        <CodeFrame
+          codeframe={codeframe}
+          filename={filename}
+          language={language}
+        />
+      )}
       {Array.isArray(hints) && hints.length && <Hints hints={hints} />}
     </React.Fragment>
   );

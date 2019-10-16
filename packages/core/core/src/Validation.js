@@ -8,7 +8,7 @@ import type {
   ConfigRequest,
   ParcelOptions
 } from './types';
-import type ParcelConfig from './ParcelConfig';
+import ParcelConfig from './ParcelConfig';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -71,7 +71,11 @@ export default class Validation {
     };
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig: ParcelConfig = nullthrows(config.result);
+    nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
