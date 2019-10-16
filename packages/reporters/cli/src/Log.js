@@ -56,6 +56,18 @@ export function Log({event}: LogProps) {
   throw new Error('Unknown log event type');
 }
 
+function Hints({hints}: {hints: Array<string>, ...}) {
+  return (
+    // $FlowFixMe, this is supported according to the docs...
+    <Box flexDirection="column">
+      <Box>Hints:</Box>
+      {hints.map((hint, i) => {
+        return <Box key={i}>- {hint}</Box>;
+      })}
+    </Box>
+  );
+}
+
 function DiagnosticContainer({
   diagnostic,
   color,
@@ -66,7 +78,7 @@ function DiagnosticContainer({
   emoji: string,
   ...
 }) {
-  let {origin, message, stack} = diagnostic;
+  let {origin, message, stack, hints} = diagnostic;
 
   // TODO: Generate codeframe and some metadata if possible
 
@@ -79,10 +91,11 @@ function DiagnosticContainer({
         {message}
       </Color>
       {stack != null && stack !== '' ? (
-        <div>
+        <Box>
           <Color gray>{stack}</Color>
-        </div>
+        </Box>
       ) : null}
+      {Array.isArray(hints) && hints.length && <Hints hints={hints} />}
     </React.Fragment>
   );
 }
