@@ -56,16 +56,6 @@ export function Log({event}: LogProps) {
   throw new Error('Unknown log event type');
 }
 
-function InfoLog({event}: DiagnosticLogProps) {
-  return (
-    <DiagnosticContainer
-      diagnostic={event.diagnostic}
-      emoji={Emoji.info}
-      color="blue"
-    />
-  );
-}
-
 function DiagnosticContainer({
   diagnostic,
   color,
@@ -76,14 +66,34 @@ function DiagnosticContainer({
   emoji: string,
   ...
 }) {
-  let {origin, message} = diagnostic;
+  let {origin, message, stack} = diagnostic;
+
+  // TODO: Generate codeframe and some metadata if possible
 
   return (
     <React.Fragment>
       <Color keyword={color}>
-        {emoji} <Color bold>{origin}</Color> {message}
+        <Color bold>
+          {emoji} {origin}
+        </Color>{' '}
+        {message}
       </Color>
+      {stack != null && stack !== '' ? (
+        <div>
+          <Color gray>{stack}</Color>
+        </div>
+      ) : null}
     </React.Fragment>
+  );
+}
+
+function InfoLog({event}: DiagnosticLogProps) {
+  return (
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
+      emoji={Emoji.info}
+      color="blue"
+    />
   );
 }
 
