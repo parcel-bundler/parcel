@@ -5,6 +5,22 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.12.4] - 2019-10-06
+
+- BUG: postcss module generates wrong hashes [Details](https://github.com/parcel-bundler/parcel/pull/2922)
+- Shake exports with pure property assignments [Details](https://github.com/parcel-bundler/parcel/pull/2979)
+- Clear scope cache before crawling to fix scope hoisting classes [Details](https://github.com/parcel-bundler/parcel/pull/2986)
+- Replace module.require in scope hoisting [Details](https://github.com/parcel-bundler/parcel/pull/2875)
+- Define \_\_esModule interop flag when requiring ES module from CommonJS [Details](https://github.com/parcel-bundler/parcel/pull/2993)
+- Fix assigning to exports from inside a function in scope hoisting [Details](https://github.com/parcel-bundler/parcel/pull/2994)
+- Added new `parcel info` command [Details](https://github.com/parcel-bundler/parcel/pull/3068)
+- Fix Scope hoisting destructuring [Details](https://github.com/parcel-bundler/parcel/pull/2742)
+- HMR update breaks in webworker [Details](https://github.com/parcel-bundler/parcel/pull/3078)
+- Update dotenv-expand to allow overriding with falsy values [Details](https://github.com/parcel-bundler/parcel/pull/2971)
+- bump chokidar to get a reload fix for linux [Details](https://github.com/parcel-bundler/parcel/pull/2878)
+- Upgrading serialize-to-js from 1.1.1 to 3.0.0 [Details](https://github.com/parcel-bundler/parcel/pull/3451)
+- Fix source map on CoffeeScript assets [Details](https://github.com/parcel-bundler/parcel/pull/3423)
+
 ## [1.12.3] - 2019-03-20
 
 - Downgrade all internal Babel packages to `<7.4.0` because of bugs in that release.
