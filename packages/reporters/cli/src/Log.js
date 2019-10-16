@@ -7,9 +7,9 @@ import type {
   TextLogEvent,
   ProgressLogEvent
 } from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
-import {prettyError} from '@parcel/utils';
-import {Box, Text, Color} from 'ink';
+import {Box, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
 import * as Emoji from './emoji';
@@ -57,41 +57,40 @@ export function Log({event}: LogProps) {
 }
 
 function InfoLog({event}: DiagnosticLogProps) {
-  return <Text>{event.diagnostic.message}</Text>;
+  return (
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
+      emoji={Emoji.info}
+      color="blue"
+    />
+  );
 }
 
-function Stack({
-  err,
-  emoji,
+function DiagnosticContainer({
+  diagnostic,
   color,
-  ...otherProps
+  emoji
 }: {
-  err: string | Error,
-  emoji: string,
+  diagnostic: Diagnostic,
   color: string,
+  emoji: string,
   ...
 }) {
-  let {message, stack} = prettyError(err, {color: true});
+  let {origin, message} = diagnostic;
+
   return (
     <React.Fragment>
-      <div>
-        <Color keyword={color} {...otherProps}>
-          {emoji} {message}
-        </Color>
-      </div>
-      {stack != null && stack !== '' ? (
-        <div>
-          <Color gray>{stack}</Color>
-        </div>
-      ) : null}
+      <Color keyword={color}>
+        {emoji} <Color bold>{origin}</Color> {message}
+      </Color>
     </React.Fragment>
   );
 }
 
 function WarnLog({event}: DiagnosticLogProps) {
   return (
-    <Stack
-      err={event.diagnostic.message}
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
       emoji={Emoji.warning}
       color="yellow"
     />
@@ -100,8 +99,8 @@ function WarnLog({event}: DiagnosticLogProps) {
 
 function ErrorLog({event}: DiagnosticLogProps) {
   return (
-    <Stack
-      err={event.diagnostic.message}
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
       emoji={Emoji.error}
       color="red"
       bold
