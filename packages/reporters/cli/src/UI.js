@@ -134,7 +134,11 @@ function reducer(
           {
             type: 'log',
             level: 'error',
-            message: event.error
+            diagnostic: {
+              origin: '@parcel/core',
+              message: event.error.message,
+              stack: event.error.stack
+            }
           }
         ]
       };
@@ -152,10 +156,10 @@ function reducer(
       }
 
       // Skip duplicate logs
-      let messages = new Set(state.logs.map(l => l.message));
+      /*let messages = new Set(state.logs.map(l => l.message));
       if (messages.has(event.message)) {
         break;
-      }
+      }*/
 
       return {
         ...state,

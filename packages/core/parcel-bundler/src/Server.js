@@ -116,7 +116,10 @@ function middleware(bundler) {
       const protocol = req.connection.encrypted ? 'https' : 'http';
       const fullUrl = `${protocol}://${req.headers.host}${req.url}`;
 
-      logger.verbose(`Request: ${fullUrl}`);
+      logger.verbose({
+        origin: '',
+        message: `Request: ${fullUrl}`
+      });
     }
   };
 }

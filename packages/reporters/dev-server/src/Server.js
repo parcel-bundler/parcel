@@ -254,7 +254,10 @@ export default class Server extends EventEmitter {
   }
 
   logAccessIfVerbose(req: Request) {
-    logger.verbose(`Request: ${req.headers.host}${req.originalUrl || req.url}`);
+    logger.verbose({
+      origin: '',
+      message: `Request: ${req.headers.host}${req.originalUrl || req.url}`
+    });
   }
 
   /**

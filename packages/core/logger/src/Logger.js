@@ -13,11 +13,11 @@ class Logger {
     return this.#logEmitter.addListener(cb);
   }
 
-  verbose(message: string): void {
+  verbose(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'verbose',
-      message
+      diagnostic
     });
   }
 
@@ -81,7 +81,7 @@ export function patchConsole() {
   // $FlowFixMe
   console.debug = (...messages: Array<mixed>) => {
     // TODO: dedicated debug level?
-    logger.verbose(joinLogMessages(messages));
+    logger.verbose(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe

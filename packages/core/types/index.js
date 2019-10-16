@@ -697,18 +697,19 @@ export type ProgressLogEvent = {|
   +message: string
 |};
 
-export type LogEvent =
-  | ProgressLogEvent
-  | {|
-      +type: 'log',
-      +level: 'error' | 'warn' | 'info',
-      +diagnostic: Diagnostic
-    |}
-  | {|
-      +type: 'log',
-      +level: 'success' | 'verbose',
-      +message: string
-    |};
+export type DiagnosticLogEvent = {|
+  +type: 'log',
+  +level: 'error' | 'warn' | 'info' | 'verbose',
+  +diagnostic: Diagnostic
+|};
+
+export type TextLogEvent = {|
+  +type: 'log',
+  +level: 'success',
+  +message: string
+|};
+
+export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 export type BuildStartEvent = {|
   type: 'buildStart'

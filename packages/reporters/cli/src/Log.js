@@ -1,6 +1,12 @@
 // @flow strict-local
 
-import type {LogEvent, ServerOptions} from '@parcel/types';
+import type {
+  ServerOptions,
+  LogEvent,
+  DiagnosticLogEvent,
+  TextLogEvent,
+  ProgressLogEvent
+} from '@parcel/types';
 
 import {prettyError} from '@parcel/utils';
 import {Box, Text, Color} from 'ink';
@@ -8,19 +14,31 @@ import Spinner from './Spinner';
 import React from 'react';
 import * as Emoji from './emoji';
 
-type StringOrErrorLogProps = {|
-  event: LogEvent
-|};
+type LogProps = {
+  event: LogEvent,
+  ...
+};
 
-type StringLogProps = {|
-  event: {+message: string, ...}
-|};
+type DiagnosticLogProps = {
+  event: DiagnosticLogEvent,
+  ...
+};
+
+type TextLogProps = {
+  event: TextLogEvent,
+  ...
+};
+
+type ProgressLogProps = {
+  event: ProgressLogEvent,
+  ...
+};
 
 type ServerInfoProps = {|
   options: ServerOptions
 |};
 
-export function Log({event}: StringOrErrorLogProps) {
+export function Log({event}: LogProps) {
   switch (event.level) {
     case 'verbose':
     case 'info':
@@ -38,8 +56,8 @@ export function Log({event}: StringOrErrorLogProps) {
   throw new Error('Unknown log event type');
 }
 
-function InfoLog({event}: StringLogProps) {
-  return <Text>{event.message}</Text>;
+function InfoLog({event}: DiagnosticLogProps) {
+  return <Text>{event.diagnostic.message}</Text>;
 }
 
 function Stack({
@@ -70,15 +88,28 @@ function Stack({
   );
 }
 
-function WarnLog({event}: StringOrErrorLogProps) {
-  return <Stack err={event.message} emoji={Emoji.warning} color="yellow" />;
+function WarnLog({event}: DiagnosticLogProps) {
+  return (
+    <Stack
+      err={event.diagnostic.message}
+      emoji={Emoji.warning}
+      color="yellow"
+    />
+  );
 }
 
-function ErrorLog({event}: StringOrErrorLogProps) {
-  return <Stack err={event.message} emoji={Emoji.error} color="red" bold />;
+function ErrorLog({event}: DiagnosticLogProps) {
+  return (
+    <Stack
+      err={event.diagnostic.message}
+      emoji={Emoji.error}
+      color="red"
+      bold
+    />
+  );
 }
 
-function SuccessLog({event}: StringLogProps) {
+function SuccessLog({event}: TextLogProps) {
   return (
     <Color green bold>
       {Emoji.success} {event.message}
@@ -86,7 +117,7 @@ function SuccessLog({event}: StringLogProps) {
   );
 }
 
-export function Progress({event}: StringLogProps) {
+export function Progress({event}: ProgressLogProps) {
   return (
     <Box>
       <Color gray bold>
