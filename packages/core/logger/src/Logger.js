@@ -4,6 +4,7 @@ import type {IDisposable, LogEvent} from '@parcel/types';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 class Logger {
   #logEmitter = new ValueEmitter<LogEvent>();
@@ -20,31 +21,31 @@ class Logger {
     });
   }
 
-  info(message: string): void {
-    this.log(message);
+  info(diagnostic: Diagnostic): void {
+    this.log(diagnostic);
   }
 
-  log(message: string): void {
+  log(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'info',
-      message
+      diagnostic
     });
   }
 
-  warn(err: Error | string): void {
+  warn(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'warn',
-      message: err
+      diagnostic
     });
   }
 
-  error(err: Error | string): void {
+  error(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
-      message: err
+      diagnostic
     });
   }
 
@@ -74,7 +75,7 @@ export function patchConsole() {
   /* eslint-disable no-console */
   // $FlowFixMe
   console.log = console.info = (...messages: Array<mixed>) => {
-    logger.info(joinLogMessages(messages));
+    logger.info(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
@@ -85,16 +86,33 @@ export function patchConsole() {
 
   // $FlowFixMe
   console.warn = (...messages: Array<mixed>) => {
-    logger.warn(joinLogMessages(messages));
+    logger.warn(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.error = (...messages: Array<mixed>) => {
-    logger.error(joinLogMessages(messages));
+    logger.error(messagesToDiagnostic(messages));
   };
 
   /* eslint-enable no-console */
   consolePatched = true;
+}
+
+function messagesToDiagnostic(messages: Array<mixed>): Diagnostic {
+  if (messages.length === 1 && messages[0] instanceof Error) {
+    let error: Error = messages[0];
+
+    return {
+      message: error.message,
+      origin: '@parcel/logger',
+      stack: error.stack
+    };
+  } else {
+    return {
+      message: joinLogMessages(messages),
+      origin: '@parcel/logger'
+    };
+  }
 }
 
 function joinLogMessages(messages: Array<mixed>): string {

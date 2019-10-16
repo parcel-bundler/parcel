@@ -79,7 +79,10 @@ export class Yarn implements PackageInstaller {
             return;
           case 'success':
           case 'info':
-            logger.info(prefix(message.data));
+            logger.info({
+              origin: '@parcel/package-manager',
+              message: prefix(message.data)
+            });
             return;
           default:
           // ignore
@@ -95,10 +98,16 @@ export class Yarn implements PackageInstaller {
       .on('data', (message: YarnStdErrMessage) => {
         switch (message.type) {
           case 'warning':
-            logger.warn(prefix(message.data));
+            logger.warn({
+              origin: '@parcel/package-manager',
+              message: prefix(message.data)
+            });
             return;
           case 'error':
-            logger.error(prefix(message.data));
+            logger.error({
+              origin: '@parcel/package-manager',
+              message: prefix(message.data)
+            });
             return;
           default:
           // ignore

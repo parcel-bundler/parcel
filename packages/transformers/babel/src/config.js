@@ -81,9 +81,11 @@ export async function load(config: Config, options: PluginOptions) {
       await definePluginDependencies(config);
       config.setResultHash(md5FromObject(partialConfig.options));
     } else {
-      logger.warn(
-        'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
-      );
+      logger.warn({
+        origin: '@parcel/transformer-babel',
+        message:
+          'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
+      });
       config.shouldReload();
       config.setResult({
         internal: false

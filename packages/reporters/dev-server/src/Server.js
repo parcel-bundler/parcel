@@ -278,17 +278,21 @@ export default class Server extends EventEmitter {
 
     if (filename === '.proxyrc.js') {
       if (typeof cfg !== 'function') {
-        logger.warn(
-          "Proxy configuration file '.proxyrc.js' should export a function. Skipping..."
-        );
+        logger.warn({
+          origin: '@parcel/reporter-dev-server',
+          message:
+            "Proxy configuration file '.proxyrc.js' should export a function. Skipping..."
+        });
         return this;
       }
       cfg(app);
     } else if (filename === '.proxyrc') {
       if (typeof cfg !== 'object') {
-        logger.warn(
-          "Proxy table in '.proxyrc' should be of object type. Skipping..."
-        );
+        logger.warn({
+          origin: '@parcel/reporter-dev-server',
+          message:
+            "Proxy table in '.proxyrc' should be of object type. Skipping..."
+        });
         return this;
       }
       for (const [context, options] of Object.entries(cfg)) {
@@ -336,7 +340,10 @@ export default class Server extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       this.server.once('error', err => {
-        logger.error(new Error(serverErrors(err, this.options.port)));
+        logger.error({
+          origin: '@parcel/reporter-dev-server',
+          message: serverErrors(err, this.options.port)
+        });
         reject(err);
       });
 

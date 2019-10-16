@@ -5,6 +5,7 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -700,12 +701,12 @@ export type LogEvent =
   | ProgressLogEvent
   | {|
       +type: 'log',
-      +level: 'error' | 'warn',
-      +message: string | Error
+      +level: 'error' | 'warn' | 'info',
+      +diagnostic: Diagnostic
     |}
   | {|
       +type: 'log',
-      +level: 'info' | 'success' | 'verbose',
+      +level: 'success' | 'verbose',
       +message: string
     |};
 

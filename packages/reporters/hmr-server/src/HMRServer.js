@@ -154,7 +154,11 @@ export default class HMRServer {
       return;
     }
 
-    logger.warn(err);
+    logger.warn({
+      origin: '@parcel/reporter-hmr-server',
+      message: `[${err.code}]: ${err.message}`,
+      stack: err.stack
+    });
   }
 
   broadcast(msg: HMRMessage) {
