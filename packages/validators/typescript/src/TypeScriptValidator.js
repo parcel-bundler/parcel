@@ -1,9 +1,11 @@
 // @flow
+import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
+
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
+import logger from '@parcel/logger';
 
-import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './languageServiceHost';
 
 let langServiceCache = {};
@@ -63,12 +65,62 @@ export default new Validator({
     );
 
     if (diagnostics.length > 0) {
-      const formatted = formatDiagnostics(
-        diagnostics,
-        asset.filePath,
-        asset.fs.cwd()
-      );
-      throw formatted;
+      for (let diagnostic of diagnostics) {
+        let filename = asset.filePath;
+        let {file} = diagnostic;
+
+        let diagnosticMessage =
+          typeof diagnostic.messageText === 'string'
+            ? diagnostic.messageText
+            : diagnostic.messageText.messageText;
+
+        let codeframe: ?DiagnosticCodeFrame;
+        if (file != null && diagnostic.start != null) {
+          let source = file.text || diagnostic.source;
+          if (file.fileName) {
+            filename = file.fileName;
+          }
+
+          if (source) {
+            let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
+            let start = {
+              line: lineChar.line + 1,
+              column: lineChar.character + 1
+            };
+            let end = {
+              line: start.line,
+              column: start.column + 1
+            };
+
+            if (typeof diagnostic.length === 'number') {
+              let endCharPosition = file.getLineAndCharacterOfPosition(
+                diagnostic.start + diagnostic.length
+              );
+
+              end = {
+                line: endCharPosition.line + 1,
+                column: endCharPosition.character + 1
+              };
+            }
+
+            codeframe = {
+              code: source,
+              codeHighlights: {
+                start,
+                end,
+                hint: diagnosticMessage
+              }
+            };
+          }
+        }
+
+        logger.error({
+          origin: '@parcel/validator-typescript',
+          message: diagnosticMessage,
+          filename,
+          codeframe: codeframe ? codeframe : undefined
+        });
+      }
     }
   }
 });
