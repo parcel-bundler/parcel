@@ -571,17 +571,19 @@ export function removeAssetGroups(
   assetGraph: AssetGraph
 ): Graph<BundleGraphNode> {
   let graph = new Graph<BundleGraphNode>();
-  // $FlowFixMe
-  graph.setRootNode(nullthrows(assetGraph.getRootNode()));
-  let assetGroupIds = new Set();
 
-  assetGraph.traverse(node => {
+  let root = assetGraph.getRootNode();
+  invariant(root != null && root.type === 'root');
+  graph.setRootNode(root);
+
+  let assetGroupIds = new Set();
+  for (let [, node] of assetGraph.nodes) {
     if (node.type === 'asset_group') {
       assetGroupIds.add(node.id);
     } else {
       graph.addNode(node);
     }
-  });
+  }
 
   for (let edge of assetGraph.getAllEdges()) {
     let fromIds;
