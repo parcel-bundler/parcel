@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-preset-env",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,11 +8,11 @@
   },
   "main": "src/index.js",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
-    "semver": "^5.4.1",
-    "@babel/preset-env": "^7.0.0"
+    "@babel/preset-env": "^7.0.0",
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "@babel/core": "^7.4.4"

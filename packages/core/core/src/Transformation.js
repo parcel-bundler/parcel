@@ -32,6 +32,7 @@ import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
+import {PARCEL_VERSION} from './constants';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
@@ -92,7 +93,8 @@ export default class Transformation {
     let asset = await this.loadAsset();
     let pipeline = await this.loadPipeline(
       this.request.filePath,
-      asset.value.isSource
+      asset.value.isSource,
+      this.request.pipeline
     );
     let results = await this.runPipeline(pipeline, asset);
     let assets = results.map(a => a.value);
@@ -235,6 +237,7 @@ export default class Transformation {
     }));
 
     return md5FromObject({
+      parcelVersion: PARCEL_VERSION,
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
@@ -242,11 +245,16 @@ export default class Transformation {
     });
   }
 
-  async loadPipeline(filePath: FilePath, isSource: boolean): Promise<Pipeline> {
+  async loadPipeline(
+    filePath: FilePath,
+    isSource: boolean,
+    pipelineName?: ?string
+  ): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
       isSource,
+      pipeline: pipelineName,
       meta: {
         actionType: 'transformation'
       }
@@ -291,8 +299,8 @@ export default class Transformation {
     }
 
     let pipeline = new Pipeline({
-      names: parcelConfig.getTransformerNames(filePath),
-      plugins: await parcelConfig.getTransformers(filePath),
+      names: parcelConfig.getTransformerNames(filePath, pipelineName),
+      plugins: await parcelConfig.getTransformers(filePath, pipelineName),
       configs,
       options: this.options,
       workerApi: this.workerApi
@@ -314,7 +322,11 @@ export default class Transformation {
   |}): Promise<?Pipeline> {
     let nextFilePath =
       filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
-    let nextPipeline = await this.loadPipeline(nextFilePath, isSource);
+    let nextPipeline = await this.loadPipeline(
+      nextFilePath,
+      isSource,
+      this.request.pipeline
+    );
 
     if (nextPipeline.id === currentPipeline.id) {
       return null;

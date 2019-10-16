@@ -1,16 +1,16 @@
 {
   "name": "@parcel/plugin",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "main": "./src/PluginAPI.js",
   "dependencies": {
-    "@parcel/types": "^2.0.0-alpha.1.1"
+    "@parcel/types": "^2.0.0-alpha.2.1"
   }
 }

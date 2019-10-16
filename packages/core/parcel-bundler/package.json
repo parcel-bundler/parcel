@@ -1,7 +1,7 @@
 {
   "name": "parcel-bundler",
   "private": true,
-  "version": "1.12.4-alpha.0",
+  "version": "2.0.0-alpha.2.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "@parcel/logger": "^1.11.0",
     "@parcel/utils": "^1.11.0",
     "@parcel/watcher": "^1.12.0",
-    "@parcel/workers": "^2.0.0-alpha.1",
+    "@parcel/workers": "^2.0.0-alpha.2.1",
     "ansi-to-html": "^0.6.4",
     "babel-types": "^6.26.0",
     "browserslist": "^4.1.0",
@@ -127,7 +127,7 @@
     "parcel1": "bin/cli.js"
   },
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "lint-staged": {
     "*.{js,json,md}": [

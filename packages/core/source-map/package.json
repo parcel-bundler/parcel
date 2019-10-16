@@ -1,14 +1,14 @@
 {
   "name": "@parcel/source-map",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "main": "./src/SourceMap.js",
   "license": "MIT",
   "scripts": {},
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "nullthrows": "^1.1.1",
     "source-map": "^0.7.3"
   },

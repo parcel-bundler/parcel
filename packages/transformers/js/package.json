@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,7 +8,7 @@
   },
   "main": "src/JSTransformer",
   "engines": {
-    "node": ">= 8.0.0",
+    "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
@@ -19,11 +19,11 @@
     "@babel/template": "^7.0.0",
     "@babel/traverse": "^7.0.0",
     "@babel/types": "^7.0.0",
-    "@parcel/logger": "^2.0.0-alpha.1.1",
-    "@parcel/plugin": "^2.0.0-alpha.1.1",
-    "@parcel/scope-hoisting": "^2.0.0-alpha.1.1",
-    "@parcel/source-map": "^2.0.0-alpha.1.1",
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@parcel/logger": "^2.0.0-alpha.2.1",
+    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/scope-hoisting": "^2.0.0-alpha.2.1",
+    "@parcel/source-map": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "babylon-walk": "^1.0.2",
     "node-libs-browser": "^2.0.0",
     "nullthrows": "^1.1.1",

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/events",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,6 +8,6 @@
   },
   "main": "src/index.js",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   }
 }
