@@ -108,7 +108,7 @@ export default new Validator({
               codeHighlights: {
                 start,
                 end,
-                hint: diagnosticMessage
+                message: diagnosticMessage
               }
             };
           }

@@ -23,7 +23,7 @@ export default function formatCodeFrame(
       linesAbove: 2,
       linesBelow: 2,
       forceColor: true,
-      message: highlight.hint
+      message: highlight.message
     }
   );
 

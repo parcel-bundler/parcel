@@ -10,7 +10,7 @@ export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 export type DiagnosticCodeHighlight = {|
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
-  hint?: string
+  message?: string
 |};
 
 export type DiagnosticCodeFrame = {|
