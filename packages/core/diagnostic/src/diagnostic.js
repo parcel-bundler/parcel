@@ -38,3 +38,20 @@ export type Diagnostic = {|
   //! Should only be used if there's no way to supply code and codeHighlight...
   stack?: string
 |};
+
+type ThrowableDiagnosticOpts = {
+  diagnostic: Diagnostic,
+  ...
+};
+
+export default class ThrowableDiagnostic {
+  #diagnostic: Diagnostic;
+
+  constructor(opts: ThrowableDiagnosticOpts) {
+    this.#diagnostic = opts.diagnostic;
+  }
+
+  toObject() {
+    return this.#diagnostic;
+  }
+}
