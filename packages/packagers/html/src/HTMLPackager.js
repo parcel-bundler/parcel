@@ -1,9 +1,8 @@
 // @flow strict-local
-import type {Blob} from '@parcel/types';
+import type {Blob, Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
-import {Bundle, BundleGraph} from '@parcel/types';
 import posthtml from 'posthtml';
 import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
