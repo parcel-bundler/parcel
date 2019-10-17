@@ -37,6 +37,7 @@ function debounce(func, delay) {
 }
 window.parcelReactRefreshEnqueueUpdate = debounce(Refresh.performReactRefresh, 30);`;
     } else {
+      // TODO ?
       code = `window.$RefreshReg$ = function(){};
 window.$RefreshSig$ = function(){return function(type){return type};}`;
     }

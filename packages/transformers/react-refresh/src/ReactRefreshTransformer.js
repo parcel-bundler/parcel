@@ -27,7 +27,7 @@ try {
 if (isReactRefreshBoundary(module)) {
   registerExportsForReactRefresh(module);
 
-  module.hot.accept(/*TODO error handling ?*/);
+  module.hot.accept();
   if (RefreshRuntime.hasUnrecoverableErrors()) {
     window.location.reload();
   }
@@ -87,13 +87,16 @@ function registerExportsForReactRefresh(module) {
   }
 }`);
 
-function shouldExclude(asset, options) {
+async function shouldExclude(asset, options) {
+  let pkg = await asset.getPackage();
   return (
     !asset.env.isBrowser() ||
     !options.hot ||
     !asset.isSource ||
-    asset.filePath.endsWith('ReactRefreshRuntime.js') ||
-    asset.filePath.endsWith('HMRRuntime.js')
+    (pkg
+      ? pkg.name.startsWith('@parcel/runtime-') ||
+        pkg.name.includes('parcel-runtime-')
+      : false)
   );
 }
 
@@ -104,7 +107,7 @@ export default new Transformer({
 
   async parse({asset, options}) {
     let code = await asset.getCode();
-    if (shouldExclude(asset, options)) {
+    if (await shouldExclude(asset, options)) {
       return null;
     }
 
@@ -122,9 +125,9 @@ export default new Transformer({
     };
   },
 
-  transform({asset, options}) {
+  async transform({asset, options}) {
     asset.type = 'js';
-    if (!asset.ast || shouldExclude(asset, options)) {
+    if (!asset.ast || (await shouldExclude(asset, options))) {
       return [asset];
     }
 
