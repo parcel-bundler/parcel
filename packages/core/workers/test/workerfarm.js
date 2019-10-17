@@ -150,7 +150,7 @@ describe('WorkerFarm', function() {
         level: 'info',
         type: 'log',
         diagnostic: {
-          origin: '@parcel/logger',
+          origin: 'console',
           message: 'one'
         }
       },
@@ -158,7 +158,7 @@ describe('WorkerFarm', function() {
         level: 'info',
         type: 'log',
         diagnostic: {
-          origin: '@parcel/logger',
+          origin: 'console',
           message: 'two'
         }
       },
@@ -166,7 +166,7 @@ describe('WorkerFarm', function() {
         level: 'warn',
         type: 'log',
         diagnostic: {
-          origin: '@parcel/logger',
+          origin: 'console',
           message: 'three'
         }
       },
@@ -174,14 +174,17 @@ describe('WorkerFarm', function() {
         level: 'error',
         type: 'log',
         diagnostic: {
-          origin: '@parcel/logger',
+          origin: 'console',
           message: 'four'
         }
       },
       {
         level: 'verbose',
-        message: 'five',
-        type: 'log'
+        type: 'log',
+        diagnostic: {
+          message: 'five',
+          origin: 'console'
+        }
       }
     ]);
 
