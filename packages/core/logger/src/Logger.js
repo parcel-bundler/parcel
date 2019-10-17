@@ -1,10 +1,11 @@
 // @flow strict-local
 
 import type {IDisposable, LogEvent} from '@parcel/types';
+import type {Diagnostic, PrintableError} from '@parcel/diagnostic';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
-import type {Diagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 class Logger {
   #logEmitter = new ValueEmitter<LogEvent>();
@@ -41,7 +42,25 @@ class Logger {
     });
   }
 
-  error(diagnostic: Diagnostic): void {
+  error(
+    input: Diagnostic | PrintableError | ThrowableDiagnostic,
+    realOrigin?: string
+  ): void {
+    // $FlowFixMe
+    let diagnostic: Diagnostic = input;
+    if (input instanceof Error) {
+      diagnostic = errorToDiagnostic(input);
+    } else if (input instanceof ThrowableDiagnostic) {
+      diagnostic = input.toObject();
+    }
+
+    if (typeof realOrigin === 'string') {
+      diagnostic = {
+        ...diagnostic,
+        origin: realOrigin
+      };
+    }
+
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
@@ -102,15 +121,11 @@ function messagesToDiagnostic(messages: Array<mixed>): Diagnostic {
   if (messages.length === 1 && messages[0] instanceof Error) {
     let error: Error = messages[0];
 
-    return {
-      message: error.message,
-      origin: '@parcel/logger',
-      stack: error.stack
-    };
+    return errorToDiagnostic(error);
   } else {
     return {
       message: joinLogMessages(messages),
-      origin: '@parcel/logger'
+      origin: 'console'
     };
   }
 }

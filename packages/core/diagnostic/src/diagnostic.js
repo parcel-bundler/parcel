@@ -40,8 +40,8 @@ export type Diagnostic = {|
 |};
 
 // This type should represent all error formats Parcel can encounter...
-type PrintableError = Error & {
-  fileName: ?string,
+export type PrintableError = Error & {
+  fileName?: string,
   codeFrame?: string,
   highlightedCodeFrame?: string,
   loc?: {

@@ -64,7 +64,7 @@ export class Yarn implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.error(e);
+        logger.error(e, '@parcel/package-manager');
       })
       .on('data', (message: YarnStdOutMessage) => {
         switch (message.type) {
@@ -93,7 +93,7 @@ export class Yarn implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.error(e);
+        logger.error(e, '@parcel/package-manager');
       })
       .on('data', (message: YarnStdErrMessage) => {
         switch (message.type) {
