@@ -13,8 +13,7 @@ var prevRefreshSig = window.$RefreshSig$;
 var RefreshRuntime = require('react-refresh/runtime');
 
 window.$RefreshReg$ = function(type, id) {
-  const fullId = module.id + ' ' + id;
-  RefreshRuntime.register(type, fullId);
+  RefreshRuntime.register(type, module.id + ' ' + id);
 };
 window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
 
@@ -25,15 +24,68 @@ try {
   window.$RefreshSig$ = prevRefreshSig;
 }
 
-//if (isReactRefreshBoundary(module.exports)) {
-if (RefreshRuntime.isLikelyComponentType(module.exports.default || module.exports)) {
-  module.hot.accept();
+if (isReactRefreshBoundary(module)) {
+  registerExportsForReactRefresh(module);
+
+  module.hot.accept(/*TODO error handling ?*/);
   if (RefreshRuntime.hasUnrecoverableErrors()) {
     window.location.reload();
   }
   window.parcelReactRefreshEnqueueUpdate();
 }
-`);
+
+// https://github.com/facebook/metro/blob/febdba2383113c88296c61e28e4ef6a7f4939fda/packages/metro/src/lib/polyfills/require.js#L748-L774
+function isReactRefreshBoundary(module) {
+  var exports = module.exports;
+  if (RefreshRuntime.isLikelyComponentType(exports)) {
+    return true;
+  }
+
+  if (!exports || typeof exports !== 'object') {
+    return false;
+  }
+
+  var hasExports = false;
+  for(var key in exports){
+    if(key === "__esModule") {
+      continue;
+    }
+    hasExports = true;
+    
+    if (!RefreshRuntime.isLikelyComponentType(exports[key])) {
+      areAllExportsComponents = false;
+      return false;
+    }
+  }
+
+  return hasExports;
+}
+
+// https://github.com/facebook/metro/blob/febdba2383113c88296c61e28e4ef6a7f4939fda/packages/metro/src/lib/polyfills/require.js#L818-L835
+function registerExportsForReactRefresh(module) {
+  var exports = module.exports;
+  var id = module.id;
+
+  if (RefreshRuntime.isLikelyComponentType(exports)) {
+    // Register module.exports if it is likely a component
+    RefreshRuntime.register(exports, id + ' exports');
+  }
+
+  if (!exports || typeof exports !== 'object') {
+    return;
+  }
+
+  for (var key in exports) {
+    if (key === '__esModule') {
+      continue;
+    }
+
+    var exportValue = exports[key];
+    if (RefreshRuntime.isLikelyComponentType(exportValue)) {
+      RefreshRuntime.register(exportValue, id + ' exports%' + key);
+    }
+  }
+}`);
 
 function shouldExclude(asset, options) {
   return (
