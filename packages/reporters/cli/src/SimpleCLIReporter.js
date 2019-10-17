@@ -82,10 +82,12 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
           writeOut(event.message);
           break;
         case 'verbose':
-        case 'warn':
-        case 'error':
         case 'info':
           writeDiagnostic(event.diagnostic);
+          break;
+        case 'warn':
+        case 'error':
+          writeDiagnostic(event.diagnostic, true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -94,12 +96,12 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   }
 }
 
-function writeDiagnostic(diagnostic: Diagnostic) {
+function writeDiagnostic(diagnostic: Diagnostic, isError?: boolean) {
   let {origin, message, stack, codeframe, hints, filename} = diagnostic;
 
-  writeOut(`${origin}: ${message}`);
+  writeOut(`${origin}: ${message}`, isError);
   if (typeof stack === 'string') {
-    writeOut(stack);
+    writeOut(stack, isError);
   }
   if (codeframe !== undefined) {
     let highlight = Array.isArray(codeframe.codeHighlights)
@@ -112,31 +114,32 @@ function writeDiagnostic(diagnostic: Diagnostic) {
       writeOut(
         `${typeof filename !== 'string' ? '' : filename}@${
           highlight.start.line
-        }:${highlight.start.column}`
+        }:${highlight.start.column}`,
+        isError
       );
-      writeOut(formattedCodeFrame);
+      writeOut(formattedCodeFrame, isError);
     }
   }
   if (Array.isArray(hints) && hints.length) {
     for (let hint of hints) {
-      writeOut(hint);
+      writeOut(hint, isError);
     }
   }
 }
 
-function writeOut(message: string): void {
-  stdout.write(message + '\n');
+function writeOut(message: string, isError?: boolean): void {
+  if (isError) {
+    stderr.write(message + '\n');
+  } else {
+    stdout.write(message + '\n');
+  }
 }
 
 function writeErr(message: string | Error, level: LogLevel): void {
   let error = prettyError(message, {color: false});
   // prefix with parcel: to clarify the source of errors
-  writeErrLine('parcel: ' + error.message);
+  writeOut('parcel: ' + error.message, true);
   if (error.stack != null && logLevels[level] >= logLevels.verbose) {
-    writeErrLine(error.stack);
+    writeOut(error.stack, true);
   }
-}
-
-function writeErrLine(message: string): void {
-  stderr.write(message + '\n');
 }
