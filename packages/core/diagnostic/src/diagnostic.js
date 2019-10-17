@@ -33,7 +33,7 @@ export type Diagnostic = {|
   codeframe?: DiagnosticCodeFrame,
 
   // Hints to resolve issues faster
-  hints?: string | Array<string>,
+  hints?: Array<string>,
 
   //! Should only be used if there's no way to supply code and codeHighlight...
   stack?: string

@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {LogLevel, ReporterEvent, PluginOptions} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import type {Writable} from 'stream';
 
@@ -12,6 +13,7 @@ import BundleReport from './BundleReport';
 import {prettyError, prettifyTime} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
+import formatCodeFrame from './formatCodeFrame';
 
 export default new Reporter({
   report(event, options) {
@@ -75,23 +77,49 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       break;
     case 'log': {
       switch (event.level) {
+        case 'success':
+        case 'progress':
+          writeOut(event.message);
+          break;
+        case 'verbose':
         case 'warn':
         case 'error':
-          if (logLevelFilter >= logLevels[event.level]) {
-            writeErr(event.message, options.logLevel);
-          }
-          break;
         case 'info':
-        case 'verbose':
-        case 'progress':
-        case 'success':
-          if (logLevelFilter >= logLevels[event.level]) {
-            writeOut(event.message);
-          }
+          writeDiagnostic(event.diagnostic);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
       }
+    }
+  }
+}
+
+function writeDiagnostic(diagnostic: Diagnostic) {
+  let {origin, message, stack, codeframe, hints, filename} = diagnostic;
+
+  writeOut(`${origin}: ${message}`);
+  if (typeof stack === 'string') {
+    writeOut(stack);
+  }
+  if (codeframe !== undefined) {
+    let highlight = Array.isArray(codeframe.codeHighlights)
+      ? codeframe.codeHighlights[0]
+      : codeframe.codeHighlights;
+
+    if (highlight) {
+      let formattedCodeFrame = formatCodeFrame(codeframe);
+
+      writeOut(
+        `${typeof filename !== 'string' ? '' : filename}@${
+          highlight.start.line
+        }:${highlight.start.column}`
+      );
+      writeOut(formattedCodeFrame);
+    }
+  }
+  if (Array.isArray(hints) && hints.length) {
+    for (let hint of hints) {
+      writeOut(hint);
     }
   }
 }

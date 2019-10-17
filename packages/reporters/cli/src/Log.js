@@ -75,8 +75,6 @@ function CodeFrame(props: {
   ...
 }) {
   let {codeframe, filename} = props;
-
-  let formattedCodeFrame = formatCodeFrame(codeframe);
   let highlight = Array.isArray(codeframe.codeHighlights)
     ? codeframe.codeHighlights[0]
     : codeframe.codeHighlights;
@@ -90,7 +88,7 @@ function CodeFrame(props: {
       {`${typeof filename !== 'string' ? '' : filename}@${
         highlight.start.line
       }:${highlight.start.column}`}
-      <div>{formattedCodeFrame}</div>
+      <div>{formatCodeFrame(codeframe)}</div>
     </div>
   );
 }
