@@ -36,16 +36,15 @@ function debounce(func, delay) {
   }
 }
 window.parcelReactRefreshEnqueueUpdate = debounce(Refresh.performReactRefresh, 30);`;
-    } else {
-      // TODO ?
-      code = `window.$RefreshReg$ = function(){};
-window.$RefreshSig$ = function(){return function(type){return type};}`;
-    }
 
-    return {
-      filePath: __filename,
-      code,
-      isEntry: true
-    };
+      return {
+        filePath: __filename,
+        code,
+        isEntry: true
+      };
+    } else {
+      // TODO I think we don't need that in a child bundle (beacuse the main bundle will have set the global)
+      return;
+    }
   }
 });

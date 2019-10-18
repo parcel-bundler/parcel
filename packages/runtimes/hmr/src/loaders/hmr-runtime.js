@@ -81,6 +81,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       document.body.appendChild(overlay);
     }
   };
+  ws.onclose = function(e) {
+    console.warn('[parcel] 🚨 Connection to the HMR server was lost');
+  };
 }
 
 function removeErrorOverlay() {

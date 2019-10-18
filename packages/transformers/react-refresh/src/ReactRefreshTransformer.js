@@ -8,10 +8,9 @@ import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import template from '@babel/template';
 
-const loader = template(`var prevRefreshReg = window.$RefreshReg$;
+const loader = template(`var RefreshRuntime = require('react-refresh/runtime');
+var prevRefreshReg = window.$RefreshReg$;
 var prevRefreshSig = window.$RefreshSig$;
-var RefreshRuntime = require('react-refresh/runtime');
-
 window.$RefreshReg$ = function(type, id) {
   RefreshRuntime.register(type, module.id + ' ' + id);
 };
@@ -51,7 +50,7 @@ function isReactRefreshBoundary(module) {
       continue;
     }
     hasExports = true;
-    
+
     if (!RefreshRuntime.isLikelyComponentType(exports[key])) {
       areAllExportsComponents = false;
       return false;
@@ -93,10 +92,11 @@ async function shouldExclude(asset, options) {
     !asset.env.isBrowser() ||
     !options.hot ||
     !asset.isSource ||
-    (pkg
-      ? pkg.name.startsWith('@parcel/runtime-') ||
-        pkg.name.includes('parcel-runtime-')
-      : false)
+    (pkg &&
+      pkg.name &&
+      (pkg.name.startsWith('@parcel/runtime-') ||
+        pkg.name.includes('parcel-runtime-'))) ||
+    !asset.getDependencies().find(v => v.moduleSpecifier === 'react')
   );
 }
 
