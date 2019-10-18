@@ -11,9 +11,9 @@ import {parse} from '@babel/parser';
 import template from '@babel/template';
 import * as t from '@babel/types';
 
-const WRAPPER = path.join(__dirname, 'loaders', 'helpers.js');
+const WRAPPER = path.join(__dirname, 'helpers', 'helpers.js');
 
-const loader = template(`
+const wrapper = template(`
 var Refresh = require('react-refresh/runtime');
 var helpers = require(%%helper%%);
 var prevRefreshReg = window.$RefreshReg$;
@@ -30,15 +30,10 @@ try {
 helpers.postlude(Refresh, module);`);
 
 async function shouldExclude(asset, options) {
-  let pkg = await asset.getPackage();
   return (
     !asset.env.isBrowser() ||
     !options.hot ||
     !asset.isSource ||
-    (pkg &&
-      pkg.name &&
-      (pkg.name.startsWith('@parcel/runtime-') ||
-        pkg.name.includes('parcel-runtime-'))) ||
     !asset.getDependencies().find(v => v.moduleSpecifier === 'react')
   );
 }
@@ -92,7 +87,7 @@ export default new Transformer({
     });
     ast.program = transformResult.ast;
 
-    ast.program.program.body = loader({
+    ast.program.program.body = wrapper({
       helper: t.stringLiteral(wrapperPath),
       module: ast.program.program.body
     });
