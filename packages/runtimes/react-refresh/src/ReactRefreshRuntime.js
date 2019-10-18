@@ -12,10 +12,19 @@ export default new Runtime({
     let mainEntry = bundle.getMainEntry();
     let code;
     if (mainEntry) {
-      let localRefreshRuntime = (await options.packageManager.resolve(
-        'react-refresh/runtime',
-        mainEntry.filePath
-      )).resolved;
+      let runtime;
+      try {
+        let result = await options.packageManager.resolve(
+          'react-refresh/runtime',
+          mainEntry.filePath,
+          false
+        );
+        runtime = result.resolved;
+      } catch (e) {
+        return;
+      }
+
+      let localRefreshRuntime = runtime;
       code = `var Refresh = require('${path.relative(
         __dirname,
         localRefreshRuntime

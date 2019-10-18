@@ -40,8 +40,12 @@ export class NodePackageManager implements PackageManager {
     };
   }
 
-  async require(name: ModuleSpecifier, from: FilePath) {
-    let {resolved} = await this.resolve(name, from);
+  async require(
+    name: ModuleSpecifier,
+    from: FilePath,
+    autoinstall?: boolean = true
+  ) {
+    let {resolved} = await this.resolve(name, from, autoinstall);
     return this.load(resolved, from);
   }
 
@@ -93,7 +97,7 @@ export class NodePackageManager implements PackageManager {
   async resolve(
     name: ModuleSpecifier,
     from: FilePath,
-    triedInstall: boolean = false
+    autoinstall?: boolean = true
   ) {
     let basedir = dirname(from);
     let key = basedir + ':' + name;
@@ -105,9 +109,9 @@ export class NodePackageManager implements PackageManager {
           extensions: Object.keys(Module._extensions)
         });
       } catch (e) {
-        if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
+        if (e.code === 'MODULE_NOT_FOUND' && autoinstall) {
           await this.install([name], from);
-          return this.resolve(name, from, true);
+          return this.resolve(name, from, false);
         }
         throw e;
       }

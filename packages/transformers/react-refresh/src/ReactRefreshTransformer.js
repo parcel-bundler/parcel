@@ -3,6 +3,7 @@
 import semver from 'semver';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
+import logger from '@parcel/logger';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {transformFromAst} from '@babel/core';
@@ -28,6 +29,8 @@ try {
 }
 
 helpers.postlude(Refresh, module);`);
+
+let didWarnAboutInstallingReactRefresh = false;
 
 async function shouldExclude(asset, options) {
   return (
@@ -69,6 +72,29 @@ export default new Transformer({
       return [asset];
     }
 
+    let reactRefreshBabelPlugin;
+    try {
+      let result = await options.packageManager.resolve(
+        'react-refresh/babel',
+        asset.filePath,
+        false
+      );
+      reactRefreshBabelPlugin = result.resolved;
+    } catch (_) {
+      if (!didWarnAboutInstallingReactRefresh) {
+        logger.warn(
+          'Please install the `react-refresh` package for React hot reloading'
+        );
+        didWarnAboutInstallingReactRefresh = true;
+      }
+      return [asset];
+    }
+
+    if (!asset.ast) {
+      // Make flow happy
+      return [asset];
+    }
+
     let ast = asset.ast;
     let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
     let code = await asset.getCode();
@@ -78,12 +104,7 @@ export default new Transformer({
       filename: asset.filePath,
       babelrc: false,
       configFile: false,
-      plugins: [
-        (await options.packageManager.resolve(
-          'react-refresh/babel',
-          asset.filePath
-        )).resolved
-      ]
+      plugins: [reactRefreshBabelPlugin]
     });
     ast.program = transformResult.ast;
 
