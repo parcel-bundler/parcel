@@ -154,7 +154,7 @@ async function run(entries: Array<string>, command: any) {
     });
 
     let isExiting;
-    async function exit() {
+    const exit = async () => {
       if (isExiting) {
         return;
       }
@@ -162,7 +162,7 @@ async function run(entries: Array<string>, command: any) {
       isExiting = true;
       await unsubscribe();
       process.exit();
-    }
+    };
 
     // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
     // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
