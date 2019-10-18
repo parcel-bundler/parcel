@@ -599,9 +599,9 @@ export function removeAssetGroups(
 ): Graph<BundleGraphNode> {
   let graph = new Graph<BundleGraphNode>();
 
-  let root = assetGraph.getRootNode();
-  invariant(root != null && root.type === 'root');
-  graph.setRootNode(root);
+  let rootNode = assetGraph.getRootNode();
+  invariant(rootNode != null && rootNode.type === 'root');
+  graph.setRootNode(rootNode);
 
   let assetGroupIds = new Set();
   for (let [, node] of assetGraph.nodes) {
