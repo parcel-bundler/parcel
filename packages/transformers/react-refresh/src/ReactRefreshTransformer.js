@@ -32,7 +32,7 @@ helpers.postlude(Refresh, module);`);
 
 let didWarnAboutInstallingReactRefresh = false;
 
-async function shouldExclude(asset, options) {
+function shouldExclude(asset, options) {
   return (
     !asset.env.isBrowser() ||
     !options.hot ||
@@ -48,7 +48,7 @@ export default new Transformer({
 
   async parse({asset, options}) {
     let code = await asset.getCode();
-    if (await shouldExclude(asset, options)) {
+    if (shouldExclude(asset, options)) {
       return null;
     }
 
@@ -68,7 +68,7 @@ export default new Transformer({
 
   async transform({asset, options}) {
     asset.type = 'js';
-    if (!asset.ast || (await shouldExclude(asset, options))) {
+    if (!asset.ast || shouldExclude(asset, options)) {
       return [asset];
     }
 
