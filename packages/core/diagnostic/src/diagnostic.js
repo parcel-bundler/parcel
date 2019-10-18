@@ -22,7 +22,6 @@ export type DiagnosticCodeFrame = {|
 // The reporter's are responsible for rendering the message, codeframes, hints, ...
 export type Diagnostic = {|
   message: string,
-  //? severity: DiagnosticSeverity, // Might add this back later...
   origin: string, // Name of plugin or file that threw this error
 
   // Asset metadata
@@ -32,11 +31,11 @@ export type Diagnostic = {|
   // Codeframe data
   codeframe?: DiagnosticCodeFrame,
 
-  // Hints to resolve issues faster
-  hints?: Array<string>,
+  // Stacktrace for error, not really needed if there's a codeframe...
+  stack?: string,
 
-  //! Should only be used if there's no way to supply code and codeHighlight...
-  stack?: string
+  // Hints to resolve issues faster
+  hints?: Array<string>
 |};
 
 // This type should represent all error formats Parcel can encounter...

@@ -7,6 +7,11 @@ import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
+export type PluginInputDiagnostic = {|
+  ...Diagnostic,
+  origin?: string
+|};
+
 class Logger {
   #logEmitter = new ValueEmitter<LogEvent>();
 
@@ -43,7 +48,11 @@ class Logger {
   }
 
   error(
-    input: Diagnostic | PrintableError | ThrowableDiagnostic,
+    input:
+      | PluginInputDiagnostic
+      | Diagnostic
+      | PrintableError
+      | ThrowableDiagnostic,
     realOrigin?: string
   ): void {
     // $FlowFixMe
@@ -79,6 +88,44 @@ class Logger {
 
 const logger = new Logger();
 export default logger;
+
+export type PluginLoggerOpts = {|
+  origin: string
+|};
+
+export class PluginLogger {
+  origin: string;
+
+  constructor(opts: PluginLoggerOpts) {
+    this.origin = opts.origin;
+  }
+
+  verbose(diagnostic: PluginInputDiagnostic): void {
+    logger.verbose({...diagnostic, origin: this.origin});
+  }
+
+  info(diagnostic: PluginInputDiagnostic): void {
+    logger.info({...diagnostic, origin: this.origin});
+  }
+
+  log(diagnostic: PluginInputDiagnostic): void {
+    logger.log({...diagnostic, origin: this.origin});
+  }
+
+  warn(diagnostic: PluginInputDiagnostic): void {
+    logger.warn({...diagnostic, origin: this.origin});
+  }
+
+  error(
+    input: PluginInputDiagnostic | PrintableError | ThrowableDiagnostic
+  ): void {
+    logger.error(input, this.origin);
+  }
+
+  progress(message: string): void {
+    logger.progress(message);
+  }
+}
 
 let consolePatched = false;
 
