@@ -8,12 +8,11 @@ export type BundleReport = {|
     filePath: string,
     size: number,
     time: number,
-    largestAssets: Array<{
+    largestAssets: Array<{|
       filePath: string,
       size: number,
-      time: number,
-      ...
-    }>,
+      time: number
+    |}>,
     totalAssets: number
   |}>
 |};

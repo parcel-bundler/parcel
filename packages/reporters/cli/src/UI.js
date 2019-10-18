@@ -40,10 +40,7 @@ export default function UI({events, options}: Props) {
     defaultState
   );
 
-  useEffect(() => {
-    let {dispose} = events.addListener(dispatch);
-    return dispose;
-  }, [events]);
+  useEffect(() => events.addListener(dispatch).dispose, [events]);
 
   let {logs, progress, bundleGraph} = state;
   return (

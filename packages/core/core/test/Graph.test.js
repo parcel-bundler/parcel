@@ -1,6 +1,7 @@
 // @flow
 
 import assert from 'assert';
+import sinon from 'sinon';
 
 import Graph from '../src/Graph';
 
@@ -96,6 +97,11 @@ describe('Graph', () => {
   });
 
   it('removeEdge should prune the graph at that edge', () => {
+    //         a
+    //        / \
+    //       b - d
+    //      /
+    //     c
     let graph = new Graph();
     graph.addNode({id: 'a', value: 'a'});
     graph.addNode({id: 'b', value: 'b'});
@@ -112,6 +118,155 @@ describe('Graph', () => {
     assert(!graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
     assert.deepEqual(graph.getAllEdges(), [{from: 'a', to: 'd', type: null}]);
+  });
+
+  it('removing a node recursively deletes orphaned nodes', () => {
+    // before:
+    //       a
+    //      / \
+    //     b   c
+    //    / \    \
+    //   d   e    f
+    //  /
+    // g
+    //
+
+    // after:
+    //      a
+    //       \
+    //        c
+    //         \
+    //          f
+
+    let graph = new Graph();
+    graph.addNode({id: 'a', value: 'a'});
+    graph.addNode({id: 'b', value: 'b'});
+    graph.addNode({id: 'c', value: 'c'});
+    graph.addNode({id: 'd', value: 'd'});
+    graph.addNode({id: 'e', value: 'e'});
+    graph.addNode({id: 'f', value: 'f'});
+    graph.addNode({id: 'g', value: 'g'});
+
+    graph.addEdge('a', 'b');
+    graph.addEdge('a', 'c');
+    graph.addEdge('b', 'd');
+    graph.addEdge('b', 'e');
+    graph.addEdge('c', 'f');
+    graph.addEdge('d', 'g');
+
+    graph.removeById('b');
+
+    assert.deepEqual([...graph.nodes.values()].map(node => node.id), [
+      'a',
+      'c',
+      'f'
+    ]);
+    assert.deepEqual(graph.getAllEdges(), [
+      {from: 'a', to: 'c', type: null},
+      {from: 'c', to: 'f', type: null}
+    ]);
+  });
+
+  it('removing a node recursively deletes orphaned nodes if there is no path to the root', () => {
+    // before:
+    //       a
+    //      / \
+    //     b   c
+    //    / \    \
+    // |-d   e    f
+    // |/
+    // g
+    //
+
+    // after:
+    //      a
+    //       \
+    //        c
+    //         \
+    //          f
+
+    let graph = new Graph();
+    graph.setRootNode({id: 'a', value: 'a'});
+    graph.addNode({id: 'b', value: 'b'});
+    graph.addNode({id: 'c', value: 'c'});
+    graph.addNode({id: 'd', value: 'd'});
+    graph.addNode({id: 'e', value: 'e'});
+    graph.addNode({id: 'f', value: 'f'});
+    graph.addNode({id: 'g', value: 'g'});
+
+    graph.addEdge('a', 'b');
+    graph.addEdge('a', 'c');
+    graph.addEdge('b', 'd');
+    graph.addEdge('g', 'd');
+    graph.addEdge('b', 'e');
+    graph.addEdge('c', 'f');
+    graph.addEdge('d', 'g');
+
+    graph.removeById('b');
+
+    assert.deepEqual([...graph.nodes.values()].map(node => node.id), [
+      'a',
+      'c',
+      'f'
+    ]);
+    assert.deepEqual(graph.getAllEdges(), [
+      {from: 'a', to: 'c', type: null},
+      {from: 'c', to: 'f', type: null}
+    ]);
+  });
+
+  it('removing an edge to a node that cycles does not remove it if there is a path to the root', () => {
+    //        a
+    //        |
+    //        b <----
+    //       / \    |
+    //      c   d   |
+    //       \ /    |
+    //        e -----
+    let graph = new Graph();
+    graph.setRootNode({id: 'a', value: 'a'});
+    graph.addNode({id: 'b', value: 'b'});
+    graph.addNode({id: 'c', value: 'c'});
+    graph.addNode({id: 'd', value: 'd'});
+    graph.addNode({id: 'e', value: 'e'});
+
+    graph.addEdge('a', 'b');
+    graph.addEdge('b', 'c');
+    graph.addEdge('b', 'd');
+    graph.addEdge('c', 'e');
+    graph.addEdge('d', 'e');
+    graph.addEdge('e', 'b');
+
+    const getNodeIds = () => [...graph.nodes.values()].map(node => node.id);
+    let nodesBefore = getNodeIds();
+
+    graph.removeEdge('c', 'e');
+
+    assert.deepEqual(nodesBefore, getNodeIds());
+    assert.deepEqual(graph.getAllEdges(), [
+      {from: 'a', to: 'b', type: null},
+      {from: 'b', to: 'c', type: null},
+      {from: 'b', to: 'd', type: null},
+      {from: 'd', to: 'e', type: null},
+      {from: 'e', to: 'b', type: null}
+    ]);
+  });
+
+  it('removing a node with only one inbound edge does not cause it to be removed as an orphan', () => {
+    let graph = new Graph();
+
+    graph.setRootNode({id: 'a', value: 'a'});
+    graph.addNode({id: 'b', value: 'b'});
+    graph.addEdge('a', 'b');
+
+    let spy = sinon.spy(graph, 'removeNode');
+    try {
+      graph.removeById('b');
+
+      assert(spy.calledOnceWithExactly({id: 'b', value: 'b'}));
+    } finally {
+      spy.restore();
+    }
   });
 
   it("replaceNodesConnectedTo should update a node's downstream nodes", () => {

@@ -10,13 +10,12 @@ import LanguageServiceHost from './languageServiceHost';
 
 let langServiceCache = {};
 
-type TSValidatorConfig = {
+type TSValidatorConfig = {|
   filepath: string | null,
   baseDir: string,
   configHash: string,
-  tsconfig: any,
-  ...
-};
+  tsconfig: any
+|};
 
 export default new Validator({
   async getConfig({
