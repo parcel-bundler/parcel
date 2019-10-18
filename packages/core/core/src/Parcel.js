@@ -186,22 +186,31 @@ export default class Parcel {
 
     this.#watcherCount++;
 
+    let unsubscribePromise;
+    const unsubscribe = async () => {
+      if (watchEventsDisposable) {
+        watchEventsDisposable.dispose();
+      }
+
+      this.#watcherCount--;
+      if (this.#watcherCount === 0) {
+        await nullthrows(this.#watcherSubscription).unsubscribe();
+        this.#watcherSubscription = null;
+        await this.#reporterRunner.report({type: 'watchEnd'});
+        await Promise.all([
+          this.#assetGraphBuilder.writeToCache(),
+          this.#runtimesAssetGraphBuilder.writeToCache()
+        ]);
+      }
+    };
+
     return {
-      unsubscribe: async () => {
-        if (watchEventsDisposable) {
-          watchEventsDisposable.dispose();
+      unsubscribe() {
+        if (unsubscribePromise == null) {
+          unsubscribePromise = unsubscribe();
         }
 
-        this.#watcherCount--;
-        if (this.#watcherCount === 0) {
-          await nullthrows(this.#watcherSubscription).unsubscribe();
-          this.#watcherSubscription = null;
-          await this.#reporterRunner.report({type: 'watchEnd'});
-          await Promise.all([
-            this.#assetGraphBuilder.writeToCache(),
-            this.#runtimesAssetGraphBuilder.writeToCache()
-          ]);
-        }
+        return unsubscribePromise;
       }
     };
   }
