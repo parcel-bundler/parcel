@@ -67,9 +67,9 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
 
     this.#graph._graph.addNode(bundleGroupNode);
     let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
+    this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
     this.#graph._graph.replaceNodesConnectedTo(bundleGroupNode, assetNodes);
     this.#graph._graph.removeEdge(dependencyNode.id, resolved.id);
-    this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
 
     if (dependency.isEntry) {
       this.#graph._graph.addEdge(
@@ -117,6 +117,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     };
 
     this.#graph._graph.addNode(bundleNode);
+
     if (opts.entryAsset) {
       this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
     }
@@ -127,6 +128,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     let bundleGroupId = getBundleGroupId(bundleGroup);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
+
     for (let entryAsset of bundle.getEntryAssets()) {
       if (this.#graph._graph.hasEdge(bundleGroupId, entryAsset.id)) {
         this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);

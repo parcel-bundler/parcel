@@ -1,11 +1,10 @@
 // @flow strict-local
 
-export type JSONError = {
+export type JSONError = {|
   message: string,
   stack?: string,
-  name?: string,
-  ...
-};
+  name?: string
+|};
 
 export function errorToJson(error: string | Error): JSONError {
   if (typeof error === 'string') {

@@ -5,11 +5,10 @@ export type PrintableError =
   | (Error & {
       codeFrame?: string,
       highlightedCodeFrame?: string,
-      loc?: {
+      loc?: {|
         column: number,
-        line: number,
-        ...
-      },
+        line: number
+      |},
       ...
     });
 

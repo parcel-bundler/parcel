@@ -66,11 +66,10 @@ export default class BundleGraph implements IBundleGraph {
 
   getBundleGroupsReferencedByBundle(
     bundle: IBundle
-  ): Array<{
+  ): Array<{|
     bundleGroup: BundleGroup,
-    dependency: IDependency,
-    ...
-  }> {
+    dependency: IDependency
+  |}> {
     return this.#graph
       .getBundleGroupsReferencedByBundle(bundleToInternalBundle(bundle))
       .map(({bundleGroup, dependency}) => ({

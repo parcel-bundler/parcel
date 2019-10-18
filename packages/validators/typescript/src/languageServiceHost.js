@@ -28,11 +28,10 @@ export default class LanguageServiceHost {
     {
       fileNames,
       options
-    }: {
+    }: {|
       fileNames: FileNames,
-      options: ParsedCommandLine,
-      ...
-    },
+      options: ParsedCommandLine
+    |},
     ts: any,
     baseDir: string
   ) {

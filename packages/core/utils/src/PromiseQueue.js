@@ -2,7 +2,7 @@
 
 import {makeDeferredWithPromise, type Deferred} from './Deferred';
 
-type PromiseQueueOpts = {maxConcurrent: number, ...};
+type PromiseQueueOpts = {|maxConcurrent: number|};
 
 export default class PromiseQueue<T> {
   _deferred: ?Deferred<Array<T>>;
@@ -19,6 +19,10 @@ export default class PromiseQueue<T> {
     }
 
     this._maxConcurrent = opts.maxConcurrent;
+  }
+
+  getNumWaiting(): number {
+    return this._queue.length;
   }
 
   add(fn: () => Promise<T>): Promise<T> {
@@ -76,7 +80,6 @@ export default class PromiseQueue<T> {
 
   async _runFn(fn: () => mixed): Promise<void> {
     this._numRunning++;
-    // console.log('RUNNING', this._numRunning, this._maxConcurrent, this._queue.length)
     try {
       await fn();
       this._numRunning--;
