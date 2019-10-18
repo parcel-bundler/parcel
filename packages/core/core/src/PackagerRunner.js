@@ -48,14 +48,13 @@ export default class PackagerRunner {
   pluginOptions: PluginOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
-  writeBundleFromWorker: ({
+  writeBundleFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
-    options: ParcelOptions,
-    ...
-  }) => Promise<Stats>;
+    options: ParcelOptions
+  |}) => Promise<Stats>;
 
   constructor({config, farm, options}: Opts) {
     this.config = config;
