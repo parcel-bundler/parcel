@@ -2,10 +2,10 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {
-  AssetRequest,
+  AssetRequestDesc,
   Config,
   NodeId,
-  ConfigRequest,
+  ConfigRequestDesc,
   ParcelOptions
 } from './types';
 import ParcelConfig from './ParcelConfig';
@@ -23,17 +23,17 @@ import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
-  request: AssetRequest,
-  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  request: AssetRequestDesc,
+  loadConfig: (ConfigRequestDesc, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
   options: ParcelOptions,
   workerApi: WorkerApi
 |};
 
 export default class Validation {
-  request: AssetRequest;
-  configRequests: Array<ConfigRequest>;
-  loadConfig: ConfigRequest => Promise<Config>;
+  request: AssetRequestDesc;
+  configRequests: Array<ConfigRequestDesc>;
+  loadConfig: ConfigRequestDesc => Promise<Config>;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
   workerApi: WorkerApi;

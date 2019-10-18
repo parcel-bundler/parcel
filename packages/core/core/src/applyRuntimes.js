@@ -2,7 +2,7 @@
 
 import type {Dependency} from '@parcel/types';
 import type {
-  AssetRequest,
+  AssetRequestDesc,
   Bundle as InternalBundle,
   NodeId,
   ParcelOptions
@@ -22,7 +22,7 @@ import {setDifference} from '@parcel/utils';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
-  assetRequest: AssetRequest,
+  assetRequest: AssetRequestDesc,
   dependency: ?Dependency,
   isEntry: ?boolean
 |};

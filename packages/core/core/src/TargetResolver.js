@@ -14,7 +14,7 @@ import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
 
-type TargetResolveResult = {|
+export type TargetResolveResult = {|
   targets: Array<Target>,
   files: Array<File>
 |};
