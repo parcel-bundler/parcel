@@ -1,5 +1,5 @@
 // @flow
-import type {Config, PluginOptions} from '@parcel/types';
+import type {Config} from '@parcel/types';
 import path from 'path';
 
 const JSX_EXTENSIONS = {
@@ -30,10 +30,7 @@ const JSX_PRAGMA = {
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
  */
-export default async function getJSXOptions(
-  config: Config,
-  options: PluginOptions
-) {
+export default async function getJSXOptions(config: Config) {
   if (!config.isSource) {
     return null;
   }
@@ -52,14 +49,7 @@ export default async function getJSXOptions(
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
-      plugins: [
-        ['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}],
-        reactLib === 'react' &&
-          (await options.packageManager.resolve(
-            'react-refresh/babel',
-            config.searchPath
-          )).resolved
-      ].filter(Boolean)
+      plugins: [['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}]]
     };
   }
 }

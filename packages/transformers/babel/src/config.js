@@ -25,7 +25,7 @@ export async function load(config: Config, options: PluginOptions) {
 
   // Don't look for a custom babel config if inside node_modules
   if (!config.isSource) {
-    return buildDefaultBabelConfig(config, options);
+    return buildDefaultBabelConfig(config);
   }
 
   let partialConfig = loadPartialConfig({
@@ -92,11 +92,11 @@ export async function load(config: Config, options: PluginOptions) {
       config.shouldInvalidateOnStartup();
     }
   } else {
-    await buildDefaultBabelConfig(config, options);
+    await buildDefaultBabelConfig(config);
   }
 }
 
-async function buildDefaultBabelConfig(config: Config, options: PluginOptions) {
+async function buildDefaultBabelConfig(config: Config) {
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
@@ -110,10 +110,7 @@ async function buildDefaultBabelConfig(config: Config, options: PluginOptions) {
     babelTargets = envOptions.targets;
     babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
   }
-  babelOptions = mergeOptions(
-    babelOptions,
-    await getJSXOptions(config, options)
-  );
+  babelOptions = mergeOptions(babelOptions, await getJSXOptions(config));
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>

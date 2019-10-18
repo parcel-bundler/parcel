@@ -5,6 +5,7 @@ import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import {transformFromAst} from '@babel/core';
 import generate from '@babel/generator';
 import {parse} from '@babel/parser';
 import template from '@babel/template';
@@ -75,6 +76,22 @@ export default new Transformer({
 
     let ast = asset.ast;
     let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
+    let code = await asset.getCode();
+    let transformResult = transformFromAst(ast.program, code, {
+      code: false,
+      ast: true,
+      filename: asset.filePath,
+      babelrc: false,
+      configFile: false,
+      plugins: [
+        (await options.packageManager.resolve(
+          'react-refresh/babel',
+          asset.filePath
+        )).resolved
+      ]
+    });
+    ast.program = transformResult.ast;
+
     ast.program.program.body = loader({
       helper: t.stringLiteral(wrapperPath),
       module: ast.program.program.body
