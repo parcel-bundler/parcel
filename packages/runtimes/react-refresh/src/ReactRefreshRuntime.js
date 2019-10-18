@@ -22,20 +22,12 @@ export default new Runtime({
       )}');
 
 Refresh.injectIntoGlobalHook(window);
-window.$RefreshReg$ = function(){};
-window.$RefreshSig$ = function(){return function(type){return type};}
-
-function debounce(func, delay) {
-  var timeout = undefined;
-  return function() {
-    clearTimeout(timeout);
-    timeout = setTimeout(function() {
-      timeout = undefined;
-      func();
-    }, delay);
-  }
-}
-window.parcelReactRefreshEnqueueUpdate = debounce(Refresh.performReactRefresh, 30);`;
+window.$RefreshReg$ = function() {};
+window.$RefreshSig$ = function() {
+  return function(type) {
+    return type;
+  };
+};`;
 
       return {
         filePath: __filename,

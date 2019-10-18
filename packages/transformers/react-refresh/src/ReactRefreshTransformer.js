@@ -1,20 +1,23 @@
 // @flow
 
 import semver from 'semver';
-import generate from '@babel/generator';
-import {parse} from '@babel/parser';
+import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import generate from '@babel/generator';
+import {parse} from '@babel/parser';
 import template from '@babel/template';
+import * as t from '@babel/types';
 
-const loader = template(`var RefreshRuntime = require('react-refresh/runtime');
+const WRAPPER = path.join(__dirname, 'loaders', 'helpers.js');
+
+const loader = template(`
+var Refresh = require('react-refresh/runtime');
+var helpers = require(%%helper%%);
 var prevRefreshReg = window.$RefreshReg$;
 var prevRefreshSig = window.$RefreshSig$;
-window.$RefreshReg$ = function(type, id) {
-  RefreshRuntime.register(type, module.id + ' ' + id);
-};
-window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+helpers.prelude(Refresh, module);
 
 try {
   %%module%%
@@ -23,68 +26,7 @@ try {
   window.$RefreshSig$ = prevRefreshSig;
 }
 
-if (isReactRefreshBoundary(module)) {
-  registerExportsForReactRefresh(module);
-
-  module.hot.accept();
-  if (RefreshRuntime.hasUnrecoverableErrors()) {
-    window.location.reload();
-  }
-  window.parcelReactRefreshEnqueueUpdate();
-}
-
-// https://github.com/facebook/metro/blob/febdba2383113c88296c61e28e4ef6a7f4939fda/packages/metro/src/lib/polyfills/require.js#L748-L774
-function isReactRefreshBoundary(module) {
-  var exports = module.exports;
-  if (RefreshRuntime.isLikelyComponentType(exports)) {
-    return true;
-  }
-
-  if (!exports || typeof exports !== 'object') {
-    return false;
-  }
-
-  var hasExports = false;
-  for(var key in exports){
-    if(key === "__esModule") {
-      continue;
-    }
-    hasExports = true;
-
-    if (!RefreshRuntime.isLikelyComponentType(exports[key])) {
-      areAllExportsComponents = false;
-      return false;
-    }
-  }
-
-  return hasExports;
-}
-
-// https://github.com/facebook/metro/blob/febdba2383113c88296c61e28e4ef6a7f4939fda/packages/metro/src/lib/polyfills/require.js#L818-L835
-function registerExportsForReactRefresh(module) {
-  var exports = module.exports;
-  var id = module.id;
-
-  if (RefreshRuntime.isLikelyComponentType(exports)) {
-    // Register module.exports if it is likely a component
-    RefreshRuntime.register(exports, id + ' exports');
-  }
-
-  if (!exports || typeof exports !== 'object') {
-    return;
-  }
-
-  for (var key in exports) {
-    if (key === '__esModule') {
-      continue;
-    }
-
-    var exportValue = exports[key];
-    if (RefreshRuntime.isLikelyComponentType(exportValue)) {
-      RefreshRuntime.register(exportValue, id + ' exports%' + key);
-    }
-  }
-}`);
+helpers.postlude(Refresh, module);`);
 
 async function shouldExclude(asset, options) {
   let pkg = await asset.getPackage();
@@ -132,12 +74,19 @@ export default new Transformer({
     }
 
     let ast = asset.ast;
-
-    ast.program.program.body = loader({module: ast.program.program.body});
+    let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
+    ast.program.program.body = loader({
+      helper: t.stringLiteral(wrapperPath),
+      module: ast.program.program.body
+    });
     ast.isDirty = true;
 
     asset.addDependency({
       moduleSpecifier: 'react-refresh/runtime'
+    });
+
+    asset.addDependency({
+      moduleSpecifier: wrapperPath
     });
 
     return [asset];
