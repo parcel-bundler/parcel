@@ -11,6 +11,7 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
 import {createDependency} from './Dependency';
@@ -21,7 +22,8 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
+import AssetGraphBuilder from './AssetGraphBuilder';
+import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
@@ -30,6 +32,8 @@ import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 import {createCacheDir} from '@parcel/cache';
+import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import {PromiseQueue} from '@parcel/utils';
 
 registerCoreWithSerializer();
 
@@ -48,6 +52,8 @@ export default class Parcel {
   #reporterRunner; // ReporterRunner
   #resolvedOptions = null; // ?ParcelOptions
   #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #watchAbortController; // AbortController
+  #watchQueue = new PromiseQueue<?BuildEvent>({maxConcurrent: 1}); // PromiseQueue<?BuildEvent>
   #watchEvents = new ValueEmitter<
     | {
         +error: Error,
@@ -136,7 +142,7 @@ export default class Parcel {
       await this.init();
     }
 
-    let result = await this.build(startTime);
+    let result = await this.build({startTime});
     await Promise.all([
       this.#assetGraphBuilder.writeToCache(),
       this.#runtimesAssetGraphBuilder.writeToCache()
@@ -152,6 +158,23 @@ export default class Parcel {
     }
 
     return result.bundleGraph;
+  }
+
+  async startNextBuild() {
+    this.#watchAbortController = new AbortController();
+
+    try {
+      this.#watchEvents.emit({
+        buildEvent: await this.build({
+          signal: this.#watchAbortController.signal
+        })
+      });
+    } catch (err) {
+      // Ignore BuildAbortErrors and only emit critical errors.
+      if (!(err instanceof BuildAbortError)) {
+        throw err;
+      }
+    }
   }
 
   async watch(
@@ -174,14 +197,8 @@ export default class Parcel {
 
       // Kick off a first build, but don't await its results. Its results will
       // be provided to the callback.
-      this.build()
-        .then(buildEvent => {
-          this.#watchEvents.emit({buildEvent});
-        })
-        .catch(error => {
-          // Ignore BuildAbortErrors and only emit critical errors.
-          this.#watchEvents.emit({error});
-        });
+      this.#watchQueue.add(() => this.startNextBuild());
+      this.#watchQueue.run();
     }
 
     this.#watcherCount++;
@@ -206,7 +223,13 @@ export default class Parcel {
     };
   }
 
-  async build(startTime: number = Date.now()): Promise<BuildEvent> {
+  async build({
+    signal,
+    startTime = Date.now()
+  }: {|
+    signal?: AbortSignal,
+    startTime?: number
+  |}): Promise<BuildEvent> {
     let options = nullthrows(this.#resolvedOptions);
     try {
       if (options.profile) {
@@ -220,10 +243,11 @@ export default class Parcel {
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
+      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(bundleGraph);
+      assertSignalNotAborted(signal);
 
       let event = {
         type: 'buildSuccess',
@@ -311,24 +335,22 @@ export default class Parcel {
 
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
-      async (err, events) => {
+      (err, _events) => {
+        let events = _events.filter(e => !e.path.includes('.cache'));
+
         if (err) {
           this.#watchEvents.emit({error: err});
           return;
         }
 
         let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
-        if (isInvalid) {
-          try {
-            this.#watchEvents.emit({
-              buildEvent: await this.build()
-            });
-          } catch (error) {
-            // Ignore BuildAbortErrors and only emit critical errors.
-            if (!(err instanceof BuildAbortError)) {
-              this.#watchEvents.emit({error});
-            }
+        if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
+          if (this.#watchAbortController) {
+            this.#watchAbortController.abort();
           }
+
+          this.#watchQueue.add(() => this.startNextBuild());
+          this.#watchQueue.run();
         }
       },
       opts
