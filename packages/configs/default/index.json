@@ -25,6 +25,7 @@
   "namers": ["@parcel/namer-default"],
   "runtimes": {
     "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "service-worker": ["@parcel/runtime-service-worker"],
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {

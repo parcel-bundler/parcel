@@ -52,9 +52,9 @@ export default new Namer({
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
     let name = nameFromContent(mainBundle, options.rootDir);
-    if (!bundle.isEntry) {
-      name += '.' + bundle.getHash().slice(-8);
-    }
+    // if (!bundle.isEntry) {
+    //   name += '.' + bundle.getHash().slice(-8);
+    // }
     return name + '.' + bundle.type;
   }
 });
