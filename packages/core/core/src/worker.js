@@ -48,14 +48,13 @@ export function runPackage(
     config,
     cacheKey,
     options
-  }: {
+  }: {|
     bundle: Bundle,
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
-    options: ParcelOptions,
-    ...
-  }
+    options: ParcelOptions
+  |}
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);

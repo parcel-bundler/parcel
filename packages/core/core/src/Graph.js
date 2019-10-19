@@ -3,6 +3,7 @@
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
+import assert from 'assert';
 import {DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
@@ -181,7 +182,14 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
     for (let [type, nodesForType] of this.inboundEdges.get(node.id)) {
       for (let from of nodesForType) {
-        this.removeEdge(from, node.id, type);
+        this.removeEdge(
+          from,
+          node.id,
+          type,
+          // Do not allow orphans to be removed as this node could be one
+          // and is already being removed.
+          false /* removeOrphans */
+        );
       }
     }
 
@@ -191,7 +199,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       }
     }
 
-    this.nodes.delete(node.id);
+    let wasRemoved = this.nodes.delete(node.id);
+    assert(wasRemoved);
   }
 
   removeById(id: NodeId) {
@@ -208,7 +217,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null) {
+  removeEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | null = null,
+    removeOrphans: boolean = true
+  ) {
     if (
       !this.outboundEdges
         .get(from)
@@ -238,7 +252,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       .delete(from);
 
     let connectedNode = nullthrows(this.nodes.get(to));
-    if (this.isOrphanedNode(connectedNode)) {
+    if (removeOrphans && this.isOrphanedNode(connectedNode)) {
       this.removeNode(connectedNode);
     }
   }
@@ -246,10 +260,37 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   isOrphanedNode(node: TNode): boolean {
     assertHasNode(this, node);
 
-    for (let [, typeMap] of this.inboundEdges.get(node.id)) {
-      if (typeMap.size !== 0) {
-        return false;
+    let rootNode = this.getRootNode();
+    if (rootNode == null) {
+      // If the graph does not have a root, and there are inbound edges,
+      // this node should not be considered orphaned.
+      // return false;
+      for (let [, inboundNodeIds] of this.inboundEdges.get(node.id)) {
+        if (inboundNodeIds.size > 0) {
+          return false;
+        }
       }
+
+      return true;
+    }
+
+    // Otherwise, attempt to traverse backwards to the root. If there is a path,
+    // then this is not an orphaned node.
+    let hasPathToRoot = false;
+    this.traverseAncestors(
+      node,
+      (ancestor, _, actions) => {
+        if (ancestor.id === rootNode.id) {
+          hasPathToRoot = true;
+          actions.stop();
+        }
+      },
+      // $FlowFixMe
+      ALL_EDGE_TYPES
+    );
+
+    if (hasPathToRoot) {
+      return false;
     }
 
     return true;

@@ -106,11 +106,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodeIds: Set<NodeId> = new Set();
-  runTransform: TransformationOpts => Promise<{
+  runTransform: TransformationOpts => Promise<{|
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>,
-    ...
-  }>;
+    configRequests: Array<ConfigRequest>
+  |}>;
   runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
   entryResolver: EntryResolver;
@@ -218,6 +217,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   removeNode(node: RequestGraphNode) {
+    this.invalidNodeIds.delete(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.delete(node.id);
     } else if (node.type === 'dep_version_request') {
@@ -314,17 +314,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
-  async validate(requestNode: AssetRequestNode) {
-    try {
-      await this.runValidate({
-        request: requestNode.value,
-        loadConfig: this.loadConfigHandle,
-        parentNodeId: requestNode.id,
-        options: this.options
-      });
-    } catch (e) {
-      throw e;
-    }
+  validate(requestNode: AssetRequestNode) {
+    return this.runValidate({
+      request: requestNode.value,
+      loadConfig: this.loadConfigHandle,
+      parentNodeId: requestNode.id,
+      options: this.options
+    });
   }
 
   async transform(requestNode: AssetRequestNode) {

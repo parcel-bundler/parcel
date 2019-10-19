@@ -59,11 +59,10 @@ export default class BundleGraph {
     this._bundleContentHashes = bundleContentHashes || new Map();
   }
 
-  static deserialize(opts: {
+  static deserialize(opts: {|
     _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    _bundleContentHashes: Map<string, string>,
-    ...
-  }): BundleGraph {
+    _bundleContentHashes: Map<string, string>
+  |}): BundleGraph {
     return new BundleGraph({
       graph: opts._graph,
       bundleContentHashes: opts._bundleContentHashes
@@ -100,10 +99,8 @@ export default class BundleGraph {
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
-    if (this._graph.hasEdge(bundle.id, asset.id)) {
-      this._graph.removeEdge(bundle.id, asset.id);
-    }
-
+    // Remove all contains edges from the bundle to the nodes in the asset's
+    // subgraph.
     this._graph.traverse((node, context, actions) => {
       if (node.type === 'bundle_group') {
         actions.skipChildren();
@@ -112,7 +109,16 @@ export default class BundleGraph {
 
       if (node.type === 'asset' || node.type === 'dependency') {
         if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
-          this._graph.removeEdge(bundle.id, node.id, 'contains');
+          this._graph.removeEdge(
+            bundle.id,
+            node.id,
+            'contains',
+            // Removing this contains edge should not orphan the connected node. This
+            // is disabled for performance reasons as these edges are removed as part
+            // of a traversal, and checking for orphans becomes quite expensive in
+            // aggregate.
+            false /* removeOrphans */
+          );
           if (node.type === 'asset') {
             bundle.stats.size -= asset.stats.size;
           }
@@ -141,6 +147,12 @@ export default class BundleGraph {
         }
       }
     }, nullthrows(this._graph.getNode(asset.id)));
+
+    // Remove the untyped edge from the bundle to the entry.
+    if (this._graph.hasEdge(bundle.id, asset.id)) {
+      this._graph.removeEdge(bundle.id, asset.id);
+    }
+
     this._bundleContentHashes.delete(bundle.id);
   }
 
@@ -586,17 +598,19 @@ export function removeAssetGroups(
   assetGraph: AssetGraph
 ): Graph<BundleGraphNode> {
   let graph = new Graph<BundleGraphNode>();
-  // $FlowFixMe
-  graph.setRootNode(nullthrows(assetGraph.getRootNode()));
-  let assetGroupIds = new Set();
 
-  assetGraph.traverse(node => {
+  let rootNode = assetGraph.getRootNode();
+  invariant(rootNode != null && rootNode.type === 'root');
+  graph.setRootNode(rootNode);
+
+  let assetGroupIds = new Set();
+  for (let [, node] of assetGraph.nodes) {
     if (node.type === 'asset_group') {
       assetGroupIds.add(node.id);
     } else {
       graph.addNode(node);
     }
-  });
+  }
 
   for (let edge of assetGraph.getAllEdges()) {
     let fromIds;
