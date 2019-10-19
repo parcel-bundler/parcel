@@ -24,14 +24,6 @@ export interface PackageInstaller {
 }
 
 export interface PackageManager {
-  require(
-    id: ModuleSpecifier,
-    from: FilePath,
-    autoinstall?: boolean
-  ): Promise<any>;
-  resolve(
-    id: ModuleSpecifier,
-    from: FilePath,
-    autoinstall?: boolean
-  ): Promise<ResolveResult>;
+  require(id: ModuleSpecifier, from: FilePath): Promise<any>;
+  resolve(id: ModuleSpecifier, from: FilePath): Promise<ResolveResult>;
 }

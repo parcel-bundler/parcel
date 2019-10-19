@@ -1,3 +1,5 @@
+var Refresh = require('react-refresh/runtime');
+
 function debounce(func, delay) {
   var timeout = undefined;
   return function(args) {
@@ -8,20 +10,20 @@ function debounce(func, delay) {
     }, delay);
   };
 }
-var enqueueUpdate = debounce(function(Refresh) {
+var enqueueUpdate = debounce(function() {
   Refresh.performReactRefresh();
 }, 30);
 
-module.exports.prelude = function(Refresh, mod) {
+module.exports.prelude = function(mod) {
   window.$RefreshReg$ = function(type, id) {
     Refresh.register(type, mod.id + ' ' + id);
   };
   window.$RefreshSig$ = Refresh.createSignatureFunctionForTransform;
 };
 
-module.exports.postlude = function(Refresh, mod) {
-  if (isReactRefreshBoundary(Refresh, mod)) {
-    registerExportsForReactRefresh(Refresh, mod);
+module.exports.postlude = function(mod) {
+  if (isReactRefreshBoundary(mod)) {
+    registerExportsForReactRefresh(mod);
 
     mod.hot.accept();
     if (Refresh.hasUnrecoverableErrors()) {
@@ -32,7 +34,7 @@ module.exports.postlude = function(Refresh, mod) {
 };
 
 // https://github.com/facebook/metro/blob/febdba2383113c88296c61e28e4ef6a7f4939fda/packages/metro/src/lib/polyfills/require.js#L748-L774
-function isReactRefreshBoundary(Refresh, mod) {
+function isReactRefreshBoundary(mod) {
   var exports = mod.exports;
   if (Refresh.isLikelyComponentType(exports)) {
     return true;
@@ -58,7 +60,7 @@ function isReactRefreshBoundary(Refresh, mod) {
 }
 
 // https://github.com/facebook/metro/blob/febdba2383113c88296c61e28e4ef6a7f4939fda/packages/metro/src/lib/polyfills/require.js#L818-L835
-function registerExportsForReactRefresh(Refresh, mod) {
+function registerExportsForReactRefresh(mod) {
   var exports = mod.exports;
   var id = mod.id;
 

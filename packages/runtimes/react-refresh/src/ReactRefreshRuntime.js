@@ -2,33 +2,22 @@
 
 import {Runtime} from '@parcel/plugin';
 import path from 'path';
+import invariant from 'assert';
 
 export default new Runtime({
-  async apply({bundle, options}) {
+  apply({bundle, options}) {
     if (bundle.type !== 'js' || !bundle.env.isBrowser() || !options.hot) {
       return;
     }
 
     let mainEntry = bundle.getMainEntry();
     let code;
-    if (mainEntry) {
-      let runtime;
-      try {
-        let result = await options.packageManager.resolve(
-          'react-refresh/runtime',
-          mainEntry.filePath,
-          false
-        );
-        runtime = result.resolved;
-      } catch (e) {
-        return;
-      }
+    if (mainEntry && mainEntry.meta.reactRefreshRuntimePath !== undefined) {
+      let runtime = mainEntry.meta.reactRefreshRuntimePath;
+      invariant(typeof runtime === 'string');
 
-      let localRefreshRuntime = runtime;
-      code = `var Refresh = require('${path.relative(
-        __dirname,
-        localRefreshRuntime
-      )}');
+      code = `
+var Refresh = require('${path.relative(__dirname, runtime)}');
 
 Refresh.injectIntoGlobalHook(window);
 window.$RefreshReg$ = function() {};
@@ -44,7 +33,7 @@ window.$RefreshSig$ = function() {
         isEntry: true
       };
     } else {
-      // TODO I think we don't need that in a child bundle (beacuse the main bundle will have set the global)
+      // We don't need that in a child bundle (beacuse the main bundle will have set the global)
       return;
     }
   }

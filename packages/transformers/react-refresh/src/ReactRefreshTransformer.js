@@ -3,7 +3,6 @@
 import semver from 'semver';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
-import logger from '@parcel/logger';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import {transformFromAst} from '@babel/core';
@@ -15,11 +14,10 @@ import * as t from '@babel/types';
 const WRAPPER = path.join(__dirname, 'helpers', 'helpers.js');
 
 const wrapper = template(`
-var Refresh = require('react-refresh/runtime');
 var helpers = require(%%helper%%);
 var prevRefreshReg = window.$RefreshReg$;
 var prevRefreshSig = window.$RefreshSig$;
-helpers.prelude(Refresh, module);
+helpers.prelude(module);
 
 try {
   %%module%%
@@ -28,9 +26,7 @@ try {
   window.$RefreshSig$ = prevRefreshSig;
 }
 
-helpers.postlude(Refresh, module);`);
-
-let didWarnAboutInstallingReactRefresh = false;
+helpers.postlude(module);`);
 
 function shouldExclude(asset, options) {
   return (
@@ -68,34 +64,21 @@ export default new Transformer({
 
   async transform({asset, options}) {
     asset.type = 'js';
-    if (!asset.ast || shouldExclude(asset, options)) {
-      return [asset];
-    }
-
-    let reactRefreshBabelPlugin;
-    try {
-      let result = await options.packageManager.resolve(
-        'react-refresh/babel',
-        asset.filePath,
-        false
-      );
-      reactRefreshBabelPlugin = result.resolved;
-    } catch (_) {
-      if (!didWarnAboutInstallingReactRefresh) {
-        logger.warn(
-          'Please install the `react-refresh` package for React hot reloading'
-        );
-        didWarnAboutInstallingReactRefresh = true;
-      }
-      return [asset];
-    }
-
-    if (!asset.ast) {
-      // Make flow happy
-      return [asset];
-    }
-
     let ast = asset.ast;
+    if (!ast || shouldExclude(asset, options)) {
+      return [asset];
+    }
+
+    let reactRefreshBabelPlugin = (await options.packageManager.resolve(
+      'react-refresh/babel',
+      __filename
+    )).resolved;
+
+    asset.meta.reactRefreshRuntimePath = (await options.packageManager.resolve(
+      'react-refresh/runtime',
+      __filename
+    )).resolved;
+
     let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
     let code = await asset.getCode();
     let transformResult = transformFromAst(ast.program, code, {
@@ -114,10 +97,7 @@ export default new Transformer({
     });
     ast.isDirty = true;
 
-    asset.addDependency({
-      moduleSpecifier: 'react-refresh/runtime'
-    });
-
+    // The JSTransformer has already run, do it manually
     asset.addDependency({
       moduleSpecifier: wrapperPath
     });
