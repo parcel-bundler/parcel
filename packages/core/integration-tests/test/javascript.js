@@ -495,9 +495,9 @@ describe('javascript', function() {
     });
   });
 
-  it('should not deduplicate assets from a parent bundle in workers', async () => {
+  it('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/worker-no-deduplicate/index.js')
+      path.join(__dirname, '/integration/worker-shared/index.js')
     );
 
     assertBundles(b, [
@@ -506,12 +506,53 @@ describe('javascript', function() {
         assets: ['index.js', 'lodash.js']
       },
       {
-        assets: ['worker-a.js', 'lodash.js']
+        assets: ['worker-a.js']
       },
       {
-        assets: ['worker-b.js', 'lodash.js']
+        assets: ['worker-b.js']
+      },
+      {
+        assets: ['lodash.js']
       }
     ]);
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)
+      .find(b => b.name !== 'index.js');
+    let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
+    let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+  });
+
+  it('should create a shared bundle between browser and worker contexts', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-shared-worker/index.html')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        assets: ['index.js']
+      },
+      {
+        assets: ['worker.js']
+      },
+      {
+        assets: ['lodash.js']
+      }
+    ]);
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)
+      .find(b => b.name !== 'index.js');
+    let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
+    let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
   });
 
   it('should dynamic import files which import raw files', async function() {
