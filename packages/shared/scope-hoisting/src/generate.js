@@ -3,6 +3,7 @@
 import type {AST, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
 import babelGenerate from '@babel/generator';
 import nullthrows from 'nullthrows';
+import {isEntry} from './utils';
 
 export function generate(
   bundleGraph: BundleGraph,
@@ -22,7 +23,7 @@ export function generate(
   let hashBang = interpreter != null ? `#!${interpreter}\n` : '';
 
   let entry = bundle.getMainEntry();
-  let isAsync = bundleGraph.hasParentBundleOfType(bundle, 'js') && entry;
+  let isAsync = entry && !isEntry(bundle, bundleGraph);
   if (!options.minify && (isAsync || bundle.env.outputFormat === 'global')) {
     code = `\n${code}\n`;
   }

@@ -278,17 +278,11 @@ export default class BundleGraph {
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
-    return (
-      this._graph
-        .getNodesConnectedTo(
-          nullthrows(this._graph.getNode(bundle.id)),
-          'bundle'
-        )
-        .map(node => this._graph.getNodesConnectedTo(node, 'bundle'))
-        .reduce((acc, v) => acc.concat(v), [])
-        .filter(node => node.type === 'bundle' && node.value.type === type)
-        .length > 0
-    );
+    return this._graph
+      .getNodesConnectedTo(nullthrows(this._graph.getNode(bundle.id)), 'bundle')
+      .map(node => this._graph.getNodesConnectedTo(node, 'bundle'))
+      .reduce((acc, v) => acc.concat(v), [])
+      .every(node => node.type === 'bundle' && node.value.type === type);
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
@@ -358,9 +352,17 @@ export default class BundleGraph {
     );
   }
 
-  hasChildBundles(bundle: Bundle): boolean {
-    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
-    return this._graph.getNodesConnectedFrom(bundleNode, 'bundle').length > 0;
+  getChildBundles(bundle: Bundle): Array<Bundle> {
+    let bundles = [];
+    this.traverseBundles((b, _, actions) => {
+      if (bundle.id === b.id) {
+        return;
+      }
+
+      bundles.push(b);
+      actions.skipChildren();
+    }, bundle);
+    return bundles;
   }
 
   traverseBundles<TContext>(
@@ -420,6 +422,22 @@ export default class BundleGraph {
         invariant(node.type === 'bundle');
         return node.value;
       });
+  }
+
+  getSiblingBundles(bundle: Bundle): Array<Bundle> {
+    let siblings = [];
+
+    let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
+    for (let bundleGroup of bundleGroups) {
+      let bundles = this.getBundlesInBundleGroup(bundleGroup);
+      for (let b of bundles) {
+        if (b.id !== bundle.id) {
+          siblings.push(b);
+        }
+      }
+    }
+
+    return siblings;
   }
 
   getBundleGroupsReferencedByBundle(
