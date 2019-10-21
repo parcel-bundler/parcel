@@ -20,7 +20,8 @@ const BROWSER_ENVS = new Set([
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
-const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
+const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
+const ISOLATED_ENVS = WORKER_ENVS;
 
 const ALL_BROWSERS = [
   'chrome',
@@ -108,6 +109,10 @@ export default class Environment implements IEnvironment {
 
   isIsolated() {
     return ISOLATED_ENVS.has(this.#environment.context);
+  }
+
+  isWorker() {
+    return WORKER_ENVS.has(this.#environment.context);
   }
 
   matchesEngines(minVersions: VersionMap) {

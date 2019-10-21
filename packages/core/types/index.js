@@ -120,6 +120,7 @@ export interface Environment {
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
+  isWorker(): boolean;
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap): boolean;
 }
@@ -521,7 +522,6 @@ export interface Bundle {
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
-  hasChildBundles(): boolean;
   getHash(): string;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
@@ -572,6 +572,8 @@ export interface BundleGraph {
     dependency: Dependency
   |}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
+  getChildBundles(bundle: Bundle): Array<Bundle>;
+  getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
