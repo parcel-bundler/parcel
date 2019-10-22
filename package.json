@@ -37,5 +37,16 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
+  },
+  "keywords": [
+    "modules",
+    "bundler",
+    "bundling",
+    "es6",
+    "optimizer"
+  ],
+  "homepage": "https://parceljs.org/",
+  "bugs": {
+    "url": "https://github.com/parcel-bundler/parcel/issues"
   }
 }
