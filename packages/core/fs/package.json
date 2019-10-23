@@ -23,6 +23,5 @@
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
     "rimraf": "^2.6.2"
-  },
-  "sideEffects": false
+  }
 }
