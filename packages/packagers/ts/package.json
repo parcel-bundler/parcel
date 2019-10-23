@@ -1,0 +1,17 @@
+{
+  "name": "@parcel/packager-ts",
+  "version": "2.0.0-alpha.2.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/TSPackager.js",
+  "engines": {
+    "node": ">= 8.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.2.1"
+  }
+}

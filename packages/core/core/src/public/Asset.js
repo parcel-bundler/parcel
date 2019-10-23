@@ -111,11 +111,10 @@ class BaseAsset {
 
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
-      parse?: boolean,
-      ...
-    }
+      parse?: boolean
+    |}
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }
@@ -214,7 +213,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File): Promise<void> {
+  addIncludedFile(file: File) {
     return this.#asset.addIncludedFile(file);
   }
 

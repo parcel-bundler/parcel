@@ -60,7 +60,8 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, Symbol>
+  symbols: Map<Symbol, Symbol>,
+  pipeline?: ?string
 |};
 
 export type Asset = {|
@@ -146,7 +147,8 @@ export type AssetRequest = {|
   filePath: FilePath,
   env: Environment,
   sideEffects?: boolean,
-  code?: string
+  code?: string,
+  pipeline?: ?string
 |};
 
 // Asset group nodes are essentially used as placeholders for the results of an asset request
@@ -225,6 +227,7 @@ export type ConfigRequest = {|
   filePath: FilePath,
   env: Environment,
   isSource: boolean,
+  pipeline?: ?string,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,
@@ -270,15 +273,14 @@ export type RequestNode =
   | DepVersionRequestNode;
 export type SubRequestNode = ConfigRequestNode | DepVersionRequestNode;
 
-export type CacheEntry = {
+export type CacheEntry = {|
   filePath: FilePath,
   env: Environment,
   hash: string,
   assets: Array<Asset>,
   // Initial assets, pre-post processing
-  initialAssets: ?Array<Asset>,
-  ...
-};
+  initialAssets: ?Array<Asset>
+|};
 
 export type Bundle = {|
   id: string,

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/is-v2-ready-yet",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -13,7 +13,7 @@
     "build-app": "yarn parcel build index.html"
   },
   "dependencies": {
-    "@parcel/integration-tests": "^2.0.0-alpha.1.1",
+    "@parcel/integration-tests": "^2.0.0-alpha.2.1",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "victory": "^31.0.1"
@@ -23,7 +23,6 @@
     "@babel/plugin-proposal-class-properties": "^7.2.1",
     "@babel/preset-env": "^7.2.0",
     "@babel/preset-react": "^7.0.0",
-    "eslint-plugin-react": "^7.12.0",
-    "parcel-bundler": "^1.12.4-alpha.0"
+    "eslint-plugin-react": "^7.12.0"
   }
 }

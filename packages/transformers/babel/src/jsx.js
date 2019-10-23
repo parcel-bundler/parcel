@@ -8,10 +8,22 @@ const JSX_EXTENSIONS = {
 };
 
 const JSX_PRAGMA = {
-  react: 'React.createElement',
-  preact: 'h',
-  nervjs: 'Nerv.createElement',
-  hyperapp: 'h'
+  react: {
+    pragma: 'React.createElement',
+    pragmaFrag: 'React.Fragment'
+  },
+  preact: {
+    pragma: 'h',
+    pragmaFrag: 'Fragment'
+  },
+  nervjs: {
+    pragma: 'Nerv.createElement',
+    pragmaFrag: undefined
+  },
+  hyperapp: {
+    pragma: 'h',
+    pragmaFrag: undefined
+  }
 };
 
 /**
@@ -24,22 +36,20 @@ export default async function getJSXOptions(config: Config) {
   }
 
   // Find a dependency that we can map to a JSX pragma
-  let pkg = await config.getPackage();
-  let pragma = null;
-  for (let dep in JSX_PRAGMA) {
-    if (
+  const pkg = await config.getPackage();
+  const reactLib = Object.keys(JSX_PRAGMA).find(
+    libName =>
       pkg &&
-      ((pkg.dependencies && pkg.dependencies[dep]) ||
-        (pkg.devDependencies && pkg.devDependencies[dep]))
-    ) {
-      pragma = JSX_PRAGMA[dep];
-      break;
-    }
-  }
+      ((pkg.dependencies && pkg.dependencies[libName]) ||
+        (pkg.devDependencies && pkg.devDependencies[libName]))
+  );
+
+  const pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
+  const pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
-      plugins: [['@babel/plugin-transform-react-jsx', {pragma}]]
+      plugins: [['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}]]
     };
   }
 }
