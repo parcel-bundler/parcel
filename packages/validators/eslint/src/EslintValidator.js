@@ -41,12 +41,7 @@ export default new Validator({
             result.warningCount
           } warnings.`,
           filename: asset.filePath,
-          codeframe: codeframe,
-          hints: result.messages
-            .map(message => {
-              return message.fix && `${message.message}: ${message.fix.text}`;
-            })
-            .filter(m => !!m)
+          codeframe: codeframe
         });
       }
     }
