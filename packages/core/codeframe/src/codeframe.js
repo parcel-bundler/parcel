@@ -4,6 +4,7 @@ import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
 type CodeFrameOptions = {|
   useColor?: boolean,
+  maxLines?: number,
   padding?: {|
     before: number,
     after: number
@@ -12,13 +13,14 @@ type CodeFrameOptions = {|
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 
-// TODO: Implement padding, so we don't return an entire source file
+// TODO: Implement padding and maxLines, so we don't return an entire source file
 // Padding = rendering lines before first highlight and after last highlight
 export default function codeFrame(
   code: string,
   highlights: Array<DiagnosticCodeHighlight>,
   opts: CodeFrameOptions = {
     useColor: true,
+    maxLines: 12,
     padding: {
       before: 2,
       after: 2
