@@ -110,7 +110,8 @@ export default function codeFrame(
 
           let lastHighlightForColumn = sortedByEnd[sortedByEnd.length - 1];
           if (lastHighlightForColumn.message) {
-            highlightLine += ' ' + lastHighlightForColumn.message;
+            highlightLine +=
+              ' ' + chalk.red.bold(lastHighlightForColumn.message);
           }
         }
       }
