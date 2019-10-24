@@ -130,7 +130,7 @@ function DiagnosticContainer({
           language={language}
         />
       )}
-      {Array.isArray(hints) && hints.length && <Hints hints={hints} />}
+      {Array.isArray(hints) && hints.length ? <Hints hints={hints} /> : ''}
     </React.Fragment>
   );
 }
