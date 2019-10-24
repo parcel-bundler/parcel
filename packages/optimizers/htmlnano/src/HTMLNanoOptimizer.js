@@ -15,7 +15,7 @@ export default new Optimizer({
 
     if (typeof contents !== 'string') {
       throw new Error(
-        'CSSNanoOptimizer: Only string contents are currently supported'
+        'HTMLNanoOptimizer: Only string contents are currently supported'
       );
     }
 
