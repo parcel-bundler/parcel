@@ -178,7 +178,7 @@ export default class Transformation {
 
     invariant(pipeline.postProcess != null);
     let processedFinalAssets: Array<InternalAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(assets)) ?? [];
+      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
 
     if (!processedCacheEntry) {
       await this.writeToCache(
