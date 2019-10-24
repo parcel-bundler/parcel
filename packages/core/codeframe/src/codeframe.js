@@ -2,18 +2,27 @@
 import chalk from 'chalk';
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
-type CodeFrameOptions = {
+type CodeFrameOptions = {|
   useColor?: boolean,
-  ...
-};
+  padding?: {|
+    before: number,
+    after: number
+  |}
+|};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 
+// TODO: Implement padding, so we don't return an entire source file
+// Padding = rendering lines before first highlight and after last highlight
 export default function codeFrame(
   code: string,
   highlights: Array<DiagnosticCodeHighlight>,
   opts: CodeFrameOptions = {
-    useColor: true
+    useColor: true,
+    padding: {
+      before: 2,
+      after: 2
+    }
   }
 ): string {
   const highlighter = (s: string) => {
