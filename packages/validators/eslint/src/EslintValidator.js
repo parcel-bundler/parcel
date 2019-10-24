@@ -16,6 +16,8 @@ export default new Validator({
 
     if (report.results.length > 0) {
       for (let result of report.results) {
+        if (!result.errorCount && !result.warningCount) continue;
+
         let codeframe: DiagnosticCodeFrame = {
           code: result.source,
           codeHighlights: result.messages.map(message => {
