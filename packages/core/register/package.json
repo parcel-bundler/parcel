@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@parcel/config-default": "^2.0.0-alpha.2.1",
-    "@parcel/core": "^2.0.0-alpha.2.1"
+    "@parcel/core": "^2.0.0-alpha.2.1",
+    "@parcel/fs": "^2.0.0-alpha.2",
+    "@parcel/package-manager": "^2.0.0-alpha.2"
   }
 }
