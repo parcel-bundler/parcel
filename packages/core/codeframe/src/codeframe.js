@@ -2,13 +2,21 @@
 import chalk from 'chalk';
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
-type CodeFrameOptions = {|
+type CodeFramePadding = {|
+  before: number,
+  after: number
+|};
+
+type CodeFrameOptionsInput = {|
   useColor?: boolean,
   maxLines?: number,
-  padding?: {|
-    before: number,
-    after: number
-  |}
+  padding?: CodeFramePadding
+|};
+
+type CodeFrameOptions = {|
+  useColor?: boolean,
+  maxLines: number,
+  padding: CodeFramePadding
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
@@ -18,21 +26,41 @@ const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 export default function codeFrame(
   code: string,
   highlights: Array<DiagnosticCodeHighlight>,
-  opts: CodeFrameOptions = {
-    useColor: true,
-    maxLines: 12,
-    padding: {
-      before: 2,
+  // $FlowFixMe
+  inputOpts: CodeFrameOptionsInput = {}
+): string {
+  if (highlights.length < 1) return '';
+
+  let opts: CodeFrameOptions = {
+    useColor: inputOpts.useColor,
+    maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
+    padding: inputOpts.padding || {
+      before: 1,
       after: 2
     }
-  }
-): string {
-  const highlighter = (s: string) => {
+  };
+
+  const highlighter = (s: string, bold?: boolean) => {
     if (opts.useColor) {
-      return chalk.red(s);
+      let redString = chalk.red(s);
+      return bold ? chalk.bold(redString) : redString;
     }
 
     return s;
+  };
+
+  const lineNumberPrefixer = (params: {|
+    lineNumber?: string,
+    endLine: string,
+    isHighlighted: boolean
+  |}) => {
+    let {lineNumber, endLine, isHighlighted} = params;
+
+    return `${isHighlighted ? highlighter('>') : ' '} ${
+      lineNumber
+        ? lineNumber.padEnd(endLine.length, ' ')
+        : ' '.repeat(endLine.length)
+    } | `;
   };
 
   // Make columns/lines start at 1
@@ -50,21 +78,48 @@ export default function codeFrame(
     };
   });
 
+  let firstHighlight =
+    highlights.length > 1
+      ? highlights.sort((a, b) => a.start.line - b.start.line)[0]
+      : highlights[0];
+  let lastHighlight =
+    highlights.length > 1
+      ? highlights.sort((a, b) => b.end.line - a.end.line)[0]
+      : highlights[0];
+
+  let startLine = firstHighlight.start.line - opts.padding.before;
+  startLine = startLine < 0 ? 0 : startLine;
+  let endLine = lastHighlight.end.line + opts.padding.after;
+  endLine =
+    endLine - startLine > opts.maxLines
+      ? startLine + opts.maxLines - 1
+      : endLine;
+  let endLineString = endLine.toString(10);
+
   let resultLines = [];
   const lines = code.split(NEWLINE);
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = startLine; i < lines.length; i++) {
+    if (i > endLine) break;
+
     let originalLine = lines[i];
     let foundHighlights = highlights.filter(
       highlight => highlight.start.line <= i && highlight.end.line >= i
     );
 
     resultLines.push(
-      `${foundHighlights.length > 0 ? highlighter('>') : ' '} ${i + 1} | ` +
-        originalLine
+      lineNumberPrefixer({
+        lineNumber: (i + 1).toString(10),
+        endLine: endLineString,
+        isHighlighted: foundHighlights.length > 0
+      }) + originalLine
     );
 
     if (foundHighlights.length > 0) {
-      let highlightLine = `${highlighter('>')}   | `;
+      let highlightLine = lineNumberPrefixer({
+        endLine: endLineString,
+        isHighlighted: true
+      });
+
       let isWholeLine = !!foundHighlights.find(
         h => h.start.line < i && h.end.line > i
       );
@@ -113,7 +168,7 @@ export default function codeFrame(
           let lastHighlightForColumn = sortedByEnd[sortedByEnd.length - 1];
           if (lastHighlightForColumn.message) {
             highlightLine +=
-              ' ' + chalk.red.bold(lastHighlightForColumn.message);
+              ' ' + highlighter(lastHighlightForColumn.message, true);
           }
         }
       }
