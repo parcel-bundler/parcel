@@ -8,7 +8,7 @@ import {Optimizer} from '@parcel/plugin';
 import posthtml from 'posthtml';
 
 export default new Optimizer({
-  async optimize({contents, bundle, map, options}) {
+  async optimize({contents, map, bundle, options}) {
     if (!options.minify) {
       return {contents, map};
     }
