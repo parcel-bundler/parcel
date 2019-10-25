@@ -2,13 +2,13 @@
 
 // $FlowFixMe this is untyped
 import htmlnano from 'htmlnano';
-import nullthrows from 'nullthrows';
 import {loadConfig} from '@parcel/utils';
 import {Optimizer} from '@parcel/plugin';
 import posthtml from 'posthtml';
+import path from 'path';
 
 export default new Optimizer({
-  async optimize({contents, map, bundle, options}) {
+  async optimize({contents, map, options}) {
     if (!options.minify) {
       return {contents, map};
     }
@@ -21,7 +21,7 @@ export default new Optimizer({
 
     let userConfig = await loadConfig(
       options.inputFS,
-      nullthrows(bundle.getMainEntry()).filePath,
+      path.join(options.rootDir, 'index.html'),
       ['.htmlnanorc', '.htmlnanorc.js']
     );
 
