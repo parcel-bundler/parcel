@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-babel",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,28 +8,28 @@
   },
   "main": "src/BabelTransformer.js",
   "engines": {
-    "node": ">= 8.0.0",
+    "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@babel/core": "^7.0.0",
     "@babel/generator": "^7.0.0",
-    "@babel/traverse": "^7.0.0",
-    "@babel/preset-env": "^7.0.0",
     "@babel/plugin-transform-flow-strip-types": "^7.0.0",
     "@babel/plugin-transform-react-jsx": "^7.0.0",
     "@babel/plugin-transform-typescript": "^7.4.5",
-    "@parcel/babel-preset-env": "^2.0.0-alpha.1.1",
-    "@parcel/logger": "^2.0.0-alpha.1.1",
-    "@parcel/plugin": "^2.0.0-alpha.1.1",
-    "@parcel/source-map": "^2.0.0-alpha.1.1",
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/traverse": "^7.0.0",
+    "@parcel/babel-preset-env": "^2.0.0-alpha.2.1",
+    "@parcel/logger": "^2.0.0-alpha.2.1",
+    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/source-map": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "browserslist": "^4.6.6",
     "core-js": "^3.2.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@parcel/types": "^2.0.0-alpha.1.1"
+    "@parcel/types": "^2.0.0-alpha.2.1"
   }
 }

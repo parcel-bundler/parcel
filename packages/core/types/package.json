@@ -1,6 +1,6 @@
 {
   "name": "@parcel/types",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "main": "src/index.js",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/scope-hoisting",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "dependencies": {
     "@babel/generator": "^7.3.3",
@@ -17,7 +17,7 @@
     "@babel/template": "^7.2.2",
     "@babel/traverse": "^7.2.3",
     "@babel/types": "^7.3.3",
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "babylon-walk": "^1.0.2",
     "nullthrows": "^1.1.1"
   }

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -9,15 +9,15 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "@parcel/watcher": "^2.0.0-alpha.3",
-    "@parcel/workers": "^2.0.0-alpha.1.1",
+    "@parcel/workers": "^2.0.0-alpha.2.1",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",

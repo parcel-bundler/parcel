@@ -8,16 +8,14 @@ import path from 'path';
 import type {Diagnostic} from 'typescript';
 
 type CodeFrameError = Error & {codeFrame?: string, ...};
-type Location = {
+type Location = {|
   line: number,
-  column: number,
-  ...
-};
-type CodeFrameLocation = {
+  column: number
+|};
+type CodeFrameLocation = {|
   start: Location,
-  end?: Location,
-  ...
-};
+  end?: Location
+|};
 
 export default function formatDiagnostics(
   diagnostics: Array<Diagnostic>,

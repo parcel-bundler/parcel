@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-default",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,8 +11,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.1.1",
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "micromatch": "^3.0.4",
     "node-libs-browser": "^2.1.0"
   },

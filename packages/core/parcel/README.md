@@ -34,7 +34,7 @@ yarn init
 Then with Yarn you can install `parcel` into your app:
 
 ```sh
-yarn add --dev parcel@v2
+yarn add --dev parcel@next
 ```
 
 From there you just need to point Parcel at some of your entry files. Like if
@@ -216,7 +216,7 @@ it globally and run it, it is much better to install it locally into your
 project as a dev dependency.
 
 ```sh
-yarn add --dev parcel@v2
+yarn add --dev parcel@next
 ```
 
 You should also add some "scripts" to your `package.json` to run it easier.
@@ -444,7 +444,7 @@ This is the "browser" target's entry point for the package.
 
 ```json
 {
-  "browser": "distflinesof/browser/index.js"
+  "browser": "dist/browser/index.js"
 }
 ```
 

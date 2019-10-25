@@ -1,17 +1,17 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "main": "./src/register.js",
   "license": "MIT",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 10.0.0"
   },
   "scripts": {
     "run-example": "node ./example/index.js",
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-alpha.1.1",
-    "@parcel/core": "^2.0.0-alpha.1.1"
+    "@parcel/config-default": "^2.0.0-alpha.2.1",
+    "@parcel/core": "^2.0.0-alpha.2.1"
   }
 }

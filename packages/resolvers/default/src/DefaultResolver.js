@@ -6,14 +6,14 @@ import type {
   Dependency,
   PackageJSON,
   FilePath,
-  ResolveResult
+  ResolveResult,
+  Environment
 } from '@parcel/types';
 import path from 'path';
 import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 import invariant from 'assert';
-// import nodeBuiltins from 'node-libs-browser';
 
 // Throw user friendly errors on special webpack loader syntax
 // ex. `imports-loader?$=jquery!./example.js`
@@ -174,6 +174,11 @@ class NodeResolver {
       return null;
     }
 
+    let builtin = this.findBuiltin(filename, env);
+    if (builtin || builtin === null) {
+      return builtin;
+    }
+
     // Resolve the module in node_modules
     let resolved;
     try {
@@ -183,7 +188,7 @@ class NodeResolver {
     }
 
     // If we couldn't resolve the node_modules path, just return the module name info
-    if (!resolved) {
+    if (resolved === undefined) {
       let parts = this.getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
@@ -271,16 +276,17 @@ class NodeResolver {
       (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await
     );
   }
-
-  async findNodeModulePath(filename: string, dir: string) {
+  findBuiltin(filename: string, env: Environment) {
     if (builtins[filename]) {
-      // if (this.options.cli.target === 'node' && filename in nodeBuiltins) {
-      //   throw new Error('Cannot resolve builtin module for node target');
-      // }
+      if (env.isNode()) {
+        return null;
+      }
 
       return {filePath: builtins[filename]};
     }
+  }
 
+  async findNodeModulePath(filename: string, dir: string) {
     let parts = this.getModuleParts(filename);
     let root = path.parse(dir).root;
 
@@ -309,6 +315,8 @@ class NodeResolver {
       // Move up a directory
       dir = path.dirname(dir);
     }
+
+    return undefined;
   }
 
   async loadNodeModules(module, extensions: Array<string>) {

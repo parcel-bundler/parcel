@@ -5,11 +5,11 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {countLines, PromiseQueue} from '@parcel/utils';
+import {countLines, PromiseQueue, relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
-  .readFileSync(__dirname + '/prelude.js', 'utf8')
+  .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
   .trim()
   .replace(/;$/, '');
 
@@ -115,7 +115,9 @@ export default new Packager({
     let entries = bundle.getEntryAssets();
     let interpreter: ?string = null;
 
-    let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
+    let isEntry =
+      !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+      bundle.env.isIsolated();
     if (isEntry) {
       let entryAsset = entries[entries.length - 1];
       // $FlowFixMe
@@ -128,12 +130,21 @@ export default new Packager({
       entries.pop();
     }
 
+    let importScripts = '';
+    if (bundle.env.isWorker()) {
+      let bundles = bundleGraph.getSiblingBundles(bundle);
+      for (let b of bundles) {
+        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+      }
+    }
+
     let sourceMapReference = await getSourceMapReference(map);
 
     return {
       contents:
         // If the entry asset included a hashbang, repeat it at the top of the bundle
         (interpreter != null ? `#!${interpreter}\n` : '') +
+        importScripts +
         (PRELUDE +
           '({' +
           assets +

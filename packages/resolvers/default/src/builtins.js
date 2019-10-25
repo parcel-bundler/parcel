@@ -1,11 +1,16 @@
-var nodeBuiltins = require('node-libs-browser');
+import polyfills from 'node-libs-browser';
+import {builtinModules} from 'module';
 
-var builtins = Object.create(null);
-for (var key in nodeBuiltins) {
-  builtins[key] =
-    nodeBuiltins[key] == null
-      ? require.resolve('./_empty.js')
-      : nodeBuiltins[key];
+const empty = require.resolve('./_empty.js');
+
+let builtins = Object.create(null);
+// use definite (current) list of Node builtins
+for (let key of builtinModules) {
+  builtins[key] = empty;
+}
+// load the polyfill where available
+for (let key in polyfills) {
+  builtins[key] = polyfills[key] || empty;
 }
 
 export default builtins;
