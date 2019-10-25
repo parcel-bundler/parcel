@@ -26,7 +26,7 @@ import {
   TapStream
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
-import {mergeEnvironments} from './Environment';
+import {mergeEnvironments, getEnvironmentHash} from './Environment';
 import {PARCEL_VERSION} from './constants';
 
 type AssetOptions = {|
@@ -59,7 +59,7 @@ export function createAsset(options: AssetOptions): Asset {
       options.id != null
         ? options.id
         : md5FromString(
-            idBase + options.type + JSON.stringify(options.env) + uniqueKey
+            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey
           ),
     hash: options.hash,
     filePath: options.filePath,
@@ -321,11 +321,10 @@ export default class InternalAsset {
 
   async getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
-      parse?: boolean,
-      ...
-    }
+      parse?: boolean
+    |}
   ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;

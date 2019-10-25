@@ -79,7 +79,6 @@ export default async function applyRuntimes({
 
   // merge the transformed asset into the bundle's graph, and connect
   // the node to it.
-  // $FlowFixMe
   bundleGraph._graph.merge(runtimesGraph);
 
   for (let {bundle, assetRequest, dependency, isEntry} of connections) {

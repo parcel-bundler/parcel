@@ -44,13 +44,12 @@ export function link({
   bundleGraph,
   ast,
   options
-}: {
+}: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   ast: AST,
-  options: PluginOptions,
-  ...
-}) {
+  options: PluginOptions
+|}) {
   let format = FORMATS[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();
@@ -66,17 +65,12 @@ export function link({
   // of each bundle group pointing at the sibling bundles. These can be
   // picked up by another bundler later at which point runtimes will be added.
   if (bundle.env.isLibrary) {
-    let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
-    for (let bundleGroup of bundleGroups) {
-      let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-      for (let b of bundles) {
-        if (b.id !== bundle.id) {
-          importedFiles.set(b.filePath, {
-            bundle: b,
-            assets: new Set()
-          });
-        }
-      }
+    let bundles = bundleGraph.getSiblingBundles(bundle);
+    for (let b of bundles) {
+      importedFiles.set(b.filePath, {
+        bundle: b,
+        assets: new Set()
+      });
     }
   }
 
@@ -269,14 +263,18 @@ export function link({
 
   function addBundleImport(mod, path) {
     // Find the first bundle containing this asset, and create an import for it if needed.
+    // An asset may be duplicated in multiple bundles, so try to find one that matches
+    // the current environment if possible and fall back to the first one.
     let bundles = bundleGraph.findBundlesWithAsset(mod);
-    let imported = importedFiles.get(bundles[0].filePath);
+    let importedBundle =
+      bundles.find(b => b.env.context === bundle.env.context) || bundles[0];
+    let imported = importedFiles.get(importedBundle.filePath);
     if (!imported) {
       imported = {
-        bundle: bundles[0],
+        bundle: importedBundle,
         assets: new Set()
       };
-      importedFiles.set(bundles[0].filePath, imported);
+      importedFiles.set(importedBundle.filePath, imported);
     }
 
     // If not unused, add the asset to the list of specifiers to import.

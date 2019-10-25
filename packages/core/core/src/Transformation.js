@@ -79,11 +79,10 @@ export default class Transformation {
     this.impactfulOptions = {minify, hot, scopeHoist};
   }
 
-  async run(): Promise<{
+  async run(): Promise<{|
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>,
-    ...
-  }> {
+    configRequests: Array<ConfigRequest>
+  |}> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -179,7 +178,7 @@ export default class Transformation {
 
     invariant(pipeline.postProcess != null);
     let processedFinalAssets: Array<InternalAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(assets)) ?? [];
+      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
 
     if (!processedCacheEntry) {
       await this.writeToCache(

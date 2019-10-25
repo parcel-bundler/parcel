@@ -59,11 +59,10 @@ export default class BundleGraph {
     this._bundleContentHashes = bundleContentHashes || new Map();
   }
 
-  static deserialize(opts: {
+  static deserialize(opts: {|
     _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    _bundleContentHashes: Map<string, string>,
-    ...
-  }): BundleGraph {
+    _bundleContentHashes: Map<string, string>
+  |}): BundleGraph {
     return new BundleGraph({
       graph: opts._graph,
       bundleContentHashes: opts._bundleContentHashes
@@ -100,10 +99,8 @@ export default class BundleGraph {
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
-    if (this._graph.hasEdge(bundle.id, asset.id)) {
-      this._graph.removeEdge(bundle.id, asset.id);
-    }
-
+    // Remove all contains edges from the bundle to the nodes in the asset's
+    // subgraph.
     this._graph.traverse((node, context, actions) => {
       if (node.type === 'bundle_group') {
         actions.skipChildren();
@@ -112,7 +109,16 @@ export default class BundleGraph {
 
       if (node.type === 'asset' || node.type === 'dependency') {
         if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
-          this._graph.removeEdge(bundle.id, node.id, 'contains');
+          this._graph.removeEdge(
+            bundle.id,
+            node.id,
+            'contains',
+            // Removing this contains edge should not orphan the connected node. This
+            // is disabled for performance reasons as these edges are removed as part
+            // of a traversal, and checking for orphans becomes quite expensive in
+            // aggregate.
+            false /* removeOrphans */
+          );
           if (node.type === 'asset') {
             bundle.stats.size -= asset.stats.size;
           }
@@ -141,6 +147,12 @@ export default class BundleGraph {
         }
       }
     }, nullthrows(this._graph.getNode(asset.id)));
+
+    // Remove the untyped edge from the bundle to the entry.
+    if (this._graph.hasEdge(bundle.id, asset.id)) {
+      this._graph.removeEdge(bundle.id, asset.id);
+    }
+
     this._bundleContentHashes.delete(bundle.id);
   }
 
@@ -242,22 +254,23 @@ export default class BundleGraph {
     );
 
     // is `asset` referenced by a dependency from an asset of `type`
-    return this._graph
-      .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
-      .filter(node => {
-        // Does this dependency belong to a bundle that does not include the
-        // asset it resolves to? If so, this asset is needed by a bundle but
-        // does not belong to it.
-        return this._graph
-          .getNodesConnectedTo(node, 'contains')
-          .filter(node => node.type === 'bundle')
-          .some(b => !referringBundles.has(b));
-      })
-      .map(node => {
+    return flatMap(
+      this._graph
+        .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
+        .filter(node => {
+          // Does this dependency belong to a bundle that does not include the
+          // asset it resolves to? If so, this asset is needed by a bundle but
+          // does not belong to it.
+          return this._graph
+            .getNodesConnectedTo(node, 'contains')
+            .filter(node => node.type === 'bundle')
+            .some(b => !referringBundles.has(b));
+        }),
+      node => {
         invariant(node.type === 'dependency');
         return this._graph.getNodesConnectedTo(node, null);
-      })
-      .reduce((acc, node) => acc.concat(node), ([]: Array<BundleGraphNode>))
+      }
+    )
       .filter(node => node.type === 'asset')
       .some(node => {
         invariant(node.type === 'asset');
@@ -266,17 +279,13 @@ export default class BundleGraph {
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
-    return (
-      this._graph
-        .getNodesConnectedTo(
-          nullthrows(this._graph.getNode(bundle.id)),
-          'bundle'
-        )
-        .map(node => this._graph.getNodesConnectedTo(node, 'bundle'))
-        .reduce((acc, v) => acc.concat(v), [])
-        .filter(node => node.type === 'bundle' && node.value.type === type)
-        .length > 0
-    );
+    return flatMap(
+      this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(bundle.id)),
+        'bundle'
+      ),
+      node => this._graph.getNodesConnectedTo(node, 'bundle')
+    ).every(node => node.type === 'bundle' && node.value.type === type);
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
@@ -346,9 +355,17 @@ export default class BundleGraph {
     );
   }
 
-  hasChildBundles(bundle: Bundle): boolean {
-    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
-    return this._graph.getNodesConnectedFrom(bundleNode, 'bundle').length > 0;
+  getChildBundles(bundle: Bundle): Array<Bundle> {
+    let bundles = [];
+    this.traverseBundles((b, _, actions) => {
+      if (bundle.id === b.id) {
+        return;
+      }
+
+      bundles.push(b);
+      actions.skipChildren();
+    }, bundle);
+    return bundles;
   }
 
   traverseBundles<TContext>(
@@ -408,6 +425,22 @@ export default class BundleGraph {
         invariant(node.type === 'bundle');
         return node.value;
       });
+  }
+
+  getSiblingBundles(bundle: Bundle): Array<Bundle> {
+    let siblings = [];
+
+    let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
+    for (let bundleGroup of bundleGroups) {
+      let bundles = this.getBundlesInBundleGroup(bundleGroup);
+      for (let b of bundles) {
+        if (b.id !== bundle.id) {
+          siblings.push(b);
+        }
+      }
+    }
+
+    return siblings;
   }
 
   getBundleGroupsReferencedByBundle(
@@ -586,17 +619,19 @@ export function removeAssetGroups(
   assetGraph: AssetGraph
 ): Graph<BundleGraphNode> {
   let graph = new Graph<BundleGraphNode>();
-  // $FlowFixMe
-  graph.setRootNode(nullthrows(assetGraph.getRootNode()));
-  let assetGroupIds = new Set();
 
-  assetGraph.traverse(node => {
+  let rootNode = assetGraph.getRootNode();
+  invariant(rootNode != null && rootNode.type === 'root');
+  graph.setRootNode(rootNode);
+
+  let assetGroupIds = new Set();
+  for (let [, node] of assetGraph.nodes) {
     if (node.type === 'asset_group') {
       assetGroupIds.add(node.id);
     } else {
       graph.addNode(node);
     }
-  });
+  }
 
   for (let edge of assetGraph.getAllEdges()) {
     let fromIds;

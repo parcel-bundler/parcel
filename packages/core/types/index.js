@@ -44,7 +44,8 @@ export type ParcelConfigFile = {
   ...
 };
 
-export type ResolvedParcelConfigFile = ParcelConfigFile & {
+export type ResolvedParcelConfigFile = {
+  ...ParcelConfigFile,
   filePath: FilePath,
   ...
 };
@@ -57,12 +58,11 @@ export type Engines = {
   ...
 };
 
-export type TargetSourceMapOptions = {
+export type TargetSourceMapOptions = {|
   sourceRoot?: string,
   inline?: boolean,
-  inlineSources?: boolean,
-  ...
-};
+  inlineSources?: boolean
+|};
 
 export interface Target {
   +distEntry: ?FilePath;
@@ -97,14 +97,13 @@ export type TargetDescriptor = {|
   distDir: FilePath
 |};
 
-export type EnvironmentOpts = {
+export type EnvironmentOpts = {|
   context?: EnvironmentContext,
   engines?: Engines,
   includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
-  isLibrary?: boolean,
-  ...
-};
+  isLibrary?: boolean
+|};
 
 export type VersionMap = {
   [string]: string,
@@ -121,6 +120,7 @@ export interface Environment {
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
+  isWorker(): boolean;
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap): boolean;
 }
@@ -216,16 +216,14 @@ export type HTTPSOptions = {|
 
 export type SourceLocation = {|
   filePath: string,
-  start: {
+  start: {|
     line: number,
-    column: number,
-    ...
-  },
-  end: {
+    column: number
+  |},
+  end: {|
     line: number,
-    column: number,
-    ...
-  }
+    column: number
+  |}
 |};
 
 export type Meta = {
@@ -268,11 +266,10 @@ export interface Dependency {
   +pipeline: ?string;
 }
 
-export type File = {
+export type File = {|
   filePath: FilePath,
-  hash?: string,
-  ...
-};
+  hash?: string
+|};
 
 interface BaseAsset {
   +ast: ?AST;
@@ -297,11 +294,10 @@ interface BaseAsset {
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
-      parse?: boolean,
-      ...
-    }
+      parse?: boolean
+    |}
   ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
 }
@@ -342,21 +338,19 @@ export interface Config {
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
       parse?: boolean,
-      exclude?: boolean,
-      ...
-    }
+      exclude?: boolean
+    |}
   ): Promise<ConfigResult | null>;
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
       parse?: boolean,
-      exclude?: boolean,
-      ...
-    }
+      exclude?: boolean
+    |}
   ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
@@ -396,80 +390,69 @@ export interface TransformerResult {
 
 type Async<T> = T | Promise<T>;
 
-type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
 type ResolveConfigFn = (
   configNames: Array<FilePath>
 ) => Promise<FilePath | null>;
 
 export type Validator = {|
-  validate({
+  validate({|
     asset: Asset,
     config: ConfigResult | void,
-    options: PluginOptions,
-    ...
-  }): Async<void>,
-  getConfig?: ({
+    options: PluginOptions
+  |}): Async<void>,
+  getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
-    options: PluginOptions,
-    ...
-  }) => Async<ConfigResult | void>
+    options: PluginOptions
+  |}) => Async<ConfigResult | void>
 |};
 
-export type Transformer = {
+export type Transformer = {|
   // TODO: deprecate getConfig
-  getConfig?: ({
+  getConfig?: ({|
     asset: MutableAsset,
     resolve: ResolveFn,
-    options: PluginOptions,
-    ...
-  }) => Async<ConfigResult | void>,
-  loadConfig?: ({
+    options: PluginOptions
+  |}) => Async<ConfigResult | void>,
+  loadConfig?: ({|
     config: Config,
-    options: PluginOptions,
-    ...
-  }) => Async<void>,
-  rehydrateConfig?: ({
+    options: PluginOptions
+  |}) => Async<void>,
+  rehydrateConfig?: ({|
     config: Config,
-    options: PluginOptions,
-    ...
-  }) => Async<void>,
-  canReuseAST?: ({
+    options: PluginOptions
+  |}) => Async<void>,
+  canReuseAST?: ({|
     ast: AST,
-    options: PluginOptions,
-    ...
-  }) => boolean,
-  parse?: ({
+    options: PluginOptions
+  |}) => boolean,
+  parse?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions,
-    ...
-  }) => Async<?AST>,
-  transform({
+    options: PluginOptions
+  |}) => Async<?AST>,
+  transform({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions,
-    ...
-  }): Async<Array<TransformerResult | MutableAsset>>,
-  generate?: ({
+    options: PluginOptions
+  |}): Async<Array<TransformerResult | MutableAsset>>,
+  generate?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions,
-    ...
-  }) => Async<GenerateOutput>,
-  postProcess?: ({
+    options: PluginOptions
+  |}) => Async<GenerateOutput>,
+  postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions,
-    ...
-  }) => Async<Array<TransformerResult>>,
-  ...
-};
+    options: PluginOptions
+  |}) => Async<Array<TransformerResult>>
+|};
 
 export interface TraversalActions {
   skipChildren(): void;
@@ -539,7 +522,6 @@ export interface Bundle {
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
-  hasChildBundles(): boolean;
   getHash(): string;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
@@ -552,11 +534,10 @@ export interface NamedBundle extends Bundle {
   +name: string;
 }
 
-export type BundleGroup = {
+export type BundleGroup = {|
   target: Target,
-  entryAssetId: string,
-  ...
-};
+  entryAssetId: string
+|};
 
 export interface MutableBundleGraph {
   addAssetGraphToBundle(Asset, Bundle): void;
@@ -586,12 +567,13 @@ export interface BundleGraph {
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundleGroupsReferencedByBundle(
     bundle: Bundle
-  ): Array<{
+  ): Array<{|
     bundleGroup: BundleGroup,
-    dependency: Dependency,
-    ...
-  }>;
+    dependency: Dependency
+  |}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
+  getChildBundles(bundle: Bundle): Array<Bundle>;
+  getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
@@ -621,25 +603,22 @@ export type ResolveResult = {|
 |};
 
 export type Bundler = {|
-  bundle({
+  bundle({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions,
-    ...
-  }): Async<void>,
-  optimize({
+    options: PluginOptions
+  |}): Async<void>,
+  optimize({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions,
-    ...
-  }): Async<void>
+    options: PluginOptions
+  |}): Async<void>
 |};
 
 export type Namer = {|
-  name({
+  name({|
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions,
-    ...
-  }): Async<?FilePath>
+    options: PluginOptions
+  |}): Async<?FilePath>
 |};
 
 export type RuntimeAsset = {|
@@ -650,16 +629,15 @@ export type RuntimeAsset = {|
 |};
 
 export type Runtime = {|
-  apply({
+  apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions,
-    ...
-  }): Async<void | RuntimeAsset | Array<RuntimeAsset>>
+    options: PluginOptions
+  |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
 export type Packager = {|
-  package({
+  package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
@@ -667,27 +645,24 @@ export type Packager = {|
     getInlineBundleContents: (
       Bundle,
       BundleGraph
-    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
-    ...
-  }): Async<BundleResult>
+    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>
+  |}): Async<BundleResult>
 |};
 
 export type Optimizer = {|
-  optimize({
+  optimize({|
     bundle: NamedBundle,
     contents: Blob,
     map: ?SourceMap,
-    options: PluginOptions,
-    ...
-  }): Async<BundleResult>
+    options: PluginOptions
+  |}): Async<BundleResult>
 |};
 
 export type Resolver = {|
-  resolve({
+  resolve({|
     dependency: Dependency,
-    options: PluginOptions,
-    ...
-  }): Async<?ResolveResult>
+    options: PluginOptions
+  |}): Async<?ResolveResult>
 |};
 
 export type ProgressLogEvent = {|

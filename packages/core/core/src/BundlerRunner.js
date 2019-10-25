@@ -5,6 +5,7 @@ import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
 import type AssetGraphBuilder from './AssetGraphBuilder';
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import assert from 'assert';
 import path from 'path';
@@ -20,6 +21,7 @@ import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 import applyRuntimes from './applyRuntimes';
 import {PARCEL_VERSION} from './constants';
+import {assertSignalNotAborted} from './utils';
 
 type Opts = {|
   options: ParcelOptions,
@@ -44,7 +46,10 @@ export default class BundlerRunner {
     this.farm = opts.workerFarm;
   }
 
-  async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
+  async bundle(
+    graph: AssetGraph,
+    {signal}: {|signal: ?AbortSignal|}
+  ): Promise<InternalBundleGraph> {
     report({
       type: 'buildProgress',
       phase: 'bundling'
@@ -54,12 +59,12 @@ export default class BundlerRunner {
     if (!this.options.disableCache) {
       cacheKey = await this.getCacheKey(graph);
       let cachedBundleGraph = await this.options.cache.get(cacheKey);
+      assertSignalNotAborted(signal);
+
       if (cachedBundleGraph) {
         return cachedBundleGraph;
       }
     }
-
-    let bundler = await this.config.getBundler();
 
     let bundleGraph = removeAssetGroups(graph);
     // $FlowFixMe
@@ -69,15 +74,21 @@ export default class BundlerRunner {
       internalBundleGraph,
       this.options
     );
+
+    let bundler = await this.config.getBundler();
     await bundler.bundle({
       bundleGraph: mutableBundleGraph,
       options: this.pluginOptions
     });
+    assertSignalNotAborted(signal);
+
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
     await bundler.optimize({
       bundleGraph: mutableBundleGraph,
       options: this.pluginOptions
     });
+    assertSignalNotAborted(signal);
+
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
 
@@ -88,11 +99,13 @@ export default class BundlerRunner {
       options: this.options,
       pluginOptions: this.pluginOptions
     });
+    assertSignalNotAborted(signal);
     await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     if (cacheKey != null) {
       await this.options.cache.set(cacheKey, internalBundleGraph);
     }
+    assertSignalNotAborted(signal);
 
     return internalBundleGraph;
   }
