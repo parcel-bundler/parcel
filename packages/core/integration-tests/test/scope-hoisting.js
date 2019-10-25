@@ -1426,4 +1426,72 @@ describe('scope hoisting', function() {
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 'Imported: foobar');
   });
+
+  it('should include the prelude in shared entry bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-shared/index.html')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      },
+      {
+        name: 'iframe.html',
+        assets: ['iframe.html']
+      },
+      {
+        type: 'js',
+        assets: ['iframe.js']
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js']
+      }
+    ]);
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)[0];
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let mainBundle = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.name.startsWith('html-shared'));
+    contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+  });
+
+  it('does not include prelude if child bundles are isolated', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js')
+    );
+
+    let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+    let contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(!contents.includes(`parcelRequire =`));
+  });
+
+  it('should include prelude in shared worker bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js')
+    );
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)
+      .find(b => b.name !== 'index.js');
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
+    contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+  });
 });
