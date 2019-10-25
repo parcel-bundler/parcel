@@ -18,6 +18,7 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
+const getModuleParts = require('./utils/getModuleParts');
 const getRootDir = require('./utils/getRootDir');
 const {glob, isGlob} = require('./utils/glob');
 
@@ -147,6 +148,10 @@ class Bundler extends EventEmitter {
           : process.env.PARCEL_AUTOINSTALL === 'false'
           ? false
           : !isProduction,
+      peerDependencies:
+        typeof options.peerDependencies === 'boolean'
+          ? options.peerDependencies
+          : true,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
@@ -486,6 +491,17 @@ class Bundler extends EventEmitter {
       // If the dep is optional, return before we throw
       if (dep.optional) {
         return;
+      }
+
+      if (this.options.peerDependencies == false) {
+        let pkg = await asset.getPackage();
+        if (pkg && pkg.peerDependencies) {
+          let parts = getModuleParts(dep.name);
+          let peerDependencies = Object.keys(pkg.peerDependencies);
+          if (peerDependencies.includes(parts[0])) {
+            return;
+          }
+        }
       }
 
       if (err.code === 'MODULE_NOT_FOUND') {

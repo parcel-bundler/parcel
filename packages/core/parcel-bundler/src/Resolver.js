@@ -181,6 +181,22 @@ class Resolver {
         dir = path.dirname(dir);
       }
 
+      // Skip package directory for dependencies in peerDependencies
+      if (this.options.peerDependencies == false) {
+        try {
+          let pkg = await this.readPackage(dir);
+          if (pkg && pkg.peerDependencies) {
+            let peerDependencies = Object.keys(pkg.peerDependencies);
+            if (peerDependencies.includes(parts[0])) {
+              dir = path.dirname(dir);
+              continue;
+            }
+          }
+        } catch (err) {
+          // ignore
+        }
+      }
+
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
