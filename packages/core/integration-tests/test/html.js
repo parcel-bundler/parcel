@@ -202,8 +202,7 @@ describe('html', function() {
   it('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
-      minify: true,
-      scopeHoist: false
+      minify: true
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
@@ -232,8 +231,7 @@ describe('html', function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
-        minify: true,
-        scopeHoist: false
+        minify: true
       }
     );
 
@@ -268,8 +266,7 @@ describe('html', function() {
       '/integration/htmlnano-defaults-form/index.html'
     );
     await bundle(inputFile, {
-      minify: true,
-      scopeHoist: false
+      minify: true
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
