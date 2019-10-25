@@ -6,11 +6,9 @@ import type {FilePath} from '@parcel/types';
 import type {
   Asset,
   AssetGraphNode,
-  AssetGroupNode,
   AssetRequest,
   AssetRequestNode,
   DepPathRequestNode,
-  DependencyNode,
   ParcelOptions,
   Target,
   Dependency
@@ -190,6 +188,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let assets = this.assetGraph.getNodesConnectedTo(depNode);
       let symbols = invertMap(dependency.symbols);
+      invariant(assets.length === 1);
       let firstAsset = assets[0];
       invariant(firstAsset.type === 'asset');
       let resolvedAsset = firstAsset.value;
@@ -218,11 +217,16 @@ export default class AssetGraphBuilder extends EventEmitter {
     let defer = this.shouldDeferDependency(dependency, assetGroup.sideEffects);
 
     let assetGroupNode = nodeFromAssetGroup(assetGroup, defer);
-    let assetGroupExisted = this.assetGraph.hasNode(assetGroupNode.id);
+    let existingAssetGroupNode = this.assetGraph.getNode(assetGroupNode.id);
+    if (existingAssetGroupNode) {
+      // Don't overwrite non-deferred asset groups with deferred ones
+      invariant(existingAssetGroupNode.type === 'asset_group');
+      assetGroupNode.deferred = existingAssetGroupNode.deferred && defer;
+    }
     this.assetGraph.resolveDependency(dependency, assetGroupNode);
-    if (assetGroupExisted) {
-      // Node already exists, that asset might have deferred dependencies,
-      // (Recheck) all dependencies of all assets of this asset group
+    if (existingAssetGroupNode) {
+      // Node already existed, that asset might have deferred dependencies,
+      // recheck all dependencies of all assets of this asset group
       let assetNodes = this.assetGraph
         .getNodesConnectedFrom(assetGroupNode)
         .map(v => {
@@ -243,6 +247,10 @@ export default class AssetGraphBuilder extends EventEmitter {
               invariant(v.type === 'asset_group');
               return v;
             });
+          if (assetGroupNodes.length == 0) {
+            // Dependency might not be resolved yet
+            continue;
+          }
           invariant(assetGroupNodes.length === 1);
           let assetGroupNode = assetGroupNodes[0];
 

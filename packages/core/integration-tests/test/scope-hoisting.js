@@ -394,6 +394,30 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 123);
     });
 
+    it('correctly updates deferred assets that are reexported', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, '1234556789');
+    });
+
+    it('correctly updates deferred assets that are reexported and imported directly', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-update-deferred-direct/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, '1234556789');
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(

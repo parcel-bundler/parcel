@@ -149,12 +149,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     }
   }
 
-  resolveDependency(
-    dependency: Dependency,
-    assetGroupNode: AssetGroupNode | null
-  ) {
+  resolveDependency(dependency: Dependency, assetGroupNode: AssetGroupNode) {
     let depNode = this.nodes.get(dependency.id);
-    if (!assetGroupNode || !depNode) return;
+    if (!depNode) return;
 
     this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
   }
