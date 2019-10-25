@@ -254,22 +254,23 @@ export default class BundleGraph {
     );
 
     // is `asset` referenced by a dependency from an asset of `type`
-    return this._graph
-      .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
-      .filter(node => {
-        // Does this dependency belong to a bundle that does not include the
-        // asset it resolves to? If so, this asset is needed by a bundle but
-        // does not belong to it.
-        return this._graph
-          .getNodesConnectedTo(node, 'contains')
-          .filter(node => node.type === 'bundle')
-          .some(b => !referringBundles.has(b));
-      })
-      .map(node => {
+    return flatMap(
+      this._graph
+        .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
+        .filter(node => {
+          // Does this dependency belong to a bundle that does not include the
+          // asset it resolves to? If so, this asset is needed by a bundle but
+          // does not belong to it.
+          return this._graph
+            .getNodesConnectedTo(node, 'contains')
+            .filter(node => node.type === 'bundle')
+            .some(b => !referringBundles.has(b));
+        }),
+      node => {
         invariant(node.type === 'dependency');
         return this._graph.getNodesConnectedTo(node, null);
-      })
-      .reduce((acc, node) => acc.concat(node), ([]: Array<BundleGraphNode>))
+      }
+    )
       .filter(node => node.type === 'asset')
       .some(node => {
         invariant(node.type === 'asset');
@@ -278,11 +279,13 @@ export default class BundleGraph {
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
-    return this._graph
-      .getNodesConnectedTo(nullthrows(this._graph.getNode(bundle.id)), 'bundle')
-      .map(node => this._graph.getNodesConnectedTo(node, 'bundle'))
-      .reduce((acc, v) => acc.concat(v), [])
-      .every(node => node.type === 'bundle' && node.value.type === type);
+    return flatMap(
+      this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(bundle.id)),
+        'bundle'
+      ),
+      node => this._graph.getNodesConnectedTo(node, 'bundle')
+    ).every(node => node.type === 'bundle' && node.value.type === type);
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
