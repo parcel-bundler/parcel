@@ -21,8 +21,6 @@ type CodeFrameOptions = {|
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 
-// TODO: Implement padding and maxLines, so we don't return an entire source file
-// Padding = rendering lines before first highlight and after last highlight
 export default function codeFrame(
   code: string,
   highlights: Array<DiagnosticCodeHighlight>,
