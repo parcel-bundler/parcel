@@ -43,20 +43,25 @@ async function getConfig(asset) {
     throw new Error('PostCSS config should be an object.');
   }
 
-  let postcssModulesConfig = {
-    getJSON: (filename, json) => (asset.cssModules = json),
-    Loader: createLoader(asset),
-    generateScopedName: (name, filename) =>
-      `_${name}_${md5(filename).substr(0, 5)}`
-  };
-
+  let userPostcssModulesConfig = {};
   if (config.plugins && config.plugins['postcss-modules']) {
-    postcssModulesConfig = Object.assign(
-      postcssModulesConfig,
-      config.plugins['postcss-modules']
-    );
+    userPostcssModulesConfig = config.plugins['postcss-modules'];
+
     delete config.plugins['postcss-modules'];
   }
+
+  let postcssModulesConfig = {
+    Loader: createLoader(asset),
+    generateScopedName: (name, filename) =>
+      `_${name}_${md5(filename).substr(0, 5)}`,
+    ...userPostcssModulesConfig,
+    getJSON: (filename, json, outputFilename) => {
+      asset.cssModules = json;
+
+      userPostcssModulesConfig.getJSON &&
+        userPostcssModulesConfig.getJSON(filename, json, outputFilename);
+    }
+  };
 
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
