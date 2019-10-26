@@ -580,7 +580,10 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output, [true, false]);
+      assert.strictEqual(output[0], true);
+      assert.strictEqual(typeof output[1], 'undefined');
+      assert.strictEqual(output[2], true);
+      assert.strictEqual(typeof output[3], 'undefined');
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {

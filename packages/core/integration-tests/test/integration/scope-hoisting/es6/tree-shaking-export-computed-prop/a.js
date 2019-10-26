@@ -1,3 +1,4 @@
-import foo from "./b.js";
+import b from './b.js';
+import c from './b.js';
 
-output = [foo("abc"), foo("x")];
+output = [b('abc'), b('x'), c('abc'), c('x')];
