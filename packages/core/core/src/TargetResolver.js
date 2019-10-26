@@ -1,10 +1,15 @@
 // @flow
 
 import type {
-  TargetDescriptor,
+  Engines,
+  EnvironmentContext,
   File,
   FilePath,
-  PackageJSON
+  OutputFormat,
+  PackageJSON,
+  PackageName,
+  TargetDescriptor,
+  TargetSourceMapOptions
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
@@ -37,6 +42,227 @@ const DEFAULT_PRODUCTION_ENGINES = {
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 
+function parseEngines(
+  targetName: ?string,
+  engines: mixed
+): Engines | typeof undefined {
+  if (engines === undefined) {
+    return;
+  } else if (engines && typeof engines === 'object') {
+    let result = {};
+    for (let key in engines) {
+      let value: mixed = engines[key];
+      if (key === 'browsers' && Array.isArray(value)) {
+        value = value.map(v => {
+          if (typeof v !== 'string') {
+            throw new Error(
+              `Invalid value in engines.browsers array ${
+                targetName ? `for target "${targetName}"` : ''
+              }: ${String(v)}`
+            );
+          }
+          return v;
+        });
+      } else if (typeof value !== 'string') {
+        throw new Error(
+          `Invalid value for engines.${key} ${
+            targetName ? `for target "${targetName}"` : ''
+          }: ${String(value)}`
+        );
+      }
+      result[key] = value;
+    }
+    return result;
+  } else {
+    throw new Error(
+      `Invalid engines ${
+        targetName ? `for target "${targetName}"` : ''
+      }: ${String(engines)}`
+    );
+  }
+}
+
+function stringify(v: ?mixed): string {
+  if (v === undefined) return 'undefined';
+  else return JSON.stringify(v) || 'undefined';
+}
+
+function parseDescriptor(
+  targetName: string,
+  descriptor: mixed
+): {|
+  context?: EnvironmentContext | typeof undefined,
+  engines?: Engines | typeof undefined,
+  includeNodeModules?: boolean | Array<PackageName> | typeof undefined,
+  outputFormat?: OutputFormat | typeof undefined,
+  publicUrl?: string | typeof undefined,
+  distDir?: FilePath | typeof undefined,
+  sourceMap?: TargetSourceMapOptions | typeof undefined,
+  distDir: FilePath | typeof undefined,
+  isLibrary: boolean | typeof undefined
+|} {
+  if (!(descriptor && typeof descriptor === 'object')) {
+    throw new Error(`Empty descriptor for target "${targetName}"`);
+  }
+
+  let {
+    context,
+    distDir,
+    engines: _engines,
+    includeNodeModules: _includeNodeModules,
+    isLibrary,
+    outputFormat,
+    publicUrl,
+    sourceMap: _sourceMap,
+    ...rest
+  } = descriptor;
+
+  if (Object.keys(rest).length !== 0) {
+    throw new Error(
+      `Unexpected properties in descriptor for target "${targetName}": ${Object.keys(
+        rest
+      )
+        .map(v => stringify(v))
+        .join(',')}`
+    );
+  }
+
+  if (
+    !(
+      context === undefined ||
+      context === 'browser' ||
+      context === 'web-worker' ||
+      context === 'service-worker' ||
+      context === 'node' ||
+      context === 'electron-main' ||
+      context === 'electron-renderer'
+    )
+  ) {
+    throw new Error(
+      `Invalid context for target "${targetName}": ${stringify(context)}`
+    );
+  }
+
+  let engines = parseEngines(targetName, _engines);
+
+  if (!(distDir === undefined || typeof distDir === 'string')) {
+    throw new Error(
+      `Invalid distDir for target "${targetName}": ${stringify(distDir)}`
+    );
+  }
+
+  let includeNodeModules;
+  if (
+    _includeNodeModules === undefined ||
+    typeof _includeNodeModules === 'boolean'
+  ) {
+    includeNodeModules = _includeNodeModules;
+  } else if (Array.isArray(_includeNodeModules)) {
+    includeNodeModules = _includeNodeModules.map(v => {
+      if (typeof v !== 'string') {
+        throw new Error(
+          `Invalid value in includeNodeModules array for target "${targetName}": ${stringify(
+            v
+          )} in ${stringify(_includeNodeModules)}`
+        );
+      }
+      return v;
+    });
+  } else {
+    throw new Error(
+      `Invalid value for includeNodeModules for target "${targetName}": ${stringify(
+        _includeNodeModules
+      )}`
+    );
+  }
+
+  if (!(isLibrary === undefined || typeof isLibrary === 'boolean')) {
+    throw new Error(
+      `Invalid value for isLibrary for target "${targetName}": ${stringify(
+        isLibrary
+      )}`
+    );
+  }
+
+  if (
+    !(
+      outputFormat === undefined ||
+      outputFormat === 'esmodule' ||
+      outputFormat === 'commonjs' ||
+      outputFormat === 'global'
+    )
+  ) {
+    throw new Error(
+      `Invalid outputFormat for target "${targetName}": ${stringify(
+        outputFormat
+      )}`
+    );
+  }
+
+  if (!(publicUrl === undefined || typeof publicUrl === 'string')) {
+    throw new Error(
+      `Invalid publicUrl for target "${targetName}": ${stringify(publicUrl)}`
+    );
+  }
+
+  let sourceMap: TargetSourceMapOptions | typeof undefined;
+  if (_sourceMap && typeof _sourceMap === 'object') {
+    let {inlineSources, inline, sourceRoot, ...rest} = _sourceMap;
+    if (Object.keys(rest).length > 0) {
+      throw new Error(
+        `Unknown sourceMap options for target "${targetName}": ${stringify(
+          Object.keys(rest)
+        )}`
+      );
+    }
+
+    if (!(inline === undefined || typeof inline === 'boolean')) {
+      throw new Error(
+        `Invalid sourceMap.inline setting for target "${targetName}": ${stringify(
+          inline
+        )}`
+      );
+    }
+    if (!(inlineSources === undefined || typeof inlineSources === 'boolean')) {
+      throw new Error(
+        `Invalid sourceMap.inlineSources setting for target "${targetName}": ${stringify(
+          inline
+        )}`
+      );
+    }
+    if (!(sourceRoot === undefined || typeof sourceRoot === 'string')) {
+      throw new Error(
+        `Invalid sourceMap.sourceRoot setting for target "${targetName}": ${stringify(
+          inline
+        )}`
+      );
+    }
+
+    sourceMap = {
+      ...(inlineSources ? {inlineSources} : null),
+      ...(inline ? {inline} : null),
+      ...(sourceRoot ? {sourceRoot} : null)
+    };
+  } else if (_sourceMap !== undefined) {
+    throw new Error(
+      `Invalid sourceMap setting for target "${targetName}": ${stringify(
+        _sourceMap
+      )}`
+    );
+  }
+
+  return {
+    context,
+    distDir,
+    engines,
+    includeNodeModules,
+    isLibrary,
+    outputFormat,
+    publicUrl,
+    sourceMap
+  };
+}
+
 export default class TargetResolver {
   fs: FileSystem;
   options: ParcelOptions;
@@ -63,7 +289,7 @@ export default class TargetResolver {
         targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
-            throw new Error(`Could not find target with name ${target}`);
+            throw new Error(`Could not find target with name '${target}'`);
           }
           return matchingTarget;
         });
@@ -72,13 +298,21 @@ export default class TargetResolver {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
         targets = Object.entries(optionTargets).map(([name, _descriptor]) => {
-          // $FlowFixMe
-          let descriptor: TargetDescriptor = _descriptor;
+          let {distDir, ...descriptor} = parseDescriptor(name, _descriptor);
+          if (!distDir) {
+            throw new Error(`Missing distDir for target '${name}'`);
+          }
           return {
             name,
-            distDir: path.resolve(this.fs.cwd(), descriptor.distDir),
+            distDir: path.resolve(this.fs.cwd(), distDir),
             publicUrl: descriptor.publicUrl,
-            env: createEnvironment(descriptor),
+            env: createEnvironment({
+              engines: descriptor.engines,
+              context: descriptor.context,
+              isLibrary: descriptor.isLibrary,
+              includeNodeModules: descriptor.includeNodeModules,
+              outputFormat: descriptor.outputFormat
+            }),
             sourceMap: descriptor.sourceMap
           };
         });
@@ -134,10 +368,10 @@ export default class TargetResolver {
       'package.json'
     ]);
 
-    let pkg: PackageJSON;
+    let pkg;
     let pkgDir: FilePath;
     if (conf) {
-      pkg = conf.config;
+      pkg = (conf.config: PackageJSON);
       let pkgFile = conf.files[0];
       if (pkgFile == null) {
         throw new Error('Expected package.json file');
@@ -149,7 +383,7 @@ export default class TargetResolver {
     }
 
     let pkgTargets = pkg.targets || {};
-    let pkgEngines = {...pkg.engines};
+    let pkgEngines: Engines = parseEngines(null, pkg.engines) || {};
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {
@@ -199,7 +433,7 @@ export default class TargetResolver {
         let distDir;
         let distEntry;
 
-        let descriptor = pkgTargets[targetName] || {};
+        let _descriptor: mixed = pkgTargets[targetName] || {};
         if (typeof targetDist === 'string') {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
@@ -207,6 +441,7 @@ export default class TargetResolver {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
+        let descriptor = parseDescriptor(targetName, _descriptor);
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -233,25 +468,33 @@ export default class TargetResolver {
     }
 
     // Custom targets
-    for (let name in pkgTargets) {
-      if (COMMON_TARGETS.includes(name)) {
+    for (let targetName in pkgTargets) {
+      if (COMMON_TARGETS.includes(targetName)) {
         continue;
       }
 
-      let descriptor = pkgTargets[name];
-      let distPath = pkg[name];
+      let _descriptor: mixed = pkgTargets[targetName];
+      let distPath: mixed = pkg[targetName];
       let distDir;
       let distEntry;
       if (distPath == null) {
-        distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, name);
+        distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
       } else {
+        if (typeof distPath !== 'string') {
+          throw new Error(
+            `Invalid distPath for target "${targetName}": ${stringify(
+              distPath
+            )}`
+          );
+        }
         distDir = path.resolve(pkgDir, path.dirname(distPath));
         distEntry = path.basename(distPath);
       }
 
-      if (descriptor) {
-        targets.set(name, {
-          name,
+      if (_descriptor) {
+        let descriptor = parseDescriptor(targetName, _descriptor);
+        targets.set(targetName, {
+          name: targetName,
           distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? '/',
