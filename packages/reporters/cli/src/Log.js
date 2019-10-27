@@ -178,7 +178,7 @@ function SuccessLog({event}: TextLogProps) {
   );
 }
 
-export const Progress = ({event}: ProgressLogProps) => {
+export function Progress({event}: ProgressLogProps) {
   return (
     <Box>
       <Color gray bold>
@@ -186,7 +186,7 @@ export const Progress = ({event}: ProgressLogProps) => {
       </Color>
     </Box>
   );
-};
+}
 
 export function ServerInfo({options}: ServerInfoProps) {
   let url = `${options.https ? 'https' : 'http'}://${options.host ??
