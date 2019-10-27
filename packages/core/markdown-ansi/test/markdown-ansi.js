@@ -1,10 +1,13 @@
 import assert from 'assert';
+import chalk from 'chalk';
 
 import mdAnsi from '../src/markdown-ansi';
 
 process.env.FORCE_COLOR = 3;
 
 describe('markdown-ansi', () => {
+  if (!chalk.supportsColor) return;
+
   it('should support asteriks for bold and italic', () => {
     let res = mdAnsi('**bold** *italic*');
     assert.equal(res, '\u001b[1mbold\u001b[22m \u001b[3mitalic\u001b[23m');
