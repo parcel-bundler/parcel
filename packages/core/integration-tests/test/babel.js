@@ -417,7 +417,8 @@ describe('babel', function() {
             'build',
             'src/index.js',
             '--no-minify',
-            '--no-scope-hoist'
+            '--no-scope-hoist',
+            '--no-cache'
           ],
           {
             cwd: fixtureDir,

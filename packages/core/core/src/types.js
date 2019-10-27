@@ -84,7 +84,8 @@ export type Asset = {|
   astGenerator: ?ASTGenerator,
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
-  uniqueKey?: ?string
+  uniqueKey?: ?string,
+  plugin?: ?PackageName
 |};
 
 export type ParcelOptions = {|

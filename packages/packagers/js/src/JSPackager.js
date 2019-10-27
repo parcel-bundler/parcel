@@ -30,16 +30,17 @@ export default new Packager({
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
-    let codeQueue = new PromiseQueue({maxConcurrent: 32});
-    let mapQueue = new PromiseQueue({maxConcurrent: 32});
+    let queue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        codeQueue.add(() => node.value.getCode());
-        mapQueue.add(() => node.value.getMap());
+        queue.add(async () => ({
+          code: await node.value.getCode(),
+          map: await node.value.getMap()
+        }));
       }
     });
 
-    let [code, maps] = await Promise.all([codeQueue.run(), mapQueue.run()]);
+    let results = await queue.run();
 
     let assets = '';
     let i = 0;
@@ -83,7 +84,7 @@ export default new Packager({
           }
         }
 
-        let output = code[i] || '';
+        let output = results[i].code || '';
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
@@ -94,7 +95,7 @@ export default new Packager({
 
         if (options.sourceMaps) {
           let assetMap =
-            maps[i] ??
+            results[i].map ??
             SourceMap.generateEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)

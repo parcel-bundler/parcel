@@ -47,7 +47,10 @@ describe('html', function() {
     ]);
 
     let files = await outputFS.readdir(distDir);
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {

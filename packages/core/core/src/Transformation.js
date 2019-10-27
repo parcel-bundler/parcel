@@ -28,7 +28,7 @@ import PublicConfig from './public/Config';
 import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
-import {MutableAsset, assetToInternalAsset} from './public/Asset';
+import {Asset, MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
@@ -409,7 +409,7 @@ class Pipeline {
   async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
     let initialType = initialAsset.value.type;
     let inputAssets = [initialAsset];
-    let resultingAssets;
+    let resultingAssets = [];
     let finalAssets = [];
     for (let transformer of this.transformers) {
       resultingAssets = [];
@@ -422,26 +422,26 @@ class Pipeline {
         } else {
           let transformerResults = await this.runTransformer(
             asset,
+            transformer.name,
             transformer.plugin,
             transformer.config
           );
           for (let result of transformerResults) {
-            resultingAssets.push(asset.createChildAsset(result));
+            resultingAssets.push(
+              asset.createChildAsset(result, transformer.name)
+            );
           }
         }
       }
       inputAssets = resultingAssets;
     }
 
-    finalAssets = finalAssets.concat(resultingAssets);
-
-    return Promise.all(
-      finalAssets.map(asset => finalize(nullthrows(asset), this.generate))
-    );
+    return finalAssets.concat(resultingAssets);
   }
 
   async runTransformer(
     asset: InternalAsset,
+    transformerName: PackageName,
     transformer: Transformer,
     preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
@@ -487,12 +487,16 @@ class Pipeline {
 
     // Parse if there is no AST available from a previous transform.
     if (!asset.ast && transformer.parse) {
-      asset.ast = await transformer.parse({
+      let ast = await transformer.parse({
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
         resolve
       });
+      if (ast) {
+        asset.setAST(ast);
+        asset.isASTDirty = false;
+      }
     }
 
     // Transform.
@@ -512,17 +516,15 @@ class Pipeline {
       if (transformer.generate) {
         if (!input.ast || !input.isASTDirty) {
           return Promise.resolve({
-            code: input.content
+            code: input.content || ''
           });
         }
 
         return Promise.resolve(
           transformer.generate({
-            asset: new MutableAsset(input),
+            asset: new Asset(input),
             ast: input.ast,
-            config,
-            options: this.pluginOptions,
-            resolve
+            options: this.pluginOptions
           })
         );
       }
@@ -546,28 +548,13 @@ class Pipeline {
         });
 
         return Promise.all(
-          results.map(result => asset.createChildAsset(result))
+          results.map(result => asset.createChildAsset(result, transformerName))
         );
       };
     }
 
     return results;
   }
-}
-
-async function finalize(
-  asset: InternalAsset,
-  generate: GenerateFunc
-): Promise<InternalAsset> {
-  if (asset.ast && generate) {
-    let result = await generate(asset);
-    return asset.createChildAsset({
-      type: asset.value.type,
-      uniqueKey: asset.value.uniqueKey,
-      ...result
-    });
-  }
-  return asset;
 }
 
 function normalizeAssets(
@@ -581,8 +568,8 @@ function normalizeAssets(
     let internalAsset = assetToInternalAsset(result);
     return {
       type: result.type,
-      content: internalAsset.content,
-      ast: result.ast,
+      content: internalAsset.content || '',
+      ast: internalAsset.ast,
       map: internalAsset.map,
       // $FlowFixMe
       dependencies: [...internalAsset.value.dependencies.values()],

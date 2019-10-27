@@ -73,6 +73,7 @@ export default function extractInlineAssets(
 
         // insert parcelId to allow us to retrieve node during packaging
         node.attrs['data-parcel-key'] = parcelKey;
+        asset.setAST(ast); // mark dirty
 
         parts.push({
           type,

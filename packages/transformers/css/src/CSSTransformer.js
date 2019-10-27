@@ -133,8 +133,29 @@ export default new Transformer({
   },
 
   async generate({asset, ast}) {
+    let root = ast.program;
+
+    // $FlowFixMe
+    if (Object.getPrototypeOf(ast.program) === Object.prototype) {
+      root = postcss.root(ast.program);
+      let convert = (parent, node, index) => {
+        let type = node.type === 'atrule' ? 'atRule' : node.type;
+        let result = postcss[type](node);
+        result.parent = parent;
+        if (parent) {
+          parent.nodes[index] = result;
+        }
+
+        if (result.walk) {
+          result.each((node, index) => convert(result, node, index));
+        }
+      };
+
+      root.each((node, index) => convert(root, node, index));
+    }
+
     let code = '';
-    postcss.stringify(ast.program, c => (code += c));
+    postcss.stringify(root, c => (code += c));
 
     return {
       code

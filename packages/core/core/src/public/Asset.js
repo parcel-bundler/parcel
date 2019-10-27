@@ -62,10 +62,6 @@ class BaseAsset {
     return this.#asset.value.id;
   }
 
-  get ast(): ?AST {
-    return this.#asset.ast;
-  }
-
   get type(): string {
     return this.#asset.value.type;
   }

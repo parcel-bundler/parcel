@@ -59,14 +59,14 @@ export default new Optimizer({
       };
     }
 
-    if (sourceMap && map) {
-      sourceMap = await map.extend(sourceMap);
-    }
-
     let result = minify(contents, config);
 
     if (result.error) {
       throw result.error;
+    }
+
+    if (sourceMap && map) {
+      sourceMap = await map.extend(sourceMap);
     }
 
     return {contents: nullthrows(result.code), map: sourceMap};

@@ -448,10 +448,8 @@ export type Transformer = {|
     options: PluginOptions
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
-    asset: MutableAsset,
+    asset: Asset,
     ast: AST,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
     options: PluginOptions
   |}) => Async<GenerateOutput>,
   postProcess?: ({|

@@ -10,8 +10,10 @@ import type {
   FilePath,
   Meta,
   PackageJSON,
+  PackageName,
   Stats,
   Symbol,
+  Transformer,
   TransformerResult
 } from '@parcel/types';
 import type {Asset, Dependency, Environment, ParcelOptions} from './types';
@@ -26,9 +28,13 @@ import {
   blobToStream,
   TapStream
 } from '@parcel/utils';
+import nullthrows from 'nullthrows';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments, getEnvironmentHash} from './Environment';
 import {PARCEL_VERSION} from './constants';
+import loadPlugin from './loadParcelPlugin';
+import PluginOptions from './public/PluginOptions';
+import {Asset as PublicAsset} from './public/Asset';
 
 type AssetOptions = {|
   id?: string,
@@ -45,13 +51,13 @@ type AssetOptions = {|
   isIsolated?: boolean,
   isInline?: boolean,
   isSource: boolean,
-  outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean,
-  uniqueKey?: ?string
+  uniqueKey?: ?string,
+  plugin?: PackageName
 |};
 
 export function createAsset(options: AssetOptions): Asset {
@@ -81,7 +87,8 @@ export function createAsset(options: AssetOptions): Asset {
     stats: options.stats,
     symbols: options.symbols || new Map(),
     sideEffects: options.sideEffects != null ? options.sideEffects : true,
-    uniqueKey: uniqueKey
+    uniqueKey: uniqueKey,
+    plugin: options.plugin
   };
 }
 
@@ -98,11 +105,12 @@ type InternalAssetOptions = {|
 export default class InternalAsset {
   value: Asset;
   options: ParcelOptions;
-  content: Blob;
+  content: ?Blob;
   map: ?SourceMap;
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
+  isGenerating: boolean;
 
   constructor({
     value,
@@ -115,11 +123,12 @@ export default class InternalAsset {
   }: InternalAssetOptions) {
     this.value = value;
     this.options = options;
-    this.content = content || '';
+    this.content = content;
     this.map = map;
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
+    this.isGenerating = false;
   }
 
   /*
@@ -144,16 +153,18 @@ export default class InternalAsset {
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     let [contentKey, mapKey, astKey] = await Promise.all([
-      this.options.cache.setStream(
-        this.getCacheKey('content' + pipelineKey),
-        contentStream.pipe(
-          new TapStream(buf => {
-            size += buf.length;
-            hash.update(buf);
-          })
-        )
-      ),
-      this.map == null
+      this.ast != null
+        ? Promise.resolve()
+        : this.options.cache.setStream(
+            this.getCacheKey('content' + pipelineKey),
+            contentStream.pipe(
+              new TapStream(buf => {
+                size += buf.length;
+                hash.update(buf);
+              })
+            )
+          ),
+      this.map == null || this.ast != null
         ? Promise.resolve()
         : this.options.cache.set(
             this.getCacheKey('map' + pipelineKey),
@@ -169,29 +180,79 @@ export default class InternalAsset {
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
-    this.value.stats.size = size;
+
+    // TODO: how should we set the size when we only store an AST?
+    if (contentKey != null) {
+      this.value.stats.size = size;
+    }
+  }
+
+  async generateFromAST() {
+    if (this.isGenerating) {
+      throw new Error('Cannot call asset.getCode() from while generating');
+    }
+
+    this.isGenerating = true;
+
+    let ast = await this.getAST();
+    if (ast == null) {
+      throw new Error('Asset has no AST');
+    }
+
+    // TODO: where should we really load relative to??
+    let pluginName = nullthrows(this.value.plugin);
+    let plugin: Transformer = await loadPlugin(
+      this.options.packageManager,
+      pluginName,
+      __dirname
+    );
+    if (!plugin.generate) {
+      throw new Error(`${pluginName} does not have a generate method`);
+    }
+
+    let {code, map} = await plugin.generate({
+      asset: new PublicAsset(this),
+      ast,
+      options: new PluginOptions(this.options)
+    });
+
+    // TODO: store this in the cache for next time
+    this.content = code;
+    this.map = map;
+    this.isGenerating = false;
   }
 
   async getCode(): Promise<string> {
-    if (this.value.contentKey != null) {
+    if (this.content == null && this.value.astKey != null) {
+      await this.generateFromAST();
+    }
+
+    if (this.value.contentKey != null && this.content == null) {
       this.content = this.options.cache.getStream(this.value.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
       this.content = this.content.toString();
-    } else {
+    } else if (this.content != null) {
       this.content = (await bufferStream(this.content)).toString();
+    } else {
+      this.content = '';
     }
 
     return this.content;
   }
 
   async getBuffer(): Promise<Buffer> {
-    if (this.value.contentKey != null) {
+    if (this.value.contentKey != null && this.content == null) {
       this.content = this.options.cache.getStream(this.value.contentKey);
     }
 
-    if (typeof this.content === 'string' || this.content instanceof Buffer) {
+    if (this.content == null) {
+      return Buffer.alloc(0);
+    } else if (
+      typeof this.content === 'string' ||
+      this.content instanceof Buffer
+    ) {
       return Buffer.from(this.content);
     }
 
@@ -200,27 +261,32 @@ export default class InternalAsset {
   }
 
   getStream(): Readable {
-    if (this.value.contentKey != null) {
+    if (this.value.contentKey != null && this.content == null) {
       this.content = this.options.cache.getStream(this.value.contentKey);
     }
 
-    return blobToStream(this.content);
+    return blobToStream(this.content != null ? this.content : Buffer.alloc(0));
   }
 
   setCode(code: string) {
     this.content = code;
+    this.clearAST();
   }
 
   setBuffer(buffer: Buffer) {
     this.content = buffer;
+    this.clearAST();
   }
 
   setStream(stream: Readable) {
     this.content = stream;
+    this.clearAST();
   }
 
   async getMap(): Promise<?SourceMap> {
-    if (this.value.mapKey != null) {
+    // TODO: also generate from AST here??
+
+    if (this.value.mapKey != null && this.map == null) {
       this.map = await this.options.cache.get(this.value.mapKey);
     }
 
@@ -246,6 +312,12 @@ export default class InternalAsset {
       type: ast.type,
       version: ast.version
     };
+  }
+
+  clearAST() {
+    this.ast = null;
+    this.isASTDirty = false;
+    this.value.astGenerator = null;
   }
 
   getCacheKey(key: string): string {
@@ -284,7 +356,10 @@ export default class InternalAsset {
     return Array.from(this.value.dependencies.values());
   }
 
-  createChildAsset(result: TransformerResult): InternalAsset {
+  createChildAsset(
+    result: TransformerResult,
+    plugin: PackageName
+  ): InternalAsset {
     let content = result.content ?? result.code ?? '';
 
     let hash;
@@ -325,14 +400,13 @@ export default class InternalAsset {
         uniqueKey: result.uniqueKey,
         astGenerator: result.ast
           ? {type: result.ast.type, version: result.ast.version}
-          : this.value.astGenerator
+          : null,
+        plugin
       }),
       options: this.options,
       content,
-      ast: result.ast || this.ast,
-      isASTDirty:
-        this.isASTDirty ||
-        (result.ast != null ? result.ast !== this.ast : false),
+      ast: result.ast,
+      isASTDirty: result.ast === this.ast ? this.isASTDirty : true,
       map: result.map,
       idBase: this.idBase
     });
