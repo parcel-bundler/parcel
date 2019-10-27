@@ -308,4 +308,120 @@ describe('TargetResolver', () => {
       }
     );
   });
+
+  it.only('rejects invalid or unknown fields', async () => {
+    //$FlowFixMe
+    let rejects = assert.rejects;
+
+    let targetResolverContext = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        main: {
+          // $FlowFixMe intentionally an invalid value
+          context: 'xyz',
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () => targetResolverContext.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {message: 'Invalid context for target "main": "xyz"'}
+    );
+
+    let targetResolverEngines = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        main: {
+          // $FlowFixMe intentionally an invalid value
+          engines: 'xyz',
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () => targetResolverEngines.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {message: 'Invalid engines for target "main": xyz'}
+    );
+
+    let targetResolverEngines2 = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        main: {
+          engines: {
+            // $FlowFixMe intentionally an invalid value
+            node: ['8.0.0']
+          },
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () => targetResolverEngines2.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {message: 'Invalid value for engines.node for target "main": 8.0.0'}
+    );
+
+    let targetResolverIncludeNodeModules = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        main: {
+          // $FlowFixMe intentionally an invalid value
+          includeNodeModules: 'abc',
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () =>
+        targetResolverIncludeNodeModules.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {message: 'Invalid value for includeNodeModules for target "main": "abc"'}
+    );
+
+    let targetResolverIsLibrary = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        // $FlowFixMe intentionally an invalid value
+        main: {
+          isLibrary: 'abc',
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () => targetResolverIsLibrary.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {message: 'Invalid value for isLibrary for target "main": "abc"'}
+    );
+
+    let targetResolverOutputFormat = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        main: {
+          // $FlowFixMe intentionally an invalid value
+          outputFormat: 'modules',
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () => targetResolverOutputFormat.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {message: 'Invalid outputFormat for target "main": "modules"'}
+    );
+
+    let targetResolverUnknown = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      targets: {
+        // $FlowFixMe intentionally an invalid value
+        main: {
+          somethingElse: 'xyz',
+          distDir: 'customA'
+        }
+      }
+    });
+    await rejects(
+      () => targetResolverUnknown.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {
+        message:
+          'Unexpected properties in descriptor for target "main": "somethingElse"'
+      }
+    );
+  });
 });
