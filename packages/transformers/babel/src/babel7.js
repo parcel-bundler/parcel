@@ -4,6 +4,7 @@ import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import packageJson from '../package.json';
 import invariant from 'assert';
+import {relativeUrl} from '@parcel/utils';
 
 const transformerVersion: mixed = packageJson.version;
 invariant(typeof transformerVersion === 'string');
@@ -20,6 +21,8 @@ export default async function babel7(
     ? require('@babel/core')
     : await options.packageManager.require('@babel/core', asset.filePath);
 
+  let sourceFilename: string = relativeUrl(options.projectRoot, asset.filePath);
+
   let config = {
     ...babelOptions.config,
     code: false,
@@ -29,6 +32,7 @@ export default async function babel7(
     configFile: false,
     parserOpts: {
       ...babelOptions.config.parserOpts,
+      sourceFilename,
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',

@@ -385,19 +385,23 @@ export default class SourceMap {
   |}): Promise<string> {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
+    let sources = {};
     this.eachMapping(mapping => {
+      if (mapping.source != null) {
+        sources[mapping.source] = true;
+      }
       generator.addMapping(mapping);
     });
 
     if (inlineSources) {
-      for (let sourceName of Object.keys(this.sources)) {
+      for (let sourceName in sources) {
         let sourceContent = this.sourceContentFor(sourceName);
-        if (sourceContent !== null) {
+        if (sourceContent != null) {
           generator.setSourceContent(sourceName, sourceContent);
         } else {
           try {
             let content = await nullthrows(fs).readFile(
-              path.join(rootDir || '', sourceName),
+              path.resolve(rootDir || '', sourceName),
               'utf8'
             );
 

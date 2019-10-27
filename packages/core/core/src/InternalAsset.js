@@ -324,11 +324,14 @@ export default class InternalAsset {
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
         sideEffects: result.sideEffects ?? this.value.sideEffects,
-        uniqueKey: result.uniqueKey
+        uniqueKey: result.uniqueKey,
+        astGenerator: result.ast
+          ? {type: result.ast.type, version: result.ast.version}
+          : this.value.astGenerator
       }),
       options: this.options,
       content,
-      ast: result.ast,
+      ast: result.ast || this.ast,
       isASTDirty:
         this.isASTDirty ||
         (result.ast != null ? result.ast !== this.ast : false),

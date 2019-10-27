@@ -51,11 +51,17 @@ export default new Transformer({
       return null;
     }
 
+    let sourceFilename: string = relativeUrl(
+      options.projectRoot,
+      asset.filePath
+    );
+
     return {
       type: 'babel',
       version: '7.0.0',
       program: parse(code, {
         filename: this.name,
+        sourceFilename,
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
