@@ -2,6 +2,8 @@ import assert from 'assert';
 
 import mdAnsi from '../src/markdown-ansi';
 
+process.env.FORCE_COLOR = 3;
+
 describe('markdown-ansi', () => {
   it('should support asteriks for bold and italic', () => {
     let res = mdAnsi('**bold** *italic*');
