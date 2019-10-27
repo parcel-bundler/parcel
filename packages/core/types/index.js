@@ -326,7 +326,6 @@ export interface MutableAsset extends BaseAsset {
 }
 
 export interface Asset extends BaseAsset {
-  +outputHash: string;
   +stats: Stats;
 }
 

@@ -75,7 +75,6 @@ export type Asset = {|
   isIsolated: boolean,
   isInline: boolean,
   isSource: boolean,
-  outputHash: string,
   env: Environment,
   meta: Meta,
   stats: Stats,

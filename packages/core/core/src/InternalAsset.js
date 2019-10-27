@@ -76,7 +76,6 @@ export function createAsset(options: AssetOptions): Asset {
     dependencies: options.dependencies || new Map(),
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
-    outputHash: options.outputHash || '',
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
@@ -171,7 +170,6 @@ export default class InternalAsset {
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
     this.value.stats.size = size;
-    this.value.outputHash = hash.digest('hex');
   }
 
   async getCode(): Promise<string> {

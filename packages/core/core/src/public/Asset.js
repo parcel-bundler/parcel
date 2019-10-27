@@ -165,10 +165,6 @@ export class Asset extends BaseAsset implements IAsset {
     this.#asset = asset;
   }
 
-  get outputHash(): string {
-    return this.#asset.value.outputHash;
-  }
-
   get stats(): Stats {
     return this.#asset.value.stats;
   }
