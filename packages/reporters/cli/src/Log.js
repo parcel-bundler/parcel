@@ -83,12 +83,16 @@ function CodeFrame(props: {
     return null;
   }
 
+  let formattedCodeFrame = React.useMemo(() => formatCodeFrame(codeframe), [
+    codeframe
+  ]);
+
   return (
     <div>
       {`${typeof filename !== 'string' ? '' : filename}@${
         highlight.start.line
       }:${highlight.start.column}`}
-      <div>{formatCodeFrame(codeframe)}</div>
+      <div>{formattedCodeFrame}</div>
     </div>
   );
 }
@@ -174,7 +178,7 @@ function SuccessLog({event}: TextLogProps) {
   );
 }
 
-export function Progress({event}: ProgressLogProps) {
+export const Progress = ({event}: ProgressLogProps) => {
   return (
     <Box>
       <Color gray bold>
@@ -182,7 +186,7 @@ export function Progress({event}: ProgressLogProps) {
       </Color>
     </Box>
   );
-}
+};
 
 export function ServerInfo({options}: ServerInfoProps) {
   let url = `${options.https ? 'https' : 'http'}://${options.host ??
