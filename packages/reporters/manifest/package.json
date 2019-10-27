@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/reporter-manifest",
+  "version": "2.0.0-alpha.2.1",
+  "main": "src/ManifestReporter.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/logger": "^2.0.0-alpha.2.1",
+    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/types": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
+    "nullthrows": "^1.1.1"
+  }
+}

@@ -1,30 +1,27 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
+import {urlJoin} from '@parcel/utils';
 
 export default new Runtime({
-  apply({bundle, bundleGraph}) {
+  apply({bundle, bundleGraph, options}) {
     if (bundle.env.context !== 'service-worker') {
       return;
     }
 
-    let map = {};
-    bundleGraph.traverseBundles(bundle => {
-      // console.log(bundle.filePath);
-      map[bundle.name] = bundle.getHash().slice(-8);
-    });
-
-    console.log(bundle.name, map);
-
     let code = `
-      var manifest = ${JSON.stringify(map, false, 2)};
-      console.log(manifest);
+      import {createServiceWorker} from './service-worker';
+      createServiceWorker("${urlJoin(
+        bundle.target.publicUrl ?? '/',
+        'parcel-manifest.json'
+      )}");
     `;
 
     return [
       {
         filePath: __filename,
-        code
+        code,
+        isEntry: true
       }
     ];
   }

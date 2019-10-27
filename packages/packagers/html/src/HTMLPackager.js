@@ -132,6 +132,7 @@ function insertBundleReferences(siblingBundles, tree) {
       bundles.push({
         tag: 'script',
         attrs: {
+          type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
           src: urlJoin(
             nullthrows(bundle.target).publicUrl ?? '/',
             nullthrows(bundle.name)
