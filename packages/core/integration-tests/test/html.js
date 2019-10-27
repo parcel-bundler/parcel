@@ -199,15 +199,15 @@ describe('html', function() {
     );
   });
 
-  it.skip('should minify HTML in production mode', async function() {
+  it('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
-      production: true
+      minify: true
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
 
-    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputFile = path.join(distDir, 'index.html');
     let outputSize = (await outputFS.stat(outputFile)).size;
 
     assert(inputSize > outputSize);
@@ -227,16 +227,16 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it.skip('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it('should read .htmlnanorc and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
-        production: true
+        minify: true
       }
     );
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
 
@@ -255,23 +255,23 @@ describe('html', function() {
     // minifySvg is false
     assert(
       html.includes(
-        '<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
+        '<svg version="1.1" baseprofile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
       )
     );
   });
 
-  it.skip('should not minify default values inside HTML in production mode', async function() {
+  it('should not minify default values inside HTML in production mode', async function() {
     let inputFile = path.join(
       __dirname,
       '/integration/htmlnano-defaults-form/index.html'
     );
     await bundle(inputFile, {
-      production: true
+      minify: true
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
 
-    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputFile = path.join(distDir, '/index.html');
     let outputSize = (await outputFS.stat(outputFile)).size;
 
     assert(inputSize > outputSize);

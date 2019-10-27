@@ -594,6 +594,22 @@ describe('scope hoisting', function() {
       assert(!contents.includes('method'));
     });
 
+    it('keeps member expression with computed properties that are variables', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-export-computed-prop/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output[0], true);
+      assert.strictEqual(typeof output[1], 'undefined');
+      assert.strictEqual(output[2], true);
+      assert.strictEqual(typeof output[3], 'undefined');
+    });
+
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
