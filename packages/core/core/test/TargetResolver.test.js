@@ -8,6 +8,9 @@ import {DEFAULT_OPTIONS} from './utils';
 
 import TargetResolver from '../src/TargetResolver';
 
+//$FlowFixMe
+const rejects = assert.rejects;
+
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
   'fixtures/common-targets'
@@ -16,6 +19,11 @@ const COMMON_TARGETS_FIXTURE_PATH = path.join(
 const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
   'fixtures/custom-targets'
+);
+
+const INVALID_TARGETS_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/invalid-targets'
 );
 
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
@@ -309,10 +317,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('rejects invalid or unknown fields', async () => {
-    //$FlowFixMe
-    let rejects = assert.rejects;
-
+  it('rejects invalid or unknown fields', async () => {
     let targetResolverContext = new TargetResolver({
       ...DEFAULT_OPTIONS,
       targets: {
@@ -423,5 +428,12 @@ describe('TargetResolver', () => {
           'Unexpected properties in descriptor for target "main": "somethingElse"'
       }
     );
+  });
+
+  it.only('rejects invalid or unknown fields', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    await rejects(() => targetResolver.resolve(INVALID_TARGETS_FIXTURE_PATH), {
+      message: 'Invalid outputFormat for target "module": "modules"'
+    });
   });
 });

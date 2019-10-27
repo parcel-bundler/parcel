@@ -8,7 +8,6 @@ import type {
   OutputFormat,
   PackageJSON,
   PackageName,
-  TargetDescriptor,
   TargetSourceMapOptions
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
