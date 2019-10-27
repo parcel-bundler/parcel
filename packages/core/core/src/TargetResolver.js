@@ -81,11 +81,6 @@ function parseEngines(
   }
 }
 
-function stringify(v: ?mixed): string {
-  if (v === undefined) return 'undefined';
-  else return JSON.stringify(v) || 'undefined';
-}
-
 function parseDescriptor(
   targetName: string,
   descriptor: mixed
@@ -121,7 +116,7 @@ function parseDescriptor(
       `Unexpected properties in descriptor for target "${targetName}": ${Object.keys(
         rest
       )
-        .map(v => stringify(v))
+        .map(v => String(JSON.stringify(v)))
         .join(',')}`
     );
   }
@@ -138,7 +133,9 @@ function parseDescriptor(
     )
   ) {
     throw new Error(
-      `Invalid context for target "${targetName}": ${stringify(context)}`
+      `Invalid context for target "${targetName}": ${String(
+        JSON.stringify(context)
+      )}`
     );
   }
 
@@ -146,7 +143,9 @@ function parseDescriptor(
 
   if (!(distDir === undefined || typeof distDir === 'string')) {
     throw new Error(
-      `Invalid distDir for target "${targetName}": ${stringify(distDir)}`
+      `Invalid distDir for target "${targetName}": ${String(
+        JSON.stringify(distDir)
+      )}`
     );
   }
 
@@ -160,25 +159,25 @@ function parseDescriptor(
     includeNodeModules = _includeNodeModules.map(v => {
       if (typeof v !== 'string') {
         throw new Error(
-          `Invalid value in includeNodeModules array for target "${targetName}": ${stringify(
-            v
-          )} in ${stringify(_includeNodeModules)}`
+          `Invalid value in includeNodeModules array for target "${targetName}": ${String(
+            JSON.stringify(v)
+          )} in ${String(JSON.stringify(_includeNodeModules))}`
         );
       }
       return v;
     });
   } else {
     throw new Error(
-      `Invalid value for includeNodeModules for target "${targetName}": ${stringify(
-        _includeNodeModules
+      `Invalid value for includeNodeModules for target "${targetName}": ${String(
+        JSON.stringify(_includeNodeModules)
       )}`
     );
   }
 
   if (!(isLibrary === undefined || typeof isLibrary === 'boolean')) {
     throw new Error(
-      `Invalid value for isLibrary for target "${targetName}": ${stringify(
-        isLibrary
+      `Invalid value for isLibrary for target "${targetName}": ${String(
+        JSON.stringify(isLibrary)
       )}`
     );
   }
@@ -192,15 +191,17 @@ function parseDescriptor(
     )
   ) {
     throw new Error(
-      `Invalid outputFormat for target "${targetName}": ${stringify(
-        outputFormat
+      `Invalid outputFormat for target "${targetName}": ${String(
+        JSON.stringify(outputFormat)
       )}`
     );
   }
 
   if (!(publicUrl === undefined || typeof publicUrl === 'string')) {
     throw new Error(
-      `Invalid publicUrl for target "${targetName}": ${stringify(publicUrl)}`
+      `Invalid publicUrl for target "${targetName}": ${String(
+        JSON.stringify(publicUrl)
+      )}`
     );
   }
 
@@ -209,30 +210,30 @@ function parseDescriptor(
     let {inlineSources, inline, sourceRoot, ...rest} = _sourceMap;
     if (Object.keys(rest).length > 0) {
       throw new Error(
-        `Unknown sourceMap options for target "${targetName}": ${stringify(
-          Object.keys(rest)
+        `Unknown sourceMap options for target "${targetName}": ${String(
+          JSON.stringify(Object.keys(rest))
         )}`
       );
     }
 
     if (!(inline === undefined || typeof inline === 'boolean')) {
       throw new Error(
-        `Invalid sourceMap.inline setting for target "${targetName}": ${stringify(
-          inline
+        `Invalid sourceMap.inline setting for target "${targetName}": ${String(
+          JSON.stringify(inline)
         )}`
       );
     }
     if (!(inlineSources === undefined || typeof inlineSources === 'boolean')) {
       throw new Error(
-        `Invalid sourceMap.inlineSources setting for target "${targetName}": ${stringify(
-          inline
+        `Invalid sourceMap.inlineSources setting for target "${targetName}": ${String(
+          JSON.stringify(inlineSources)
         )}`
       );
     }
     if (!(sourceRoot === undefined || typeof sourceRoot === 'string')) {
       throw new Error(
-        `Invalid sourceMap.sourceRoot setting for target "${targetName}": ${stringify(
-          inline
+        `Invalid sourceMap.sourceRoot setting for target "${targetName}": ${String(
+          JSON.stringify(sourceRoot)
         )}`
       );
     }
@@ -244,8 +245,8 @@ function parseDescriptor(
     };
   } else if (_sourceMap !== undefined) {
     throw new Error(
-      `Invalid sourceMap setting for target "${targetName}": ${stringify(
-        _sourceMap
+      `Invalid sourceMap setting for target "${targetName}": ${String(
+        JSON.stringify(_sourceMap)
       )}`
     );
   }
@@ -481,8 +482,8 @@ export default class TargetResolver {
       } else {
         if (typeof distPath !== 'string') {
           throw new Error(
-            `Invalid distPath for target "${targetName}": ${stringify(
-              distPath
+            `Invalid distPath for target "${targetName}": ${String(
+              JSON.stringify(distPath)
             )}`
           );
         }
