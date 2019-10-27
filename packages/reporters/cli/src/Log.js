@@ -8,6 +8,7 @@ import type {
   ProgressLogEvent
 } from '@parcel/types';
 import type {Diagnostic, DiagnosticCodeFrame} from '@parcel/diagnostic';
+import mdAnsi from '@parcel/markdown-ansi';
 
 import {Box, Color} from 'ink';
 import Spinner from './Spinner';
@@ -57,12 +58,16 @@ export function Log({event}: LogProps) {
   throw new Error('Unknown log event type');
 }
 
+function memoisedMarkdownMessage(msg: string) {
+  return React.useMemo(() => mdAnsi(msg), [msg]);
+}
+
 function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
       <div>Hints:</div>
       {hints.map((hint, i) => {
-        return <div key={i}>- {hint}</div>;
+        return <div key={i}>- {memoisedMarkdownMessage(hint)}</div>;
       })}
     </div>
   );
@@ -75,13 +80,9 @@ function CodeFrame(props: {
   ...
 }) {
   let {codeframe, filename} = props;
-  let highlight = Array.isArray(codeframe.codeHighlights)
-    ? codeframe.codeHighlights[0]
-    : codeframe.codeHighlights;
-
-  if (!highlight) {
-    return null;
-  }
+  let highlights = Array.isArray(codeframe.codeHighlights)
+    ? codeframe.codeHighlights
+    : [codeframe.codeHighlights];
 
   let formattedCodeFrame = React.useMemo(() => formatCodeFrame(codeframe), [
     codeframe
@@ -89,9 +90,11 @@ function CodeFrame(props: {
 
   return (
     <div>
-      {`${typeof filename !== 'string' ? '' : filename}@${
-        highlight.start.line
-      }:${highlight.start.column}`}
+      {`${typeof filename !== 'string' ? '' : filename}@${highlights
+        .map(h => {
+          return `${h.start.line}:${h.start.column}`;
+        })
+        .join(',')}`}
       <div>{formattedCodeFrame}</div>
     </div>
   );
@@ -120,7 +123,8 @@ function DiagnosticContainer({
   return (
     <React.Fragment>
       <Color keyword={color}>
-        <Color bold>{`${emoji} ${origin}`}</Color> {message}
+        <Color bold>{`${emoji} ${origin}`}</Color>{' '}
+        {memoisedMarkdownMessage(message)}
       </Color>
       {stack != null && stack !== '' ? (
         <div>

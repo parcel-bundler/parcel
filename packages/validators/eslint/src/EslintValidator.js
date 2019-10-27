@@ -37,9 +37,9 @@ export default new Validator({
 
         logger.error({
           origin: '@parcel/validator-eslint',
-          message: `ESLint found ${result.errorCount} errors and ${
+          message: `ESLint found **${result.errorCount}** __errors__ and **${
             result.warningCount
-          } warnings.`,
+          }** __warnings__.`,
           filename: asset.filePath,
           codeframe: codeframe
         });
