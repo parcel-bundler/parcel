@@ -2,6 +2,7 @@
 
 import type {
   AST,
+  ASTGenerator,
   Blob,
   ConfigResult,
   DependencyOptions,
@@ -37,6 +38,8 @@ type AssetOptions = {|
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
+  astKey?: ?string,
+  astGenerator?: ?ASTGenerator,
   dependencies?: Map<string, Dependency>,
   includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
@@ -68,6 +71,8 @@ export function createAsset(options: AssetOptions): Asset {
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
+    astKey: options.astKey,
+    astGenerator: options.astGenerator,
     dependencies: options.dependencies || new Map(),
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
@@ -87,6 +92,7 @@ type InternalAssetOptions = {|
   content?: Blob,
   map?: ?SourceMap,
   ast?: ?AST,
+  isASTDirty?: ?boolean,
   idBase?: ?string
 |};
 
@@ -96,6 +102,7 @@ export default class InternalAsset {
   content: Blob;
   map: ?SourceMap;
   ast: ?AST;
+  isASTDirty: boolean;
   idBase: ?string;
 
   constructor({
@@ -104,6 +111,7 @@ export default class InternalAsset {
     content,
     map,
     ast,
+    isASTDirty,
     idBase
   }: InternalAssetOptions) {
     this.value = value;
@@ -111,6 +119,7 @@ export default class InternalAsset {
     this.content = content || '';
     this.map = map;
     this.ast = ast;
+    this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
   }
 
@@ -119,8 +128,6 @@ export default class InternalAsset {
    * content and map of the asset to the cache.
    */
   async commit(pipelineKey: string): Promise<void> {
-    this.ast = null;
-
     let contentStream = this.getStream();
     if (
       // $FlowFixMe
@@ -137,7 +144,7 @@ export default class InternalAsset {
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
-    let [contentKey, mapKey] = await Promise.all([
+    let [contentKey, mapKey, astKey] = await Promise.all([
       this.options.cache.setStream(
         this.getCacheKey('content' + pipelineKey),
         contentStream.pipe(
@@ -152,10 +159,17 @@ export default class InternalAsset {
         : this.options.cache.set(
             this.getCacheKey('map' + pipelineKey),
             this.map
+          ),
+      this.ast == null
+        ? Promise.resolve()
+        : this.options.cache.set(
+            this.getCacheKey('ast' + pipelineKey),
+            this.ast
           )
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
+    this.value.astKey = astKey;
     this.value.stats.size = size;
     this.value.outputHash = hash.digest('hex');
   }
@@ -217,6 +231,23 @@ export default class InternalAsset {
 
   setMap(map: ?SourceMap): void {
     this.map = map;
+  }
+
+  async getAST(): Promise<?AST> {
+    if (this.value.astKey != null) {
+      this.ast = await this.options.cache.get(this.value.astKey);
+    }
+
+    return this.ast;
+  }
+
+  setAST(ast: AST): void {
+    this.ast = ast;
+    this.isASTDirty = true;
+    this.value.astGenerator = {
+      type: ast.type,
+      version: ast.version
+    };
   }
 
   getCacheKey(key: string): string {
@@ -298,6 +329,9 @@ export default class InternalAsset {
       options: this.options,
       content,
       ast: result.ast,
+      isASTDirty:
+        this.isASTDirty ||
+        (result.ast != null ? result.ast !== this.ast : false),
       map: result.map,
       idBase: this.idBase
     });

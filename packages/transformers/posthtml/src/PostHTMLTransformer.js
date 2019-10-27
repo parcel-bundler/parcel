@@ -47,13 +47,12 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, config}) {
+  async transform({asset, ast, config}) {
     if (!config) {
       return [asset];
     }
 
-    const ast = nullthrows(asset.ast);
-
+    ast = nullthrows(ast);
     let res = await posthtml(config.plugins).process(ast.program, config);
 
     if (res.messages) {
@@ -67,15 +66,18 @@ export default new Transformer({
       );
     }
 
-    ast.program = res.tree;
-    asset.ast = ast;
+    asset.setAST({
+      type: 'posthtml',
+      version: '0.4.1',
+      program: res.tree
+    });
 
     return [asset];
   },
 
-  generate({asset}) {
+  generate({asset, ast}) {
     return {
-      code: render(nullthrows(asset.ast).program)
+      code: render(ast.program)
     };
   }
 });

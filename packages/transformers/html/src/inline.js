@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {MutableAsset, TransformerResult} from '@parcel/types';
+import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 import type {PostHTMLNode} from 'posthtml';
 
@@ -16,9 +16,9 @@ const SCRIPT_TYPES = {
 };
 
 export default function extractInlineAssets(
-  asset: MutableAsset
+  asset: MutableAsset,
+  ast: AST
 ): Array<TransformerResult> {
-  let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
   let key = 0;
 

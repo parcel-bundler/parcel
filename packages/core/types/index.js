@@ -271,8 +271,12 @@ export type File = {|
   hash?: string
 |};
 
+export type ASTGenerator = {|
+  type: string,
+  version: string
+|};
+
 interface BaseAsset {
-  +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
   +filePath: FilePath;
@@ -285,11 +289,13 @@ interface BaseAsset {
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
+  +astGenerator: ?ASTGenerator;
 
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
+  getAST(): Promise<?AST>;
   getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
@@ -303,7 +309,7 @@ interface BaseAsset {
 }
 
 export interface MutableAsset extends BaseAsset {
-  ast: ?AST;
+  // ast: ?AST;
   isIsolated: boolean;
   isInline: boolean;
   type: string;
@@ -313,6 +319,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   setBuffer(Buffer): void;
   setStream(Readable): void;
+  setAST(AST): void;
   addIncludedFile(file: File): void;
   addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
@@ -364,7 +371,7 @@ export type Stats = {|
 |};
 
 export type GenerateOutput = {|
-  code: string,
+  code: Blob,
   map?: ?SourceMap
 |};
 
@@ -436,12 +443,14 @@ export type Transformer = {|
   |}) => Async<?AST>,
   transform({|
     asset: MutableAsset,
+    ast: ?AST,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
     asset: MutableAsset,
+    ast: AST,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions

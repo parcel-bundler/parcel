@@ -1,7 +1,7 @@
 import * as types from '@babel/types';
 
 export default {
-  MemberExpression(node, {asset, env}) {
+  MemberExpression(node, {asset, ast, env}) {
     // Inline environment variables accessed on process.env
     if (types.matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
@@ -12,7 +12,7 @@ export default {
         if (typeof prop !== 'function') {
           let value = types.valueToNode(prop);
           morph(node, value);
-          asset.ast.isDirty = true;
+          asset.setAST(ast); // mark dirty
           // asset.meta.env[key.value] = process.env[key.value];
         }
       }

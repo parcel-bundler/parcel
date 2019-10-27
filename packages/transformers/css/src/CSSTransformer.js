@@ -39,15 +39,13 @@ export default new Transformer({
     return {
       type: 'postcss',
       version: '7.0.0',
-      isDirty: false,
       program: postcss.parse(code, {
         from: asset.filePath
       })
     };
   },
 
-  transform({asset}) {
-    let ast = asset.ast;
+  transform({asset, ast}) {
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
     // ast and CSSTransformer's parse was never called.
@@ -55,6 +53,7 @@ export default new Transformer({
       return [asset];
     }
 
+    let isDirty = false;
     ast.program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
@@ -97,13 +96,13 @@ export default new Transformer({
       rule.remove();
       // }
 
-      ast.isDirty = true;
+      isDirty = true;
     });
 
     ast.program.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
-        let isDirty = false;
+        let isDeclDirty = false;
 
         parsed.walk(node => {
           if (
@@ -114,29 +113,28 @@ export default new Transformer({
             let url = asset.addURLDependency(node.nodes[0].value, {
               loc: decl.source.start
             });
-            isDirty = node.nodes[0].value !== url;
+            isDeclDirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
           }
         });
 
-        if (isDirty) {
+        if (isDeclDirty) {
           decl.value = parsed.toString();
-          ast.isDirty = true;
+          isDirty = true;
         }
       }
     });
 
+    if (isDirty) {
+      asset.setAST(ast);
+    }
+
     return [asset];
   },
 
-  async generate({asset}) {
-    let code;
-    if (!asset.ast || !asset.ast.isDirty) {
-      code = await asset.getCode();
-    } else {
-      code = '';
-      postcss.stringify(asset.ast.program, c => (code += c));
-    }
+  async generate({asset, ast}) {
+    let code = '';
+    postcss.stringify(ast.program, c => (code += c));
 
     return {
       code

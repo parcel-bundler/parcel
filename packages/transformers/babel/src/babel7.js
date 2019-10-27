@@ -10,6 +10,7 @@ invariant(typeof transformerVersion === 'string');
 
 export default async function babel7(
   asset: MutableAsset,
+  ast: ?AST,
   options: PluginOptions,
   babelOptions: any
 ): Promise<?AST> {
@@ -43,18 +44,17 @@ export default async function babel7(
   let code = await asset.getCode();
 
   let res;
-  if (asset.ast) {
-    res = babel.transformFromAstSync(asset.ast.program, code, config);
+  if (ast) {
+    res = babel.transformFromAstSync(ast.program, code, config);
   } else {
     res = babel.transformSync(code, config);
   }
 
   if (res.ast) {
-    return {
+    asset.setAST({
       type: 'babel',
       version: '7.0.0',
-      program: res.ast,
-      isDirty: true
-    };
+      program: res.ast
+    });
   }
 }

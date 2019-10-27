@@ -54,7 +54,6 @@ export default new Transformer({
     return {
       type: 'babel',
       version: '7.0.0',
-      isDirty: false,
       program: parse(code, {
         filename: this.name,
         allowReturnOutsideFunction: true,
@@ -65,23 +64,22 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, options}) {
+  async transform({asset, ast, options}) {
     asset.type = 'js';
-    if (!asset.ast) {
+    if (!ast) {
       return [asset];
     }
 
-    let ast = asset.ast;
     let code = await asset.getCode();
 
     // Inline environment variables
-    if (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) {
-      walk.simple(ast.program, envVisitor, {asset, env: options.env});
+    if (!asset.env.isNode() /* && (ast.isDirty || ENV_RE.test(code))*/) {
+      walk.simple(ast.program, envVisitor, {asset, ast, env: options.env});
     }
 
     // Collect dependencies
-    if (canHaveDependencies(code) || ast.isDirty) {
-      walk.ancestor(ast.program, collectDependencies, {asset, options});
+    if (/*canHaveDependencies(code) || ast.isDirty*/ true) {
+      walk.ancestor(ast.program, collectDependencies, {asset, ast, options});
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.
@@ -108,7 +106,7 @@ export default new Transformer({
           pkg.browser.fs === false;
 
         if (!ignore) {
-          traverse(ast.program, fsVisitor, null, asset);
+          traverse(ast.program, fsVisitor, null, {asset, ast});
         }
       }
 
@@ -116,11 +114,12 @@ export default new Transformer({
       if (GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
         walk.ancestor(ast.program, insertGlobals, asset);
+        asset.setAST(ast); // TODO - mark dirty
       }
     }
 
     if (options.scopeHoist) {
-      hoist(asset);
+      hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
       let res = babelCore.transformFromAst(ast.program, code, {
@@ -132,52 +131,51 @@ export default new Transformer({
         plugins: [require('@babel/plugin-transform-modules-commonjs')]
       });
 
-      ast.program = res.ast;
-      ast.isDirty = true;
+      asset.setAST({
+        type: 'babel',
+        version: '7.0.0',
+        program: res.ast
+      });
     }
 
     return [asset];
   },
 
-  async generate({asset, options}) {
-    let code = await asset.getCode();
+  async generate({asset, ast, options}) {
+    let sourceFileName: string = relativeUrl(
+      options.projectRoot,
+      asset.filePath
+    );
+
+    let generated = generate(
+      ast.program,
+      {
+        sourceMaps: options.sourceMaps,
+        sourceFileName: sourceFileName
+      },
+      await asset.getCode()
+    );
+
     let res = {
-      code
+      code: generated.code,
+      map: new SourceMap(generated.rawMappings, {
+        [sourceFileName]: null
+      })
     };
 
-    let ast = asset.ast;
-    if (ast && ast.isDirty !== false) {
-      let sourceFileName: string = relativeUrl(
-        options.projectRoot,
-        asset.filePath
-      );
-
-      let generated = generate(
-        ast.program,
-        {
-          sourceMaps: options.sourceMaps,
-          sourceFileName: sourceFileName
-        },
-        code
-      );
-
-      res.code = generated.code;
-      // $FlowFixMe...
-      res.map = new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null
-      });
-    }
-
-    if (asset.meta.globals && asset.meta.globals.size > 0) {
-      res.code =
-        Array.from(asset.meta.globals.values())
-          .map(g => (g ? g.code : ''))
-          .join('\n') +
-        '\n' +
-        res.code;
-    }
-    delete asset.meta.globals;
-
+    res.code = generateGlobals(asset) + res.code;
     return res;
   }
 });
+
+function generateGlobals(asset) {
+  let code = '';
+  if (asset.meta.globals && asset.meta.globals.size > 0) {
+    code =
+      Array.from(asset.meta.globals.values())
+        .map(g => (g ? g.code : ''))
+        .join('\n') + '\n';
+  }
+  delete asset.meta.globals;
+  return code;
+}

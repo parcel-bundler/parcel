@@ -1,7 +1,8 @@
-// @flow
+// @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
+// $FlowFixMe
 import generate from '@babel/generator';
 import semver from 'semver';
 import babel7 from './babel7';
@@ -21,23 +22,22 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, ast, config, options}) {
     // TODO: come up with a better name
     if (config?.config) {
-      asset.ast = await babel7(asset, options, config);
+      await babel7(asset, ast, options, config);
     }
 
     return [asset];
   },
 
-  generate({asset, options}) {
+  generate({asset, ast, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
       asset.filePath
     );
 
-    // $FlowFixMe: figure out how to make AST required in generate method
-    let generated = generate(asset.ast.program, {
+    let generated = generate(ast.program, {
       sourceMaps: options.sourceMaps,
       sourceFileName: sourceFileName
     });

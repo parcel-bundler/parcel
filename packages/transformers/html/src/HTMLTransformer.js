@@ -23,16 +23,16 @@ export default new Transformer({
     };
   },
 
-  transform({asset, options}) {
+  transform({asset, ast, options}) {
     // Handle .htm
     asset.type = 'html';
-    collectDependencies(asset, options);
-    return [asset, ...extractInlineAssets(asset)];
+    collectDependencies(asset, nullthrows(ast), options);
+    return [asset, ...extractInlineAssets(asset, nullthrows(ast))];
   },
 
-  generate({asset}) {
+  generate({asset, ast}) {
     return {
-      code: render(nullthrows(asset.ast).program)
+      code: render(ast.program)
     };
   }
 });

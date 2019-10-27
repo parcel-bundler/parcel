@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset, PluginOptions} from '@parcel/types';
+import type {AST, MutableAsset, PluginOptions} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
@@ -32,7 +32,7 @@ export default ({
     asset.meta.isES6Module = true;
   },
 
-  CallExpression(node, {asset}, ancestors) {
+  CallExpression(node, {asset, ast}, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -64,8 +64,7 @@ export default ({
       addDependency(asset, args[0], {isAsync: true});
 
       node.callee = types.identifier('require');
-      invariant(asset.ast);
-      asset.ast.isDirty = true;
+      asset.setAST(ast); // mark dirty
       return;
     }
 
@@ -78,7 +77,7 @@ export default ({
     if (isRegisterServiceWorker) {
       // Treat service workers as an entry point so filenames remain consistent across builds.
       // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-      addURLDependency(asset, args[0], {
+      addURLDependency(asset, ast, args[0], {
         isEntry: true,
         env: {context: 'service-worker'}
       });
@@ -86,7 +85,7 @@ export default ({
     }
   },
 
-  NewExpression(node, {asset, options}, ancestors) {
+  NewExpression(node, {asset, ast, options}, ancestors) {
     let {callee, arguments: args} = node;
 
     let isWebWorker =
@@ -107,7 +106,7 @@ export default ({
           isModule = prop.value.value === 'module';
       }
 
-      addURLDependency(asset, args[0], {
+      addURLDependency(asset, ast, args[0], {
         env: {
           context: 'web-worker',
           outputFormat: isModule && options.scopeHoist ? 'esmodule' : undefined
@@ -119,7 +118,7 @@ export default ({
 }: {
   [key: string]: (
     node: any,
-    {|asset: MutableAsset, options: PluginOptions|},
+    {|asset: MutableAsset, ast: AST, options: PluginOptions|},
     ancestors: Array<any>
   ) => void,
   ...
@@ -176,11 +175,10 @@ function addDependency(asset, node, opts = {}) {
   });
 }
 
-function addURLDependency(asset, node, opts = {}) {
+function addURLDependency(asset, ast, node, opts = {}) {
   node.value = asset.addURLDependency(node.value, {
     loc: node.loc && node.loc.start,
     ...opts
   });
-  invariant(asset.ast);
-  asset.ast.isDirty = true;
+  asset.setAST(ast); // mark dirty
 }

@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
 
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
@@ -32,17 +32,13 @@ const TYPEOF = {
   require: 'function'
 };
 
-export function hoist(asset: MutableAsset) {
-  if (
-    !asset.ast ||
-    asset.ast.type !== 'babel' ||
-    asset.ast.version !== '7.0.0'
-  ) {
+export function hoist(asset: MutableAsset, ast: AST) {
+  if (ast.type !== 'babel' || ast.version !== '7.0.0') {
     throw new Error('Asset does not have a babel AST');
   }
 
-  asset.ast.isDirty = true;
-  traverse(asset.ast.program, VISITOR, null, asset);
+  traverse(ast.program, VISITOR, null, asset);
+  asset.setAST(ast);
 }
 
 const VISITOR = {

@@ -20,7 +20,7 @@ export default {
     }
   },
 
-  CallExpression(path, asset) {
+  CallExpression(path, {asset, ast}) {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.filePath),
@@ -67,7 +67,7 @@ export default {
       });
 
       path.replaceWith(replacementNode);
-      asset.ast.isDirty = true;
+      asset.setAST(ast); // mark dirty
     }
   }
 };

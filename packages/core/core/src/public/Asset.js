@@ -8,6 +8,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   Asset as IAsset,
   AST,
+  ASTGenerator,
   ConfigResult,
   Dependency as IDependency,
   DependencyOptions,
@@ -109,6 +110,10 @@ class BaseAsset {
     return this.#asset.value.uniqueKey;
   }
 
+  get astGenerator(): ?ASTGenerator {
+    return this.#asset.value.astGenerator;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -146,6 +151,10 @@ class BaseAsset {
   getMap(): Promise<?SourceMap> {
     return this.#asset.getMap();
   }
+
+  getAST(): Promise<?AST> {
+    return this.#asset.getAST();
+  }
 }
 
 export class Asset extends BaseAsset implements IAsset {
@@ -171,14 +180,6 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   constructor(asset: InternalAsset) {
     super(asset);
     this.#asset = asset;
-  }
-
-  get ast(): ?AST {
-    return this.#asset.ast;
-  }
-
-  set ast(ast: ?AST): void {
-    this.#asset.ast = ast;
   }
 
   setMap(map: ?SourceMap): void {
@@ -227,6 +228,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   setStream(stream: Readable): void {
     this.#asset.setStream(stream);
+  }
+
+  setAST(ast: AST): void {
+    return this.#asset.setAST(ast);
   }
 
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {

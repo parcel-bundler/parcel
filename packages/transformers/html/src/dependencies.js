@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset, PluginOptions} from '@parcel/types';
+import type {AST, MutableAsset, PluginOptions} from '@parcel/types';
 import PostHTML from 'posthtml';
 
 import nullthrows from 'nullthrows';
@@ -105,10 +105,10 @@ function getAttrDepHandler(attr) {
 
 export default function collectDependencies(
   asset: MutableAsset,
+  ast: AST,
   options: PluginOptions
 ) {
-  let ast = nullthrows(asset.ast);
-
+  let isDirty = false;
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs) {
@@ -131,7 +131,7 @@ export default function collectDependencies(
       attrs.href = asset.addURLDependency(attrs.href, {
         isEntry: true
       });
-      ast.isDirty = true;
+      isDirty = true;
       return node;
     }
 
@@ -150,8 +150,12 @@ export default function collectDependencies(
             ? depOptionsHandler(attrs, options)
             : depOptionsHandler && depOptionsHandler[attr];
         attrs[attr] = depHandler(asset, attrs[attr], depOptions);
-        ast.isDirty = true;
+        isDirty = true;
       }
+    }
+
+    if (isDirty) {
+      asset.setAST(ast);
     }
 
     return node;

@@ -118,20 +118,12 @@ export default new Transformer({
     };
   },
 
-  async transform({
-    asset,
-    config
-  }: {|
-    asset: MutableAsset,
-    config: ?ParcelPostCSSConfig,
-    resolve: ResolveFn,
-    options: PluginOptions
-  |}) {
+  async transform({asset, ast, config}) {
     if (!config) {
       return [asset];
     }
 
-    let ast = nullthrows(asset.ast);
+    ast = nullthrows(ast);
     if (COMPOSES_RE.test(await asset.getCode())) {
       ast.program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
@@ -151,8 +143,11 @@ export default new Transformer({
     }
 
     let {root} = await postcss(config.plugins).process(ast.program, config);
-    ast.program = root;
-    ast.isDirty = true;
+    asset.setAST({
+      type: 'postcss',
+      version: '7.0.0',
+      program: root
+    });
 
     let assets = [asset];
     if (asset.meta.cssModules) {
@@ -177,9 +172,7 @@ export default new Transformer({
     return assets;
   },
 
-  generate({asset}) {
-    let ast = nullthrows(asset.ast);
-
+  generate({asset, ast}) {
     let code = '';
     postcss.stringify(ast.program, c => (code += c));
 

@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  ASTGenerator,
   BuildMode,
   BundleGroup,
   Engines,
@@ -80,6 +81,8 @@ export type Asset = {|
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
+  astKey: ?string,
+  astGenerator: ?ASTGenerator,
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
   uniqueKey?: ?string

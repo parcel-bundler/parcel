@@ -34,7 +34,7 @@ import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
 
-type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
+type GenerateFunc = (input: InternalAsset) => Promise<GenerateOutput>;
 
 type PostProcessFunc = (
   Array<InternalAsset>
@@ -479,9 +479,10 @@ class Pipeline {
         })) &&
       this.generate
     ) {
-      let output = await this.generate(new MutableAsset(asset));
+      let output = await this.generate(asset);
       asset.content = output.code;
       asset.ast = null;
+      asset.isASTDirty = false;
     }
 
     // Parse if there is no AST available from a previous transform.
@@ -499,6 +500,7 @@ class Pipeline {
       // $FlowFixMe
       await transformer.transform({
         asset: new MutableAsset(asset),
+        ast: asset.ast,
         config,
         options: this.pluginOptions,
         resolve
@@ -506,11 +508,18 @@ class Pipeline {
     );
 
     // Create generate and postProcess functions that can be called later
-    this.generate = (input: IMutableAsset): Promise<GenerateOutput> => {
+    this.generate = (input: InternalAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
+        if (!input.ast || !input.isASTDirty) {
+          return Promise.resolve({
+            code: input.content
+          });
+        }
+
         return Promise.resolve(
           transformer.generate({
-            asset: input,
+            asset: new MutableAsset(input),
+            ast: input.ast,
             config,
             options: this.pluginOptions,
             resolve
@@ -551,7 +560,7 @@ async function finalize(
   generate: GenerateFunc
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
-    let result = await generate(new MutableAsset(asset));
+    let result = await generate(asset);
     return asset.createChildAsset({
       type: asset.value.type,
       uniqueKey: asset.value.uniqueKey,
