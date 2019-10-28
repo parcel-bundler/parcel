@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {
-  MutableAsset as IMutableAsset,
   FilePath,
   GenerateOutput,
   Transformer,

@@ -70,8 +70,9 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, ast, options}) {
+  async transform({asset, options}) {
     asset.type = 'js';
+    let ast = await asset.getAST();
     if (!ast) {
       return [asset];
     }
@@ -84,9 +85,9 @@ export default new Transformer({
     }
 
     // Collect dependencies
-    if (/*canHaveDependencies(code) || ast.isDirty*/ true) {
-      walk.ancestor(ast.program, collectDependencies, {asset, ast, options});
-    }
+    // if (/*canHaveDependencies(code) || ast.isDirty*/) {
+    walk.ancestor(ast.program, collectDependencies, {asset, ast, options});
+    // }
 
     // If there's a hashbang, remove it and store it on the asset meta.
     // During packaging, if this is the entry asset, it will be prepended to the

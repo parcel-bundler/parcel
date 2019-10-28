@@ -5,7 +5,6 @@ import {md5FromString} from '@parcel/utils';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
-import nullthrows from 'nullthrows';
 
 const SCRIPT_TYPES = {
   'application/javascript': 'js',

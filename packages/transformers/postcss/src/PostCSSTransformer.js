@@ -1,11 +1,6 @@
 // @flow
 
-import type {
-  FilePath,
-  MutableAsset,
-  ResolveFn,
-  PluginOptions
-} from '@parcel/types';
+import type {FilePath, MutableAsset} from '@parcel/types';
 
 import {md5FromString} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
@@ -118,12 +113,12 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, ast, config}) {
+  async transform({asset, config}) {
     if (!config) {
       return [asset];
     }
 
-    ast = nullthrows(ast);
+    let ast = nullthrows(await asset.getAST());
     if (COMPOSES_RE.test(await asset.getCode())) {
       ast.program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
@@ -172,7 +167,7 @@ export default new Transformer({
     return assets;
   },
 
-  generate({asset, ast}) {
+  generate({ast}) {
     let code = '';
     postcss.stringify(ast.program, c => (code += c));
 

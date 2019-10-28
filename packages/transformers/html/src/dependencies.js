@@ -3,8 +3,6 @@
 import type {AST, MutableAsset, PluginOptions} from '@parcel/types';
 import PostHTML from 'posthtml';
 
-import nullthrows from 'nullthrows';
-
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {

@@ -45,10 +45,11 @@ export default new Transformer({
     };
   },
 
-  transform({asset, ast}) {
+  async transform({asset}) {
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
     // ast and CSSTransformer's parse was never called.
+    let ast = await asset.getAST();
     if (!ast || asset.meta.hasDependencies === false) {
       return [asset];
     }
@@ -132,7 +133,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate({asset, ast}) {
+  generate({ast}) {
     let root = ast.program;
 
     // $FlowFixMe

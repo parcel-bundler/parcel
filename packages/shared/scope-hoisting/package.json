@@ -17,6 +17,7 @@
     "@babel/template": "^7.2.2",
     "@babel/traverse": "^7.2.3",
     "@babel/types": "^7.3.3",
+    "@parcel/source-map": "^2.0.0-alpha.2.1",
     "@parcel/utils": "^2.0.0-alpha.2.1",
     "babylon-walk": "^1.0.2",
     "nullthrows": "^1.1.1"

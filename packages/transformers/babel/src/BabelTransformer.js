@@ -22,10 +22,10 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async transform({asset, ast, config, options}) {
+  async transform({asset, config, options}) {
     // TODO: come up with a better name
     if (config?.config) {
-      await babel7(asset, ast, options, config);
+      await babel7(asset, options, config);
     }
 
     return [asset];

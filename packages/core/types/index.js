@@ -309,7 +309,6 @@ interface BaseAsset {
 }
 
 export interface MutableAsset extends BaseAsset {
-  // ast: ?AST;
   isIsolated: boolean;
   isInline: boolean;
   type: string;
@@ -442,7 +441,6 @@ export type Transformer = {|
   |}) => Async<?AST>,
   transform({|
     asset: MutableAsset,
-    ast: ?AST,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions

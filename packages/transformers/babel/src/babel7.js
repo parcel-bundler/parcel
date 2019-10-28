@@ -11,7 +11,6 @@ invariant(typeof transformerVersion === 'string');
 
 export default async function babel7(
   asset: MutableAsset,
-  ast: ?AST,
   options: PluginOptions,
   babelOptions: any
 ): Promise<?AST> {
@@ -45,6 +44,7 @@ export default async function babel7(
     }
   };
 
+  let ast = await asset.getAST();
   let code = await asset.getCode();
 
   let res;

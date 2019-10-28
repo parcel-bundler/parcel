@@ -47,12 +47,12 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, ast, config}) {
+  async transform({asset, config}) {
     if (!config) {
       return [asset];
     }
 
-    ast = nullthrows(ast);
+    let ast = nullthrows(await asset.getAST());
     let res = await posthtml(config.plugins).process(ast.program, config);
 
     if (res.messages) {
@@ -75,7 +75,7 @@ export default new Transformer({
     return [asset];
   },
 
-  generate({asset, ast}) {
+  generate({ast}) {
     return {
       code: render(ast.program)
     };

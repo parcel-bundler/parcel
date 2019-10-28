@@ -6,7 +6,6 @@ import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL} from '@parcel/utils';
 import {hasBinding} from './utils';
-import invariant from 'assert';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
