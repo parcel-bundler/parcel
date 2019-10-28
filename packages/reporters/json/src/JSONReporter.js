@@ -33,7 +33,7 @@ export default new Reporter({
       case 'buildFailure':
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.error) {
           writeToStderr(
-            {type: 'buildFailure', message: event.error.message},
+            {type: 'buildFailure', message: event.diagnostic.message},
             logLevelFilter
           );
         }

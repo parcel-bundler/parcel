@@ -743,7 +743,7 @@ export type BuildSuccessEvent = {|
 
 export type BuildFailureEvent = {|
   type: 'buildFailure',
-  error: Error
+  diagnostic: Diagnostic
 |};
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;

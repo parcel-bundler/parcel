@@ -1,16 +1,14 @@
 // @flow
 
 import type {BuildSuccessEvent} from '@parcel/types';
-import type {PrintableError} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
 
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
-import ansiHtml from 'ansi-html';
 import {getCertificate, generateCertificate} from '@parcel/utils';
 import logger from '@parcel/logger';
-import {prettyError} from '@parcel/utils';
 import {md5FromObject} from '@parcel/utils';
 
 type HMRAsset = {|
@@ -92,20 +90,18 @@ export default class HMRServer {
     this.server.close();
   }
 
-  emitError(err: PrintableError) {
-    let {message, stack} = prettyError(err);
-
+  emitError(err: Diagnostic) {
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {
       type: 'error',
       ansiError: {
-        message,
-        stack
+        message: err.message,
+        stack: err.stack
       },
       htmlError: {
-        message: ansiHtml(message),
-        stack: ansiHtml(stack)
+        message: err.message,
+        stack: err.stack
       }
     };
 

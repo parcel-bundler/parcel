@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {LogLevel, ReporterEvent, PluginOptions} from '@parcel/types';
+import type {ReporterEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import type {Writable} from 'stream';
@@ -10,7 +10,7 @@ import {Reporter} from '@parcel/plugin';
 import * as React from 'react';
 
 import BundleReport from './BundleReport';
-import {prettyError, prettifyTime} from '@parcel/utils';
+import {prettifyTime} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 import formatCodeFrame from './formatCodeFrame';
@@ -73,7 +73,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
-      writeErr(event.error, options.logLevel);
+      writeDiagnostic(event.diagnostic, true);
       break;
     case 'log': {
       switch (event.level) {
@@ -132,14 +132,5 @@ function writeOut(message: string, isError?: boolean): void {
     stderr.write(message + '\n');
   } else {
     stdout.write(message + '\n');
-  }
-}
-
-function writeErr(message: string | Error, level: LogLevel): void {
-  let error = prettyError(message, {color: false});
-  // prefix with parcel: to clarify the source of errors
-  writeOut('parcel: ' + error.message, true);
-  if (error.stack != null && logLevels[level] >= logLevels.verbose) {
-    writeOut(error.stack, true);
   }
 }

@@ -1,7 +1,7 @@
 // @flow
 import type {Request, Response, DevServerOptions} from './types.js.flow';
 import type {BundleGraph, FilePath} from '@parcel/types';
-import type {PrintableError} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {Server as HTTPServer} from 'http';
 import type {Server as HTTPSServer} from 'https';
 import type {FileSystem} from '@parcel/fs';
@@ -11,9 +11,7 @@ import path from 'path';
 import http from 'http';
 import https from 'https';
 import url from 'url';
-import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
-import {prettyError} from '@parcel/utils';
 import {loadConfig, generateCertificate, getCertificate} from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -53,7 +51,7 @@ export default class Server extends EventEmitter {
   options: DevServerOptions;
   rootPath: ?string;
   bundleGraph: BundleGraph | null;
-  error: PrintableError | null;
+  error: Diagnostic | null;
   server: HTTPServer | HTTPSServer;
 
   constructor(options: DevServerOptions) {
@@ -78,8 +76,8 @@ export default class Server extends EventEmitter {
     this.emit('bundled');
   }
 
-  buildError(error: PrintableError) {
-    this.error = error;
+  buildError(diagnostic: Diagnostic) {
+    this.error = diagnostic;
   }
 
   respond(req: Request, res: Response) {
@@ -239,13 +237,12 @@ export default class Server extends EventEmitter {
     res.writeHead(500);
 
     if (this.error) {
-      let error = prettyError(this.error, {color: true});
-      error.message = ansiHtml(error.message);
-      error.stack = ansiHtml(error.stack);
-
       res.end(
         ejs.render(TEMPLATE_500, {
-          error
+          error: {
+            message: this.error.message,
+            stack: this.error.stack
+          }
         })
       );
     } else {

@@ -5,7 +5,10 @@ import type {Diagnostic, PrintableError} from '@parcel/diagnostic';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  errorToDiagnostic,
+  anyToDiagnostic
+} from '@parcel/diagnostic';
 
 export type PluginInputDiagnostic = {|
   ...Diagnostic,
@@ -55,14 +58,8 @@ class Logger {
       | ThrowableDiagnostic,
     realOrigin?: string
   ): void {
-    // $FlowFixMe
-    let diagnostic: Diagnostic = input;
-    if (input instanceof Error) {
-      diagnostic = errorToDiagnostic(input);
-    } else if (input instanceof ThrowableDiagnostic) {
-      diagnostic = input.toObject();
-    }
-
+    // $FlowFixMe origin is undefined on PluginInputDiagnostic
+    let diagnostic = anyToDiagnostic(input);
     if (typeof realOrigin === 'string') {
       diagnostic = {
         ...diagnostic,
@@ -119,7 +116,7 @@ export class PluginLogger {
   error(
     input: PluginInputDiagnostic | PrintableError | ThrowableDiagnostic
   ): void {
-    logger.error(input, this.origin);
+    logger.error(input);
   }
 
   progress(message: string): void {

@@ -52,6 +52,20 @@ export type PrintableError = Error & {
   ...
 };
 
+export function anyToDiagnostic(
+  input: Diagnostic | PrintableError | ThrowableDiagnostic
+): Diagnostic {
+  // $FlowFixMe
+  let diagnostic: Diagnostic = input;
+  if (input instanceof Error) {
+    diagnostic = errorToDiagnostic(input);
+  } else if (input instanceof ThrowableDiagnostic) {
+    diagnostic = input.toObject();
+  }
+
+  return diagnostic;
+}
+
 export function errorToDiagnostic(error: PrintableError): Diagnostic {
   let codeframe: DiagnosticCodeFrame | void = undefined;
 
@@ -85,10 +99,15 @@ type ThrowableDiagnosticOpts = {
   ...
 };
 
-export default class ThrowableDiagnostic {
+export default class ThrowableDiagnostic extends Error {
   #diagnostic: Diagnostic;
+  stack: string;
 
   constructor(opts: ThrowableDiagnosticOpts) {
+    // Make it kinda compatible with default Node Error
+    super(opts.diagnostic.message);
+    this.stack = opts.diagnostic.stack || super.stack;
+
     this.#diagnostic = opts.diagnostic;
   }
 

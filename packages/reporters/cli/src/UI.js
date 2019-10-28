@@ -131,11 +131,7 @@ function reducer(
           {
             type: 'log',
             level: 'error',
-            diagnostic: {
-              origin: '@parcel/core',
-              message: event.error.message,
-              stack: event.error.stack
-            }
+            diagnostic: event.diagnostic
           }
         ]
       };
