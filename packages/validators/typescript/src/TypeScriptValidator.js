@@ -120,8 +120,8 @@ export default new Validator({
         validatorResult.errors.push({
           origin: '@parcel/validator-typescript',
           message: diagnosticMessage,
-          filename,
-          codeframe: codeframe ? codeframe : undefined
+          filePath: filename,
+          codeFrame: codeframe ? codeframe : undefined
         });
       }
     }

@@ -44,8 +44,8 @@ export default new Validator({
           message: `ESLint found **${result.errorCount}** __errors__ and **${
             result.warningCount
           }** __warnings__.`,
-          filename: asset.filePath,
-          codeframe: codeframe
+          filePath: asset.filePath,
+          codeFrame: codeframe
         };
 
         if (result.errorCount > 0) {

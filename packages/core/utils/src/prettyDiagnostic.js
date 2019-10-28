@@ -14,7 +14,7 @@ type AnsiDiagnosticResult = {|
 export default function prettyDiagnostic(
   diagnostic: Diagnostic
 ): AnsiDiagnosticResult {
-  let {origin, message, stack, codeframe, hints, filename} = diagnostic;
+  let {origin, message, stack, codeFrame, hints, filePath} = diagnostic;
 
   let result = {
     message: '',
@@ -26,17 +26,17 @@ export default function prettyDiagnostic(
   result.message = mdAnsi(`**${origin}**: ${message}`);
   result.stack = stack || '';
 
-  if (codeframe !== undefined) {
-    let highlights = Array.isArray(codeframe.codeHighlights)
-      ? codeframe.codeHighlights
-      : [codeframe.codeHighlights];
+  if (codeFrame !== undefined) {
+    let highlights = Array.isArray(codeFrame.codeHighlights)
+      ? codeFrame.codeHighlights
+      : [codeFrame.codeHighlights];
 
-    let formattedCodeFrame = formatCodeFrame(codeframe.code, highlights, {
+    let formattedCodeFrame = formatCodeFrame(codeFrame.code, highlights, {
       useColor: true
     });
 
     result.codeframe +=
-      typeof filename !== 'string' ? '' : mdAnsi(`__${filename}__`);
+      typeof filePath !== 'string' ? '' : mdAnsi(`__${filePath}__`);
     result.codeframe += `@${highlights
       .map(h => {
         return `${h.start.line}:${h.start.column}`;

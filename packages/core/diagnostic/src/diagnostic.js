@@ -1,4 +1,5 @@
 // @flow
+import type {FilePath} from '@parcel/types';
 
 export type DiagnosticHighlightLocation = {|
   line: number,
@@ -25,11 +26,11 @@ export type Diagnostic = {|
   origin: string, // Name of plugin or file that threw this error
 
   // Asset metadata
-  filename?: string,
+  filePath?: FilePath,
   language?: string,
 
   // Codeframe data
-  codeframe?: DiagnosticCodeFrame,
+  codeFrame?: DiagnosticCodeFrame,
 
   // Stacktrace for error, not really needed if there's a codeframe...
   stack?: string,
@@ -58,7 +59,7 @@ export function anyToDiagnostic(
   // $FlowFixMe
   let diagnostic: Diagnostic = input;
   if (input instanceof ThrowableDiagnostic) {
-    diagnostic = input.toObject();
+    diagnostic = {...input.diagnostic};
   } else if (input instanceof Error) {
     diagnostic = errorToDiagnostic(input);
   }
@@ -67,18 +68,18 @@ export function anyToDiagnostic(
 }
 
 export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
-  let codeframe: DiagnosticCodeFrame | void = undefined;
+  let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
     return {
       origin: 'Error',
       message: error,
-      codeframe
+      codeFrame
     };
   }
 
   if (error.loc && error.source) {
-    codeframe = {
+    codeFrame = {
       code: error.source,
       codeHighlights: {
         start: {
@@ -96,9 +97,9 @@ export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
   return {
     origin: 'Error',
     message: error.message,
-    filename: error.fileName,
+    filePath: error.fileName,
     stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
-    codeframe
+    codeFrame
   };
 }
 
@@ -108,7 +109,7 @@ type ThrowableDiagnosticOpts = {
 };
 
 export default class ThrowableDiagnostic extends Error {
-  #diagnostic: Diagnostic;
+  diagnostic: Diagnostic;
   stack: string;
 
   constructor(opts: ThrowableDiagnosticOpts) {
@@ -116,10 +117,6 @@ export default class ThrowableDiagnostic extends Error {
     super(opts.diagnostic.message);
     this.stack = opts.diagnostic.stack || super.stack;
 
-    this.#diagnostic = opts.diagnostic;
-  }
-
-  toObject() {
-    return this.#diagnostic;
+    this.diagnostic = opts.diagnostic;
   }
 }
