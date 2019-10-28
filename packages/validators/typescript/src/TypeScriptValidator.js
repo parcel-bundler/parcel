@@ -121,7 +121,7 @@ export default new Validator({
         });
       }
 
-      throw new Error(`Found ${diagnostics.length} TS errors`);
+      throw new Error(`TSC found ${diagnostics.length} error(s)!`);
     }
   }
 });

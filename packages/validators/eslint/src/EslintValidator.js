@@ -55,7 +55,7 @@ export default new Validator({
     }
 
     if (errorCount) {
-      throw new Error(`ESLint found ${errorCount} errors!`);
+      throw new Error(`ESLint found ${errorCount} error(s)!`);
     }
   }
 });
