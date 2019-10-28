@@ -7,8 +7,6 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/codeframe": "^2.0.0-alpha.2.1",
-    "@parcel/markdown-ansi": "^2.0.0-alpha.2.1",
     "@parcel/events": "^2.0.0-alpha.2.1",
     "@parcel/logger": "^2.0.0-alpha.2.1",
     "@parcel/plugin": "^2.0.0-alpha.2.1",

@@ -7,14 +7,13 @@ import type {
   TextLogEvent,
   ProgressLogEvent
 } from '@parcel/types';
-import type {Diagnostic, DiagnosticCodeFrame} from '@parcel/diagnostic';
-import mdAnsi from '@parcel/markdown-ansi';
+import type {Diagnostic} from '@parcel/diagnostic';
+import {prettyDiagnostic} from '@parcel/utils';
 
 import {Box, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
 import * as Emoji from './emoji';
-import formatCodeFrame from './formatCodeFrame';
 
 type LogProps = {
   event: LogEvent,
@@ -58,44 +57,13 @@ export function Log({event}: LogProps) {
   throw new Error('Unknown log event type');
 }
 
-function memoisedMarkdownMessage(msg: string) {
-  return React.useMemo(() => mdAnsi(msg), [msg]);
-}
-
 function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
       <div>Hints:</div>
       {hints.map((hint, i) => {
-        return <div key={i}>- {memoisedMarkdownMessage(hint)}</div>;
+        return <div key={i}>- {hint}</div>;
       })}
-    </div>
-  );
-}
-
-function CodeFrame(props: {
-  codeframe: DiagnosticCodeFrame,
-  filename?: string,
-  language?: string,
-  ...
-}) {
-  let {codeframe, filename} = props;
-  let highlights = Array.isArray(codeframe.codeHighlights)
-    ? codeframe.codeHighlights
-    : [codeframe.codeHighlights];
-
-  let formattedCodeFrame = React.useMemo(() => formatCodeFrame(codeframe), [
-    codeframe
-  ]);
-
-  return (
-    <div>
-      {`${typeof filename !== 'string' ? '' : filename}@${highlights
-        .map(h => {
-          return `${h.start.line}:${h.start.column}`;
-        })
-        .join(',')}`}
-      <div>{formattedCodeFrame}</div>
     </div>
   );
 }
@@ -110,35 +78,18 @@ function DiagnosticContainer({
   emoji: string,
   ...
 }) {
-  let {
-    origin,
-    message,
-    stack,
-    hints,
-    codeframe,
-    filename,
-    language
-  } = diagnostic;
+  let {message, stack, hints, codeframe} = prettyDiagnostic(diagnostic);
 
   return (
     <React.Fragment>
       <Color keyword={color}>
-        <Color bold>{`${emoji} ${origin}`}</Color>{' '}
-        {memoisedMarkdownMessage(message)}
+        <Color bold>{`${emoji}`}</Color> {message}
       </Color>
-      {stack != null && stack !== '' ? (
-        <div>
-          <Color gray>{stack}</Color>
-        </div>
-      ) : null}
-      {codeframe && (
-        <CodeFrame
-          codeframe={codeframe}
-          filename={filename}
-          language={language}
-        />
-      )}
-      {Array.isArray(hints) && hints.length ? <Hints hints={hints} /> : ''}
+      <div>
+        <Color gray>{stack}</Color>
+      </div>
+      <div>{codeframe}</div>
+      {hints.length > 0 && <Hints hints={hints} />}
     </React.Fragment>
   );
 }
