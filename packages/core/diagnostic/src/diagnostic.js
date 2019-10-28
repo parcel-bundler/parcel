@@ -57,10 +57,10 @@ export function anyToDiagnostic(
 ): Diagnostic {
   // $FlowFixMe
   let diagnostic: Diagnostic = input;
-  if (input instanceof Error) {
-    diagnostic = errorToDiagnostic(input);
-  } else if (input instanceof ThrowableDiagnostic) {
+  if (input instanceof ThrowableDiagnostic) {
     diagnostic = input.toObject();
+  } else if (input instanceof Error) {
+    diagnostic = errorToDiagnostic(input);
   }
 
   return diagnostic;

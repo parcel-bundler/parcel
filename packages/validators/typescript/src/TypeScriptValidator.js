@@ -4,7 +4,6 @@ import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
-import logger from '@parcel/logger';
 
 import LanguageServiceHost from './languageServiceHost';
 
@@ -63,6 +62,11 @@ export default new Validator({
       asset.filePath
     );
 
+    let validatorResult = {
+      warnings: [],
+      errors: []
+    };
+
     if (diagnostics.length > 0) {
       for (let diagnostic of diagnostics) {
         let filename = asset.filePath;
@@ -113,15 +117,15 @@ export default new Validator({
           }
         }
 
-        logger.error({
+        validatorResult.errors.push({
           origin: '@parcel/validator-typescript',
           message: diagnosticMessage,
           filename,
           codeframe: codeframe ? codeframe : undefined
         });
       }
-
-      throw new Error(`TSC found ${diagnostics.length} error(s)!`);
     }
+
+    return validatorResult;
   }
 });

@@ -1,6 +1,5 @@
 // @flow
 import {Validator} from '@parcel/plugin';
-import logger from '@parcel/logger';
 import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 
 let cliEngine = null;
@@ -14,7 +13,11 @@ export default new Validator({
     let code = await asset.getCode();
     let report = cliEngine.executeOnText(code, asset.filePath);
 
-    let errorCount = 0;
+    let validatorResult = {
+      warnings: [],
+      errors: []
+    };
+
     if (report.results.length > 0) {
       for (let result of report.results) {
         if (!result.errorCount && !result.warningCount) continue;
@@ -46,16 +49,13 @@ export default new Validator({
         };
 
         if (result.errorCount > 0) {
-          logger.error(diagnostic);
-          errorCount += result.errorCount;
+          validatorResult.errors.push(diagnostic);
         } else {
-          logger.warn(diagnostic);
+          validatorResult.warnings.push(diagnostic);
         }
       }
     }
 
-    if (errorCount) {
-      throw new Error(`ESLint found ${errorCount} error(s)!`);
-    }
+    return validatorResult;
   }
 });

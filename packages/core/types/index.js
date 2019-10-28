@@ -397,12 +397,17 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>
 ) => Promise<FilePath | null>;
 
+export type ValidateResult = {|
+  warnings: Array<Diagnostic>,
+  errors: Array<Diagnostic>
+|};
+
 export type Validator = {|
   validate({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions
-  |}): Async<void>,
+  |}): Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
