@@ -52,25 +52,31 @@ export async function load(config: Config, options: PluginOptions) {
 
     // babel.config.js files get required by @babel/core so there's no use in including it for watch mode invalidation
     if (configIsJS) {
-      logger.verbose(
-        'WARNING: Using a JavaScript Babel config file means losing out on some caching features of Parcel. Try using a .babelrc file instead.'
-      );
+      logger.verbose({
+        origin: '',
+        message:
+          'WARNING: Using a JavaScript Babel config file means losing out on some caching features of Parcel. Try using a .babelrc file instead.'
+      });
       config.shouldInvalidateOnStartup();
     } else {
       config.setResolvedPath(babelrc);
     }
 
     if (babelrc && (await isExtended(/*babelrc*/))) {
-      logger.verbose(
-        'WARNING: You are using `extends` in your Babel config, which means you are losing out on some of the caching features of Parcel. Maybe try using a reusable preset instead.'
-      );
+      logger.verbose({
+        origin: '',
+        message:
+          'WARNING: You are using `extends` in your Babel config, which means you are losing out on some of the caching features of Parcel. Maybe try using a reusable preset instead.'
+      });
       config.shouldInvalidateOnStartup();
     }
 
     if (dependsOnRelative || dependsOnLocal) {
-      logger.verbose(
-        'WARNING: It looks like you are using local Babel plugins or presets. You will need to run with the `--no-cache` option in order to pick up changes to these until their containing package versions are bumped.'
-      );
+      logger.verbose({
+        origin: '',
+        message:
+          'WARNING: It looks like you are using local Babel plugins or presets. You will need to run with the `--no-cache` option in order to pick up changes to these until their containing package versions are bumped.'
+      });
     }
 
     if (canBeRehydrated) {
@@ -85,9 +91,11 @@ export async function load(config: Config, options: PluginOptions) {
       await definePluginDependencies(config);
       config.setResultHash(md5FromObject(partialConfig.options));
     } else {
-      logger.warn(
-        'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
-      );
+      logger.warn({
+        origin: '@parcel/transformer-babel',
+        message:
+          'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
+      });
       config.shouldReload();
       config.setResult({
         internal: false

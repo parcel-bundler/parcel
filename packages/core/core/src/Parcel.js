@@ -14,6 +14,7 @@ import type {FarmOptions} from '@parcel/workers';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
+import {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
@@ -152,7 +153,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.error);
+      throw new BuildError(result.diagnostic);
     }
 
     return result.bundleGraph;
@@ -270,6 +271,7 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -278,9 +280,11 @@ export default class Parcel {
 
       let event = {
         type: 'buildFailure',
-        error: e
+        diagnostic: anyToDiagnostic(e)
       };
+
       await this.#reporterRunner.report(event);
+
       return event;
     } finally {
       if (options.profile) {
@@ -368,7 +372,7 @@ export class BuildError extends Error {
   error: mixed;
 
   constructor(error: mixed) {
-    super(error instanceof Error ? error.message : 'Unknown Build Error');
+    super(typeof error === 'object' ? error?.message : 'Unknown Build Error');
     this.error = error;
     if (error instanceof Error) {
       this.stack = error.stack;

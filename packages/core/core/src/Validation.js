@@ -8,11 +8,13 @@ import type {
   ConfigRequest,
   ParcelOptions
 } from './types';
-import type ParcelConfig from './ParcelConfig';
+import ParcelConfig from './ParcelConfig';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
+import logger from '@parcel/logger';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
@@ -71,7 +73,11 @@ export default class Validation {
     };
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig: ParcelConfig = nullthrows(config.result);
+    nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
@@ -91,11 +97,30 @@ export default class Validation {
         });
       }
 
-      await validator.validate({
+      let validatorResult = await validator.validate({
         asset: new Asset(asset),
         options: pluginOptions,
         config
       });
+
+      if (validatorResult) {
+        let {warnings, errors} = validatorResult;
+
+        for (let error of errors) {
+          logger.error(error);
+        }
+
+        for (let warning of warnings) {
+          logger.warn(warning);
+        }
+
+        // Throw to fail build...
+        if (errors.length > 0) {
+          throw new ThrowableDiagnostic({
+            diagnostic: errors[0]
+          });
+        }
+      }
     }
   }
 

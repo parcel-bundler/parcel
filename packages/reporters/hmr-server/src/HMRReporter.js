@@ -29,7 +29,7 @@ export default new Reporter({
     }
 
     if (event.type === 'buildFailure') {
-      server.emitError(event.error);
+      server.emitError(event.diagnostic);
     }
   }
 });
