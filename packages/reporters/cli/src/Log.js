@@ -60,7 +60,6 @@ export function Log({event}: LogProps) {
 function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
-      <div>Hints:</div>
       {hints.map((hint, i) => {
         return <div key={i}>- {hint}</div>;
       })}
