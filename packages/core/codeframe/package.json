@@ -1,8 +1,8 @@
 {
-  "name": "@parcel/logger",
+  "name": "@parcel/codeframe",
   "version": "2.0.0-alpha.2.1",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/Logger.js",
+  "main": "src/codeframe.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -15,7 +15,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@parcel/events": "^2.0.0-alpha.2.1",
-    "@parcel/diagnostic": "^2.0.0-alpha.2.1"
+    "chalk": "^2.4.2"
   }
 }

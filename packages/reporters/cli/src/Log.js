@@ -1,26 +1,45 @@
 // @flow strict-local
 
-import type {LogEvent, ServerOptions} from '@parcel/types';
+import type {
+  ServerOptions,
+  LogEvent,
+  DiagnosticLogEvent,
+  TextLogEvent,
+  ProgressLogEvent
+} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
+import {prettyDiagnostic} from '@parcel/utils';
 
-import {prettyError} from '@parcel/utils';
-import {Box, Text, Color} from 'ink';
+import {Box, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
 import * as Emoji from './emoji';
 
-type StringOrErrorLogProps = {|
-  event: LogEvent
-|};
+type LogProps = {
+  event: LogEvent,
+  ...
+};
 
-type StringLogProps = {|
-  event: {+message: string, ...}
-|};
+type DiagnosticLogProps = {
+  event: DiagnosticLogEvent,
+  ...
+};
+
+type TextLogProps = {
+  event: TextLogEvent,
+  ...
+};
+
+type ProgressLogProps = {
+  event: ProgressLogEvent,
+  ...
+};
 
 type ServerInfoProps = {|
   options: ServerOptions
 |};
 
-export function Log({event}: StringOrErrorLogProps) {
+export function Log({event}: LogProps) {
   switch (event.level) {
     case 'verbose':
     case 'info':
@@ -38,47 +57,74 @@ export function Log({event}: StringOrErrorLogProps) {
   throw new Error('Unknown log event type');
 }
 
-function InfoLog({event}: StringLogProps) {
-  return <Text>{event.message}</Text>;
+function Hints({hints}: {hints: Array<string>, ...}) {
+  return (
+    <div>
+      {hints.map((hint, i) => {
+        return <div key={i}>- {hint}</div>;
+      })}
+    </div>
+  );
 }
 
-function Stack({
-  err,
-  emoji,
+function DiagnosticContainer({
+  diagnostic,
   color,
-  ...otherProps
+  emoji
 }: {
-  err: string | Error,
-  emoji: string,
+  diagnostic: Diagnostic,
   color: string,
+  emoji: string,
   ...
 }) {
-  let {message, stack} = prettyError(err, {color: true});
+  let {message, stack, hints, codeframe} = prettyDiagnostic(diagnostic);
+
   return (
     <React.Fragment>
+      <Color keyword={color}>
+        <Color bold>{`${emoji}`}</Color> {message}
+      </Color>
       <div>
-        <Color keyword={color} {...otherProps}>
-          {emoji} {message}
-        </Color>
+        <Color gray>{stack}</Color>
       </div>
-      {stack != null && stack !== '' ? (
-        <div>
-          <Color gray>{stack}</Color>
-        </div>
-      ) : null}
+      <div>{codeframe}</div>
+      {hints.length > 0 && <Hints hints={hints} />}
     </React.Fragment>
   );
 }
 
-function WarnLog({event}: StringOrErrorLogProps) {
-  return <Stack err={event.message} emoji={Emoji.warning} color="yellow" />;
+function InfoLog({event}: DiagnosticLogProps) {
+  return (
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
+      emoji={Emoji.info}
+      color="blue"
+    />
+  );
 }
 
-function ErrorLog({event}: StringOrErrorLogProps) {
-  return <Stack err={event.message} emoji={Emoji.error} color="red" bold />;
+function WarnLog({event}: DiagnosticLogProps) {
+  return (
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
+      emoji={Emoji.warning}
+      color="yellow"
+    />
+  );
 }
 
-function SuccessLog({event}: StringLogProps) {
+function ErrorLog({event}: DiagnosticLogProps) {
+  return (
+    <DiagnosticContainer
+      diagnostic={event.diagnostic}
+      emoji={Emoji.error}
+      color="red"
+      bold
+    />
+  );
+}
+
+function SuccessLog({event}: TextLogProps) {
   return (
     <Color green bold>
       {Emoji.success} {event.message}
@@ -86,7 +132,7 @@ function SuccessLog({event}: StringLogProps) {
   );
 }
 
-export function Progress({event}: StringLogProps) {
+export function Progress({event}: ProgressLogProps) {
   return (
     <Box>
       <Color gray bold>

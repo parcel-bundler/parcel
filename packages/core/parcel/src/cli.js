@@ -142,7 +142,7 @@ async function run(entries: Array<string>, command: any) {
       ...defaultConfig,
       filePath: require.resolve('@parcel/config-default')
     },
-    patchConsole: true,
+    patchConsole: false,
     ...(await normalizeOptions(command))
   });
 
