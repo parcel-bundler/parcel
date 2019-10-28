@@ -14,7 +14,7 @@ import type {FarmOptions} from '@parcel/workers';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
-import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
@@ -141,7 +141,6 @@ export default class Parcel {
       await this.init();
     }
 
-    // $FlowFixMe why does this happen?
     let result = await this.build({startTime});
     await Promise.all([
       this.#assetGraphBuilder.writeToCache(),
@@ -154,7 +153,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new ThrowableDiagnostic(result.diagnostic);
+      throw new BuildError(result.diagnostic);
     }
 
     return result.bundleGraph;
@@ -365,6 +364,19 @@ export default class Parcel {
       },
       opts
     );
+  }
+}
+
+export class BuildError extends Error {
+  name = 'BuildError';
+  error: mixed;
+
+  constructor(error: mixed) {
+    super(typeof error === 'object' ? error?.message : 'Unknown Build Error');
+    this.error = error;
+    if (error instanceof Error) {
+      this.stack = error.stack;
+    }
   }
 }
 

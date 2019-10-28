@@ -53,7 +53,7 @@ export type PrintableError = Error & {
 };
 
 export function anyToDiagnostic(
-  input: Diagnostic | PrintableError | ThrowableDiagnostic
+  input: Diagnostic | PrintableError | ThrowableDiagnostic | string
 ): Diagnostic {
   // $FlowFixMe
   let diagnostic: Diagnostic = input;
@@ -66,8 +66,16 @@ export function anyToDiagnostic(
   return diagnostic;
 }
 
-export function errorToDiagnostic(error: PrintableError): Diagnostic {
+export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
   let codeframe: DiagnosticCodeFrame | void = undefined;
+
+  if (typeof error === 'string') {
+    return {
+      origin: 'Error',
+      message: error,
+      codeframe
+    };
+  }
 
   if (error.loc && error.source) {
     codeframe = {

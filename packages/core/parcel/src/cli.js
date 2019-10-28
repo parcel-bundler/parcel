@@ -1,6 +1,7 @@
 // @flow
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
+import {BuildError} from '@parcel/core';
 
 require('v8-compile-cache');
 
@@ -193,6 +194,7 @@ async function run(entries: Array<string>, command: any) {
     } catch (e) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
+      if (!(e instanceof BuildError)) console.error(e);
       process.exit(1);
     }
   }
