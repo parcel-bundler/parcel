@@ -10,10 +10,9 @@ import {Reporter} from '@parcel/plugin';
 import * as React from 'react';
 
 import BundleReport from './BundleReport';
-import {prettifyTime} from '@parcel/utils';
+import {prettifyTime, prettyDiagnostic} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
-import formatCodeFrame from './formatCodeFrame';
 
 export default new Reporter({
   report(event, options) {
@@ -97,33 +96,13 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 }
 
 function writeDiagnostic(diagnostic: Diagnostic, isError?: boolean) {
-  let {origin, message, stack, codeframe, hints, filename} = diagnostic;
+  let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
-  writeOut(`${origin}: ${message}`, isError);
-  if (typeof stack === 'string') {
-    writeOut(stack, isError);
-  }
-  if (codeframe !== undefined) {
-    let highlight = Array.isArray(codeframe.codeHighlights)
-      ? codeframe.codeHighlights[0]
-      : codeframe.codeHighlights;
-
-    if (highlight) {
-      let formattedCodeFrame = formatCodeFrame(codeframe);
-
-      writeOut(
-        `${typeof filename !== 'string' ? '' : filename}@${
-          highlight.start.line
-        }:${highlight.start.column}`,
-        isError
-      );
-      writeOut(formattedCodeFrame, isError);
-    }
-  }
-  if (Array.isArray(hints) && hints.length) {
-    for (let hint of hints) {
-      writeOut(hint, isError);
-    }
+  writeOut(message, isError);
+  writeOut(stack, isError);
+  writeOut(codeframe, isError);
+  for (let hint of hints) {
+    writeOut(hint, isError);
   }
 }
 
