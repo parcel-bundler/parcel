@@ -14,6 +14,7 @@ export default new Validator({
     let code = await asset.getCode();
     let report = cliEngine.executeOnText(code, asset.filePath);
 
+    let errorCount = 0;
     if (report.results.length > 0) {
       for (let result of report.results) {
         if (!result.errorCount && !result.warningCount) continue;
@@ -35,15 +36,26 @@ export default new Validator({
           })
         };
 
-        logger.error({
+        let diagnostic = {
           origin: '@parcel/validator-eslint',
           message: `ESLint found **${result.errorCount}** __errors__ and **${
             result.warningCount
           }** __warnings__.`,
           filename: asset.filePath,
           codeframe: codeframe
-        });
+        };
+
+        if (result.errorCount > 0) {
+          logger.error(diagnostic);
+          errorCount += result.errorCount;
+        } else {
+          logger.warn(diagnostic);
+        }
       }
+    }
+
+    if (errorCount) {
+      throw new Error(`ESLint found ${errorCount} errors!`);
     }
   }
 });

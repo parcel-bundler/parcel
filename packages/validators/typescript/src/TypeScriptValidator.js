@@ -120,6 +120,8 @@ export default new Validator({
           codeframe: codeframe ? codeframe : undefined
         });
       }
+
+      throw new Error(`Found ${diagnostics.length} TS errors`);
     }
   }
 });

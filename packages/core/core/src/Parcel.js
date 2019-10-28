@@ -270,6 +270,7 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -280,7 +281,9 @@ export default class Parcel {
         type: 'buildFailure',
         error: e
       };
+
       await this.#reporterRunner.report(event);
+
       return event;
     } finally {
       if (options.profile) {
