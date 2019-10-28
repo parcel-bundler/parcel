@@ -29,6 +29,11 @@ const EMPTY_OPTIONS = {
 };
 
 describe('SimpleCLIReporter', () => {
+  // $FlowFixMe only run in CI
+  if (process.stdout.isTTY) {
+    return;
+  }
+
   let originalStdout;
   let originalStderr;
   let stdoutOutput;
