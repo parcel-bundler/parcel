@@ -98,9 +98,18 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 function writeDiagnostic(diagnostic: Diagnostic, isError?: boolean) {
   let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
-  writeOut(message, isError);
-  writeOut(stack, isError);
-  writeOut(codeframe, isError);
+  if (message) {
+    writeOut(message, isError);
+  }
+
+  if (stack) {
+    writeOut(stack, isError);
+  }
+
+  if (codeframe) {
+    writeOut(codeframe, isError);
+  }
+
   for (let hint of hints) {
     writeOut(hint, isError);
   }
