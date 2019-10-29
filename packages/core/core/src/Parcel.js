@@ -278,9 +278,10 @@ export default class Parcel {
         throw e;
       }
 
+      let diagnostic = anyToDiagnostic(e);
       let event = {
         type: 'buildFailure',
-        diagnostic: anyToDiagnostic(e)
+        diagnostic: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
       };
 
       await this.#reporterRunner.report(event);

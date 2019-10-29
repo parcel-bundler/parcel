@@ -95,23 +95,25 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   }
 }
 
-function writeDiagnostic(diagnostic: Diagnostic, isError?: boolean) {
-  let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
+function writeDiagnostic(diagnostics: Array<Diagnostic>, isError?: boolean) {
+  for (let diagnostic of diagnostics) {
+    let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
-  if (message) {
-    writeOut(message, isError);
-  }
+    if (message) {
+      writeOut(message, isError);
+    }
 
-  if (stack) {
-    writeOut(stack, isError);
-  }
+    if (stack) {
+      writeOut(stack, isError);
+    }
 
-  if (codeframe) {
-    writeOut(codeframe, isError);
-  }
+    if (codeframe) {
+      writeOut(codeframe, isError);
+    }
 
-  for (let hint of hints) {
-    writeOut(hint, isError);
+    for (let hint of hints) {
+      writeOut(hint, isError);
+    }
   }
 }
 

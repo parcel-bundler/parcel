@@ -61,9 +61,11 @@ export type Diagnostifiable =
   | PrintableError
   | string;
 
-export function anyToDiagnostic(input: Diagnostifiable): Diagnostic {
+export function anyToDiagnostic(
+  input: Diagnostifiable
+): Diagnostic | Array<Diagnostic> {
   // $FlowFixMe
-  let diagnostic: Diagnostic = input;
+  let diagnostic: Diagnostic | Array<Diagnostic> = input;
   if (input instanceof ThrowableDiagnostic) {
     diagnostic = input.diagnostic;
   } else if (input instanceof Error) {

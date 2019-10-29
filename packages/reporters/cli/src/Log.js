@@ -72,23 +72,29 @@ function DiagnosticContainer({
   color,
   emoji
 }: {
-  diagnostic: Diagnostic,
+  diagnostic: Array<Diagnostic>,
   color: string,
   emoji: string,
   ...
 }) {
-  let {message, stack, hints, codeframe} = prettyDiagnostic(diagnostic);
-
   return (
     <React.Fragment>
-      <Color keyword={color}>
-        <Color bold>{`${emoji}`}</Color> {message}
-      </Color>
-      <div>
-        <Color gray>{stack}</Color>
-      </div>
-      <div>{codeframe}</div>
-      {hints.length > 0 && <Hints hints={hints} />}
+      {diagnostic.map((d, i) => {
+        let {message, stack, hints, codeframe} = prettyDiagnostic(d);
+
+        return (
+          <div key={i}>
+            <Color keyword={color}>
+              <Color bold>{`${emoji}`}</Color> {message}
+            </Color>
+            <div>
+              <Color gray>{stack}</Color>
+            </div>
+            <div>{codeframe}</div>
+            {hints.length > 0 && <Hints hints={hints} />}
+          </div>
+        );
+      })}
     </React.Fragment>
   );
 }
