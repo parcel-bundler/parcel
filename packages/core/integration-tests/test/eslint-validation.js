@@ -12,6 +12,7 @@ const config = {
   filePath: require.resolve('@parcel/config-default')
 };
 
+// For some reason this throws uncaught after passing...
 describe.skip('eslint-validator', function() {
   it('should throw validation error with eslint errors', async function() {
     let didThrow = false;
