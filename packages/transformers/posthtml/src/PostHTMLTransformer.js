@@ -17,7 +17,7 @@ const canSerializeConfig = config => {
     return config.plugins.every(plugin => typeof plugin === 'string');
   } else if (typeof config.plugins === 'object') {
     return Object.keys(config.plugins).every(
-      plugin => typeof plugin === 'string'
+      plugin => typeof plugin === 'string',
     );
   }
   return true;
@@ -25,10 +25,11 @@ const canSerializeConfig = config => {
 
 export default new Transformer({
   async loadConfig({config, options}) {
-    let configResult = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
-      options,
-    );
+    let configResult = await config.getConfig([
+      '.posthtmlrc',
+      '.posthtmlrc.js',
+      'posthtml.config.js',
+    ]);
 
     configResult = configResult || {};
     configResult.skipParse = true;
@@ -38,7 +39,7 @@ export default new Transformer({
       configResult.plugins = await loadPlugins(
         configResult.plugins,
         config.searchPath,
-        options
+        options,
       );
       config.setResult(configResult);
     } else if (!canSerializeConfig(configResult)) {
