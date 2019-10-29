@@ -51,7 +51,7 @@ describe('pug', function() {
         name: 'index.html',
         assets: ['index.pug'],
         includedFiles: {
-          'index.pug': ['package.json', 'base.pug', 'other.pug', 'nested.pug']
+          'index.pug': ['base.pug', 'other.pug', 'nested.pug']
         }
       }
     ]);
