@@ -11,6 +11,7 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
@@ -370,14 +371,12 @@ export default class Parcel {
 
 export class BuildError extends Error {
   name = 'BuildError';
-  error: mixed;
+  diagnostic: Array<Diagnostic>;
 
-  constructor(error: mixed) {
-    super(typeof error === 'object' ? error?.message : 'Unknown Build Error');
-    this.error = error;
-    if (error instanceof Error) {
-      this.stack = error.stack;
-    }
+  constructor(diagnostic: Array<Diagnostic>) {
+    super('BuildError');
+
+    this.diagnostic = diagnostic;
   }
 }
 

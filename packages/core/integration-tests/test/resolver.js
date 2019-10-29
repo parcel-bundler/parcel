@@ -36,7 +36,7 @@ describe('resolver', function() {
     } catch (e) {
       didThrow = true;
       assert.equal(
-        e.message,
+        e.diagnostic[0].message,
         `The import path: node-loader!./index.js is using webpack specific loader import syntax, which isn't supported by Parcel.`
       );
     }
