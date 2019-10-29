@@ -25,15 +25,16 @@ export type Diagnostic = {|
   message: string,
   origin: string, // Name of plugin or file that threw this error
 
+  // basic error data
+  stack?: string,
+  name?: string,
+
   // Asset metadata
   filePath?: FilePath,
   language?: string,
 
   // Codeframe data
   codeFrame?: DiagnosticCodeFrame,
-
-  // Stacktrace for error, not really needed if there's a codeframe...
-  stack?: string,
 
   // Hints to resolve issues faster
   hints?: Array<string>
@@ -118,6 +119,7 @@ export function errorToDiagnostic(
   return {
     origin: 'Error',
     message: error.message,
+    name: error.name,
     filePath: error.fileName,
     stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
     codeFrame
@@ -136,7 +138,11 @@ export default class ThrowableDiagnostic extends Error {
     let diagnostics = Array.isArray(opts.diagnostic)
       ? opts.diagnostic
       : [opts.diagnostic];
+
+    // construct error from diagnostics...
     super(diagnostics[0].message);
+    this.stack = diagnostics[0].stack || super.stack;
+    this.name = diagnostics[0].name || super.name;
 
     this.diagnostic = diagnostics;
   }
