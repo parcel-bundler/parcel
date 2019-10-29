@@ -25,10 +25,11 @@ const canSerializeConfig = config => {
 
 export default new Transformer({
   async loadConfig({config, options}) {
-    let configResult = await config.getConfig(
-      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
-      options
-    );
+    let configResult = await config.getConfig([
+      '.posthtmlrc',
+      '.posthtmlrc.js',
+      'posthtml.config.js'
+    ]);
 
     configResult = configResult || {};
     configResult.skipParse = true;
