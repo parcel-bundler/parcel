@@ -374,7 +374,7 @@ export class BuildError extends Error {
   diagnostic: Array<Diagnostic>;
 
   constructor(diagnostic: Array<Diagnostic>) {
-    super('BuildError');
+    super(diagnostic[0].message);
 
     this.diagnostic = diagnostic;
   }
