@@ -53,14 +53,15 @@ export type PrintableError = Error & {
   ...
 };
 
-export function anyToDiagnostic(
-  input:
-    | Diagnostic
-    | Array<Diagnostic>
-    | ThrowableDiagnostic
-    | PrintableError
-    | string
-): Diagnostic {
+// Something that can be turned into a diagnostic...
+export type Diagnostifiable =
+  | Diagnostic
+  | Array<Diagnostic>
+  | ThrowableDiagnostic
+  | PrintableError
+  | string;
+
+export function anyToDiagnostic(input: Diagnostifiable): Diagnostic {
   // $FlowFixMe
   let diagnostic: Diagnostic = input;
   if (input instanceof ThrowableDiagnostic) {
