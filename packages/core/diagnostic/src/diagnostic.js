@@ -39,6 +39,11 @@ export type Diagnostic = {|
   hints?: Array<string>
 |};
 
+export type BuildError = PrintableError & {
+  diagnostic?: Array<Diagnostic>,
+  ...
+};
+
 // This type should represent all error formats Parcel can encounter...
 export type PrintableError = Error & {
   fileName?: string,
@@ -75,7 +80,9 @@ export function anyToDiagnostic(
   return diagnostic;
 }
 
-export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
+export function errorToDiagnostic(
+  error: PrintableError | BuildError | string
+): Array<Diagnostic> | Diagnostic {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
@@ -84,6 +91,12 @@ export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
       message: error,
       codeFrame
     };
+  }
+
+  // $FlowFixMe
+  if (error.diagnostic) {
+    // $FlowFixMe
+    return error.diagnostic;
   }
 
   if (error.loc && error.source) {

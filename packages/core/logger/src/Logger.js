@@ -153,7 +153,9 @@ export function patchConsole() {
   consolePatched = true;
 }
 
-function messagesToDiagnostic(messages: Array<mixed>): Diagnostic {
+function messagesToDiagnostic(
+  messages: Array<mixed>
+): Diagnostic | Array<Diagnostic> {
   if (messages.length === 1 && messages[0] instanceof Error) {
     let error: Error = messages[0];
 
