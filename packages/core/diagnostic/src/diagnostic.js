@@ -129,10 +129,15 @@ type ThrowableDiagnosticOpts = {
   ...
 };
 
-export default class ThrowableDiagnostic {
-  diagnostic: Diagnostic | Array<Diagnostic>;
+export default class ThrowableDiagnostic extends Error {
+  diagnostic: Array<Diagnostic>;
 
   constructor(opts: ThrowableDiagnosticOpts) {
-    this.diagnostic = opts.diagnostic;
+    let diagnostics = Array.isArray(opts.diagnostic)
+      ? opts.diagnostic
+      : [opts.diagnostic];
+    super(diagnostics[0].message);
+
+    this.diagnostic = diagnostics;
   }
 }

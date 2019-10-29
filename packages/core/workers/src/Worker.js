@@ -4,7 +4,7 @@ import type {FilePath} from '@parcel/types';
 import type {WorkerMessage, WorkerImpl, BackendType} from './types';
 
 import EventEmitter from 'events';
-import {jsonToError} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
@@ -132,7 +132,7 @@ export default class Worker extends EventEmitter {
       }
 
       if (message.contentType === 'error') {
-        call.reject(jsonToError(message.content));
+        call.reject(new ThrowableDiagnostic({diagnostic: message.content}));
       } else {
         call.resolve(message.content);
       }
