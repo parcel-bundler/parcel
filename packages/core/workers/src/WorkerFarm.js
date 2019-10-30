@@ -466,7 +466,10 @@ export default class WorkerFarm extends EventEmitter {
       stream.once('finish', resolve);
     });
 
-    logger.info(`Wrote profile to ${filename}`);
+    logger.info({
+      origin: '@parcel/workers',
+      message: `Wrote profile to ${filename}`
+    });
   }
 
   static getNumWorkers() {

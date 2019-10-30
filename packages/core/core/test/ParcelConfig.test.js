@@ -81,10 +81,11 @@ describe('ParcelConfig', () => {
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
       assert(logger.warn.calledOnce);
-      assert.equal(
-        logger.warn.getCall(0).args[0],
-        'The plugin "parcel-transformer-no-engines" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.'
-      );
+      assert.deepEqual(logger.warn.getCall(0).args[0], {
+        origin: '@parcel/core',
+        message:
+          'The plugin "parcel-transformer-no-engines" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.'
+      });
       logger.warn.restore();
     });
 

@@ -5,6 +5,7 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -396,12 +397,17 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>
 ) => Promise<FilePath | null>;
 
+export type ValidateResult = {|
+  warnings: Array<Diagnostic>,
+  errors: Array<Diagnostic>
+|};
+
 export type Validator = {|
   validate({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions
-  |}): Async<void>,
+  |}): Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
@@ -671,18 +677,19 @@ export type ProgressLogEvent = {|
   +message: string
 |};
 
-export type LogEvent =
-  | ProgressLogEvent
-  | {|
-      +type: 'log',
-      +level: 'error' | 'warn',
-      +message: string | Error
-    |}
-  | {|
-      +type: 'log',
-      +level: 'info' | 'success' | 'verbose',
-      +message: string
-    |};
+export type DiagnosticLogEvent = {|
+  +type: 'log',
+  +level: 'error' | 'warn' | 'info' | 'verbose',
+  +diagnostic: Diagnostic
+|};
+
+export type TextLogEvent = {|
+  +type: 'log',
+  +level: 'success',
+  +message: string
+|};
+
+export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 export type BuildStartEvent = {|
   type: 'buildStart'
@@ -741,7 +748,7 @@ export type BuildSuccessEvent = {|
 
 export type BuildFailureEvent = {|
   type: 'buildFailure',
-  error: Error
+  diagnostic: Diagnostic
 |};
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
