@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "chalk": "^2.4.2",
-    "emphasize": "^2.1.0"
+    "emphasize": "^2.1.0",
+    "json-source-map": "^0.6.1",
+    "nullthrows": "^1.1.1"
   }
 }

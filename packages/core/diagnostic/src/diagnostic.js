@@ -2,6 +2,7 @@
 import type {FilePath} from '@parcel/types';
 
 export type DiagnosticHighlightLocation = {|
+  // These positions are 1-based
   line: number,
   column: number
 |};
@@ -9,6 +10,7 @@ export type DiagnosticHighlightLocation = {|
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
 export type DiagnosticCodeHighlight = {|
+  // start and end are included in the highlighted region
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
   message?: string

@@ -14,6 +14,8 @@ import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
 
 import {loadConfig} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {generateJSONCodeHighlights} from '@parcel/codeframe';
 import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
@@ -40,6 +42,50 @@ const DEFAULT_PRODUCTION_ENGINES = {
 
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
+
+function generateDescriptorError({
+  pkgContents,
+  pkgPath,
+  targetName,
+  keys,
+  message,
+  hints
+}: {|
+  pkgContents: ?string,
+  pkgPath: ?string,
+  targetName: string,
+  keys: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
+  message: string,
+  hints?: ?Array<string>
+|}) {
+  let highlight;
+  if (pkgContents) {
+    highlight = generateJSONCodeHighlights(
+      pkgContents,
+      keys.map(({key, type, message}) => ({
+        key: `/targets/${targetName}/${key}`,
+        type: type,
+        message
+      }))
+    );
+  }
+  throw new ThrowableDiagnostic({
+    diagnostic: {
+      message,
+      origin: '@parcel/core',
+      filePath: pkgPath || undefined,
+      language: 'json',
+      codeFrame:
+        highlight && pkgContents
+          ? {
+              code: pkgContents,
+              codeHighlights: highlight
+            }
+          : undefined,
+      hints: hints || undefined
+    }
+  });
+}
 
 function parseEngines(
   targetName: ?string,
@@ -81,9 +127,22 @@ function parseEngines(
   }
 }
 
+const LIST_OF_DESCRIPTOR_KEYS = [
+  'context',
+  'engines',
+  'includenodeModules',
+  'outputFormat',
+  'publicUrl',
+  'distDir',
+  'sourceMap',
+  'distDir',
+  'isLibrary'
+];
 function parseDescriptor(
   targetName: string,
-  descriptor: mixed
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: ?string
 ): {|
   context?: EnvironmentContext | typeof undefined,
   engines?: Engines | typeof undefined,
@@ -112,13 +171,23 @@ function parseDescriptor(
   } = descriptor;
 
   if (Object.keys(rest).length !== 0) {
-    throw new Error(
-      `Unexpected properties in descriptor for target "${targetName}": ${Object.keys(
-        rest
-      )
-        .map(v => String(JSON.stringify(v)))
-        .join(',')}`
-    );
+    let keys = Object.keys(rest)
+      .map(k => {
+        let hint;
+        for (let l of LIST_OF_DESCRIPTOR_KEYS) {
+          if (l.toLowerCase() === k.toLowerCase())
+            hint = `Did you mean "${l}" ?`;
+        }
+        return {key: k, type: 'key', message: hint};
+      })
+      .filter(Boolean);
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys,
+      message: `Unexpected properties in descriptor for target "${targetName}"`
+    });
   }
 
   if (
@@ -132,21 +201,33 @@ function parseDescriptor(
       context === 'electron-renderer'
     )
   ) {
-    throw new Error(
-      `Invalid context for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'context', type: 'value'}],
+      message: `Invalid context for target "${targetName}": ${String(
         JSON.stringify(context)
-      )}`
-    );
+      )}`,
+      hints: [
+        "Allowed values: <empty>, 'browser', 'web-worker', 'service-worker', 'node', 'electron-main', 'electron-renderer'"
+      ]
+    });
   }
 
   let engines = parseEngines(targetName, _engines);
 
   if (!(distDir === undefined || typeof distDir === 'string')) {
-    throw new Error(
-      `Invalid distDir for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'distDir', type: 'value'}],
+      message: `Invalid distDir for target "${targetName}": ${String(
         JSON.stringify(distDir)
-      )}`
-    );
+      )}`,
+      hints: ['Needs to either be not defined or a string']
+    });
   }
 
   let includeNodeModules;
@@ -156,30 +237,47 @@ function parseDescriptor(
   ) {
     includeNodeModules = _includeNodeModules;
   } else if (Array.isArray(_includeNodeModules)) {
-    includeNodeModules = _includeNodeModules.map(v => {
+    includeNodeModules = _includeNodeModules.map((v, i) => {
       if (typeof v !== 'string') {
-        throw new Error(
-          `Invalid value in includeNodeModules array for target "${targetName}": ${String(
-            JSON.stringify(v)
-          )} in ${String(JSON.stringify(_includeNodeModules))}`
-        );
+        throw generateDescriptorError({
+          pkgContents,
+          pkgPath,
+          targetName,
+          keys: [{key: `includeNodeModules/${i}`, type: 'value'}],
+          message: `Invalid value for includeNodeModules for target "${targetName}": ${String(
+            JSON.stringify(_includeNodeModules)
+          )}`,
+          hints: ['Needs to be a (wildcard) string filepath']
+        });
       }
       return v;
     });
   } else {
-    throw new Error(
-      `Invalid value for includeNodeModules for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'includeNodeModules', type: 'value'}],
+      message: `Invalid value for includeNodeModules for target "${targetName}": ${String(
         JSON.stringify(_includeNodeModules)
-      )}`
-    );
+      )}`,
+      hints: [
+        'Needs to either be not defined, a boolean or an array of wildcards'
+      ]
+    });
   }
 
   if (!(isLibrary === undefined || typeof isLibrary === 'boolean')) {
-    throw new Error(
-      `Invalid value for isLibrary for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'outputFormat', type: 'value'}],
+      message: `Invalid value for isLibrary for target "${targetName}": ${String(
         JSON.stringify(isLibrary)
-      )}`
-    );
+      )}`,
+      hints: ['Needs to be not defined or a boolean']
+    });
   }
 
   if (
@@ -190,52 +288,85 @@ function parseDescriptor(
       outputFormat === 'global'
     )
   ) {
-    throw new Error(
-      `Invalid outputFormat for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'outputFormat', type: 'value'}],
+      message: `Invalid outputFormat for target "${targetName}": ${String(
         JSON.stringify(outputFormat)
-      )}`
-    );
+      )}`,
+      hints:
+        typeof outputFormat === 'string' && outputFormat.includes('module')
+          ? ["Did you mean 'esmodule'?"]
+          : undefined
+    });
   }
 
   if (!(publicUrl === undefined || typeof publicUrl === 'string')) {
-    throw new Error(
-      `Invalid publicUrl for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'publicUrl', type: 'value'}],
+      message: `Invalid publicUrl for target "${targetName}": ${String(
         JSON.stringify(publicUrl)
-      )}`
-    );
+      )}`,
+      hints: ['Needs to be not defined or a string']
+    });
   }
 
   let sourceMap: TargetSourceMapOptions | typeof undefined;
   if (_sourceMap && typeof _sourceMap === 'object') {
     let {inlineSources, inline, sourceRoot, ...rest} = _sourceMap;
     if (Object.keys(rest).length > 0) {
-      throw new Error(
-        `Unknown sourceMap options for target "${targetName}": ${String(
-          JSON.stringify(Object.keys(rest))
-        )}`
-      );
+      throw generateDescriptorError({
+        pkgContents,
+        pkgPath,
+        targetName,
+        keys: Object.keys(rest).map(v => ({
+          key: `sourceMap/${v}`,
+          type: 'key'
+        })),
+        message: `Unknown sourceMap options for target "${targetName}"`
+      });
     }
 
     if (!(inline === undefined || typeof inline === 'boolean')) {
-      throw new Error(
-        `Invalid sourceMap.inline setting for target "${targetName}": ${String(
+      throw generateDescriptorError({
+        pkgContents,
+        pkgPath,
+        targetName,
+        keys: [{key: 'sourceMap/inline', type: 'value'}],
+        message: `Invalid sourceMap.inline setting for target "${targetName}": ${String(
           JSON.stringify(inline)
-        )}`
-      );
+        )}`,
+        hints: ['Needs to be not defined or a boolean']
+      });
     }
     if (!(inlineSources === undefined || typeof inlineSources === 'boolean')) {
-      throw new Error(
-        `Invalid sourceMap.inlineSources setting for target "${targetName}": ${String(
+      throw generateDescriptorError({
+        pkgContents,
+        pkgPath,
+        targetName,
+        keys: [{key: 'sourceMap/inlineSources', type: 'value'}],
+        message: `Invalid sourceMap.inlineSources setting for target "${targetName}": ${String(
           JSON.stringify(inlineSources)
-        )}`
-      );
+        )}`,
+        hints: ['Needs to be not defined or a boolean']
+      });
     }
     if (!(sourceRoot === undefined || typeof sourceRoot === 'string')) {
-      throw new Error(
-        `Invalid sourceMap.sourceRoot setting for target "${targetName}": ${String(
+      throw generateDescriptorError({
+        pkgContents,
+        pkgPath,
+        targetName,
+        keys: [{key: 'sourceMap/sourceRoot', type: 'value'}],
+        message: `Invalid sourceMap.sourceRoot setting for target "${targetName}": ${String(
           JSON.stringify(sourceRoot)
-        )}`
-      );
+        )}`,
+        hints: ['Needs to be not defined or a string']
+      });
     }
 
     sourceMap = {
@@ -244,11 +375,16 @@ function parseDescriptor(
       ...(sourceRoot ? {sourceRoot} : null)
     };
   } else if (_sourceMap !== undefined) {
-    throw new Error(
-      `Invalid sourceMap setting for target "${targetName}": ${String(
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: [{key: 'sourceMap', type: 'value'}],
+      message: `Invalid sourceMap setting for target "${targetName}": ${String(
         JSON.stringify(_sourceMap)
-      )}`
-    );
+      )}`,
+      hints: ['Needs to be not defined or an object']
+    });
   }
 
   return {
@@ -369,6 +505,8 @@ export default class TargetResolver {
     ]);
 
     let pkg;
+    let pkgContents;
+    let pkgPath: ?FilePath;
     let pkgDir: FilePath;
     if (conf) {
       pkg = (conf.config: PackageJSON);
@@ -376,9 +514,15 @@ export default class TargetResolver {
       if (pkgFile == null) {
         throw new Error('Expected package.json file');
       }
-      pkgDir = path.dirname(pkgFile.filePath);
+      pkgPath = pkgFile.filePath;
+      pkgDir = path.dirname(pkgPath);
+      pkgContents = (await this.fs.readFile(pkgPath, 'utf8')).replace(
+        /\t/g,
+        '  '
+      );
     } else {
       pkg = {};
+      pkgPath = null;
       pkgDir = this.fs.cwd();
     }
 
@@ -441,7 +585,12 @@ export default class TargetResolver {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
-        let descriptor = parseDescriptor(targetName, _descriptor);
+        let descriptor = parseDescriptor(
+          targetName,
+          _descriptor,
+          pkgPath,
+          pkgContents
+        );
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -492,7 +641,12 @@ export default class TargetResolver {
       }
 
       if (_descriptor) {
-        let descriptor = parseDescriptor(targetName, _descriptor);
+        let descriptor = parseDescriptor(
+          targetName,
+          _descriptor,
+          pkgPath,
+          pkgContents
+        );
         targets.set(targetName, {
           name: targetName,
           distDir,

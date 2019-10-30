@@ -430,7 +430,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('rejects invalid or unknown fields', async () => {
+  it('rejects invalid or unknown fields in package.json', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     await rejects(() => targetResolver.resolve(INVALID_TARGETS_FIXTURE_PATH), {
       message: 'Invalid outputFormat for target "module": "modules"'

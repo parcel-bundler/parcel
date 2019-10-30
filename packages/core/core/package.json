@@ -13,8 +13,9 @@
   },
   "dependencies": {
     "@parcel/cache": "^2.0.0-alpha.2.1",
-    "@parcel/events": "^2.0.0-alpha.2.1",
+    "@parcel/codeframe": "^2.0.0-alpha.2.1",
     "@parcel/diagnostic": "^2.0.0-alpha.2.1",
+    "@parcel/events": "^2.0.0-alpha.2.1",
     "@parcel/fs": "^2.0.0-alpha.2.1",
     "@parcel/logger": "^2.0.0-alpha.2.1",
     "@parcel/package-manager": "^2.0.0-alpha.2.1",
