@@ -34,7 +34,8 @@
   },
   "optimizers": {
     "*.css": ["@parcel/optimizer-cssnano"],
-    "*.js": ["@parcel/optimizer-terser"]
+    "*.js": ["@parcel/optimizer-terser"],
+    "*.html": ["@parcel/optimizer-htmlnano"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",

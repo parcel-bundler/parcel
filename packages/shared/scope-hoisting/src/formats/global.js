@@ -4,11 +4,14 @@ import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
+import {relativeBundlePath} from '@parcel/utils';
+import {isEntry, isReferenced} from '../utils';
 
 const IMPORT_TEMPLATE = template('var IDENTIFIER = parcelRequire(ASSET_ID)');
 const EXPORT_TEMPLATE = template(
   'parcelRequire.register(ASSET_ID, IDENTIFIER)'
 );
+const IMPORTSCRIPTS_TEMPLATE = template('importScripts(BUNDLE)');
 
 export function generateBundleImports(
   from: Bundle,
@@ -16,6 +19,15 @@ export function generateBundleImports(
   assets: Set<Asset>
 ) {
   let statements = [];
+
+  if (from.env.isWorker()) {
+    statements.push(
+      IMPORTSCRIPTS_TEMPLATE({
+        BUNDLE: t.stringLiteral(relativeBundlePath(from, bundle))
+      })
+    );
+  }
+
   for (let asset of assets) {
     statements.push(
       IMPORT_TEMPLATE({
@@ -59,8 +71,7 @@ export function generateExports(
   let entry = bundle.getMainEntry();
   if (
     entry &&
-    (bundleGraph.hasParentBundleOfType(bundle, 'js') ||
-      bundle.hasChildBundles())
+    (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph))
   ) {
     let exportsId = entry.meta.exportsIdentifier;
     invariant(typeof exportsId === 'string');

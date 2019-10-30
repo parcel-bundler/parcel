@@ -9,6 +9,7 @@ import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
+import {needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
@@ -44,14 +45,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
-
-  // If this is an entry bundle and it has non esmodule child bundles,
-  // we need to add the prelude code, which allows registering modules dynamically at runtime.
-  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
-  let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude =
-    isEntry && hasChildBundles && bundle.env.outputFormat === 'global';
-  if (needsPrelude) {
+  if (needsPrelude(bundle, bundleGraph)) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 

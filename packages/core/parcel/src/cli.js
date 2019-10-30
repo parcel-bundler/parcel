@@ -142,7 +142,7 @@ async function run(entries: Array<string>, command: any) {
       ...defaultConfig,
       filePath: require.resolve('@parcel/config-default')
     },
-    patchConsole: true,
+    patchConsole: false,
     ...(await normalizeOptions(command))
   });
 
@@ -153,10 +153,26 @@ async function run(entries: Array<string>, command: any) {
       }
     });
 
+    let isExiting;
+    const exit = async () => {
+      if (isExiting) {
+        return;
+      }
+
+      isExiting = true;
+      await unsubscribe();
+      process.exit();
+    };
+
     // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
-    // We don't use the SIGINT event for this because when run inside yarn, it seems we aren't
-    // given an opportunity to cleanup before being forcefully exited.
-    // Handling events from stdin seems to prevent this.
+    // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
+    //
+    // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
+    // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
+    //
+    // We don't use the SIGINT event for this because when run inside yarn, the parent
+    // yarn process ends before Parcel and it appears that Parcel has ended while it may still
+    // be cleaning up. Handling events from stdin prevents this impression.
     if (process.stdin.isTTY) {
       // $FlowFixMe
       process.stdin.setRawMode(true);
@@ -164,11 +180,14 @@ async function run(entries: Array<string>, command: any) {
 
       process.stdin.on('keypress', async (char, key) => {
         if (key.ctrl && key.name === 'c') {
-          await unsubscribe();
-          process.exit();
+          await exit();
         }
       });
     }
+
+    // In non-tty cases, respond to SIGINT by cleaning up.
+    process.on('SIGINT', exit);
+    process.on('SIGTERM', exit);
   } else {
     try {
       await parcel.run();
