@@ -1,5 +1,6 @@
 // @flow
 import chalk from 'chalk';
+import emphasize from 'emphasize';
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
 type CodeFramePadding = {|
@@ -10,16 +11,32 @@ type CodeFramePadding = {|
 type CodeFrameOptionsInput = {|
   useColor?: boolean,
   maxLines?: number,
-  padding?: CodeFramePadding
+  padding?: CodeFramePadding,
+  syntaxHighlighting?: boolean,
+  language?: string
 |};
 
 type CodeFrameOptions = {|
-  useColor?: boolean,
+  useColor: boolean,
+  syntaxHighlighting: boolean,
   maxLines: number,
-  padding: CodeFramePadding
+  padding: CodeFramePadding,
+  language?: string
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
+
+const highlightSyntax = (line: string, lang?: string): string => {
+  if (lang) {
+    try {
+      return emphasize.highlight(lang, line).value;
+    } catch (e) {
+      // fallback for unknown languages...
+    }
+  }
+
+  return emphasize.highlightAuto(line).value;
+};
 
 export default function codeFrame(
   code: string,
@@ -30,7 +47,9 @@ export default function codeFrame(
   if (highlights.length < 1) return '';
 
   let opts: CodeFrameOptions = {
-    useColor: inputOpts.useColor,
+    useColor: !!inputOpts.useColor,
+    syntaxHighlighting: !!inputOpts.syntaxHighlighting,
+    language: inputOpts.language,
     maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
     padding: inputOpts.padding || {
       before: 1,
@@ -100,16 +119,22 @@ export default function codeFrame(
     if (i > endLine) break;
 
     let originalLine = lines[i];
+
     let foundHighlights = highlights.filter(
       highlight => highlight.start.line <= i && highlight.end.line >= i
     );
+
+    let highlighted: string = originalLine;
+    if (opts.syntaxHighlighting) {
+      highlighted = highlightSyntax(originalLine, opts.language);
+    }
 
     resultLines.push(
       lineNumberPrefixer({
         lineNumber: (i + 1).toString(10),
         endLine: endLineString,
         isHighlighted: foundHighlights.length > 0
-      }) + originalLine
+      }) + highlighted
     );
 
     if (foundHighlights.length > 0) {

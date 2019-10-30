@@ -3,6 +3,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
+import path from 'path';
 
 type AnsiDiagnosticResult = {|
   message: string,
@@ -14,7 +15,15 @@ type AnsiDiagnosticResult = {|
 export default function prettyDiagnostic(
   diagnostic: Diagnostic
 ): AnsiDiagnosticResult {
-  let {origin, message, stack, codeFrame, hints, filePath} = diagnostic;
+  let {
+    origin,
+    message,
+    stack,
+    codeFrame,
+    hints,
+    filePath,
+    language
+  } = diagnostic;
 
   let result = {
     message: '',
@@ -32,16 +41,21 @@ export default function prettyDiagnostic(
       : [codeFrame.codeHighlights];
 
     let formattedCodeFrame = formatCodeFrame(codeFrame.code, highlights, {
-      useColor: true
+      useColor: true,
+      syntaxHighlighting: true,
+      language:
+        // $FlowFixMe sketchy null checks do not matter here...
+        language || filePath ? path.extname(filePath).substr(1) : undefined
     });
 
     result.codeframe +=
-      typeof filePath !== 'string' ? '' : mdAnsi(`__${filePath}__`);
-    result.codeframe += `@${highlights
-      .map(h => {
-        return `${h.start.line}:${h.start.column}`;
-      })
-      .join(',')}\n`;
+      typeof filePath !== 'string'
+        ? ''
+        : mdAnsi(
+            `__${filePath}:${highlights[0].start.line}:${
+              highlights[0].start.column
+            }__\n`
+          );
     result.codeframe += formattedCodeFrame;
   }
 

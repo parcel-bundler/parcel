@@ -15,6 +15,7 @@
     "access": "public"
   },
   "dependencies": {
-    "chalk": "^2.4.2"
+    "chalk": "^2.4.2",
+    "emphasize": "^2.1.0"
   }
 }
