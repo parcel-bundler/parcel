@@ -152,7 +152,7 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
-  }
+  },
   "keywords": [
     "modules",
     "bundler",
