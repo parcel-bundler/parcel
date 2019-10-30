@@ -21,9 +21,10 @@ export default async function loadPlugin(
   // Validate the engines.parcel field in the plugin's package.json
   let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
   if (!parcelVersionRange) {
-    logger.warn(
-      `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
-    );
+    logger.warn({
+      origin: '@parcel/core',
+      message: `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
+    });
   }
 
   if (

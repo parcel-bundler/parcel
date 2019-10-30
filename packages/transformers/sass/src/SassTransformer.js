@@ -17,9 +17,11 @@ async function warnAboutNodeSassBeingUnsupported(filePath) {
     try {
       // TODO: replace this with the actual filesystem later
       await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
-      logger.warn(
-        '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
-      );
+      logger.warn({
+        origin: '@parcel/transformer-sass',
+        message:
+          '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
+      });
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND') {
         throw err;

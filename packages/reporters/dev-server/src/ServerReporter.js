@@ -47,7 +47,7 @@ export default new Reporter({
         break;
       case 'buildFailure':
         invariant(server != null);
-        server.buildError(event.error);
+        server.buildError(event.diagnostic);
         break;
     }
   }
