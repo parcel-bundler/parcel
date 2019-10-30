@@ -26,16 +26,16 @@ type CodeFrameOptions = {|
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 
-const highlightSyntax = (line: string, lang?: string): string => {
+const highlightSyntax = (txt: string, lang?: string): string => {
   if (lang) {
     try {
-      return emphasize.highlight(lang, line).value;
+      return emphasize.highlight(lang, txt).value;
     } catch (e) {
       // fallback for unknown languages...
     }
   }
 
-  return emphasize.highlightAuto(line).value;
+  return emphasize.highlightAuto(txt).value;
 };
 
 export default function codeFrame(
@@ -114,27 +114,26 @@ export default function codeFrame(
   let endLineString = endLine.toString(10);
 
   let resultLines = [];
-  const lines = code.split(NEWLINE);
+  let lines = code.split(NEWLINE);
+  let syntaxHighlightedLines = opts.syntaxHighlighting
+    ? highlightSyntax(code, opts.language).split(NEWLINE)
+    : [...lines];
   for (let i = startLine; i < lines.length; i++) {
     if (i > endLine) break;
 
     let originalLine = lines[i];
+    let syntaxHighlightedLine = syntaxHighlightedLines[i];
 
     let foundHighlights = highlights.filter(
       highlight => highlight.start.line <= i && highlight.end.line >= i
     );
-
-    let highlighted: string = originalLine;
-    if (opts.syntaxHighlighting) {
-      highlighted = highlightSyntax(originalLine, opts.language);
-    }
 
     resultLines.push(
       lineNumberPrefixer({
         lineNumber: (i + 1).toString(10),
         endLine: endLineString,
         isHighlighted: foundHighlights.length > 0
-      }) + highlighted
+      }) + syntaxHighlightedLine
     );
 
     if (foundHighlights.length > 0) {
