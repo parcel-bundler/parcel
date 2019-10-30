@@ -1,5 +1,6 @@
 // @flow
 import chalk from 'chalk';
+import emphasize from 'emphasize';
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
 type CodeFramePadding = {|
@@ -10,16 +11,32 @@ type CodeFramePadding = {|
 type CodeFrameOptionsInput = {|
   useColor?: boolean,
   maxLines?: number,
-  padding?: CodeFramePadding
+  padding?: CodeFramePadding,
+  syntaxHighlighting?: boolean,
+  language?: string
 |};
 
 type CodeFrameOptions = {|
-  useColor?: boolean,
+  useColor: boolean,
+  syntaxHighlighting: boolean,
   maxLines: number,
-  padding: CodeFramePadding
+  padding: CodeFramePadding,
+  language?: string
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
+
+const highlightSyntax = (txt: string, lang?: string): string => {
+  if (lang) {
+    try {
+      return emphasize.highlight(lang, txt).value;
+    } catch (e) {
+      // fallback for unknown languages...
+    }
+  }
+
+  return emphasize.highlightAuto(txt).value;
+};
 
 export default function codeFrame(
   code: string,
@@ -30,7 +47,9 @@ export default function codeFrame(
   if (highlights.length < 1) return '';
 
   let opts: CodeFrameOptions = {
-    useColor: inputOpts.useColor,
+    useColor: !!inputOpts.useColor,
+    syntaxHighlighting: !!inputOpts.syntaxHighlighting,
+    language: inputOpts.language,
     maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
     padding: inputOpts.padding || {
       before: 1,
@@ -95,11 +114,16 @@ export default function codeFrame(
   let endLineString = endLine.toString(10);
 
   let resultLines = [];
-  const lines = code.split(NEWLINE);
+  let lines = code.split(NEWLINE);
+  let syntaxHighlightedLines = opts.syntaxHighlighting
+    ? highlightSyntax(code, opts.language).split(NEWLINE)
+    : [...lines];
   for (let i = startLine; i < lines.length; i++) {
     if (i > endLine) break;
 
     let originalLine = lines[i];
+    let syntaxHighlightedLine = syntaxHighlightedLines[i];
+
     let foundHighlights = highlights.filter(
       highlight => highlight.start.line <= i && highlight.end.line >= i
     );
@@ -109,7 +133,7 @@ export default function codeFrame(
         lineNumber: (i + 1).toString(10),
         endLine: endLineString,
         isHighlighted: foundHighlights.length > 0
-      }) + originalLine
+      }) + syntaxHighlightedLine
     );
 
     if (foundHighlights.length > 0) {
