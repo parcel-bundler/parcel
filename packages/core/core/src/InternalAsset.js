@@ -312,6 +312,9 @@ export default class InternalAsset {
       type: ast.type,
       version: ast.version
     };
+
+    this.content = null;
+    this.map = null;
   }
 
   clearAST() {

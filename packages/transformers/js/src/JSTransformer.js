@@ -80,14 +80,14 @@ export default new Transformer({
     let code = await asset.getCode();
 
     // Inline environment variables
-    if (!asset.env.isNode() /* && (ast.isDirty || ENV_RE.test(code))*/) {
+    if (!asset.env.isNode() && (!code || ENV_RE.test(code))) {
       walk.simple(ast.program, envVisitor, {asset, ast, env: options.env});
     }
 
     // Collect dependencies
-    // if (/*canHaveDependencies(code) || ast.isDirty*/) {
-    walk.ancestor(ast.program, collectDependencies, {asset, ast, options});
-    // }
+    if (!code || canHaveDependencies(code)) {
+      walk.ancestor(ast.program, collectDependencies, {asset, ast, options});
+    }
 
     // If there's a hashbang, remove it and store it on the asset meta.
     // During packaging, if this is the entry asset, it will be prepended to the
@@ -102,7 +102,7 @@ export default new Transformer({
       let fsDep = asset
         .getDependencies()
         .find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && FS_RE.test(code)) {
+      if (fsDep && (!code || FS_RE.test(code))) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
         let pkg = await asset.getPackage();
@@ -118,10 +118,9 @@ export default new Transformer({
       }
 
       // Insert node globals
-      if (GLOBAL_RE.test(code)) {
+      if (!code || GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
         walk.ancestor(ast.program, insertGlobals, asset);
-        asset.setAST(ast); // TODO - mark dirty
       }
     }
 
