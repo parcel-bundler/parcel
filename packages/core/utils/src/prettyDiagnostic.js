@@ -45,7 +45,7 @@ export default function prettyDiagnostic(
       syntaxHighlighting: true,
       language:
         // $FlowFixMe sketchy null checks do not matter here...
-        language || filePath ? path.extname(filePath).substr(1) : undefined
+        language || (filePath ? path.extname(filePath).substr(1) : undefined)
     });
 
     result.codeframe +=
