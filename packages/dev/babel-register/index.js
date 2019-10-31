@@ -11,10 +11,7 @@ require('@babel/register')({
     path.resolve(__dirname, '../../core/integration-tests/test/integration')
   ],
   presets: [parcelBabelPreset],
-  plugins: [
-    require('./babel-plugin-module-translate'),
-    require.resolve('@babel/plugin-transform-modules-commonjs')
-  ]
+  plugins: [require('./babel-plugin-module-translate')]
 });
 
 // This adds the registration to the Node args, which are passed
