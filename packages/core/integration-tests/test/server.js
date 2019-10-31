@@ -103,10 +103,10 @@ describe('server', function() {
     assert.equal(data, inputFile);
   });
 
-  // TODO: Implement this once HTMLTransformer is in
-  it.skip('should serve a default page if the main bundle is an HTML asset', async function() {
+  it('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+    let inputPath = path.join(__dirname, '/integration/html/index.html');
+    let b = bundler(inputPath, {
       config,
       serve: {
         https: false,
@@ -118,17 +118,16 @@ describe('server', function() {
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let data = await get('/', port);
-    assert.equal(
-      data,
-      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
+    let outputFile = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
     );
 
+    let data = await get('/', port);
+    assert.equal(data, outputFile);
+
     data = await get('/foo/bar', port);
-    assert.equal(
-      data,
-      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
-    );
+    assert.equal(data, outputFile);
   });
 
   it('should serve a 404 if the file does not exist', async function() {
