@@ -2,17 +2,18 @@
   "name": "@parcel/markdown-ansi",
   "version": "2.0.0-alpha.2.1",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "./src/markdown-ansi.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "lib/markdown-ansi.js",
+  "source": "src/markdown-ansi.js",
   "engines": {
     "node": ">= 10.0.0"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "dependencies": {
     "chalk": "^2.4.2"
