@@ -61,7 +61,7 @@ function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
       {hints.map((hint, i) => {
-        return <div key={i}>- {hint}</div>;
+        return <div key={i}>{`- ${hint}`}</div>;
       })}
     </div>
   );
