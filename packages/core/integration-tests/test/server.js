@@ -1,6 +1,5 @@
 import assert from 'assert';
 import path from 'path';
-import logger from '@parcel/logger';
 import {
   bundler,
   getNextBuild,
@@ -13,7 +12,6 @@ import {
 import http from 'http';
 import https from 'https';
 import getPort from 'get-port';
-import sinon from 'sinon';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = {
@@ -256,36 +254,7 @@ describe('server', function() {
     );
   });
 
-  // TODO: Update this when static assets are a thing in JS
-  it.skip('should serve static assets as well as html', async function() {
-    let port = await getPort();
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      config,
-      serve: {
-        https: false,
-        port: port,
-        host: 'localhost',
-        publicUrl: '/dist'
-      }
-    });
-
-    subscription = await b.watch();
-    await getNextBuild(b);
-
-    // When accessing / we should get the index page.
-    let data = await get('/', port);
-    assert.equal(
-      data,
-      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
-    );
-
-    // When accessing /hello.txt we should get txt document.
-    await outputFS.writeFile(path.join(distDir, 'hello.txt'), 'hello');
-    data = await get('/hello.txt', port);
-    assert.equal(data, 'hello');
-  });
-
-  it.skip('should work with query parameters that contain a dot', async function() {
+  it('should work with query parameters that contain a dot', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       config,
@@ -306,54 +275,24 @@ describe('server', function() {
     );
   });
 
-  it.skip('should work with paths that contain a dot', async function() {
+  it('should work with paths that contain a dot', async function() {
+    let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       config,
-      publicUrl: '/'
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      }
     });
-    await b.serve(0);
 
-    let data = await get('/bar.baz');
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let data = await get('/bar.baz', port);
     assert.equal(
       data,
       await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
-  });
-
-  it.skip('should not log dev server access for log level <= 3', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      config,
-      publicUrl: '/'
-    });
-    await b.serve(0);
-    const spy = sinon.spy(logger, '_log');
-    await get('/');
-
-    assert(!spy.called);
-
-    // restore back defaults
-    logger._log.restore();
-  });
-
-  it.skip('should log dev server access for log level > 3', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      config,
-      publicUrl: '/'
-    });
-    await b.serve(0);
-    logger.setOptions({logLevel: 4});
-    const spy = sinon.spy(logger, '_log');
-
-    assert(!spy.called);
-
-    await get('/');
-
-    assert(spy.calledOnce);
-    // partial matching for call args, since port is a moving target
-    assert(spy.args[0][0].includes('Request: http://localhost'));
-
-    // restore back defaults
-    logger._log.restore();
-    logger.setOptions({logLevel: 3});
   });
 });
