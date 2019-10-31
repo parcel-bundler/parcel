@@ -94,7 +94,7 @@ export class TSModuleGraph {
     // Named export
     return {
       module: m,
-      name: m.names.get(exportName) || exportName,
+      name: m.getName(exportName),
       imported: e.imported || exportName
     };
   }
@@ -105,7 +105,11 @@ export class TSModuleGraph {
       return null;
     }
 
-    let m = nullthrows(this.getModule(i.specifier));
+    let m = this.getModule(i.specifier);
+    if (!m) {
+      return null;
+    }
+
     return this.resolveExport(m, imported || i.imported);
   }
 
@@ -151,7 +155,7 @@ export class TSModuleGraph {
             importsBySpecifier.set(imp.specifier, importMap);
           }
 
-          name = module.names.get(name) || name;
+          name = module.getName(name);
           importMap.set(name, imp.imported);
         }
       }
