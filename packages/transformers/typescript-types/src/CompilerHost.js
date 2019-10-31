@@ -1,8 +1,7 @@
 // @flow
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
-import typeof TypeScriptModule from 'typescript';
-import typeof {ScriptTarget} from 'typescript';
+import typeof TypeScriptModule, {ScriptTarget} from 'typescript';
 import path from 'path';
 
 export class ParcelCompilerHost {

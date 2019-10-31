@@ -20,7 +20,7 @@
     "@parcel/source-map": "^2.0.0-alpha.2.1",
     "nullthrows": "^1.1.1"
   },
-  "peerDependencies": {
+  "devDependencies": {
     "typescript": "^3.0.0"
   }
 }
