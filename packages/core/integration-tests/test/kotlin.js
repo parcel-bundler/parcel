@@ -2,7 +2,7 @@ import assert from 'assert';
 import {bundle, assertBundles, run} from '@parcel/test-utils';
 import commandExists from 'command-exists';
 
-describe('kotlin', function() {
+describe.only('kotlin', function() {
   if (!commandExists.sync('java')) {
     // eslint-disable-next-line no-console
     console.log(

@@ -1,6 +1,7 @@
 // @flow
-
 import {Transformer} from '@parcel/plugin';
+import {md5FromString} from '@parcel/utils';
+import SourceMap from '@parcel/source-map';
 import path from 'path';
 import os from 'os';
 
@@ -14,13 +15,9 @@ export default new Transformer({
       asset.filePath
     );
 
-    let id = Math.random()
-      .toString(36)
-      .slice(3);
-    let dir = path.join(os.tmpdir(), id);
-    let filename = path.join(dir, id + '.js');
-
-    await asset.fs.mkdirp(dir);
+    let id = md5FromString(asset.filePath);
+    let tmpKotlinDist = path.join(os.tmpdir(), 'kotlin-dist');
+    let filename = path.join(tmpKotlinDist, id + '.js');
 
     await kotlinCompiler.compile({
       output: filename,
@@ -32,7 +29,6 @@ export default new Transformer({
     });
 
     let code = await asset.fs.readFile(filename, 'utf8');
-
     if (options.sourceMaps) {
       let sourceMap = await asset.fs.readFile(filename + '.map', 'utf8');
 
@@ -40,7 +36,7 @@ export default new Transformer({
       sourceMap.sources = [this.relativeName];
       sourceMap.sourcesContent = [this.contents];
 
-      asset.setMap(sourceMap);
+      asset.setMap(SourceMap.fromRawSourceMap(sourceMap));
 
       // remove source map url
       code = code.substring(0, code.lastIndexOf('//# sourceMappingURL'));
@@ -48,8 +44,12 @@ export default new Transformer({
 
     asset.setCode(code);
 
-    // delete temp directory
-    await asset.fs.rimraf(dir);
+    try {
+      // try to delete tmp directory
+      await asset.fs.rimraf(tmpKotlinDist);
+    } catch (e) {
+      // do nothing...
+    }
 
     return [asset];
   }
