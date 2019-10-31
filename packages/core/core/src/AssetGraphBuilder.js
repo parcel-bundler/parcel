@@ -227,48 +227,26 @@ export default class AssetGraphBuilder extends EventEmitter {
     if (existingAssetGroupNode) {
       // Node already existed, that asset might have deferred dependencies,
       // recheck all dependencies of all assets of this asset group
-      let assetNodes = this.assetGraph
-        .getNodesConnectedFrom(assetGroupNode)
-        .map(v => {
-          invariant(v.type === 'asset');
-          return v;
-        });
-      for (let assetNode of assetNodes) {
-        let dependencyNodes = this.assetGraph
-          .getNodesConnectedFrom(assetNode)
-          .map(v => {
-            invariant(v.type === 'dependency');
-            return v;
-          });
-        for (let depNode of dependencyNodes) {
-          let assetGroupNodes = this.assetGraph
-            .getNodesConnectedFrom(depNode)
-            .map(v => {
-              invariant(v.type === 'asset_group');
-              return v;
-            });
-          if (assetGroupNodes.length == 0) {
-            // Dependency might not be resolved yet
-            continue;
-          }
-          invariant(assetGroupNodes.length === 1);
-          let assetGroupNode = assetGroupNodes[0];
-
-          if (
-            assetGroupNode.deferred &&
-            !this.shouldDeferDependency(
-              depNode.value,
-              assetGroupNode.value.sideEffects
-            )
-          ) {
-            assetGroupNode.deferred = false;
-            this.requestGraph.addAssetRequest(
-              assetGroupNode.id,
-              assetGroupNode.value
-            );
-          }
+      this.assetGraph.traverse((node, parent, actions) => {
+        if (node == assetGroupNode) {
+          return;
         }
-      }
+
+        if (node.type == 'asset_group') {
+          invariant(parent && parent.type === 'dependency');
+          if (
+            node.deferred &&
+            !this.shouldDeferDependency(parent.value, node.value.sideEffects)
+          ) {
+            node.deferred = false;
+            this.requestGraph.addAssetRequest(node.id, node.value);
+          }
+
+          actions.skipChildren();
+        }
+
+        return node;
+      }, assetGroupNode);
     }
   }
 
