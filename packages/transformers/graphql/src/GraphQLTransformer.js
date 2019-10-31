@@ -7,7 +7,7 @@ const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 export default new Transformer({
   async transform({asset, options, resolve}) {
     // Peer dependency of graphql-tag
-    await options.packageManager.require('graphql', asset.filePath);
+    await options.packageManager.resolve('graphql', asset.filePath);
 
     let gql = await options.packageManager.require(
       'graphql-tag',
