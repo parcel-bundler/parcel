@@ -30,13 +30,18 @@ export default new Transformer({
 
     let code = await asset.fs.readFile(filename, 'utf8');
     if (options.sourceMaps) {
-      let sourceMap = await asset.fs.readFile(filename + '.map', 'utf8');
+      let rawSourceMap = await asset.fs.readFile(filename + '.map', 'utf8');
 
-      sourceMap = JSON.parse(sourceMap);
-      sourceMap.sources = [this.relativeName];
-      sourceMap.sourcesContent = [this.contents];
+      rawSourceMap = JSON.parse(rawSourceMap);
 
-      asset.setMap(SourceMap.fromRawSourceMap(sourceMap));
+      // TODO: Actually do this for all sources?
+      rawSourceMap.sources = [path.relative(options.rootDir, asset.filePath)];
+      // Fetch these at bundle time...
+      rawSourceMap.sourcesContent = [];
+
+      let sourcemap = await SourceMap.fromRawSourceMap(rawSourceMap);
+
+      asset.setMap(sourcemap);
 
       // remove source map url
       code = code.substring(0, code.lastIndexOf('//# sourceMappingURL'));
