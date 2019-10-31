@@ -1,8 +1,8 @@
 import assert from 'assert';
-import {bundle, assertBundleTree, run} from '@parcel/test-utils';
+import {bundle, assertBundles, run} from '@parcel/test-utils';
 import commandExists from 'command-exists';
 
-describe.skip('kotlin', function() {
+describe('kotlin', function() {
   if (!commandExists.sync('java')) {
     // eslint-disable-next-line no-console
     console.log(
@@ -14,10 +14,12 @@ describe.skip('kotlin', function() {
   it('should produce a basic kotlin bundle', async function() {
     let b = await bundle(__dirname + '/integration/kotlin/index.js');
 
-    await assertBundleTree(b, {
-      type: 'js',
-      assets: ['test.kt', 'index.js', 'browser.js', 'kotlin.js']
-    });
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['test.kt', 'index.js', 'browser.js', 'kotlin.js']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(output, 5);
