@@ -42,7 +42,8 @@ export default new Bundler({
         if (
           dependency.isEntry ||
           dependency.isAsync ||
-          resolution?.isIsolated
+          resolution?.isIsolated ||
+          resolution?.isInline
         ) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,

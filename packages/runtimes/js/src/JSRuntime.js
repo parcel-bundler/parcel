@@ -71,6 +71,7 @@ export default new Runtime({
       // Sort so the bundles containing the entry asset appear last
       let bundles = bundleGraph
         .getBundlesInBundleGroup(bundleGroup)
+        .filter(bundle => !bundle.isInline)
         .sort(bundle =>
           bundle
             .getEntryAssets()
