@@ -12,12 +12,14 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
+import type {SchemaEntity} from '@parcel/utils';
 
-import {loadConfig} from '@parcel/utils';
+import {loadConfig, validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {generateJSONCodeHighlights} from '@parcel/codeframe';
 import {createEnvironment} from './Environment';
 import path from 'path';
+import fs from 'fs';
 import browserslist from 'browserslist';
 
 type TargetResolveResult = {|
@@ -63,7 +65,7 @@ function generateDescriptorError({
     highlight = generateJSONCodeHighlights(
       pkgContents,
       keys.map(({key, type, message}) => ({
-        key: `/targets/${targetName}/${key}`,
+        key: `/targets/${targetName}${key}`,
         type: type,
         message
       }))
@@ -127,17 +129,52 @@ function parseEngines(
   }
 }
 
-const LIST_OF_DESCRIPTOR_KEYS = [
-  'context',
-  'engines',
-  'includenodeModules',
-  'outputFormat',
-  'publicUrl',
-  'distDir',
-  'sourceMap',
-  'distDir',
-  'isLibrary'
-];
+function levenshteinDistance(a: string, b: string) {
+  /*
+    Copyright (c) 2011 Andrei Mackenzie
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  */
+  if (a.length == 0) return b.length;
+  if (b.length == 0) return a.length;
+
+  var matrix = [];
+
+  // increment along the first column of each row
+  var i;
+  for (i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  // increment each column in the first row
+  var j;
+  for (j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill in the rest of the matrix
+  for (i = 1; i <= b.length; i++) {
+    for (j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) == a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1, // insertion
+          matrix[i - 1][j] + 1 // deletion
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+const DESCRIPTOR_SCHEMA = (JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'TargetDescriptor.schema.json'))
+): SchemaEntity);
+
 function parseDescriptor(
   targetName: string,
   descriptor: mixed,
@@ -154,249 +191,51 @@ function parseDescriptor(
   distDir: FilePath | typeof undefined,
   isLibrary: boolean | typeof undefined
 |} {
-  if (!(descriptor && typeof descriptor === 'object')) {
-    throw new Error(`Empty descriptor for target "${targetName}"`);
-  }
-
-  let {
-    context,
-    distDir,
-    engines: _engines,
-    includeNodeModules: _includeNodeModules,
-    isLibrary,
-    outputFormat,
-    publicUrl,
-    sourceMap: _sourceMap,
-    ...rest
-  } = descriptor;
-
-  if (Object.keys(rest).length !== 0) {
-    let keys = Object.keys(rest)
-      .map(k => {
-        let hint;
-        for (let l of LIST_OF_DESCRIPTOR_KEYS) {
-          if (l.toLowerCase() === k.toLowerCase())
-            hint = `Did you mean "${l}" ?`;
+  let errors = validateSchema(DESCRIPTOR_SCHEMA, descriptor);
+  if (errors.length) {
+    throw generateDescriptorError({
+      pkgContents,
+      pkgPath,
+      targetName,
+      keys: errors.map(e => {
+        let message;
+        let {expectedValues, actualValue} = e;
+        if (expectedValues) {
+          let likely = expectedValues;
+          if (actualValue) {
+            likely = (likely.map(exp => [
+              exp,
+              levenshteinDistance(exp, actualValue)
+            ]): Array<[string, number]>).filter(
+              ([, d]) => d * 2 < actualValue.length
+            );
+            likely.sort(([, a], [, b]) => a - b);
+            likely = likely.map(([v]) => v);
+          }
+          if (likely.length > 0) {
+            message = `Did you mean ${likely
+              .map(v => JSON.stringify(v))
+              .join(', ')}?`;
+          } else if (expectedValues.length > 0) {
+            message = `Possible values: ${expectedValues
+              .map(v => JSON.stringify(v))
+              .join(', ')}`;
+          } else {
+            message = 'Unknown value';
+          }
+        } else if (e.messagePattern) {
+          message = `Expected ${e.messagePattern}`;
+        } else if (e.expectedType) {
+          message = `Expected type ${e.expectedType.join(' or ')}`;
         }
-        return {key: k, type: 'key', message: hint};
-      })
-      .filter(Boolean);
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys,
-      message: `Unexpected properties in descriptor for target "${targetName}"`
+        return {key: e.dataPath, type: e.type, message};
+      }),
+      message: 'Invalid target descriptor'
     });
   }
 
-  if (
-    !(
-      context === undefined ||
-      context === 'browser' ||
-      context === 'web-worker' ||
-      context === 'service-worker' ||
-      context === 'node' ||
-      context === 'electron-main' ||
-      context === 'electron-renderer'
-    )
-  ) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'context', type: 'value'}],
-      message: `Invalid context for target "${targetName}": ${String(
-        JSON.stringify(context)
-      )}`,
-      hints: [
-        "Allowed values: <empty>, 'browser', 'web-worker', 'service-worker', 'node', 'electron-main', 'electron-renderer'"
-      ]
-    });
-  }
-
-  let engines = parseEngines(targetName, _engines);
-
-  if (!(distDir === undefined || typeof distDir === 'string')) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'distDir', type: 'value'}],
-      message: `Invalid distDir for target "${targetName}": ${String(
-        JSON.stringify(distDir)
-      )}`,
-      hints: ['Needs to either be not defined or a string']
-    });
-  }
-
-  let includeNodeModules;
-  if (
-    _includeNodeModules === undefined ||
-    typeof _includeNodeModules === 'boolean'
-  ) {
-    includeNodeModules = _includeNodeModules;
-  } else if (Array.isArray(_includeNodeModules)) {
-    includeNodeModules = _includeNodeModules.map((v, i) => {
-      if (typeof v !== 'string') {
-        throw generateDescriptorError({
-          pkgContents,
-          pkgPath,
-          targetName,
-          keys: [{key: `includeNodeModules/${i}`, type: 'value'}],
-          message: `Invalid value for includeNodeModules for target "${targetName}": ${String(
-            JSON.stringify(_includeNodeModules)
-          )}`,
-          hints: ['Needs to be a (wildcard) string filepath']
-        });
-      }
-      return v;
-    });
-  } else {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'includeNodeModules', type: 'value'}],
-      message: `Invalid value for includeNodeModules for target "${targetName}": ${String(
-        JSON.stringify(_includeNodeModules)
-      )}`,
-      hints: [
-        'Needs to either be not defined, a boolean or an array of wildcards'
-      ]
-    });
-  }
-
-  if (!(isLibrary === undefined || typeof isLibrary === 'boolean')) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'outputFormat', type: 'value'}],
-      message: `Invalid value for isLibrary for target "${targetName}": ${String(
-        JSON.stringify(isLibrary)
-      )}`,
-      hints: ['Needs to be not defined or a boolean']
-    });
-  }
-
-  if (
-    !(
-      outputFormat === undefined ||
-      outputFormat === 'esmodule' ||
-      outputFormat === 'commonjs' ||
-      outputFormat === 'global'
-    )
-  ) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'outputFormat', type: 'value'}],
-      message: `Invalid outputFormat for target "${targetName}": ${String(
-        JSON.stringify(outputFormat)
-      )}`,
-      hints:
-        typeof outputFormat === 'string' && outputFormat.includes('module')
-          ? ["Did you mean 'esmodule'?"]
-          : undefined
-    });
-  }
-
-  if (!(publicUrl === undefined || typeof publicUrl === 'string')) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'publicUrl', type: 'value'}],
-      message: `Invalid publicUrl for target "${targetName}": ${String(
-        JSON.stringify(publicUrl)
-      )}`,
-      hints: ['Needs to be not defined or a string']
-    });
-  }
-
-  let sourceMap: TargetSourceMapOptions | typeof undefined;
-  if (_sourceMap && typeof _sourceMap === 'object') {
-    let {inlineSources, inline, sourceRoot, ...rest} = _sourceMap;
-    if (Object.keys(rest).length > 0) {
-      throw generateDescriptorError({
-        pkgContents,
-        pkgPath,
-        targetName,
-        keys: Object.keys(rest).map(v => ({
-          key: `sourceMap/${v}`,
-          type: 'key'
-        })),
-        message: `Unknown sourceMap options for target "${targetName}"`
-      });
-    }
-
-    if (!(inline === undefined || typeof inline === 'boolean')) {
-      throw generateDescriptorError({
-        pkgContents,
-        pkgPath,
-        targetName,
-        keys: [{key: 'sourceMap/inline', type: 'value'}],
-        message: `Invalid sourceMap.inline setting for target "${targetName}": ${String(
-          JSON.stringify(inline)
-        )}`,
-        hints: ['Needs to be not defined or a boolean']
-      });
-    }
-    if (!(inlineSources === undefined || typeof inlineSources === 'boolean')) {
-      throw generateDescriptorError({
-        pkgContents,
-        pkgPath,
-        targetName,
-        keys: [{key: 'sourceMap/inlineSources', type: 'value'}],
-        message: `Invalid sourceMap.inlineSources setting for target "${targetName}": ${String(
-          JSON.stringify(inlineSources)
-        )}`,
-        hints: ['Needs to be not defined or a boolean']
-      });
-    }
-    if (!(sourceRoot === undefined || typeof sourceRoot === 'string')) {
-      throw generateDescriptorError({
-        pkgContents,
-        pkgPath,
-        targetName,
-        keys: [{key: 'sourceMap/sourceRoot', type: 'value'}],
-        message: `Invalid sourceMap.sourceRoot setting for target "${targetName}": ${String(
-          JSON.stringify(sourceRoot)
-        )}`,
-        hints: ['Needs to be not defined or a string']
-      });
-    }
-
-    sourceMap = {
-      ...(inlineSources ? {inlineSources} : null),
-      ...(inline ? {inline} : null),
-      ...(sourceRoot ? {sourceRoot} : null)
-    };
-  } else if (_sourceMap !== undefined) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: [{key: 'sourceMap', type: 'value'}],
-      message: `Invalid sourceMap setting for target "${targetName}": ${String(
-        JSON.stringify(_sourceMap)
-      )}`,
-      hints: ['Needs to be not defined or an object']
-    });
-  }
-
-  return {
-    context,
-    distDir,
-    engines,
-    includeNodeModules,
-    isLibrary,
-    outputFormat,
-    publicUrl,
-    sourceMap
-  };
+  // $FlowFixMe we just verified this
+  return descriptor;
 }
 
 export default class TargetResolver {

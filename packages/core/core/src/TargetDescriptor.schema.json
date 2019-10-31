@@ -1,0 +1,65 @@
+{
+  "type": "object",
+  "properties": {
+    "context": {
+      "type": "string",
+      "enum": [
+        "node",
+        "browser",
+        "web-worker",
+        "electron-main",
+        "electron-renderer"
+      ]
+    },
+    "includeNodeModules": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "__pattern": "a (wildcard) string"
+          }
+        }
+      ]
+    },
+    "outputFormat": {
+      "type": "string",
+      "enum": ["global", "esmodule", "commonjs"]
+    },
+    "distDir": {
+      "type": "string"
+    },
+    "publicUrl": {
+      "type": "string"
+    },
+    "isLibrary": {
+      "type": "boolean"
+    },
+    "sourceMap": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "inlineSources": {
+              "type": "boolean"
+            },
+            "sourceRoot": {
+              "type": "string"
+            },
+            "inline": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}
