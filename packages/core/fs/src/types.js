@@ -9,6 +9,9 @@ import type {
 } from '@parcel/watcher';
 
 export type FileOptions = {mode?: number, ...};
+export type ReaddirOptions =
+  | {withFileTypes?: false, ...}
+  | {withFileTypes: true, ...};
 
 export interface FileSystem {
   readFile(filePath: FilePath): Promise<Buffer>;
@@ -27,7 +30,11 @@ export interface FileSystem {
   ): Promise<void>;
   stat(filePath: FilePath): Promise<$Shape<Stats>>;
   statSync(filePath: FilePath): $Shape<Stats>;
-  readdir(path: FilePath): Promise<FilePath[]>;
+  readdir(
+    path: FilePath,
+    opts?: {withFileTypes?: false, ...}
+  ): Promise<FilePath[]>;
+  readdir(path: FilePath, opts: {withFileTypes: true, ...}): Promise<Dirent[]>;
   unlink(path: FilePath): Promise<void>;
   realpath(path: FilePath): Promise<FilePath>;
   realpathSync(path: FilePath): FilePath;
@@ -55,4 +62,16 @@ export interface FileSystem {
     snapshot: FilePath,
     opts: WatcherOptions
   ): Promise<void>;
+}
+
+// https://nodejs.org/api/fs.html#fs_class_fs_dirent
+export interface Dirent {
+  +name: string;
+  isBlockDevice(): boolean;
+  isCharacterDevice(): boolean;
+  isDirectory(): boolean;
+  isFIFO(): boolean;
+  isFile(): boolean;
+  isSocket(): boolean;
+  isSymbolicLink(): boolean;
 }

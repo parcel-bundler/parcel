@@ -40,10 +40,7 @@ export default function UI({events, options}: Props) {
     defaultState
   );
 
-  useEffect(() => {
-    let {dispose} = events.addListener(dispatch);
-    return dispose;
-  }, [events]);
+  useEffect(() => events.addListener(dispatch).dispose, [events]);
 
   let {logs, progress, bundleGraph} = state;
   return (
@@ -134,7 +131,7 @@ function reducer(
           {
             type: 'log',
             level: 'error',
-            message: event.error
+            diagnostic: event.diagnostic
           }
         ]
       };
@@ -152,10 +149,10 @@ function reducer(
       }
 
       // Skip duplicate logs
-      let messages = new Set(state.logs.map(l => l.message));
+      /*let messages = new Set(state.logs.map(l => l.message));
       if (messages.has(event.message)) {
         break;
-      }
+      }*/
 
       return {
         ...state,

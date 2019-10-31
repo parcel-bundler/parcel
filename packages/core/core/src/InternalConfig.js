@@ -1,18 +1,15 @@
 // @flow strict-local
 
-import type {
-  FilePath,
-  Glob,
-  PackageName,
-  Config as ThirdPartyConfig
-} from '@parcel/types';
+import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
 
-import type {Config} from './types';
+import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
+  isSource: boolean,
   searchPath: FilePath,
+  env: Environment,
   resolvedPath?: FilePath,
-  result?: ThirdPartyConfig,
+  result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   watchGlob?: Glob,
   devDeps?: Map<PackageName, ?string>,
@@ -22,7 +19,9 @@ type ConfigOpts = {|
 |};
 
 export function createConfig({
+  isSource,
   searchPath,
+  env,
   resolvedPath,
   result,
   includedFiles,
@@ -33,7 +32,9 @@ export function createConfig({
   shouldInvalidateOnStartup
 }: ConfigOpts): Config {
   return {
+    isSource,
     searchPath,
+    env,
     resolvedPath,
     result: result ?? null,
     resultHash: null,

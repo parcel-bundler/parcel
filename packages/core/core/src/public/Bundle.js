@@ -63,6 +63,10 @@ export class Bundle implements IBundle {
     return this.#bundle.isEntry;
   }
 
+  get isInline(): ?boolean {
+    return this.#bundle.isInline;
+  }
+
   get target(): ITarget {
     return new Target(this.#bundle.target);
   }
@@ -122,10 +126,6 @@ export class Bundle implements IBundle {
       this.#bundle,
       mapVisitor(asset => assetFromValue(asset, this.#options), visit)
     );
-  }
-
-  hasChildBundles() {
-    return this.#bundleGraph.hasChildBundles(this.#bundle);
   }
 
   getHash() {

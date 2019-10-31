@@ -1,6 +1,6 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, run, assertBundleTree, outputFS} from '@parcel/test-utils';
 
 describe.skip('glob', function() {
   it('should require a glob of files', async function() {

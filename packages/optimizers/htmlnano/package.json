@@ -1,0 +1,20 @@
+{
+  "name": "@parcel/optimizer-htmlnano",
+  "version": "2.0.0-alpha.2.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/HTMLNanoOptimizer.js",
+  "engines": {
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.2",
+    "htmlnano": "^0.2.2",
+    "nullthrows": "^1.1.1",
+    "posthtml": "^0.11.3"
+  }
+}

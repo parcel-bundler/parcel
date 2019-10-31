@@ -33,6 +33,12 @@ type SerializedSourceMap = {
   ...
 };
 
+function generateInlineMap(map: string): string {
+  return `data:application/json;charset=utf-8;base64,${new Buffer(map).toString(
+    'base64'
+  )}`;
+}
+
 export default class SourceMap {
   mappings: Array<Mapping>;
   sources: Sources;
@@ -91,7 +97,10 @@ export default class SourceMap {
 
     let sourcemap: RawSourceMap =
       typeof map === 'string' ? JSON.parse(map) : map;
-    if (sourcemap.sourceRoot != null) delete sourcemap.sourceRoot;
+    if (sourcemap.sourceRoot != null) {
+      // $FlowFixMe
+      delete sourcemap.sourceRoot;
+    }
     return new SourceMapConsumer(sourcemap);
   }
 
@@ -364,13 +373,15 @@ export default class SourceMap {
     sourceRoot,
     rootDir,
     inlineSources,
-    fs
+    fs,
+    inlineMap
   }: {|
     file?: string, // Filename of the bundle/file sourcemap applies to
     sourceRoot?: string, // The root dir of sourcemap sourceContent, all sourceContent of mappings should exist in here...
     rootDir?: string, // Parcel's rootDir where all mappings are relative to
     inlineSources?: boolean, // true = inline everything, false = inline nothing
-    fs?: FileSystem
+    fs?: FileSystem,
+    inlineMap?: boolean
   |}): Promise<string> {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
@@ -389,6 +400,7 @@ export default class SourceMap {
               path.join(rootDir || '', sourceName),
               'utf8'
             );
+
             if (content) {
               generator.setSourceContent(sourceName, content);
             }
@@ -399,7 +411,9 @@ export default class SourceMap {
       }
     }
 
-    return generator.toString();
+    let stringifiedMap = generator.toString();
+
+    return inlineMap ? generateInlineMap(stringifiedMap) : stringifiedMap;
   }
 }
 

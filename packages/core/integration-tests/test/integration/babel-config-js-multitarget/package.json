@@ -1,0 +1,18 @@
+{
+  "name": "some-project-with-babel",
+  "version": "1.0.0",
+  "modern": "dist/modern/index.js",
+  "legacy": "dist/legacy/index.js",
+  "targets": {
+    "modern": {
+      "engines": {
+        "browsers": "Chrome 60"
+      }
+    },
+    "legacy": {
+      "engines": {
+        "browsers": "ie 11"
+      }
+    }
+  }
+}

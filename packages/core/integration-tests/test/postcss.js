@@ -1,19 +1,19 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   run,
   assertBundles,
   distDir,
   inputFS,
   outputFS,
+  overlayFS,
   ncp
-} = require('@parcel/test-utils');
-const {
+} from '@parcel/test-utils';
+import {
   NodePackageManager,
   MockPackageInstaller
-} = require('@parcel/package-manager');
-const {OverlayFS} = require('@parcel/fs');
+} from '@parcel/package-manager';
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {
@@ -252,8 +252,7 @@ describe('postcss', () => {
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
-    let fs = new OverlayFS(outputFS, inputFS);
-    let packageManager = new NodePackageManager(fs, packageInstaller);
+    let packageManager = new NodePackageManager(overlayFS, packageInstaller);
 
     await bundle(path.join(__dirname, '/input/index.css'), {
       inputFS: outputFS,

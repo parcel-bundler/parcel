@@ -1,12 +1,12 @@
 // @flow
 
-import type {Config, File, FilePath} from '@parcel/types';
+import type {ConfigResult, File, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import clone from 'clone';
 
 type ConfigOutput = {|
-  config: Config,
+  config: ConfigResult,
   files: Array<File>
 |};
 
@@ -51,6 +51,7 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions
 ): Promise<ConfigOutput | null> {
+  filepath = await fs.realpath(filepath);
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
     try {

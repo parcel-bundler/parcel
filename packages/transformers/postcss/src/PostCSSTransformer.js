@@ -1,6 +1,11 @@
 // @flow
 
-import type {FilePath, MutableAsset} from '@parcel/types';
+import type {
+  FilePath,
+  MutableAsset,
+  ResolveFn,
+  PluginOptions
+} from '@parcel/types';
 
 import {md5FromString} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
@@ -65,12 +70,13 @@ export default new Transformer({
       configFilePlugins['postcss-modules'] != null
     ) {
       originalModulesConfig = configFilePlugins['postcss-modules'];
+      // $FlowFixMe
       delete configFilePlugins['postcss-modules'];
     }
 
     let plugins = await loadPlugins(configFilePlugins, asset.filePath, options);
 
-    if (originalModulesConfig) {
+    if (originalModulesConfig || configFile.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath
@@ -80,8 +86,8 @@ export default new Transformer({
         postcssModules({
           getJSON: (filename, json) => (asset.meta.cssModules = json),
           Loader: createLoader(asset, resolve),
-          generateScopedName: (name, filename) =>
-            `_${name}_${md5FromString(filename).substr(0, 5)}`,
+          generateScopedName: (name, filename, css) =>
+            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
           ...originalModulesConfig
         })
       );
@@ -115,11 +121,12 @@ export default new Transformer({
   async transform({
     asset,
     config
-  }: {
+  }: {|
     asset: MutableAsset,
     config: ?ParcelPostCSSConfig,
-    ...
-  }) {
+    resolve: ResolveFn,
+    options: PluginOptions
+  |}) {
     if (!config) {
       return [asset];
     }
@@ -145,16 +152,26 @@ export default new Transformer({
 
     let {root} = await postcss(config.plugins).process(ast.program, config);
     ast.program = root;
+    ast.isDirty = true;
 
     let assets = [asset];
     if (asset.meta.cssModules) {
+      let code = JSON.stringify(asset.meta.cssModules, null, 2);
+      let deps = asset.getDependencies().filter(dep => !dep.isURL);
+      if (deps.length > 0) {
+        code = `
+          module.exports = Object.assign({}, ${deps
+            .map(dep => `require(${JSON.stringify(dep.moduleSpecifier)})`)
+            .join(', ')}, ${code});
+        `;
+      } else {
+        code = `module.exports = ${code};`;
+      }
+
       assets.push({
         type: 'js',
         filePath: asset.filePath + '.js',
-        code:
-          'module.exports = ' +
-          JSON.stringify(asset.meta.cssModules, null, 2) +
-          ';'
+        code
       });
     }
     return assets;

@@ -5,8 +5,9 @@ import type {
   ModuleSpecifier,
   Symbol
 } from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
+import {getEnvironmentHash} from './Environment';
 
 type DependencyOpts = {|
   id?: string,
@@ -17,22 +18,25 @@ type DependencyOpts = {|
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
-  isWeak?: boolean,
+  isWeak?: ?boolean,
   loc?: SourceLocation,
   env: Environment,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol>
+  symbols?: Map<Symbol, Symbol>,
+  pipeline?: ?string
 |};
 
 export function createDependency(opts: DependencyOpts): Dependency {
   let id =
     opts.id ||
-    md5FromString(
-      `${opts.sourceAssetId ?? ''}:${opts.moduleSpecifier}:${JSON.stringify(
-        opts.env
-      )}`
-    );
+    md5FromObject({
+      sourceAssetId: opts.sourceAssetId,
+      moduleSpecifier: opts.moduleSpecifier,
+      env: getEnvironmentHash(opts.env),
+      target: opts.target,
+      pipeline: opts.pipeline
+    });
 
   return {
     ...opts,
@@ -43,9 +47,10 @@ export function createDependency(opts: DependencyOpts): Dependency {
 }
 
 export function mergeDependencies(a: Dependency, b: Dependency): void {
-  let {meta, symbols, ...other} = b;
+  let {meta, symbols, isWeak, ...other} = b;
   Object.assign(a, other);
   Object.assign(a.meta, meta);
+  a.isWeak = a.isWeak === isWeak ? a.isWeak : a.isWeak ?? isWeak;
   for (let [k, v] of symbols) {
     a.symbols.set(k, v);
   }

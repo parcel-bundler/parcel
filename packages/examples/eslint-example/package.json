@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/eslint-example",
+  "version": "2.0.0-alpha.2.1",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "demo": "parcel build src/index.js --no-cache"
+  },
+  "browser": "dist/legacy/index.js",
+  "targets": {
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0-alpha.2.1",
+    "@parcel/core": "^2.0.0-alpha.2.1",
+    "@parcel/validator-eslint": "^2.0.0-alpha.2.1"
+  }
+}

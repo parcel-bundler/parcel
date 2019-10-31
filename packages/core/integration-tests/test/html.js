@@ -1,5 +1,5 @@
-const assert = require('assert');
-const {
+import assert from 'assert';
+import {
   bundle,
   assertBundles,
   assertBundleTree,
@@ -8,8 +8,8 @@ const {
   run,
   inputFS,
   outputFS
-} = require('@parcel/test-utils');
-const path = require('path');
+} from '@parcel/test-utils';
+import path from 'path';
 
 describe('html', function() {
   beforeEach(async () => {
@@ -199,15 +199,15 @@ describe('html', function() {
     );
   });
 
-  it.skip('should minify HTML in production mode', async function() {
+  it('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
-      production: true
+      minify: true
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
 
-    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputFile = path.join(distDir, 'index.html');
     let outputSize = (await outputFS.stat(outputFile)).size;
 
     assert(inputSize > outputSize);
@@ -227,16 +227,16 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it.skip('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it('should read .htmlnanorc and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
-        production: true
+        minify: true
       }
     );
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
 
@@ -255,23 +255,23 @@ describe('html', function() {
     // minifySvg is false
     assert(
       html.includes(
-        '<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
+        '<svg version="1.1" baseprofile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
       )
     );
   });
 
-  it.skip('should not minify default values inside HTML in production mode', async function() {
+  it('should not minify default values inside HTML in production mode', async function() {
     let inputFile = path.join(
       __dirname,
       '/integration/htmlnano-defaults-form/index.html'
     );
     await bundle(inputFile, {
-      production: true
+      minify: true
     });
 
     let inputSize = (await inputFS.stat(inputFile)).size;
 
-    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputFile = path.join(distDir, '/index.html');
     let outputSize = (await outputFS.stat(outputFile)).size;
 
     assert(inputSize > outputSize);
@@ -549,6 +549,28 @@ describe('html', function() {
     ]);
   });
 
+  // Based on https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
+  it('should bundle scripts inside svg', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-svg-script/index.html')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['script-a.js']
+      },
+      {
+        type: 'js',
+        assets: ['script-b.js']
+      }
+    ]);
+  });
+
   it('should support data attribute of object element', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-object/index.html')
@@ -583,119 +605,195 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should process inline JS', async function() {
+  it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {
-        production: true
-      }
+      {minify: true}
     );
 
-    const bundleContent = (await outputFS.readFile(b.filePath)).toString();
-    assert(!bundleContent.includes('someArgument'));
-  });
+    // inline bundles are not output, but are apart of the bundleGraph
+    assertBundles(b, [
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']}
+    ]);
 
-  it.skip('should process inline styles', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-styles/index.html'),
-      {production: true}
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'jpg',
-          assets: ['bg.jpg'],
-          childBundles: []
-        },
-        {
-          type: 'jpg',
-          assets: ['img.jpg'],
-          childBundles: []
-        }
-      ]
-    });
-  });
-
-  it.skip('should process inline styles using lang', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-sass/index.html'),
-      {production: true}
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html']
-    });
+    let files = await outputFS.readdir(distDir);
+    // assert that the inline js files are not output
+    assert(!files.some(filename => filename.includes('js')));
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
+      path.join(distDir, 'index.html'),
+      'utf-8'
     );
 
+    assert(!html.includes('someArgument'));
+  });
+
+  it('should add an inline sourcemap to inline JS', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js/index.html'),
+      {minify: false}
+    );
+
+    // inline bundles are not output, but are apart of the bundleGraph
+    assertBundles(b, [
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {name: 'index.html', assets: ['index.html']}
+    ]);
+
+    let files = await outputFS.readdir(distDir);
+    // assert that the inline js files are not output
+    assert(!files.some(filename => filename.includes('js')));
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf-8'
+    );
+
+    assert(
+      html.includes(
+        '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,ey'
+      )
+    );
+  });
+
+  it('should process inline styles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-styles/index.html'),
+      {minify: true}
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'jpg',
+        assets: ['bg.jpg']
+      },
+      {
+        type: 'jpg',
+        assets: ['img.jpg']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      }
+    ]);
+  });
+
+  it('should process inline styles using lang', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-sass/index.html'),
+      {minify: true}
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      }
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
     assert(html.includes('<style>.index{color:#00f}</style>'));
   });
 
-  it.skip('should process inline non-js scripts', async function() {
+  it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
-      {production: true}
+      {minify: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html']
-    });
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      }
+    ]);
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
-
     assert(html.includes('alert("Hello, World!")'));
   });
 
-  it.skip('should handle inline css with @imports', async function() {
+  it('should handle inline css with @imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
       {production: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'css',
-          assets: ['test.css']
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['index.html', 'test.css']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      }
+    ]);
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
-    assert(html.includes('@import'));
+    assert(!html.includes('@import'));
   });
 
-  it.skip('should error on imports and requires in inline <script> tags', async function() {
-    let err;
-    try {
-      await bundle(
-        path.join(__dirname, '/integration/html-inline-js-require/index.html'),
-        {production: true}
-      );
-    } catch (e) {
-      err = e;
-    }
-
-    assert(err);
-    assert.equal(
-      err.message,
-      'Imports and requires are not supported inside inline <script> tags yet.'
+  it('should allow imports and requires in inline <script> tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-require/index.html'),
+      {minify: true}
     );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html', 'test.js']
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      }
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
+    assert(html.includes('console.log("test")'));
   });
 });

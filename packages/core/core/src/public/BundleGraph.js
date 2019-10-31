@@ -7,16 +7,31 @@ import type {
   BundleGroup,
   Dependency as IDependency,
   GraphTraversalCallback,
-  Symbol
+  Symbol,
+  SymbolResolution
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
+
 import {assetFromValue, assetToInternalAsset, Asset} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
+
+// Friendly access for other modules within this package that need access
+// to the internal bundle.
+const _bundleGraphToInternalBundleGraph: WeakMap<
+  IBundleGraph,
+  InternalBundleGraph
+> = new WeakMap();
+export function bundleGraphToInternalBundleGraph(
+  bundleGraph: IBundleGraph
+): InternalBundleGraph {
+  return nullthrows(_bundleGraphToInternalBundleGraph.get(bundleGraph));
+}
 
 export default class BundleGraph implements IBundleGraph {
   #graph; // InternalBundleGraph
@@ -25,6 +40,7 @@ export default class BundleGraph implements IBundleGraph {
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     this.#graph = graph;
     this.#options = options;
+    _bundleGraphToInternalBundleGraph.set(this, graph);
   }
 
   getDependencyResolution(dep: IDependency): ?Asset {
@@ -48,13 +64,18 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
+  getSiblingBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getSiblingBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
   getBundleGroupsReferencedByBundle(
     bundle: IBundle
-  ): Array<{
+  ): Array<{|
     bundleGroup: BundleGroup,
-    dependency: IDependency,
-    ...
-  }> {
+    dependency: IDependency
+  |}> {
     return this.#graph
       .getBundleGroupsReferencedByBundle(bundleToInternalBundle(bundle))
       .map(({bundleGroup, dependency}) => ({
@@ -108,7 +129,13 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  resolveSymbol(asset: IAsset, symbol: Symbol) {
+  getChildBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getChildBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
+  resolveSymbol(asset: IAsset, symbol: Symbol): SymbolResolution {
     let res = this.#graph.resolveSymbol(
       assetToInternalAsset(asset).value,
       symbol
@@ -120,6 +147,15 @@ export default class BundleGraph implements IBundleGraph {
     };
   }
 
+  getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
+    let res = this.#graph.getExportedSymbols(assetToInternalAsset(asset).value);
+    return res.map(e => ({
+      asset: assetFromValue(e.asset, this.#options),
+      exportSymbol: e.exportSymbol,
+      symbol: e.symbol
+    }));
+  }
+
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<IBundle, TContext>
   ): ?TContext {
@@ -129,5 +165,11 @@ export default class BundleGraph implements IBundleGraph {
         visit
       )
     );
+  }
+
+  findBundlesWithAsset(asset: IAsset): Array<IBundle> {
+    return this.#graph
+      .findBundlesWithAsset(assetToInternalAsset(asset).value)
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 }

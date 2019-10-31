@@ -7,14 +7,14 @@ import type {
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
-  ModuleSpecifier,
-  Stats
+  ModuleSpecifier
 } from '@parcel/types';
-import type {Bundle as IBundle, ParcelOptions} from './types';
-import type InternalBundleGraph from './BundleGraph';
-import type ParcelConfig from './ParcelConfig';
+import type {ParcelOptions} from './types';
+import type {FarmOptions} from '@parcel/workers';
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
+import {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
@@ -23,7 +23,9 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
+import AssetGraphBuilder from './AssetGraphBuilder';
+import {assertSignalNotAborted, BuildAbortError} from './utils';
+import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -31,6 +33,8 @@ import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 import {createCacheDir} from '@parcel/cache';
+import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import {PromiseQueue} from '@parcel/utils';
 
 registerCoreWithSerializer();
 
@@ -39,7 +43,9 @@ export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
+  #runtimesAssetGraphBuilder; // AssetGraphBuilder
   #bundlerRunner; // BundlerRunner
+  #packagerRunner; // PackagerRunner
   #config;
   #farm; // WorkerFarm
   #initialized = false; // boolean
@@ -47,17 +53,17 @@ export default class Parcel {
   #reporterRunner; // ReporterRunner
   #resolvedOptions = null; // ?ParcelOptions
   #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #watchAbortController; // AbortController
+  #watchQueue = new PromiseQueue<?BuildEvent>({maxConcurrent: 1}); // PromiseQueue<?BuildEvent>
   #watchEvents = new ValueEmitter<
-    | {
+    | {|
         +error: Error,
-        +buildEvent?: void,
-        ...
-      }
-    | {
+        +buildEvent?: void
+      |}
+    | {|
         +buildEvent: BuildEvent,
-        +error?: void,
-        ...
-      }
+        +error?: void
+      |}
   >();
   #watcherSubscription; // AsyncSubscription
   #watcherCount = 0; // number
@@ -82,10 +88,34 @@ export default class Parcel {
       resolvedOptions
     );
     this.#config = config;
-    this.#farm = this.#initialOptions.workerFarm ?? createWorkerFarm();
+    this.#farm =
+      this.#initialOptions.workerFarm ??
+      createWorkerFarm({
+        patchConsole: resolvedOptions.patchConsole
+      });
+
+    this.#assetGraphBuilder = new AssetGraphBuilder();
+    this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
+
+    await Promise.all([
+      this.#assetGraphBuilder.init({
+        name: 'MainAssetGraph',
+        options: resolvedOptions,
+        config,
+        entries: resolvedOptions.entries,
+        workerFarm: this.#farm
+      }),
+      this.#runtimesAssetGraphBuilder.init({
+        name: 'RuntimesAssetGraph',
+        options: resolvedOptions,
+        config,
+        workerFarm: this.#farm
+      })
+    ]);
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
+      runtimesBuilder: this.#runtimesAssetGraphBuilder,
       config,
       workerFarm: this.#farm
     });
@@ -95,13 +125,10 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.#assetGraphBuilder = new AssetGraphBuilder();
-    await this.#assetGraphBuilder.init({
-      options: resolvedOptions,
+    this.#packagerRunner = new PackagerRunner({
       config,
-      entries: resolvedOptions.entries,
-      targets: resolvedOptions.targets,
-      workerFarm: this.#farm
+      options: resolvedOptions,
+      farm: this.#farm
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');
@@ -114,8 +141,11 @@ export default class Parcel {
       await this.init();
     }
 
-    let result = await this.build(startTime);
-    await this.#assetGraphBuilder.writeToCache();
+    let result = await this.build({startTime});
+    await Promise.all([
+      this.#assetGraphBuilder.writeToCache(),
+      this.#runtimesAssetGraphBuilder.writeToCache()
+    ]);
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
@@ -123,10 +153,27 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.error);
+      throw new BuildError(result.diagnostic);
     }
 
     return result.bundleGraph;
+  }
+
+  async startNextBuild() {
+    this.#watchAbortController = new AbortController();
+
+    try {
+      this.#watchEvents.emit({
+        buildEvent: await this.build({
+          signal: this.#watchAbortController.signal
+        })
+      });
+    } catch (err) {
+      // Ignore BuildAbortErrors and only emit critical errors.
+      if (!(err instanceof BuildAbortError)) {
+        throw err;
+      }
+    }
   }
 
   async watch(
@@ -149,36 +196,48 @@ export default class Parcel {
 
       // Kick off a first build, but don't await its results. Its results will
       // be provided to the callback.
-      this.build()
-        .then(buildEvent => {
-          this.#watchEvents.emit({buildEvent});
-        })
-        .catch(error => {
-          // Ignore BuildAbortErrors and only emit critical errors.
-          this.#watchEvents.emit({error});
-        });
+      this.#watchQueue.add(() => this.startNextBuild());
+      this.#watchQueue.run();
     }
 
     this.#watcherCount++;
 
+    let unsubscribePromise;
+    const unsubscribe = async () => {
+      if (watchEventsDisposable) {
+        watchEventsDisposable.dispose();
+      }
+
+      this.#watcherCount--;
+      if (this.#watcherCount === 0) {
+        await nullthrows(this.#watcherSubscription).unsubscribe();
+        this.#watcherSubscription = null;
+        await this.#reporterRunner.report({type: 'watchEnd'});
+        await Promise.all([
+          this.#assetGraphBuilder.writeToCache(),
+          this.#runtimesAssetGraphBuilder.writeToCache()
+        ]);
+      }
+    };
+
     return {
-      unsubscribe: async () => {
-        if (watchEventsDisposable) {
-          watchEventsDisposable.dispose();
+      unsubscribe() {
+        if (unsubscribePromise == null) {
+          unsubscribePromise = unsubscribe();
         }
 
-        this.#watcherCount--;
-        if (this.#watcherCount === 0) {
-          await nullthrows(this.#watcherSubscription).unsubscribe();
-          this.#watcherSubscription = null;
-          await this.#reporterRunner.report({type: 'watchEnd'});
-          await this.#assetGraphBuilder.writeToCache();
-        }
+        return unsubscribePromise;
       }
     };
   }
 
-  async build(startTime: number = Date.now()): Promise<BuildEvent> {
+  async build({
+    signal,
+    startTime = Date.now()
+  }: {|
+    signal?: AbortSignal,
+    startTime?: number
+  |}): Promise<BuildEvent> {
     let options = nullthrows(this.#resolvedOptions);
     try {
       if (options.profile) {
@@ -192,15 +251,11 @@ export default class Parcel {
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
+      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await packageBundles({
-        bundleGraph,
-        config: this.#config,
-        options,
-        runPackage: this.#runPackage
-      });
+      await this.#packagerRunner.writeBundles(bundleGraph);
+      assertSignalNotAborted(signal);
 
       let event = {
         type: 'buildSuccess',
@@ -216,6 +271,7 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -224,9 +280,11 @@ export default class Parcel {
 
       let event = {
         type: 'buildFailure',
-        error: e
+        diagnostic: anyToDiagnostic(e)
       };
+
       await this.#reporterRunner.report(event);
+
       return event;
     } finally {
       if (options.profile) {
@@ -240,12 +298,11 @@ export default class Parcel {
     filePath,
     env,
     code
-  }: {
+  }: {|
     filePath: FilePath,
     env: EnvironmentOpts,
-    code?: string,
-    ...
-  }) {
+    code?: string
+  |}) {
     let [result] = await Promise.all([
       this.#assetGraphBuilder.runTransform({
         filePath,
@@ -263,12 +320,11 @@ export default class Parcel {
     moduleSpecifier,
     sourcePath,
     env
-  }: {
+  }: {|
     moduleSpecifier: ModuleSpecifier,
     sourcePath: FilePath,
-    env: EnvironmentOpts,
-    ...
-  }): Promise<FilePath> {
+    env: EnvironmentOpts
+  |}): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
       createDependency({
         moduleSpecifier,
@@ -288,24 +344,22 @@ export default class Parcel {
 
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
-      async (err, events) => {
+      (err, _events) => {
+        let events = _events.filter(e => !e.path.includes('.cache'));
+
         if (err) {
           this.#watchEvents.emit({error: err});
           return;
         }
 
         let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
-        if (isInvalid) {
-          try {
-            this.#watchEvents.emit({
-              buildEvent: await this.build()
-            });
-          } catch (error) {
-            // Ignore BuildAbortErrors and only emit critical errors.
-            if (!(err instanceof BuildAbortError)) {
-              this.#watchEvents.emit({error});
-            }
+        if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
+          if (this.#watchAbortController) {
+            this.#watchAbortController.abort();
           }
+
+          this.#watchQueue.add(() => this.startNextBuild());
+          this.#watchQueue.run();
         }
       },
       opts
@@ -313,42 +367,12 @@ export default class Parcel {
   }
 }
 
-function packageBundles({
-  bundleGraph,
-  config,
-  options,
-  runPackage
-}: {
-  bundleGraph: InternalBundleGraph,
-  config: ParcelConfig,
-  options: ParcelOptions,
-  runPackage: ({
-    bundle: IBundle,
-    bundleGraph: InternalBundleGraph,
-    config: ParcelConfig,
-    options: ParcelOptions,
-    ...
-  }) => Promise<Stats>,
-  ...
-}): Promise<mixed> {
-  let promises = [];
-  for (let bundle of bundleGraph.getBundles()) {
-    promises.push(
-      runPackage({bundle, bundleGraph, config, options}).then(stats => {
-        bundle.stats = stats;
-      })
-    );
-  }
-
-  return Promise.all(promises);
-}
-
 export class BuildError extends Error {
   name = 'BuildError';
   error: mixed;
 
   constructor(error: mixed) {
-    super(error instanceof Error ? error.message : 'Unknown Build Error');
+    super(typeof error === 'object' ? error?.message : 'Unknown Build Error');
     this.error = error;
     if (error instanceof Error) {
       this.stack = error.stack;
@@ -358,8 +382,9 @@ export class BuildError extends Error {
 
 export {default as Asset} from './InternalAsset';
 
-export function createWorkerFarm() {
+export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({
+    ...options,
     workerPath: require.resolve('./worker')
   });
 }

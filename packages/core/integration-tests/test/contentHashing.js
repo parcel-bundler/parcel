@@ -1,10 +1,10 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle as _bundle, outputFS, ncp} from '@parcel/test-utils';
+import {bundle as _bundle, overlayFS, outputFS, ncp} from '@parcel/test-utils';
 
 function bundle(path) {
   return _bundle(path, {
-    inputFS: outputFS,
+    inputFS: overlayFS,
     disableCache: false
   });
 }
@@ -73,5 +73,14 @@ describe('content hashing', function() {
     assert(await outputFS.exists(path.join(distDir, newFilename)));
 
     assert.notEqual(filename, newFilename);
+  });
+
+  it('should consider bundles with identical contents coming from different filepaths unique', async () => {
+    await _bundle(
+      path.join(
+        __dirname,
+        'integration/same-contents-different-filepaths/index.js'
+      )
+    );
   });
 });

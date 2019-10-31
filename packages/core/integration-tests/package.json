@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -20,6 +20,7 @@
     "chalk": "^2.1.0",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
+    "core-js": "^3.2.1",
     "get-port": "^5.0.0",
     "graphql-tag": "^2.6.0",
     "http-proxy-middleware": "^0.19.1",
@@ -28,9 +29,11 @@
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
     "nyc": "^11.1.0",
-    "parcel-bundler": "^1.12.4-alpha.0",
+    "parcel": "^2.0.0-alpha.2.1",
+    "parcel-bundler": "^2.0.0-alpha.2.1",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
+    "tempy": "^0.3.0",
     "ws": "^5.1.1"
   }
 }

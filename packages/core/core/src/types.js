@@ -20,8 +20,11 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  Config as ThirdPartyConfig
+  ConfigResult,
+  OutputFormat,
+  TargetDescriptor
 } from '@parcel/types';
+
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -29,7 +32,9 @@ import type {PackageManager} from '@parcel/package-manager';
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules: boolean
+  includeNodeModules: boolean | Array<PackageName>,
+  outputFormat: OutputFormat,
+  isLibrary: boolean
 |};
 
 export type Target = {|
@@ -48,14 +53,15 @@ export type Dependency = {|
   isEntry: boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: boolean,
+  isWeak: ?boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, Symbol>
+  symbols: Map<Symbol, Symbol>,
+  pipeline?: ?string
 |};
 
 export type Asset = {|
@@ -64,8 +70,10 @@ export type Asset = {|
   filePath: FilePath,
   type: string,
   dependencies: Map<string, Dependency>,
-  connectedFiles: Map<FilePath, File>,
+  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
+  isInline: boolean,
+  isSource: boolean,
   outputHash: string,
   env: Environment,
   meta: Meta,
@@ -73,7 +81,8 @@ export type Asset = {|
   contentKey: ?string,
   mapKey: ?string,
   symbols: Map<Symbol, Symbol>,
-  sideEffects: boolean
+  sideEffects: boolean,
+  uniqueKey?: ?string
 |};
 
 export type ParcelOptions = {|
@@ -82,7 +91,8 @@ export type ParcelOptions = {|
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
   env: {+[string]: string, ...},
-  targets: Array<Target>,
+  targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
+  defaultEngines?: Engines,
 
   disableCache: boolean,
   cacheDir: FilePath,
@@ -98,7 +108,7 @@ export type ParcelOptions = {|
   projectRoot: FilePath,
   lockFile: ?FilePath,
   profile: boolean,
-  patchConsole: ?boolean,
+  patchConsole: boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -137,7 +147,8 @@ export type AssetRequest = {|
   filePath: FilePath,
   env: Environment,
   sideEffects?: boolean,
-  code?: string
+  code?: string,
+  pipeline?: ?string
 |};
 
 // Asset group nodes are essentially used as placeholders for the results of an asset request
@@ -161,15 +172,31 @@ export type AssetRequestNode = {|
   value: AssetRequest
 |};
 
+export type EntrySpecifierNode = {|
+  id: string,
+  +type: 'entry_specifier',
+  value: ModuleSpecifier
+|};
+
+export type EntryFileNode = {|
+  id: string,
+  +type: 'entry_file',
+  value: ModuleSpecifier
+|};
+
 export type AssetGraphNode =
   | AssetGroupNode
   | AssetNode
   | DependencyNode
+  | EntrySpecifierNode
+  | EntryFileNode
   | RootNode;
 
 export type BundleGraphNode =
   | AssetNode
   | DependencyNode
+  | EntrySpecifierNode
+  | EntryFileNode
   | RootNode
   | BundleGroupNode
   | BundleNode;
@@ -181,10 +208,12 @@ export type ConfigRequestNode = {|
 |};
 
 export type Config = {|
+  isSource: boolean,
   searchPath: FilePath,
+  env: Environment,
   resolvedPath: ?FilePath,
   resultHash: ?string,
-  result: ThirdPartyConfig,
+  result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
   watchGlob: ?Glob,
@@ -196,6 +225,9 @@ export type Config = {|
 
 export type ConfigRequest = {|
   filePath: FilePath,
+  env: Environment,
+  isSource: boolean,
+  pipeline?: ?string,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,
@@ -214,23 +246,41 @@ export type DepVersionRequest = {|
   result?: Semver
 |};
 
+export type EntryRequest = {|
+  specifier: ModuleSpecifier,
+  result?: FilePath
+|};
+
+export type EntryRequestNode = {|
+  id: string,
+  +type: 'entry_request',
+  value: string
+|};
+
+export type TargetRequestNode = {|
+  id: string,
+  +type: 'target_request',
+  value: FilePath
+|};
+
 export type RequestGraphNode = RequestNode | FileNode | GlobNode;
 export type RequestNode =
+  | EntryRequestNode
+  | TargetRequestNode
   | DepPathRequestNode
   | AssetRequestNode
   | ConfigRequestNode
   | DepVersionRequestNode;
 export type SubRequestNode = ConfigRequestNode | DepVersionRequestNode;
 
-export type CacheEntry = {
+export type CacheEntry = {|
   filePath: FilePath,
   env: Environment,
   hash: string,
   assets: Array<Asset>,
   // Initial assets, pre-post processing
-  initialAssets: ?Array<Asset>,
-  ...
-};
+  initialAssets: ?Array<Asset>
+|};
 
 export type Bundle = {|
   id: string,
@@ -238,6 +288,7 @@ export type Bundle = {|
   env: Environment,
   entryAssetIds: Array<string>,
   isEntry: ?boolean,
+  isInline: ?boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,

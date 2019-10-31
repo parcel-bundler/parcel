@@ -1,15 +1,15 @@
-const assert = require('assert');
-const path = require('path');
-const os = require('os');
-const SourceMap = require('parcel-bundler/src/SourceMap');
-const {
+import assert from 'assert';
+import path from 'path';
+import os from 'os';
+import SourceMap from 'parcel-bundler/src/SourceMap';
+import {
   bundle,
   run,
   assertBundleTree,
   inputFS,
   outputFS
-} = require('@parcel/test-utils');
-const {loadSourceMapUrl} = require('@parcel/utils');
+} from '@parcel/test-utils';
+import {loadSourceMapUrl} from '@parcel/utils';
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -99,8 +99,7 @@ describe('sourcemaps', function() {
 
     let sourceMap = await new SourceMap().addMap(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
-    let sourcePath =
-      'packages/core/integration-tests/test/integration/sourcemap/index.js';
+    let sourcePath = 'integration/sourcemap/index.js';
     assert.equal(Object.keys(sourceMap.sources).length, 1);
     assert.strictEqual(sourceMap.sources[sourcePath], null);
 
@@ -148,14 +147,13 @@ describe('sourcemaps', function() {
     let sourceRoot = map.sourceRoot;
     assert.equal(
       sourceRoot,
-      '../../../../../../../',
+      '../../../',
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
 
     let sourceMap = await new SourceMap().addMap(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
-    let sourcePath =
-      'packages/core/integration-tests/test/integration/sourcemap-node/index.js';
+    let sourcePath = 'integration/sourcemap-node/index.js';
     assert.equal(Object.keys(sourceMap.sources).length, 1);
     assert.strictEqual(sourceMap.sources[sourcePath], null);
     assert(
@@ -205,7 +203,7 @@ describe('sourcemaps', function() {
     let sourceRoot = map.sourceRoot;
     assert.equal(
       sourceRoot,
-      '../../../../../../../',
+      '../../../',
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
 
@@ -231,8 +229,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/index.js'
+      sourcePath: 'integration/sourcemap-nested/index.js'
     });
 
     checkSourceMapping({
@@ -240,8 +237,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/index.js'
+      sourcePath: 'integration/sourcemap-nested/index.js'
     });
 
     checkSourceMapping({
@@ -249,8 +245,7 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/local.js'
+      sourcePath: 'integration/sourcemap-nested/local.js'
     });
 
     checkSourceMapping({
@@ -259,8 +254,7 @@ describe('sourcemaps', function() {
       generated: raw,
       str: 'exports.count = function(a, b) {',
       generatedStr: 'exports.count = function (a, b) {',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/utils/util.js'
+      sourcePath: 'integration/sourcemap-nested/utils/util.js'
     });
 
     checkSourceMapping({
@@ -268,8 +262,7 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'return a + b',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/utils/util.js'
+      sourcePath: 'integration/sourcemap-nested/utils/util.js'
     });
   });
 
@@ -973,5 +966,67 @@ describe('sourcemaps', function() {
     }
     await test(false);
     await test(true);
+  });
+
+  it('Should be able to create a sourcemap with inlined sources', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-inline-sources/index.js'
+    );
+    await bundle(sourceFilename);
+
+    let distDir = path.join(
+      __dirname,
+      '/integration/sourcemap-inline-sources/dist/'
+    );
+
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapData) {
+      throw new Error('Could not load map');
+    }
+
+    let sourceContent = await inputFS.readFile(sourceFilename, 'utf-8');
+
+    let map = mapData.map;
+    assert.equal(map.file, 'index.js.map');
+    assert.deepEqual(map.sources, [
+      'integration/sourcemap-inline-sources/index.js'
+    ]);
+    assert.equal(map.sourcesContent[0], sourceContent);
+  });
+
+  it('Should be able to create inline sourcemaps', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-generate-inline/index.js'
+    );
+    await bundle(sourceFilename);
+
+    let distDir = path.join(
+      __dirname,
+      '/integration/sourcemap-generate-inline/dist/'
+    );
+
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+
+    assert(
+      mapUrlData.url.startsWith('data:application/json;charset=utf-8;base64,'),
+      'inline sourcemap bundles should have a base64 url'
+    );
+
+    let map = mapUrlData.map;
+    assert.equal(map.file, 'index.js.map');
+    assert.deepEqual(map.sources, [
+      'integration/sourcemap-generate-inline/index.js'
+    ]);
   });
 });

@@ -21,14 +21,17 @@ export default new Optimizer({
 
     let userConfig = await loadConfig(
       options.inputFS,
-      nullthrows(bundle.getMainEntry()).filePath,
+      path.join(options.projectRoot, 'index'),
       ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js']
     );
 
     let config = {
       warnings: true,
       ...userConfig?.config,
-      sourceMap: {filename: path.relative(options.projectRoot, bundle.filePath)}
+      sourceMap: {
+        filename: path.relative(options.projectRoot, bundle.filePath)
+      },
+      module: bundle.env.outputFormat === 'esmodule'
     };
 
     let sourceMap = null;

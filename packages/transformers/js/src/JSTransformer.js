@@ -75,13 +75,13 @@ export default new Transformer({
     let code = await asset.getCode();
 
     // Inline environment variables
-    if (!asset.env.isNode() && ENV_RE.test(code)) {
+    if (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) {
       walk.simple(ast.program, envVisitor, {asset, env: options.env});
     }
 
     // Collect dependencies
     if (canHaveDependencies(code) || ast.isDirty) {
-      walk.ancestor(ast.program, collectDependencies, asset);
+      walk.ancestor(ast.program, collectDependencies, {asset, options});
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.

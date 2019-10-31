@@ -1,11 +1,12 @@
-const assert = require('assert');
-const path = require('path');
-const {
-  bundle: _bundle,
+import assert from 'assert';
+import path from 'path';
+import {
+  bundle as _bundle,
   run,
   outputFS,
-  assertBundles
-} = require('@parcel/test-utils');
+  assertBundles,
+  distDir
+} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -226,7 +227,7 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert.equal(err.message, "b.js does not export 'default'");
+        assert(err.message.endsWith("b.js does not export 'default'"));
       }
 
       assert(threw);
@@ -357,6 +358,42 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports simultaneous import and re-export of a symbol', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-import/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 4 * 123);
+    });
+
+    it('supports optimizing away an unused ES6 re-export', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 123);
+    });
+
+    it('should not optimize away an unused ES6 re-export and an used import', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-import/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 123);
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(
@@ -484,10 +521,10 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output.default, 2);
+      assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(contents.includes('foo'));
@@ -504,14 +541,49 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output.default, 9);
+      assert.deepEqual(output, 9);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(/.\+./.test(contents));
       assert(!/.-./.test(contents));
+    });
+
+    it('removes unused transpiled classes using terser when minified', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-classes-babel/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 3);
+
+      let contents = await outputFS.readFile(
+        path.join(distDir, 'a.js'),
+        'utf8'
+      );
+      assert(!contents.includes('method'));
+    });
+
+    it('keeps member expression with computed properties that are variables', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-export-computed-prop/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output[0], true);
+      assert.strictEqual(typeof output[1], 'undefined');
+      assert.strictEqual(output[2], true);
+      assert.strictEqual(typeof output[3], 'undefined');
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {
@@ -572,7 +644,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(!/bar/.test(contents));
@@ -829,7 +901,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.equal(output.default, 27);
+      assert.equal(output, 27);
     });
 
     it('define exports in the outermost scope', async function() {
@@ -1202,7 +1274,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(__dirname, '/../dist/a.js'),
+        path.join(distDir, 'a.js'),
         'utf8'
       );
       assert(contents.includes('foo'));
@@ -1298,6 +1370,7 @@ describe('scope hoisting', function() {
     });
 
     it('should support wrapping array destructuring declarations', async function() {
+      this.timeout(90000);
       let b = await bundle(
         path.join(
           __dirname,
@@ -1357,13 +1430,7 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
-        assets: [
-          'bundle-loader.js',
-          'bundle-url.js',
-          'index.js',
-          'js-loader.js',
-          'JSRuntime.js'
-        ]
+        assets: ['cacheLoader.js', 'index.js', 'js-loader.js', 'JSRuntime.js']
       },
       {
         type: 'js',
@@ -1374,5 +1441,73 @@ describe('scope hoisting', function() {
     let output = (await run(b)).default;
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 'Imported: foobar');
+  });
+
+  it('should include the prelude in shared entry bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-shared/index.html')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      },
+      {
+        name: 'iframe.html',
+        assets: ['iframe.html']
+      },
+      {
+        type: 'js',
+        assets: ['iframe.js']
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js']
+      }
+    ]);
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)[0];
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let mainBundle = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.name.startsWith('html-shared'));
+    contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+  });
+
+  it('does not include prelude if child bundles are isolated', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js')
+    );
+
+    let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+    let contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(!contents.includes(`parcelRequire =`));
+  });
+
+  it('should include prelude in shared worker bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js')
+    );
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)
+      .find(b => b.name !== 'index.js');
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
+    contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
   });
 });

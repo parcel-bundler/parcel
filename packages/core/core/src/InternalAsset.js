@@ -3,7 +3,7 @@
 import type {
   AST,
   Blob,
-  Config,
+  ConfigResult,
   DependencyOptions,
   File,
   FilePath,
@@ -21,13 +21,13 @@ import SourceMap from '@parcel/source-map';
 import {
   bufferStream,
   loadConfig,
-  md5FromFilePath,
   md5FromString,
   blobToStream,
   TapStream
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
-import {mergeEnvironments} from './Environment';
+import {mergeEnvironments, getEnvironmentHash} from './Environment';
+import {PARCEL_VERSION} from './constants';
 
 type AssetOptions = {|
   id?: string,
@@ -38,37 +38,46 @@ type AssetOptions = {|
   contentKey?: ?string,
   mapKey?: ?string,
   dependencies?: Map<string, Dependency>,
-  connectedFiles?: Map<FilePath, File>,
+  includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
+  isInline?: boolean,
+  isSource: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
-  sideEffects?: boolean
+  sideEffects?: boolean,
+  uniqueKey?: ?string
 |};
 
 export function createAsset(options: AssetOptions): Asset {
   let idBase = options.idBase != null ? options.idBase : options.filePath;
+  let uniqueKey = options.uniqueKey || '';
   return {
     id:
       options.id != null
         ? options.id
-        : md5FromString(idBase + options.type + JSON.stringify(options.env)),
+        : md5FromString(
+            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey
+          ),
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
+    isInline: options.isInline == null ? false : options.isInline,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
     dependencies: options.dependencies || new Map(),
-    connectedFiles: options.connectedFiles || new Map(),
+    includedFiles: options.includedFiles || new Map(),
+    isSource: options.isSource,
     outputHash: options.outputHash || '',
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
     symbols: options.symbols || new Map(),
-    sideEffects: options.sideEffects != null ? options.sideEffects : true
+    sideEffects: options.sideEffects != null ? options.sideEffects : true,
+    uniqueKey: uniqueKey
   };
 }
 
@@ -130,7 +139,7 @@ export default class InternalAsset {
     // and hash while it's being written to the cache.
     let [contentKey, mapKey] = await Promise.all([
       this.options.cache.setStream(
-        this.generateCacheKey('content' + pipelineKey),
+        this.getCacheKey('content' + pipelineKey),
         contentStream.pipe(
           new TapStream(buf => {
             size += buf.length;
@@ -141,7 +150,7 @@ export default class InternalAsset {
       this.map == null
         ? Promise.resolve()
         : this.options.cache.set(
-            this.generateCacheKey('map' + pipelineKey),
+            this.getCacheKey('map' + pipelineKey),
             this.map
           )
     ]);
@@ -210,8 +219,10 @@ export default class InternalAsset {
     this.map = map;
   }
 
-  generateCacheKey(key: string): string {
-    return md5FromString(key + this.value.id + (this.value.hash || ''));
+  getCacheKey(key: string): string {
+    return md5FromString(
+      PARCEL_VERSION + key + this.value.id + (this.value.hash || '')
+    );
   }
 
   addDependency(opts: DependencyOptions) {
@@ -232,16 +243,12 @@ export default class InternalAsset {
     return dep.id;
   }
 
-  async addConnectedFile(file: File) {
-    if (file.hash == null) {
-      file.hash = await md5FromFilePath(this.options.inputFS, file.filePath);
-    }
-
-    this.value.connectedFiles.set(file.filePath, file);
+  addIncludedFile(file: File) {
+    this.value.includedFiles.set(file.filePath, file);
   }
 
-  getConnectedFiles(): Array<File> {
-    return Array.from(this.value.connectedFiles.values());
+  getIncludedFiles(): Array<File> {
+    return Array.from(this.value.includedFiles.values());
   }
 
   getDependencies(): Array<Dependency> {
@@ -270,20 +277,23 @@ export default class InternalAsset {
         hash,
         filePath: this.value.filePath,
         type: result.type,
-        isIsolated: result.isIsolated,
+        isIsolated: result.isIsolated ?? this.value.isIsolated,
+        isInline: result.isInline ?? this.value.isInline,
+        isSource: result.isSource ?? this.value.isSource,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
           this.value.type === result.type
             ? new Map(this.value.dependencies)
             : new Map(),
-        connectedFiles: new Map(this.value.connectedFiles),
+        includedFiles: new Map(this.value.includedFiles),
         meta: {...this.value.meta, ...result.meta},
         stats: {
           time: 0,
           size
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
-        sideEffects: result.sideEffects ?? this.value.sideEffects
+        sideEffects: result.sideEffects ?? this.value.sideEffects,
+        uniqueKey: result.uniqueKey
       }),
       options: this.options,
       content,
@@ -299,10 +309,10 @@ export default class InternalAsset {
       }
     }
 
-    let connectedFiles = result.connectedFiles;
-    if (connectedFiles) {
-      for (let file of connectedFiles) {
-        asset.addConnectedFile(file);
+    let includedFiles = result.includedFiles;
+    if (includedFiles) {
+      for (let file of includedFiles) {
+        asset.addIncludedFile(file);
       }
     }
 
@@ -311,12 +321,11 @@ export default class InternalAsset {
 
   async getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
-      parse?: boolean,
-      ...
-    }
-  ): Promise<Config | null> {
+      parse?: boolean
+    |}
+  ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;
 
@@ -338,7 +347,7 @@ export default class InternalAsset {
     }
 
     for (let file of conf.files) {
-      this.addConnectedFile(file);
+      this.addIncludedFile(file);
     }
 
     return conf.config;

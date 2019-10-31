@@ -1,12 +1,12 @@
-const assert = require('assert');
-const path = require('path');
-const {
+import assert from 'assert';
+import path from 'path';
+import {
   bundle,
   run,
   assertBundles,
   distDir,
   outputFS
-} = require('@parcel/test-utils');
+} from '@parcel/test-utils';
 
 describe('less', function() {
   it('should support requiring less files', async function() {
@@ -160,6 +160,9 @@ describe('less', function() {
       {
         name: 'index.css',
         assets: ['index.module.less']
+      },
+      {
+        assets: ['img.svg']
       }
     ]);
 

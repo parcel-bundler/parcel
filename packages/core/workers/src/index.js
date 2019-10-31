@@ -5,29 +5,25 @@ import WorkerFarm from './WorkerFarm';
 import Logger from '@parcel/logger';
 import bus from './bus';
 
-export type {WorkerApi} from './WorkerFarm';
-
 if (!WorkerFarm.isWorker()) {
   // Forward all logger events originating from workers into the main process
   bus.on('logEvent', (e: LogEvent) => {
     switch (e.level) {
       case 'info':
-        invariant(typeof e.message === 'string');
-        Logger.info(e.message);
+        Logger.info(e.diagnostic);
         break;
       case 'progress':
         invariant(typeof e.message === 'string');
         Logger.progress(e.message);
         break;
       case 'verbose':
-        invariant(typeof e.message === 'string');
-        Logger.verbose(e.message);
+        Logger.verbose(e.diagnostic);
         break;
       case 'warn':
-        Logger.warn(e.message);
+        Logger.warn(e.diagnostic);
         break;
       case 'error':
-        Logger.error(e.message);
+        Logger.error(e.diagnostic);
         break;
       default:
         throw new Error('Unknown log level');
@@ -38,3 +34,4 @@ if (!WorkerFarm.isWorker()) {
 export default WorkerFarm;
 export {bus};
 export {Handle} from './WorkerFarm';
+export type {WorkerApi, FarmOptions} from './WorkerFarm';

@@ -1,6 +1,7 @@
 // @flow
 import type {EnvironmentOpts} from '@parcel/types';
 import type {Environment} from './types';
+import {md5FromObject} from '@parcel/utils';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -10,7 +11,9 @@ const DEFAULT_ENGINES = {
 export function createEnvironment({
   context,
   engines,
-  includeNodeModules
+  includeNodeModules,
+  outputFormat,
+  isLibrary = false
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -59,10 +62,25 @@ export function createEnvironment({
     }
   }
 
+  if (outputFormat == null) {
+    switch (context) {
+      case 'node':
+      case 'electron-main':
+      case 'electron-renderer':
+        outputFormat = 'commonjs';
+        break;
+      default:
+        outputFormat = 'global';
+        break;
+    }
+  }
+
   return {
     context,
     engines,
-    includeNodeModules
+    includeNodeModules,
+    outputFormat,
+    isLibrary
   };
 }
 
@@ -75,8 +93,19 @@ export function mergeEnvironments(
     return a;
   }
 
-  return {
+  return createEnvironment({
     ...a,
     ...b
-  };
+  });
+}
+
+export function getEnvironmentHash(env: Environment) {
+  // context is excluded from hash so that assets can be shared between e.g. workers and browser.
+  // Different engines should be sufficient to distinguish multi-target builds.
+  return md5FromObject({
+    engines: env.engines,
+    includeNodeModules: env.includeNodeModules,
+    outputFormat: env.outputFormat,
+    isLibrary: env.isLibrary
+  });
 }

@@ -5,21 +5,27 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {countLines, PromiseQueue} from '@parcel/utils';
+import {countLines, PromiseQueue, relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
-  .readFileSync(__dirname + '/prelude.js', 'utf8')
+  .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
   .trim()
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, sourceMapPath, options}) {
+  async package({bundle, bundleGraph, getSourceMapReference, options}) {
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
-      return generate(bundle, ast, options);
+      return generate(bundleGraph, bundle, ast, options);
+    }
+
+    if (bundle.env.outputFormat === 'esmodule') {
+      throw new Error(
+        `esmodule output is not supported without scope hoisting.`
+      );
     }
 
     // For development, we just concatenate all of the code together
@@ -107,16 +113,38 @@ export default new Packager({
     });
 
     let entries = bundle.getEntryAssets();
-    let entryAsset = entries[entries.length - 1];
-    // $FlowFixMe
-    let interpreter: ?string = bundle.target.env.isBrowser()
-      ? null
-      : entryAsset.meta.interpreter;
+    let interpreter: ?string = null;
+
+    let isEntry =
+      !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+      bundle.env.isIsolated();
+    if (isEntry) {
+      let entryAsset = entries[entries.length - 1];
+      // $FlowFixMe
+      interpreter = bundle.target.env.isBrowser()
+        ? null
+        : entryAsset.meta.interpreter;
+    } else if (bundle.env.outputFormat === 'global') {
+      // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
+      // as there might be dependencies in a sibling bundle that hasn't loaded yet.
+      entries.pop();
+    }
+
+    let importScripts = '';
+    if (bundle.env.isWorker()) {
+      let bundles = bundleGraph.getSiblingBundles(bundle);
+      for (let b of bundles) {
+        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+      }
+    }
+
+    let sourceMapReference = await getSourceMapReference(map);
 
     return {
       contents:
         // If the entry asset included a hashbang, repeat it at the top of the bundle
         (interpreter != null ? `#!${interpreter}\n` : '') +
+        importScripts +
         (PRELUDE +
           '({' +
           assets +
@@ -126,7 +154,7 @@ export default new Packager({
           'null' +
           ')\n\n' +
           '//# sourceMappingURL=' +
-          sourceMapPath +
+          sourceMapReference +
           '\n'),
       map
     };

@@ -6,13 +6,14 @@ import type {
   Dependency,
   PackageJSON,
   FilePath,
-  ResolveResult
+  ResolveResult,
+  Environment
 } from '@parcel/types';
 import path from 'path';
 import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
-// import nodeBuiltins from 'node-libs-browser';
+import invariant from 'assert';
 
 // Throw user friendly errors on special webpack loader syntax
 // ex. `imports-loader?$=jquery!./example.js`
@@ -28,15 +29,21 @@ export default new Resolver({
       );
     }
 
-    const resolved = await new NodeResolver({
+    const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
-    }).resolve(dependency);
+    });
+    const resolved = await resolver.resolve(dependency);
 
     if (!resolved) {
       return null;
     }
 
+    if (resolved.isExcluded != null) {
+      return {isExcluded: true};
+    }
+
+    invariant(resolved.path != null);
     let result: ResolveResult = {
       filePath: resolved.path
     };
@@ -108,7 +115,8 @@ class NodeResolver {
   async resolve({
     moduleSpecifier: filename,
     sourcePath: parent,
-    isURL
+    isURL,
+    env
   }: Dependency) {
     // Check if this is a glob
     if (isGlob(filename)) {
@@ -130,7 +138,10 @@ class NodeResolver {
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule(filename, parent, isURL);
+    let module = await this.resolveModule(filename, parent, isURL, env);
+    if (!module) {
+      return {isExcluded: true};
+    }
 
     if (module.moduleDir) {
       return this.loadNodeModules(module, extensions);
@@ -141,7 +152,7 @@ class NodeResolver {
     }
   }
 
-  async resolveModule(filename, parent, isURL) {
+  async resolveModule(filename, parent, isURL, env) {
     let dir = parent ? path.dirname(parent) : this.options.inputFS.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
@@ -159,6 +170,15 @@ class NodeResolver {
       };
     }
 
+    if (!this.shouldIncludeNodeModule(env, filename)) {
+      return null;
+    }
+
+    let builtin = this.findBuiltin(filename, env);
+    if (builtin || builtin === null) {
+      return builtin;
+    }
+
     // Resolve the module in node_modules
     let resolved;
     try {
@@ -168,7 +188,7 @@ class NodeResolver {
     }
 
     // If we couldn't resolve the node_modules path, just return the module name info
-    if (!resolved) {
+    if (resolved === undefined) {
       let parts = this.getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
@@ -177,6 +197,19 @@ class NodeResolver {
     }
 
     return resolved;
+  }
+
+  shouldIncludeNodeModule({includeNodeModules}, name) {
+    if (includeNodeModules === false) {
+      return false;
+    }
+
+    if (Array.isArray(includeNodeModules)) {
+      let parts = this.getModuleParts(name);
+      return includeNodeModules.includes(parts[0]);
+    }
+
+    return true;
   }
 
   getCacheKey(filename, parent) {
@@ -240,16 +273,17 @@ class NodeResolver {
       (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await
     );
   }
-
-  async findNodeModulePath(filename: string, dir: string) {
+  findBuiltin(filename: string, env: Environment) {
     if (builtins[filename]) {
-      // if (this.options.cli.target === 'node' && filename in nodeBuiltins) {
-      //   throw new Error('Cannot resolve builtin module for node target');
-      // }
+      if (env.isNode()) {
+        return null;
+      }
 
       return {filePath: builtins[filename]};
     }
+  }
 
+  async findNodeModulePath(filename: string, dir: string) {
     let parts = this.getModuleParts(filename);
     let root = path.parse(dir).root;
 
@@ -278,6 +312,8 @@ class NodeResolver {
       // Move up a directory
       dir = path.dirname(dir);
     }
+
+    return undefined;
   }
 
   async loadNodeModules(module, extensions: Array<string>) {

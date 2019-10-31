@@ -6,7 +6,7 @@ import nullthrows from 'nullthrows';
 import render from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
-// import extractInlineAssets from './inline';
+import extractInlineAssets from './inline';
 
 export default new Transformer({
   canReuseAST({ast}) {
@@ -23,13 +23,11 @@ export default new Transformer({
     };
   },
 
-  transform({asset}) {
+  transform({asset, options}) {
     // Handle .htm
     asset.type = 'html';
-    collectDependencies(asset);
-    // TODO: re-enable once inline assets are re-inserted into the HTML
-    // return [asset, ...extractInlineAssets(asset)];
-    return [asset];
+    collectDependencies(asset, options);
+    return [asset, ...extractInlineAssets(asset)];
   },
 
   generate({asset}) {

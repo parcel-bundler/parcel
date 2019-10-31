@@ -14,6 +14,7 @@ export {default as isURL} from './is-url';
 export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
 export {default as prettyError} from './prettyError';
+export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
 // $FlowFixMe this is untyped
 export {default as promisify} from './promisify';
@@ -33,3 +34,4 @@ export * from './path';
 export * from './serializer';
 export * from './stream';
 export * from './resolve';
+export * from './relativeBundlePath';

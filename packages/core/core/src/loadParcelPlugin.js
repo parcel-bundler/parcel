@@ -21,9 +21,10 @@ export default async function loadPlugin(
   // Validate the engines.parcel field in the plugin's package.json
   let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
   if (!parcelVersionRange) {
-    logger.warn(
-      `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
-    );
+    logger.warn({
+      origin: '@parcel/core',
+      message: `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
+    });
   }
 
   if (
@@ -37,6 +38,14 @@ export default async function loadPlugin(
 
   let plugin = await packageManager.require(resolved, `${resolveFrom}/index`);
   plugin = plugin.default ? plugin.default : plugin;
+  if (!plugin) {
+    throw new Error(`Plugin ${pluginName} has no exports.`);
+  }
   plugin = plugin[CONFIG];
+  if (!plugin) {
+    throw new Error(
+      `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`
+    );
+  }
   return plugin;
 }

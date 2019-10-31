@@ -1,9 +1,19 @@
 // @flow strict-local
 
 import type {IDisposable, LogEvent} from '@parcel/types';
+import type {Diagnostic, PrintableError} from '@parcel/diagnostic';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
+import ThrowableDiagnostic, {
+  errorToDiagnostic,
+  anyToDiagnostic
+} from '@parcel/diagnostic';
+
+export type PluginInputDiagnostic = {|
+  ...Diagnostic,
+  origin?: string
+|};
 
 class Logger {
   #logEmitter = new ValueEmitter<LogEvent>();
@@ -12,39 +22,55 @@ class Logger {
     return this.#logEmitter.addListener(cb);
   }
 
-  verbose(message: string): void {
+  verbose(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'verbose',
-      message
+      diagnostic
     });
   }
 
-  info(message: string): void {
-    this.log(message);
+  info(diagnostic: Diagnostic): void {
+    this.log(diagnostic);
   }
 
-  log(message: string): void {
+  log(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'info',
-      message
+      diagnostic
     });
   }
 
-  warn(err: Error | string): void {
+  warn(diagnostic: Diagnostic): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'warn',
-      message: err
+      diagnostic
     });
   }
 
-  error(err: Error | string): void {
+  error(
+    input:
+      | PluginInputDiagnostic
+      | Diagnostic
+      | PrintableError
+      | ThrowableDiagnostic,
+    realOrigin?: string
+  ): void {
+    // $FlowFixMe origin is undefined on PluginInputDiagnostic
+    let diagnostic = anyToDiagnostic(input);
+    if (typeof realOrigin === 'string') {
+      diagnostic = {
+        ...diagnostic,
+        origin: realOrigin
+      };
+    }
+
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
-      message: err
+      diagnostic
     });
   }
 
@@ -60,6 +86,44 @@ class Logger {
 const logger = new Logger();
 export default logger;
 
+export type PluginLoggerOpts = {|
+  origin: string
+|};
+
+export class PluginLogger {
+  origin: string;
+
+  constructor(opts: PluginLoggerOpts) {
+    this.origin = opts.origin;
+  }
+
+  verbose(diagnostic: PluginInputDiagnostic): void {
+    logger.verbose({...diagnostic, origin: this.origin});
+  }
+
+  info(diagnostic: PluginInputDiagnostic): void {
+    logger.info({...diagnostic, origin: this.origin});
+  }
+
+  log(diagnostic: PluginInputDiagnostic): void {
+    logger.log({...diagnostic, origin: this.origin});
+  }
+
+  warn(diagnostic: PluginInputDiagnostic): void {
+    logger.warn({...diagnostic, origin: this.origin});
+  }
+
+  error(
+    input: PluginInputDiagnostic | PrintableError | ThrowableDiagnostic
+  ): void {
+    logger.error(input);
+  }
+
+  progress(message: string): void {
+    logger.progress(message);
+  }
+}
+
 let consolePatched = false;
 
 // Patch `console` APIs within workers to forward their messages to the Logger
@@ -74,27 +138,40 @@ export function patchConsole() {
   /* eslint-disable no-console */
   // $FlowFixMe
   console.log = console.info = (...messages: Array<mixed>) => {
-    logger.info(joinLogMessages(messages));
+    logger.info(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.debug = (...messages: Array<mixed>) => {
     // TODO: dedicated debug level?
-    logger.verbose(joinLogMessages(messages));
+    logger.verbose(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.warn = (...messages: Array<mixed>) => {
-    logger.warn(joinLogMessages(messages));
+    logger.warn(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.error = (...messages: Array<mixed>) => {
-    logger.error(joinLogMessages(messages));
+    logger.error(messagesToDiagnostic(messages));
   };
 
   /* eslint-enable no-console */
   consolePatched = true;
+}
+
+function messagesToDiagnostic(messages: Array<mixed>): Diagnostic {
+  if (messages.length === 1 && messages[0] instanceof Error) {
+    let error: Error = messages[0];
+
+    return errorToDiagnostic(error);
+  } else {
+    return {
+      message: joinLogMessages(messages),
+      origin: 'console'
+    };
+  }
 }
 
 function joinLogMessages(messages: Array<mixed>): string {

@@ -6,14 +6,13 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  Config as ThirdPartyConfig
+  ConfigResult
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
-import path from 'path';
 import {loadConfig} from '@parcel/utils';
 
-const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
+import Environment from './Environment';
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
@@ -24,12 +23,20 @@ export default class PublicConfig implements IConfig {
     this.#options = options;
   }
 
+  get env() {
+    return new Environment(this.#config.env);
+  }
+
   get searchPath() {
     return this.#config.searchPath;
   }
 
   get result() {
     return this.#config.result;
+  }
+
+  get isSource() {
+    return this.#config.isSource;
   }
 
   setResolvedPath(filePath: FilePath) {
@@ -72,12 +79,12 @@ export default class PublicConfig implements IConfig {
   async getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
+      packageKey?: string,
       parse?: boolean,
-      exclude?: boolean,
-      ...
-    }
-  ): Promise<ThirdPartyConfig | null> {
+      exclude?: boolean
+    |}
+  ): Promise<ConfigResult | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
@@ -100,12 +107,12 @@ export default class PublicConfig implements IConfig {
 
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
+      packageKey?: string,
       parse?: boolean,
-      exclude?: boolean,
-      ...
-    }
-  ): Promise<ThirdPartyConfig | null> {
+      exclude?: boolean
+    |}
+  ): Promise<ConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
@@ -116,17 +123,5 @@ export default class PublicConfig implements IConfig {
 
     this.#config.pkg = await this.getConfig(['package.json']);
     return this.#config.pkg;
-  }
-
-  async isSource() {
-    let pkg = await this.getPackage();
-    return (
-      !!(
-        pkg &&
-        pkg.source != null &&
-        (await this.#options.inputFS.realpath(this.searchPath)) !==
-          this.searchPath
-      ) || !this.#config.searchPath.includes(NODE_MODULES)
-    );
   }
 }

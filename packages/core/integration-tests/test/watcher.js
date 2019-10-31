@@ -1,30 +1,27 @@
-const assert = require('assert');
-const nodeFS = require('fs');
-const path = require('path');
-const {
+import assert from 'assert';
+import nodeFS from 'fs';
+import path from 'path';
+import {
+  assertBundles,
   bundler,
   getNextBuild,
   run,
   assertBundleTree,
   nextBundle,
   ncp,
-  inputFS: fs,
-  outputFS
-} = require('@parcel/test-utils');
-const {sleep} = require('@parcel/test-utils');
-const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
-const {symlinkSync} = require('fs');
+  inputFS as fs,
+  sleep,
+  symlinkPrivilegeWarning,
+  outputFS,
+  overlayFS
+} from '@parcel/test-utils';
+import {symlinkSync} from 'fs';
 
-const inputDir = path.join(__dirname, '/input');
+const inputDir = path.join(__dirname, '/watcher');
 const distDir = path.join(inputDir, 'dist');
-//const distDir = path.join(__dirname, '../dist');
 
 describe('watcher', function() {
   let subscription;
-  beforeEach(async function() {
-    await outputFS.rimraf(inputDir);
-  });
-
   afterEach(async () => {
     if (subscription) {
       await subscription.unsubscribe();
@@ -61,7 +58,7 @@ describe('watcher', function() {
     let configPath = path.join(inputDir, '.parcelrc');
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           engines: {
@@ -89,7 +86,7 @@ describe('watcher', function() {
     await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           engines: {
@@ -373,5 +370,58 @@ describe('watcher', function() {
         this.skip();
       }
     }
+  });
+
+  it('should add and remove necessary runtimes to bundles', async () => {
+    await ncp(path.join(__dirname, 'integration/dynamic'), inputDir);
+
+    let indexPath = path.join(inputDir, 'index.js');
+
+    let b = bundler(indexPath, {inputFS: overlayFS});
+    let bundleGraph;
+    subscription = await b.watch((err, event) => {
+      assert(event.type === 'buildSuccess');
+      bundleGraph = event.bundleGraph;
+    });
+    await getNextBuild(b);
+    assertBundles(bundleGraph, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {assets: ['local.js']}
+    ]);
+
+    await outputFS.writeFile(path.join(inputDir, 'other.js'), '');
+    await outputFS.writeFile(
+      indexPath,
+      (await outputFS.readFile(indexPath, 'utf8')) + "\nimport('./other.js');\n"
+    );
+
+    await getNextBuild(b);
+    assertBundles(bundleGraph, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js'
+        ]
+      },
+      {assets: ['local.js']},
+      {assets: ['other.js']}
+    ]);
+
+    await outputFS.writeFile(indexPath, '');
+
+    await getNextBuild(b);
+    assertBundles(bundleGraph, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      }
+    ]);
   });
 });

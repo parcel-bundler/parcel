@@ -2,6 +2,7 @@
 
 import type WorkerFarm from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
+import type {FilePath} from '@parcel/types';
 import type {
   Asset,
   AssetGraphNode,
@@ -18,6 +19,7 @@ import {md5FromObject, md5FromString} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import type ParcelConfig from './ParcelConfig';
 import RequestGraph from './RequestGraph';
+import {PARCEL_VERSION} from './constants';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
 import path from 'path';
@@ -25,16 +27,16 @@ import path from 'path';
 type Opts = {|
   options: ParcelOptions,
   config: ParcelConfig,
+  name: string,
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetRequest?: AssetRequest,
+  assetRequests?: Array<AssetRequest>,
   workerFarm: WorkerFarm
 |};
 
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
-  controller: AbortController;
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
   cacheKey: string;
@@ -43,16 +45,17 @@ export default class AssetGraphBuilder extends EventEmitter {
     config,
     options,
     entries,
-    targets,
-    assetRequest,
+    name,
+    assetRequests,
     workerFarm
   }: Opts) {
     this.options = options;
     let {minify, hot, scopeHoist} = options;
     this.cacheKey = md5FromObject({
+      parcelVersion: PARCEL_VERSION,
+      name,
       options: {minify, hot, scopeHoist},
-      entries,
-      targets
+      entries
     });
 
     let changes = await this.readFromCache();
@@ -69,18 +72,20 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.requestGraph.initOptions({
       config,
       options,
+      onEntryRequestComplete: this.handleCompletedEntryRequest.bind(this),
+      onTargetRequestComplete: this.handleCompletedTargetRequest.bind(this),
       onAssetRequestComplete: this.handleCompletedAssetRequest.bind(this),
       onDepPathRequestComplete: this.handleCompletedDepPathRequest.bind(this),
       workerFarm
     });
 
     if (changes) {
+      this.requestGraph.invalidateUnpredictableNodes();
       this.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
         entries,
-        targets,
-        assetGroup: assetRequest
+        assetGroups: assetRequests
       });
     }
   }
@@ -106,6 +111,12 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   handleNodeAddedToAssetGraph(node: AssetGraphNode) {
     switch (node.type) {
+      case 'entry_specifier':
+        this.requestGraph.addEntryRequest(node.value);
+        break;
+      case 'entry_file':
+        this.requestGraph.addTargetRequest(node.value);
+        break;
       case 'dependency':
         this.requestGraph.addDepPathRequest(node.value);
         break;
@@ -123,12 +134,24 @@ export default class AssetGraphBuilder extends EventEmitter {
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
     switch (node.type) {
       case 'dependency':
-        this.requestGraph.removeById(node.id);
-        break;
       case 'asset_group':
         this.requestGraph.removeById(node.id);
         break;
+      case 'entry_specifier':
+        this.requestGraph.removeById('entry_request:' + node.value);
+        break;
+      case 'entry_file':
+        this.requestGraph.removeById('target_request:' + node.value);
+        break;
     }
+  }
+
+  handleCompletedEntryRequest(entry: string, resolved: Array<FilePath>) {
+    this.assetGraph.resolveEntry(entry, resolved);
+  }
+
+  handleCompletedTargetRequest(entryFile: FilePath, targets: Array<Target>) {
+    this.assetGraph.resolveTargets(entryFile, targets);
   }
 
   handleCompletedAssetRequest(
@@ -153,11 +176,10 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   getWatcherOptions() {
-    let targetDirs = this.options.targets.map(target => target.distDir);
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(this.options.projectRoot, dir)
     );
-    let ignore = [this.options.cacheDir, ...targetDirs, ...vcsDirs];
+    let ignore = [this.options.cacheDir, ...vcsDirs];
     return {ignore};
   }
 
@@ -210,8 +232,4 @@ export default class AssetGraphBuilder extends EventEmitter {
       opts
     );
   }
-}
-
-export class BuildAbortError extends Error {
-  name = 'BuildAbortError';
 }

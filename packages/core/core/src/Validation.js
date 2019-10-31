@@ -8,11 +8,13 @@ import type {
   ConfigRequest,
   ParcelOptions
 } from './types';
-import type ParcelConfig from './ParcelConfig';
+import ParcelConfig from './ParcelConfig';
 
-import nullthrows from 'nullthrows';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
+import logger from '@parcel/logger';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
@@ -60,15 +62,22 @@ export default class Validation {
     });
 
     let asset = await this.loadAsset();
+
     let configRequest = {
       filePath: this.request.filePath,
+      isSource: asset.value.isSource,
       meta: {
         actionType: 'validation'
-      }
+      },
+      env: this.request.env
     };
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig: ParcelConfig = nullthrows(config.result);
+    nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
@@ -88,17 +97,36 @@ export default class Validation {
         });
       }
 
-      await validator.validate({
+      let validatorResult = await validator.validate({
         asset: new Asset(asset),
         options: pluginOptions,
         config
       });
+
+      if (validatorResult) {
+        let {warnings, errors} = validatorResult;
+
+        for (let error of errors) {
+          logger.error(error);
+        }
+
+        for (let warning of warnings) {
+          logger.warn(warning);
+        }
+
+        // Throw to fail build...
+        if (errors.length > 0) {
+          throw new ThrowableDiagnostic({
+            diagnostic: errors[0]
+          });
+        }
+      }
     }
   }
 
   async loadAsset(): Promise<InternalAsset> {
     let {filePath, env, code, sideEffects} = this.request;
-    let {content, size, hash} = await summarizeRequest(
+    let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       this.request
     );
@@ -111,6 +139,7 @@ export default class Validation {
       value: createAsset({
         idBase,
         filePath: filePath,
+        isSource,
         type: path.extname(filePath).slice(1),
         hash,
         env: env,

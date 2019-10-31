@@ -8,7 +8,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   Asset as IAsset,
   AST,
-  Config,
+  ConfigResult,
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
@@ -89,6 +89,14 @@ class BaseAsset {
     return this.#asset.value.isIsolated;
   }
 
+  get isInline(): boolean {
+    return this.#asset.value.isInline;
+  }
+
+  get isSource(): boolean {
+    return this.#asset.value.isSource;
+  }
+
   get sideEffects(): boolean {
     return this.#asset.value.sideEffects;
   }
@@ -97,19 +105,22 @@ class BaseAsset {
     return this.#asset.value.symbols;
   }
 
+  get uniqueKey(): ?string {
+    return this.#asset.value.uniqueKey;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
-      parse?: boolean,
-      ...
-    }
-  ): Promise<Config | null> {
+      parse?: boolean
+    |}
+  ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }
 
-  getConnectedFiles(): $ReadOnlyArray<File> {
-    return this.#asset.getConnectedFiles();
+  getIncludedFiles(): $ReadOnlyArray<File> {
+    return this.#asset.getIncludedFiles();
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
@@ -190,12 +201,20 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.value.isIsolated = isIsolated;
   }
 
+  get isInline(): boolean {
+    return this.#asset.value.isInline;
+  }
+
+  set isInline(isInline: boolean): void {
+    this.#asset.value.isInline = isInline;
+  }
+
   addDependency(dep: DependencyOptions): string {
     return this.#asset.addDependency(dep);
   }
 
-  addConnectedFile(file: File): Promise<void> {
-    return this.#asset.addConnectedFile(file);
+  addIncludedFile(file: File) {
+    return this.#asset.addIncludedFile(file);
   }
 
   setBuffer(buffer: Buffer): void {

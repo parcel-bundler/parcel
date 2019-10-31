@@ -14,13 +14,14 @@ describe('InternalAsset', () => {
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
-        type: 'js'
+        type: 'js',
+        isSource: true
       }),
       options: DEFAULT_OPTIONS
     });
-    asset.addConnectedFile({filePath: '/foo/file', hash: 'abc'});
-    asset.addConnectedFile({filePath: '/foo/file', hash: 'bcd'});
-    assert.deepEqual(asset.getConnectedFiles(), [
+    asset.addIncludedFile({filePath: '/foo/file', hash: 'abc'});
+    asset.addIncludedFile({filePath: '/foo/file', hash: 'bcd'});
+    assert.deepEqual(asset.getIncludedFiles(), [
       {
         filePath: '/foo/file',
         hash: 'bcd'
@@ -34,7 +35,8 @@ describe('InternalAsset', () => {
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
-        type: 'js'
+        type: 'js',
+        isSource: true
       }),
       options: DEFAULT_OPTIONS
     });
@@ -52,7 +54,8 @@ describe('InternalAsset', () => {
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
-        type: 'js'
+        type: 'js',
+        isSource: true
       }),
       options: DEFAULT_OPTIONS
     });

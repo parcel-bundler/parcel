@@ -3,6 +3,7 @@
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 
+import assert from 'assert';
 import {DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
@@ -92,6 +93,14 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   addEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null): void {
+    if (!this.getNode(from)) {
+      throw new Error(`"from" node '${from}' not found`);
+    }
+
+    if (!this.getNode(to)) {
+      throw new Error(`"to" node '${to}' not found`);
+    }
+
     this.outboundEdges
       .get(from)
       .get(type)
@@ -113,6 +122,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     node: TNode,
     type: TEdgeType | null = null
   ): Array<TNode> {
+    assertHasNode(this, node);
+
     let nodes;
     if (type === ALL_EDGE_TYPES) {
       nodes = new Set();
@@ -135,6 +146,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     node: TNode,
     type: TEdgeType | null = null
   ): Array<TNode> {
+    assertHasNode(this, node);
+
     let nodes;
     if (type === ALL_EDGE_TYPES) {
       nodes = new Set();
@@ -165,9 +178,18 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   // Removes node and any edges coming from or to that node
   removeNode(node: TNode) {
+    assertHasNode(this, node);
+
     for (let [type, nodesForType] of this.inboundEdges.get(node.id)) {
       for (let from of nodesForType) {
-        this.removeEdge(from, node.id, type);
+        this.removeEdge(
+          from,
+          node.id,
+          type,
+          // Do not allow orphans to be removed as this node could be one
+          // and is already being removed.
+          false /* removeOrphans */
+        );
       }
     }
 
@@ -177,7 +199,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       }
     }
 
-    this.nodes.delete(node.id);
+    let wasRemoved = this.nodes.delete(node.id);
+    assert(wasRemoved);
   }
 
   removeById(id: NodeId) {
@@ -186,33 +209,88 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   removeEdges(node: TNode, type: TEdgeType | null = null) {
+    assertHasNode(this, node);
+
     for (let to of this.outboundEdges.get(node.id).get(type)) {
       this.removeEdge(node.id, to, type);
     }
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null) {
+  removeEdge(
+    from: NodeId,
+    to: NodeId,
+    type: TEdgeType | null = null,
+    removeOrphans: boolean = true
+  ) {
+    if (
+      !this.outboundEdges
+        .get(from)
+        .get(type)
+        .has(to)
+    ) {
+      throw new Error(`Outbound edge from ${from} to ${to} not found!`);
+    }
+
+    if (
+      !this.inboundEdges
+        .get(to)
+        .get(type)
+        .has(from)
+    ) {
+      throw new Error(`Inbound edge from ${to} to ${from} not found!`);
+    }
+
     this.outboundEdges
       .get(from)
       .get(type)
       .delete(to);
+
     this.inboundEdges
       .get(to)
       .get(type)
       .delete(from);
 
     let connectedNode = nullthrows(this.nodes.get(to));
-    if (this.isOrphanedNode(connectedNode)) {
+    if (removeOrphans && this.isOrphanedNode(connectedNode)) {
       this.removeNode(connectedNode);
     }
   }
 
   isOrphanedNode(node: TNode): boolean {
-    for (let [, typeMap] of this.inboundEdges.get(node.id)) {
-      if (typeMap.size !== 0) {
-        return false;
+    assertHasNode(this, node);
+
+    let rootNode = this.getRootNode();
+    if (rootNode == null) {
+      // If the graph does not have a root, and there are inbound edges,
+      // this node should not be considered orphaned.
+      // return false;
+      for (let [, inboundNodeIds] of this.inboundEdges.get(node.id)) {
+        if (inboundNodeIds.size > 0) {
+          return false;
+        }
       }
+
+      return true;
+    }
+
+    // Otherwise, attempt to traverse backwards to the root. If there is a path,
+    // then this is not an orphaned node.
+    let hasPathToRoot = false;
+    this.traverseAncestors(
+      node,
+      (ancestor, _, actions) => {
+        if (ancestor.id === rootNode.id) {
+          hasPathToRoot = true;
+          actions.stop();
+        }
+      },
+      // $FlowFixMe
+      ALL_EDGE_TYPES
+    );
+
+    if (hasPathToRoot) {
+      return false;
     }
 
     return true;
@@ -223,6 +301,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     toNode: TNode,
     type: TEdgeType | null = null
   ): void {
+    assertHasNode(this, fromNode);
+
     this.addNode(toNode);
 
     for (let parent of this.inboundEdges.get(fromNode.id).get(type)) {
@@ -234,13 +314,14 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
-  // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(
     fromNode: TNode,
     toNodes: Array<TNode>,
     replaceFilter?: TNode => boolean,
     type?: TEdgeType | null = null
   ): void {
+    assertHasNode(this, fromNode);
+
     let outboundEdges = this.outboundEdges.get(fromNode.id).get(type);
     let childrenToRemove = new Set(
       replaceFilter
@@ -300,16 +381,16 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     visit,
     startNode,
     getChildren
-  }: {
+  }: {|
     visit: GraphVisitor<TNode, TContext>,
     getChildren(node: TNode): Array<TNode>,
-    startNode?: ?TNode,
-    ...
-  }): ?TContext {
-    let root = startNode || this.getRootNode();
-    if (!root) {
-      return null;
+    startNode?: ?TNode
+  |}): ?TContext {
+    let root = startNode ?? this.getRootNode();
+    if (root == null) {
+      throw new Error('A start node is required to traverse');
     }
+    assertHasNode(this, root);
 
     let visited = new Set<TNode>();
     let stopped = false;
@@ -377,7 +458,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   bfs(visit: (node: TNode) => ?boolean): ?TNode {
     let root = this.getRootNode();
     if (!root) {
-      return null;
+      throw new Error('A root node is required to traverse');
     }
 
     let queue: Array<TNode> = [root];
@@ -405,15 +486,19 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     let graph = new this.constructor();
     graph.setRootNode(node);
 
+    let nodes = [];
     this.traverse(node => {
+      nodes.push(node);
       graph.addNode(node);
+    }, node);
 
+    for (let node of nodes) {
       for (let [type, toNodes] of this.outboundEdges.get(node.id)) {
         for (let to of toNodes) {
           graph.addEdge(node.id, to, type);
         }
       }
-    }, node);
+    }
 
     return graph;
   }
@@ -503,4 +588,10 @@ export function mapVisitor<TNode, TValue, TContext>(
       }
     }
   };
+}
+
+function assertHasNode<TNode: Node>(graph: Graph<TNode, *>, node: TNode) {
+  if (!graph.hasNode(node.id)) {
+    throw new Error('Does not have node ' + node.id);
+  }
 }

@@ -1,16 +1,14 @@
 // @flow strict-local
 
 import type {FilePath, Glob} from '@parcel/types';
-import type {Config, ParcelOptions} from './types';
+import type {Event} from '@parcel/watcher';
+import type {Config, ParcelOptions, Target} from './types';
 
 import invariant from 'assert';
-//$FlowFixMe
-import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {Event} from '@parcel/watcher';
+import {PromiseQueue, md5FromObject, isGlob, isGlobMatch} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
 import {addDevDependency} from './InternalConfig';
@@ -19,6 +17,8 @@ import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
 import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
+import {EntryResolver} from './EntryResolver';
+import TargetResolver from './TargetResolver';
 import type {
   Asset as AssetValue,
   AssetRequest,
@@ -27,10 +27,12 @@ import type {
   ConfigRequestNode,
   DepPathRequestNode,
   DepVersionRequestNode,
+  EntryRequestNode,
   NodeId,
   RequestGraphNode,
   RequestNode,
   SubRequestNode,
+  TargetRequestNode,
   TransformationOpts,
   ValidationOpts
 } from './types';
@@ -39,6 +41,8 @@ type RequestGraphOpts = {|
   ...GraphOpts<RequestGraphNode>,
   config: ParcelConfig,
   options: ParcelOptions,
+  onEntryRequestComplete: (string, Array<FilePath>) => mixed,
+  onTargetRequestComplete: (FilePath, Array<Target>) => mixed,
   onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed,
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed,
   workerFarm: WorkerFarm
@@ -58,11 +62,12 @@ const nodeFromDepPathRequest = (dep: Dependency) => ({
 });
 
 const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
-  id: md5FromString(
-    `${configRequest.filePath}:${
-      configRequest.plugin != null ? configRequest.plugin : 'parcel'
-    }`
-  ),
+  id: md5FromObject({
+    filePath: configRequest.filePath,
+    plugin: configRequest.plugin,
+    env: configRequest.env,
+    pipeline: configRequest.pipeline
+  }),
   type: 'config_request',
   value: configRequest
 });
@@ -85,19 +90,34 @@ const nodeFromGlob = (glob: Glob) => ({
   value: glob
 });
 
+const nodeFromEntryRequest = (entry: string) => ({
+  id: 'entry_request:' + entry,
+  type: 'entry_request',
+  value: entry
+});
+
+const nodeFromTargetRequest = (entry: FilePath) => ({
+  id: 'target_request:' + entry,
+  type: 'target_request',
+  value: entry
+});
+
 export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodeIds: Set<NodeId> = new Set();
-  runTransform: TransformationOpts => Promise<{
+  runTransform: TransformationOpts => Promise<{|
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>,
-    ...
-  }>;
+    configRequests: Array<ConfigRequest>
+  |}>;
   runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
+  entryResolver: EntryResolver;
+  targetResolver: TargetResolver;
   resolverRunner: ResolverRunner;
   configLoader: ConfigLoader;
+  onEntryRequestComplete: (string, Array<FilePath>) => mixed;
+  onTargetRequestComplete: (FilePath, Array<Target>) => mixed;
   onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue<mixed>;
@@ -106,6 +126,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   config: ParcelConfig;
   options: ParcelOptions;
   globNodeIds: Set<NodeId> = new Set();
+  // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
+  // filesystem changes alone. They should rerun on each startup of Parcel.
+  unpredicatableNodeIds: Set<NodeId> = new Set();
   depVersionRequestNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe
@@ -114,6 +137,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe
     return deserialized;
   }
@@ -124,6 +148,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       ...super.serialize(),
       invalidNodeIds: this.invalidNodeIds,
       globNodeIds: this.globNodeIds,
+      unpredicatableNodeIds: this.unpredicatableNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
     };
   }
@@ -131,6 +156,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   initOptions({
     onAssetRequestComplete,
     onDepPathRequestComplete,
+    onEntryRequestComplete,
+    onTargetRequestComplete,
     config,
     options,
     workerFarm
@@ -140,7 +167,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.validationQueue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
+    this.onEntryRequestComplete = onEntryRequestComplete;
+    this.onTargetRequestComplete = onTargetRequestComplete;
     this.config = config;
+
+    this.entryResolver = new EntryResolver(this.options);
+    this.targetResolver = new TargetResolver(this.options);
 
     this.resolverRunner = new ResolverRunner({
       config,
@@ -171,24 +203,43 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   addNode(node: RequestGraphNode) {
-    this.invalidNodeIds.add(node.id);
-    if (node.type === 'glob') {
-      this.globNodeIds.add(node.id);
-    } else if (node.type === 'dep_version_request') {
-      this.depVersionRequestNodeIds.add(node.id);
+    if (!this.hasNode(node.id)) {
+      this.processNode(node);
+
+      if (node.type === 'glob') {
+        this.globNodeIds.add(node.id);
+      } else if (node.type === 'dep_version_request') {
+        this.depVersionRequestNodeIds.add(node.id);
+      }
     }
-    this.processNode(node);
+
     return super.addNode(node);
   }
 
   removeNode(node: RequestGraphNode) {
+    this.invalidNodeIds.delete(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.delete(node.id);
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.delete(node.id);
+    } else if (node.type === 'config_request') {
+      this.unpredicatableNodeIds.delete(node.id);
     }
-    this.invalidNodeIds.delete(node.id);
     return super.removeNode(node);
+  }
+
+  addEntryRequest(entry: string) {
+    let requestNode = nodeFromEntryRequest(entry);
+    if (!this.hasNode(requestNode.id)) {
+      this.addNode(requestNode);
+    }
+  }
+
+  addTargetRequest(entry: FilePath) {
+    let requestNode = nodeFromTargetRequest(entry);
+    if (!this.hasNode(requestNode.id)) {
+      this.addNode(requestNode);
+    }
   }
 
   addDepPathRequest(dep: Dependency) {
@@ -210,13 +261,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async processNode(requestNode: RequestGraphNode) {
     let promise;
     switch (requestNode.type) {
+      case 'entry_request':
+        promise = this.queue.add(() => this.resolveEntry(requestNode));
+        break;
+      case 'target_request':
+        promise = this.queue.add(() => this.resolveTargetRequest(requestNode));
+        break;
       case 'asset_request':
-        promise = this.queue.add(() =>
-          this.transform(requestNode).then(result => {
-            this.onAssetRequestComplete(requestNode, result);
-            return result;
-          })
-        );
+        promise = this.queue.add(() => this.transform(requestNode));
 
         if (
           !requestNode.value.filePath.includes('node_modules') &&
@@ -229,7 +281,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       case 'dep_path_request':
         promise = this.queue.add(() =>
           this.resolvePath(requestNode.value).then(result => {
-            this.onDepPathRequestComplete(requestNode, result);
+            if (result) {
+              this.onDepPathRequestComplete(requestNode, result);
+            }
             return result;
           })
         );
@@ -260,17 +314,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
-  async validate(requestNode: AssetRequestNode) {
-    try {
-      await this.runValidate({
-        request: requestNode.value,
-        loadConfig: this.loadConfigHandle,
-        parentNodeId: requestNode.id,
-        options: this.options
-      });
-    } catch (e) {
-      throw e;
-    }
+  validate(requestNode: AssetRequestNode) {
+    return this.runValidate({
+      request: requestNode.value,
+      loadConfig: this.loadConfigHandle,
+      parentNodeId: requestNode.id,
+      options: this.options
+    });
   }
 
   async transform(requestNode: AssetRequestNode) {
@@ -289,9 +339,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         asset.stats.time = time;
       }
 
+      // Ignore in case the request was deleted while transforming
+      if (!this.hasNode(requestNode.id)) {
+        return;
+      }
+
       let configRequestNodes = configRequests.map(configRequest => {
-        let id = nodeFromConfigRequest(configRequest).id;
-        return nullthrows(this.getNode(id));
+        let node = nodeFromConfigRequest(configRequest);
+        return this.getNode(node.id) || node;
       });
       this.replaceNodesConnectedTo(
         requestNode,
@@ -299,29 +354,59 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         node => node.type === 'config_request'
       );
 
+      this.onAssetRequestComplete(requestNode, assets);
       return assets;
     } catch (e) {
-      // TODO: add connectedFiles even if it failed so we can try a rebuild if those files change
+      // TODO: add includedFiles even if it failed so we can try a rebuild if those files change
       throw e;
     }
   }
 
-  async resolvePath(dep: Dependency) {
-    try {
-      let assetRequest = await this.resolverRunner.resolve(dep);
+  async resolveEntry(entryRequestNode: EntryRequestNode) {
+    let result = await this.entryResolver.resolveEntry(entryRequestNode.value);
 
-      this.connectFile(nodeFromDepPathRequest(dep), assetRequest.filePath);
-      return assetRequest;
-    } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND' && dep.isOptional) {
-        return null;
-      }
-
-      throw err;
+    // Connect files like package.json that affect the entry
+    // resolution so we invalidate when they change.
+    for (let file of result.files) {
+      this.connectFile(entryRequestNode, file.filePath);
     }
+
+    // If the entry specifier is a glob, add a glob node so
+    // we invalidate when a new file matches.
+    if (isGlob(entryRequestNode.value)) {
+      this.connectGlob(entryRequestNode, entryRequestNode.value);
+    }
+
+    this.onEntryRequestComplete(entryRequestNode.value, result.entries);
+  }
+
+  async resolveTargetRequest(targetRequestNode: TargetRequestNode) {
+    let result = await this.targetResolver.resolve(
+      path.dirname(targetRequestNode.value)
+    );
+
+    // Connect files like package.json that affect the target
+    // resolution so we invalidate when they change.
+    for (let file of result.files) {
+      this.connectFile(targetRequestNode, file.filePath);
+    }
+
+    this.onTargetRequestComplete(targetRequestNode.value, result.targets);
+  }
+
+  async resolvePath(dep: Dependency) {
+    let assetRequest = await this.resolverRunner.resolve(dep);
+    if (assetRequest) {
+      this.connectFile(nodeFromDepPathRequest(dep), assetRequest.filePath);
+    }
+    return assetRequest;
   }
 
   async loadConfig(configRequest: ConfigRequest, parentNodeId: NodeId) {
+    if (!this.hasNode(parentNodeId)) {
+      return this.configLoader.load(configRequest);
+    }
+
     let configRequestNode = nodeFromConfigRequest(configRequest);
     if (!this.hasNode(configRequestNode.id)) {
       this.addNode(configRequestNode);
@@ -331,14 +416,20 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     let config = nullthrows(await this.getSubTaskResult(configRequestNode));
     invariant(config.devDeps != null);
 
+    // ConfigRequest node might have been deleted while waiting for config to resolve
+    if (!this.hasNode(configRequestNode.id)) {
+      return config;
+    }
+
     let depVersionRequestNodes = [];
     for (let [moduleSpecifier, version] of config.devDeps) {
       let depVersionRequest = {
         moduleSpecifier,
-        resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
+        resolveFrom: config.resolvedPath, // TODO: resolveFrom should be nearest package boundary
+        result: version
       };
       let depVersionRequestNode = nodeFromDepVersionRequest(depVersionRequest);
-      if (!this.hasNode(depVersionRequestNode.id)) {
+      if (!this.hasNode(depVersionRequestNode.id) || version) {
         this.addNode(depVersionRequestNode);
       }
       this.addEdge(configRequestNode.id, depVersionRequestNode.id);
@@ -363,10 +454,15 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async runConfigRequest(configRequestNode: ConfigRequestNode) {
     let configRequest = configRequestNode.value;
     let config = await this.configLoader.load(configRequest);
+
+    // Config request could have been deleted while loading
+    if (!this.hasNode(configRequestNode.id)) {
+      return config;
+    }
+
     configRequest.result = config;
 
     let invalidationNodes = [];
-
     if (config.resolvedPath != null) {
       invalidationNodes.push(nodeFromFilePath(config.resolvedPath));
     }
@@ -385,20 +481,31 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       node => node.type === 'file' || node.type === 'glob'
     );
 
+    if (config.shouldInvalidateOnStartup) {
+      this.unpredicatableNodeIds.add(configRequestNode.id);
+    } else {
+      this.unpredicatableNodeIds.delete(configRequestNode.id);
+    }
+
     return config;
   }
 
   async runDepVersionRequest(requestNode: DepVersionRequestNode) {
     let {value: request} = requestNode;
-    let {moduleSpecifier, resolveFrom} = request;
-    let {pkg} = await this.options.packageManager.resolve(
-      `${moduleSpecifier}/package.json`,
-      `${resolveFrom}/index`
-    );
+    let {moduleSpecifier, resolveFrom, result} = request;
 
-    // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
-    let version = nullthrows(pkg).version;
-    request.result = version;
+    let version = result;
+
+    if (version == null) {
+      let {pkg} = await this.options.packageManager.resolve(
+        `${moduleSpecifier}/package.json`,
+        `${resolveFrom}/index`
+      );
+
+      // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
+      version = nullthrows(pkg).version;
+      request.result = version;
+    }
 
     return version;
   }
@@ -424,6 +531,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   connectFile(requestNode: RequestNode, filePath: FilePath) {
+    if (!this.hasNode(requestNode.id)) {
+      return;
+    }
+
     let fileNode = nodeFromFilePath(filePath);
     if (!this.hasNode(fileNode.id)) {
       this.addNode(fileNode);
@@ -435,6 +546,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   connectGlob(requestNode: RequestNode, glob: Glob) {
+    if (!this.hasNode(requestNode.id)) {
+      return;
+    }
+
     let globNode = nodeFromGlob(glob);
     if (!this.hasNode(globNode.id)) {
       this.addNode(globNode);
@@ -449,6 +564,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     switch (node.type) {
       case 'asset_request':
       case 'dep_path_request':
+      case 'entry_request':
+      case 'target_request':
         this.invalidNodeIds.add(node.id);
         break;
       case 'config_request':
@@ -462,6 +579,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         throw new Error(
           `Cannot invalidate node with unrecognized type ${node.type}`
         );
+    }
+  }
+
+  invalidateUnpredictableNodes() {
+    for (let nodeId of this.unpredicatableNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type !== 'file' && node.type !== 'glob');
+      this.invalidateNode(node);
     }
   }
 
@@ -503,7 +628,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           for (let connectedNode of connectedNodes) {
             if (
               connectedNode.type === 'asset_request' ||
-              connectedNode.type === 'config_request'
+              connectedNode.type === 'config_request' ||
+              connectedNode.type === 'entry_request' ||
+              connectedNode.type === 'target_request'
             ) {
               this.invalidateNode(connectedNode);
               isInvalid = true;
@@ -515,7 +642,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           let globNode = this.getNode(id);
           invariant(globNode && globNode.type === 'glob');
 
-          if (isMatch(path, globNode.value)) {
+          if (isGlobMatch(path, globNode.value)) {
             let connectedNodes = this.getNodesConnectedTo(globNode);
             for (let connectedNode of connectedNodes) {
               invariant(

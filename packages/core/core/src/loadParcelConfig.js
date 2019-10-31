@@ -129,6 +129,7 @@ export function validateConfigFile(
   config: ParcelConfigFile,
   relativePath: FilePath
 ) {
+  validateNotEmpty(config, relativePath);
   validateExtends(config.extends, relativePath);
   validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
   validateMap(
@@ -169,6 +170,13 @@ export function validateConfigFile(
     relativePath
   );
   validatePipeline(config.reporters, 'reporter', 'reporters', relativePath);
+}
+
+export function validateNotEmpty(
+  config: ParcelConfigFile,
+  relativePath: FilePath
+) {
+  assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
 export function validateExtends(

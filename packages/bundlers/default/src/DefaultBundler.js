@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Asset, Bundle} from '@parcel/types';
+import type {Asset, Bundle, MutableBundleGraph} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
@@ -23,60 +23,55 @@ export default new Bundler({
   // 6. If two assets are always seen together, put them in the same extracted bundle
 
   bundle({bundleGraph}) {
+    let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
+
     // Step 1: create bundles for each of the explicit code split points.
-    bundleGraph.traverse((node, context) => {
-      if (node.type !== 'dependency') {
-        return {
-          ...context,
-          parentNode: node
-        };
-      }
-
-      let dependency = node.value;
-      let assets = bundleGraph.getDependencyAssets(dependency);
-
-      if (dependency.isEntry || dependency.isAsync) {
-        let bundleGroup = bundleGraph.createBundleGroup(
-          dependency,
-          nullthrows(dependency.target ?? context?.bundleGroup?.target)
-        );
-
-        let bundleByType = new Map<string, Bundle>();
-        for (let asset of assets) {
-          let bundle = bundleGraph.createBundle({
-            entryAsset: asset,
-            isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
-            target: bundleGroup.target
-          });
-          bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-          if (dependency.isAsync) {
-            bundleGraph.createAssetReference(dependency, asset);
-          }
-          bundleByType.set(bundle.type, bundle);
+    bundleGraph.traverse({
+      enter: (node, context) => {
+        if (node.type !== 'dependency') {
+          return {
+            ...context,
+            parentNode: node
+          };
         }
 
-        return {
-          bundleGroup,
-          bundleGroupDependency: dependency,
-          bundleByType,
-          parentNode: node
-        };
-      }
+        let dependency = node.value;
+        let assets = bundleGraph.getDependencyAssets(dependency);
+        let resolution = bundleGraph.getDependencyResolution(dependency);
 
-      invariant(context != null);
-      for (let asset of assets) {
-        if (asset.isIsolated) {
+        if (
+          dependency.isEntry ||
+          dependency.isAsync ||
+          resolution?.isIsolated
+        ) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,
-            context.bundleGroup.target
+            nullthrows(dependency.target ?? context?.bundleGroup?.target)
           );
-          let bundle = bundleGraph.createBundle({
-            entryAsset: asset,
-            target: context.bundleGroup.target
-          });
-          bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-          bundleGraph.createAssetReference(dependency, asset);
-        } else {
+          let bundleByType: Map<string, Bundle> = new Map();
+
+          for (let asset of assets) {
+            let bundle = bundleGraph.createBundle({
+              entryAsset: asset,
+              isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
+              isInline: asset.isInline,
+              target: bundleGroup.target
+            });
+            bundleByType.set(bundle.type, bundle);
+            bundleRoots.set(bundle, [asset]);
+            bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+          }
+
+          return {
+            bundleGroup,
+            bundleByType,
+            bundleGroupDependency: dependency,
+            parentNode: node
+          };
+        }
+
+        invariant(context != null);
+        for (let asset of assets) {
           invariant(context.parentNode.type === 'asset');
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
@@ -84,55 +79,44 @@ export default new Bundler({
           }
 
           let existingBundle = context.bundleByType.get(asset.type);
-          let bundle;
           if (existingBundle) {
-            bundle = existingBundle;
+            // If a bundle of this type has already been created in this group,
+            // merge this subgraph into it.
+            nullthrows(bundleRoots.get(existingBundle)).push(asset);
+            bundleGraph.createAssetReference(dependency, asset);
           } else {
-            bundle = bundleGraph.createBundle({
+            let bundle = bundleGraph.createBundle({
               entryAsset: asset,
               target: context.bundleGroup.target,
-              isEntry: context.bundleGroupDependency.isEntry
+              isEntry: context.bundleGroupDependency.isEntry,
+              isInline: asset.isInline
             });
-            bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
             context.bundleByType.set(bundle.type, bundle);
+            bundleRoots.set(bundle, [asset]);
+            bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
           }
-          bundleGraph.addAssetToBundle(asset, bundle);
-          bundleGraph.createAssetReference(dependency, asset);
         }
-      }
 
-      return {
-        ...context,
-        parentNode: node
-      };
+        return {
+          ...context,
+          parentNode: node
+        };
+      }
     });
+
+    for (let [bundle, rootAssets] of bundleRoots) {
+      for (let asset of rootAssets) {
+        bundleGraph.addAssetGraphToBundle(asset, bundle);
+      }
+    }
   },
 
   optimize({bundleGraph}) {
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles({
       exit(bundle) {
-        if (bundle.env.isIsolated()) {
-          // If a bundle's environment is isolated, it can't access assets present
-          // in any ancestor bundles. Don't deduplicate any assets.
-          return;
-        }
-
-        bundle.traverse(node => {
-          if (node.type !== 'dependency') {
-            return;
-          }
-
-          let dependency = node.value;
-          let assets = bundleGraph.getDependencyAssets(dependency);
-
-          for (let asset of assets) {
-            if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
-              bundleGraph.createAssetReference(dependency, asset);
-              bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-            }
-          }
-        });
+        deduplicateBundle(bundleGraph, bundle);
       }
     });
 
@@ -153,12 +137,6 @@ export default new Bundler({
       }
 
       let asset = node.value;
-      if (asset.env.isIsolated()) {
-        // If an asset's environment is isolated, it can't load shared bundles.
-        // Don't add this asset to a shared bundle.
-        return;
-      }
-
       let containingBundles = bundleGraph
         .findBundlesWithAsset(asset)
         // Don't create shared bundles from entry bundles, as that would require
@@ -237,12 +215,6 @@ export default new Bundler({
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
         for (let bundle of sourceBundles) {
           bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-          for (let dependency of bundleGraph.getDependenciesInBundle(
-            bundle,
-            asset
-          )) {
-            bundleGraph.createAssetReference(dependency, asset);
-          }
         }
       }
 
@@ -250,6 +222,34 @@ export default new Bundler({
       for (let bundleGroup of bundleGroups) {
         bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
       }
+
+      deduplicateBundle(bundleGraph, sharedBundle);
     }
   }
 });
+
+function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
+  if (bundle.env.isIsolated()) {
+    // If a bundle's environment is isolated, it can't access assets present
+    // in any ancestor bundles. Don't deduplicate any assets.
+    return;
+  }
+
+  bundle.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dependency = node.value;
+    let assets = bundleGraph.getDependencyAssets(dependency);
+
+    for (let asset of assets) {
+      if (
+        bundle.hasAsset(asset) &&
+        bundleGraph.isAssetInAncestorBundles(bundle, asset)
+      ) {
+        bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+      }
+    }
+  });
+}

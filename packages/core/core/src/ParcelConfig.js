@@ -22,11 +22,11 @@ import loadPlugin from './loadParcelPlugin';
 
 type Pipeline = Array<PackageName>;
 type GlobMap<T> = {[Glob]: T, ...};
-type SerializedParcelConfig = {
+type SerializedParcelConfig = {|
+  $$raw: boolean,
   config: ResolvedParcelConfigFile,
-  packageManager: PackageManager,
-  ...
-};
+  packageManager: PackageManager
+|};
 
 export default class ParcelConfig {
   packageManager: PackageManager;
@@ -64,22 +64,26 @@ export default class ParcelConfig {
     return new ParcelConfig(serialized.config, serialized.packageManager);
   }
 
+  getConfig() {
+    return {
+      filePath: this.filePath,
+      resolvers: this.resolvers,
+      transforms: this.transforms,
+      validators: this.validators,
+      runtimes: this.runtimes,
+      bundler: this.bundler,
+      namers: this.namers,
+      packagers: this.packagers,
+      optimizers: this.optimizers,
+      reporters: this.reporters
+    };
+  }
+
   serialize(): SerializedParcelConfig {
     return {
       $$raw: false,
       packageManager: this.packageManager,
-      config: {
-        filePath: this.filePath,
-        resolvers: this.resolvers,
-        transforms: this.transforms,
-        validators: this.validators,
-        runtimes: this.runtimes,
-        bundler: this.bundler,
-        namers: this.namers,
-        packagers: this.packagers,
-        optimizers: this.optimizers,
-        reporters: this.reporters
-      }
+      config: this.getConfig()
     };
   }
 
@@ -117,10 +121,11 @@ export default class ParcelConfig {
     return validators;
   }
 
-  getTransformerNames(filePath: FilePath): Array<string> {
+  getTransformerNames(filePath: FilePath, pipeline?: ?string): Array<string> {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
-      this.transforms
+      this.transforms,
+      pipeline
     );
     if (!transformers || transformers.length === 0) {
       throw new Error(`No transformers found for "${filePath}".`);
@@ -133,8 +138,11 @@ export default class ParcelConfig {
     return this.loadPlugins(this.getValidatorNames(filePath));
   }
 
-  getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
-    return this.loadPlugins(this.getTransformerNames(filePath));
+  getTransformers(
+    filePath: FilePath,
+    pipeline?: ?string
+  ): Promise<Array<Transformer>> {
+    return this.loadPlugins(this.getTransformerNames(filePath, pipeline));
   }
 
   getBundler(): Promise<Bundler> {
@@ -202,8 +210,12 @@ export default class ParcelConfig {
     return this.loadPlugins(this.reporters);
   }
 
-  isGlobMatch(filePath: FilePath, pattern: Glob) {
-    return isMatch(filePath, pattern) || isMatch(basename(filePath), pattern);
+  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string) {
+    let prefix = pipeline ? `${pipeline}:` : '';
+    return (
+      isMatch(prefix + filePath, pattern) ||
+      isMatch(prefix + basename(filePath), pattern)
+    );
   }
 
   matchGlobMap(filePath: FilePath, globMap: {[Glob]: any, ...}) {
@@ -216,10 +228,14 @@ export default class ParcelConfig {
     return null;
   }
 
-  matchGlobMapPipelines(filePath: FilePath, globMap: {[Glob]: Pipeline, ...}) {
+  matchGlobMapPipelines(
+    filePath: FilePath,
+    globMap: {[Glob]: Pipeline, ...},
+    pipeline?: ?string
+  ) {
     let matches = [];
     for (let pattern in globMap) {
-      if (this.isGlobMatch(filePath, pattern)) {
+      if (this.isGlobMatch(filePath, pattern, pipeline)) {
         matches.push(globMap[pattern]);
       }
     }

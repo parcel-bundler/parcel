@@ -6,7 +6,6 @@ import type {ParcelOptions} from './types';
 import {getRootDir} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import path from 'path';
-import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
 import Cache from '@parcel/cache';
@@ -30,6 +29,7 @@ export default async function resolveOptions(
 
   let inputFS = initialOptions.inputFS || new NodeFS();
   let outputFS = initialOptions.outputFS || new NodeFS();
+
   let packageManager =
     initialOptions.packageManager || new NodePackageManager(inputFS);
 
@@ -39,11 +39,11 @@ export default async function resolveOptions(
       : getRootDir(entries);
 
   let projectRootFile =
-    (await resolveConfig(inputFS, path.join(inputFS.cwd(), 'index'), [
+    (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
       ...LOCK_FILE_NAMES,
       '.git',
       '.hg'
-    ])) || path.join(inputFS.cwd(), 'index');
+    ])) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
 
   let lockFile = null;
   let rootFileName = path.basename(projectRootFile);
@@ -62,18 +62,17 @@ export default async function resolveOptions(
 
   let cache = new Cache(outputFS, cacheDir);
 
-  let targetResolver = new TargetResolver(inputFS);
-  let targets = await targetResolver.resolve(rootDir, cacheDir, initialOptions);
   let mode = initialOptions.mode ?? 'development';
   let minify = initialOptions.minify ?? mode === 'production';
 
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
-    patchConsole: initialOptions.patchConsole,
+    patchConsole:
+      initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
     env:
       initialOptions.env ??
-      (await loadDotEnv(inputFS, path.join(rootDir, 'index'))),
+      (await loadDotEnv(inputFS, path.join(projectRoot, 'index'))),
     mode,
     minify,
     autoinstall: initialOptions.autoinstall ?? true,
@@ -85,7 +84,8 @@ export default async function resolveOptions(
     cacheDir,
     entries,
     rootDir,
-    targets,
+    defaultEngines: initialOptions.defaultEngines,
+    targets: initialOptions.targets,
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',

@@ -17,9 +17,11 @@ async function warnAboutNodeSassBeingUnsupported(filePath) {
     try {
       // TODO: replace this with the actual filesystem later
       await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
-      logger.warn(
-        '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
-      );
+      logger.warn({
+        origin: '@parcel/transformer-sass',
+        message:
+          '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
+      });
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND') {
         throw err;
@@ -40,7 +42,11 @@ export default new Transformer({
       config = {};
     }
 
-    config.file = asset.filePath;
+    if (asset.isInline) {
+      config.data = await asset.getCode();
+    } else {
+      config.file = asset.filePath;
+    }
 
     if (config.importer === undefined) {
       config.importer = [];
@@ -49,6 +55,11 @@ export default new Transformer({
     }
 
     config.importer = [...config.importer, resolvePathImporter({resolve})];
+
+    config.indentedSyntax =
+      typeof config.indentedSyntax === 'boolean'
+        ? config.indentedSyntax
+        : asset.type === 'sass';
 
     return config;
   },

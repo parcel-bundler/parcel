@@ -1,6 +1,6 @@
 // @flow
 
-import type {FileSystem, FileOptions} from './types';
+import type {FileSystem, FileOptions, ReaddirOptions} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -44,6 +44,8 @@ export class MemoryFS implements FileSystem {
   handle: Handle;
   farm: WorkerFarm;
   _cwd: FilePath;
+  _eventQueue: Array<Event>;
+  _watcherTimer: TimeoutID;
   workers: Array<(WorkerEvent) => Promise<mixed>>;
 
   constructor(workerFarm: WorkerFarm) {
@@ -56,6 +58,7 @@ export class MemoryFS implements FileSystem {
     this.id = id++;
     this._cwd = '/';
     this.workers = [];
+    this._eventQueue = [];
     instances.set(this.id, this);
   }
 
@@ -205,7 +208,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve(this.statSync(filePath));
   }
 
-  readdir(dir: FilePath) {
+  readdir(dir: FilePath, opts?: ReaddirOptions): Promise<any> {
     dir = this._normalizePath(dir);
     if (!this.dirs.has(dir)) {
       throw new FSError('ENOENT', dir, 'does not exist');
@@ -214,13 +217,31 @@ export class MemoryFS implements FileSystem {
     dir += path.sep;
 
     let res = [];
-    for (let filePath of this.files.keys()) {
-      if (filePath.startsWith(dir)) {
-        let end = filePath.indexOf(path.sep, dir.length);
-        if (end === -1) {
-          end = filePath.length;
+    for (let [filePath, entry] of this.dirs) {
+      if (
+        filePath.startsWith(dir) &&
+        filePath.indexOf(path.sep, dir.length) === -1
+      ) {
+        let name = filePath.slice(dir.length);
+        if (opts?.withFileTypes) {
+          res.push(new Dirent(name, entry));
+        } else {
+          res.push(name);
         }
-        res.push(filePath.slice(dir.length, end));
+      }
+    }
+
+    for (let [filePath, entry] of this.files) {
+      if (
+        filePath.startsWith(dir) &&
+        filePath.indexOf(path.sep, dir.length) === -1
+      ) {
+        let name = filePath.slice(dir.length);
+        if (opts?.withFileTypes) {
+          res.push(new Dirent(name, entry));
+        } else {
+          res.push(name);
+        }
       }
     }
 
@@ -450,18 +471,30 @@ export class MemoryFS implements FileSystem {
 
   _triggerEvent(event: Event) {
     this.events.push(event);
+    if (this.watchers.size === 0) {
+      return;
+    }
 
-    for (let [dir, watchers] of this.watchers) {
-      if (!dir.endsWith(path.sep)) {
-        dir += path.sep;
-      }
+    // Batch events
+    this._eventQueue.push(event);
+    clearTimeout(this._watcherTimer);
 
-      if (event.path.startsWith(dir)) {
-        for (let watcher of watchers) {
-          watcher.trigger([event]);
+    this._watcherTimer = setTimeout(() => {
+      let events = this._eventQueue;
+      this._eventQueue = [];
+
+      for (let [dir, watchers] of this.watchers) {
+        if (!dir.endsWith(path.sep)) {
+          dir += path.sep;
+        }
+
+        if (event.path.startsWith(dir)) {
+          for (let watcher of watchers) {
+            watcher.trigger(events);
+          }
         }
       }
-    }
+    }, 50);
   }
 
   _registerWorker(fn: WorkerEvent => Promise<mixed>) {
@@ -712,15 +745,57 @@ class Stat {
   isBlockDevice() {
     return false;
   }
+
   isCharacterDevice() {
     return false;
   }
+
   isSymbolicLink() {
     return false;
   }
+
   isFIFO() {
     return false;
   }
+
+  isSocket() {
+    return false;
+  }
+}
+
+class Dirent {
+  name: string;
+  #mode: number;
+
+  constructor(name: string, entry: Entry) {
+    this.name = name;
+    this.#mode = entry.mode;
+  }
+
+  isFile() {
+    return Boolean(this.#mode & S_IFREG);
+  }
+
+  isDirectory() {
+    return Boolean(this.#mode & S_IFDIR);
+  }
+
+  isBlockDevice() {
+    return false;
+  }
+
+  isCharacterDevice() {
+    return false;
+  }
+
+  isSymbolicLink() {
+    return false;
+  }
+
+  isFIFO() {
+    return false;
+  }
+
   isSocket() {
     return false;
   }

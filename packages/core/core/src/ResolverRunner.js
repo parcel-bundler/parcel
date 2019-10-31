@@ -23,7 +23,7 @@ export default class ResolverRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async resolve(dependency: Dependency): Promise<AssetRequest> {
+  async resolve(dependency: Dependency): Promise<?AssetRequest> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
@@ -39,12 +39,23 @@ export default class ResolverRunner {
         options: this.pluginOptions
       });
 
-      if (result) {
+      if (result && result.isExcluded) {
+        return null;
+      }
+
+      if (result && result.filePath) {
         return {
-          ...result,
-          env: dependency.env
+          filePath: result.filePath,
+          sideEffects: result.sideEffects,
+          code: result.code,
+          env: dependency.env,
+          pipeline: dependency.pipeline
         };
       }
+    }
+
+    if (dep.isOptional) {
+      return null;
     }
 
     let dir = dependency.sourcePath

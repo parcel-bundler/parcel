@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset, PluginOptions} from '@parcel/types';
 import PostHTML from 'posthtml';
 
 import nullthrows from 'nullthrows';
@@ -18,10 +18,11 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
-  href: ['link', 'a', 'use'],
+  // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
+  href: ['link', 'a', 'use', 'script'],
   srcset: ['img', 'source'],
   poster: ['video'],
-  'xlink:href': ['use', 'image'],
+  'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
   data: ['object']
 };
@@ -68,6 +69,14 @@ const OPTIONS = {
   },
   iframe: {
     src: {isEntry: true}
+  },
+  script(attrs, options: PluginOptions) {
+    return {
+      env: {
+        outputFormat:
+          attrs.type === 'module' && options.scopeHoist ? 'esmodule' : undefined
+      }
+    };
   }
 };
 
@@ -94,7 +103,10 @@ function getAttrDepHandler(attr) {
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(asset: MutableAsset) {
+export default function collectDependencies(
+  asset: MutableAsset,
+  options: PluginOptions
+) {
   let ast = nullthrows(asset.ast);
 
   PostHTML().walk.call(ast.program, node => {
@@ -132,8 +144,12 @@ export default function collectDependencies(asset: MutableAsset) {
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
         let depHandler = getAttrDepHandler(attr);
-        let options = OPTIONS[node.tag];
-        attrs[attr] = depHandler(asset, attrs[attr], options && options[attr]);
+        let depOptionsHandler = OPTIONS[node.tag];
+        let depOptions =
+          typeof depOptionsHandler === 'function'
+            ? depOptionsHandler(attrs, options)
+            : depOptionsHandler && depOptionsHandler[attr];
+        attrs[attr] = depHandler(asset, attrs[attr], depOptions);
         ast.isDirty = true;
       }
     }

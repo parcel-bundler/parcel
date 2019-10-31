@@ -6,7 +6,6 @@ import nullthrows from 'nullthrows';
 
 import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {createDependency} from '../src/Dependency';
 import {createEnvironment} from '../src/Environment';
 import {resolveParcelConfig} from '../src/loadParcelConfig';
 import {DEFAULT_OPTIONS} from './utils';
@@ -54,6 +53,7 @@ describe('AssetGraphBuilder', function() {
 
     builder = new AssetGraphBuilder();
     await builder.init({
+      name: 'test',
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],
@@ -63,13 +63,6 @@ describe('AssetGraphBuilder', function() {
   });
 
   it('creates an AssetGraphBuilder', () => {
-    invariant(
-      builder.assetGraph.nodes.has(
-        createDependency({
-          moduleSpecifier: './module-b',
-          env: DEFAULT_ENV
-        }).id
-      )
-    );
+    invariant(builder.assetGraph.nodes.has('entry_specifier:./module-b'));
   });
 });

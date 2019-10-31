@@ -1,16 +1,21 @@
 // @flow strict-local
 
-import invariant from 'assert';
-import nullthrows from 'nullthrows';
+import type {GraphVisitor, FilePath} from '@parcel/types';
+import type {
+  Asset,
+  AssetGraphNode,
+  AssetGroup,
+  AssetGroupNode,
+  Dependency,
+  DependencyNode,
+  Target
+} from './types';
 
-import type {GraphVisitor} from '@parcel/types';
-import type {Target} from './types';
 import {md5FromObject} from '@parcel/utils';
-
-import type {Asset, Dependency} from './types';
-import Graph, {type GraphOpts} from './Graph';
-import type {AssetGraphNode, AssetGroup, DependencyNode} from './types';
+import invariant from 'assert';
 import crypto from 'crypto';
+
+import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
@@ -22,7 +27,7 @@ type AssetGraphOpts = {|
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetGroup?: AssetGroup
+  assetGroups?: Array<AssetGroup>
 |};
 
 type SerializedAssetGraph = {|
@@ -51,6 +56,18 @@ const nodeFromAsset = (asset: Asset) => ({
   value: asset
 });
 
+const nodeFromEntrySpecifier = (entry: string) => ({
+  id: 'entry_specifier:' + entry,
+  type: 'entry_specifier',
+  value: entry
+});
+
+const nodeFromEntryFile = (entry: string) => ({
+  id: 'entry_file:' + entry,
+  type: 'entry_file',
+  value: entry
+});
+
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
@@ -76,33 +93,20 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved = onNodeRemoved;
   }
 
-  initialize({entries, targets, assetGroup}: InitOpts) {
+  initialize({entries, assetGroups}: InitOpts) {
     let rootNode = {id: '@@root', type: 'root', value: null};
     this.setRootNode(rootNode);
 
     let nodes = [];
     if (entries) {
-      if (!targets) {
-        throw new Error('Targets are required when entries are specified');
-      }
-
       for (let entry of entries) {
-        for (let target of targets) {
-          let node = nodeFromDep(
-            createDependency({
-              moduleSpecifier: entry,
-              target: target,
-              env: target.env,
-              isEntry: true
-            })
-          );
-
-          nodes.push(node);
-        }
+        let node = nodeFromEntrySpecifier(entry);
+        nodes.push(node);
       }
-    } else if (assetGroup) {
-      let node = nodeFromAssetGroup(assetGroup);
-      nodes.push(node);
+    } else if (assetGroups) {
+      nodes.push(
+        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup))
+      );
     }
 
     this.replaceNodesConnectedTo(rootNode, nodes);
@@ -120,18 +124,47 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return super.removeNode(node);
   }
 
-  resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
-    if (!assetGroup) return;
+  resolveEntry(entry: string, resolved: Array<FilePath>) {
+    let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
+    this.replaceNodesConnectedTo(nodeFromEntrySpecifier(entry), entryFileNodes);
+  }
 
-    let depNode = nullthrows(this.nodes.get(dependency.id));
+  resolveTargets(entryFile: FilePath, targets: Array<Target>) {
+    let depNodes = targets.map(target =>
+      nodeFromDep(
+        createDependency({
+          moduleSpecifier: entryFile,
+          pipeline: target.name,
+          target: target,
+          env: target.env,
+          isEntry: true
+        })
+      )
+    );
+
+    let entryNode = nodeFromEntryFile(entryFile);
+    if (this.hasNode(entryNode.id)) {
+      this.replaceNodesConnectedTo(entryNode, depNodes);
+    }
+  }
+
+  resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
+    let depNode = this.nodes.get(dependency.id);
+    if (!assetGroup || !depNode) return;
+
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
 
     // Defer transforming this dependency if it is marked as weak, there are no side effects,
-    // and no re-exported symbols are used by ancestor dependencies.
+    // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
+    // using a wildcard.
     // This helps with performance building large libraries like `lodash-es`, which re-exports
     // a huge number of functions since we can avoid even transforming the files that aren't used.
     let defer = false;
-    if (dependency.isWeak && assetGroup.sideEffects === false) {
+    if (
+      dependency.isWeak &&
+      assetGroup.sideEffects === false &&
+      !dependency.symbols.has('*')
+    ) {
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = invertMap(dependency.symbols);
       let firstAsset = assets[0];
@@ -155,20 +188,28 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    assetGroupNode = nullthrows(this.nodes.get(assetGroupNode.id));
+    if (!this.hasNode(assetGroupNode.id)) {
+      return;
+    }
 
-    let assetNodes = [];
+    let assetNodes = assets.map(asset => nodeFromAsset(asset));
+    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+
     for (let asset of assets) {
       let assetNode = nodeFromAsset(asset);
       assetNodes.push(assetNode);
+    }
+    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+
+    for (let assetNode of assetNodes) {
       let depNodes = [];
-      for (let dep of asset.dependencies.values()) {
+      invariant(assetNode.type === 'asset');
+      for (let dep of assetNode.value.dependencies.values()) {
         let depNode = nodeFromDep(dep);
         depNodes.push(this.nodes.get(depNode.id) || depNode);
       }
       this.replaceNodesConnectedTo(assetNode, depNodes);
     }
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
@@ -196,6 +237,17 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
   }
 
+  getEntryAssetGroupNodes(): Array<AssetGroupNode> {
+    let entryNodes = [];
+    this.traverse((node, _, actions) => {
+      if (node.type === 'asset_group') {
+        entryNodes.push(node);
+        actions.skipChildren();
+      }
+    });
+    return entryNodes;
+  }
+
   getEntryAssets(): Array<Asset> {
     let entries = [];
     this.traverseAssets((asset, ctx, traversal) => {
@@ -213,8 +265,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let hash = crypto.createHash('md5');
     // TODO: sort??
-    this.traverseAssets(asset => {
-      hash.update(asset.outputHash);
+    this.traverse(node => {
+      if (node.type === 'asset') {
+        hash.update(node.value.outputHash);
+      } else if (node.type === 'dependency' && node.value.target) {
+        hash.update(JSON.stringify(node.value.target));
+      }
     });
 
     this.hash = hash.digest('hex');

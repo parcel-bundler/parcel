@@ -1,6 +1,5 @@
 // @flow
 
-import invariant from 'assert';
 import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
@@ -10,12 +9,13 @@ import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
+import {needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
+const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
+const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
 
 type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
@@ -45,14 +45,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
-
-  // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
-  // registering modules dynamically at runtime.
-  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
-  let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = isEntry && hasChildBundles;
-  let registerEntry = !isEntry || hasChildBundles;
-  if (needsPrelude) {
+  if (needsPrelude(bundle, bundleGraph)) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
@@ -70,9 +63,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      invariant(context != null);
-
-      if (shouldExcludeAsset(asset, usedExports)) {
+      if (!context || shouldExcludeAsset(asset, usedExports)) {
         return;
       }
 
@@ -82,7 +73,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
           for (let depAsset of findRequires(bundleGraph, asset, statement)) {
-            if (depAsset && !statementIndices.has(depAsset.id)) {
+            if (!statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
           }
@@ -98,18 +89,6 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
-      if (
-        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
-        (!context.parent && registerEntry)
-      ) {
-        let exportsId = getName(asset, 'exports');
-        statements.push(
-          ...parse(`
-          ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
-          parcelRequire.register("${asset.id}", ${exportsId});
-        `)
-        );
-      }
 
       if (context.parent) {
         context.parent.set(asset.id, statements);
@@ -118,27 +97,6 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       }
     }
   });
-
-  let entry = bundle.getMainEntry();
-  if (entry && bundle.isEntry) {
-    let exportsIdentifier = getName(entry, 'exports');
-    let code = await entry.getCode();
-    if (code.includes(exportsIdentifier)) {
-      result.push(
-        ...parse(`
-        if (typeof exports === "object" && typeof module !== "undefined") {
-          // CommonJS
-          module.exports = ${exportsIdentifier};
-        } else if (typeof define === "function" && define.amd) {
-          // RequireJS
-          define(function () {
-            return ${exportsIdentifier};
-          });
-        }
-      `)
-      );
-    }
-  }
 
   return t.file(t.program(result));
 }
@@ -161,7 +119,8 @@ async function processAsset(bundle: Bundle, asset: Asset) {
 function parse(code, filename) {
   let ast = babylon.parse(code, {
     sourceFilename: filename,
-    allowReturnOutsideFunction: true
+    allowReturnOutsideFunction: true,
+    plugins: ['dynamicImport']
   });
 
   return ast.program.body;
@@ -182,6 +141,16 @@ function getUsedExports(
   bundleGraph: BundleGraph
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
+
+  let entry = bundle.getMainEntry();
+  if (entry) {
+    for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      if (symbol) {
+        markUsed(asset, symbol);
+      }
+    }
+  }
+
   bundle.traverseAssets(asset => {
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolvedAsset = bundleGraph.getDependencyResolution(dep);
@@ -251,7 +220,12 @@ function findRequires(
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
+        // can be undefined if AssetGraph#resolveDependency optimized
+        // ("deferred") this dependency away as an unused reexport
+        let resolution = bundleGraph.getDependencyResolution(dep);
+        if (resolution) {
+          result.push(resolution);
+        }
       }
     }
   });

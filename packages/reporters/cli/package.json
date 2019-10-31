@@ -1,17 +1,17 @@
 {
   "name": "@parcel/reporter-cli",
-  "version": "2.0.0-alpha.1.1",
+  "version": "2.0.0-alpha.2.1",
   "main": "src/index.js",
   "engines": {
-    "node": ">= 8.0.0",
+    "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/events": "^2.0.0-alpha.1.1",
-    "@parcel/logger": "^2.0.0-alpha.1.1",
-    "@parcel/plugin": "^2.0.0-alpha.1.1",
-    "@parcel/types": "^2.0.0-alpha.1.1",
-    "@parcel/utils": "^2.0.0-alpha.1.1",
+    "@parcel/events": "^2.0.0-alpha.2.1",
+    "@parcel/logger": "^2.0.0-alpha.2.1",
+    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/types": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.2.1",
     "cli-spinners": "^2.0.0",
     "filesize": "^3.6.0",
     "grapheme-breaker": "^0.3.2",
