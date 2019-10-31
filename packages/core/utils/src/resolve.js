@@ -20,6 +20,20 @@ export async function resolve(
   id: string,
   opts?: ResolveOptions
 ): Promise<ResolveResult> {
+  if (process.env.PARCEL_BUILD_ENV !== 'production') {
+    // $FlowFixMe
+    opts = opts || {};
+    // $FlowFixMe
+    opts.packageFilter = pkg => {
+      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+        if (pkg.source) {
+          pkg.main = pkg.source;
+        }
+      }
+      return pkg;
+    };
+  }
+
   let res = await resolveAsync(id, {
     ...opts,
     async readFile(filename, callback) {
@@ -65,6 +79,20 @@ export function resolveSync(
   id: string,
   opts?: ResolveOptions
 ): ResolveResult {
+  if (process.env.PARCEL_BUILD_ENV !== 'production') {
+    // $FlowFixMe
+    opts = opts || {};
+    // $FlowFixMe
+    opts.packageFilter = pkg => {
+      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+        if (pkg.source) {
+          pkg.main = pkg.source;
+        }
+      }
+      return pkg;
+    };
+  }
+
   // $FlowFixMe
   let res = _resolve.sync(id, {
     ...opts,
