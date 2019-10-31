@@ -28,6 +28,7 @@ const paths = {
     'packages/*/*/src/**/prelude.js',
     'packages/*/dev-server/src/templates/**'
   ],
+  packageJson: 'packages/core/parcel/package.json',
   packages: 'packages/'
 };
 
@@ -56,7 +57,9 @@ exports.clean = function clean(cb) {
 };
 
 exports.default = exports.build = gulp.series(
-  gulp.parallel(buildBabel, copyOthers)
+  gulp.parallel(buildBabel, copyOthers),
+  // Babel reads from package.json so update these after babel has run
+  () => updatePackageJson(paths.packageJson)
 );
 
 function buildBabel() {
@@ -72,6 +75,28 @@ function copyOthers() {
     .src(paths.packageOther)
     .pipe(renameStream(relative => relative.replace('src', 'lib')))
     .pipe(gulp.dest(paths.packages));
+}
+
+function updatePackageJson(file) {
+  return gulp
+    .src(file)
+    .pipe(
+      new TapStream(vinyl => {
+        let json = JSON.parse(vinyl.contents);
+        // Replace all references to `src` in package.json bin entries
+        // `lib` equivalents.
+        if (typeof json.bin === 'object' && json.bin != null) {
+          for (let [binName, binPath] of Object.entries(json.bin)) {
+            json.bin[binName] = binPath.replace('src', 'lib');
+          }
+        } else if (typeof json.bin === 'string') {
+          json.bin = json.bin.replace('src', 'lib');
+        }
+
+        vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
+      })
+    )
+    .pipe(gulp.dest(path.dirname(file)));
 }
 
 function renameStream(fn) {
