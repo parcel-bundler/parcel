@@ -1,6 +1,7 @@
 // @flow strict-local
 
-import type {LogLevel, ReporterEvent, PluginOptions} from '@parcel/types';
+import type {ReporterEvent, PluginOptions} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import type {Writable} from 'stream';
 
@@ -9,7 +10,7 @@ import {Reporter} from '@parcel/plugin';
 import * as React from 'react';
 
 import BundleReport from './BundleReport';
-import {prettyError, prettifyTime} from '@parcel/utils';
+import {prettifyTime, prettyDiagnostic} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 
@@ -71,23 +72,21 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
-      writeErr(event.error, options.logLevel);
+      writeDiagnostic(event.diagnostic, true);
       break;
     case 'log': {
       switch (event.level) {
+        case 'success':
+        case 'progress':
+          writeOut(event.message);
+          break;
+        case 'verbose':
+        case 'info':
+          writeDiagnostic(event.diagnostic);
+          break;
         case 'warn':
         case 'error':
-          if (logLevelFilter >= logLevels[event.level]) {
-            writeErr(event.message, options.logLevel);
-          }
-          break;
-        case 'info':
-        case 'verbose':
-        case 'progress':
-        case 'success':
-          if (logLevelFilter >= logLevels[event.level]) {
-            writeOut(event.message);
-          }
+          writeDiagnostic(event.diagnostic, true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -96,19 +95,30 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   }
 }
 
-function writeOut(message: string): void {
-  stdout.write(message + '\n');
-}
+function writeDiagnostic(diagnostic: Diagnostic, isError?: boolean) {
+  let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
-function writeErr(message: string | Error, level: LogLevel): void {
-  let error = prettyError(message, {color: false});
-  // prefix with parcel: to clarify the source of errors
-  writeErrLine('parcel: ' + error.message);
-  if (error.stack != null && logLevels[level] >= logLevels.verbose) {
-    writeErrLine(error.stack);
+  if (message) {
+    writeOut(message, isError);
+  }
+
+  if (stack) {
+    writeOut(stack, isError);
+  }
+
+  if (codeframe) {
+    writeOut(codeframe, isError);
+  }
+
+  for (let hint of hints) {
+    writeOut(hint, isError);
   }
 }
 
-function writeErrLine(message: string): void {
-  stderr.write(message + '\n');
+function writeOut(message: string, isError?: boolean): void {
+  if (isError) {
+    stderr.write(message + '\n');
+  } else {
+    stdout.write(message + '\n');
+  }
 }

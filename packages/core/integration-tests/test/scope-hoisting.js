@@ -570,6 +570,22 @@ describe('scope hoisting', function() {
       assert(!contents.includes('method'));
     });
 
+    it('keeps member expression with computed properties that are variables', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-export-computed-prop/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output[0], true);
+      assert.strictEqual(typeof output[1], 'undefined');
+      assert.strictEqual(output[2], true);
+      assert.strictEqual(typeof output[3], 'undefined');
+    });
+
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
@@ -1425,5 +1441,73 @@ describe('scope hoisting', function() {
     let output = (await run(b)).default;
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 'Imported: foobar');
+  });
+
+  it('should include the prelude in shared entry bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-shared/index.html')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      },
+      {
+        name: 'iframe.html',
+        assets: ['iframe.html']
+      },
+      {
+        type: 'js',
+        assets: ['iframe.js']
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js']
+      }
+    ]);
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)[0];
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let mainBundle = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.name.startsWith('html-shared'));
+    contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+  });
+
+  it('does not include prelude if child bundles are isolated', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js')
+    );
+
+    let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+    let contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(!contents.includes(`parcelRequire =`));
+  });
+
+  it('should include prelude in shared worker bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js')
+    );
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)
+      .find(b => b.name !== 'index.js');
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
+    contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
   });
 });

@@ -16,6 +16,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@parcel/events": "^2.0.0-alpha.2.1"
+    "@parcel/events": "^2.0.0-alpha.2.1",
+    "@parcel/diagnostic": "^2.0.0-alpha.2.1"
   }
 }

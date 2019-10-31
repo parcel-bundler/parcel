@@ -75,7 +75,7 @@ export default class Cache {
       await this.fs.writeFile(blobPath, data);
       return key;
     } catch (err) {
-      logger.error(`Error writing to cache: ${err.message}`);
+      logger.error(err, '@parcel/cache');
     }
   }
 }

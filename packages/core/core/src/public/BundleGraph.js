@@ -64,6 +64,12 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
+  getSiblingBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getSiblingBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
   getBundleGroupsReferencedByBundle(
     bundle: IBundle
   ): Array<{|
@@ -120,6 +126,12 @@ export default class BundleGraph implements IBundleGraph {
   getBundles(): Array<IBundle> {
     return this.#graph
       .getBundles()
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
+  getChildBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getChildBundles(bundleToInternalBundle(bundle))
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 

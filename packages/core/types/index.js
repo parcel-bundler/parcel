@@ -5,6 +5,7 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -120,6 +121,7 @@ export interface Environment {
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
+  isWorker(): boolean;
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap): boolean;
 }
@@ -395,12 +397,17 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>
 ) => Promise<FilePath | null>;
 
+export type ValidateResult = {|
+  warnings: Array<Diagnostic>,
+  errors: Array<Diagnostic>
+|};
+
 export type Validator = {|
   validate({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions
-  |}): Async<void>,
+  |}): Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
@@ -521,7 +528,6 @@ export interface Bundle {
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
-  hasChildBundles(): boolean;
   getHash(): string;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
@@ -572,6 +578,8 @@ export interface BundleGraph {
     dependency: Dependency
   |}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
+  getChildBundles(bundle: Bundle): Array<Bundle>;
+  getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
@@ -669,18 +677,19 @@ export type ProgressLogEvent = {|
   +message: string
 |};
 
-export type LogEvent =
-  | ProgressLogEvent
-  | {|
-      +type: 'log',
-      +level: 'error' | 'warn',
-      +message: string | Error
-    |}
-  | {|
-      +type: 'log',
-      +level: 'info' | 'success' | 'verbose',
-      +message: string
-    |};
+export type DiagnosticLogEvent = {|
+  +type: 'log',
+  +level: 'error' | 'warn' | 'info' | 'verbose',
+  +diagnostic: Diagnostic
+|};
+
+export type TextLogEvent = {|
+  +type: 'log',
+  +level: 'success',
+  +message: string
+|};
+
+export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 export type BuildStartEvent = {|
   type: 'buildStart'
@@ -739,7 +748,7 @@ export type BuildSuccessEvent = {|
 
 export type BuildFailureEvent = {|
   type: 'buildFailure',
-  error: Error
+  diagnostic: Diagnostic
 |};
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;

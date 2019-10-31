@@ -18,6 +18,7 @@
     "@parcel/namer-default": "^2.0.0-alpha.2.1",
     "@parcel/optimizer-cssnano": "^2.0.0-alpha.2.1",
     "@parcel/optimizer-terser": "^2.0.0-alpha.2.1",
+    "@parcel/optimizer-htmlnano": "^2.0.0-alpha.2.1",
     "@parcel/packager-css": "^2.0.0-alpha.2.1",
     "@parcel/packager-html": "^2.0.0-alpha.2.1",
     "@parcel/packager-js": "^2.0.0-alpha.2.1",
