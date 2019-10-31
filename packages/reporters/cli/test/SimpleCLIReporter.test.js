@@ -69,7 +69,7 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'info',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'test',
             message: 'info'
@@ -83,7 +83,7 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'verbose',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'test',
             message: 'verbose'
@@ -101,7 +101,7 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'error',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'test',
             message: 'error'
@@ -114,7 +114,7 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'warn',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'test',
             message: 'warn'
@@ -133,7 +133,7 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'error',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'test',
             message: 'error'
@@ -146,7 +146,7 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'warn',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'test',
             message: 'warn'

@@ -183,7 +183,7 @@ describe('less', function() {
       );
     } catch (err) {
       assert.equal(
-        err.diagnostic[0].message,
+        err.diagnostics[0].message,
         'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "library/style.less"'
       );
       didThrow = true;

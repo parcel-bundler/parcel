@@ -27,7 +27,7 @@ describe('Logger', () => {
     assert(
       onLog.calledWith({
         level: 'info',
-        diagnostic: [diagnostic],
+        diagnostics: [diagnostic],
         type: 'log'
       })
     );
@@ -42,7 +42,7 @@ describe('Logger', () => {
     Logger.warn(diagnostic);
 
     assert(
-      onLog.calledWith({level: 'warn', diagnostic: [diagnostic], type: 'log'})
+      onLog.calledWith({level: 'warn', diagnostics: [diagnostic], type: 'log'})
     );
   });
 
@@ -55,7 +55,7 @@ describe('Logger', () => {
     Logger.error(diagnostic);
 
     assert(
-      onLog.calledWith({level: 'error', diagnostic: [diagnostic], type: 'log'})
+      onLog.calledWith({level: 'error', diagnostics: [diagnostic], type: 'log'})
     );
   });
 

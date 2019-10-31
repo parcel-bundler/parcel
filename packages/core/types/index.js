@@ -680,7 +680,7 @@ export type ProgressLogEvent = {|
 export type DiagnosticLogEvent = {|
   +type: 'log',
   +level: 'error' | 'warn' | 'info' | 'verbose',
-  +diagnostic: Array<Diagnostic>
+  +diagnostics: Array<Diagnostic>
 |};
 
 export type TextLogEvent = {|
@@ -748,7 +748,7 @@ export type BuildSuccessEvent = {|
 
 export type BuildFailureEvent = {|
   type: 'buildFailure',
-  diagnostic: Array<Diagnostic>
+  diagnostics: Array<Diagnostic>
 |};
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;

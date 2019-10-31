@@ -23,7 +23,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'verbose',
-      diagnostic: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
@@ -35,7 +35,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'info',
-      diagnostic: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
@@ -43,7 +43,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'warn',
-      diagnostic: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
@@ -64,7 +64,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
-      diagnostic: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 

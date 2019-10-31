@@ -23,14 +23,14 @@ describe.skip('eslint-validator', function() {
       });
     } catch (e) {
       assert.equal(e.name, 'BuildError');
-      assert(!!Array.isArray(e.diagnostic));
-      assert(!!e.diagnostic[0].codeFrame);
-      assert.equal(e.diagnostic[0].origin, '@parcel/validator-eslint');
+      assert(!!Array.isArray(e.diagnostics));
+      assert(!!e.diagnostics[0].codeFrame);
+      assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
       assert.equal(
-        e.diagnostic[0].message,
+        e.diagnostics[0].message,
         'ESLint found **1** __errors__ and **0** __warnings__.'
       );
-      assert.equal(e.diagnostic[0].filePath, entry);
+      assert.equal(e.diagnostics[0].filePath, entry);
 
       didThrow = true;
     }

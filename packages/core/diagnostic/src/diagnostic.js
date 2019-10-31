@@ -73,7 +73,7 @@ export function anyToDiagnostic(
   // $FlowFixMe
   let diagnostic: Diagnostic | Array<Diagnostic> = input;
   if (input instanceof ThrowableDiagnostic) {
-    diagnostic = input.diagnostic;
+    diagnostic = input.diagnostics;
   } else if (input instanceof Error) {
     diagnostic = errorToDiagnostic(input);
   }
@@ -132,7 +132,7 @@ type ThrowableDiagnosticOpts = {
 };
 
 export default class ThrowableDiagnostic extends Error {
-  diagnostic: Array<Diagnostic>;
+  diagnostics: Array<Diagnostic>;
 
   constructor(opts: ThrowableDiagnosticOpts) {
     let diagnostics = Array.isArray(opts.diagnostic)
@@ -144,6 +144,6 @@ export default class ThrowableDiagnostic extends Error {
     this.stack = diagnostics[0].stack || super.stack;
     this.name = diagnostics[0].name || super.name;
 
-    this.diagnostic = diagnostics;
+    this.diagnostics = diagnostics;
   }
 }

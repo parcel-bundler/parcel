@@ -15,7 +15,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
-import {anyToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
@@ -154,7 +154,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.diagnostic);
+      throw new BuildError(result.diagnostics);
     }
 
     return result.bundleGraph;
@@ -282,7 +282,7 @@ export default class Parcel {
       let diagnostic = anyToDiagnostic(e);
       let event = {
         type: 'buildFailure',
-        diagnostic: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+        diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
       };
 
       await this.#reporterRunner.report(event);
@@ -369,14 +369,11 @@ export default class Parcel {
   }
 }
 
-export class BuildError extends Error {
-  name = 'BuildError';
-  diagnostic: Array<Diagnostic>;
+export class BuildError extends ThrowableDiagnostic {
+  constructor(diagnostics: Array<Diagnostic>) {
+    super({diagnostic: diagnostics});
 
-  constructor(diagnostic: Array<Diagnostic>) {
-    super(diagnostic[0].message);
-
-    this.diagnostic = diagnostic;
+    this.name = 'BuildError';
   }
 }
 

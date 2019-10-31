@@ -27,14 +27,14 @@ describe.skip('ts-validator', function() {
       });
     } catch (e) {
       assert.equal(e.name, 'BuildError');
-      assert(!!Array.isArray(e.diagnostic));
-      assert(!!e.diagnostic[0].codeFrame);
-      assert.equal(e.diagnostic[0].origin, '@parcel/validator-typescript');
+      assert(!!Array.isArray(e.diagnostics));
+      assert(!!e.diagnostics[0].codeFrame);
+      assert.equal(e.diagnostics[0].origin, '@parcel/validator-typescript');
       assert.equal(
-        e.diagnostic[0].message,
+        e.diagnostics[0].message,
         `Property 'world' does not exist on type 'Params'.`
       );
-      assert.equal(e.diagnostic[0].filePath, entry);
+      assert.equal(e.diagnostics[0].filePath, entry);
 
       didThrow = true;
     }

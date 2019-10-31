@@ -228,7 +228,7 @@ describe('scope hoisting', function() {
       } catch (err) {
         threw = true;
         assert(
-          err.diagnostic[0].message.endsWith("b.js does not export 'default'")
+          err.diagnostics[0].message.endsWith("b.js does not export 'default'")
         );
       }
 
@@ -307,7 +307,7 @@ describe('scope hoisting', function() {
       } catch (err) {
         threw = true;
         assert(
-          err.diagnostic[0].message.includes(
+          err.diagnostics[0].message.includes(
             "Export 'Test' is not defined (1:8)"
           )
         );

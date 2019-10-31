@@ -149,7 +149,7 @@ describe('WorkerFarm', function() {
       {
         level: 'info',
         type: 'log',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'console',
             message: 'one'
@@ -159,7 +159,7 @@ describe('WorkerFarm', function() {
       {
         level: 'info',
         type: 'log',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'console',
             message: 'two'
@@ -169,7 +169,7 @@ describe('WorkerFarm', function() {
       {
         level: 'warn',
         type: 'log',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'console',
             message: 'three'
@@ -179,7 +179,7 @@ describe('WorkerFarm', function() {
       {
         level: 'error',
         type: 'log',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'console',
             message: 'four'
@@ -189,7 +189,7 @@ describe('WorkerFarm', function() {
       {
         level: 'verbose',
         type: 'log',
-        diagnostic: [
+        diagnostics: [
           {
             message: 'five',
             origin: 'console'
@@ -218,7 +218,7 @@ describe('WorkerFarm', function() {
     assert.deepEqual(events, [
       {
         level: 'info',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'logging-worker',
             message: 'omg it works'
@@ -228,7 +228,7 @@ describe('WorkerFarm', function() {
       },
       {
         level: 'error',
-        diagnostic: [
+        diagnostics: [
           {
             origin: 'logging-worker',
             message: 'errors objects dont work yet'

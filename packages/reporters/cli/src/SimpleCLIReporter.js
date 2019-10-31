@@ -72,7 +72,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
-      writeDiagnostic(event.diagnostic, true);
+      writeDiagnostic(event.diagnostics, true);
       break;
     case 'log': {
       switch (event.level) {
@@ -82,11 +82,11 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
           break;
         case 'verbose':
         case 'info':
-          writeDiagnostic(event.diagnostic);
+          writeDiagnostic(event.diagnostics);
           break;
         case 'warn':
         case 'error':
-          writeDiagnostic(event.diagnostic, true);
+          writeDiagnostic(event.diagnostics, true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);

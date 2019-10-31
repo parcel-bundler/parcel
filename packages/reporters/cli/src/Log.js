@@ -68,18 +68,18 @@ function Hints({hints}: {hints: Array<string>, ...}) {
 }
 
 function DiagnosticContainer({
-  diagnostic,
+  diagnostics,
   color,
   emoji
 }: {
-  diagnostic: Array<Diagnostic>,
+  diagnostics: Array<Diagnostic>,
   color: string,
   emoji: string,
   ...
 }) {
   return (
     <React.Fragment>
-      {diagnostic.map((d, i) => {
+      {diagnostics.map((d, i) => {
         let {message, stack, hints, codeframe} = prettyDiagnostic(d);
 
         return (
@@ -102,7 +102,7 @@ function DiagnosticContainer({
 function InfoLog({event}: DiagnosticLogProps) {
   return (
     <DiagnosticContainer
-      diagnostic={event.diagnostic}
+      diagnostics={event.diagnostics}
       emoji={Emoji.info}
       color="blue"
     />
@@ -112,7 +112,7 @@ function InfoLog({event}: DiagnosticLogProps) {
 function WarnLog({event}: DiagnosticLogProps) {
   return (
     <DiagnosticContainer
-      diagnostic={event.diagnostic}
+      diagnostics={event.diagnostics}
       emoji={Emoji.warning}
       color="yellow"
     />
@@ -122,7 +122,7 @@ function WarnLog({event}: DiagnosticLogProps) {
 function ErrorLog({event}: DiagnosticLogProps) {
   return (
     <DiagnosticContainer
-      diagnostic={event.diagnostic}
+      diagnostics={event.diagnostics}
       emoji={Emoji.error}
       color="red"
       bold
