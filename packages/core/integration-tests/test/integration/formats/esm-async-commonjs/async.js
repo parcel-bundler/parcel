@@ -1,2 +1,2 @@
-module.exports = "asyn";
-module.exports += "c";
+module.exports.foo = "asyn";
+module.exports.foo += "c";

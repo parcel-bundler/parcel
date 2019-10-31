@@ -1,1 +1,1 @@
-output = import('./async').then(a => a.foo + 2);
+output = import('./async').then(a => a.default.foo + 2);
