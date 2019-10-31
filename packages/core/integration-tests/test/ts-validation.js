@@ -8,6 +8,7 @@ const config = {
   validators: {
     '*.{ts,tsx}': ['@parcel/validator-typescript']
   },
+  reporters: [],
   filePath: require.resolve('@parcel/config-default')
 };
 
