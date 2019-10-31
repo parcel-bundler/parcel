@@ -1,6 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle} from '@parcel/test-utils';
+import {bundle, normalizeFilePath} from '@parcel/test-utils';
 import defaultConfigContents from '@parcel/config-default';
 
 const config = {
@@ -15,14 +15,12 @@ const config = {
 describe('ts-validator', function() {
   it('should throw validation error on typescript typing errors', async function() {
     let didThrow = false;
-    let entry = path.join(
-      __dirname,
-      '/integration/ts-validation-error/index.ts'
+    let entry = normalizeFilePath(
+      path.join(__dirname, '/integration/ts-validation-error/index.ts')
     );
     try {
       await bundle(entry, {
-        defaultConfig: config,
-        logLevel: 'info'
+        defaultConfig: config
       });
     } catch (e) {
       assert.equal(e.name, 'BuildError');
