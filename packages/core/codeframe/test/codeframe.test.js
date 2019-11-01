@@ -554,7 +554,7 @@ describe.only('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines[0], '> 1 | hel  lo wor  ld');
-    assert.equal(lines[1], '>   |   ^^^^ ^^');
+    assert.equal(lines[1], '>   |   ^^^^ ^^ test');
     assert.equal(lines[2], '  2 | Enjoy thi  s nice cod  eframe');
   });
 });

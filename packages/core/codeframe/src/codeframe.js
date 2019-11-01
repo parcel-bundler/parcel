@@ -25,6 +25,7 @@ type CodeFrameOptions = {|
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
+const TAB_REPLACE_REGEX = /\t/g;
 const TAB_REPLACEMENT = '  ';
 
 const highlightSyntax = (txt: string, lang?: string): string => {
@@ -120,7 +121,7 @@ export default function codeFrame(
     ? highlightSyntax(code, opts.language)
     : code
   )
-    .replace(/\t/g, TAB_REPLACEMENT)
+    .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT)
     .split(NEWLINE);
   for (let i = startLine; i < lines.length; i++) {
     if (i > endLine) break;
@@ -154,7 +155,9 @@ export default function codeFrame(
         // If there's a whole line highlight
         // don't even bother creating seperate highlight
         highlightLine += highlighter(
-          '^'.repeat(originalLine.replace(/\t/g, TAB_REPLACEMENT).length)
+          '^'.repeat(
+            originalLine.replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length
+          )
         );
       } else {
         let sortedColumns =
@@ -178,16 +181,22 @@ export default function codeFrame(
           if (whitespaceLength > 0) {
             let whitespace = originalLine
               .substring(lastCol, startCol)
-              .replace(/\t/g, TAB_REPLACEMENT)
+              .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT)
               .replace(/\S/g, ' ');
 
             highlightLine += whitespace;
           }
 
-          let highlightLength =
-            endCol - (lastCol >= startCol ? lastCol : startCol);
+          let highlightStartColumn = lastCol >= startCol ? lastCol : startCol;
+          let highlightLength = endCol - highlightStartColumn;
           if (highlightLength > 0) {
-            highlightLine += highlighter('^'.repeat(highlightLength));
+            let renderedHighlightLength = originalLine
+              .substring(
+                highlightStartColumn,
+                highlightStartColumn + highlightLength
+              )
+              .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
+            highlightLine += highlighter('^'.repeat(renderedHighlightLength));
             lastCol = endCol;
           }
         }
