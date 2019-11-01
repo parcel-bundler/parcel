@@ -78,7 +78,7 @@ export function anyToDiagnostic(
 }
 
 export function errorToDiagnostic(
-  error: PrintableError | string,
+  error: ThrowableDiagnostic | PrintableError | string,
   realOrigin?: string
 ): Diagnostic | Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
@@ -89,6 +89,15 @@ export function errorToDiagnostic(
       message: error,
       codeFrame
     };
+  }
+
+  if (error instanceof ThrowableDiagnostic) {
+    return error.diagnostics.map(d => {
+      return {
+        ...d,
+        origin: realOrigin || d.origin
+      };
+    });
   }
 
   if (error.loc && error.source) {
