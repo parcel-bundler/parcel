@@ -3,8 +3,6 @@ import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
 import chalk from 'chalk';
 import emphasize from 'emphasize';
-import nullthrows from 'nullthrows';
-import jsonMap from 'json-source-map';
 
 type CodeFramePadding = {|
   before: number,
@@ -203,35 +201,4 @@ export default function codeFrame(
   }
 
   return resultLines.join('\n');
-}
-
-// ids.key has to be "/some/parent/child"
-export function generateJSONCodeHighlights(
-  code: string,
-  ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>
-): Array<DiagnosticCodeHighlight> {
-  let map = jsonMap.parse(code);
-  return ids.map(({key, type, message}) => {
-    let pos = nullthrows(map.pointers[key]);
-    if (!type && pos.value) {
-      // key and value
-      return {
-        start: {line: pos.key.line + 1, column: pos.key.column + 1},
-        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
-        message
-      };
-    } else if (type == 'key' || !pos.value) {
-      return {
-        start: {line: pos.key.line + 1, column: pos.key.column + 1},
-        end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
-        message
-      };
-    } else {
-      return {
-        start: {line: pos.value.line + 1, column: pos.value.column + 1},
-        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
-        message
-      };
-    }
-  });
 }

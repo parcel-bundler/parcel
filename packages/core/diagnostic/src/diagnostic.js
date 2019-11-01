@@ -1,6 +1,9 @@
 // @flow
 import type {FilePath} from '@parcel/types';
 
+import jsonMap from 'json-source-map';
+import nullthrows from 'nullthrows';
+
 export type DiagnosticHighlightLocation = {|
   // These positions are 1-based
   line: number,
@@ -148,4 +151,35 @@ export default class ThrowableDiagnostic extends Error {
 
     this.diagnostics = diagnostics;
   }
+}
+
+// ids.key has to be "/some/parent/child"
+export function generateJSONCodeHighlights(
+  code: string,
+  ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>
+): Array<DiagnosticCodeHighlight> {
+  let map = jsonMap.parse(code);
+  return ids.map(({key, type, message}) => {
+    let pos = nullthrows(map.pointers[key]);
+    if (!type && pos.value) {
+      // key and value
+      return {
+        start: {line: pos.key.line + 1, column: pos.key.column + 1},
+        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
+        message
+      };
+    } else if (type == 'key' || !pos.value) {
+      return {
+        start: {line: pos.key.line + 1, column: pos.key.column + 1},
+        end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
+        message
+      };
+    } else {
+      return {
+        start: {line: pos.value.line + 1, column: pos.value.column + 1},
+        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
+        message
+      };
+    }
+  });
 }

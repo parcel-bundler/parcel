@@ -1,6 +1,7 @@
 // @flow strict-local
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {generateJSONCodeHighlights} from '@parcel/codeframe';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights
+} from '@parcel/diagnostic';
 // $FlowFixMe untyped
 import levenshteinDistance from 'js-levenshtein';
 
