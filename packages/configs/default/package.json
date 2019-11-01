@@ -17,6 +17,7 @@
     "@parcel/bundler-default": "^2.0.0-alpha.2.1",
     "@parcel/namer-default": "^2.0.0-alpha.2.1",
     "@parcel/optimizer-cssnano": "^2.0.0-alpha.2.1",
+    "@parcel/optimizer-data-url": "^2.0.0-alpha.2.1",
     "@parcel/optimizer-terser": "^2.0.0-alpha.2.1",
     "@parcel/optimizer-htmlnano": "^2.0.0-alpha.2.1",
     "@parcel/packager-css": "^2.0.0-alpha.2.1",

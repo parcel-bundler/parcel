@@ -387,6 +387,7 @@ export interface TransformerResult {
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
+  pipeline?: ?string;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
   uniqueKey?: ?string;

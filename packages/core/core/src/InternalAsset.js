@@ -289,6 +289,7 @@ export default class InternalAsset {
             : new Map(),
         includedFiles: new Map(this.value.includedFiles),
         meta: {...this.value.meta, ...result.meta},
+        pipeline: result.pipeline,
         stats: {
           time: 0,
           size

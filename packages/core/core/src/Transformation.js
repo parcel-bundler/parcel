@@ -584,6 +584,7 @@ function normalizeAssets(
       env: result.env,
       isIsolated: result.isIsolated,
       isInline: result.isInline,
+      pipeline: internalAsset.value.pipeline,
       meta: result.meta,
       uniqueKey: internalAsset.value.uniqueKey
     };

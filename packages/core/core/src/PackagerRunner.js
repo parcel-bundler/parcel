@@ -276,7 +276,10 @@ export default class PackagerRunner {
     map?: ?SourceMap
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
-    let optimizers = await this.config.getOptimizers(bundle.filePath);
+    let optimizers = await this.config.getOptimizers(
+      bundle.filePath,
+      internalBundle.pipeline
+    );
     if (!optimizers.length) {
       return {contents, map};
     }

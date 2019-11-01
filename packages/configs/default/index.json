@@ -3,6 +3,7 @@
   "transforms": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "bundle-text:*": ["@parcel/transformer-inline"],
+    "data-url:*": ["@parcel/transformer-inline"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
@@ -30,6 +31,7 @@
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
+    "data-url:*": ["@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
     "*.js": ["@parcel/optimizer-terser"],
     "*.html": ["@parcel/optimizer-htmlnano"]

@@ -1594,4 +1594,16 @@ describe('javascript', function() {
       (await run(b)).default.startsWith('// modules are defined as an array\n')
     );
   });
+
+  it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/data-url/index.js'),
+      {outputFS: inputFS}
+    );
+
+    assert.equal(
+      (await run(b)).default,
+      'data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E%0A'
+    );
+  });
 });
