@@ -15,13 +15,10 @@ import type {ParcelOptions, Target} from './types';
 import type {SchemaEntity} from '@parcel/utils';
 
 import {loadConfig, validateSchema} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-import {generateJSONCodeHighlights} from '@parcel/codeframe';
 import {createEnvironment} from './Environment';
 import path from 'path';
 import fs from 'fs';
 import browserslist from 'browserslist';
-import levenshteinDistance from 'js-levenshtein';
 
 type TargetResolveResult = {|
   targets: Array<Target>,
@@ -46,99 +43,43 @@ const DEFAULT_PRODUCTION_ENGINES = {
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 
-function generateDescriptorError({
-  pkgContents,
-  pkgPath,
-  targetName,
-  keys,
-  message,
-  hints
-}: {|
-  pkgContents: ?string,
-  pkgPath: ?string,
-  targetName: string,
-  keys: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
-  message: string,
-  hints?: ?Array<string>
-|}) {
-  let highlight;
-  if (pkgContents) {
-    highlight = generateJSONCodeHighlights(
-      pkgContents,
-      keys.map(({key, type, message}) => ({
-        key: `/targets/${targetName}${key}`,
-        type: type,
-        message
-      }))
-    );
-  }
-  throw new ThrowableDiagnostic({
-    diagnostic: {
-      message,
-      origin: '@parcel/core',
-      filePath: pkgPath || undefined,
-      language: 'json',
-      codeFrame:
-        highlight && pkgContents
-          ? {
-              code: pkgContents,
-              codeHighlights: highlight
-            }
-          : undefined,
-      hints: hints || undefined
-    }
-  });
-}
-
-function parseEngines(
-  targetName: ?string,
-  engines: mixed
-): Engines | typeof undefined {
-  if (engines === undefined) {
-    return;
-  } else if (engines && typeof engines === 'object') {
-    let result = {};
-    for (let key in engines) {
-      let value: mixed = engines[key];
-      if (key === 'browsers' && Array.isArray(value)) {
-        value = value.map(v => {
-          if (typeof v !== 'string') {
-            throw new Error(
-              `Invalid value in engines.browsers array ${
-                targetName ? `for target "${targetName}"` : ''
-              }: ${String(v)}`
-            );
-          }
-          return v;
-        });
-      } else if (typeof value !== 'string') {
-        throw new Error(
-          `Invalid value for engines.${key} ${
-            targetName ? `for target "${targetName}"` : ''
-          }: ${String(value)}`
-        );
-      }
-      result[key] = value;
-    }
-    return result;
-  } else {
-    throw new Error(
-      `Invalid engines ${
-        targetName ? `for target "${targetName}"` : ''
-      }: ${String(engines)}`
-    );
-  }
-}
-
 const DESCRIPTOR_SCHEMA = (JSON.parse(
   fs.readFileSync(path.join(__dirname, 'TargetDescriptor.schema.json'))
 ): SchemaEntity);
+
+// $FlowFixMe
+const ENGINES_SCHEMA = DESCRIPTOR_SCHEMA.properties.engines;
+
+function parseEngines(
+  engines: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed,
+  prependKey: string,
+  message: string
+): Engines | typeof undefined {
+  if (engines === undefined) {
+    return engines;
+  } else {
+    validateSchema.diagnostic(
+      ENGINES_SCHEMA,
+      engines,
+      pkgPath,
+      pkgContents,
+      '@parcel/core',
+      prependKey,
+      message
+    );
+
+    // $FlowFixMe we just verified this
+    return engines;
+  }
+}
 
 function parseDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: ?string
+  pkgContents: string | mixed
 ): {|
   context?: EnvironmentContext | typeof undefined,
   engines?: Engines | typeof undefined,
@@ -150,50 +91,15 @@ function parseDescriptor(
   distDir: FilePath | typeof undefined,
   isLibrary: boolean | typeof undefined
 |} {
-  let errors = validateSchema(DESCRIPTOR_SCHEMA, descriptor);
-  if (errors.length) {
-    throw generateDescriptorError({
-      pkgContents,
-      pkgPath,
-      targetName,
-      keys: errors.map(e => {
-        let message;
-        let {expectedValues, actualValue} = e;
-        if (expectedValues) {
-          let likely = expectedValues;
-          if (actualValue) {
-            likely = (likely.map(exp => [
-              exp,
-              levenshteinDistance(exp, actualValue)
-            ]): Array<[string, number]>).filter(
-              // TODO Instead use levenshtein automaton directly
-              // Remove if more than half of the string would need to be changed
-              ([, d]) => d * 2 < actualValue.length
-            );
-            likely.sort(([, a], [, b]) => a - b);
-            likely = likely.map(([v]) => v);
-          }
-          if (likely.length > 0) {
-            message = `Did you mean ${likely
-              .map(v => JSON.stringify(v))
-              .join(', ')}?`;
-          } else if (expectedValues.length > 0) {
-            message = `Possible values: ${expectedValues
-              .map(v => JSON.stringify(v))
-              .join(', ')}`;
-          } else {
-            message = 'Unknown value';
-          }
-        } else if (e.messagePattern) {
-          message = `Expected ${e.messagePattern}`;
-        } else if (e.expectedType) {
-          message = `Expected type ${e.expectedType.join(' or ')}`;
-        }
-        return {key: e.dataPath, type: e.type, message};
-      }),
-      message: 'Invalid target descriptor'
-    });
-  }
+  validateSchema.diagnostic(
+    DESCRIPTOR_SCHEMA,
+    descriptor,
+    pkgPath,
+    pkgContents,
+    '@parcel/core',
+    `/targets/${targetName}`,
+    `Invalid target descriptor for target ${targetName}`
+  );
 
   // $FlowFixMe we just verified this
   return descriptor;
@@ -234,7 +140,12 @@ export default class TargetResolver {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
         targets = Object.entries(optionTargets).map(([name, _descriptor]) => {
-          let {distDir, ...descriptor} = parseDescriptor(name, _descriptor);
+          let {distDir, ...descriptor} = parseDescriptor(
+            name,
+            _descriptor,
+            null,
+            {targets: optionTargets}
+          );
           if (!distDir) {
             throw new Error(`Missing distDir for target '${name}'`);
           }
@@ -327,7 +238,14 @@ export default class TargetResolver {
     }
 
     let pkgTargets = pkg.targets || {};
-    let pkgEngines: Engines = parseEngines(null, pkg.engines) || {};
+    let pkgEngines: Engines =
+      parseEngines(
+        pkg.engines,
+        pkgPath,
+        pkgContents,
+        '/engines',
+        'Invalid engines in package.json'
+      ) || {};
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {

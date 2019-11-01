@@ -1,6 +1,10 @@
 // @flow strict-local
 
 import {flat} from './';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {generateJSONCodeHighlights} from '@parcel/codeframe';
+// $FlowFixMe untyped
+import levenshteinDistance from 'js-levenshtein';
 
 export type SchemaEntity =
   | SchemaObject
@@ -44,7 +48,7 @@ export type SchemaError = {|
   ancestors: Array<SchemaEntity>
 |};
 
-export default function(schema: SchemaEntity, data: mixed): Array<SchemaError> {
+function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
   function walk(
     schemaAncestors,
     dataNode,
@@ -165,3 +169,129 @@ export default function(schema: SchemaEntity, data: mixed): Array<SchemaError> {
   let result = walk([schema], data, '');
   return Array.isArray(result) ? result : result ? [result] : [];
 }
+export default validateSchema;
+
+function generateDescriptorError({
+  contents,
+  dataPath,
+  prependKey = '',
+  keys,
+  message,
+  hints
+}: {|
+  contents?: string,
+  dataPath?: string,
+  prependKey?: string,
+  keys: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
+  message: string,
+  hints?: ?Array<string>
+|}) {
+  let highlight;
+  // $FlowFixMe should be a sketchy string check
+  if (contents) {
+    highlight = generateJSONCodeHighlights(
+      contents,
+      keys.map(({key, type, message}) => ({
+        key: prependKey + key,
+        type: type,
+        message
+      }))
+    );
+  }
+  throw new ThrowableDiagnostic({
+    diagnostic: {
+      message,
+      origin: '@parcel/core',
+      // $FlowFixMe should be a sketchy string check
+      filePath: dataPath || undefined,
+      language: 'json',
+      codeFrame:
+        // $FlowFixMe should be a sketchy string check
+        highlight && contents
+          ? {
+              code: contents,
+              codeHighlights: highlight
+            }
+          : undefined,
+      hints: hints || undefined
+    }
+  });
+}
+
+validateSchema.diagnostic = function(
+  schema: SchemaEntity,
+  data: mixed,
+  dataContentsPath?: ?string,
+  dataContents: string | mixed,
+  origin: string,
+  prependKey: string,
+  message: string
+): void {
+  let errors = validateSchema(schema, data);
+  if (errors.length) {
+    let dataContentsString: string =
+      typeof dataContents === 'string'
+        ? dataContents
+        : // $FlowFixMe
+          JSON.stringify(dataContents, null, 2);
+    let keys = errors.map(e => {
+      let message;
+      let {expectedValues, actualValue} = e;
+      if (expectedValues) {
+        let likely = expectedValues;
+        // $FlowFixMe should be a sketchy string check
+        if (actualValue) {
+          likely = (likely.map(exp => [
+            exp,
+            levenshteinDistance(exp, actualValue)
+          ]): Array<[string, number]>).filter(
+            // TODO Instead use levenshtein automaton directly
+            // Remove if more than half of the string would need to be changed
+            ([, d]) => d * 2 < actualValue.length
+          );
+          likely.sort(([, a], [, b]) => a - b);
+          likely = likely.map(([v]) => v);
+        }
+        if (likely.length > 0) {
+          message = `Did you mean ${likely
+            .map(v => JSON.stringify(v))
+            .join(', ')}?`;
+        } else if (expectedValues.length > 0) {
+          message = `Possible values: ${expectedValues
+            .map(v => JSON.stringify(v))
+            .join(', ')}`;
+        } else {
+          message = 'Unknown value';
+        }
+        // $FlowFixMe should be a sketchy string check
+      } else if (e.messagePattern) {
+        message = `Expected ${e.messagePattern}`;
+      } else if (e.expectedType) {
+        message = `Expected type ${e.expectedType.join(' or ')}`;
+      }
+      return {key: e.dataPath, type: e.type, message};
+    });
+    let codeFrame = {
+      code: dataContentsString,
+      codeHighlights: generateJSONCodeHighlights(
+        dataContentsString,
+        keys.map(({key, type, message}) => ({
+          key: prependKey + key,
+          type: type,
+          message
+        }))
+      )
+    };
+
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message,
+        origin,
+        // $FlowFixMe should be a sketchy string check
+        filePath: dataContentsPath || undefined,
+        language: 'json',
+        codeFrame
+      }
+    });
+  }
+};
