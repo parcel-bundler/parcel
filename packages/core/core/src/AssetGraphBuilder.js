@@ -7,11 +7,8 @@ import type {
   Asset,
   AssetGraphNode,
   AssetRequestDesc,
-  AssetRequestNode,
-  DepPathRequestNode,
   ParcelOptions,
-  Target,
-  Dependency
+  ValidationOpts
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 
@@ -51,6 +48,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
   requestTracker: RequestTracker;
+  assetRequests: Array<AssetRequestDesc>;
+  runValidate: ValidationOpts => Promise<void>;
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
@@ -69,6 +68,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     workerFarm
   }: Opts) {
     this.options = options;
+    this.assetRequests = [];
 
     let {minify, hot, scopeHoist} = options;
     this.cacheKey = md5FromObject({
@@ -78,6 +78,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       entries
     });
 
+    this.runValidate = workerFarm.createHandle('runValidate');
     this.handle = workerFarm.createReverseHandle(() => {
       // Do nothing, this is here because there is a bug in `@parcel/workers`
     });
@@ -146,7 +147,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       for (let node of this.requestTracker.getInvalidNodes()) {
         if (node.value.type === currPriority) {
           promises.push(
-            this.requestTracker.runRequest(node.value.type, node.value.request)
+            this.runRequest(node.value.type, node.value.request, {signal})
           );
         }
       }
@@ -172,24 +173,31 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
-  validate(): Promise<void> {
-    // TODO: console.log('TODO: reimplement AssetGraphBuilder.validate()');
-    // for (let asset of this.changedAssets) {
-    //   this.runValidate({asset, config});
-    // }
+  async validate(): Promise<void> {
+    let promises = this.assetRequests.map(request =>
+      this.runValidate({request, options: this.options})
+    );
+    this.assetRequests = [];
+    await Promise.all(promises);
+  }
+
+  runRequest(type: string, request, runOpts) {
+    if (type === 'asset_request') {
+      this.assetRequests.push(request);
+    }
+    return this.requestTracker.runRequest(type, request, runOpts);
   }
 
   async processIncompleteAssetGraphNode(
     node: AssetGraphNode,
     signal: ?AbortSignal
   ) {
-    let requestType = ASSET_GRAPH_REQUEST_MAPPING.get(node.type);
-    nullthrows(
-      requestType,
+    let requestType = nullthrows(
+      ASSET_GRAPH_REQUEST_MAPPING.get(node.type),
       `AssetGraphNode of type ${node.type} should not be marked incomplete`
     );
 
-    let result = await this.requestTracker.runRequest(requestType, node.value, {
+    let result = await this.runRequest(requestType, node.value, {
       signal
     });
 

@@ -8,14 +8,14 @@ import type {
   ConfigRequestDesc,
   ParcelOptions
 } from './types';
-import ParcelConfig from './ParcelConfig';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 import logger from '@parcel/logger';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-
+import ParcelConfig from './ParcelConfig';
+import ConfigLoader from './ConfigLoader';
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
@@ -24,8 +24,6 @@ import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
   request: AssetRequestDesc,
-  loadConfig: (ConfigRequestDesc, NodeId) => Promise<Config>,
-  parentNodeId: NodeId,
   options: ParcelOptions,
   workerApi: WorkerApi
 |};
@@ -33,26 +31,16 @@ export type ValidationOpts = {|
 export default class Validation {
   request: AssetRequestDesc;
   configRequests: Array<ConfigRequestDesc>;
-  loadConfig: ConfigRequestDesc => Promise<Config>;
+  configLoader: ConfigLoader;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
   workerApi: WorkerApi;
 
-  constructor({
-    request,
-    loadConfig,
-    parentNodeId,
-    options,
-    workerApi
-  }: ValidationOpts) {
+  constructor({request, options, workerApi}: ValidationOpts) {
     this.request = request;
-    this.configRequests = [];
-    this.loadConfig = configRequest => {
-      this.configRequests.push(configRequest);
-      return loadConfig(configRequest, parentNodeId);
-    };
     this.options = options;
     this.workerApi = workerApi;
+    this.configLoader = new ConfigLoader(options);
   }
 
   async run(): Promise<void> {
@@ -72,7 +60,7 @@ export default class Validation {
       env: this.request.env
     };
 
-    let config = await this.loadConfig(configRequest);
+    let config = await this.configLoader.load(configRequest);
     nullthrows(config.result);
     let parcelConfig = new ParcelConfig(
       config.result,

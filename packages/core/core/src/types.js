@@ -308,7 +308,5 @@ export type TransformationOpts = {|
 
 export type ValidationOpts = {|
   request: AssetRequestDesc,
-  loadConfig: (ConfigRequestDesc, NodeId) => Promise<Config>,
-  parentNodeId: NodeId,
   options: ParcelOptions
 |};
