@@ -2,11 +2,15 @@
   "name": "@parcel/bundler-default",
   "version": "2.0.0-alpha.2.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/DefaultBundler",
+  "main": "lib/DefaultBundler.js",
+  "source": "src/DefaultBundler.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"

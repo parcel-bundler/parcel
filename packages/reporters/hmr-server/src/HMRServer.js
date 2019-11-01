@@ -90,7 +90,9 @@ export default class HMRServer {
     this.server.close();
   }
 
-  emitError(err: Diagnostic) {
+  emitError(diagnostics: Array<Diagnostic>) {
+    let err = diagnostics[0];
+
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {

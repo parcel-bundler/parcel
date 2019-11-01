@@ -274,7 +274,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           !requestNode.value.filePath.includes('node_modules') &&
           this.config.getValidatorNames(requestNode.value.filePath).length > 0
         ) {
-          this.validationQueue.add(() => this.validate(requestNode));
+          // Add validate, also catch exceptions as add returns the actual result once processing is complete...
+          this.validationQueue
+            .add(() => this.validate(requestNode))
+            .catch(() => {});
         }
 
         break;

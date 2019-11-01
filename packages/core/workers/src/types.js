@@ -1,7 +1,6 @@
 // @flow
-
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {FilePath} from '@parcel/types';
-import type {JSONError} from '@parcel/utils';
 
 export type LocationCallRequest = {|
   args: $ReadOnlyArray<mixed>,
@@ -40,7 +39,7 @@ export type WorkerErrorResponse = {|
   child?: number,
   type: 'response',
   contentType: 'error',
-  content: JSONError
+  content: Diagnostic | Array<Diagnostic>
 |};
 
 export type WorkerResponse = WorkerDataResponse | WorkerErrorResponse;

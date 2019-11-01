@@ -1,8 +1,8 @@
-import semver from 'semver';
+const semver = require('semver');
 
 const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-alpha.1.1';
 
-export default function parcelBabelPresetEnv(api, opts) {
+module.exports = function parcelBabelPresetEnv(api, opts) {
   let name = api.caller(caller => caller && caller.name);
   let version = api.caller(caller => caller && caller.version);
 
@@ -33,4 +33,4 @@ export default function parcelBabelPresetEnv(api, opts) {
   return {
     presets: [['@babel/preset-env', opts]]
   };
-}
+};

@@ -106,19 +106,14 @@ export default class Validation {
       if (validatorResult) {
         let {warnings, errors} = validatorResult;
 
-        for (let error of errors) {
-          logger.error(error);
-        }
-
-        for (let warning of warnings) {
-          logger.warn(warning);
-        }
-
-        // Throw to fail build...
         if (errors.length > 0) {
           throw new ThrowableDiagnostic({
-            diagnostic: errors[0]
+            diagnostic: errors
           });
+        }
+
+        if (warnings.length > 0) {
+          logger.warn(warnings);
         }
       }
     }
