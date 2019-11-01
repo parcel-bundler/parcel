@@ -8,6 +8,8 @@ import type {
   OutputFormat,
   PackageJSON,
   PackageName,
+  PackageTargetDescriptor,
+  TargetDescriptor,
   TargetSourceMapOptions
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
@@ -80,17 +82,7 @@ function parseDescriptor(
   descriptor: mixed,
   pkgPath: ?FilePath,
   pkgContents: string | mixed
-): {|
-  context?: EnvironmentContext | typeof undefined,
-  engines?: Engines | typeof undefined,
-  includeNodeModules?: boolean | Array<PackageName> | typeof undefined,
-  outputFormat?: OutputFormat | typeof undefined,
-  publicUrl?: string | typeof undefined,
-  distDir?: FilePath | typeof undefined,
-  sourceMap?: TargetSourceMapOptions | typeof undefined,
-  distDir: FilePath | typeof undefined,
-  isLibrary: boolean | typeof undefined
-|} {
+): TargetDescriptor | PackageTargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
     descriptor,

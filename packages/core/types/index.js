@@ -90,7 +90,8 @@ export type PackageTargetDescriptor = {|
   outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
-  sourceMap?: TargetSourceMapOptions
+  sourceMap?: TargetSourceMapOptions,
+  isLibrary?: boolean
 |};
 
 export type TargetDescriptor = {|
