@@ -392,7 +392,7 @@ export interface TransformerResult {
   uniqueKey?: ?string;
 }
 
-type Async<T> = T | Promise<T>;
+export type Async<T> = T | Promise<T>;
 
 export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 

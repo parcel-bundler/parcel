@@ -1,11 +1,20 @@
 // @flow strict-local
 
+import type {Async, Blob, Bundle, BundleGraph} from '@parcel/types';
+
 import invariant from 'assert';
+import {Readable} from 'stream';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {countLines, PromiseQueue, relativeBundlePath} from '@parcel/utils';
+import {
+  bufferStream,
+  countLines,
+  flatMap,
+  PromiseQueue,
+  relativeBundlePath
+} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
@@ -14,12 +23,23 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, getSourceMapReference, options}) {
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    getSourceMapReference,
+    options
+  }) {
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
-      return generate(bundleGraph, bundle, ast, options);
+      return replaceInlineBundleReferences({
+        bundle,
+        bundleGraph,
+        contents: generate(bundleGraph, bundle, ast, options).contents,
+        getInlineBundleContents
+      });
     }
 
     if (bundle.env.outputFormat === 'esmodule') {
@@ -140,7 +160,10 @@ export default new Packager({
 
     let sourceMapReference = await getSourceMapReference(map);
 
-    return {
+    return replaceInlineBundleReferences({
+      bundle,
+      bundleGraph,
+      getInlineBundleContents,
       contents:
         // If the entry asset included a hashbang, repeat it at the top of the bundle
         (interpreter != null ? `#!${interpreter}\n` : '') +
@@ -157,6 +180,56 @@ export default new Packager({
           sourceMapReference +
           '\n'),
       map
-    };
+    });
   }
 });
+
+async function replaceInlineBundleReferences({
+  bundle,
+  bundleGraph,
+  contents,
+  getInlineBundleContents,
+  map
+}: {|
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+  contents: string,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph
+  ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+  map?: SourceMap
+|}) {
+  let inlineBundles = new Map(
+    flatMap(
+      bundleGraph.getBundleGroupsReferencedByBundle(bundle),
+      ({bundleGroup}) => bundleGraph.getBundlesInBundleGroup(bundleGroup)
+    )
+      .filter(b => b.isInline)
+      .map(b => [b.id, b])
+  );
+
+  let packagedInlineBundles = new Map();
+  for (let [, inlineBundle] of inlineBundles) {
+    packagedInlineBundles.set(
+      inlineBundle.id,
+      await getInlineBundleContents(inlineBundle, bundleGraph)
+    );
+  }
+
+  let finalContents = contents;
+  for (let [bundleId, packagedBundle] of packagedInlineBundles) {
+    let packagedContents = (packagedBundle.contents instanceof Readable
+      ? await bufferStream(packagedBundle.contents)
+      : packagedBundle.contents
+    ).toString();
+    finalContents = finalContents.replace(
+      bundleId,
+      packagedContents.replace(/\n/g, '\\n').replace(/'/g, "\\'")
+    );
+
+    // TODO: Update sourcemap with adjusted contents
+  }
+
+  return {contents: finalContents, map};
+}

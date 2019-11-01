@@ -1584,4 +1584,14 @@ describe('javascript', function() {
 
     await run(b);
   });
+
+  it('should inline compiled content as text with `bundle-text:*` imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/text-inline/index.js')
+    );
+
+    assert(
+      (await run(b)).default.startsWith('// modules are defined as an array\n')
+    );
+  });
 });
