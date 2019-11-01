@@ -4,15 +4,6 @@ export function unique<T>(array: Array<T>): Array<T> {
   return [...new Set(array)];
 }
 
-export function flat<T>(array: Array<T>): Array<T> {
-  return array.reduce(
-    (acc, val) =>
-      // $FlowFixMe don't know why
-      acc.concat(Array.isArray(val) ? flat(val) : val),
-    []
-  );
-}
-
 export function flatMap<T, U>(
   array: Array<T>,
   projectFn: (T, number, Array<T>) => Array<U>

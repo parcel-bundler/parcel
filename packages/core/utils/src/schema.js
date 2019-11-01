@@ -1,6 +1,4 @@
 // @flow strict-local
-
-import {flat} from './';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {generateJSONCodeHighlights} from '@parcel/codeframe';
 // $FlowFixMe untyped
@@ -70,7 +68,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
         switch (schemaNode.type) {
           case 'array': {
             if (schemaNode.items) {
-              let results = [];
+              let results: Array<SchemaError | Array<SchemaError>> = [];
               // $FlowFixMe type was already checked
               for (let i = 0; i < dataNode.length; i++) {
                 let result = walk(
@@ -81,7 +79,8 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                 );
                 if (result) results.push(result);
               }
-              if (results.length) return flat(results);
+              if (results.length)
+                return results.reduce((acc, v) => acc.concat(v), []);
             }
             break;
           }
@@ -111,7 +110,6 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               for (let k in dataNode) {
                 if (k in schemaNode.properties) {
                   let result = walk(
-                    // $FlowFixMe ??
                     [schemaNode.properties[k]].concat(schemaAncestors),
                     // $FlowFixMe type was already checked
                     dataNode[k],
@@ -133,14 +131,15 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   });
                 }
               }
-              if (results.length) return flat(results);
+              if (results.length)
+                return results.reduce((acc, v) => acc.concat(v), []);
             }
             break;
           }
         }
       }
     } else if (schemaNode.oneOf) {
-      let results = [];
+      let results: Array<SchemaError | Array<SchemaError>> = [];
       for (let f of schemaNode.oneOf) {
         let result = walk([f].concat(schemaAncestors), dataNode, dataPath);
         if (result) results.push(result);
@@ -158,8 +157,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               : 0
             : b.dataPath.length - a.dataPath.length
         );
-        let x: Array<SchemaError> = results;
-        return flat(x[0]);
+        return results[0];
       }
     }
 
