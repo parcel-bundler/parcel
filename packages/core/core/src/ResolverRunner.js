@@ -49,7 +49,7 @@ export default class ResolverRunner {
           sideEffects: result.sideEffects,
           code: result.code,
           env: dependency.env,
-          pipeline: dependency.pipeline
+          pipeline: result.pipeline ?? dependency.pipeline
         };
       }
     }

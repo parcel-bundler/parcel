@@ -3,7 +3,6 @@
 import {Resolver} from '@parcel/plugin';
 import type {
   PluginOptions,
-  Dependency,
   PackageJSON,
   FilePath,
   ResolveResult,
@@ -29,23 +28,37 @@ export default new Resolver({
       );
     }
 
+    let pipeline;
+    let filename;
+    if (dependency.moduleSpecifier.includes(':')) {
+      [pipeline, filename] = dependency.moduleSpecifier.split(':');
+    } else {
+      filename = dependency.moduleSpecifier;
+    }
+
     const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
     });
-    const resolved = await resolver.resolve(dependency);
+    const resolved = await resolver.resolve({
+      filename,
+      isURL: dependency.isURL,
+      parent: dependency.sourcePath,
+      env: dependency.env
+    });
 
     if (!resolved) {
       return null;
     }
 
     if (resolved.isExcluded != null) {
-      return {isExcluded: true};
+      return {isExcluded: true, pipeline};
     }
 
     invariant(resolved.path != null);
     let result: ResolveResult = {
-      filePath: resolved.path
+      filePath: resolved.path,
+      pipeline
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {
@@ -113,11 +126,16 @@ class NodeResolver {
   }
 
   async resolve({
-    moduleSpecifier: filename,
-    sourcePath: parent,
+    filename,
+    parent,
     isURL,
     env
-  }: Dependency) {
+  }: {|
+    filename: FilePath,
+    parent: ?FilePath,
+    isURL: boolean,
+    env: Environment
+  |}) {
     // Check if this is a glob
     if (isGlob(filename)) {
       if (parent == null) {

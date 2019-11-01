@@ -608,7 +608,8 @@ export type ResolveResult = {|
   filePath?: FilePath,
   isExcluded?: boolean,
   sideEffects?: boolean,
-  code?: string
+  code?: string,
+  pipeline?: ?string
 |};
 
 export type Bundler = {|
