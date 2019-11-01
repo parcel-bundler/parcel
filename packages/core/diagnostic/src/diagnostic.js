@@ -8,6 +8,8 @@ export type DiagnosticHighlightLocation = {|
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
+// Note: A tab character is always counted as a single character
+// This is to prevent any mismatch of highlighting across machines
 export type DiagnosticCodeHighlight = {|
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
