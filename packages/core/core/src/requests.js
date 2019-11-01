@@ -171,6 +171,13 @@ export class AssetRequestRunner implements RequestRunner {
 
     graph.invalidateOnFileUpdate(request, request.request.filePath);
 
+    for (let asset of assets) {
+      for (let filePath of asset.includedFiles.keys()) {
+        graph.invalidateOnFileUpdate(request, filePath);
+        graph.invalidateOnFileDelete(request, filePath);
+      }
+    }
+
     let subrequestNodes = [];
     // Add config requests
     for (let {request, result} of configRequests) {
