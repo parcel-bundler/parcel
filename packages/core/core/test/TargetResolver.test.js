@@ -26,6 +26,11 @@ const INVALID_TARGETS_FIXTURE_PATH = path.join(
   'fixtures/invalid-targets'
 );
 
+const INVALID_ENGINES_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/invalid-engines'
+);
+
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
 
 describe('TargetResolver', () => {
@@ -318,122 +323,145 @@ describe('TargetResolver', () => {
   });
 
   it('rejects invalid or unknown fields', async () => {
-    let targetResolverContext = new TargetResolver({
+    let code =
+      '{\n' +
+      '  "targets": {\n' +
+      '    "main": {\n' +
+      '      "includeNodeModules": [\n' +
+      '        "react",\n' +
+      '        true\n' +
+      '      ],\n' +
+      '      "context": "nodes",\n' +
+      '      "outputFormat": "module",\n' +
+      '      "sourceMap": {\n' +
+      '        "sourceRoot": "asd",\n' +
+      '        "inline": "false",\n' +
+      '        "verbose": true\n' +
+      '      },\n' +
+      '      "engines": {\n' +
+      '        "node": "12",\n' +
+      '        "browser": "Chrome 70"\n' +
+      '      }\n' +
+      '    }\n' +
+      '  }\n' +
+      '}';
+    let targetResolver = new TargetResolver({
       ...DEFAULT_OPTIONS,
-      targets: {
-        main: {
-          // $FlowFixMe intentionally an invalid value
-          context: 'xyz',
-          distDir: 'customA'
-        }
-      }
+      ...JSON.parse(code)
     });
-    await rejects(
-      () => targetResolverContext.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {message: 'Invalid context for target "main": "xyz"'}
-    );
 
-    let targetResolverEngines = new TargetResolver({
-      ...DEFAULT_OPTIONS,
-      targets: {
-        main: {
-          // $FlowFixMe intentionally an invalid value
-          engines: 'xyz',
-          distDir: 'customA'
+    await rejects(() => targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH), {
+      message: 'Invalid target descriptor for target main',
+      diagnostics: [
+        {
+          message: 'Invalid target descriptor for target main',
+          origin: '@parcel/core',
+          filePath: undefined,
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                start: {line: 6, column: 9},
+                end: {line: 6, column: 12},
+                message: 'Expected a wildcard or filepath'
+              },
+              {
+                start: {line: 8, column: 18},
+                end: {line: 8, column: 24},
+                message: 'Did you mean "node"?'
+              },
+              {
+                start: {line: 9, column: 23},
+                end: {line: 9, column: 30},
+                message: 'Did you mean "esmodule"?'
+              },
+              {
+                start: {line: 12, column: 19},
+                end: {line: 12, column: 25},
+                message: 'Expected type boolean'
+              },
+              {
+                start: {line: 13, column: 9},
+                end: {line: 13, column: 17},
+                message: 'Possible values: "inlineSources"'
+              },
+              {
+                start: {line: 17, column: 9},
+                end: {line: 17, column: 17},
+                message: 'Did you mean "browsers"?'
+              }
+            ]
+          }
         }
-      }
+      ]
     });
-    await rejects(
-      () => targetResolverEngines.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {message: 'Invalid engines for target "main": xyz'}
-    );
-
-    let targetResolverEngines2 = new TargetResolver({
-      ...DEFAULT_OPTIONS,
-      targets: {
-        main: {
-          engines: {
-            // $FlowFixMe intentionally an invalid value
-            node: ['8.0.0']
-          },
-          distDir: 'customA'
-        }
-      }
-    });
-    await rejects(
-      () => targetResolverEngines2.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {message: 'Invalid value for engines.node for target "main": 8.0.0'}
-    );
-
-    let targetResolverIncludeNodeModules = new TargetResolver({
-      ...DEFAULT_OPTIONS,
-      targets: {
-        main: {
-          // $FlowFixMe intentionally an invalid value
-          includeNodeModules: 'abc',
-          distDir: 'customA'
-        }
-      }
-    });
-    await rejects(
-      () =>
-        targetResolverIncludeNodeModules.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {message: 'Invalid value for includeNodeModules for target "main": "abc"'}
-    );
-
-    let targetResolverIsLibrary = new TargetResolver({
-      ...DEFAULT_OPTIONS,
-      targets: {
-        // $FlowFixMe intentionally an invalid value
-        main: {
-          isLibrary: 'abc',
-          distDir: 'customA'
-        }
-      }
-    });
-    await rejects(
-      () => targetResolverIsLibrary.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {message: 'Invalid value for isLibrary for target "main": "abc"'}
-    );
-
-    let targetResolverOutputFormat = new TargetResolver({
-      ...DEFAULT_OPTIONS,
-      targets: {
-        main: {
-          // $FlowFixMe intentionally an invalid value
-          outputFormat: 'modules',
-          distDir: 'customA'
-        }
-      }
-    });
-    await rejects(
-      () => targetResolverOutputFormat.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {message: 'Invalid outputFormat for target "main": "modules"'}
-    );
-
-    let targetResolverUnknown = new TargetResolver({
-      ...DEFAULT_OPTIONS,
-      targets: {
-        // $FlowFixMe intentionally an invalid value
-        main: {
-          somethingElse: 'xyz',
-          distDir: 'customA'
-        }
-      }
-    });
-    await rejects(
-      () => targetResolverUnknown.resolve(COMMON_TARGETS_FIXTURE_PATH),
-      {
-        message:
-          'Unexpected properties in descriptor for target "main": "somethingElse"'
-      }
-    );
   });
 
   it('rejects invalid or unknown fields in package.json', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    let code = await fs.readFileSync(
+      path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
+      'utf8'
+    );
     await rejects(() => targetResolver.resolve(INVALID_TARGETS_FIXTURE_PATH), {
-      message: 'Invalid outputFormat for target "module": "modules"'
+      diagnostics: [
+        {
+          message: 'Invalid target descriptor for target module',
+          origin: '@parcel/core',
+          filePath: path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                start: {line: 9, column: 29},
+                end: {line: 9, column: 35},
+                message: 'Expected type boolean'
+              },
+              {
+                start: {line: 11, column: 7},
+                end: {line: 11, column: 17},
+                message: 'Did you mean "publicUrl"?'
+              }
+            ]
+          }
+        }
+      ]
+    });
+  });
+
+  it('rejects invalid engines in package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    let code = await fs.readFileSync(
+      path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
+      'utf8'
+    );
+    await rejects(() => targetResolver.resolve(INVALID_ENGINES_FIXTURE_PATH), {
+      diagnostics: [
+        {
+          message: 'Invalid engines in package.json',
+          origin: '@parcel/core',
+          filePath: path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 13,
+                  line: 8
+                },
+                message: 'Did you mean "browsers"?',
+                start: {
+                  column: 5,
+                  line: 8
+                }
+              }
+            ]
+          }
+        }
+      ]
     });
   });
 });

@@ -6,7 +6,14 @@
   },
   "targets": {
     "module": {
-      "outputFormat": "modules"
+      "includeNodeModules": "react",
+      "outputFormat": "esmodule",
+      "publicURL": "dist",
+      "engines": {
+        "browsers": [
+          "Chrome 70"
+        ]
+      }
     }
   }
 }
