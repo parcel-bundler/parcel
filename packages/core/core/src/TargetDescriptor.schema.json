@@ -20,7 +20,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "__pattern": "a (wildcard) string"
+            "__pattern": "a wildcard or filepath"
           }
         }
       ]
