@@ -187,13 +187,9 @@ export default function codeFrame(
           }
 
           let highlightStartColumn = lastCol >= startCol ? lastCol : startCol;
-          let highlightLength = endCol - highlightStartColumn;
-          if (highlightLength > 0) {
+          if (endCol - highlightStartColumn > 0) {
             let renderedHighlightLength = originalLine
-              .substring(
-                highlightStartColumn,
-                highlightStartColumn + highlightLength
-              )
+              .substring(highlightStartColumn, endCol)
               .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
             highlightLine += highlighter('^'.repeat(renderedHighlightLength));
             lastCol = endCol;
