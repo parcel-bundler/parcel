@@ -34,6 +34,7 @@
     "@parcel/transformer-coffeescript": "^2.0.0-alpha.2.1",
     "@parcel/transformer-css": "^2.0.0-alpha.2.1",
     "@parcel/transformer-html": "^2.0.0-alpha.2.1",
+    "@parcel/transformer-inline": "^2.0.0-alpha.2.1",
     "@parcel/transformer-js": "^2.0.0-alpha.2.1",
     "@parcel/transformer-json": "^2.0.0-alpha.2.1",
     "@parcel/transformer-less": "^2.0.0-alpha.2.1",
