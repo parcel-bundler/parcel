@@ -557,4 +557,32 @@ describe.only('codeframe', () => {
     assert.equal(lines[1], '>   |   ^^^^ ^^ test');
     assert.equal(lines[2], '  2 | Enjoy thi  s nice cod  eframe');
   });
+
+  it('multiline highlights with tabs', () => {
+    let codeframeString = codeframe(
+      'hel\tlo wor\tld\nEnjoy thi\ts nice cod\teframe\ntest',
+      [
+        {
+          start: {
+            column: 3,
+            line: 1
+          },
+          end: {
+            column: 2,
+            line: 3
+          },
+          message: 'test'
+        }
+      ],
+      {useColor: false}
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines[0], '> 1 | hel  lo wor  ld');
+    assert.equal(lines[1], '>   |   ^^^^^^^^^^^^^');
+    assert.equal(lines[2], '> 2 | Enjoy thi  s nice cod  eframe');
+    assert.equal(lines[3], '>   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+    assert.equal(lines[4], '> 3 | test');
+    assert.equal(lines[5], '>   | ^^ test');
+  });
 });
