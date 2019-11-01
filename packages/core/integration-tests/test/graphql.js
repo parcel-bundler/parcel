@@ -1,21 +1,11 @@
 import assert from 'assert';
 import path from 'path';
 import gql from 'graphql-tag';
-import {bundle, run, assertBundleTree} from '@parcel/test-utils';
+import {bundle, run} from '@parcel/test-utils';
 
-describe.skip('graphql', function() {
+describe('graphql', function() {
   it('should support requiring graphql files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/graphql/index.js'));
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.graphql'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -40,16 +30,6 @@ describe.skip('graphql', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/graphql-import/index.js')
     );
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.graphql'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
 
     let output = await run(b);
     assert.equal(typeof output, 'function');

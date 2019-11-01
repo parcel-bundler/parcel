@@ -2,10 +2,14 @@
   "name": "@parcel/config-default",
   "version": "2.0.0-alpha.2.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "index.json",
   "scripts": {
     "test-ci": "mocha"
   },
@@ -44,6 +48,7 @@
     "@parcel/transformer-sugarss": "^2.0.0-alpha.2.1",
     "@parcel/transformer-toml": "^2.0.0-alpha.2.1",
     "@parcel/transformer-typescript-types": "^2.0.0-alpha.2.1",
-    "@parcel/transformer-yaml": "^2.0.0-alpha.2.1"
+    "@parcel/transformer-yaml": "^2.0.0-alpha.2.1",
+    "@parcel/transformer-graphql": "^2.0.0-alpha.2.1"
   }
 }

@@ -2,19 +2,21 @@
   "name": "@parcel/codeframe",
   "version": "2.0.0-alpha.2.1",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/codeframe.js",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "lib/codeframe.js",
+  "source": "src/codeframe.js",
   "engines": {
     "node": ">= 10.0.0"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "dependencies": {
-    "chalk": "^2.4.2"
+    "chalk": "^2.4.2",
+    "emphasize": "^2.1.0"
   }
 }

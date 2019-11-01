@@ -67,6 +67,10 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export function normalizeFilePath(filePath: string) {
+  return filePath.replace(/[\\/]+/g, '/');
+}
+
 export const distDir = path.resolve(
   __dirname,
   '..',
