@@ -169,53 +169,6 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
 }
 export default validateSchema;
 
-function generateDescriptorError({
-  contents,
-  dataPath,
-  prependKey = '',
-  keys,
-  message,
-  hints
-}: {|
-  contents?: string,
-  dataPath?: string,
-  prependKey?: string,
-  keys: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
-  message: string,
-  hints?: ?Array<string>
-|}) {
-  let highlight;
-  // $FlowFixMe should be a sketchy string check
-  if (contents) {
-    highlight = generateJSONCodeHighlights(
-      contents,
-      keys.map(({key, type, message}) => ({
-        key: prependKey + key,
-        type: type,
-        message
-      }))
-    );
-  }
-  throw new ThrowableDiagnostic({
-    diagnostic: {
-      message,
-      origin: '@parcel/core',
-      // $FlowFixMe should be a sketchy string check
-      filePath: dataPath || undefined,
-      language: 'json',
-      codeFrame:
-        // $FlowFixMe should be a sketchy string check
-        highlight && contents
-          ? {
-              code: contents,
-              codeHighlights: highlight
-            }
-          : undefined,
-      hints: hints || undefined
-    }
-  });
-}
-
 validateSchema.diagnostic = function(
   schema: SchemaEntity,
   data: mixed,
@@ -243,7 +196,6 @@ validateSchema.diagnostic = function(
             exp,
             levenshteinDistance(exp, actualValue)
           ]): Array<[string, number]>).filter(
-            // TODO Instead use levenshtein automaton directly
             // Remove if more than half of the string would need to be changed
             ([, d]) => d * 2 < actualValue.length
           );
