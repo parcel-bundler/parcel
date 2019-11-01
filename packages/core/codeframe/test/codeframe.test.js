@@ -4,7 +4,7 @@ import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe('codeframe', () => {
+describe.only('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -495,5 +495,66 @@ describe('codeframe', () => {
     assert.equal(lines[0], '  4  | test');
     assert.equal(lines[11], '> 13 | test');
     assert.equal(lines[12], '>    | ^^^^');
+  });
+
+  it('should be able to handle tabs', () => {
+    let codeframeString = codeframe(
+      'hel\tlo wor\tld\nEnjoy thi\ts nice cod\teframe',
+      [
+        {
+          start: {
+            column: 5,
+            line: 1
+          },
+          end: {
+            column: 7,
+            line: 1
+          },
+          message: 'test'
+        }
+      ],
+      {useColor: false}
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines[0], '> 1 | hel  lo wor  ld');
+    assert.equal(lines[1], '>   |      ^^^ test');
+    assert.equal(lines[2], '  2 | Enjoy thi  s nice cod  eframe');
+  });
+
+  it('should be able to handle tabs with multiple highlights', () => {
+    let codeframeString = codeframe(
+      'hel\tlo wor\tld\nEnjoy thi\ts nice cod\teframe',
+      [
+        {
+          start: {
+            column: 3,
+            line: 1
+          },
+          end: {
+            column: 5,
+            line: 1
+          },
+          message: 'test'
+        },
+        {
+          start: {
+            column: 7,
+            line: 1
+          },
+          end: {
+            column: 8,
+            line: 1
+          },
+          message: 'test'
+        }
+      ],
+      {useColor: false}
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines[0], '> 1 | hel  lo wor  ld');
+    assert.equal(lines[1], '>   |   ^^^^ ^^');
+    assert.equal(lines[2], '  2 | Enjoy thi  s nice cod  eframe');
   });
 });

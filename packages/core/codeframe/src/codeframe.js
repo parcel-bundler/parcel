@@ -25,6 +25,7 @@ type CodeFrameOptions = {|
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
+const TAB_REPLACEMENT = '  ';
 
 const highlightSyntax = (txt: string, lang?: string): string => {
   if (lang) {
@@ -45,9 +46,6 @@ export default function codeFrame(
   inputOpts: CodeFrameOptionsInput = {}
 ): string {
   if (highlights.length < 1) return '';
-
-  // Replace all tabs with a space to simplify charcount
-  code = code.replace(/\t/g, ' ');
 
   let opts: CodeFrameOptions = {
     useColor: !!inputOpts.useColor,
@@ -118,13 +116,16 @@ export default function codeFrame(
 
   let resultLines = [];
   let lines = code.split(NEWLINE);
-  let syntaxHighlightedLines = opts.syntaxHighlighting
-    ? highlightSyntax(code, opts.language).split(NEWLINE)
-    : [...lines];
+  let syntaxHighlightedLines = (opts.syntaxHighlighting
+    ? highlightSyntax(code, opts.language)
+    : code
+  )
+    .replace(/\t/g, TAB_REPLACEMENT)
+    .split(NEWLINE);
   for (let i = startLine; i < lines.length; i++) {
     if (i > endLine) break;
 
-    let originalLine = lines[i];
+    let originalLine: string = lines[i];
     let syntaxHighlightedLine = syntaxHighlightedLines[i];
 
     let foundHighlights = highlights.filter(
@@ -152,7 +153,9 @@ export default function codeFrame(
       if (isWholeLine) {
         // If there's a whole line highlight
         // don't even bother creating seperate highlight
-        highlightLine += highlighter('^'.repeat(originalLine.length));
+        highlightLine += highlighter(
+          '^'.repeat(originalLine.replace(/\t/g, TAB_REPLACEMENT).length)
+        );
       } else {
         let sortedColumns =
           foundHighlights.length > 1
@@ -173,11 +176,16 @@ export default function codeFrame(
 
           let whitespaceLength = startCol - lastCol;
           if (whitespaceLength > 0) {
-            highlightLine += ' '.repeat(whitespaceLength);
+            let whitespace = originalLine
+              .substring(lastCol, startCol)
+              .replace(/\t/g, TAB_REPLACEMENT)
+              .replace(/\S/g, ' ');
+
+            highlightLine += whitespace;
           }
 
           let highlightLength =
-            endCol - (lastCol > startCol ? lastCol : startCol);
+            endCol - (lastCol >= startCol ? lastCol : startCol);
           if (highlightLength > 0) {
             highlightLine += highlighter('^'.repeat(highlightLength));
             lastCol = endCol;
