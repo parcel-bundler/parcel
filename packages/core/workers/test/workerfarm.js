@@ -149,42 +149,52 @@ describe('WorkerFarm', function() {
       {
         level: 'info',
         type: 'log',
-        diagnostic: {
-          origin: 'console',
-          message: 'one'
-        }
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'one'
+          }
+        ]
       },
       {
         level: 'info',
         type: 'log',
-        diagnostic: {
-          origin: 'console',
-          message: 'two'
-        }
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'two'
+          }
+        ]
       },
       {
         level: 'warn',
         type: 'log',
-        diagnostic: {
-          origin: 'console',
-          message: 'three'
-        }
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'three'
+          }
+        ]
       },
       {
         level: 'error',
         type: 'log',
-        diagnostic: {
-          origin: 'console',
-          message: 'four'
-        }
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'four'
+          }
+        ]
       },
       {
         level: 'verbose',
         type: 'log',
-        diagnostic: {
-          message: 'five',
-          origin: 'console'
-        }
+        diagnostics: [
+          {
+            message: 'five',
+            origin: 'console'
+          }
+        ]
       }
     ]);
 
@@ -208,18 +218,22 @@ describe('WorkerFarm', function() {
     assert.deepEqual(events, [
       {
         level: 'info',
-        diagnostic: {
-          origin: 'logging-worker',
-          message: 'omg it works'
-        },
+        diagnostics: [
+          {
+            origin: 'logging-worker',
+            message: 'omg it works'
+          }
+        ],
         type: 'log'
       },
       {
         level: 'error',
-        diagnostic: {
-          origin: 'logging-worker',
-          message: 'errors objects dont work yet'
-        },
+        diagnostics: [
+          {
+            origin: 'logging-worker',
+            message: 'errors objects dont work yet'
+          }
+        ],
         type: 'log'
       }
     ]);

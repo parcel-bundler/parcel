@@ -1,14 +1,11 @@
 // @flow strict-local
 
 import type {IDisposable, LogEvent} from '@parcel/types';
-import type {Diagnostic, PrintableError} from '@parcel/diagnostic';
+import type {Diagnostic, Diagnostifiable} from '@parcel/diagnostic';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
-import ThrowableDiagnostic, {
-  errorToDiagnostic,
-  anyToDiagnostic
-} from '@parcel/diagnostic';
+import {errorToDiagnostic, anyToDiagnostic} from '@parcel/diagnostic';
 
 export type PluginInputDiagnostic = {|
   ...Diagnostic,
@@ -22,55 +19,52 @@ class Logger {
     return this.#logEmitter.addListener(cb);
   }
 
-  verbose(diagnostic: Diagnostic): void {
+  verbose(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'verbose',
-      diagnostic
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
-  info(diagnostic: Diagnostic): void {
+  info(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.log(diagnostic);
   }
 
-  log(diagnostic: Diagnostic): void {
+  log(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'info',
-      diagnostic
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
-  warn(diagnostic: Diagnostic): void {
+  warn(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'warn',
-      diagnostic
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
-  error(
-    input:
-      | PluginInputDiagnostic
-      | Diagnostic
-      | PrintableError
-      | ThrowableDiagnostic,
-    realOrigin?: string
-  ): void {
+  error(input: Diagnostifiable, realOrigin?: string): void {
     // $FlowFixMe origin is undefined on PluginInputDiagnostic
     let diagnostic = anyToDiagnostic(input);
     if (typeof realOrigin === 'string') {
-      diagnostic = {
-        ...diagnostic,
-        origin: realOrigin
-      };
+      diagnostic = Array.isArray(diagnostic)
+        ? diagnostic.map(d => {
+            return {...d, origin: realOrigin};
+          })
+        : {
+            ...diagnostic,
+            origin: realOrigin
+          };
     }
 
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
-      diagnostic
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
@@ -113,9 +107,7 @@ export class PluginLogger {
     logger.warn({...diagnostic, origin: this.origin});
   }
 
-  error(
-    input: PluginInputDiagnostic | PrintableError | ThrowableDiagnostic
-  ): void {
+  error(input: Diagnostifiable): void {
     logger.error(input);
   }
 
@@ -161,7 +153,9 @@ export function patchConsole() {
   consolePatched = true;
 }
 
-function messagesToDiagnostic(messages: Array<mixed>): Diagnostic {
+function messagesToDiagnostic(
+  messages: Array<mixed>
+): Diagnostic | Array<Diagnostic> {
   if (messages.length === 1 && messages[0] instanceof Error) {
     let error: Error = messages[0];
 

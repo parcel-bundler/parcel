@@ -72,7 +72,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
-      writeDiagnostic(event.diagnostic, true);
+      writeDiagnostic(event.diagnostics, true);
       break;
     case 'log': {
       switch (event.level) {
@@ -82,11 +82,11 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
           break;
         case 'verbose':
         case 'info':
-          writeDiagnostic(event.diagnostic);
+          writeDiagnostic(event.diagnostics);
           break;
         case 'warn':
         case 'error':
-          writeDiagnostic(event.diagnostic, true);
+          writeDiagnostic(event.diagnostics, true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -95,23 +95,25 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   }
 }
 
-function writeDiagnostic(diagnostic: Diagnostic, isError?: boolean) {
-  let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
+function writeDiagnostic(diagnostics: Array<Diagnostic>, isError?: boolean) {
+  for (let diagnostic of diagnostics) {
+    let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
-  if (message) {
-    writeOut(message, isError);
-  }
+    if (message) {
+      writeOut(message, isError);
+    }
 
-  if (stack) {
-    writeOut(stack, isError);
-  }
+    if (stack) {
+      writeOut(stack, isError);
+    }
 
-  if (codeframe) {
-    writeOut(codeframe, isError);
-  }
+    if (codeframe) {
+      writeOut(codeframe, isError);
+    }
 
-  for (let hint of hints) {
-    writeOut(hint, isError);
+    for (let hint of hints) {
+      writeOut(hint, isError);
+    }
   }
 }
 

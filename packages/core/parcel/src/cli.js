@@ -2,6 +2,8 @@
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
+import {NodePackageManager} from '@parcel/package-manager';
+import {NodeFS} from '@parcel/fs';
 
 require('v8-compile-cache');
 
@@ -135,12 +137,20 @@ async function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let defaultConfig: ParcelConfigFile = require('@parcel/config-default');
+  let packageManager = new NodePackageManager(new NodeFS());
+  let defaultConfig: ParcelConfigFile = await packageManager.require(
+    '@parcel/config-default',
+    __filename
+  );
   let parcel = new Parcel({
     entries,
+    packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: require.resolve('@parcel/config-default')
+      filePath: (await packageManager.resolve(
+        '@parcel/config-default',
+        __filename
+      )).resolved
     },
     patchConsole: false,
     ...(await normalizeOptions(command))

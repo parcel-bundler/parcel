@@ -216,7 +216,7 @@ describe('sass', function() {
       );
     } catch (err) {
       assert.equal(
-        err.message,
+        err.diagnostics[0].message,
         `
 The @import path "~library/style.sass" is using webpack specific syntax, which isn't supported by Parcel.
 
