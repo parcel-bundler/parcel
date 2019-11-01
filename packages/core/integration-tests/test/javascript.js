@@ -1596,14 +1596,22 @@ describe('javascript', function() {
   });
 
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
-    let b = await bundle(
-      path.join(__dirname, '/integration/data-url/index.js'),
-      {outputFS: inputFS}
-    );
+    let b = await bundle(path.join(__dirname, '/integration/data-url/text.js'));
 
     assert.equal(
       (await run(b)).default,
       'data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E%0A'
     );
+  });
+
+  it('should inline binary content as url-encoded base64 and mime type with `data-url:*` imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/data-url/binary.js'),
+      {
+        outputFS: inputFS
+      }
+    );
+
+    assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
   });
 });
