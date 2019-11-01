@@ -2,15 +2,11 @@
 
 import type {
   Engines,
-  EnvironmentContext,
   File,
   FilePath,
-  OutputFormat,
   PackageJSON,
-  PackageName,
   PackageTargetDescriptor,
-  TargetDescriptor,
-  TargetSourceMapOptions
+  TargetDescriptor
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
