@@ -8,9 +8,6 @@ import {DEFAULT_OPTIONS} from './utils';
 
 import TargetResolver from '../src/TargetResolver';
 
-//$FlowFixMe
-const rejects = assert.rejects;
-
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
   'fixtures/common-targets'
@@ -350,52 +347,56 @@ describe('TargetResolver', () => {
       ...JSON.parse(code)
     });
 
-    await rejects(() => targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH), {
-      message: 'Invalid target descriptor for target main',
-      diagnostics: [
-        {
-          message: 'Invalid target descriptor for target main',
-          origin: '@parcel/core',
-          filePath: undefined,
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                start: {line: 6, column: 9},
-                end: {line: 6, column: 12},
-                message: 'Expected a wildcard or filepath'
-              },
-              {
-                start: {line: 8, column: 18},
-                end: {line: 8, column: 24},
-                message: 'Did you mean "node"?'
-              },
-              {
-                start: {line: 9, column: 23},
-                end: {line: 9, column: 30},
-                message: 'Did you mean "esmodule"?'
-              },
-              {
-                start: {line: 12, column: 19},
-                end: {line: 12, column: 25},
-                message: 'Expected type boolean'
-              },
-              {
-                start: {line: 13, column: 9},
-                end: {line: 13, column: 17},
-                message: 'Possible values: "inlineSources"'
-              },
-              {
-                start: {line: 17, column: 9},
-                end: {line: 17, column: 17},
-                message: 'Did you mean "browsers"?'
-              }
-            ]
+    // $FlowFixMe assert.rejects is Node 10+
+    await assert.rejects(
+      () => targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {
+        message: 'Invalid target descriptor for target main',
+        diagnostics: [
+          {
+            message: 'Invalid target descriptor for target main',
+            origin: '@parcel/core',
+            filePath: undefined,
+            language: 'json',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {line: 6, column: 9},
+                  end: {line: 6, column: 12},
+                  message: 'Expected a wildcard or filepath'
+                },
+                {
+                  start: {line: 8, column: 18},
+                  end: {line: 8, column: 24},
+                  message: 'Did you mean "node"?'
+                },
+                {
+                  start: {line: 9, column: 23},
+                  end: {line: 9, column: 30},
+                  message: 'Did you mean "esmodule"?'
+                },
+                {
+                  start: {line: 12, column: 19},
+                  end: {line: 12, column: 25},
+                  message: 'Expected type boolean'
+                },
+                {
+                  start: {line: 13, column: 9},
+                  end: {line: 13, column: 17},
+                  message: 'Possible values: "inlineSources"'
+                },
+                {
+                  start: {line: 17, column: 9},
+                  end: {line: 17, column: 17},
+                  message: 'Did you mean "browsers"?'
+                }
+              ]
+            }
           }
-        }
-      ]
-    });
+        ]
+      }
+    );
   });
 
   it('rejects invalid or unknown fields in package.json', async () => {
@@ -404,31 +405,35 @@ describe('TargetResolver', () => {
       path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
       'utf8'
     );
-    await rejects(() => targetResolver.resolve(INVALID_TARGETS_FIXTURE_PATH), {
-      diagnostics: [
-        {
-          message: 'Invalid target descriptor for target module',
-          origin: '@parcel/core',
-          filePath: path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                start: {line: 9, column: 29},
-                end: {line: 9, column: 35},
-                message: 'Expected type boolean'
-              },
-              {
-                start: {line: 11, column: 7},
-                end: {line: 11, column: 17},
-                message: 'Did you mean "publicUrl"?'
-              }
-            ]
+    // $FlowFixMe assert.rejects is Node 10+
+    await assert.rejects(
+      () => targetResolver.resolve(INVALID_TARGETS_FIXTURE_PATH),
+      {
+        diagnostics: [
+          {
+            message: 'Invalid target descriptor for target module',
+            origin: '@parcel/core',
+            filePath: path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
+            language: 'json',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {line: 9, column: 29},
+                  end: {line: 9, column: 35},
+                  message: 'Expected type boolean'
+                },
+                {
+                  start: {line: 11, column: 7},
+                  end: {line: 11, column: 17},
+                  message: 'Did you mean "publicUrl"?'
+                }
+              ]
+            }
           }
-        }
-      ]
-    });
+        ]
+      }
+    );
   });
 
   it('rejects invalid engines in package.json', async () => {
@@ -437,31 +442,35 @@ describe('TargetResolver', () => {
       path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
       'utf8'
     );
-    await rejects(() => targetResolver.resolve(INVALID_ENGINES_FIXTURE_PATH), {
-      diagnostics: [
-        {
-          message: 'Invalid engines in package.json',
-          origin: '@parcel/core',
-          filePath: path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
-          language: 'json',
-          codeFrame: {
-            code,
-            codeHighlights: [
-              {
-                end: {
-                  column: 13,
-                  line: 8
-                },
-                message: 'Did you mean "browsers"?',
-                start: {
-                  column: 5,
-                  line: 8
+    // $FlowFixMe assert.rejects is Node 10+
+    await assert.rejects(
+      () => targetResolver.resolve(INVALID_ENGINES_FIXTURE_PATH),
+      {
+        diagnostics: [
+          {
+            message: 'Invalid engines in package.json',
+            origin: '@parcel/core',
+            filePath: path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
+            language: 'json',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 13,
+                    line: 8
+                  },
+                  message: 'Did you mean "browsers"?',
+                  start: {
+                    column: 5,
+                    line: 8
+                  }
                 }
-              }
-            ]
+              ]
+            }
           }
-        }
-      ]
-    });
+        ]
+      }
+    );
   });
 });
