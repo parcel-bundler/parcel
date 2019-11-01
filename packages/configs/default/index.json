@@ -9,6 +9,7 @@
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
+    "*.{gql,graphql}": ["@parcel/transformer-graphql"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.less": ["@parcel/transformer-less"],

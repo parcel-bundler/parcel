@@ -10,20 +10,20 @@ if (!WorkerFarm.isWorker()) {
   bus.on('logEvent', (e: LogEvent) => {
     switch (e.level) {
       case 'info':
-        Logger.info(e.diagnostic);
+        Logger.info(e.diagnostics);
         break;
       case 'progress':
         invariant(typeof e.message === 'string');
         Logger.progress(e.message);
         break;
       case 'verbose':
-        Logger.verbose(e.diagnostic);
+        Logger.verbose(e.diagnostics);
         break;
       case 'warn':
-        Logger.warn(e.diagnostic);
+        Logger.warn(e.diagnostics);
         break;
       case 'error':
-        Logger.error(e.diagnostic);
+        Logger.error(e.diagnostics);
         break;
       default:
         throw new Error('Unknown log level');

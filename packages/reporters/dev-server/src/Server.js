@@ -76,8 +76,8 @@ export default class Server extends EventEmitter {
     this.emit('bundled');
   }
 
-  buildError(diagnostic: Diagnostic) {
-    this.error = diagnostic;
+  buildError(diagnostics: Array<Diagnostic>) {
+    this.error = diagnostics[0];
   }
 
   respond(req: Request, res: Response) {
