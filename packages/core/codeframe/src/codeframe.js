@@ -177,8 +177,7 @@ export default function codeFrame(
               ? col.end.column
               : originalLine.length - (lastCol || 1)) + 1;
 
-          let whitespaceLength = startCol - lastCol;
-          if (whitespaceLength > 0) {
+          if (startCol - lastCol > 0) {
             let whitespace = originalLine
               .substring(lastCol, startCol)
               .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT)
