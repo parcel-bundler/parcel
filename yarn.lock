@@ -10452,10 +10452,10 @@ react-reconciler@^0.20.0:
     prop-types "^15.6.2"
     scheduler "^0.13.6"
 
-react-refresh@^0.5.2:
-  version "0.5.2"
-  resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.5.2.tgz#3d4623b4fa69085b9ab89ced77badbde4db536a0"
-  integrity sha512-KCyIFzh5IQ3E55L2FbG6Y5MFU5D+ACEtdaIoZeRqbcIKSAts+yzxxFQojWaWJMKVwn8DaxVdfdjC1s2Ny7pUGQ==
+react-refresh@^0.6.0:
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.6.0.tgz#81971b8f3c8c05aaa6ce87491ae41b396133f896"
+  integrity sha512-Wv48N+GFt6Azvtl/LMvzNW9hvEyJdRQ48oVKIBAN7hjtvXXfxfVJXbPl/11SM1C/NIquIFXzzWCo6ZNH0I8I4g==
 
 react@^16.10.2:
   version "16.10.2"

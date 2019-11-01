@@ -8,8 +8,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.2.1",
-    "@parcel/core": "^2.0.0-alpha.2.1",
-    "react-refresh": "^0.5.2"
+    "@parcel/core": "^2.0.0-alpha.2.1"
   },
   "dependencies": {
     "react": "^16.10.2",
