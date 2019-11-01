@@ -46,6 +46,9 @@ export default function codeFrame(
 ): string {
   if (highlights.length < 1) return '';
 
+  // Replace all tabs with a space to simplify charcount
+  code = code.replace(/\t/g, ' ');
+
   let opts: CodeFrameOptions = {
     useColor: !!inputOpts.useColor,
     syntaxHighlighting: !!inputOpts.syntaxHighlighting,
