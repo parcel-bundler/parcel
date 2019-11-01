@@ -69,10 +69,12 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'info',
-        diagnostic: {
-          origin: 'test',
-          message: 'info'
-        }
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'info'
+          }
+        ]
       },
       options
     );
@@ -81,10 +83,12 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'verbose',
-        diagnostic: {
-          origin: 'test',
-          message: 'verbose'
-        }
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'verbose'
+          }
+        ]
       },
       options
     );
@@ -97,10 +101,12 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'error',
-        diagnostic: {
-          origin: 'test',
-          message: 'error'
-        }
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'error'
+          }
+        ]
       },
       EMPTY_OPTIONS
     );
@@ -108,10 +114,12 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'warn',
-        diagnostic: {
-          origin: 'test',
-          message: 'warn'
-        }
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'warn'
+          }
+        ]
       },
       EMPTY_OPTIONS
     );
@@ -125,10 +133,12 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'error',
-        diagnostic: {
-          origin: 'test',
-          message: 'error'
-        }
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'error'
+          }
+        ]
       },
       EMPTY_OPTIONS
     );
@@ -136,10 +146,12 @@ describe('SimpleCLIReporter', () => {
       {
         type: 'log',
         level: 'warn',
-        diagnostic: {
-          origin: 'test',
-          message: 'warn'
-        }
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'warn'
+          }
+        ]
       },
       EMPTY_OPTIONS
     );
