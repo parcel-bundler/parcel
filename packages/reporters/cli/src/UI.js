@@ -131,7 +131,7 @@ function reducer(
           {
             type: 'log',
             level: 'error',
-            diagnostic: event.diagnostic
+            diagnostics: event.diagnostics
           }
         ]
       };

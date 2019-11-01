@@ -1,6 +1,4 @@
 // @flow strict-local
-
-export type * from './errorUtils';
 export type * from './generateBundleReport';
 export type * from './prettyError';
 
@@ -28,7 +26,6 @@ export {default as relativeUrl} from './relativeUrl';
 export * from './collection';
 export * from './config';
 export * from './Deferred';
-export * from './errorUtils';
 export * from './glob';
 export * from './md5';
 export * from './schema';

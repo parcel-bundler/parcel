@@ -27,6 +27,10 @@ export type Diagnostic = {|
   message: string,
   origin: string, // Name of plugin or file that threw this error
 
+  // basic error data
+  stack?: string,
+  name?: string,
+
   // Asset metadata
   filePath?: FilePath,
   language?: string,
@@ -34,12 +38,14 @@ export type Diagnostic = {|
   // Codeframe data
   codeFrame?: DiagnosticCodeFrame,
 
-  // Stacktrace for error, not really needed if there's a codeframe...
-  stack?: string,
-
   // Hints to resolve issues faster
   hints?: Array<string>
 |};
+
+export type BuildError = PrintableError & {
+  diagnostic?: Array<Diagnostic>,
+  ...
+};
 
 // This type should represent all error formats Parcel can encounter...
 export type PrintableError = Error & {
@@ -55,13 +61,21 @@ export type PrintableError = Error & {
   ...
 };
 
+// Something that can be turned into a diagnostic...
+export type Diagnostifiable =
+  | Diagnostic
+  | Array<Diagnostic>
+  | ThrowableDiagnostic
+  | PrintableError
+  | string;
+
 export function anyToDiagnostic(
-  input: Diagnostic | PrintableError | ThrowableDiagnostic | string
-): Diagnostic {
+  input: Diagnostifiable
+): Diagnostic | Array<Diagnostic> {
   // $FlowFixMe
-  let diagnostic: Diagnostic = input;
+  let diagnostic: Diagnostic | Array<Diagnostic> = input;
   if (input instanceof ThrowableDiagnostic) {
-    diagnostic = {...input.diagnostic};
+    diagnostic = input.diagnostics;
   } else if (input instanceof Error) {
     diagnostic = errorToDiagnostic(input);
   }
@@ -69,7 +83,9 @@ export function anyToDiagnostic(
   return diagnostic;
 }
 
-export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
+export function errorToDiagnostic(
+  error: PrintableError | BuildError | string
+): Array<Diagnostic> | Diagnostic {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
@@ -78,6 +94,12 @@ export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
       message: error,
       codeFrame
     };
+  }
+
+  // $FlowFixMe
+  if (error.diagnostic) {
+    // $FlowFixMe
+    return error.diagnostic;
   }
 
   if (error.loc && error.source) {
@@ -99,6 +121,7 @@ export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
   return {
     origin: 'Error',
     message: error.message,
+    name: error.name,
     filePath: error.fileName,
     stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
     codeFrame
@@ -106,19 +129,23 @@ export function errorToDiagnostic(error: PrintableError | string): Diagnostic {
 }
 
 type ThrowableDiagnosticOpts = {
-  diagnostic: Diagnostic,
+  diagnostic: Diagnostic | Array<Diagnostic>,
   ...
 };
 
 export default class ThrowableDiagnostic extends Error {
-  diagnostic: Diagnostic;
-  stack: string;
+  diagnostics: Array<Diagnostic>;
 
   constructor(opts: ThrowableDiagnosticOpts) {
-    // Make it kinda compatible with default Node Error
-    super(opts.diagnostic.message);
-    this.stack = opts.diagnostic.stack || super.stack;
+    let diagnostics = Array.isArray(opts.diagnostic)
+      ? opts.diagnostic
+      : [opts.diagnostic];
 
-    this.diagnostic = opts.diagnostic;
+    // construct error from diagnostics...
+    super(diagnostics[0].message);
+    this.stack = diagnostics[0].stack || super.stack;
+    this.name = diagnostics[0].name || super.name;
+
+    this.diagnostics = diagnostics;
   }
 }

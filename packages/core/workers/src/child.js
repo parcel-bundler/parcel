@@ -15,7 +15,7 @@ import type {WorkerApi} from './WorkerFarm';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Logger, {patchConsole} from '@parcel/logger';
-import {errorToJson, jsonToError} from '@parcel/utils';
+import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import bus from './bus';
 import Profiler from './Profiler';
 import Handle from './Handle';
@@ -97,7 +97,7 @@ export class Child {
       child,
       type: 'response',
       contentType: 'error',
-      content: errorToJson(e)
+      content: anyToDiagnostic(e)
     });
 
     let result;
@@ -161,7 +161,7 @@ export class Child {
 
     if (contentType === 'error') {
       invariant(typeof content !== 'string');
-      call.reject(jsonToError(content));
+      call.reject(new ThrowableDiagnostic({diagnostic: content}));
     } else {
       call.resolve(content);
     }
