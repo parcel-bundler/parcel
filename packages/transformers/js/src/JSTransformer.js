@@ -92,7 +92,7 @@ export default new Transformer({
       delete ast.program.program.interpreter;
     }
 
-    if (!asset.env.isNode() || asset.filePath.includes('parcel/packages')) {
+    if (!asset.env.isNode()) {
       // Inline fs calls
       let fsDep = asset
         .getDependencies()
