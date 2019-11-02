@@ -28,6 +28,11 @@ const INVALID_ENGINES_FIXTURE_PATH = path.join(
   'fixtures/invalid-engines'
 );
 
+const INVALID_DISTPATH_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/invalid-distpath'
+);
+
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
 
 describe('TargetResolver', () => {
@@ -322,25 +327,25 @@ describe('TargetResolver', () => {
   it('rejects invalid or unknown fields', async () => {
     let code =
       '{\n' +
-      '  "targets": {\n' +
-      '    "main": {\n' +
-      '      "includeNodeModules": [\n' +
-      '        "react",\n' +
-      '        true\n' +
-      '      ],\n' +
-      '      "context": "nodes",\n' +
-      '      "outputFormat": "module",\n' +
-      '      "sourceMap": {\n' +
-      '        "sourceRoot": "asd",\n' +
-      '        "inline": "false",\n' +
-      '        "verbose": true\n' +
-      '      },\n' +
-      '      "engines": {\n' +
-      '        "node": "12",\n' +
-      '        "browser": "Chrome 70"\n' +
-      '      }\n' +
-      '    }\n' +
-      '  }\n' +
+      '\t"targets": {\n' +
+      '\t\t"main": {\n' +
+      '\t\t\t"includeNodeModules": [\n' +
+      '\t\t\t\t"react",\n' +
+      '\t\t\t\ttrue\n' +
+      '\t\t\t],\n' +
+      '\t\t\t"context": "nodes",\n' +
+      '\t\t\t"outputFormat": "module",\n' +
+      '\t\t\t"sourceMap": {\n' +
+      '\t\t\t\t"sourceRoot": "asd",\n' +
+      '\t\t\t\t"inline": "false",\n' +
+      '\t\t\t\t"verbose": true\n' +
+      '\t\t\t},\n' +
+      '\t\t\t"engines": {\n' +
+      '\t\t\t\t"node": "12",\n' +
+      '\t\t\t\t"browser": "Chrome 70"\n' +
+      '\t\t\t}\n' +
+      '\t\t}\n' +
+      '\t}\n' +
       '}';
     let targetResolver = new TargetResolver({
       ...DEFAULT_OPTIONS,
@@ -351,10 +356,10 @@ describe('TargetResolver', () => {
     await assert.rejects(
       () => targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       {
-        message: 'Invalid target descriptor for target main',
+        message: 'Invalid target descriptor for target "main"',
         diagnostics: [
           {
-            message: 'Invalid target descriptor for target main',
+            message: 'Invalid target descriptor for target "main"',
             origin: '@parcel/core',
             filePath: undefined,
             language: 'json',
@@ -362,33 +367,33 @@ describe('TargetResolver', () => {
               code,
               codeHighlights: [
                 {
-                  start: {line: 6, column: 9},
-                  end: {line: 6, column: 12},
+                  start: {line: 6, column: 5},
+                  end: {line: 6, column: 8},
                   message: 'Expected a wildcard or filepath'
                 },
                 {
-                  start: {line: 8, column: 18},
-                  end: {line: 8, column: 24},
+                  start: {line: 8, column: 15},
+                  end: {line: 8, column: 21},
                   message: 'Did you mean "node"?'
                 },
                 {
-                  start: {line: 9, column: 23},
-                  end: {line: 9, column: 30},
+                  start: {line: 9, column: 20},
+                  end: {line: 9, column: 27},
                   message: 'Did you mean "esmodule"?'
                 },
                 {
-                  start: {line: 12, column: 19},
-                  end: {line: 12, column: 25},
+                  start: {line: 12, column: 15},
+                  end: {line: 12, column: 21},
                   message: 'Expected type boolean'
                 },
                 {
-                  start: {line: 13, column: 9},
-                  end: {line: 13, column: 17},
+                  start: {line: 13, column: 5},
+                  end: {line: 13, column: 13},
                   message: 'Possible values: "inlineSources"'
                 },
                 {
-                  start: {line: 17, column: 9},
-                  end: {line: 17, column: 17},
+                  start: {line: 17, column: 5},
+                  end: {line: 17, column: 13},
                   message: 'Did you mean "browsers"?'
                 }
               ]
@@ -411,7 +416,7 @@ describe('TargetResolver', () => {
       {
         diagnostics: [
           {
-            message: 'Invalid target descriptor for target module',
+            message: 'Invalid target descriptor for target "module"',
             origin: '@parcel/core',
             filePath: path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
             language: 'json',
@@ -464,6 +469,44 @@ describe('TargetResolver', () => {
                   start: {
                     column: 5,
                     line: 8
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    );
+  });
+
+  it('rejects target distpath in package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    let code = await fs.readFileSync(
+      path.join(INVALID_DISTPATH_FIXTURE_PATH, 'package.json'),
+      'utf8'
+    );
+    // $FlowFixMe assert.rejects is Node 10+
+    await assert.rejects(
+      () => targetResolver.resolve(INVALID_DISTPATH_FIXTURE_PATH),
+      {
+        diagnostics: [
+          {
+            message: 'Invalid distPath for target "legacy"',
+            origin: '@parcel/core',
+            filePath: path.join(INVALID_DISTPATH_FIXTURE_PATH, 'package.json'),
+            language: 'json',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 13,
+                    line: 2
+                  },
+                  message: 'Expected type string',
+                  start: {
+                    column: 13,
+                    line: 2
                   }
                 }
               ]

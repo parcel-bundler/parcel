@@ -185,7 +185,7 @@ validateSchema.diagnostic = function(
       typeof dataContents === 'string'
         ? dataContents
         : // $FlowFixMe
-          JSON.stringify(dataContents, null, 2);
+          JSON.stringify(dataContents, null, '\t');
     let keys = errors.map(e => {
       let message;
       let {expectedValues, actualValue} = e;
