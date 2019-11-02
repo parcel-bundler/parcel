@@ -135,9 +135,10 @@ export class TSModuleGraph {
       if (e.name && (!excludeDefault || e.name !== 'default')) {
         res.push(this.getExport(module, e));
       } else if (e.specifier) {
-        res.push(
-          ...this.getAllExports(nullthrows(this.getModule(e.specifier)), true)
-        );
+        let m = this.getModule(e.specifier);
+        if (m) {
+          res.push(...this.getAllExports(m, true));
+        }
       }
     }
     return res;
