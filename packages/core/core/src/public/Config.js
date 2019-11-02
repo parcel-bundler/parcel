@@ -39,6 +39,10 @@ export default class PublicConfig implements IConfig {
     return this.#config.isSource;
   }
 
+  get resolvedPath() {
+    return this.#config.resolvedPath;
+  }
+
   setResolvedPath(filePath: FilePath) {
     this.#config.resolvedPath = filePath;
   }
@@ -97,9 +101,7 @@ export default class PublicConfig implements IConfig {
     }
 
     if (!options || !options.exclude) {
-      for (let file of conf.files) {
-        this.addIncludedFile(file.filePath);
-      }
+      this.setResolvedPath(conf.files[0].filePath);
     }
 
     return conf.config;

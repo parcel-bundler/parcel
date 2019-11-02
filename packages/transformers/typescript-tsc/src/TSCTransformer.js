@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
+import {loadTSConfig} from '@parcel/ts-utils';
 
 type TypescriptCompilerOptions = {
   module?: mixed,
@@ -17,10 +18,8 @@ type TypescriptTranspilerOptions = {
 };
 
 export default new Transformer({
-  async loadConfig({config}) {
-    let configResult = await config.getConfig(['tsconfig.json']);
-
-    config.setResult(configResult);
+  async loadConfig({config, options}) {
+    await loadTSConfig(config, options);
   },
 
   async transform({asset, config, options}) {
@@ -38,7 +37,7 @@ export default new Transformer({
           // React is the default. Users can override this by supplying their own tsconfig,
           // which many TypeScript users will already have for typechecking, etc.
           jsx: 'React',
-          ...config?.compilerOptions,
+          ...config,
           // Always emit output
           noEmit: false,
           // Don't compile ES `import`s -- scope hoisting prefers them and they will
