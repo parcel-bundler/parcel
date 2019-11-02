@@ -35,19 +35,20 @@ type SerializedAssetGraph = {|
   hash: ?string
 |};
 
-const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
-  new Map([...map].map(([key, val]) => [val, key]));
-
 const nodeFromDep = (dep: Dependency): DependencyNode => ({
   id: dep.id,
   type: 'dependency',
   value: dep
 });
 
-export const nodeFromAssetGroup = (assetGroup: AssetGroup) => ({
+export const nodeFromAssetGroup = (
+  assetGroup: AssetGroup,
+  deferred: boolean = false
+) => ({
   id: md5FromObject(assetGroup),
   type: 'asset_group',
-  value: assetGroup
+  value: assetGroup,
+  deferred
 });
 
 const nodeFromAsset = (asset: Asset) => ({
@@ -148,42 +149,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     }
   }
 
-  resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
+  resolveDependency(dependency: Dependency, assetGroupNode: AssetGroupNode) {
     let depNode = this.nodes.get(dependency.id);
-    if (!assetGroup || !depNode) return;
+    if (!depNode) return;
 
-    let assetGroupNode = nodeFromAssetGroup(assetGroup);
-
-    // Defer transforming this dependency if it is marked as weak, there are no side effects,
-    // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
-    // using a wildcard.
-    // This helps with performance building large libraries like `lodash-es`, which re-exports
-    // a huge number of functions since we can avoid even transforming the files that aren't used.
-    let defer = false;
-    if (
-      dependency.isWeak &&
-      assetGroup.sideEffects === false &&
-      !dependency.symbols.has('*')
-    ) {
-      let assets = this.getNodesConnectedTo(depNode);
-      let symbols = invertMap(dependency.symbols);
-      let firstAsset = assets[0];
-      invariant(firstAsset.type === 'asset');
-      let resolvedAsset = firstAsset.value;
-      let deps = this.getIncomingDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
-            let assetSymbol = resolvedAsset.symbols.get(symbol);
-            return assetSymbol != null && symbols.has(assetSymbol);
-          })
-      );
-    }
-
-    if (!defer) {
-      this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
-    }
+    this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
   }
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
