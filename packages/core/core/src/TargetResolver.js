@@ -244,7 +244,7 @@ export default class TargetResolver {
 
     let pkg;
     let pkgContents;
-    let pkgPath: ?FilePath;
+    let pkgFilePath: ?FilePath;
     let pkgDir: FilePath;
     if (conf) {
       pkg = (conf.config: PackageJSON);
@@ -257,12 +257,11 @@ export default class TargetResolver {
           }
         });
       }
-      pkgPath = pkgFile.filePath;
-      pkgDir = path.dirname(pkgPath);
-      pkgContents = await this.fs.readFile(pkgPath, 'utf8');
+      pkgFilePath = pkgFile.filePath;
+      pkgDir = path.dirname(pkgFilePath);
+      pkgContents = await this.fs.readFile(pkgFilePath, 'utf8');
     } else {
       pkg = {};
-      pkgPath = null;
       pkgDir = this.fs.cwd();
     }
 
@@ -270,7 +269,7 @@ export default class TargetResolver {
     let pkgEngines: Engines =
       parseEngines(
         pkg.engines,
-        pkgPath,
+        pkgFilePath,
         pkgContents,
         '/engines',
         'Invalid engines in package.json'
@@ -335,7 +334,7 @@ export default class TargetResolver {
         let descriptor = parseDescriptor(
           targetName,
           _descriptor,
-          pkgPath,
+          pkgFilePath,
           pkgContents
         );
         targets.set(targetName, {
@@ -387,7 +386,7 @@ export default class TargetResolver {
               message: `Invalid distPath for target "${targetName}"`,
               origin: '@parcel/core',
               language: 'json',
-              filePath: pkgPath || undefined,
+              filePath: pkgFilePath || undefined,
               codeFrame: {
                 code: contents,
                 codeHighlights: generateJSONCodeHighlights(contents, [
@@ -409,7 +408,7 @@ export default class TargetResolver {
         let descriptor = parseDescriptor(
           targetName,
           _descriptor,
-          pkgPath,
+          pkgFilePath,
           pkgContents
         );
         targets.set(targetName, {
