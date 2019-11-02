@@ -2,14 +2,22 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle as _bundle,
+  bundler as _bundler,
   run,
   outputFS,
+  inputFS as fs,
   assertBundles,
-  distDir
+  distDir,
+  getNextBuild
 } from '@parcel/test-utils';
+
+const inputDir = path.join(__dirname, '/input');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
+
+const bundler = (name, opts = {}) =>
+  _bundler(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -401,26 +409,62 @@ describe('scope hoisting', function() {
     });
 
     it('correctly updates deferred assets that are reexported', async function() {
-      let b = await bundle(
+      await fs.ncp(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported'
+        ),
+        inputDir
+      );
+      let b = bundler(path.join(inputDir, 'index.js'), {
+        outputFS: fs
+      });
+
+      await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      let output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '12345hello');
+
+      await fs.copyFile(
+        path.join(inputDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(inputDir, 'node_modules', 'foo', 'foo.js')
       );
 
-      let output = await run(b);
+      bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, '1234556789');
     });
 
     it('correctly updates deferred assets that are reexported and imported directly', async function() {
-      let b = await bundle(
+      await fs.ncp(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-update-deferred-direct/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-update-deferred-direct'
+        ),
+        inputDir
+      );
+      let b = bundler(path.join(inputDir, 'index.js'), {
+        outputFS: fs
+      });
+
+      await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      let output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '12345hello');
+
+      await fs.copyFile(
+        path.join(inputDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(inputDir, 'node_modules', 'foo', 'foo.js')
       );
 
-      let output = await run(b);
+      bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, '1234556789');
     });
 
