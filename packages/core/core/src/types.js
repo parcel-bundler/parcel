@@ -157,7 +157,8 @@ export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
   // An asset group node is used to
-  value: AssetGroup
+  value: AssetGroup,
+  deferred: boolean
 |};
 
 export type DepPathRequestNode = {|

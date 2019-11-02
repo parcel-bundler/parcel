@@ -76,8 +76,8 @@ export default class Server extends EventEmitter {
     this.emit('bundled');
   }
 
-  buildError(diagnostic: Diagnostic) {
-    this.error = diagnostic;
+  buildError(diagnostics: Array<Diagnostic>) {
+    this.error = diagnostics[0];
   }
 
   respond(req: Request, res: Response) {
@@ -204,7 +204,10 @@ export default class Server extends EventEmitter {
 
     setHeaders(res);
     res.setHeader('Content-Length', '' + stat.size);
-    res.setHeader('Content-Type', mime.getType(filePath));
+    let mimeType = mime.getType(filePath);
+    if (mimeType != null) {
+      res.setHeader('Content-Type', mimeType);
+    }
     if (req.method === 'HEAD') {
       res.end();
       return;

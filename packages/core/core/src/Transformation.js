@@ -425,6 +425,7 @@ class Pipeline {
             transformer.plugin,
             transformer.config
           );
+
           for (let result of transformerResults) {
             resultingAssets.push(asset.createChildAsset(result));
           }

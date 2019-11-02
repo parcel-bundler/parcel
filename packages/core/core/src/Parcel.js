@@ -11,10 +11,11 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
-import {anyToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
@@ -153,7 +154,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.diagnostic);
+      throw new BuildError(result.diagnostics);
     }
 
     return result.bundleGraph;
@@ -278,9 +279,10 @@ export default class Parcel {
         throw e;
       }
 
+      let diagnostic = anyToDiagnostic(e);
       let event = {
         type: 'buildFailure',
-        diagnostic: anyToDiagnostic(e)
+        diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
       };
 
       await this.#reporterRunner.report(event);
@@ -367,16 +369,11 @@ export default class Parcel {
   }
 }
 
-export class BuildError extends Error {
-  name = 'BuildError';
-  error: mixed;
+export class BuildError extends ThrowableDiagnostic {
+  constructor(diagnostics: Array<Diagnostic>) {
+    super({diagnostic: diagnostics});
 
-  constructor(error: mixed) {
-    super(typeof error === 'object' ? error?.message : 'Unknown Build Error');
-    this.error = error;
-    if (error instanceof Error) {
-      this.stack = error.stack;
-    }
+    this.name = 'BuildError';
   }
 }
 
