@@ -61,34 +61,42 @@ function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
       {hints.map((hint, i) => {
-        return <div key={i}>- {hint}</div>;
+        return <div key={i}>{`- ${hint}`}</div>;
       })}
     </div>
   );
 }
 
 function DiagnosticContainer({
-  diagnostic,
+  diagnostics,
   color,
   emoji
 }: {
-  diagnostic: Diagnostic,
+  diagnostics: Array<Diagnostic>,
   color: string,
   emoji: string,
   ...
 }) {
-  let {message, stack, hints, codeframe} = prettyDiagnostic(diagnostic);
-
   return (
     <React.Fragment>
-      <Color keyword={color}>
-        <Color bold>{`${emoji}`}</Color> {message}
-      </Color>
-      <div>
-        <Color gray>{stack}</Color>
-      </div>
-      <div>{codeframe}</div>
-      {hints.length > 0 && <Hints hints={hints} />}
+      {diagnostics.map((d, i) => {
+        let {message, stack, hints, codeframe} = prettyDiagnostic(d);
+
+        return (
+          <div key={i}>
+            <Color keyword={color}>
+              <Color bold>{`${emoji}`}</Color> {message}
+            </Color>
+            {!codeframe && stack && (
+              <div>
+                <Color gray>{stack}</Color>
+              </div>
+            )}
+            {codeframe && <div>{codeframe}</div>}
+            {hints.length > 0 && <Hints hints={hints} />}
+          </div>
+        );
+      })}
     </React.Fragment>
   );
 }
@@ -96,7 +104,7 @@ function DiagnosticContainer({
 function InfoLog({event}: DiagnosticLogProps) {
   return (
     <DiagnosticContainer
-      diagnostic={event.diagnostic}
+      diagnostics={event.diagnostics}
       emoji={Emoji.info}
       color="blue"
     />
@@ -106,7 +114,7 @@ function InfoLog({event}: DiagnosticLogProps) {
 function WarnLog({event}: DiagnosticLogProps) {
   return (
     <DiagnosticContainer
-      diagnostic={event.diagnostic}
+      diagnostics={event.diagnostics}
       emoji={Emoji.warning}
       color="yellow"
     />
@@ -116,7 +124,7 @@ function WarnLog({event}: DiagnosticLogProps) {
 function ErrorLog({event}: DiagnosticLogProps) {
   return (
     <DiagnosticContainer
-      diagnostic={event.diagnostic}
+      diagnostics={event.diagnostics}
       emoji={Emoji.error}
       color="red"
       bold

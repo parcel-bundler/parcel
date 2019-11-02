@@ -33,7 +33,7 @@ export default new Reporter({
       case 'buildFailure':
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.error) {
           writeToStderr(
-            {type: 'buildFailure', message: event.diagnostic.message},
+            {type: 'buildFailure', message: event.diagnostics[0].message},
             logLevelFilter
           );
         }
@@ -83,11 +83,13 @@ function makeWriter(
           {
             type: 'log',
             level: 'error',
-            diagnostic: {
-              origin: '@parcel/reporter-json',
-              message: err.message,
-              stack: err.stack
-            }
+            diagnostics: [
+              {
+                origin: '@parcel/reporter-json',
+                message: err.message,
+                stack: err.stack
+              }
+            ]
           },
           logLevelFilter
         );
