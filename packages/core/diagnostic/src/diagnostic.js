@@ -8,6 +8,8 @@ export type DiagnosticHighlightLocation = {|
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
+// Note: A tab character is always counted as a single character
+// This is to prevent any mismatch of highlighting across machines
 export type DiagnosticCodeHighlight = {|
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
@@ -40,14 +42,10 @@ export type Diagnostic = {|
   hints?: Array<string>
 |};
 
-export type BuildError = PrintableError & {
-  diagnostic?: Array<Diagnostic>,
-  ...
-};
-
 // This type should represent all error formats Parcel can encounter...
 export type PrintableError = Error & {
   fileName?: string,
+  filePath?: string,
   codeFrame?: string,
   highlightedCodeFrame?: string,
   loc?: {
@@ -82,22 +80,26 @@ export function anyToDiagnostic(
 }
 
 export function errorToDiagnostic(
-  error: PrintableError | BuildError | string
-): Array<Diagnostic> | Diagnostic {
+  error: ThrowableDiagnostic | PrintableError | string,
+  realOrigin?: string
+): Diagnostic | Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
     return {
-      origin: 'Error',
+      origin: realOrigin || 'Error',
       message: error,
       codeFrame
     };
   }
 
-  // $FlowFixMe
-  if (error.diagnostic) {
-    // $FlowFixMe
-    return error.diagnostic;
+  if (error instanceof ThrowableDiagnostic) {
+    return error.diagnostics.map(d => {
+      return {
+        ...d,
+        origin: realOrigin || d.origin
+      };
+    });
   }
 
   if (error.loc && error.source) {
@@ -117,10 +119,10 @@ export function errorToDiagnostic(
   }
 
   return {
-    origin: 'Error',
+    origin: realOrigin || 'Error',
     message: error.message,
     name: error.name,
-    filePath: error.fileName,
+    filePath: error.filePath || error.fileName,
     stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
     codeFrame
   };
