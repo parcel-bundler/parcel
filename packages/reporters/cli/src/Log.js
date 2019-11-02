@@ -87,10 +87,12 @@ function DiagnosticContainer({
             <Color keyword={color}>
               <Color bold>{`${emoji}`}</Color> {message}
             </Color>
-            <div>
-              <Color gray>{stack}</Color>
-            </div>
-            <div>{codeframe}</div>
+            {!codeframe && stack && (
+              <div>
+                <Color gray>{stack}</Color>
+              </div>
+            )}
+            {codeframe && <div>{codeframe}</div>}
             {hints.length > 0 && <Hints hints={hints} />}
           </div>
         );

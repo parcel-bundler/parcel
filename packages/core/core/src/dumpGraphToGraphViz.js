@@ -54,6 +54,10 @@ export default async function dumpGraphToGraphViz(
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
+    } else if (node.type === 'asset_group') {
+      if (node.deferred) {
+        label += '(deferred)';
+      }
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
     } else if (node.type === 'transformer_request') {

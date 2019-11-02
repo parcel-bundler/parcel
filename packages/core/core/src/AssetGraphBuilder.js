@@ -10,19 +10,21 @@ import type {
   AssetRequestNode,
   DepPathRequestNode,
   ParcelOptions,
-  Target
+  Target,
+  Dependency
 } from './types';
 
 import EventEmitter from 'events';
 import {md5FromObject, md5FromString} from '@parcel/utils';
 
-import AssetGraph from './AssetGraph';
+import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import type ParcelConfig from './ParcelConfig';
 import RequestGraph from './RequestGraph';
 import {PARCEL_VERSION} from './constants';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
 import path from 'path';
+import invariant from 'assert';
 
 type Opts = {|
   options: ParcelOptions,
@@ -33,6 +35,9 @@ type Opts = {|
   assetRequests?: Array<AssetRequest>,
   workerFarm: WorkerFarm
 |};
+
+const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
+  new Map([...map].map(([key, val]) => [val, key]));
 
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
@@ -121,7 +126,9 @@ export default class AssetGraphBuilder extends EventEmitter {
         this.requestGraph.addDepPathRequest(node.value);
         break;
       case 'asset_group':
-        this.requestGraph.addAssetRequest(node.id, node.value);
+        if (!node.deferred) {
+          this.requestGraph.addAssetRequest(node.id, node.value);
+        }
         break;
       case 'asset': {
         let asset = node.value;
@@ -164,11 +171,83 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
+  // Defer transforming this dependency if it is marked as weak, there are no side effects,
+  // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
+  // using a wildcard.
+  // This helps with performance building large libraries like `lodash-es`, which re-exports
+  // a huge number of functions since we can avoid even transforming the files that aren't used.
+  shouldDeferDependency(dependency: Dependency, sideEffects: ?boolean) {
+    let defer = false;
+    if (
+      dependency.isWeak &&
+      sideEffects === false &&
+      !dependency.symbols.has('*')
+    ) {
+      let depNode = this.assetGraph.getNode(dependency.id);
+      invariant(depNode);
+
+      let assets = this.assetGraph.getNodesConnectedTo(depNode);
+      let symbols = invertMap(dependency.symbols);
+      invariant(assets.length === 1);
+      let firstAsset = assets[0];
+      invariant(firstAsset.type === 'asset');
+      let resolvedAsset = firstAsset.value;
+      let deps = this.assetGraph.getIncomingDependencies(resolvedAsset);
+      defer = deps.every(
+        d =>
+          !d.symbols.has('*') &&
+          ![...d.symbols.keys()].some(symbol => {
+            let assetSymbol = resolvedAsset.symbols.get(symbol);
+            return assetSymbol != null && symbols.has(assetSymbol);
+          })
+      );
+    }
+    return defer;
+  }
+
   handleCompletedDepPathRequest(
     requestNode: DepPathRequestNode,
-    result: AssetRequest | null
+    assetGroup: AssetRequest | null
   ) {
-    this.assetGraph.resolveDependency(requestNode.value, result);
+    if (!assetGroup) {
+      return;
+    }
+    let dependency = requestNode.value;
+
+    let defer = this.shouldDeferDependency(dependency, assetGroup.sideEffects);
+
+    let assetGroupNode = nodeFromAssetGroup(assetGroup, defer);
+    let existingAssetGroupNode = this.assetGraph.getNode(assetGroupNode.id);
+    if (existingAssetGroupNode) {
+      // Don't overwrite non-deferred asset groups with deferred ones
+      invariant(existingAssetGroupNode.type === 'asset_group');
+      assetGroupNode.deferred = existingAssetGroupNode.deferred && defer;
+    }
+    this.assetGraph.resolveDependency(dependency, assetGroupNode);
+    if (existingAssetGroupNode) {
+      // Node already existed, that asset might have deferred dependencies,
+      // recheck all dependencies of all assets of this asset group
+      this.assetGraph.traverse((node, parent, actions) => {
+        if (node == assetGroupNode) {
+          return;
+        }
+
+        if (node.type == 'asset_group') {
+          invariant(parent && parent.type === 'dependency');
+          if (
+            node.deferred &&
+            !this.shouldDeferDependency(parent.value, node.value.sideEffects)
+          ) {
+            node.deferred = false;
+            this.requestGraph.addAssetRequest(node.id, node.value);
+          }
+
+          actions.skipChildren();
+        }
+
+        return node;
+      }, assetGroupNode);
+    }
   }
 
   respondToFSEvents(events: Array<Event>) {
