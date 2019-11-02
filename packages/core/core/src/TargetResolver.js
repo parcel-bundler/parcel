@@ -86,7 +86,7 @@ function parseDescriptor(
     pkgContents,
     '@parcel/core',
     `/targets/${targetName}`,
-    `Invalid target descriptor for target ${targetName}`
+    `Invalid target descriptor for target "${targetName}"`
   );
 
   // $FlowFixMe we just verified this
@@ -215,10 +215,7 @@ export default class TargetResolver {
       }
       pkgPath = pkgFile.filePath;
       pkgDir = path.dirname(pkgPath);
-      pkgContents = (await this.fs.readFile(pkgPath, 'utf8')).replace(
-        /\t/g,
-        '  '
-      );
+      pkgContents = await this.fs.readFile(pkgPath, 'utf8');
     } else {
       pkg = {};
       pkgPath = null;

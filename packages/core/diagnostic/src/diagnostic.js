@@ -160,7 +160,8 @@ export function generateJSONCodeHighlights(
   code: string,
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>
 ): Array<DiagnosticCodeHighlight> {
-  let map = jsonMap.parse(code);
+  // json-source-map doesn't support a tabWidth option (yet)
+  let map = jsonMap.parse(code.replace(/\t/g, ' '));
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     if (!type && pos.value) {
