@@ -22,7 +22,6 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
@@ -421,19 +420,14 @@ class Pipeline {
         if (asset.value.type !== initialType) {
           finalAssets.push(asset);
         } else {
-          try {
-            let transformerResults = await this.runTransformer(
-              asset,
-              transformer.plugin,
-              transformer.config
-            );
+          let transformerResults = await this.runTransformer(
+            asset,
+            transformer.plugin,
+            transformer.config
+          );
 
-            for (let result of transformerResults) {
-              resultingAssets.push(asset.createChildAsset(result));
-            }
-          } catch (e) {
-            let diagnostic = errorToDiagnostic(e, transformer.name);
-            throw new ThrowableDiagnostic({diagnostic});
+          for (let result of transformerResults) {
+            resultingAssets.push(asset.createChildAsset(result));
           }
         }
       }
