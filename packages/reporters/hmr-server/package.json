@@ -21,7 +21,6 @@
     "@parcel/plugin": "^2.0.0-alpha.2.1",
     "@parcel/reporter-cli": "^2.0.0-alpha.2.1",
     "@parcel/utils": "^2.0.0-alpha.2.1",
-    "ansi-html": "^0.0.7",
     "ws": "^6.2.0"
   },
   "devDependencies": {

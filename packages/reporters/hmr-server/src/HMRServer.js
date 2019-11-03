@@ -12,10 +12,10 @@ import {
   getCertificate,
   generateCertificate,
   md5FromObject,
-  prettyDiagnostic
+  prettyDiagnostic,
+  ansiHtml
 } from '@parcel/utils';
 import logger from '@parcel/logger';
-import ansiHTML from 'ansi-html';
 
 type HMRAsset = {|
   id: string,
@@ -108,10 +108,10 @@ export default class HMRServer {
         ansi: renderedDiagnostics,
         html: renderedDiagnostics.map(d => {
           return {
-            message: ansiHTML(d.message),
-            stack: ansiHTML(d.stack),
-            codeframe: ansiHTML(d.codeframe),
-            hints: d.hints.map(hint => ansiHTML(hint))
+            message: ansiHtml(d.message),
+            stack: ansiHtml(d.stack),
+            codeframe: ansiHtml(d.codeframe),
+            hints: d.hints.map(hint => ansiHtml(hint))
           };
         })
       }
