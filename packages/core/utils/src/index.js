@@ -1,6 +1,7 @@
 // @flow strict-local
 export type * from './generateBundleReport';
 export type * from './prettyError';
+export type * from './prettyDiagnostic';
 
 export {default as countLines} from './countLines';
 export {default as DefaultMap} from './DefaultMap';

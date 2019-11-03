@@ -2,14 +2,20 @@
 
 import type {BuildSuccessEvent} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
 
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
-import {getCertificate, generateCertificate} from '@parcel/utils';
+import {
+  getCertificate,
+  generateCertificate,
+  md5FromObject,
+  prettyDiagnostic
+} from '@parcel/utils';
 import logger from '@parcel/logger';
-import {md5FromObject} from '@parcel/utils';
+import ansiHTML from 'ansi-html';
 
 type HMRAsset = {|
   id: string,
@@ -19,17 +25,18 @@ type HMRAsset = {|
   deps: Object
 |};
 
-type HMRError = {|
-  message: string,
-  stack?: string
-|};
-
-type HMRMessage = {|
-  type: string,
-  ansiError?: HMRError,
-  htmlError?: HMRError,
-  assets?: Array<HMRAsset>
-|};
+type HMRMessage =
+  | {|
+      type: 'update',
+      assets: Array<HMRAsset>
+    |}
+  | {|
+      type: 'error',
+      diagnostics: {|
+        ansi: Array<AnsiDiagnosticResult>,
+        html: Array<AnsiDiagnosticResult>
+      |}
+    |};
 
 export default class HMRServer {
   server: Server;
@@ -91,19 +98,22 @@ export default class HMRServer {
   }
 
   emitError(diagnostics: Array<Diagnostic>) {
-    let err = diagnostics[0];
+    let renderedDiagnostics = diagnostics.map(d => prettyDiagnostic(d));
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {
       type: 'error',
-      ansiError: {
-        message: err.message,
-        stack: err.stack
-      },
-      htmlError: {
-        message: err.message,
-        stack: err.stack
+      diagnostics: {
+        ansi: renderedDiagnostics,
+        html: renderedDiagnostics.map(d => {
+          return {
+            message: ansiHTML(d.message),
+            stack: ansiHTML(d.stack),
+            codeframe: ansiHTML(d.codeframe),
+            hints: d.hints.map(hint => ansiHTML(hint))
+          };
+        })
       }
     };
 

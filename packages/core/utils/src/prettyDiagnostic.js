@@ -5,7 +5,7 @@ import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
 import path from 'path';
 
-type AnsiDiagnosticResult = {|
+export type AnsiDiagnosticResult = {|
   message: string,
   stack: string,
   codeframe: string,
