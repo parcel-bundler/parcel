@@ -101,7 +101,11 @@ export default class PublicConfig implements IConfig {
     }
 
     if (!options || !options.exclude) {
-      this.setResolvedPath(conf.files[0].filePath);
+      if (this.#config.resolvedPath == null) {
+        this.setResolvedPath(conf.files[0].filePath);
+      } else {
+        this.addIncludedFile(conf.files[0].filePath);
+      }
     }
 
     return conf.config;
