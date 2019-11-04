@@ -1,4 +1,44 @@
 // @flow strict-local
+
+export const engines = {
+  type: 'object',
+  properties: {
+    browsers: {
+      oneOf: [
+        {
+          type: 'array',
+          items: {
+            type: 'string'
+          }
+        },
+        {
+          type: 'string'
+        }
+      ]
+    },
+    node: {
+      oneOf: [
+        {
+          type: 'array'
+        },
+        {
+          type: 'string'
+        }
+      ]
+    },
+    electron: {
+      type: 'string'
+    },
+    parcel: {
+      type: 'string'
+    },
+    npm: {
+      type: 'string'
+    }
+  },
+  additionalProperties: false
+};
+
 export default {
   type: 'object',
   properties: {
@@ -61,44 +101,7 @@ export default {
         }
       ]
     },
-    engines: {
-      type: 'object',
-      properties: {
-        browsers: {
-          oneOf: [
-            {
-              type: 'array',
-              items: {
-                type: 'string'
-              }
-            },
-            {
-              type: 'string'
-            }
-          ]
-        },
-        node: {
-          oneOf: [
-            {
-              type: 'array'
-            },
-            {
-              type: 'string'
-            }
-          ]
-        },
-        electron: {
-          type: 'string'
-        },
-        parcel: {
-          type: 'string'
-        },
-        npm: {
-          type: 'string'
-        }
-      },
-      additionalProperties: false
-    }
+    engines
   },
   additionalProperties: false
 };

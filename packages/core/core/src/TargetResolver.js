@@ -20,8 +20,9 @@ import {createEnvironment} from './Environment';
 import path from 'path';
 import fs from 'fs';
 import browserslist from 'browserslist';
-import DESCRIPTOR_SCHEMA from './TargetDescriptor.schema';
-const ENGINES_SCHEMA = DESCRIPTOR_SCHEMA.properties.engines;
+import DESCRIPTOR_SCHEMA, {
+  engines as ENGINES_SCHEMA
+} from './TargetDescriptor.schema';
 
 type TargetResolveResult = {|
   targets: Array<Target>,
