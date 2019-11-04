@@ -51,7 +51,9 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       dependencyToInternalDependency(dependency)
     );
     if (!resolved) {
-      throw new Error('Dependency did not resolve to an asset');
+      throw new Error(
+        'Dependency did not resolve to an asset ' + dependency.id
+      );
     }
 
     let bundleGroup: BundleGroup = {

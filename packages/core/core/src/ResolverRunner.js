@@ -1,8 +1,10 @@
 // @flow
 
 import type {AssetRequest, Dependency, ParcelOptions} from './types';
-import path from 'path';
 import type ParcelConfig from './ParcelConfig';
+
+import path from 'path';
+import URL from 'url';
 import {report} from './ReporterRunner';
 import PublicDependency from './public/Dependency';
 import PluginOptions from './public/PluginOptions';
@@ -63,6 +65,14 @@ export default class ResolverRunner {
       }
     } else {
       filePath = dependency.moduleSpecifier;
+    }
+
+    if (dependency.isURL) {
+      let parsed = URL.parse(filePath);
+      if (typeof parsed.pathname !== 'string') {
+        throw new Error('Received URL without a pathname.');
+      }
+      filePath = decodeURIComponent(parsed.pathname);
     }
 
     for (let resolver of resolvers) {

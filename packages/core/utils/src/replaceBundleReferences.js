@@ -1,12 +1,12 @@
 // @flow strict-local
 
 import type SourceMap from '@parcel/source-map';
-import type {Async, Blob, Bundle, BundleGraph} from '@parcel/types';
+import type {Async, Blob, Bundle, BundleGraph, Dependency} from '@parcel/types';
 
 import {Readable} from 'stream';
-import {bufferStream, urlJoin} from '../';
-
 import nullthrows from 'nullthrows';
+import URL from 'url';
+import {bufferStream, urlJoin} from '../';
 
 /*
  * Replaces references to dependency ids with either:
@@ -15,7 +15,7 @@ import nullthrows from 'nullthrows';
  *   - in the case of a url dependency that Parcel did not handle,
  *     the original moduleSpecifier. These are external requests.
  */
-export default async function replaceBundleReferences({
+export async function replaceBundleReferences({
   bundle,
   bundleGraph,
   contents,
@@ -51,29 +51,16 @@ export default async function replaceBundleReferences({
         : packagedBundle.contents
       ).toString();
       replacements.set(dependency.id, formatInline(packagedContents));
-    } else {
+    } else if (dependency.isURL) {
       // url references
       replacements.set(
         dependency.id,
-        urlJoin(
-          entryBundle.target.publicUrl ?? '/',
-          nullthrows(entryBundle.name)
-        )
+        getURLReplacement(dependency, entryBundle)
       );
     }
   }
 
-  // external url references
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    if (dependency.isURL && !replacements.has(dependency.id)) {
-      replacements.set(dependency.id, dependency.moduleSpecifier);
-    }
-  });
+  collectExternalReferences(bundle, replacements);
 
   let finalContents = contents;
   for (let [depId, replacement] of replacements) {
@@ -85,4 +72,67 @@ export default async function replaceBundleReferences({
     // TODO: Update sourcemap with adjusted contents
     map
   };
+}
+
+export function replaceURLReferences({
+  bundle,
+  bundleGraph,
+  contents,
+  map
+}: {|
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+  contents: string,
+  map?: ?SourceMap
+|}) {
+  let replacements = new Map();
+
+  for (let {
+    dependency,
+    bundleGroup
+  } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
+    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    if (dependency.isURL && !entryBundle.isInline) {
+      // url references
+      replacements.set(
+        dependency.id,
+        getURLReplacement(dependency, entryBundle)
+      );
+    }
+  }
+
+  collectExternalReferences(bundle, replacements);
+
+  let finalContents = contents;
+  for (let [depId, replacement] of replacements) {
+    finalContents = finalContents.replace(new RegExp(depId, 'g'), replacement);
+  }
+
+  return {
+    contents: finalContents,
+    // TODO: Update sourcemap with adjusted contents
+    map
+  };
+}
+
+function collectExternalReferences(
+  bundle: Bundle,
+  replacements: Map<string, string>
+): void {
+  bundle.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dependency = node.value;
+    if (dependency.isURL && !replacements.has(dependency.id)) {
+      replacements.set(dependency.id, dependency.moduleSpecifier);
+    }
+  });
+}
+
+function getURLReplacement(dependency: Dependency, bundle: Bundle) {
+  let url = URL.parse(dependency.moduleSpecifier);
+  url.pathname = nullthrows(bundle.name);
+  return urlJoin(bundle.target.publicUrl ?? '/', URL.format(url));
 }

@@ -40,8 +40,8 @@ export default new Bundler({
         let resolution = bundleGraph.getDependencyResolution(dependency);
 
         if (
-          dependency.isEntry ||
-          (resolution && dependency.isAsync) ||
+          (dependency.isEntry && resolution) ||
+          (dependency.isAsync && resolution) ||
           resolution?.isIsolated ||
           resolution?.isInline
         ) {
