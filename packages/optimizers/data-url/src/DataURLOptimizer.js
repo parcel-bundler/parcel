@@ -4,6 +4,7 @@ import {Optimizer} from '@parcel/plugin';
 import {bufferStream} from '@parcel/utils';
 import {Readable} from 'stream';
 import mime from 'mime';
+import {isBinaryFile} from 'isbinaryfile';
 
 export default new Optimizer({
   async optimize({bundle, contents}) {
@@ -16,7 +17,7 @@ export default new Optimizer({
       bufferContents = Buffer.from(contents, 'utf8');
     }
 
-    let hasBinaryContent = bufferContents.includes(0x00);
+    let hasBinaryContent = await isBinaryFile(bufferContents);
 
     // Follows the data url format referenced here:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
