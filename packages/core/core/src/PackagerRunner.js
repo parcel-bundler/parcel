@@ -15,14 +15,8 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {
-  urlJoin,
-  md5FromObject,
-  md5FromString,
-  blobToStream
-} from '@parcel/utils';
+import {md5FromObject, md5FromString, blobToStream} from '@parcel/utils';
 import {Readable} from 'stream';
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
@@ -230,7 +224,7 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packaged = await packager.package({
+    return packager.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
       getSourceMapReference: map => {
@@ -256,17 +250,6 @@ export default class PackagerRunner {
         );
       }
     });
-
-    return {
-      contents:
-        typeof packaged.contents === 'string'
-          ? replaceReferences(
-              packaged.contents,
-              generateDepToBundlePath(internalBundle, bundleGraph)
-            )
-          : packaged.contents,
-      map: packaged.map
-    };
   }
 
   async optimize(
@@ -475,72 +458,6 @@ function writeFileStream(
       .on('finish', () => resolve(fsStream.bytesWritten))
       .on('error', reject);
   });
-}
-
-/*
- * Build a mapping from async, url dependency ids to web-friendly relative paths
- * to their bundles. These will be relative to the current bundle if `publicUrl`
- * is not provided. If `publicUrl` is provided, the paths will be joined to it.
- *
- * These are used to translate any placeholder dependency ids written during
- * transformation back to a path that can be loaded in a browser (such as
- * in a "raw" loader or any transformed dependencies referred to by url).
- */
-function generateDepToBundlePath(
-  bundle: InternalBundle,
-  bundleGraph: InternalBundleGraph
-): Map<string, FilePath> {
-  let depToBundlePath: Map<string, FilePath> = new Map();
-  bundleGraph.traverseBundle(bundle, node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dep = node.value;
-    if (!dep.isURL || !dep.isAsync) {
-      return;
-    }
-
-    let [bundleGroupNode] = bundleGraph._graph.getNodesConnectedFrom(node);
-    invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
-
-    let [entryBundleNode] = bundleGraph._graph.getNodesConnectedFrom(
-      bundleGroupNode,
-      'bundle'
-    );
-    invariant(entryBundleNode && entryBundleNode.type === 'bundle');
-
-    let entryBundle = entryBundleNode.value;
-    depToBundlePath.set(
-      dep.id,
-      urlJoin(
-        nullthrows(entryBundle.target).publicUrl ?? '/',
-        nullthrows(entryBundle.name)
-      )
-    );
-  });
-
-  return depToBundlePath;
-}
-
-// replace references to url dependencies with relative paths to their
-// corresponding bundles.
-// TODO: This likely alters the length of the column in the source text.
-//       Update any sourcemaps accordingly.
-function replaceReferences(
-  code: string,
-  depToBundlePath: Map<string, FilePath>
-): string {
-  let output = code;
-  for (let [depId, replacement] of depToBundlePath) {
-    let split = output.split(depId);
-    if (split.length > 1) {
-      // the dependency id was found in the text. replace it.
-      output = split.join(replacement);
-    }
-  }
-
-  return output;
 }
 
 function getContentKey(cacheKey: string) {

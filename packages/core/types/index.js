@@ -609,8 +609,7 @@ export type ResolveResult = {|
   filePath?: FilePath,
   isExcluded?: boolean,
   sideEffects?: boolean,
-  code?: string,
-  pipeline?: ?string
+  code?: string
 |};
 
 export type Bundler = {|
@@ -672,7 +671,8 @@ export type Optimizer = {|
 export type Resolver = {|
   resolve({|
     dependency: Dependency,
-    options: PluginOptions
+    options: PluginOptions,
+    filePath: FilePath
   |}): Async<?ResolveResult>
 |};
 

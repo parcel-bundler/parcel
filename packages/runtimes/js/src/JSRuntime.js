@@ -76,7 +76,7 @@ export default new Runtime({
       assets.push(
         ...inlineBundles.map(b => ({
           filePath: path.join(__dirname, `/bundles/${b.id}.js`),
-          code: `module.exports = '${b.id}';`,
+          code: `module.exports = '${dependency.id}';`,
           dependency
         }))
       );

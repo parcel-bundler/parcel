@@ -260,4 +260,25 @@ describe('css', () => {
     // TODO: Make this `2` when a `sourceMappingURL` is added
     assert.equal(css.split('\n').length, 1);
   });
+
+  it('should inline data-urls for text-encoded files', async () => {
+    await bundle(path.join(__dirname, '/integration/data-url/text.css'));
+    let css = await outputFS.readFile(path.join(distDir, 'text.css'), 'utf8');
+    assert.equal(
+      css,
+      `.svg-img {
+  background-image: url('data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E%0A');
+}
+`
+    );
+  });
+
+  it('should inline data-urls for binary files', async () => {
+    await bundle(path.join(__dirname, '/integration/data-url/binary.css'));
+    let css = await outputFS.readFile(path.join(distDir, 'binary.css'), 'utf8');
+    assert(
+      css.startsWith(`.webp-img {
+  background-image: url('data:image/webp;base64,UklGR`)
+    );
+  });
 });

@@ -41,7 +41,7 @@ export default new Bundler({
 
         if (
           dependency.isEntry ||
-          dependency.isAsync ||
+          (resolution && dependency.isAsync) ||
           resolution?.isIsolated ||
           resolution?.isInline
         ) {

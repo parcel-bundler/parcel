@@ -1,10 +1,10 @@
 // @flow
 
 import {Packager} from '@parcel/plugin';
-import {PromiseQueue} from '@parcel/utils';
+import {PromiseQueue, replaceBundleReferences} from '@parcel/utils';
 
 export default new Packager({
-  async package({bundle, bundleGraph}) {
+  async package({bundle, bundleGraph, getInlineBundleContents}) {
     let queue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverseAssets({
       exit: asset => {
@@ -33,6 +33,11 @@ export default new Packager({
     });
 
     let outputs = await queue.run();
-    return {contents: await outputs.map(output => output).join('\n')};
+    return replaceBundleReferences({
+      bundle,
+      bundleGraph,
+      contents: await outputs.map(output => output).join('\n'),
+      getInlineBundleContents
+    });
   }
 });

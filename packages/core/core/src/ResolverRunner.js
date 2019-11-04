@@ -33,8 +33,41 @@ export default class ResolverRunner {
 
     let resolvers = await this.config.getResolvers();
 
+    let pipeline;
+    let filePath;
+    if (dependency.moduleSpecifier.includes(':')) {
+      [pipeline, filePath] = dependency.moduleSpecifier.split(':');
+      let transformsWithPipelines = {};
+      for (let key of Object.keys(this.config.transforms)) {
+        if (key.includes(':')) {
+          transformsWithPipelines[key] = this.config.transforms[key];
+        }
+      }
+
+      if (
+        !(
+          this.config.matchGlobMapPipelines(
+            filePath,
+            transformsWithPipelines,
+            pipeline
+          )?.length > 0
+        )
+      ) {
+        if (dep.isURL) {
+          // This may be a url protocol or scheme rather than a pipeline, such as
+          // `url('http://example.com/foo.png')`
+          return null;
+        } else {
+          throw new Error(`Unknown pipeline ${pipeline}.`);
+        }
+      }
+    } else {
+      filePath = dependency.moduleSpecifier;
+    }
+
     for (let resolver of resolvers) {
       let result = await resolver.resolve({
+        filePath,
         dependency: dep,
         options: this.pluginOptions
       });
@@ -49,7 +82,7 @@ export default class ResolverRunner {
           sideEffects: result.sideEffects,
           code: result.code,
           env: dependency.env,
-          pipeline: result.pipeline ?? dependency.pipeline
+          pipeline: pipeline ?? dependency.pipeline
         };
       }
     }

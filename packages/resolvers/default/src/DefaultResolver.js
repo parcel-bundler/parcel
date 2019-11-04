@@ -19,7 +19,7 @@ import invariant from 'assert';
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
 export default new Resolver({
-  async resolve({dependency, options}) {
+  async resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
       throw new Error(
         `The import path: ${
@@ -28,20 +28,12 @@ export default new Resolver({
       );
     }
 
-    let pipeline;
-    let filename;
-    if (dependency.moduleSpecifier.includes(':')) {
-      [pipeline, filename] = dependency.moduleSpecifier.split(':');
-    } else {
-      filename = dependency.moduleSpecifier;
-    }
-
     const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
     });
     const resolved = await resolver.resolve({
-      filename,
+      filename: filePath,
       isURL: dependency.isURL,
       parent: dependency.sourcePath,
       env: dependency.env
@@ -52,13 +44,12 @@ export default new Resolver({
     }
 
     if (resolved.isExcluded != null) {
-      return {isExcluded: true, pipeline};
+      return {isExcluded: true};
     }
 
     invariant(resolved.path != null);
     let result: ResolveResult = {
-      filePath: resolved.path,
-      pipeline
+      filePath: resolved.path
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {

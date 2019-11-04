@@ -111,11 +111,10 @@ export default new Transformer({
             node.value === 'url' &&
             node.nodes.length
           ) {
-            let url = asset.addURLDependency(node.nodes[0].value, {
+            node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
               loc: decl.source.start
             });
-            isDirty = node.nodes[0].value !== url;
-            node.nodes[0].value = url;
+            isDirty = true;
           }
         });
 
