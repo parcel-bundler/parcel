@@ -10,7 +10,6 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
-import type {SchemaEntity} from '@parcel/utils';
 
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights
@@ -18,7 +17,6 @@ import ThrowableDiagnostic, {
 import {loadConfig, validateSchema} from '@parcel/utils';
 import {createEnvironment} from './Environment';
 import path from 'path';
-import fs from 'fs';
 import browserslist from 'browserslist';
 import DESCRIPTOR_SCHEMA, {
   engines as ENGINES_SCHEMA
@@ -46,51 +44,6 @@ const DEFAULT_PRODUCTION_ENGINES = {
 
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
-
-function parseEngines(
-  engines: mixed,
-  pkgPath: ?FilePath,
-  pkgContents: string | mixed,
-  prependKey: string,
-  message: string
-): Engines | typeof undefined {
-  if (engines === undefined) {
-    return engines;
-  } else {
-    validateSchema.diagnostic(
-      ENGINES_SCHEMA,
-      engines,
-      pkgPath,
-      pkgContents,
-      '@parcel/core',
-      prependKey,
-      message
-    );
-
-    // $FlowFixMe we just verified this
-    return engines;
-  }
-}
-
-function parseDescriptor(
-  targetName: string,
-  descriptor: mixed,
-  pkgPath: ?FilePath,
-  pkgContents: string | mixed
-): TargetDescriptor | PackageTargetDescriptor {
-  validateSchema.diagnostic(
-    DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
-    '@parcel/core',
-    `/targets/${targetName}`,
-    `Invalid target descriptor for target "${targetName}"`
-  );
-
-  // $FlowFixMe we just verified this
-  return descriptor;
-}
 
 export default class TargetResolver {
   fs: FileSystem;
@@ -442,4 +395,49 @@ export default class TargetResolver {
       files: conf ? conf.files : []
     };
   }
+}
+
+function parseEngines(
+  engines: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed,
+  prependKey: string,
+  message: string
+): Engines | typeof undefined {
+  if (engines === undefined) {
+    return engines;
+  } else {
+    validateSchema.diagnostic(
+      ENGINES_SCHEMA,
+      engines,
+      pkgPath,
+      pkgContents,
+      '@parcel/core',
+      prependKey,
+      message
+    );
+
+    // $FlowFixMe we just verified this
+    return engines;
+  }
+}
+
+function parseDescriptor(
+  targetName: string,
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed
+): TargetDescriptor | PackageTargetDescriptor {
+  validateSchema.diagnostic(
+    DESCRIPTOR_SCHEMA,
+    descriptor,
+    pkgPath,
+    pkgContents,
+    '@parcel/core',
+    `/targets/${targetName}`,
+    `Invalid target descriptor for target "${targetName}"`
+  );
+
+  // $FlowFixMe we just verified this
+  return descriptor;
 }

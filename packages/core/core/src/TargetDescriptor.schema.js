@@ -1,6 +1,7 @@
 // @flow strict-local
+import type {SchemaEntity} from '@parcel/utils';
 
-export const engines = {
+export const engines: SchemaEntity = {
   type: 'object',
   properties: {
     browsers: {
@@ -39,7 +40,7 @@ export const engines = {
   additionalProperties: false
 };
 
-export default {
+export default ({
   type: 'object',
   properties: {
     context: {
@@ -104,4 +105,4 @@ export default {
     engines
   },
   additionalProperties: false
-};
+}: SchemaEntity);
