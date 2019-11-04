@@ -26,12 +26,12 @@ export type SchemaOneOf = {|
 |};
 export type SchemaString = {|
   type: 'string',
-  enum: Array<string>,
+  enum?: Array<string>,
   __pattern?: string
 |};
 export type SchemaObject = {|
   type: 'object',
-  properties: {|[key: string]: SchemaEntity|},
+  properties: {[string]: SchemaEntity, ...},
   additionalProperties: boolean,
   __pattern?: string
 |};

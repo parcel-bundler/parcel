@@ -20,6 +20,8 @@ import {createEnvironment} from './Environment';
 import path from 'path';
 import fs from 'fs';
 import browserslist from 'browserslist';
+import DESCRIPTOR_SCHEMA from './TargetDescriptor.schema';
+const ENGINES_SCHEMA = DESCRIPTOR_SCHEMA.properties.engines;
 
 type TargetResolveResult = {|
   targets: Array<Target>,
@@ -43,13 +45,6 @@ const DEFAULT_PRODUCTION_ENGINES = {
 
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
-
-const DESCRIPTOR_SCHEMA = (JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'TargetDescriptor.schema.json'))
-): SchemaEntity);
-
-// $FlowFixMe
-const ENGINES_SCHEMA = DESCRIPTOR_SCHEMA.properties.engines;
 
 function parseEngines(
   engines: mixed,
