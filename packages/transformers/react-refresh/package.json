@@ -12,7 +12,6 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@babel/core": "^7.0.0",
     "@babel/generator": "^7.0.0",
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.0.0",

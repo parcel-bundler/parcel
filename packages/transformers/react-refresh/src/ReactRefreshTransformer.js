@@ -5,7 +5,6 @@ import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
-import {transformFromAst} from '@babel/core';
 import generate from '@babel/generator';
 import {parse} from '@babel/parser';
 import template from '@babel/template';
@@ -69,27 +68,12 @@ export default new Transformer({
       return [asset];
     }
 
-    let reactRefreshBabelPlugin = (await options.packageManager.resolve(
-      'react-refresh/babel',
-      __filename
-    )).resolved;
-
     asset.meta.reactRefreshRuntimePath = (await options.packageManager.resolve(
       'react-refresh/runtime',
       __filename
     )).resolved;
 
     let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
-    let code = await asset.getCode();
-    let transformResult = transformFromAst(ast.program, code, {
-      code: false,
-      ast: true,
-      filename: asset.filePath,
-      babelrc: false,
-      configFile: false,
-      plugins: [reactRefreshBabelPlugin]
-    });
-    ast.program = transformResult.ast;
 
     ast.program.program.body = wrapper({
       helper: t.stringLiteral(wrapperPath),
