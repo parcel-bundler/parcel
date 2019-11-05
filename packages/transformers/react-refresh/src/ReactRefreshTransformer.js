@@ -21,12 +21,12 @@ helpers.prelude(module);
 
 try {
   %%module%%
+  helpers.postlude(module);
 } finally {
   window.$RefreshReg$ = prevRefreshReg;
   window.$RefreshSig$ = prevRefreshSig;
 }
-
-helpers.postlude(module);`);
+`);
 
 function shouldExclude(asset, options) {
   return (

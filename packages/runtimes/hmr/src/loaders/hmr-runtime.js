@@ -62,9 +62,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           hmrApply(global.parcelRequire, asset);
         });
 
-        assetsToAccept.forEach(function(v) {
-          hmrAcceptRun(v[0], v[1]);
-        });
+        for (var i = 0; i < assetsToAccept.length; i++) {
+          hmrAcceptRun(assetsToAccept[i][0], assetsToAccept[i][1]);
+        }
       } else {
         window.location.reload();
       }
@@ -209,7 +209,14 @@ function hmrAcceptRun(bundle, id) {
   cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function(cb) {
-      cb();
+      var assetsToAlsoAccept = cb(function() {
+        return getParents(bundle, id).map(function(id) {
+          return [global.parcelRequire, id];
+        });
+      });
+      if (assetsToAlsoAccept && assetsToAccept.length) {
+        assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
+      }
     });
     return true;
   }
