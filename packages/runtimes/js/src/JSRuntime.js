@@ -72,14 +72,16 @@ export default new Runtime({
       // Sort so the bundles containing the entry asset appear last
       let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
-      let inlineBundles = bundlesInGroup.filter(bundle => bundle.isInline);
-      assets.push(
-        ...inlineBundles.map(b => ({
-          filePath: path.join(__dirname, `/bundles/${b.id}.js`),
-          code: `module.exports = '${dependency.id}';`,
+      let [firstBundle] = bundlesInGroup;
+      if (firstBundle.isInline) {
+        assets.push({
+          filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
+          code: `module.exports = "${dependency.id}";`,
           dependency
-        }))
-      );
+        });
+
+        continue;
+      }
 
       let externalBundles = bundlesInGroup
         .filter(bundle => !bundle.isInline)

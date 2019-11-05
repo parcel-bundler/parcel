@@ -31,11 +31,10 @@ export default new Packager({
         bundle,
         bundleGraph,
         contents,
-        formatInline: str =>
-          str
-            .replace(/\n/g, '\\n')
-            .replace(/'/g, "\\'")
-            .replace(/"/g, '\\"'),
+        getInlineReplacement: (dependency, inlineType, content) => ({
+          from: `"${dependency.id}"`,
+          to: inlineType === 'string' ? JSON.stringify(content) : content
+        }),
         getInlineBundleContents,
         map
       });

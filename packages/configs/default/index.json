@@ -2,8 +2,8 @@
   "bundler": "@parcel/bundler-default",
   "transforms": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
-    "bundle-text:*": ["@parcel/transformer-inline"],
-    "data-url:*": ["@parcel/transformer-inline"],
+    "blob-url:*": ["@parcel/transformer-inline", "..."],
+    "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
@@ -31,7 +31,8 @@
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
-    "data-url:*": ["@parcel/optimizer-data-url"],
+    "data-url:*": ["...", "@parcel/optimizer-data-url"],
+    "blob-url:*": ["...", "@parcel/optimizer-blob-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
     "*.js": ["@parcel/optimizer-terser"],
     "*.html": ["@parcel/optimizer-htmlnano"]

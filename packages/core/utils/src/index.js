@@ -23,6 +23,7 @@ export {default as urlJoin} from './urlJoin';
 export {default as loadSourceMapUrl} from './loadSourceMapUrl';
 export {default as relativeUrl} from './relativeUrl';
 
+export * from './blob';
 export * from './collection';
 export * from './config';
 export * from './Deferred';

@@ -1,22 +1,13 @@
 // @flow strict-local
 
 import {Optimizer} from '@parcel/plugin';
-import {bufferStream} from '@parcel/utils';
-import {Readable} from 'stream';
+import {blobToBuffer} from '@parcel/utils';
 import mime from 'mime';
 import {isBinaryFile} from 'isbinaryfile';
 
 export default new Optimizer({
   async optimize({bundle, contents}) {
-    let bufferContents;
-    if (contents instanceof Readable) {
-      bufferContents = await bufferStream(contents);
-    } else if (contents instanceof Buffer) {
-      bufferContents = contents;
-    } else {
-      bufferContents = Buffer.from(contents, 'utf8');
-    }
-
+    let bufferContents = await blobToBuffer(contents);
     let hasBinaryContent = await isBinaryFile(bufferContents);
 
     // Follows the data url format referenced here:

@@ -37,7 +37,11 @@ export default new Packager({
       bundle,
       bundleGraph,
       contents: await outputs.map(output => output).join('\n'),
-      getInlineBundleContents
+      getInlineBundleContents,
+      getInlineReplacement: (dep, inlineType, contents) => ({
+        from: dep.id,
+        to: contents
+      })
     });
   }
 });
