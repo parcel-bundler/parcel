@@ -267,7 +267,7 @@ describe('css', () => {
     assert.equal(
       css,
       `.svg-img {
-  background-image: url('data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E%0A');
+  background-image: url('data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A');
 }
 `
     );
