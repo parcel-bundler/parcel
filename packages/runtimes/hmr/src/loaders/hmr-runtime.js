@@ -133,7 +133,7 @@ function getParents(bundle, id) {
       dep = modules[k][1][d];
 
       if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
-        parents.push(k);
+        parents.push([bundle, k]);
       }
     }
   }
@@ -185,8 +185,8 @@ function hmrAcceptCheck(bundle, id) {
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function(id) {
-    return hmrAcceptCheck(global.parcelRequire, id);
+  return getParents(global.parcelRequire, id).some(function(v) {
+    return hmrAcceptCheck(v[0], v[1]);
   });
 }
 
@@ -210,9 +210,7 @@ function hmrAcceptRun(bundle, id) {
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function(cb) {
       var assetsToAlsoAccept = cb(function() {
-        return getParents(bundle, id).map(function(id) {
-          return [global.parcelRequire, id];
-        });
+        return getParents(global.parcelRequire, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
