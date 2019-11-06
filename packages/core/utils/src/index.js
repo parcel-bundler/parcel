@@ -17,6 +17,7 @@ export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
 // $FlowFixMe this is untyped
 export {default as promisify} from './promisify';
+export {default as validateSchema} from './schema';
 export {default as syncPromise} from './syncPromise';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
@@ -28,6 +29,7 @@ export * from './config';
 export * from './Deferred';
 export * from './glob';
 export * from './md5';
+export * from './schema';
 export * from './path';
 export * from './serializer';
 export * from './stream';

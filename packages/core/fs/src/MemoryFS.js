@@ -208,7 +208,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve(this.statSync(filePath));
   }
 
-  readdir(dir: FilePath, opts?: ReaddirOptions): Promise<any> {
+  readdirSync(dir: FilePath, opts?: ReaddirOptions): any {
     dir = this._normalizePath(dir);
     if (!this.dirs.has(dir)) {
       throw new FSError('ENOENT', dir, 'does not exist');
@@ -245,7 +245,11 @@ export class MemoryFS implements FileSystem {
       }
     }
 
-    return Promise.resolve(res);
+    return res;
+  }
+
+  readdir(dir: FilePath, opts?: ReaddirOptions): Promise<any> {
+    return Promise.resolve(this.readdirSync(dir, opts));
   }
 
   async unlink(filePath: FilePath) {

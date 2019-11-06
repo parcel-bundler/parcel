@@ -40,6 +40,7 @@ export class NodeFS implements FileSystem {
   statSync = fs.statSync;
   realpathSync = fs.realpathSync;
   existsSync = fs.existsSync;
+  readdirSync = (fs.readdirSync: any);
 
   async realpath(originalPath: string): Promise<string> {
     try {
