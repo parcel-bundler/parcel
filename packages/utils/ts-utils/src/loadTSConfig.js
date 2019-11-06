@@ -1,0 +1,32 @@
+// @flow
+import type {Config, PluginOptions} from '@parcel/types';
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+import {ParseConfigHost} from './ParseConfigHost';
+import path from 'path';
+import nullthrows from 'nullthrows';
+
+export async function loadTSConfig(config: Config, options: PluginOptions) {
+  let configResult = await config.getConfig(['tsconfig.json']);
+  if (!configResult) {
+    return;
+  }
+
+  let ts: TypeScriptModule = await options.packageManager.require(
+    'typescript',
+    config.searchPath
+  );
+
+  let host = new ParseConfigHost(options.inputFS, ts);
+  let parsedConfig = ts.parseJsonConfigFileContent(
+    configResult,
+    host,
+    path.dirname(nullthrows(config.resolvedPath))
+  );
+
+  // Add all of the extended config files to be watched
+  for (let file of host.filesRead) {
+    config.addIncludedFile(path.resolve(file));
+  }
+
+  config.setResult(parsedConfig.options);
+}

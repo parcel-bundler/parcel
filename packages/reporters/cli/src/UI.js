@@ -10,7 +10,7 @@ import type {
 import type {ValueEmitter} from '@parcel/events';
 
 import {Color} from 'ink';
-import React, {useEffect, useReducer} from 'react';
+import React, {useLayoutEffect, useReducer} from 'react';
 import {Log, Progress, ServerInfo} from './Log';
 import BundleReport from './BundleReport';
 import {getProgressMessage} from './utils';
@@ -40,7 +40,7 @@ export default function UI({events, options}: Props) {
     defaultState
   );
 
-  useEffect(() => events.addListener(dispatch).dispose, [events]);
+  useLayoutEffect(() => events.addListener(dispatch).dispose, [events]);
 
   let {logs, progress, bundleGraph} = state;
   return (
