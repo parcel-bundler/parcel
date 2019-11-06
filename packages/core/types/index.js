@@ -90,7 +90,8 @@ export type PackageTargetDescriptor = {|
   outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
-  sourceMap?: TargetSourceMapOptions
+  sourceMap?: TargetSourceMapOptions,
+  isLibrary?: boolean
 |};
 
 export type TargetDescriptor = {|
@@ -135,6 +136,7 @@ export type PackageJSON = {
   version: Semver,
   main?: FilePath,
   module?: FilePath,
+  types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | {[FilePath]: FilePath, ...},
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
