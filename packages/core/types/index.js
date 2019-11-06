@@ -331,6 +331,7 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
+  +resolvedPath: ?FilePath;
 
   setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix

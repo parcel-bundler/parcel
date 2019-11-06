@@ -1,6 +1,6 @@
 // @flow
 import type {TSModule, Export} from './TSModule';
-import typeof TypeScriptModule from 'typescript';
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 

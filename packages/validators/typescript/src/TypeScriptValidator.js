@@ -4,8 +4,7 @@ import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
-
-import LanguageServiceHost from './languageServiceHost';
+import {LanguageServiceHost} from '@parcel/ts-utils';
 
 let langServiceCache = {};
 
@@ -51,7 +50,7 @@ export default new Validator({
       );
 
       langServiceCache[configHash] = ts.createLanguageService(
-        new LanguageServiceHost(parsedCommandLine, ts, baseDir),
+        new LanguageServiceHost(options.inputFS, ts, parsedCommandLine),
         ts.createDocumentRegistry()
       );
     }
