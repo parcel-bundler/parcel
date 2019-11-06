@@ -4,18 +4,17 @@ import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 
-import typeof TypeScriptModule from 'typescript';
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions} from 'typescript';
-import {ParcelCompilerHost} from './CompilerHost';
+import {CompilerHost, loadTSConfig} from '@parcel/ts-utils';
 import {TSModuleGraph} from './TSModuleGraph';
 import nullthrows from 'nullthrows';
 import {collect} from './collect';
 import {shake} from './shake';
 
 export default new Transformer({
-  async loadConfig({config}) {
-    let configResult = await config.getConfig(['tsconfig.json']);
-    config.setResult(configResult);
+  async loadConfig({config, options}) {
+    await loadTSConfig(config, options);
   },
 
   async transform({asset, config, options}) {
@@ -25,7 +24,7 @@ export default new Transformer({
     );
 
     let opts: CompilerOptions = {
-      ...config?.compilerOptions,
+      ...config,
       // Always emit output
       noEmit: false,
       noEmitOnError: false,
@@ -37,7 +36,7 @@ export default new Transformer({
       moduleResolution: ts.ModuleResolutionKind.NodeJs
     };
 
-    let host = new ParcelCompilerHost(options.inputFS, ts);
+    let host = new CompilerHost(options.inputFS, ts);
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
