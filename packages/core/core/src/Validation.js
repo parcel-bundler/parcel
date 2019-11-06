@@ -1,13 +1,7 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {
-  AssetRequestDesc,
-  Config,
-  NodeId,
-  ConfigRequestDesc,
-  ParcelOptions
-} from './types';
+import type {AssetRequestDesc, ConfigRequestDesc, ParcelOptions} from './types';
 
 import path from 'path';
 import nullthrows from 'nullthrows';

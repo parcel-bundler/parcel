@@ -11,13 +11,18 @@ import type {
   ValidationOpts
 } from './types';
 import type ParcelConfig from './ParcelConfig';
+import type {RunRequestOpts} from './RequestTracker';
+import type {AssetGraphBuildRequest} from './requests';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {md5FromObject, md5FromString} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
-import RequestTracker, {RequestGraph} from './RequestTracker';
+import RequestTracker, {
+  RequestGraph,
+  generateRequestId
+} from './RequestTracker';
 import {PARCEL_VERSION} from './constants';
 import {
   EntryRequestRunner,
@@ -37,17 +42,14 @@ type Opts = {|
   workerFarm: WorkerFarm
 |};
 
-const ASSET_GRAPH_REQUEST_MAPPING = new Map([
-  ['entry_specifier', 'entry_request'],
-  ['entry_file', 'target_request'],
-  ['asset_group', 'asset_request'],
-  ['dependency', 'dep_path_request']
-]);
-
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
   requestTracker: RequestTracker;
+  entryRequestRunner: EntryRequestRunner;
+  targetRequestRunner: TargetRequestRunner;
+  depPathRequestRunner: DepPathRequestRunner;
+  assetRequestRunner: AssetRequestRunner;
   assetRequests: Array<AssetRequestDesc>;
   runValidate: ValidationOpts => Promise<void>;
 
@@ -94,23 +96,31 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
 
     let assetGraph = this.assetGraph;
-    let runnerMap = new Map([
-      ['entry_request', new EntryRequestRunner({options, assetGraph})],
-      ['target_request', new TargetRequestRunner({options, assetGraph})],
-      [
-        'asset_request',
-        new AssetRequestRunner({options, workerFarm, assetGraph})
-      ],
-      [
-        'dep_path_request',
-        new DepPathRequestRunner({options, config, assetGraph})
-      ]
-      // ['config_request', new ConfigRequestRunner({options})],
-      // ['dep_version_request', new DepVersionRequestRunner({options})]
-    ]);
     this.requestTracker = new RequestTracker({
-      runnerMap,
-      requestGraph: this.requestGraph
+      graph: this.requestGraph
+    });
+    let tracker = this.requestTracker;
+    this.entryRequestRunner = new EntryRequestRunner({
+      tracker,
+      options,
+      assetGraph
+    });
+    this.targetRequestRunner = new TargetRequestRunner({
+      tracker,
+      options,
+      assetGraph
+    });
+    this.assetRequestRunner = new AssetRequestRunner({
+      tracker,
+      options,
+      workerFarm,
+      assetGraph
+    });
+    this.depPathRequestRunner = new DepPathRequestRunner({
+      tracker,
+      options,
+      config,
+      assetGraph
     });
 
     if (changes) {
@@ -144,11 +154,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     ) {
       let currPriority = requestPriority.shift();
       let promises = [];
-      for (let node of this.requestTracker.getInvalidNodes()) {
-        if (node.value.type === currPriority) {
-          promises.push(
-            this.runRequest(node.value.type, node.value.request, {signal})
-          );
+      for (let request of this.requestTracker.getInvalidRequests()) {
+        // $FlowFixMe
+        let assetGraphBuildRequest: AssetGraphBuildRequest = (request: any);
+        if (request.type === currPriority) {
+          promises.push(this.runRequest(assetGraphBuildRequest, {signal}));
         }
       }
       await Promise.all(promises);
@@ -181,37 +191,78 @@ export default class AssetGraphBuilder extends EventEmitter {
     await Promise.all(promises);
   }
 
-  runRequest(type: string, request, runOpts) {
-    if (type === 'asset_request') {
-      this.assetRequests.push(request);
-    }
-    return this.requestTracker.runRequest(type, request, runOpts);
-  }
-
-  async processIncompleteAssetGraphNode(
-    node: AssetGraphNode,
-    signal: ?AbortSignal
-  ) {
-    let requestType = nullthrows(
-      ASSET_GRAPH_REQUEST_MAPPING.get(node.type),
-      `AssetGraphNode of type ${node.type} should not be marked incomplete`
-    );
-
-    let result = await this.runRequest(requestType, node.value, {
-      signal
-    });
-
-    if (requestType === 'asset_request') {
-      for (let asset of result.assets) {
-        this.changedAssets.set(asset.id, asset); // ? Is this right?
+  async runRequest(request: AssetGraphBuildRequest, runOpts: RunRequestOpts) {
+    switch (request.type) {
+      case 'entry_request':
+        return this.entryRequestRunner.runRequest(request.request, runOpts);
+      case 'target_request':
+        return this.targetRequestRunner.runRequest(request.request, runOpts);
+      case 'dep_path_request':
+        return this.depPathRequestRunner.runRequest(request.request, runOpts);
+      case 'asset_request': {
+        this.assetRequests.push(request.request);
+        let result = await this.assetRequestRunner.runRequest(
+          request.request,
+          runOpts
+        );
+        if (result != null) {
+          for (let asset of result.assets) {
+            this.changedAssets.set(asset.id, asset); // ? Is this right?
+          }
+        }
+        return result;
       }
     }
   }
 
+  getCorrespondingRequest(node: AssetGraphNode) {
+    switch (node.type) {
+      case 'entry_specifier': {
+        let type = 'entry_request';
+        return {
+          type,
+          request: node.value,
+          id: generateRequestId(type, node.value)
+        };
+      }
+      case 'entry_file': {
+        let type = 'target_request';
+        return {
+          type,
+          request: node.value,
+          id: generateRequestId(type, node.value)
+        };
+      }
+      case 'dependency': {
+        let type = 'dep_path_request';
+        return {
+          type,
+          request: node.value,
+          id: generateRequestId(type, node.value)
+        };
+      }
+      case 'asset_group': {
+        let type = 'asset_request';
+        return {
+          type,
+          request: node.value,
+          id: generateRequestId(type, node.value)
+        };
+      }
+    }
+  }
+
+  processIncompleteAssetGraphNode(node: AssetGraphNode, signal: ?AbortSignal) {
+    let request = nullthrows(this.getCorrespondingRequest(node));
+    return this.runRequest(request, {
+      signal
+    });
+  }
+
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
-    let requestType = ASSET_GRAPH_REQUEST_MAPPING.get(node.type);
-    if (requestType != null) {
-      this.requestTracker.removeRequest(requestType, node.value);
+    let request = this.getCorrespondingRequest(node);
+    if (request != null) {
+      this.requestTracker.untrackRequest(request.id);
     }
   }
 

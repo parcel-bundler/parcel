@@ -14,6 +14,7 @@ export type ConfigResult = _ConfigResult;
 
 export type JSONValue =
   | null
+  | void // ? Is this okay?
   | boolean
   | number
   | string

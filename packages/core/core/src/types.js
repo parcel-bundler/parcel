@@ -152,7 +152,7 @@ export type AssetRequestDesc = {|
 
 export type AssetRequestResult = {|
   assets: Array<Asset>,
-  configRequests: Array<ConfigRequestDesc>
+  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>
 |};
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = AssetRequestDesc;
@@ -301,8 +301,6 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetRequestDesc,
-  loadConfig: (ConfigRequestDesc, NodeId) => Promise<Config>,
-  parentNodeId: NodeId,
   options: ParcelOptions
 |};
 

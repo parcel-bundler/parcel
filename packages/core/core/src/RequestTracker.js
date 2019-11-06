@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {File, FilePath, Glob, JSONObject, JSONValue} from '@parcel/types';
+import type {File, FilePath, Glob} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import type {NodeId} from './types';
 
@@ -12,22 +12,21 @@ import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted} from './utils';
 
 type SerializedRequestGraph = {|
-  ...GraphOpts<RequestGraphNode>,
+  ...GraphOpts<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
-  depVersionRequestNodeIds: Set<NodeId>
+  unpredicatableNodeIds: Set<NodeId>
 |};
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
-type RequestDesc = string | JSONObject;
-type RequestResult = JSONValue;
-type Request = {|
+export type Request = {|
   id: string,
   +type: string,
-  request: RequestDesc,
-  result?: RequestResult
+  request: mixed,
+  result?: mixed
 |};
+
 type RequestNode = {|
   id: string,
   +type: 'request',
@@ -109,6 +108,7 @@ export class RequestGraph extends Graph<
     return super.removeNode(node);
   }
 
+  // TODO: deprecate
   addRequest(request: Request) {
     let requestNode = nodeFromRequest(request);
     if (!this.hasNode(requestNode.id)) {
@@ -119,15 +119,24 @@ export class RequestGraph extends Graph<
     return requestNode;
   }
 
+  getRequestNode(id: string) {
+    let node = nullthrows(this.getNode(id));
+    invariant(node.type === 'request');
+    return node;
+  }
+
   completeRequest(request: Request) {
     let requestNode = this.getRequestNode(request.id);
     this.invalidNodeIds.delete(requestNode.id);
     this.incompleteNodeIds.delete(requestNode.id);
   }
 
-  replaceSubrequests(request: Request, subrequestNodes: Array<RequestNode>) {
-    let requestNode = this.getRequestNode(request.id);
-    if (!this.hasNode(requestNode.id)) {
+  replaceSubrequests(
+    requestId: string,
+    subrequestNodes: Array<RequestGraphNode>
+  ) {
+    let requestNode = this.getRequestNode(requestId);
+    if (!this.hasNode(requestId)) {
       this.addNode(requestNode);
     }
 
@@ -156,12 +165,6 @@ export class RequestGraph extends Graph<
     }
   }
 
-  getRequestNode(id: string) {
-    let node = nullthrows(this.getNode(id));
-    invariant(node.type === 'request');
-    return node;
-  }
-
   invalidateUnpredictableNodes() {
     for (let nodeId of this.unpredicatableNodeIds) {
       let node = nullthrows(this.getNode(nodeId));
@@ -170,8 +173,8 @@ export class RequestGraph extends Graph<
     }
   }
 
-  invalidateOnFileUpdate(request: Request, filePath: FilePath) {
-    let requestNode = this.getRequestNode(request.id);
+  invalidateOnFileUpdate(requestId: string, filePath: FilePath) {
+    let requestNode = this.getRequestNode(requestId);
     let fileNode = nodeFromFilePath(filePath);
     if (!this.hasNode(fileNode.id)) {
       this.addNode(fileNode);
@@ -182,8 +185,8 @@ export class RequestGraph extends Graph<
     }
   }
 
-  invalidateOnFileDelete(request: Request, filePath: FilePath) {
-    let requestNode = this.getRequestNode(request.id);
+  invalidateOnFileDelete(requestId: string, filePath: FilePath) {
+    let requestNode = this.getRequestNode(requestId);
     let fileNode = nodeFromFilePath(filePath);
     if (!this.hasNode(fileNode.id)) {
       this.addNode(fileNode);
@@ -194,8 +197,8 @@ export class RequestGraph extends Graph<
     }
   }
 
-  invalidateOnFileCreate(request: Request, glob: Glob) {
-    let requestNode = this.getRequestNode(request.id);
+  invalidateOnFileCreate(requestId: string, glob: Glob) {
+    let requestNode = this.getRequestNode(requestId);
     let globNode = nodeFromGlob(glob);
     if (!this.hasNode(globNode.id)) {
       this.addNode(globNode);
@@ -206,16 +209,16 @@ export class RequestGraph extends Graph<
     }
   }
 
-  invalidateOnStartup(request: Request) {
-    let requestNode = this.getRequestNode(request.id);
+  invalidateOnStartup(requestId: string) {
+    let requestNode = this.getRequestNode(requestId);
     this.unpredicatableNodeIds.add(requestNode.id);
   }
 
-  clearInvalidations(node) {
+  clearInvalidations(node: RequestNode) {
     this.unpredicatableNodeIds.delete(node.id);
-    this.replaceNodesConnectedTo(node, [], null, 'invalidated_by update');
-    this.replaceNodesConnectedTo(node, [], null, 'invalidated_by delete');
-    this.replaceNodesConnectedTo(node, [], null, 'invalidated_by create');
+    this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_update');
+    this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_delete');
+    this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_create');
   }
 
   respondToFSEvents(events: Array<Event>): boolean {
@@ -266,117 +269,159 @@ export class RequestGraph extends Graph<
   }
 }
 
-function isInvalid(request: Request, requestGraph: RequestGraph) {
-  return requestGraph.invalidNodeIds.has(request.id);
+export default class RequestTracker {
+  graph: RequestGraph;
+
+  constructor({graph}: {|graph: RequestGraph|}) {
+    this.graph = graph || new RequestGraph();
+  }
+
+  isTracked(id: string) {
+    return this.graph.hasNode(id);
+  }
+
+  getRequest(id: string) {
+    return nullthrows(this.graph.getNode(id));
+  }
+
+  trackRequest(request: Request) {
+    if (this.isTracked(request.id)) {
+      return;
+    }
+
+    let node = nodeFromRequest(request);
+    this.graph.addNode(node);
+  }
+
+  untrackRequest(id: string) {
+    this.graph.removeById(id);
+  }
+
+  getRequestResult(id: string) {
+    let node = nullthrows(this.graph.getNode(id));
+    invariant(node.type === 'request');
+    return node.value.result;
+  }
+
+  completeRequest(id: string) {
+    this.graph.invalidNodeIds.delete(id);
+    this.graph.incompleteNodeIds.delete(id);
+  }
+
+  respondToFSEvents(events: Array<Event>): boolean {
+    return this.graph.respondToFSEvents(events);
+  }
+
+  hasInvalidRequests() {
+    return this.graph.invalidNodeIds.size > 0;
+  }
+
+  getInvalidRequests(): Array<Request> {
+    let invalidRequests = [];
+    for (let id of this.graph.invalidNodeIds) {
+      let node = nullthrows(this.graph.getNode(id));
+      invariant(node.type === 'request');
+      invalidRequests.push(node.value);
+    }
+    return invalidRequests;
+  }
+
+  replaceSubrequests(
+    requestId: string,
+    subrequestNodes: Array<RequestGraphNode>
+  ) {
+    this.graph.replaceSubrequests(requestId, subrequestNodes);
+  }
 }
 
-export function generateRequestId(type: string, request: JSONObject | string) {
-  return md5FromObject({type, request});
-}
+type RequestRunnerOpts = {
+  tracker: RequestTracker,
+  ...
+};
 
-export interface RequestRunner<TRequest, TResult> {
-  run(TRequest): TResult;
-  onComplete(TRequest, TResult, RequestGraph): void;
-}
+export type RunRequestOpts = {|
+  signal?: ?AbortSignal,
+  parentId?: string
+|};
 
-type RequestTrackerAPI = {|
+export type RequestRunnerAPI = {|
   invalidateOnFileCreate: Glob => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
-  replaceSubrequests: (Array<Request>) => void
+  replaceSubrequests: (Array<RequestGraphNode>) => void
 |};
 
-export default class RequestTracker<TRequest> {
-  runnerMap: Map<string, RequestRunner>;
-  requestGraph: RequestGraph;
-  invalidRequestIds: Set<string>;
-  incompleteRequestIds: Set<string>;
+export function generateRequestId(type: string, request: mixed) {
+  return md5FromObject({type, request});
+}
 
-  constructor({
-    runnerMap,
-    requestGraph
-  }: {|
-    runnerMap: Map<string, RequestRunner>,
-    requestGraph: RequestGraph
-  |}) {
-    this.runnerMap = runnerMap;
-    this.requestGraph = requestGraph || new RequestGraph();
-    this.invalidRequestIds = new Set();
-    this.incompleteRequestIds = new Set();
+export class RequestRunner<TRequest, TResult> {
+  type: string;
+  tracker: RequestTracker;
+
+  constructor({tracker}: RequestRunnerOpts) {
+    this.tracker = tracker;
   }
 
   async runRequest(
-    type: string,
-    requestDesc: RequestDesc,
-    {signal}: {|signal: ?AbortSignal|} = {}
-  ) {
-    let id = generateRequestId(type, requestDesc);
-    let request = {id, type, request: requestDesc};
-    let requestNode = this.requestGraph.getNode(request.id);
+    requestDesc: TRequest,
+    {signal}: RunRequestOpts = {}
+  ): Promise<TResult | void> {
+    let id = this.generateRequestId(requestDesc);
+    let request = {id, type: this.type, request: requestDesc};
 
-    if (requestNode && !isInvalid(request, this.requestGraph)) {
-      invariant(requestNode.type === 'request');
-      return requestNode.value.result;
-    } else if (!requestNode) {
-      requestNode = this.requestGraph.addRequest(request);
-    }
+    let api = this.createAPI(id);
 
-    let runner = nullthrows(
-      this.runnerMap.get(type),
-      `No runner configured for request type ${type}`
-    );
-    let result = await runner.run(request, this.requestGraph);
+    this.tracker.trackRequest(request);
+    let result: TResult =
+      // $FlowFixMe
+      (this.tracker.getRequestResult(id): any) ||
+      (await this.run(requestDesc, api));
     assertSignalNotAborted(signal);
-
-    if (!this.requestGraph.hasNode(request.id)) {
+    // Request may have been removed by a parent request
+    if (!this.tracker.isTracked(id)) {
       return;
     }
-
-    // This function should clear invalid/incomplete status and add result to the value
-    this.requestGraph.completeRequest(request);
-    await runner.onComplete(request, result, this.requestGraph);
+    await this.onComplete(requestDesc, result, api);
+    this.tracker.completeRequest(id);
 
     return result;
   }
 
-  // TODO: not used yet, this will eventually be passed into the runner methods instead of the request graph
-  // createAPI(request: Request) {
-  //   let api: RequestTrackerAPI = {
-  //     invalidateOnFileCreate: glob =>
-  //       this.requestGraph.invalidateOnFileCreate(request, glob),
-  //     invalidateOnFileDelete: filePath =>
-  //       this.requestGraph.invalidateOnFileDelete(request, filePath),
-  //     invalidateOnFileUpdate: filePath =>
-  //       this.requestGraph.invalidateOnFileUpdate(request, filePath),
-  //     invalidateOnStartup: () => this.requestGraph.invalidateOnStartup(request),
-  //     replaceSubrequests: subrequests =>
-  //       this.requestGraph.replaceSubrequests(request, subrequests)
-  //   };
-
-  //   return api;
-  // }
-
-  removeRequest(type: string, request: RequestDesc) {
-    let id = generateRequestId(type, request);
-    this.requestGraph.removeById(id);
+  // unused vars are used for types
+  // eslint-disable-next-line no-unused-vars
+  run(request: TRequest, api: RequestRunnerAPI) {
+    throw new Error(
+      `RequestRunner for type ${this.type} did not implement a run()`
+    );
   }
 
-  respondToFSEvents(events: Array<Event>): boolean {
-    return this.requestGraph.respondToFSEvents(events);
+  // eslint-disable-next-line no-unused-vars
+  onComplete(request: TRequest, result: TResult, api: RequestRunnerAPI) {
+    throw new Error(
+      `RequestRunner for type ${this.type} did not implement a onComplete()`
+    );
   }
 
-  hasInvalidRequests() {
-    return this.requestGraph.invalidNodeIds.size > 0;
+  generateRequestId(request: TRequest) {
+    return md5FromObject({type: this.type, request});
   }
 
-  getInvalidNodes() {
-    let invalidNodes = [];
-    for (let id of this.requestGraph.invalidNodeIds) {
-      let node = this.requestGraph.getNode(id);
-      nullthrows(node);
-      invalidNodes.push(node);
-    }
-    return invalidNodes;
+  createAPI(requestId: string): RequestRunnerAPI {
+    let api = {
+      invalidateOnFileCreate: glob =>
+        this.tracker.graph.invalidateOnFileCreate(requestId, glob),
+      invalidateOnFileDelete: filePath =>
+        this.tracker.graph.invalidateOnFileDelete(requestId, filePath),
+      invalidateOnFileUpdate: filePath =>
+        this.tracker.graph.invalidateOnFileUpdate(requestId, filePath),
+      invalidateOnStartup: () =>
+        this.tracker.graph.invalidateOnStartup(requestId),
+      replaceSubrequests: subrequestNodes =>
+        this.tracker.graph.replaceSubrequests(requestId, subrequestNodes)
+    };
+
+    return api;
   }
 }
