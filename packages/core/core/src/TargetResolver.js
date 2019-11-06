@@ -1,18 +1,26 @@
 // @flow
 
 import type {
-  TargetDescriptor,
+  Engines,
   File,
   FilePath,
-  PackageJSON
+  PackageJSON,
+  PackageTargetDescriptor,
+  TargetDescriptor
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
 
-import {loadConfig} from '@parcel/utils';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights
+} from '@parcel/diagnostic';
+import {loadConfig, validateSchema} from '@parcel/utils';
 import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
+import DESCRIPTOR_SCHEMA, {
+  engines as ENGINES_SCHEMA
+} from './TargetDescriptor.schema';
 
 type TargetResolveResult = {|
   targets: Array<Target>,
@@ -54,7 +62,12 @@ export default class TargetResolver {
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
         if (optionTargets.length === 0) {
-          throw new Error('Targets was an empty array');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `Targets is an empty array`,
+              origin: '@parcel/core'
+            }
+          });
         }
 
         // If an array of strings is passed, it's a filter on the resolved package
@@ -63,7 +76,12 @@ export default class TargetResolver {
         targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
-            throw new Error(`Could not find target with name ${target}`);
+            throw new ThrowableDiagnostic({
+              diagnostic: {
+                message: `Could not find target with name "${target}"`,
+                origin: '@parcel/core'
+              }
+            });
           }
           return matchingTarget;
         });
@@ -72,13 +90,44 @@ export default class TargetResolver {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
         targets = Object.entries(optionTargets).map(([name, _descriptor]) => {
-          // $FlowFixMe
-          let descriptor: TargetDescriptor = _descriptor;
+          let {distDir, ...descriptor} = parseDescriptor(
+            name,
+            _descriptor,
+            null,
+            {targets: optionTargets}
+          );
+          if (!distDir) {
+            let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
+            throw new ThrowableDiagnostic({
+              diagnostic: {
+                message: `Missing distDir for target "${name}"`,
+                origin: '@parcel/core',
+                codeFrame: {
+                  code: optionTargetsString,
+                  codeHighlights: generateJSONCodeHighlights(
+                    optionTargetsString,
+                    [
+                      {
+                        key: `/${name}`,
+                        type: 'value'
+                      }
+                    ]
+                  )
+                }
+              }
+            });
+          }
           return {
             name,
-            distDir: path.resolve(this.fs.cwd(), descriptor.distDir),
+            distDir: path.resolve(this.fs.cwd(), distDir),
             publicUrl: descriptor.publicUrl,
-            env: createEnvironment(descriptor),
+            env: createEnvironment({
+              engines: descriptor.engines,
+              context: descriptor.context,
+              isLibrary: descriptor.isLibrary,
+              includeNodeModules: descriptor.includeNodeModules,
+              outputFormat: descriptor.outputFormat
+            }),
             sourceMap: descriptor.sourceMap
           };
         });
@@ -88,12 +137,20 @@ export default class TargetResolver {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
-          throw new Error(
-            'More than one target is not supported in serve mode'
-          );
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `More than one target is not supported in serve mode`,
+              origin: '@parcel/core'
+            }
+          });
         }
         if (targets[0].env.context !== 'browser') {
-          throw new Error('Only browser targets are supported in serve mode');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `Only browser targets are supported in serve mode`,
+              origin: '@parcel/core'
+            }
+          });
         }
       }
     } else {
@@ -134,22 +191,38 @@ export default class TargetResolver {
       'package.json'
     ]);
 
-    let pkg: PackageJSON;
+    let pkg;
+    let pkgContents;
+    let pkgFilePath: ?FilePath;
     let pkgDir: FilePath;
     if (conf) {
-      pkg = conf.config;
+      pkg = (conf.config: PackageJSON);
       let pkgFile = conf.files[0];
       if (pkgFile == null) {
-        throw new Error('Expected package.json file');
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Expected package.json file in ${rootDir}`,
+            origin: '@parcel/core'
+          }
+        });
       }
-      pkgDir = path.dirname(pkgFile.filePath);
+      pkgFilePath = pkgFile.filePath;
+      pkgDir = path.dirname(pkgFilePath);
+      pkgContents = await this.fs.readFile(pkgFilePath, 'utf8');
     } else {
       pkg = {};
       pkgDir = this.fs.cwd();
     }
 
     let pkgTargets = pkg.targets || {};
-    let pkgEngines = {...pkg.engines};
+    let pkgEngines: Engines =
+      parseEngines(
+        pkg.engines,
+        pkgFilePath,
+        pkgContents,
+        '/engines',
+        'Invalid engines in package.json'
+      ) || {};
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {
@@ -199,7 +272,7 @@ export default class TargetResolver {
         let distDir;
         let distEntry;
 
-        let descriptor = pkgTargets[targetName] || {};
+        let _descriptor: mixed = pkgTargets[targetName] || {};
         if (typeof targetDist === 'string') {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
@@ -207,6 +280,12 @@ export default class TargetResolver {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
+        let descriptor = parseDescriptor(
+          targetName,
+          _descriptor,
+          pkgFilePath,
+          pkgContents
+        );
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -233,25 +312,56 @@ export default class TargetResolver {
     }
 
     // Custom targets
-    for (let name in pkgTargets) {
-      if (COMMON_TARGETS.includes(name)) {
+    for (let targetName in pkgTargets) {
+      if (COMMON_TARGETS.includes(targetName)) {
         continue;
       }
 
-      let descriptor = pkgTargets[name];
-      let distPath = pkg[name];
+      let _descriptor: mixed = pkgTargets[targetName];
+      let distPath: mixed = pkg[targetName];
       let distDir;
       let distEntry;
       if (distPath == null) {
-        distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, name);
+        distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
       } else {
+        if (typeof distPath !== 'string') {
+          let contents: string =
+            typeof pkgContents === 'string'
+              ? pkgContents
+              : // $FlowFixMe
+                JSON.stringify(pkgContents, null, '\t');
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `Invalid distPath for target "${targetName}"`,
+              origin: '@parcel/core',
+              language: 'json',
+              filePath: pkgFilePath || undefined,
+              codeFrame: {
+                code: contents,
+                codeHighlights: generateJSONCodeHighlights(contents, [
+                  {
+                    key: `/${targetName}`,
+                    type: 'value',
+                    message: 'Expected type string'
+                  }
+                ])
+              }
+            }
+          });
+        }
         distDir = path.resolve(pkgDir, path.dirname(distPath));
         distEntry = path.basename(distPath);
       }
 
-      if (descriptor) {
-        targets.set(name, {
-          name,
+      if (_descriptor) {
+        let descriptor = parseDescriptor(
+          targetName,
+          _descriptor,
+          pkgFilePath,
+          pkgContents
+        );
+        targets.set(targetName, {
+          name: targetName,
           distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? '/',
@@ -285,4 +395,49 @@ export default class TargetResolver {
       files: conf ? conf.files : []
     };
   }
+}
+
+function parseEngines(
+  engines: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed,
+  prependKey: string,
+  message: string
+): Engines | typeof undefined {
+  if (engines === undefined) {
+    return engines;
+  } else {
+    validateSchema.diagnostic(
+      ENGINES_SCHEMA,
+      engines,
+      pkgPath,
+      pkgContents,
+      '@parcel/core',
+      prependKey,
+      message
+    );
+
+    // $FlowFixMe we just verified this
+    return engines;
+  }
+}
+
+function parseDescriptor(
+  targetName: string,
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed
+): TargetDescriptor | PackageTargetDescriptor {
+  validateSchema.diagnostic(
+    DESCRIPTOR_SCHEMA,
+    descriptor,
+    pkgPath,
+    pkgContents,
+    '@parcel/core',
+    `/targets/${targetName}`,
+    `Invalid target descriptor for target "${targetName}"`
+  );
+
+  // $FlowFixMe we just verified this
+  return descriptor;
 }

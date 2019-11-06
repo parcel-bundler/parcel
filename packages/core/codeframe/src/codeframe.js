@@ -1,7 +1,8 @@
 // @flow
+import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
+
 import chalk from 'chalk';
 import emphasize from 'emphasize';
-import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 
 type CodeFramePadding = {|
   before: number,
