@@ -3,9 +3,10 @@
   "transforms": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
-      "@parcel/transformer-react-refresh"
+      "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],

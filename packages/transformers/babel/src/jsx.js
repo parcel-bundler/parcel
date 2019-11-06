@@ -49,10 +49,7 @@ export default async function getJSXOptions(config: Config) {
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
-      plugins: [
-        require.resolve('react-refresh/babel'),
-        ['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}]
-      ]
+      plugins: [['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}]]
     };
   }
 }
