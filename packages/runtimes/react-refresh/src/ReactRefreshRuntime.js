@@ -10,14 +10,11 @@ export default new Runtime({
       return;
     }
 
-    let mainEntry = bundle.getMainEntry();
-    let code;
-    if (mainEntry && mainEntry.meta.reactRefreshRuntimePath !== undefined) {
-      let runtime = mainEntry.meta.reactRefreshRuntimePath;
-      invariant(typeof runtime === 'string');
-
-      code = `
-var Refresh = require('${path.relative(__dirname, runtime)}');
+    if (bundle.getMainEntry()) {
+      return {
+        filePath: __filename,
+        code: `
+var Refresh = require('react-refresh/runtime');
 
 Refresh.injectIntoGlobalHook(window);
 window.$RefreshReg$ = function() {};
@@ -25,11 +22,7 @@ window.$RefreshSig$ = function() {
   return function(type) {
     return type;
   };
-};`;
-
-      return {
-        filePath: __filename,
-        code,
+};`,
         isEntry: true
       };
     } else {

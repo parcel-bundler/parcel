@@ -68,11 +68,6 @@ export default new Transformer({
       return [asset];
     }
 
-    asset.meta.reactRefreshRuntimePath = (await options.packageManager.resolve(
-      'react-refresh/runtime',
-      __filename
-    )).resolved;
-
     let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
 
     ast.program.program.body = wrapper({

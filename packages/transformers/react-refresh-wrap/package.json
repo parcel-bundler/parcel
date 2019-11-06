@@ -19,7 +19,9 @@
     "@parcel/plugin": "^2.0.0-alpha.2.1",
     "@parcel/source-map": "^2.0.0-alpha.2.1",
     "@parcel/utils": "^2.0.0-alpha.2.1",
-    "react-refresh": "^0.6.0",
     "semver": "^5.4.1"
+  },
+  "peerDependencies": {
+    "react-refresh": "^0.6.0"
   }
 }
