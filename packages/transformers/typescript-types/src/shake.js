@@ -1,7 +1,7 @@
 // @flow
 import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript';
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import {getExportedName, isDeclaration} from './utils';
 import nullthrows from 'nullthrows';
 
@@ -74,7 +74,7 @@ export function shake(
       );
 
       // Rename declarations
-      let newName = currentModule.names.get(name) || name;
+      let newName = currentModule.getName(name);
       if (newName !== name && newName !== 'default') {
         node.name = ts.createIdentifier(newName);
       }
@@ -129,9 +129,7 @@ export function shake(
 
     // Rename references
     if (ts.isIdentifier(node) && currentModule.names.has(node.text)) {
-      return ts.createIdentifier(
-        nullthrows(currentModule.names.get(node.text))
-      );
+      return ts.createIdentifier(nullthrows(currentModule.getName(node.text)));
     }
 
     // Replace namespace references with final names
@@ -143,6 +141,12 @@ export function shake(
       );
       if (resolved) {
         return ts.createIdentifier(resolved.name);
+      } else {
+        return ts.updateQualifiedName(
+          node,
+          ts.createIdentifier(currentModule.getName(node.left.text)),
+          node.right
+        );
       }
     }
 

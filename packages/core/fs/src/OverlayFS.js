@@ -110,6 +110,25 @@ export class OverlayFS implements FileSystem {
     return Array.from(new Set([...writable, ...readable]));
   }
 
+  readdirSync(path: FilePath, opts?: ReaddirOptions): any {
+    // Read from both filesystems and merge the results
+    let writable = [];
+    let readable = [];
+    try {
+      writable = this.writable.readdirSync(path, opts);
+    } catch (err) {
+      // do nothing
+    }
+
+    try {
+      readable = this.readable.readdirSync(path, opts);
+    } catch (err) {
+      // do nothing
+    }
+
+    return Array.from(new Set([...writable, ...readable]));
+  }
+
   async watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
