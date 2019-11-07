@@ -42,6 +42,13 @@ type Opts = {|
   workerFarm: WorkerFarm
 |};
 
+const requestPriority: $ReadOnlyArray<string> = [
+  'entry_request',
+  'target_request',
+  'dep_path_request',
+  'asset_request'
+];
+
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
@@ -141,18 +148,13 @@ export default class AssetGraphBuilder extends EventEmitter {
     changedAssets: Map<string, Asset>
   |}> {
     // TODO: optimize prioritized running of invalid nodes
-    let requestPriority = [
-      'entry_request',
-      'target_request',
-      'dep_path_request',
-      'asset_request'
-    ];
+    let i = 0;
 
     while (
       this.requestTracker.hasInvalidRequests() &&
-      requestPriority.length > 0
+      i < requestPriority.length
     ) {
-      let currPriority = requestPriority.shift();
+      let currPriority = requestPriority[i++];
       let promises = [];
       for (let request of this.requestTracker.getInvalidRequests()) {
         // $FlowFixMe
@@ -167,8 +169,12 @@ export default class AssetGraphBuilder extends EventEmitter {
     while (this.assetGraph.hasIncompleteNodes()) {
       let promises = [];
       for (let id of this.assetGraph.incompleteNodeIds) {
-        let node = nullthrows(this.assetGraph.getNode(id));
-        promises.push(this.processIncompleteAssetGraphNode(node, signal));
+        promises.push(
+          this.processIncompleteAssetGraphNode(
+            nullthrows(this.assetGraph.getNode(id)),
+            signal
+          )
+        );
       }
 
       await Promise.all(promises);
