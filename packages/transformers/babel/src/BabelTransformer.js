@@ -24,12 +24,9 @@ export default new Transformer({
   async transform({asset, config, options}) {
     // TODO: come up with a better name
     if (config?.config) {
-      if (
-        asset.meta.babelTransforms &&
-        Array.isArray(asset.meta.babelTransforms)
-      ) {
+      if (asset.meta.babelPlugins && Array.isArray(asset.meta.babelPlugins)) {
         // $FlowFixMe
-        config.config.plugins.push(...asset.meta.babelTransforms);
+        config.config.plugins.push(...asset.meta.babelPlugins);
       }
       asset.ast = await babel7(asset, options, config);
     }

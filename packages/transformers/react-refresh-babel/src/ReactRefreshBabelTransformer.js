@@ -21,9 +21,9 @@ export default new Transformer({
         __filename
       )).resolved;
 
-      asset.meta.babelTransforms = asset.meta.babelTransforms || [];
-      invariant(Array.isArray(asset.meta.babelTransforms));
-      asset.meta.babelTransforms.push(reactRefreshBabelPlugin);
+      asset.meta.babelPlugins = asset.meta.babelPlugins || [];
+      invariant(Array.isArray(asset.meta.babelPlugins));
+      asset.meta.babelPlugins.push(reactRefreshBabelPlugin);
     }
     return [asset];
   }
