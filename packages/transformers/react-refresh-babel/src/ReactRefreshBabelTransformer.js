@@ -15,9 +15,6 @@ function shouldExclude(asset, options) {
 
 export default new Transformer({
   async transform({asset, options}) {
-    // TODO tests break with this?
-    //    asset.type = 'js';
-
     if (!shouldExclude(asset, options)) {
       let reactRefreshBabelPlugin = (await options.packageManager.resolve(
         'react-refresh/babel',

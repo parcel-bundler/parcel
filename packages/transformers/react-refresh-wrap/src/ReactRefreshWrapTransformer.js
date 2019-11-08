@@ -62,7 +62,6 @@ export default new Transformer({
   },
 
   async transform({asset, options}) {
-    asset.type = 'js';
     let ast = asset.ast;
     if (!ast || shouldExclude(asset, options)) {
       return [asset];
