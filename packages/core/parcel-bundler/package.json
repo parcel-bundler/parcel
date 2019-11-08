@@ -12,7 +12,8 @@
     "bin/",
     "lib/",
     "src/",
-    "index.js"
+    "index.js",
+    "README.md"
   ],
   "dependencies": {
     "@babel/code-frame": "^7.0.0",
@@ -130,7 +131,7 @@
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
-    "prepublish": "yarn build",
+    "prepublish": "yarn build && cp ../../../README.md .",
     "minify": "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js && terser -c -m -o src/builtins/prelude2.min.js src/builtins/prelude2.js",
     "precommit": "lint-staged",
     "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
