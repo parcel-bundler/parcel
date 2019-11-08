@@ -29,8 +29,8 @@
   "runtimes": {
     "browser": [
       "@parcel/runtime-js",
-      "@parcel/runtime-react-refresh",
-      "@parcel/runtime-browser-hmr"
+      "@parcel/runtime-browser-hmr",
+      "@parcel/runtime-react-refresh"
     ],
     "node": ["@parcel/runtime-js"]
   },

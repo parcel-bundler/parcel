@@ -10,12 +10,7 @@ import generate from '@babel/generator';
 import {parse} from '@babel/parser';
 
 function shouldExclude(asset, options) {
-  return (
-    !asset.env.isBrowser() ||
-    !options.hot ||
-    !asset.isSource ||
-    asset.filePath.includes('packages/runtimes')
-  );
+  return !asset.env.isBrowser() || !options.hot || !asset.isSource;
 }
 
 export default new Transformer({
