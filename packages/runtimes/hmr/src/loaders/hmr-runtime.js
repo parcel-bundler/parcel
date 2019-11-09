@@ -81,6 +81,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       document.body.appendChild(overlay);
     }
   };
+  ws.onerror = function(e) {
+    console.error(e.message);
+  };
   ws.onclose = function(e) {
     console.warn('[parcel] 🚨 Connection to the HMR server was lost');
   };
@@ -193,7 +196,7 @@ function hmrAcceptCheck(bundle, id) {
 function hmrAcceptRun(bundle, id) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
-  if (cached) {
+  if (cached && cached.hot) {
     cached.hot.data = bundle.hotData;
   }
 
