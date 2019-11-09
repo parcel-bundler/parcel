@@ -61,7 +61,7 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, options}) {
+  transform({asset, options}) {
     let ast = asset.ast;
     if (!ast || shouldExclude(asset, options)) {
       return [asset];

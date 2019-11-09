@@ -1,8 +1,6 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import path from 'path';
-import invariant from 'assert';
 
 export default new Runtime({
   apply({bundle, options}) {
