@@ -39,6 +39,7 @@ describe('hmr', function() {
 
   // TODO: Figure out how to run all tests, instead of one at a time
   // TODO: make sure that the accept callback of new assets isn't called, only for loaded ones?
+  // TODO: is there an hmr update for the initial build?
   it.skip('should emit an HMR update for the file that changed', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),

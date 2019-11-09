@@ -22,14 +22,14 @@ export default new Reporter({
       server = new HMRServer(hmrOptions);
       servers.set(hmrOptions.port, server);
       await server.start();
-    } else {
-      if (event.type === 'buildSuccess') {
-        server.emitUpdate(event);
-      }
+    }
 
-      if (event.type === 'buildFailure') {
-        server.emitError(event.diagnostics);
-      }
+    if (event.type === 'buildSuccess') {
+      server.emitUpdate(event);
+    }
+
+    if (event.type === 'buildFailure') {
+      server.emitError(event.diagnostics);
     }
   }
 });
