@@ -54,9 +54,8 @@ describe('react-refresh', function() {
     let bundle = nullthrows(
       bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js')
     );
-    // TODO fix hmrruntime: asset.isNew
-    await new Promise(res => setTimeout(res, 2000));
     window.eval(await fs.readFile(nullthrows(bundle.filePath), 'utf8'));
+    // ReactDOM.render
     window.parcelRequire(bundle.getMainEntry().id).default();
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
@@ -78,7 +77,7 @@ describe('react-refresh', function() {
     assert((await getNextBuild(b)).type === 'buildSuccess');
 
     // Wait for the hmr-runtime to process the event
-    await new Promise(res => setTimeout(res, 200));
+    await new Promise(res => setTimeout(res, 100));
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
       /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/
@@ -97,7 +96,7 @@ describe('react-refresh', function() {
     assert((await getNextBuild(b)).type === 'buildSuccess');
 
     // Wait for the hmr-runtime to process the event
-    await new Promise(res => setTimeout(res, 200));
+    await new Promise(res => setTimeout(res, 100));
 
     let [, indexNum, appNum, fooText, fooNum, fooNum2] = root.textContent.match(
       /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/
@@ -119,7 +118,7 @@ describe('react-refresh', function() {
     assert((await getNextBuild(b)).type === 'buildSuccess');
 
     // Wait for the hmr-runtime to process the event
-    await new Promise(res => setTimeout(res, 200));
+    await new Promise(res => setTimeout(res, 100));
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
       /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/
