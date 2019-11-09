@@ -20,7 +20,7 @@ function Module(moduleName) {
 }
 
 module.bundle.Module = Module;
-var checkedAssets, assetsToAccept;
+var checkedAssets, assetsToAccept, acceptedAssets;
 
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
@@ -32,6 +32,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   ws.onmessage = function(event) {
     checkedAssets = {};
     assetsToAccept = [];
+    acceptedAssets = {};
 
     var data = JSON.parse(event.data);
 
@@ -47,11 +48,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Handle HMR Update
       var handled = false;
       assets.forEach(asset => {
-        if (!asset.isNew) {
-          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
-          if (didAccept) {
-            handled = true;
-          }
+        var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+        if (didAccept) {
+          handled = true;
         }
       });
 
@@ -63,7 +62,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         });
 
         for (var i = 0; i < assetsToAccept.length; i++) {
-          hmrAcceptRun(assetsToAccept[i][0], assetsToAccept[i][1]);
+          var id = assetsToAccept[i][1];
+          if (!acceptedAssets[id]) {
+            hmrAcceptRun(assetsToAccept[i][0], id);
+          }
         }
       } else {
         window.location.reload();
@@ -156,7 +158,6 @@ function hmrApply(bundle, asset) {
 
   if (modules[asset.id] || !bundle.parent) {
     var fn = new Function('require', 'module', 'exports', asset.output);
-    asset.isNew = !modules[asset.id];
     modules[asset.id] = [fn, asset.deps];
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
@@ -219,6 +220,6 @@ function hmrAcceptRun(bundle, id) {
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });
-    return true;
   }
+  acceptedAssets[id] = true;
 }
