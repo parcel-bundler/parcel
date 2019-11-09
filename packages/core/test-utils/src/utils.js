@@ -152,7 +152,7 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 export async function run(
   bundleGraph: BundleGraph,
   globals: mixed,
-  opts: {require?: boolean, ...} = {}
+  opts: {require?: boolean, fakeDocument?: mixed, ...} = {}
 ): Promise<mixed> {
   let bundles = [];
   bundleGraph.traverseBundles(bundle => {
@@ -168,7 +168,8 @@ export async function run(
     case 'browser': {
       let prepared = prepareBrowserContext(
         nullthrows(bundle.filePath),
-        globals
+        globals,
+        opts.fakeDocument
       );
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -327,7 +328,8 @@ export function normaliseNewlines(text: string): string {
 
 function prepareBrowserContext(
   filePath: FilePath,
-  globals: mixed
+  globals: mixed,
+  document?: mixed
 ): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
   // for testing dynamic imports
   const fakeElement = {
@@ -376,7 +378,8 @@ function prepareBrowserContext(
       appendChild() {
         return null;
       }
-    }
+    },
+    ...document
   };
 
   var exports = {};
