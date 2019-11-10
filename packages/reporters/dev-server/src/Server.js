@@ -11,7 +11,6 @@ import path from 'path';
 import http from 'http';
 import https from 'https';
 import url from 'url';
-import logger from '@parcel/logger';
 import {loadConfig, generateCertificate, getCertificate} from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
