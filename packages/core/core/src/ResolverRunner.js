@@ -3,6 +3,7 @@
 import type {AssetRequest, Dependency, ParcelOptions} from './types';
 
 import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
 import type ParcelConfig from './ParcelConfig';
 import {report} from './ReporterRunner';
@@ -36,24 +37,30 @@ export default class ResolverRunner {
     let resolvers = await this.config.getResolvers();
 
     for (let resolver of resolvers) {
-      let result = await resolver.plugin.resolve({
-        dependency: dep,
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: resolver.name})
-      });
+      try {
+        let result = await resolver.plugin.resolve({
+          dependency: dep,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: resolver.name})
+        });
 
-      if (result && result.isExcluded) {
-        return null;
-      }
+        if (result && result.isExcluded) {
+          return null;
+        }
 
-      if (result && result.filePath) {
-        return {
-          filePath: result.filePath,
-          sideEffects: result.sideEffects,
-          code: result.code,
-          env: dependency.env,
-          pipeline: dependency.pipeline
-        };
+        if (result && result.filePath) {
+          return {
+            filePath: result.filePath,
+            sideEffects: result.sideEffects,
+            code: result.code,
+            env: dependency.env,
+            pipeline: dependency.pipeline
+          };
+        }
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, resolver.name)
+        });
       }
     }
 
