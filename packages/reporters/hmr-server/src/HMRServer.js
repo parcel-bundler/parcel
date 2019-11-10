@@ -130,10 +130,25 @@ export default class HMRServer {
           }
         }
 
+        let output = await asset.getCode();
+
+        if (this.options.sourceMaps) {
+          let sourcemap = await asset.getMap();
+          if (sourcemap) {
+            let sourcemapStringified = await sourcemap.stringify({
+              inlineMap: true,
+              sourceRoot: '/__parcel_source_root/'
+              // TODO
+              // rootDir & fs needed for inlineSources, see PackageRunner#generateSourceMap
+            });
+            output += `\n//# sourceMappingURL=${sourcemapStringified}\n`;
+          }
+        }
+
         return {
           id: asset.id,
           type: asset.type,
-          output: await asset.getCode(),
+          output,
           envHash: md5FromObject(asset.env),
           deps
         };

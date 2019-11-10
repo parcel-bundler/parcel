@@ -25,5 +25,6 @@ export type HMRServerOptions = {|
   ...ServerOptions,
   cacheDir: string,
   inputFS: FileSystem,
-  outputFS: FileSystem
+  outputFS: FileSystem,
+  sourceMaps?: boolean
 |};

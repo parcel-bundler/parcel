@@ -333,9 +333,8 @@ export default class PackagerRunner {
       }
     }
 
-    let mapFilename = filePath + '.map';
     return map.stringify({
-      file: path.basename(mapFilename),
+      file: path.basename(filePath),
       fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources

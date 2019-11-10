@@ -14,7 +14,8 @@ export default new Reporter({
       ...hot,
       cacheDir: options.cacheDir,
       inputFS: options.inputFS,
-      outputFS: options.outputFS
+      outputFS: options.outputFS,
+      sourceMaps: options.sourceMaps
     };
 
     let server = servers.get(hmrOptions.port);
