@@ -168,29 +168,35 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
 
     for (let namer of namers) {
-      let name = await namer.plugin.name({
-        bundle,
-        bundleGraph,
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: namer.name})
-      });
+      try {
+        let name = await namer.plugin.name({
+          bundle,
+          bundleGraph,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: namer.name})
+        });
 
-      if (name != null) {
-        if (path.extname(name).slice(1) !== bundle.type) {
-          throw new Error(
-            `Destination name ${name} extension does not match bundle type "${
-              bundle.type
-            }"`
+        if (name != null) {
+          if (path.extname(name).slice(1) !== bundle.type) {
+            throw new Error(
+              `Destination name ${name} extension does not match bundle type "${
+                bundle.type
+              }"`
+            );
+          }
+
+          let target = nullthrows(internalBundle.target);
+          internalBundle.filePath = path.join(
+            target.distDir,
+            normalizeSeparators(name)
           );
+          internalBundle.name = name;
+          return;
         }
-
-        let target = nullthrows(internalBundle.target);
-        internalBundle.filePath = path.join(
-          target.distDir,
-          normalizeSeparators(name)
-        );
-        internalBundle.name = name;
-        return;
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, namer.name)
+        });
       }
     }
 
