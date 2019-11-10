@@ -121,11 +121,6 @@ export default class Validation {
           }
         }
       } catch (e) {
-        // This is very likely to happen, don't actually re-transform this...
-        if (e instanceof ThrowableDiagnostic) {
-          throw e;
-        }
-
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, validator.name)
         });

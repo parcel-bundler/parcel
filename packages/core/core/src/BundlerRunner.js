@@ -11,6 +11,7 @@ import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {removeAssetGroups} from './BundleGraph';
@@ -77,19 +78,32 @@ export default class BundlerRunner {
     );
 
     let bundler = await this.config.getBundler();
-    await bundler.bundle({
-      bundleGraph: mutableBundleGraph,
-      options: this.pluginOptions,
-      logger: new PluginLogger({origin: this.config.bundler})
-    });
+
+    try {
+      await bundler.bundle({
+        bundleGraph: mutableBundleGraph,
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: this.config.bundler})
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, this.config.bundler)
+      });
+    }
     assertSignalNotAborted(signal);
 
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
-    await bundler.optimize({
-      bundleGraph: mutableBundleGraph,
-      options: this.pluginOptions,
-      logger: new PluginLogger({origin: this.config.bundler})
-    });
+    try {
+      await bundler.optimize({
+        bundleGraph: mutableBundleGraph,
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: this.config.bundler})
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, this.config.bundler)
+      });
+    }
     assertSignalNotAborted(signal);
 
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
