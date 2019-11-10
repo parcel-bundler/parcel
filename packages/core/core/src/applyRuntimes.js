@@ -19,6 +19,7 @@ import BundleGraph from './public/BundleGraph';
 import {removeAssetGroups} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -45,10 +46,11 @@ export default async function applyRuntimes({
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
-      let applied = await runtime.apply({
+      let applied = await runtime.plugin.apply({
         bundle: new NamedBundle(bundle, bundleGraph, options),
         bundleGraph: new BundleGraph(bundleGraph, options),
-        options: pluginOptions
+        options: pluginOptions,
+        logger: new PluginLogger({origin: runtime.name})
       });
 
       if (applied) {

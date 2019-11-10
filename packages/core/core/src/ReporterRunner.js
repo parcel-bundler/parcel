@@ -6,9 +6,8 @@ import type {ParcelOptions} from './types';
 import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
-import logger from '@parcel/logger';
+import logger, {patchConsole, PluginLogger} from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
-import {patchConsole} from '@parcel/logger';
 
 type Opts = {|
   config: ParcelConfig,
@@ -49,7 +48,11 @@ export default class ReporterRunner {
     let reporters = await this.config.getReporters();
 
     for (let reporter of reporters) {
-      await reporter.report(event, this.pluginOptions);
+      await reporter.plugin.report({
+        event,
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: reporter.name})
+      });
     }
   }
 }

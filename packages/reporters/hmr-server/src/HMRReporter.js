@@ -6,7 +6,7 @@ import HMRServer from './HMRServer';
 
 let servers: Map<number, HMRServer> = new Map();
 export default new Reporter({
-  async report(event, options) {
+  async report({event, options}) {
     let hot = options.hot;
     if (!hot) return;
 

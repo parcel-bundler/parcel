@@ -300,8 +300,7 @@ export default class Transformation {
     }
 
     let pipeline = new Pipeline({
-      names: parcelConfig.getTransformerNames(filePath, pipelineName),
-      plugins: await parcelConfig.getTransformers(filePath, pipelineName),
+      transformers: await parcelConfig.getTransformers(filePath, pipelineName),
       configs,
       options: this.options,
       workerApi: this.workerApi
@@ -361,8 +360,7 @@ export default class Transformation {
 }
 
 type PipelineOpts = {|
-  names: Array<PackageName>,
-  plugins: Array<Transformer>,
+  transformers: Array<{|name: PackageName, plugin: Transformer|}>,
   configs: ConfigMap,
   options: ParcelOptions,
   workerApi: WorkerApi
@@ -385,13 +383,13 @@ class Pipeline {
   postProcess: ?PostProcessFunc;
   workerApi: WorkerApi;
 
-  constructor({names, plugins, configs, options, workerApi}: PipelineOpts) {
-    this.id = names.join(':');
+  constructor({transformers, configs, options, workerApi}: PipelineOpts) {
+    this.id = transformers.map(t => t.name).join(':');
 
-    this.transformers = names.map((name, i) => ({
-      name,
-      config: configs.get(name)?.result,
-      plugin: plugins[i]
+    this.transformers = transformers.map(transformer => ({
+      name: transformer.name,
+      config: configs.get(transformer.name)?.result,
+      plugin: transformer.plugin
     }));
     this.configs = configs;
     this.options = options;

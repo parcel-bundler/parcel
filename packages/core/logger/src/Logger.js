@@ -119,7 +119,13 @@ export class PluginLogger {
     logger.warn(this.updateOrigin(diagnostic));
   }
 
-  error(input: Diagnostifiable): void {
+  error(
+    input:
+      | Diagnostifiable
+      | PluginInputDiagnostic
+      | Array<PluginInputDiagnostic>
+  ): void {
+    // $FlowFixMe it should work, don't really wanna mess with the types of logger.error though...
     logger.error(input, this.origin);
   }
 

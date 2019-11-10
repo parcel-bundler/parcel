@@ -62,6 +62,11 @@ export type PrintableError = Error & {
   ...
 };
 
+export type DiagnosticWithoutOrigin = {|
+  ...Diagnostic,
+  origin?: string
+|};
+
 // Something that can be turned into a diagnostic...
 export type Diagnostifiable =
   | Diagnostic
@@ -102,7 +107,7 @@ export function errorToDiagnostic(
     return error.diagnostics.map(d => {
       return {
         ...d,
-        origin: realOrigin || d.origin
+        origin: realOrigin || d.origin || 'unknown'
       };
     });
   }

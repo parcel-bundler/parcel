@@ -1,6 +1,8 @@
 // @flow
 
 import type {AssetRequest, Dependency, ParcelOptions} from './types';
+
+import {PluginLogger} from '@parcel/logger';
 import path from 'path';
 import type ParcelConfig from './ParcelConfig';
 import {report} from './ReporterRunner';
@@ -34,9 +36,10 @@ export default class ResolverRunner {
     let resolvers = await this.config.getResolvers();
 
     for (let resolver of resolvers) {
-      let result = await resolver.resolve({
+      let result = await resolver.plugin.resolve({
         dependency: dep,
-        options: this.pluginOptions
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: resolver.name})
       });
 
       if (result && result.isExcluded) {

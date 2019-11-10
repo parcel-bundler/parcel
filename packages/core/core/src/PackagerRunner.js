@@ -289,7 +289,7 @@ export default class PackagerRunner {
 
     let optimized = {contents, map};
     for (let optimizer of optimizers) {
-      optimized = await optimizer.optimize({
+      optimized = await optimizer.plugin.optimize({
         bundle,
         contents: optimized.contents,
         map: optimized.map,

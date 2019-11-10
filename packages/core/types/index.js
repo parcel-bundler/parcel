@@ -637,7 +637,8 @@ export type Namer = {|
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<?FilePath>
 |};
 
@@ -652,7 +653,8 @@ export type Runtime = {|
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
@@ -681,7 +683,8 @@ export type Optimizer = {|
 export type Resolver = {|
   resolve({|
     dependency: Dependency,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<?ResolveResult>
 |};
 
@@ -783,7 +786,11 @@ export type ReporterEvent =
   | ValidationEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: PluginOptions): Async<void>
+  report({|
+    event: ReporterEvent,
+    options: PluginOptions,
+    logger: PluginLogger
+  |}): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

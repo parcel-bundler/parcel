@@ -10,6 +10,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {PluginLogger} from '@parcel/logger';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {removeAssetGroups} from './BundleGraph';
@@ -143,7 +144,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<Namer>,
+    namers: Array<{|name: string, plugin: Namer|}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph
   ): Promise<void> {
@@ -151,10 +152,11 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
 
     for (let namer of namers) {
-      let name = await namer.name({
+      let name = await namer.plugin.name({
         bundle,
         bundleGraph,
-        options: this.pluginOptions
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: namer.name})
       });
 
       if (name != null) {
