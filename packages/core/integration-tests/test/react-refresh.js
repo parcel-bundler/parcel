@@ -50,7 +50,8 @@ describe('react-refresh', function() {
 
   it('bundle executes', async function() {
     let bundleEvent = await getNextBuild(b);
-    assert(bundleEvent.type === 'buildSuccess');
+    console.log(bundleEvent);
+    assert.equal(bundleEvent.type, 'buildSuccess');
     let bundle = nullthrows(
       bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js')
     );
@@ -74,7 +75,7 @@ describe('react-refresh', function() {
       path.join(inputDir, 'Foo.1.jsx'),
       path.join(inputDir, 'Foo.jsx')
     );
-    assert((await getNextBuild(b)).type === 'buildSuccess');
+    assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
     // Wait for the hmr-runtime to process the event
     await new Promise(res => setTimeout(res, 100));
@@ -93,7 +94,7 @@ describe('react-refresh', function() {
       path.join(inputDir, 'Foo.2-hooks.jsx'),
       path.join(inputDir, 'Foo.jsx')
     );
-    assert((await getNextBuild(b)).type === 'buildSuccess');
+    assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
     // Wait for the hmr-runtime to process the event
     await new Promise(res => setTimeout(res, 100));
@@ -115,7 +116,7 @@ describe('react-refresh', function() {
       path.join(inputDir, 'Foo.3-class.jsx'),
       path.join(inputDir, 'Foo.jsx')
     );
-    assert((await getNextBuild(b)).type === 'buildSuccess');
+    assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
     // Wait for the hmr-runtime to process the event
     await new Promise(res => setTimeout(res, 100));
