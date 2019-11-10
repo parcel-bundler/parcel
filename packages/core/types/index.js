@@ -6,6 +6,7 @@ import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -423,43 +424,51 @@ export type Transformer = {|
   getConfig?: ({|
     asset: MutableAsset,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<void>,
   rehydrateConfig?: ({|
     config: Config,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<void>,
   canReuseAST?: ({|
     ast: AST,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => boolean,
   parse?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<?AST>,
   transform({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<GenerateOutput>,
   postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<Array<TransformerResult>>
 |};
 

@@ -23,6 +23,7 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
@@ -425,6 +426,7 @@ class Pipeline {
             let transformerResults = await this.runTransformer(
               asset,
               transformer.plugin,
+              transformer.name,
               transformer.config
             );
 
@@ -451,8 +453,11 @@ class Pipeline {
   async runTransformer(
     asset: InternalAsset,
     transformer: Transformer,
+    transformerName: string,
     preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
+    const logger = new PluginLogger({origin: transformerName});
+
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return nullthrows(
         await this.resolverRunner.resolve(
@@ -472,7 +477,8 @@ class Pipeline {
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.pluginOptions,
-        resolve
+        resolve,
+        logger
       });
     }
 
@@ -483,7 +489,8 @@ class Pipeline {
       (!transformer.canReuseAST ||
         !transformer.canReuseAST({
           ast: asset.ast,
-          options: this.pluginOptions
+          options: this.pluginOptions,
+          logger
         })) &&
       this.generate
     ) {
@@ -498,7 +505,8 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
-        resolve
+        resolve,
+        logger
       });
     }
 
@@ -509,7 +517,8 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
-        resolve
+        resolve,
+        logger
       })
     );
 
@@ -521,7 +530,8 @@ class Pipeline {
             asset: input,
             config,
             options: this.pluginOptions,
-            resolve
+            resolve,
+            logger
           })
         );
       }
@@ -541,7 +551,8 @@ class Pipeline {
           assets: assets.map(asset => new MutableAsset(asset)),
           config,
           options: this.pluginOptions,
-          resolve
+          resolve,
+          logger
         });
 
         return Promise.all(
