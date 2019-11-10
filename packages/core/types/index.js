@@ -410,12 +410,14 @@ export type Validator = {|
   validate({|
     asset: Asset,
     config: ConfigResult | void,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<ConfigResult | void>
 |};
 

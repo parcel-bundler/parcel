@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
+import type {Validator} from '@parcel/types';
 import type {
   AssetRequest,
   Config,
@@ -13,8 +14,8 @@ import ParcelConfig from './ParcelConfig';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
-import logger from '@parcel/logger';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import logger, {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
@@ -79,42 +80,67 @@ export default class Validation {
       this.options.packageManager
     );
 
+    let names = await parcelConfig.getValidatorNames(this.request.filePath);
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
 
-    for (let validator of validators) {
-      let config = null;
-      if (validator.getConfig) {
-        config = await validator.getConfig({
-          asset: new Asset(asset),
-          options: pluginOptions,
-          resolveConfig: (configNames: Array<string>) =>
-            resolveConfig(
-              this.options.inputFS,
-              asset.value.filePath,
-              configNames
-            )
-        });
-      }
+    let validatorsWithName: Array<{|
+      name: string,
+      plugin: Validator
+    |}> = names.map((n, i) => {
+      return {
+        name: n,
+        plugin: validators[i]
+      };
+    });
 
-      let validatorResult = await validator.validate({
-        asset: new Asset(asset),
-        options: pluginOptions,
-        config
-      });
-
-      if (validatorResult) {
-        let {warnings, errors} = validatorResult;
-
-        if (errors.length > 0) {
-          throw new ThrowableDiagnostic({
-            diagnostic: errors
+    for (let validator of validatorsWithName) {
+      let validatorLogger = new PluginLogger({origin: validator.name});
+      try {
+        let config = null;
+        if (validator.plugin.getConfig) {
+          config = await validator.plugin.getConfig({
+            asset: new Asset(asset),
+            options: pluginOptions,
+            logger: validatorLogger,
+            resolveConfig: (configNames: Array<string>) =>
+              resolveConfig(
+                this.options.inputFS,
+                asset.value.filePath,
+                configNames
+              )
           });
         }
 
-        if (warnings.length > 0) {
-          logger.warn(warnings);
+        let validatorResult = await validator.plugin.validate({
+          asset: new Asset(asset),
+          options: pluginOptions,
+          config,
+          logger: validatorLogger
+        });
+
+        if (validatorResult) {
+          let {warnings, errors} = validatorResult;
+
+          if (errors.length > 0) {
+            throw new ThrowableDiagnostic({
+              diagnostic: errors
+            });
+          }
+
+          if (warnings.length > 0) {
+            logger.warn(warnings);
+          }
         }
+      } catch (e) {
+        // This is very likely to happen, don't actually re-transform this...
+        if (e instanceof ThrowableDiagnostic) {
+          throw e;
+        }
+
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, validator.name)
+        });
       }
     }
   }
