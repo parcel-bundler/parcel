@@ -79,14 +79,16 @@ export default class BundlerRunner {
     let bundler = await this.config.getBundler();
     await bundler.bundle({
       bundleGraph: mutableBundleGraph,
-      options: this.pluginOptions
+      options: this.pluginOptions,
+      logger: new PluginLogger({origin: this.config.bundler})
     });
     assertSignalNotAborted(signal);
 
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
     await bundler.optimize({
       bundleGraph: mutableBundleGraph,
-      options: this.pluginOptions
+      options: this.pluginOptions,
+      logger: new PluginLogger({origin: this.config.bundler})
     });
     assertSignalNotAborted(signal);
 

@@ -202,9 +202,17 @@ export default class ParcelConfig {
     return packagerName;
   }
 
-  getPackager(filePath: FilePath): Promise<Packager> {
+  async getPackager(
+    filePath: FilePath
+  ): Promise<{|
+    name: string,
+    plugin: Packager
+  |}> {
     let packagerName = this.getPackagerName(filePath);
-    return this.loadPlugin(packagerName);
+    return {
+      name: packagerName,
+      plugin: await this.loadPlugin(packagerName)
+    };
   }
 
   getOptimizerNames(filePath: FilePath): Array<string> {

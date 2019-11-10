@@ -21,6 +21,7 @@ import {
   md5FromString,
   blobToStream
 } from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
 import {Readable} from 'stream';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -230,7 +231,7 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packaged = await packager.package({
+    let packaged = await packager.plugin.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
       getSourceMapReference: map => {
@@ -240,6 +241,7 @@ export default class PackagerRunner {
           : path.basename(bundle.filePath) + '.map';
       },
       options: this.pluginOptions,
+      logger: new PluginLogger({origin: packager.name}),
       getInlineBundleContents: (
         bundle: BundleType,
         bundleGraph: BundleGraphType
@@ -293,7 +295,8 @@ export default class PackagerRunner {
         bundle,
         contents: optimized.contents,
         map: optimized.map,
-        options: this.pluginOptions
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: optimizer.name})
       });
     }
 

@@ -625,11 +625,13 @@ export type ResolveResult = {|
 export type Bundler = {|
   bundle({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void>
 |};
 
@@ -664,6 +666,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: PluginOptions,
     getSourceMapReference: (map: SourceMap) => Promise<string> | string,
+    logger: PluginLogger,
     getInlineBundleContents: (
       Bundle,
       BundleGraph
@@ -676,7 +679,8 @@ export type Optimizer = {|
     bundle: NamedBundle,
     contents: Blob,
     map: ?SourceMap,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<BundleResult>
 |};
 
