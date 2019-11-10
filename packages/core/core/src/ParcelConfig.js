@@ -134,8 +134,21 @@ export default class ParcelConfig {
     return transformers;
   }
 
-  getValidators(filePath: FilePath): Promise<Array<Validator>> {
-    return this.loadPlugins(this.getValidatorNames(filePath));
+  async getValidators(
+    filePath: FilePath
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Validator
+    |}>
+  > {
+    let names = this.getValidatorNames(filePath);
+    return (await this.loadPlugins(names)).map((validator, i) => {
+      return {
+        name: names[i],
+        plugin: validator
+      };
+    });
   }
 
   getTransformers(

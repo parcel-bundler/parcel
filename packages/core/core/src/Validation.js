@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {Validator} from '@parcel/types';
 import type {
   AssetRequest,
   Config,
@@ -80,21 +79,10 @@ export default class Validation {
       this.options.packageManager
     );
 
-    let names = await parcelConfig.getValidatorNames(this.request.filePath);
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
 
-    let validatorsWithName: Array<{|
-      name: string,
-      plugin: Validator
-    |}> = names.map((n, i) => {
-      return {
-        name: n,
-        plugin: validators[i]
-      };
-    });
-
-    for (let validator of validatorsWithName) {
+    for (let validator of validators) {
       let validatorLogger = new PluginLogger({origin: validator.name});
       try {
         let config = null;
