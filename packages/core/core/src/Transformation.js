@@ -17,6 +17,7 @@ import type {
   ParcelOptions
 } from './types';
 import type {WorkerApi} from '@parcel/workers';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import path from 'path';
@@ -420,14 +421,20 @@ class Pipeline {
         if (asset.value.type !== initialType) {
           finalAssets.push(asset);
         } else {
-          let transformerResults = await this.runTransformer(
-            asset,
-            transformer.plugin,
-            transformer.config
-          );
+          try {
+            let transformerResults = await this.runTransformer(
+              asset,
+              transformer.plugin,
+              transformer.config
+            );
 
-          for (let result of transformerResults) {
-            resultingAssets.push(asset.createChildAsset(result));
+            for (let result of transformerResults) {
+              resultingAssets.push(asset.createChildAsset(result));
+            }
+          } catch (e) {
+            throw new ThrowableDiagnostic({
+              diagnostic: errorToDiagnostic(e, transformer.name)
+            });
           }
         }
       }
