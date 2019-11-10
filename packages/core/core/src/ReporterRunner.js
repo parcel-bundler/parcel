@@ -5,6 +5,7 @@ import type {ParcelOptions} from './types';
 
 import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import logger, {patchConsole, PluginLogger} from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
@@ -48,11 +49,19 @@ export default class ReporterRunner {
     let reporters = await this.config.getReporters();
 
     for (let reporter of reporters) {
-      await reporter.plugin.report({
-        event,
-        options: this.pluginOptions,
-        logger: new PluginLogger({origin: reporter.name})
-      });
+      try {
+        await reporter.plugin.report({
+          event,
+          options: this.pluginOptions,
+          // Should this even have a logger? Might end up in an infinite loop...
+          logger: new PluginLogger({origin: reporter.name})
+        });
+      } catch (e) {
+        // Should this even rethrow? Might end up in an infinite loop...
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, reporter.name)
+        });
+      }
     }
   }
 }
