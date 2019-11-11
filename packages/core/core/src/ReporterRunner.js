@@ -53,11 +53,9 @@ export default class ReporterRunner {
         await reporter.plugin.report({
           event,
           options: this.pluginOptions,
-          // Should this even have a logger? Might end up in an infinite loop...
           logger: new PluginLogger({origin: reporter.name})
         });
       } catch (e) {
-        // Should this even rethrow? Might end up in an infinite loop...
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, reporter.name)
         });
