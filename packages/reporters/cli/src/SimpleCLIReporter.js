@@ -15,7 +15,7 @@ import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 
 export default new Reporter({
-  report(event, options) {
+  report({event, options}) {
     _report(event, options);
   }
 });

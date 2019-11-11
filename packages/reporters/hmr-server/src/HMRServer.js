@@ -8,7 +8,6 @@ import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
 import {getCertificate, generateCertificate} from '@parcel/utils';
-import logger from '@parcel/logger';
 import {md5FromObject} from '@parcel/utils';
 
 type HMRAsset = {|
@@ -152,7 +151,7 @@ export default class HMRServer {
       return;
     }
 
-    logger.warn({
+    this.options.logger.warn({
       origin: '@parcel/reporter-hmr-server',
       message: `[${err.code}]: ${err.message}`,
       stack: err.stack

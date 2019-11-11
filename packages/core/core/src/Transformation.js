@@ -17,11 +17,13 @@ import type {
   ParcelOptions
 } from './types';
 import type {WorkerApi} from '@parcel/workers';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
@@ -298,8 +300,7 @@ export default class Transformation {
     }
 
     let pipeline = new Pipeline({
-      names: parcelConfig.getTransformerNames(filePath, pipelineName),
-      plugins: await parcelConfig.getTransformers(filePath, pipelineName),
+      transformers: await parcelConfig.getTransformers(filePath, pipelineName),
       configs,
       options: this.options,
       workerApi: this.workerApi
@@ -359,8 +360,7 @@ export default class Transformation {
 }
 
 type PipelineOpts = {|
-  names: Array<PackageName>,
-  plugins: Array<Transformer>,
+  transformers: Array<{|name: PackageName, plugin: Transformer|}>,
   configs: ConfigMap,
   options: ParcelOptions,
   workerApi: WorkerApi
@@ -383,13 +383,13 @@ class Pipeline {
   postProcess: ?PostProcessFunc;
   workerApi: WorkerApi;
 
-  constructor({names, plugins, configs, options, workerApi}: PipelineOpts) {
-    this.id = names.join(':');
+  constructor({transformers, configs, options, workerApi}: PipelineOpts) {
+    this.id = transformers.map(t => t.name).join(':');
 
-    this.transformers = names.map((name, i) => ({
-      name,
-      config: configs.get(name)?.result,
-      plugin: plugins[i]
+    this.transformers = transformers.map(transformer => ({
+      name: transformer.name,
+      config: configs.get(transformer.name)?.result,
+      plugin: transformer.plugin
     }));
     this.configs = configs;
     this.options = options;
@@ -420,14 +420,21 @@ class Pipeline {
         if (asset.value.type !== initialType) {
           finalAssets.push(asset);
         } else {
-          let transformerResults = await this.runTransformer(
-            asset,
-            transformer.plugin,
-            transformer.config
-          );
+          try {
+            let transformerResults = await this.runTransformer(
+              asset,
+              transformer.plugin,
+              transformer.name,
+              transformer.config
+            );
 
-          for (let result of transformerResults) {
-            resultingAssets.push(asset.createChildAsset(result));
+            for (let result of transformerResults) {
+              resultingAssets.push(asset.createChildAsset(result));
+            }
+          } catch (e) {
+            throw new ThrowableDiagnostic({
+              diagnostic: errorToDiagnostic(e, transformer.name)
+            });
           }
         }
       }
@@ -444,8 +451,11 @@ class Pipeline {
   async runTransformer(
     asset: InternalAsset,
     transformer: Transformer,
+    transformerName: string,
     preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
+    const logger = new PluginLogger({origin: transformerName});
+
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return nullthrows(
         await this.resolverRunner.resolve(
@@ -465,7 +475,8 @@ class Pipeline {
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.pluginOptions,
-        resolve
+        resolve,
+        logger
       });
     }
 
@@ -476,7 +487,8 @@ class Pipeline {
       (!transformer.canReuseAST ||
         !transformer.canReuseAST({
           ast: asset.ast,
-          options: this.pluginOptions
+          options: this.pluginOptions,
+          logger
         })) &&
       this.generate
     ) {
@@ -491,7 +503,8 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
-        resolve
+        resolve,
+        logger
       });
     }
 
@@ -502,7 +515,8 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
-        resolve
+        resolve,
+        logger
       })
     );
 
@@ -514,7 +528,8 @@ class Pipeline {
             asset: input,
             config,
             options: this.pluginOptions,
-            resolve
+            resolve,
+            logger
           })
         );
       }
@@ -534,7 +549,8 @@ class Pipeline {
           assets: assets.map(asset => new MutableAsset(asset)),
           config,
           options: this.pluginOptions,
-          resolve
+          resolve,
+          logger
         });
 
         return Promise.all(

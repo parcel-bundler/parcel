@@ -5,6 +5,7 @@ import type ParcelConfig from './ParcelConfig';
 
 import nullthrows from 'nullthrows';
 import {md5FromString, PromiseQueue} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
 
 import {createConfig} from './InternalConfig';
 import Config from './public/Config';
@@ -91,15 +92,16 @@ export default class ConfigLoader {
       env
     });
 
-    plugin = await loadPlugin(
+    let pluginInstance = await loadPlugin(
       this.options.packageManager,
       nullthrows(plugin),
       parcelConfigPath
     );
-    if (plugin.loadConfig != null) {
-      await plugin.loadConfig({
+    if (pluginInstance.loadConfig != null) {
+      await pluginInstance.loadConfig({
         config: new Config(config, this.options),
-        options: this.options
+        options: this.options,
+        logger: new PluginLogger({origin: nullthrows(plugin)})
       });
     }
 

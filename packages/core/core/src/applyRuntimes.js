@@ -19,6 +19,8 @@ import BundleGraph from './public/BundleGraph';
 import {removeAssetGroups} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -45,27 +47,34 @@ export default async function applyRuntimes({
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
-      let applied = await runtime.apply({
-        bundle: new NamedBundle(bundle, bundleGraph, options),
-        bundleGraph: new BundleGraph(bundleGraph, options),
-        options: pluginOptions
-      });
+      try {
+        let applied = await runtime.plugin.apply({
+          bundle: new NamedBundle(bundle, bundleGraph, options),
+          bundleGraph: new BundleGraph(bundleGraph, options),
+          options: pluginOptions,
+          logger: new PluginLogger({origin: runtime.name})
+        });
 
-      if (applied) {
-        let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-        for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
-          let assetRequest = {
-            code,
-            filePath,
-            env: bundle.env
-          };
-          connections.push({
-            bundle,
-            assetRequest,
-            dependency: dependency,
-            isEntry
-          });
+        if (applied) {
+          let runtimeAssets = Array.isArray(applied) ? applied : [applied];
+          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+            let assetRequest = {
+              code,
+              filePath,
+              env: bundle.env
+            };
+            connections.push({
+              bundle,
+              assetRequest,
+              dependency: dependency,
+              isEntry
+            });
+          }
         }
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, runtime.name)
+        });
       }
     }
   }

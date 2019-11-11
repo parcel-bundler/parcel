@@ -21,7 +21,7 @@ const LOG_LEVELS = {
 };
 
 export default new Reporter({
-  report(event, options) {
+  report({event, options}) {
     let logLevelFilter = options.logLevel || 'info';
 
     switch (event.type) {
