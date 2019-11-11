@@ -11,6 +11,7 @@ import {
 } from 'https';
 import type {ServerOptions} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {PluginLogger} from '@parcel/logger';
 
 export type Request = HTTPIncomingMessage | HTTPSIncomingMessage;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
@@ -25,5 +26,6 @@ export type HMRServerOptions = {|
   ...ServerOptions,
   cacheDir: string,
   inputFS: FileSystem,
-  outputFS: FileSystem
+  outputFS: FileSystem,
+  logger: PluginLogger
 |};

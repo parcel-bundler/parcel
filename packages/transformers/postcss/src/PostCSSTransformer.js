@@ -1,11 +1,6 @@
 // @flow
 
-import type {
-  FilePath,
-  MutableAsset,
-  ResolveFn,
-  PluginOptions
-} from '@parcel/types';
+import type {FilePath, MutableAsset} from '@parcel/types';
 
 import {md5FromString} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
@@ -118,15 +113,7 @@ export default new Transformer({
     };
   },
 
-  async transform({
-    asset,
-    config
-  }: {|
-    asset: MutableAsset,
-    config: ?ParcelPostCSSConfig,
-    resolve: ResolveFn,
-    options: PluginOptions
-  |}) {
+  async transform({asset, config}) {
     if (!config) {
       return [asset];
     }
