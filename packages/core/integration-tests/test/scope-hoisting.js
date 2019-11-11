@@ -8,7 +8,8 @@ import {
   inputFS as fs,
   assertBundles,
   distDir,
-  getNextBuild
+  getNextBuild,
+  sleep
 } from '@parcel/test-utils';
 
 const inputDir = path.join(__dirname, '/input');
@@ -409,6 +410,9 @@ describe('scope hoisting', function() {
     });
 
     it('correctly updates deferred assets that are reexported', async function() {
+      await sleep(100);
+      await fs.rimraf(inputDir);
+      await sleep(100);
       await fs.ncp(
         path.join(
           __dirname,
@@ -420,7 +424,7 @@ describe('scope hoisting', function() {
         outputFS: fs
       });
 
-      await b.watch();
+      let subscription = await b.watch();
 
       let bundleEvent = await getNextBuild(b);
       assert(bundleEvent.type === 'buildSuccess');
@@ -436,9 +440,14 @@ describe('scope hoisting', function() {
       assert(bundleEvent.type === 'buildSuccess');
       output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, '1234556789');
+
+      await subscription.unsubscribe();
     });
 
     it('correctly updates deferred assets that are reexported and imported directly', async function() {
+      await sleep(100);
+      await fs.rimraf(inputDir);
+      await sleep(100);
       await fs.ncp(
         path.join(
           __dirname,
@@ -450,7 +459,7 @@ describe('scope hoisting', function() {
         outputFS: fs
       });
 
-      await b.watch();
+      let subscription = await b.watch();
 
       let bundleEvent = await getNextBuild(b);
       assert(bundleEvent.type === 'buildSuccess');
@@ -466,6 +475,8 @@ describe('scope hoisting', function() {
       assert(bundleEvent.type === 'buildSuccess');
       output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, '1234556789');
+
+      await subscription.unsubscribe();
     });
 
     it('keeps side effects by default', async function() {

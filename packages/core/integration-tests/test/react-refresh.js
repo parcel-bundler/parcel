@@ -2,10 +2,10 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  run,
   inputFS as fs,
   getNextBuild,
-  defaultConfig
+  defaultConfig,
+  sleep
 } from '@parcel/test-utils';
 import getPort from 'get-port';
 import JSDom from 'jsdom';
@@ -17,12 +17,16 @@ describe('react-refresh', function() {
   let b,
     root,
     window,
+    subscription,
     randoms = {};
 
   before(async () => {
+    await sleep(100);
+    await fs.rimraf(inputDir);
+    await sleep(100);
     await fs.ncp(path.join(__dirname, '/integration/react-refresh'), inputDir);
     let port = await getPort();
-    b = bundler(path.join(inputDir, 'index.jsx'), {
+    b = bundler(path.join(inputDir, 'index.js'), {
       outputFS: fs,
       hot: {
         port
@@ -45,12 +49,11 @@ describe('react-refresh', function() {
     let {document} = window;
     root = document.getElementById('root');
 
-    await b.watch();
+    subscription = await b.watch();
   });
 
   it('bundle executes', async function() {
     let bundleEvent = await getNextBuild(b);
-    console.log(bundleEvent);
     assert.equal(bundleEvent.type, 'buildSuccess');
     let bundle = nullthrows(
       bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js')
@@ -72,8 +75,8 @@ describe('react-refresh', function() {
 
   it('retains state in functional components', async function() {
     await fs.copyFile(
-      path.join(inputDir, 'Foo.1.jsx'),
-      path.join(inputDir, 'Foo.jsx')
+      path.join(inputDir, 'Foo.1.js'),
+      path.join(inputDir, 'Foo.js')
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -91,8 +94,8 @@ describe('react-refresh', function() {
 
   it('supports changing hooks in functional components', async function() {
     await fs.copyFile(
-      path.join(inputDir, 'Foo.2-hooks.jsx'),
-      path.join(inputDir, 'Foo.jsx')
+      path.join(inputDir, 'Foo.2-hooks.js'),
+      path.join(inputDir, 'Foo.js')
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -113,8 +116,8 @@ describe('react-refresh', function() {
 
   it('retains state in parent components when swapping function and class component', async function() {
     await fs.copyFile(
-      path.join(inputDir, 'Foo.3-class.jsx'),
-      path.join(inputDir, 'Foo.jsx')
+      path.join(inputDir, 'Foo.3-class.js'),
+      path.join(inputDir, 'Foo.js')
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -130,7 +133,12 @@ describe('react-refresh', function() {
     assert.equal(fooText, 'Class');
   });
 
-  after(() => {
-    if (window) window.close();
+  after(async () => {
+    if (window) {
+      window.close();
+    }
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
   });
 });

@@ -26,9 +26,15 @@ export default new Transformer({
     if (config?.config) {
       if (asset.meta.babelPlugins && Array.isArray(asset.meta.babelPlugins)) {
         // $FlowFixMe
-        config.config.plugins.push(...asset.meta.babelPlugins);
+        asset.ast = await babel7(
+          asset,
+          options,
+          config,
+          asset.meta.babelPlugins
+        );
+      } else {
+        asset.ast = await babel7(asset, options, config);
       }
-      asset.ast = await babel7(asset, options, config);
     }
 
     return [asset];
