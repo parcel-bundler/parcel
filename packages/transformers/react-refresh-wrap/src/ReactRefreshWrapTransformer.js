@@ -42,11 +42,11 @@ export default new Transformer({
   },
 
   async parse({asset, options}) {
-    let code = await asset.getCode();
     if (shouldExclude(asset, options)) {
       return null;
     }
 
+    let code = await asset.getCode();
     return {
       type: 'babel',
       version: '7.0.0',
