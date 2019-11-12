@@ -5,14 +5,11 @@ import {
   bundler as _bundler,
   run,
   outputFS,
-  inputFS as fs,
+  overlayFS,
   assertBundles,
   distDir,
-  getNextBuild,
-  sleep
+  getNextBuild
 } from '@parcel/test-utils';
-
-const inputDir = path.join(__dirname, '/input');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -410,18 +407,14 @@ describe('scope hoisting', function() {
     });
 
     it('correctly updates deferred assets that are reexported', async function() {
-      await sleep(100);
-      await fs.rimraf(inputDir);
-      await sleep(100);
-      await fs.ncp(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported'
-        ),
-        inputDir
+      let testDir = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported'
       );
-      let b = bundler(path.join(inputDir, 'index.js'), {
-        outputFS: fs
+
+      let b = bundler(path.join(testDir, 'index.js'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS
       });
 
       let subscription = await b.watch();
@@ -431,9 +424,10 @@ describe('scope hoisting', function() {
       let output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, '12345hello');
 
-      await fs.copyFile(
-        path.join(inputDir, 'node_modules', 'foo', 'foo_updated.js'),
-        path.join(inputDir, 'node_modules', 'foo', 'foo.js')
+      await overlayFS.mkdirp(path.join(testDir, 'node_modules', 'foo'));
+      await overlayFS.copyFile(
+        path.join(testDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(testDir, 'node_modules', 'foo', 'foo.js')
       );
 
       bundleEvent = await getNextBuild(b);
@@ -445,18 +439,14 @@ describe('scope hoisting', function() {
     });
 
     it('correctly updates deferred assets that are reexported and imported directly', async function() {
-      await sleep(100);
-      await fs.rimraf(inputDir);
-      await sleep(100);
-      await fs.ncp(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-update-deferred-direct'
-        ),
-        inputDir
+      let testDir = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/side-effects-update-deferred-direct'
       );
-      let b = bundler(path.join(inputDir, 'index.js'), {
-        outputFS: fs
+
+      let b = bundler(path.join(testDir, 'index.js'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS
       });
 
       let subscription = await b.watch();
@@ -466,9 +456,10 @@ describe('scope hoisting', function() {
       let output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, '12345hello');
 
-      await fs.copyFile(
-        path.join(inputDir, 'node_modules', 'foo', 'foo_updated.js'),
-        path.join(inputDir, 'node_modules', 'foo', 'foo.js')
+      await overlayFS.mkdirp(path.join(testDir, 'node_modules', 'foo'));
+      await overlayFS.copyFile(
+        path.join(testDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(testDir, 'node_modules', 'foo', 'foo.js')
       );
 
       bundleEvent = await getNextBuild(b);

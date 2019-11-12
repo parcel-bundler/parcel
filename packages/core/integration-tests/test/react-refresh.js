@@ -2,16 +2,15 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  inputFS as fs,
+  overlayFS as fs,
   getNextBuild,
-  defaultConfig,
-  sleep
+  defaultConfig
 } from '@parcel/test-utils';
 import getPort from 'get-port';
 import JSDom from 'jsdom';
 import nullthrows from 'nullthrows';
 
-const inputDir = path.join(__dirname, '/input');
+const testDir = path.join(__dirname, '/integration/react-refresh');
 
 describe('react-refresh', function() {
   let b,
@@ -21,12 +20,9 @@ describe('react-refresh', function() {
     randoms = {};
 
   beforeEach(async () => {
-    await sleep(100);
-    await fs.rimraf(inputDir);
-    await sleep(100);
-    await fs.ncp(path.join(__dirname, '/integration/react-refresh'), inputDir);
     let port = await getPort();
-    b = bundler(path.join(inputDir, 'index.js'), {
+    b = bundler(path.join(testDir, 'index.js'), {
+      inputFS: fs,
       outputFS: fs,
       hot: {
         port
@@ -72,9 +68,10 @@ describe('react-refresh', function() {
   });
 
   it('retains state in functional components', async function() {
+    await fs.mkdirp(testDir);
     await fs.copyFile(
-      path.join(inputDir, 'Foo.1.js'),
-      path.join(inputDir, 'Foo.js')
+      path.join(testDir, 'Foo.1.js'),
+      path.join(testDir, 'Foo.js')
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -91,9 +88,10 @@ describe('react-refresh', function() {
   });
 
   it('supports changing hooks in functional components', async function() {
+    await fs.mkdirp(testDir);
     await fs.copyFile(
-      path.join(inputDir, 'Foo.2-hooks.js'),
-      path.join(inputDir, 'Foo.js')
+      path.join(testDir, 'Foo.2-hooks.js'),
+      path.join(testDir, 'Foo.js')
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -111,9 +109,10 @@ describe('react-refresh', function() {
   });
 
   it('retains state in parent components when swapping function and class component', async function() {
+    await fs.mkdirp(testDir);
     await fs.copyFile(
-      path.join(inputDir, 'Foo.3-class.js'),
-      path.join(inputDir, 'Foo.js')
+      path.join(testDir, 'Foo.3-class.js'),
+      path.join(testDir, 'Foo.js')
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
