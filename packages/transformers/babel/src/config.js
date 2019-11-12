@@ -2,12 +2,12 @@
 
 import type {Config, PluginOptions} from '@parcel/types';
 import type {BabelConfig} from './types';
+import type {PluginLogger} from '@parcel/logger';
 
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {loadPartialConfig, createConfigItem} from '@babel/core';
 import {md5FromObject} from '@parcel/utils';
-import logger from '@parcel/logger';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
@@ -18,7 +18,11 @@ import {enginesToBabelTargets} from './utils';
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
-export async function load(config: Config, options: PluginOptions) {
+export async function load(
+  config: Config,
+  options: PluginOptions,
+  logger: PluginLogger
+) {
   if (config.result != null) {
     return reload(config, options);
   }
@@ -49,7 +53,6 @@ export async function load(config: Config, options: PluginOptions) {
     // babel.config.js files get required by @babel/core so there's no use in including it for watch mode invalidation
     if (configIsJS) {
       logger.verbose({
-        origin: '',
         message:
           'WARNING: Using a JavaScript Babel config file means losing out on some caching features of Parcel. Try using a .babelrc file instead.'
       });
@@ -60,7 +63,6 @@ export async function load(config: Config, options: PluginOptions) {
 
     if (babelrc && (await isExtended(/*babelrc*/))) {
       logger.verbose({
-        origin: '',
         message:
           'WARNING: You are using `extends` in your Babel config, which means you are losing out on some of the caching features of Parcel. Maybe try using a reusable preset instead.'
       });
@@ -69,7 +71,6 @@ export async function load(config: Config, options: PluginOptions) {
 
     if (dependsOnRelative || dependsOnLocal) {
       logger.verbose({
-        origin: '',
         message:
           'WARNING: It looks like you are using local Babel plugins or presets. You will need to run with the `--no-cache` option in order to pick up changes to these until their containing package versions are bumped.'
       });
@@ -88,7 +89,6 @@ export async function load(config: Config, options: PluginOptions) {
       config.setResultHash(md5FromObject(partialConfig.options));
     } else {
       logger.warn({
-        origin: '@parcel/transformer-babel',
         message:
           'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
       });
