@@ -5,9 +5,9 @@ import invariant from 'assert';
 
 async function shouldExclude(asset, options) {
   if (
-    !asset.env.isBrowser() ||
-    !options.hot ||
     !asset.isSource ||
+    !options.hot ||
+    !asset.env.isBrowser() ||
     options.mode !== 'development'
   ) {
     return true;

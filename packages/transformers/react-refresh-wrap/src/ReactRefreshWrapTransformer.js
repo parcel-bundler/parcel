@@ -29,9 +29,10 @@ try {
 
 function shouldExclude(asset, options) {
   return (
-    !asset.env.isBrowser() ||
-    !options.hot ||
     !asset.isSource ||
+    !options.hot ||
+    !asset.env.isBrowser() ||
+    options.mode !== 'development' ||
     !asset.getDependencies().find(v => v.moduleSpecifier === 'react')
   );
 }

@@ -15,7 +15,12 @@ window.$RefreshSig$ = function() {
 
 export default new Runtime({
   async apply({bundle, options}) {
-    if (bundle.type !== 'js' || !bundle.env.isBrowser() || !options.hot) {
+    if (
+      bundle.type !== 'js' ||
+      !options.hot ||
+      !bundle.env.isBrowser() ||
+      options.mode !== 'development'
+    ) {
       return;
     }
 
