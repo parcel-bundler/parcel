@@ -416,6 +416,8 @@ export function link({
           return;
         }
 
+        let isGlobal = path.scope == path.scope.getProgramParent();
+
         // Replace patterns like `var {x} = require('y')` with e.g. `$id$export$x`.
         if (t.isObjectPattern(id)) {
           for (let p of path.get('id.properties')) {
@@ -427,6 +429,9 @@ export function link({
             let {identifier} = resolveSymbol(module, key.name);
             if (identifier) {
               replace(value.name, identifier, p);
+              if (isGlobal) {
+                replacements.set(value.name, identifier);
+              }
             }
           }
 
@@ -435,6 +440,9 @@ export function link({
           }
         } else if (t.isIdentifier(id)) {
           replace(id.name, init.name, path);
+          if (isGlobal) {
+            replacements.set(id.name, init.name);
+          }
         }
 
         function replace(id, init, path) {
@@ -447,7 +455,6 @@ export function link({
             ref.replaceWith(t.identifier(init));
           }
 
-          replacements.set(id, init);
           path.remove();
         }
       }
