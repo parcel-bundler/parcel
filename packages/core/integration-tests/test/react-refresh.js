@@ -20,7 +20,7 @@ describe('react-refresh', function() {
     subscription,
     randoms = {};
 
-  before(async () => {
+  beforeEach(async () => {
     await sleep(100);
     await fs.rimraf(inputDir);
     await sleep(100);
@@ -50,9 +50,7 @@ describe('react-refresh', function() {
     root = document.getElementById('root');
 
     subscription = await b.watch();
-  });
 
-  it('bundle executes', async function() {
     let bundleEvent = await getNextBuild(b);
     assert.equal(bundleEvent.type, 'buildSuccess');
     let bundle = nullthrows(
@@ -110,8 +108,6 @@ describe('react-refresh', function() {
     assert.notEqual(randoms.fooNum, fooNum);
     assert(fooNum2);
     assert.equal(fooText, 'Hooks');
-
-    randoms.fooNum = fooNum;
   });
 
   it('retains state in parent components when swapping function and class component', async function() {
@@ -133,7 +129,7 @@ describe('react-refresh', function() {
     assert.equal(fooText, 'Class');
   });
 
-  after(async () => {
+  afterEach(async () => {
     if (window) {
       window.close();
     }
