@@ -22,7 +22,7 @@ import DESCRIPTOR_SCHEMA, {
   engines as ENGINES_SCHEMA
 } from './TargetDescriptor.schema';
 
-type TargetResolveResult = {|
+export type TargetResolveResult = {|
   targets: Array<Target>,
   files: Array<File>
 |};
