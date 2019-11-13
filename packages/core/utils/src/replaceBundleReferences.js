@@ -69,11 +69,12 @@ export async function replaceBundleReferences({
       ).toString();
 
       let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
-      invariant(inlineType == null || inlineType === 'string');
-      replacements.set(
-        dependency.id,
-        getInlineReplacement(dependency, inlineType, packagedContents)
-      );
+      if (inlineType == null || inlineType === 'string') {
+        replacements.set(
+          dependency.id,
+          getInlineReplacement(dependency, inlineType, packagedContents)
+        );
+      }
     } else if (dependency.isURL) {
       // url references
       replacements.set(
