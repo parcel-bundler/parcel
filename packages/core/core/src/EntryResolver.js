@@ -5,7 +5,7 @@ import type {ParcelOptions} from './types';
 import path from 'path';
 import {isGlob, glob} from '@parcel/utils';
 
-type EntryResult = {|
+export type EntryResult = {|
   entries: Array<FilePath>,
   files: Array<File>
 |};

@@ -1,6 +1,6 @@
 // @flow
 
-import type {AssetRequest, Dependency, ParcelOptions} from './types';
+import type {AssetRequestDesc, Dependency, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
@@ -28,7 +28,7 @@ export default class ResolverRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetRequest> {
+  async resolve(dependency: Dependency): Promise<?AssetRequestDesc> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',

@@ -1,21 +1,15 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {
-  AssetRequest,
-  Config,
-  NodeId,
-  ConfigRequest,
-  ParcelOptions
-} from './types';
-import ParcelConfig from './ParcelConfig';
+import type {AssetRequestDesc, ConfigRequestDesc, ParcelOptions} from './types';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-
+import ParcelConfig from './ParcelConfig';
+import ConfigLoader from './ConfigLoader';
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
@@ -23,36 +17,24 @@ import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
-  request: AssetRequest,
-  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
-  parentNodeId: NodeId,
+  request: AssetRequestDesc,
   options: ParcelOptions,
   workerApi: WorkerApi
 |};
 
 export default class Validation {
-  request: AssetRequest;
-  configRequests: Array<ConfigRequest>;
-  loadConfig: ConfigRequest => Promise<Config>;
+  request: AssetRequestDesc;
+  configRequests: Array<ConfigRequestDesc>;
+  configLoader: ConfigLoader;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
   workerApi: WorkerApi;
 
-  constructor({
-    request,
-    loadConfig,
-    parentNodeId,
-    options,
-    workerApi
-  }: ValidationOpts) {
+  constructor({request, options, workerApi}: ValidationOpts) {
     this.request = request;
-    this.configRequests = [];
-    this.loadConfig = configRequest => {
-      this.configRequests.push(configRequest);
-      return loadConfig(configRequest, parentNodeId);
-    };
     this.options = options;
     this.workerApi = workerApi;
+    this.configLoader = new ConfigLoader(options);
   }
 
   async run(): Promise<void> {
@@ -72,7 +54,7 @@ export default class Validation {
       env: this.request.env
     };
 
-    let config = await this.loadConfig(configRequest);
+    let config = await this.configLoader.load(configRequest);
     nullthrows(config.result);
     let parcelConfig = new ParcelConfig(
       config.result,

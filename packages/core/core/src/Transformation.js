@@ -8,25 +8,24 @@ import type {
   TransformerResult,
   PackageName
 } from '@parcel/types';
+import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
-  AssetRequest,
+  AssetRequestDesc,
   Config,
-  NodeId,
-  ConfigRequest,
+  ConfigRequestDesc,
   ParcelOptions
 } from './types';
-import type {WorkerApi} from '@parcel/workers';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
+import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
-import PublicConfig from './public/Config';
 import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
@@ -43,36 +42,30 @@ type PostProcessFunc = (
 ) => Promise<Array<InternalAsset> | null>;
 
 export type TransformationOpts = {|
-  request: AssetRequest,
-  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
-  parentNodeId: NodeId,
+  request: AssetRequestDesc,
   options: ParcelOptions,
   workerApi: WorkerApi
 |};
 
 type ConfigMap = Map<PackageName, Config>;
+type ConfigRequestAndResult = {|
+  request: ConfigRequestDesc,
+  result: Config
+|};
 
 export default class Transformation {
-  request: AssetRequest;
-  configRequests: Array<ConfigRequest>;
-  loadConfig: ConfigRequest => Promise<Config>;
+  request: AssetRequestDesc;
+  configLoader: ConfigLoader;
+  configRequests: Array<ConfigRequestAndResult>;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
   workerApi: WorkerApi;
+  parcelConfig: ParcelConfig;
 
-  constructor({
-    request,
-    loadConfig,
-    parentNodeId,
-    options,
-    workerApi
-  }: TransformationOpts) {
+  constructor({request, options, workerApi}: TransformationOpts) {
     this.request = request;
     this.configRequests = [];
-    this.loadConfig = configRequest => {
-      this.configRequests.push(configRequest);
-      return loadConfig(configRequest, parentNodeId);
-    };
+    this.configLoader = new ConfigLoader(options);
     this.options = options;
     this.workerApi = workerApi;
 
@@ -81,9 +74,15 @@ export default class Transformation {
     this.impactfulOptions = {minify, hot, scopeHoist};
   }
 
+  async loadConfig(configRequest: ConfigRequestDesc) {
+    let result = await this.configLoader.load(configRequest);
+    this.configRequests.push({request: configRequest, result});
+    return result;
+  }
+
   async run(): Promise<{|
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>
+    configRequests: Array<ConfigRequestAndResult>
   |}> {
     report({
       type: 'buildProgress',
@@ -100,6 +99,14 @@ export default class Transformation {
     let results = await this.runPipeline(pipeline, asset);
     let assets = results.map(a => a.value);
 
+    for (let {request, result} of this.configRequests) {
+      let plugin =
+        request.plugin != null &&
+        (await this.parcelConfig.loadPlugin(request.plugin));
+      if (plugin && plugin.preSerializeConfig) {
+        plugin.preSerializeConfig({config: result});
+      }
+    }
     return {assets, configRequests: this.configRequests};
   }
 
@@ -143,7 +150,6 @@ export default class Transformation {
       [initialAsset],
       pipeline.configs
     );
-    // TODO: is this reading/writing from the cache every time we jump a pipeline? Seems possibly unnecessary...
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
     let assets = initialCacheEntry || (await pipeline.transform(initialAsset));
@@ -269,6 +275,8 @@ export default class Transformation {
       config.result,
       this.options.packageManager
     );
+    // A little hacky
+    this.parcelConfig = parcelConfig;
 
     configs.set('parcel', config);
 
@@ -282,19 +290,6 @@ export default class Transformation {
           parcelConfigPath: result.filePath,
           isSource
         });
-
-        let config = new PublicConfig(thirdPartyConfig, this.options);
-        if (thirdPartyConfig.shouldRehydrate) {
-          await plugin.rehydrateConfig({
-            config,
-            options: this.options
-          });
-        } else if (thirdPartyConfig.shouldReload) {
-          await plugin.loadConfig({
-            config,
-            options: this.options
-          });
-        }
 
         configs.set(moduleName, thirdPartyConfig);
       }
