@@ -3,8 +3,11 @@
 import type {AssetRequest, Dependency, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 
+import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
 import URL from 'url';
+
 import {report} from './ReporterRunner';
 import PublicDependency from './public/Dependency';
 import PluginOptions from './public/PluginOptions';
@@ -76,24 +79,31 @@ export default class ResolverRunner {
     }
 
     for (let resolver of resolvers) {
-      let result = await resolver.resolve({
-        filePath,
-        dependency: dep,
-        options: this.pluginOptions
-      });
+      try {
+        let result = await resolver.plugin.resolve({
+          filePath,
+          dependency: dep,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: resolver.name})
+        });
 
-      if (result && result.isExcluded) {
-        return null;
-      }
+        if (result && result.isExcluded) {
+          return null;
+        }
 
-      if (result && result.filePath) {
-        return {
-          filePath: result.filePath,
-          sideEffects: result.sideEffects,
-          code: result.code,
-          env: dependency.env,
-          pipeline: pipeline ?? dependency.pipeline
-        };
+        if (result && result.filePath) {
+          return {
+            filePath: result.filePath,
+            sideEffects: result.sideEffects,
+            code: result.code,
+            env: dependency.env,
+            pipeline: pipeline ?? dependency.pipeline
+          };
+        }
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, resolver.name)
+        });
       }
     }
 

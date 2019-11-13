@@ -15,7 +15,14 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {md5FromObject, md5FromString, blobToStream} from '@parcel/utils';
+import {
+  urlJoin,
+  md5FromObject,
+  md5FromString,
+  blobToStream
+} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -224,32 +231,39 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    return packager.package({
-      bundle,
-      bundleGraph: new BundleGraph(bundleGraph, this.options),
-      getSourceMapReference: map => {
-        return bundle.isInline ||
-          (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-          ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-          : path.basename(bundle.filePath) + '.map';
-      },
-      options: this.pluginOptions,
-      getInlineBundleContents: (
-        bundle: BundleType,
-        bundleGraph: BundleGraphType
-      ) => {
-        if (!bundle.isInline) {
-          throw new Error(
-            'Bundle is not inline and unable to retrieve contents'
+    try {
+      return await packager.plugin.package({
+        bundle,
+        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        getSourceMapReference: map => {
+          return bundle.isInline ||
+            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+            : path.basename(bundle.filePath) + '.map';
+        },
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: packager.name}),
+        getInlineBundleContents: (
+          bundle: BundleType,
+          bundleGraph: BundleGraphType
+        ) => {
+          if (!bundle.isInline) {
+            throw new Error(
+              'Bundle is not inline and unable to retrieve contents'
+            );
+          }
+
+          return this.getBundleResult(
+            bundleToInternalBundle(bundle),
+            bundleGraphToInternalBundleGraph(bundleGraph)
           );
         }
-
-        return this.getBundleResult(
-          bundleToInternalBundle(bundle),
-          bundleGraphToInternalBundleGraph(bundleGraph)
-        );
-      }
-    });
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, packager.name)
+      });
+    }
   }
 
   async optimize(
@@ -275,12 +289,19 @@ export default class PackagerRunner {
 
     let optimized = {contents, map};
     for (let optimizer of optimizers) {
-      optimized = await optimizer.optimize({
-        bundle,
-        contents: optimized.contents,
-        map: optimized.map,
-        options: this.pluginOptions
-      });
+      try {
+        optimized = await optimizer.plugin.optimize({
+          bundle,
+          contents: optimized.contents,
+          map: optimized.map,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: optimizer.name})
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, optimizer.name)
+        });
+      }
     }
 
     return optimized;
