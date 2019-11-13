@@ -15,6 +15,7 @@ export type ConfigResult = _ConfigResult;
 
 export type JSONValue =
   | null
+  | void // ? Is this okay?
   | boolean
   | number
   | string
@@ -434,7 +435,11 @@ export type Transformer = {|
     options: PluginOptions,
     logger: PluginLogger
   |}) => Async<void>,
-  rehydrateConfig?: ({|
+  preSerializeConfig?: ({|
+    config: Config,
+    options: PluginOptions
+  |}) => Async<void>,
+  postDeserializeConfig?: ({|
     config: Config,
     options: PluginOptions,
     logger: PluginLogger
