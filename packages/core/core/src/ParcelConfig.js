@@ -153,6 +153,12 @@ export default class ParcelConfig {
     return this.loadPlugins<Validator>(names);
   }
 
+  getNamedPipelines(): $ReadOnlyArray<string> {
+    return Object.keys(this.transforms)
+      .filter(glob => glob.includes(':'))
+      .map(glob => glob.split(':')[0]);
+  }
+
   getTransformers(filePath: FilePath, pipeline?: ?string) {
     return this.loadPlugins<Transformer>(
       this.getTransformerNames(filePath, pipeline)

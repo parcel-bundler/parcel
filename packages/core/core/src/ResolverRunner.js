@@ -40,24 +40,10 @@ export default class ResolverRunner {
 
     let pipeline;
     let filePath;
+    let validPipelines = new Set(this.config.getNamedPipelines());
     if (dependency.moduleSpecifier.includes(':')) {
       [pipeline, filePath] = dependency.moduleSpecifier.split(':');
-      let transformsWithPipelines = {};
-      for (let key of Object.keys(this.config.transforms)) {
-        if (key.includes(':')) {
-          transformsWithPipelines[key] = this.config.transforms[key];
-        }
-      }
-
-      if (
-        !(
-          this.config.matchGlobMapPipelines(
-            filePath,
-            transformsWithPipelines,
-            pipeline
-          )?.length > 0
-        )
-      ) {
+      if (!validPipelines.has(pipeline)) {
         if (dep.isURL) {
           // This may be a url protocol or scheme rather than a pipeline, such as
           // `url('http://example.com/foo.png')`
