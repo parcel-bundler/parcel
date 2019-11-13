@@ -42,6 +42,13 @@ export async function load(
   if (partialConfig == null) {
     return;
   } else if (partialConfig.hasFilesystemConfig()) {
+    config.setResult({
+      internal: false,
+      config: partialConfig.options,
+      targets: enginesToBabelTargets(config.env)
+    });
+    await rebuildConfigWithLocalBabel(config, options);
+
     let {babelrc, config: configjs} = partialConfig;
     let {canBeRehydrated, dependsOnRelative, dependsOnLocal} = getStats(
       partialConfig.options
@@ -50,13 +57,13 @@ export async function load(
     let configIsJS =
       (babelrc != null && path.extname(babelrc) === '.js') || configjs != null;
 
-    // babel.config.js files get required by @babel/core so there's no use in including it for watch mode invalidation
     if (configIsJS) {
       logger.verbose({
         message:
           'WARNING: Using a JavaScript Babel config file means losing out on some caching features of Parcel. Try using a .babelrc file instead.'
       });
       config.shouldInvalidateOnStartup();
+      // babel.config.js files get required by @babel/core so there's no use in setting resolved path for watch mode invalidation
     } else {
       config.setResolvedPath(babelrc);
     }
@@ -77,30 +84,46 @@ export async function load(
     }
 
     if (canBeRehydrated) {
-      prepForReyhdration(partialConfig.options);
-      config.shouldRehydrate();
-      config.setResult({
-        internal: false,
-        config: partialConfig.options,
-        targets: enginesToBabelTargets(config.env)
-      });
-
       await definePluginDependencies(config);
       config.setResultHash(md5FromObject(partialConfig.options));
     } else {
-      logger.warn({
+      logger.verbose({
         message:
           'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
-      });
-      config.shouldReload();
-      config.setResult({
-        internal: false
       });
       config.setResultHash(JSON.stringify(Date.now()));
       config.shouldInvalidateOnStartup();
     }
   } else {
     await buildDefaultBabelConfig(config);
+  }
+}
+
+async function rebuildConfigWithLocalBabel(
+  config: Config,
+  options: PluginOptions
+) {
+  let babelConfig = config.result.config;
+
+  if (babelConfig != null) {
+    let babelCore = await options.packageManager.require(
+      '@babel/core',
+      config.searchPath
+    );
+    babelConfig.presets = (babelConfig.presets || []).map(
+      ({value, dirname, options: presetOptions}) =>
+        babelCore.createConfigItem([value, presetOptions], {
+          dirname,
+          type: 'preset'
+        })
+    );
+    babelConfig.plugins = (babelConfig.plugins || []).map(
+      ({value, dirname, options: pluginOptions}) =>
+        babelCore.createConfigItem([value, pluginOptions], {
+          dirname,
+          type: 'plugin'
+        })
+    );
   }
 }
 
@@ -133,8 +156,6 @@ async function buildDefaultBabelConfig(config: Config) {
         dirname: BABEL_TRANSFORMER_DIR
       })
     );
-    config.shouldRehydrate();
-    prepForReyhdration(babelOptions);
   }
 
   config.setResult({
@@ -196,10 +217,15 @@ function isLocal(/* configItemPath */) {
   return false;
 }
 
-function prepForReyhdration(options) {
+export function preSerialize(config: Config) {
+  let babelConfig = config.result.config;
+  if (babelConfig == null) {
+    return;
+  }
+
   // ConfigItem.value is a function which the v8 serializer chokes on
   // It is being ommited here and will be rehydrated later using the path provided by ConfigItem.file
-  options.presets = (options.presets || []).map(
+  babelConfig.presets = (babelConfig.presets || []).map(
     ({options, dirname, name, file}) => ({
       options,
       dirname,
@@ -207,7 +233,7 @@ function prepForReyhdration(options) {
       file
     })
   );
-  options.plugins = (options.plugins || []).map(
+  babelConfig.plugins = (babelConfig.plugins || []).map(
     ({options, dirname, name, file}) => ({
       options,
       dirname,
@@ -236,7 +262,7 @@ async function definePluginDependencies(config) {
   );
 }
 
-export async function rehydrate(config: Config, options: PluginOptions) {
+export async function postDeserialize(config: Config, options: PluginOptions) {
   let babelCore = config.result.internal
     ? require('@babel/core')
     : await options.packageManager.require('@babel/core', config.searchPath);

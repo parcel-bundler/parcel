@@ -408,6 +408,9 @@ describe('babel', function() {
 
       let fixtureDir = path.join(__dirname, '/integration/babel-config-js');
       let distDir = path.resolve(fixtureDir, './dist');
+      let cacheDir = path.resolve(fixtureDir, '.parcel-cache');
+      await fs.rimraf(distDir);
+      await fs.rimraf(cacheDir);
 
       let build = () =>
         spawnSync(

@@ -1755,10 +1755,10 @@
     "@parcel/utils" "^1.11.0"
     chokidar "^2.0.3"
 
-"@parcel/watcher@^2.0.0-alpha.3":
-  version "2.0.0-alpha.3"
-  resolved "https://registry.yarnpkg.com/@parcel/watcher/-/watcher-2.0.0-alpha.3.tgz#af81241b734f9a96fb6771d5900266c00fa62d6d"
-  integrity sha512-kR30TWdVrApH2R/UZ6uIWp72SdINaCC5Tk63TPMthDbSMbjwb1kXJvOrNbIDTOoxyitHH6xZICeyBCTf78oWag==
+"@parcel/watcher@^2.0.0-alpha.4":
+  version "2.0.0-alpha.4"
+  resolved "https://registry.yarnpkg.com/@parcel/watcher/-/watcher-2.0.0-alpha.4.tgz#d2c88ed7945c00373ab984bfb39b2394f882b794"
+  integrity sha512-J8Detm6Yeh27lNVr02/bTxqQ5dAs040C9OB1Zs7C4kaDCq/Dx7FVph0aRKDhAiZ0BiSBwgZEh7xmD4ZU844kxA==
   dependencies:
     bindings "^1.5.0"
     node-addon-api "^1.6.2"

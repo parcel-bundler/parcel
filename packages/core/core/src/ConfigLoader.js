@@ -1,8 +1,9 @@
 // @flow
 
-import type {ConfigRequest, ParcelOptions} from './types';
+import type {ConfigRequestDesc, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {md5FromString, PromiseQueue} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
@@ -22,13 +23,13 @@ export default class ConfigLoader {
     this.queue = new PromiseQueue({maxConcurrent: 32});
   }
 
-  load(configRequest: ConfigRequest) {
+  load(configRequest: ConfigRequestDesc) {
     let promise = this.queue.add(() => this._load(configRequest));
     this.queue.run();
     return promise;
   }
 
-  _load(configRequest: ConfigRequest) {
+  _load(configRequest: ConfigRequestDesc) {
     if (!configRequest.plugin) {
       return this.loadParcelConfig(configRequest);
     }
@@ -36,7 +37,7 @@ export default class ConfigLoader {
     return this.loadPluginConfig(configRequest);
   }
 
-  async loadParcelConfig(configRequest: ConfigRequest) {
+  async loadParcelConfig(configRequest: ConfigRequestDesc) {
     let {filePath, isSource, env, pipeline} = configRequest;
     let config = createConfig({
       isSource,
@@ -85,13 +86,13 @@ export default class ConfigLoader {
     isSource,
     filePath,
     meta: {parcelConfigPath}
-  }: ConfigRequest) {
+  }: ConfigRequestDesc) {
     let config = createConfig({
       isSource,
       searchPath: filePath,
       env
     });
-
+    invariant(typeof parcelConfigPath === 'string');
     let pluginInstance = await loadPlugin(
       this.options.packageManager,
       nullthrows(plugin),
