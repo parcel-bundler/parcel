@@ -1,5 +1,6 @@
 // @flow
 import type {ServerOptions} from '@parcel/types';
+import type {PluginLogger} from '@parcel/logger';
 import type {FileSystem} from '@parcel/fs';
 import {
   IncomingMessage as HTTPIncomingMessage,
@@ -28,5 +29,6 @@ export type DevServerOptions = {|
   publicUrl: string,
   cacheDir: string,
   inputFS: FileSystem,
-  outputFS: FileSystem
+  outputFS: FileSystem,
+  logger: PluginLogger
 |};

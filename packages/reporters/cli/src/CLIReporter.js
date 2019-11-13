@@ -13,7 +13,7 @@ let rendered = false;
 let events = new ValueEmitter<ReporterEvent>();
 
 export default new Reporter({
-  report(event, options) {
+  report({event, options}) {
     if (!rendered) {
       render(<UI options={options} events={events} />);
       rendered = true;

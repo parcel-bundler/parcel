@@ -6,6 +6,7 @@ import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -410,12 +411,14 @@ export type Validator = {|
   validate({|
     asset: Asset,
     config: ConfigResult | void,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<ConfigResult | void>
 |};
 
@@ -424,11 +427,13 @@ export type Transformer = {|
   getConfig?: ({|
     asset: MutableAsset,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<void>,
   preSerializeConfig?: ({|
     config: Config,
@@ -436,35 +441,41 @@ export type Transformer = {|
   |}) => Async<void>,
   postDeserializeConfig?: ({|
     config: Config,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<void>,
   canReuseAST?: ({|
     ast: AST,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => boolean,
   parse?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<?AST>,
   transform({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<GenerateOutput>,
   postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<Array<TransformerResult>>
 |};
 
@@ -619,11 +630,13 @@ export type ResolveResult = {|
 export type Bundler = {|
   bundle({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void>
 |};
 
@@ -631,7 +644,8 @@ export type Namer = {|
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<?FilePath>
 |};
 
@@ -646,7 +660,8 @@ export type Runtime = {|
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
@@ -656,6 +671,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: PluginOptions,
     getSourceMapReference: (map: SourceMap) => Promise<string> | string,
+    logger: PluginLogger,
     getInlineBundleContents: (
       Bundle,
       BundleGraph
@@ -668,14 +684,16 @@ export type Optimizer = {|
     bundle: NamedBundle,
     contents: Blob,
     map: ?SourceMap,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<BundleResult>
 |};
 
 export type Resolver = {|
   resolve({|
     dependency: Dependency,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<?ResolveResult>
 |};
 
@@ -777,7 +795,11 @@ export type ReporterEvent =
   | ValidationEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: PluginOptions): Async<void>
+  report({|
+    event: ReporterEvent,
+    options: PluginOptions,
+    logger: PluginLogger
+  |}): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

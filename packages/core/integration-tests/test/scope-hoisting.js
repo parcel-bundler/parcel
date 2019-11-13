@@ -1050,6 +1050,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {foo: 2});
     });
 
+    it('should not rename function local variables according to global replacements', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/keep-local-function-var/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
+    });
+
     it('supports assigning to this as exports object', async function() {
       let b = await bundle(
         path.join(
