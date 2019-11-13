@@ -15,12 +15,7 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {
-  urlJoin,
-  md5FromObject,
-  md5FromString,
-  blobToStream
-} from '@parcel/utils';
+import {md5FromObject, md5FromString, blobToStream} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';

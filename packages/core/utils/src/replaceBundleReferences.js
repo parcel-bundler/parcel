@@ -10,7 +10,6 @@ import type {
   Dependency
 } from '@parcel/types';
 
-import invariant from 'assert';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import URL from 'url';
