@@ -111,7 +111,7 @@ export default class Transformation {
   }
 
   async loadAsset(): Promise<InternalAsset> {
-    let {filePath, env, code, sideEffects} = this.request;
+    let {filePath, env, code, pipeline, sideEffects} = this.request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       this.request
@@ -128,6 +128,7 @@ export default class Transformation {
         isSource,
         type: path.extname(filePath).slice(1),
         hash,
+        pipeline,
         env,
         stats: {
           time: 0,
@@ -594,6 +595,7 @@ function normalizeAssets(
       env: result.env,
       isIsolated: result.isIsolated,
       isInline: result.isInline,
+      pipeline: internalAsset.value.pipeline,
       meta: result.meta,
       uniqueKey: internalAsset.value.uniqueKey
     };

@@ -153,6 +153,12 @@ export default class ParcelConfig {
     return this.loadPlugins<Validator>(names);
   }
 
+  getNamedPipelines(): $ReadOnlyArray<string> {
+    return Object.keys(this.transforms)
+      .filter(glob => glob.includes(':'))
+      .map(glob => glob.split(':')[0]);
+  }
+
   getTransformers(filePath: FilePath, pipeline?: ?string) {
     return this.loadPlugins<Transformer>(
       this.getTransformerNames(filePath, pipeline)
@@ -215,26 +221,22 @@ export default class ParcelConfig {
     };
   }
 
-  getOptimizerNames(filePath: FilePath): Array<string> {
-    let optimizers: ?Pipeline = this.matchGlobMapPipelines(
-      filePath,
-      this.optimizers
+  getOptimizerNames(filePath: FilePath, pipeline: ?string): Array<string> {
+    return (
+      this.matchGlobMapPipelines(filePath, this.optimizers, pipeline) ?? []
     );
-    if (!optimizers) {
-      return [];
-    }
-    return optimizers;
   }
 
   getOptimizers(
-    filePath: FilePath
+    filePath: FilePath,
+    pipeline: ?string
   ): Promise<
     Array<{|
       name: string,
       plugin: Optimizer
     |}>
   > {
-    let optimizers = this.getOptimizerNames(filePath);
+    let optimizers = this.getOptimizerNames(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
     }

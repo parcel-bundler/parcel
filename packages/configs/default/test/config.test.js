@@ -53,6 +53,10 @@ function collectConfigPackageReferences(
 
   for (let value of Object.values(configSection)) {
     if (typeof value === 'string') {
+      if (value === '...') {
+        continue;
+      }
+
       references.add(value);
     } else if (configSection != null && typeof configSection === 'object') {
       collectConfigPackageReferences(value, references);
