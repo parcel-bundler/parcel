@@ -35,6 +35,9 @@ export const engines: SchemaEntity = {
     },
     npm: {
       type: 'string'
+    },
+    yarn: {
+      type: 'string'
     }
   },
   additionalProperties: false
