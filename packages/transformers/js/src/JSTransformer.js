@@ -65,7 +65,7 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, options}) {
+  async transform({asset, options, logger}) {
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
@@ -92,7 +92,7 @@ export default new Transformer({
       delete ast.program.program.interpreter;
     }
 
-    if (!asset.env.isNode() || asset.filePath.includes('parcel/packages')) {
+    if (!asset.env.isNode()) {
       // Inline fs calls
       let fsDep = asset
         .getDependencies()
@@ -108,7 +108,7 @@ export default new Transformer({
           pkg.browser.fs === false;
 
         if (!ignore) {
-          traverse(ast.program, fsVisitor, null, asset);
+          traverse(ast.program, fsVisitor, null, {asset, logger});
         }
       }
 

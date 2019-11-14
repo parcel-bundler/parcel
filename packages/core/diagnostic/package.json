@@ -13,5 +13,9 @@
   "source": "src/diagnostic.js",
   "engines": {
     "node": ">= 10.0.0"
+  },
+  "dependencies": {
+    "json-source-map": "^0.6.1",
+    "nullthrows": "^1.1.1"
   }
 }

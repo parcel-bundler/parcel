@@ -1,6 +1,6 @@
 // @flow
 import type {TSModule, Export} from './TSModule';
-import typeof TypeScriptModule from 'typescript';
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 
@@ -94,7 +94,7 @@ export class TSModuleGraph {
     // Named export
     return {
       module: m,
-      name: m.names.get(exportName) || exportName,
+      name: m.getName(exportName),
       imported: e.imported || exportName
     };
   }
@@ -105,7 +105,11 @@ export class TSModuleGraph {
       return null;
     }
 
-    let m = nullthrows(this.getModule(i.specifier));
+    let m = this.getModule(i.specifier);
+    if (!m) {
+      return null;
+    }
+
     return this.resolveExport(m, imported || i.imported);
   }
 
@@ -131,9 +135,10 @@ export class TSModuleGraph {
       if (e.name && (!excludeDefault || e.name !== 'default')) {
         res.push(this.getExport(module, e));
       } else if (e.specifier) {
-        res.push(
-          ...this.getAllExports(nullthrows(this.getModule(e.specifier)), true)
-        );
+        let m = this.getModule(e.specifier);
+        if (m) {
+          res.push(...this.getAllExports(m, true));
+        }
       }
     }
     return res;
@@ -151,7 +156,7 @@ export class TSModuleGraph {
             importsBySpecifier.set(imp.specifier, importMap);
           }
 
-          name = module.names.get(name) || name;
+          name = module.getName(name);
           importMap.set(name, imp.imported);
         }
       }

@@ -91,24 +91,42 @@ export class PluginLogger {
     this.origin = opts.origin;
   }
 
-  verbose(diagnostic: PluginInputDiagnostic): void {
-    logger.verbose({...diagnostic, origin: this.origin});
+  updateOrigin(
+    diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>
+  ): Diagnostic | Array<Diagnostic> {
+    return Array.isArray(diagnostic)
+      ? diagnostic.map(d => {
+          return {...d, origin: this.origin};
+        })
+      : {...diagnostic, origin: this.origin};
   }
 
-  info(diagnostic: PluginInputDiagnostic): void {
-    logger.info({...diagnostic, origin: this.origin});
+  verbose(
+    diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>
+  ): void {
+    logger.verbose(this.updateOrigin(diagnostic));
   }
 
-  log(diagnostic: PluginInputDiagnostic): void {
-    logger.log({...diagnostic, origin: this.origin});
+  info(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+    logger.info(this.updateOrigin(diagnostic));
   }
 
-  warn(diagnostic: PluginInputDiagnostic): void {
-    logger.warn({...diagnostic, origin: this.origin});
+  log(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+    logger.log(this.updateOrigin(diagnostic));
   }
 
-  error(input: Diagnostifiable): void {
-    logger.error(input);
+  warn(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+    logger.warn(this.updateOrigin(diagnostic));
+  }
+
+  error(
+    input:
+      | Diagnostifiable
+      | PluginInputDiagnostic
+      | Array<PluginInputDiagnostic>
+  ): void {
+    // $FlowFixMe it should work, don't really wanna mess with the types of logger.error though...
+    logger.error(input, this.origin);
   }
 
   progress(message: string): void {

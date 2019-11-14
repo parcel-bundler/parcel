@@ -1,14 +1,21 @@
 // @flow
 import type {FilePath} from '@parcel/types';
 
+import jsonMap from 'json-source-map';
+import nullthrows from 'nullthrows';
+
 export type DiagnosticHighlightLocation = {|
+  // These positions are 1-based
   line: number,
   column: number
 |};
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
+// Note: A tab character is always counted as a single character
+// This is to prevent any mismatch of highlighting across machines
 export type DiagnosticCodeHighlight = {|
+  // start and end are included in the highlighted region
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
   message?: string
@@ -40,14 +47,10 @@ export type Diagnostic = {|
   hints?: Array<string>
 |};
 
-export type BuildError = PrintableError & {
-  diagnostic?: Array<Diagnostic>,
-  ...
-};
-
 // This type should represent all error formats Parcel can encounter...
 export type PrintableError = Error & {
   fileName?: string,
+  filePath?: string,
   codeFrame?: string,
   highlightedCodeFrame?: string,
   loc?: {
@@ -58,6 +61,11 @@ export type PrintableError = Error & {
   source?: string,
   ...
 };
+
+export type DiagnosticWithoutOrigin = {|
+  ...Diagnostic,
+  origin?: string
+|};
 
 // Something that can be turned into a diagnostic...
 export type Diagnostifiable =
@@ -82,22 +90,26 @@ export function anyToDiagnostic(
 }
 
 export function errorToDiagnostic(
-  error: PrintableError | BuildError | string
-): Array<Diagnostic> | Diagnostic {
+  error: ThrowableDiagnostic | PrintableError | string,
+  realOrigin?: string
+): Diagnostic | Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
     return {
-      origin: 'Error',
+      origin: realOrigin || 'Error',
       message: error,
       codeFrame
     };
   }
 
-  // $FlowFixMe
-  if (error.diagnostic) {
-    // $FlowFixMe
-    return error.diagnostic;
+  if (error instanceof ThrowableDiagnostic) {
+    return error.diagnostics.map(d => {
+      return {
+        ...d,
+        origin: realOrigin || d.origin || 'unknown'
+      };
+    });
   }
 
   if (error.loc && error.source) {
@@ -117,10 +129,10 @@ export function errorToDiagnostic(
   }
 
   return {
-    origin: 'Error',
+    origin: realOrigin || 'Error',
     message: error.message,
     name: error.name,
-    filePath: error.fileName,
+    filePath: error.filePath || error.fileName,
     stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
     codeFrame
   };
@@ -146,4 +158,36 @@ export default class ThrowableDiagnostic extends Error {
 
     this.diagnostics = diagnostics;
   }
+}
+
+// ids.key has to be "/some/parent/child"
+export function generateJSONCodeHighlights(
+  code: string,
+  ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>
+): Array<DiagnosticCodeHighlight> {
+  // json-source-map doesn't support a tabWidth option (yet)
+  let map = jsonMap.parse(code.replace(/\t/g, ' '));
+  return ids.map(({key, type, message}) => {
+    let pos = nullthrows(map.pointers[key]);
+    if (!type && pos.value) {
+      // key and value
+      return {
+        start: {line: pos.key.line + 1, column: pos.key.column + 1},
+        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
+        message
+      };
+    } else if (type == 'key' || !pos.value) {
+      return {
+        start: {line: pos.key.line + 1, column: pos.key.column + 1},
+        end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
+        message
+      };
+    } else {
+      return {
+        start: {line: pos.value.line + 1, column: pos.value.column + 1},
+        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
+        message
+      };
+    }
+  });
 }

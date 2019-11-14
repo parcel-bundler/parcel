@@ -1,7 +1,7 @@
 // @flow
 import {TSModule} from './TSModule';
 import type {TSModuleGraph} from './TSModuleGraph';
-import typeof TypeScriptModule from 'typescript';
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import {getExportedName, isDeclaration} from './utils';
 
 export function collect(

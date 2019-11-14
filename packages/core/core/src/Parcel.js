@@ -249,7 +249,9 @@ export default class Parcel {
         type: 'buildStart'
       });
 
-      let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
+      let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
+        signal
+      );
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
