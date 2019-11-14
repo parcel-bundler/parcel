@@ -41,7 +41,12 @@ export default class ResolverRunner {
     let pipeline;
     let filePath;
     let validPipelines = new Set(this.config.getNamedPipelines());
-    if (dependency.moduleSpecifier.includes(':')) {
+    if (
+      // Don't consider absolute paths. Absolute paths are only supported for entries,
+      // and include e.g. `C:\` on Windows, conflicting with pipelines.
+      !path.isAbsolute(dependency.moduleSpecifier) &&
+      dependency.moduleSpecifier.includes(':')
+    ) {
       [pipeline, filePath] = dependency.moduleSpecifier.split(':');
       if (!validPipelines.has(pipeline)) {
         if (dep.isURL) {
