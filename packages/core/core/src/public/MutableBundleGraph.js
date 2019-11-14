@@ -51,7 +51,9 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       dependencyToInternalDependency(dependency)
     );
     if (!resolved) {
-      throw new Error('Dependency did not resolve to an asset');
+      throw new Error(
+        'Dependency did not resolve to an asset ' + dependency.id
+      );
     }
 
     let bundleGroup: BundleGroup = {
@@ -96,17 +98,22 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   }
 
   createBundle(opts: CreateBundleOpts): Bundle {
-    let bundleId = 'bundle:' + (opts.id ?? nullthrows(opts.entryAsset?.id));
+    let entryAsset = opts.entryAsset
+      ? assetToInternalAsset(opts.entryAsset)
+      : null;
+
+    let bundleId = 'bundle:' + (opts.id ?? nullthrows(entryAsset?.value.id));
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {
         id: bundleId,
-        type: opts.type ?? nullthrows(opts.entryAsset).type,
-        env: environmentToInternalEnvironment(
-          opts.env ?? nullthrows(opts.entryAsset).env
-        ),
-        entryAssetIds: opts.entryAsset ? [opts.entryAsset.id] : [],
+        type: opts.type ?? nullthrows(entryAsset).value.type,
+        env: opts.env
+          ? environmentToInternalEnvironment(opts.env)
+          : nullthrows(entryAsset).value.env,
+        entryAssetIds: entryAsset ? [entryAsset.value.id] : [],
+        pipeline: entryAsset ? entryAsset.value.pipeline : null,
         filePath: null,
         isEntry: opts.isEntry,
         isInline: opts.isInline,

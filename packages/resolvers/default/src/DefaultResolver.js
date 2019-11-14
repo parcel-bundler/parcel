@@ -3,7 +3,6 @@
 import {Resolver} from '@parcel/plugin';
 import type {
   PluginOptions,
-  Dependency,
   PackageJSON,
   FilePath,
   ResolveResult,
@@ -20,7 +19,7 @@ import invariant from 'assert';
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
 export default new Resolver({
-  async resolve({dependency, options}) {
+  async resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
       throw new Error(
         `The import path: ${
@@ -33,7 +32,12 @@ export default new Resolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
     });
-    const resolved = await resolver.resolve(dependency);
+    const resolved = await resolver.resolve({
+      filename: filePath,
+      isURL: dependency.isURL,
+      parent: dependency.sourcePath,
+      env: dependency.env
+    });
 
     if (!resolved) {
       return null;
@@ -113,11 +117,16 @@ class NodeResolver {
   }
 
   async resolve({
-    moduleSpecifier: filename,
-    sourcePath: parent,
+    filename,
+    parent,
     isURL,
     env
-  }: Dependency) {
+  }: {|
+    filename: FilePath,
+    parent: ?FilePath,
+    isURL: boolean,
+    env: Environment
+  |}) {
     // Check if this is a glob
     if (isGlob(filename)) {
       if (parent == null) {

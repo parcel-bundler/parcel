@@ -2,6 +2,7 @@
 
 import {Runtime} from '@parcel/plugin';
 import {urlJoin, relativeBundlePath} from '@parcel/utils';
+import path from 'path';
 import nullthrows from 'nullthrows';
 
 // List of browsers that support dynamic import natively
@@ -69,8 +70,21 @@ export default new Runtime({
       }
 
       // Sort so the bundles containing the entry asset appear last
-      let bundles = bundleGraph
-        .getBundlesInBundleGroup(bundleGroup)
+      let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+
+      let [firstBundle] = bundlesInGroup;
+      if (firstBundle.isInline) {
+        assets.push({
+          filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
+          code: `module.exports = "${dependency.id}";`,
+          dependency
+        });
+
+        continue;
+      }
+
+      let externalBundles = bundlesInGroup
+        .filter(bundle => !bundle.isInline)
         .sort(bundle =>
           bundle
             .getEntryAssets()
@@ -85,10 +99,10 @@ export default new Runtime({
       // Do the same thing in library mode for ES modules, as we are building for another bundler
       // and the imports for sibling bundles will be in the target bundle.
       if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
-        bundles = bundles.slice(-1);
+        externalBundles = externalBundles.slice(-1);
       }
 
-      let loaderModules = bundles
+      let loaderModules = externalBundles
         .map(b => {
           let loader = loaders[b.type];
           if (!loader) {
@@ -120,7 +134,7 @@ export default new Runtime({
         if (
           loaderModules.length > 1 &&
           (bundle.env.outputFormat === 'global' ||
-            !bundles.every(b => b.type === 'js'))
+            !externalBundles.every(b => b.type === 'js'))
         ) {
           loaders = `Promise.all([${loaders}])`;
           if (bundle.env.outputFormat !== 'global') {
@@ -140,7 +154,7 @@ export default new Runtime({
           dependency
         });
       } else {
-        for (let bundle of bundles) {
+        for (let bundle of externalBundles) {
           let filePath = nullthrows(bundle.getMainEntry()).filePath;
           if (bundle.target == null) {
             throw new Error('JSRuntime: Bundle did not have a target');
