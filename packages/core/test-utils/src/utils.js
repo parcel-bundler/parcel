@@ -96,7 +96,7 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts: InitialParcelOptions
+  opts?: InitialParcelOptions
 ) {
   return new Parcel({
     entries,
@@ -118,7 +118,7 @@ export function bundler(
 
 export async function bundle(
   entries: FilePath | Array<FilePath>,
-  opts: InitialParcelOptions
+  opts?: InitialParcelOptions
 ): Promise<BundleGraph> {
   return nullthrows(await bundler(entries, opts).run());
 }

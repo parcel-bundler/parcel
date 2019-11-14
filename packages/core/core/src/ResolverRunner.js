@@ -1,11 +1,13 @@
 // @flow
 
 import type {AssetRequestDesc, Dependency, ParcelOptions} from './types';
+import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
-import type ParcelConfig from './ParcelConfig';
+import URL from 'url';
+
 import {report} from './ReporterRunner';
 import PublicDependency from './public/Dependency';
 import PluginOptions from './public/PluginOptions';
@@ -36,9 +38,41 @@ export default class ResolverRunner {
 
     let resolvers = await this.config.getResolvers();
 
+    let pipeline;
+    let filePath;
+    let validPipelines = new Set(this.config.getNamedPipelines());
+    if (
+      // Don't consider absolute paths. Absolute paths are only supported for entries,
+      // and include e.g. `C:\` on Windows, conflicting with pipelines.
+      !path.isAbsolute(dependency.moduleSpecifier) &&
+      dependency.moduleSpecifier.includes(':')
+    ) {
+      [pipeline, filePath] = dependency.moduleSpecifier.split(':');
+      if (!validPipelines.has(pipeline)) {
+        if (dep.isURL) {
+          // This may be a url protocol or scheme rather than a pipeline, such as
+          // `url('http://example.com/foo.png')`
+          return null;
+        } else {
+          throw new Error(`Unknown pipeline ${pipeline}.`);
+        }
+      }
+    } else {
+      filePath = dependency.moduleSpecifier;
+    }
+
+    if (dependency.isURL) {
+      let parsed = URL.parse(filePath);
+      if (typeof parsed.pathname !== 'string') {
+        throw new Error('Received URL without a pathname.');
+      }
+      filePath = decodeURIComponent(parsed.pathname);
+    }
+
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
+          filePath,
           dependency: dep,
           options: this.pluginOptions,
           logger: new PluginLogger({origin: resolver.name})
@@ -54,7 +88,7 @@ export default class ResolverRunner {
             sideEffects: result.sideEffects,
             code: result.code,
             env: dependency.env,
-            pipeline: dependency.pipeline
+            pipeline: pipeline ?? dependency.pipeline
           };
         }
       } catch (e) {
