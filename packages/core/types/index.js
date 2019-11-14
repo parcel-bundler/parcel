@@ -389,12 +389,13 @@ export interface TransformerResult {
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
+  pipeline?: ?string;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
   uniqueKey?: ?string;
 }
 
-type Async<T> = T | Promise<T>;
+export type Async<T> = T | Promise<T>;
 
 export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
@@ -693,7 +694,8 @@ export type Resolver = {|
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
-    logger: PluginLogger
+    logger: PluginLogger,
+    filePath: FilePath
   |}): Async<?ResolveResult>
 |};
 
