@@ -4,7 +4,7 @@ import type {Blob, Bundle, BundleGraph} from '@parcel/types';
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
-import {urlJoin} from '@parcel/utils';
+import {replaceURLReferences, urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -52,7 +52,11 @@ export default new Packager({
       replaceInlineAssetContent.bind(this, bundleGraph, getInlineBundleContents)
     ]).process(code);
 
-    return {contents: html};
+    return replaceURLReferences({
+      bundle,
+      bundleGraph,
+      contents: html
+    });
   }
 });
 

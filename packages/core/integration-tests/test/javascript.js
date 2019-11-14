@@ -998,6 +998,34 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-browser');
   });
 
+  it('should exclude resolving specifiers that map to false in the browser field in browser builds', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-entries/pkg-ignore-browser/index.js'
+      ),
+      {
+        targets: ['browsers']
+      }
+    );
+
+    assert.deepEqual(await run(b), {});
+  });
+
+  it('should not exclude resolving specifiers that map to false in the browser field in node builds', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-entries/pkg-ignore-browser/index.js'
+      ),
+      {
+        targets: ['node']
+      }
+    );
+
+    assert.equal(await run(b), 'this should only exist in non-browser builds');
+  });
+
   it.skip('should not resolve the browser field for --target=node', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/browser.js'),
@@ -1583,5 +1611,42 @@ describe('javascript', function() {
     );
 
     await run(b);
+  });
+
+  it("should inline a bundle's compiled text with `bundle-text`", async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/bundle-text/index.js')
+    );
+
+    assert.equal(
+      (await run(b)).default,
+      `body {
+  background-color: #000000;
+}
+
+.svg-img {
+  background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
+}`
+    );
+  });
+
+  it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
+    let b = await bundle(path.join(__dirname, '/integration/data-url/text.js'));
+
+    assert.equal(
+      (await run(b)).default,
+      'data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A'
+    );
+  });
+
+  it('should inline binary content as url-encoded base64 and mime type with `data-url:*` imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/data-url/binary.js'),
+      {
+        outputFS: inputFS
+      }
+    );
+
+    assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
   });
 });
