@@ -1,39 +1,46 @@
 // @flow strict-local
 import type {SchemaEntity} from '@parcel/utils';
 
-export const engines: SchemaEntity = {
+const COMMON_ENGINE_PROPERITES = {
+  browsers: {
+    oneOf: [
+      {
+        type: 'array',
+        items: {
+          type: 'string'
+        }
+      },
+      {
+        type: 'string'
+      }
+    ]
+  },
+  node: {
+    oneOf: [
+      {
+        type: 'array'
+      },
+      {
+        type: 'string'
+      }
+    ]
+  },
+  electron: {
+    type: 'string'
+  }
+};
+
+export const TOPLEVEL_ENGINES_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
-    browsers: {
-      oneOf: [
-        {
-          type: 'array',
-          items: {
-            type: 'string'
-          }
-        },
-        {
-          type: 'string'
-        }
-      ]
-    },
-    node: {
-      oneOf: [
-        {
-          type: 'array'
-        },
-        {
-          type: 'string'
-        }
-      ]
-    },
-    electron: {
-      type: 'string'
-    },
+    ...COMMON_ENGINE_PROPERITES,
     parcel: {
       type: 'string'
     },
     npm: {
+      type: 'string'
+    },
+    yarn: {
       type: 'string'
     }
   },
@@ -102,7 +109,13 @@ export default ({
         }
       ]
     },
-    engines
+    engines: {
+      type: 'object',
+      properties: {
+        ...COMMON_ENGINE_PROPERITES
+      },
+      additionalProperties: false
+    }
   },
   additionalProperties: false
 }: SchemaEntity);

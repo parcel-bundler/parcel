@@ -32,7 +32,7 @@ export type SchemaString = {|
 export type SchemaObject = {|
   type: 'object',
   properties: {[string]: SchemaEntity, ...},
-  additionalProperties: boolean,
+  additionalProperties?: boolean,
   __pattern?: string
 |};
 export type SchemaError = {|

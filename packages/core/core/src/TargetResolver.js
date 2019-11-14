@@ -19,7 +19,7 @@ import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
 import DESCRIPTOR_SCHEMA, {
-  engines as ENGINES_SCHEMA
+  TOPLEVEL_ENGINES_SCHEMA
 } from './TargetDescriptor.schema';
 
 export type TargetResolveResult = {|
@@ -408,7 +408,7 @@ function parseEngines(
     return engines;
   } else {
     validateSchema.diagnostic(
-      ENGINES_SCHEMA,
+      TOPLEVEL_ENGINES_SCHEMA,
       engines,
       pkgPath,
       pkgContents,
