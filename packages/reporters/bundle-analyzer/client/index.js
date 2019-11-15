@@ -9,12 +9,7 @@ visualization.style.width = '100vw';
 document.body.appendChild(visualization);
 
 let tooltip = document.createElement('div');
-Object.assign(tooltip.style, {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  transform: 'translateX(0) translateY(0)'
-});
+tooltip.classList.add('tooltip');
 document.body.appendChild(tooltip);
 
 // Foam Tree docs:
@@ -35,18 +30,36 @@ let foamtree = new CarrotSearchFoamTree({
   maxGroupLevelsAttached: Infinity,
   rolloutDuration: 0,
   pullbackDuration: 0,
+  maxLabelSizeForTitleBar: 0, // disable the title bar
   onGroupHover(e) {
     if (e.group.label == null) {
+      tooltip.innerHTML = '';
       return;
     }
 
-    tooltip.innerText = e.group.label;
+    tooltip.innerHTML = `
+      <div class="tooltip-content">
+        <div>
+          <span class="tooltip-title">${e.group.label}</span>
+        </div>
+        <dl>
+          <div>
+            <dt>Size</dt>
+            <dd>${e.group.weight} bytes</dd>
+          </div>
+        </dl>
+      </div>
+    `;
   },
-  onGroupMouseMove(e) {
-    tooltip.style.transform = `translateX(${e.xAbsolute}px) translateY(${
-      e.yAbsolute
-    }px)`;
+  onGroupClick(e) {
+    this.zoom(e.group);
   }
+});
+
+visualization.addEventListener('mousemove', e => {
+  tooltip.style.transform = `translateX(${visualization.clientLeft +
+    e.clientX +
+    5}px) translateY(${visualization.clientTop + e.clientY + 5}px)`;
 });
 
 window.addEventListener(

@@ -40,6 +40,27 @@ export default new Reporter({
                 body {
                   margin: 0;
                 }
+
+                .tooltip {
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  transform: translateX(0) translateY(0);
+                  padding: 20px;
+                  background-color: rgba(255, 255, 255, 0.7);
+                }
+
+                .tooltip-content {
+                  font-family: monospace;
+                }
+
+                .tooltip-content dl div {
+                  display: flex;
+                }
+
+                .tooltip-title {
+                  font-size: 18px;
+                }
               </style>
               <script>
                 ${await options.inputFS.readFile(
