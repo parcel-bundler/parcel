@@ -17,34 +17,26 @@ export type SchemaEntity =
 export type SchemaArray = {|
   type: 'array',
   items?: SchemaEntity,
-  __type?: string,
-  __message?: string
+  __type?: string
 |};
 export type SchemaBoolean = {|
   type: 'boolean',
-  __type?: string,
-  __message?: string
+  __type?: string
 |};
 export type SchemaOneOf = {|
-  oneOf: Array<SchemaEntity>,
-  __type?: string,
-  __message?: string
+  oneOf: Array<SchemaEntity>
 |};
 export type SchemaAllOf = {|
-  allOf: Array<SchemaEntity>,
-  __type?: string,
-  __message?: string
+  allOf: Array<SchemaEntity>
 |};
 export type SchemaNot = {|
   not: SchemaEntity,
-  __type?: string,
-  __message?: string
+  __message: string
 |};
 export type SchemaString = {|
   type: 'string',
   enum?: Array<string>,
-  __type?: string,
-  __message?: string
+  __type?: string
 |};
 export type SchemaObject = {|
   type: 'object',
@@ -52,22 +44,60 @@ export type SchemaObject = {|
   additionalProperties?: boolean | SchemaEntity,
   required?: Array<string>,
   __forbiddenProperties?: Array<string>,
-  __type?: string,
-  __message?: string
+  __type?: string
 |};
 export type SchemaAny = {||};
-export type SchemaError = {|
-  type: ?'key' | 'value',
-  dataPath: string,
-  expectedType?: Array<string>,
-  actualType?: string,
-  expectedValues?: Array<string>,
-  actualValue?: string,
-  forbidden?: boolean,
-  message?: string,
-  prettyType?: string,
-  ancestors: Array<SchemaEntity>
-|};
+export type SchemaError =
+  | {|
+      type: 'type',
+      expectedTypes: Array<string>,
+      dataType: ?'key' | 'value',
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>,
+      prettyType?: string
+    |}
+  | {|
+      type: 'enum',
+      expectedValues: Array<mixed>,
+      dataType: 'key' | 'value',
+      actualValue: mixed,
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>,
+      prettyType?: string
+    |}
+  | {|
+      type: 'forbidden-prop',
+      prop: string,
+      expectedProps: Array<string>,
+      actualProps: Array<string>,
+      dataType: 'key',
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>,
+      prettyType?: string
+    |}
+  | {|
+      type: 'missing-prop',
+      prop: string,
+      expectedProps: Array<string>,
+      actualProps: Array<string>,
+      dataType: null | 'key',
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>,
+      prettyType?: string
+    |}
+  | {|
+      type: 'other',
+      actualValue: mixed,
+      dataType: ?'key' | 'value',
+      message?: string,
+
+      dataPath: string,
+      ancestors: Array<SchemaEntity>
+    |};
 
 function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
   function walk(
@@ -80,14 +110,12 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
       let type = Array.isArray(dataNode) ? 'array' : typeof dataNode;
       if (schemaNode.type !== type) {
         return {
-          type: 'value',
+          type: 'type',
+          dataType: 'value',
           dataPath,
-          expectedType: [schemaNode.type],
-          actualType: type,
+          expectedTypes: [schemaNode.type],
           ancestors: schemaAncestors,
-          prettyType: schemaNode.__type,
-          prettyType: schemaNode.__type,
-          message: schemaNode.__message
+          prettyType: schemaNode.__type
         };
       } else {
         switch (schemaNode.type) {
@@ -115,33 +143,40 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
             if (schemaNode.enum) {
               if (!schemaNode.enum.includes(value)) {
                 return {
-                  type: 'value',
+                  type: 'enum',
+                  dataType: 'value',
                   dataPath,
                   expectedValues: schemaNode.enum,
                   actualValue: value,
-                  actualType: 'string',
-                  ancestors: schemaAncestors,
-                  prettyType: schemaNode.__type,
-                  message: schemaNode.__message
+                  ancestors: schemaAncestors
                 };
               }
             }
             break;
           }
           case 'object': {
+            let results: Array<Array<SchemaError> | SchemaError> = [];
+            let invalidProps;
             if (schemaNode.__forbiddenProperties) {
               // $FlowFixMe type was already checked
               let keys = Object.keys(dataNode);
-              let foundKeys = schemaNode.__forbiddenProperties.filter(val =>
+              invalidProps = schemaNode.__forbiddenProperties.filter(val =>
                 keys.includes(val)
               );
-              return foundKeys.map(k => ({
-                type: null,
-                dataPath: dataPath + '/' + k,
-                actualValue: k,
-                forbidden: true,
-                ancestors: schemaAncestors
-              }));
+              results.push(
+                ...invalidProps.map(
+                  k =>
+                    ({
+                      type: 'forbidden-prop',
+                      dataPath: dataPath + '/' + k,
+                      dataType: 'key',
+                      prop: k,
+                      expectedProps: Object.keys(schemaNode.properties),
+                      actualProps: keys,
+                      ancestors: schemaAncestors
+                    }: SchemaError)
+                )
+              );
             }
             if (schemaNode.required) {
               // $FlowFixMe type was already checked
@@ -149,19 +184,29 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               let missingKeys = schemaNode.required.filter(
                 val => !keys.includes(val)
               );
-              return missingKeys.map(k => ({
-                type: null,
-                dataPath,
-                message: `Missing required property: ${k}`,
-                ancestors: schemaAncestors
-              }));
+              results.push(
+                ...missingKeys.map(
+                  k =>
+                    ({
+                      type: 'missing-prop',
+                      dataPath,
+                      dataType: null,
+                      prop: k,
+                      expectedProps: schemaNode.required,
+                      actualProps: keys,
+                      ancestors: schemaAncestors
+                    }: SchemaError)
+                )
+              );
             }
             if (schemaNode.properties) {
               let {additionalProperties = true} = schemaNode;
-              let results = [];
               // $FlowFixMe type was already checked
               for (let k in dataNode) {
-                if (k in schemaNode.properties) {
+                if (invalidProps && invalidProps.includes(k)) {
+                  // Don't check type on forbidden props
+                  continue;
+                } else if (k in schemaNode.properties) {
                   let result = walk(
                     [schemaNode.properties[k]].concat(schemaAncestors),
                     // $FlowFixMe type was already checked
@@ -173,7 +218,8 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   if (typeof additionalProperties === 'boolean') {
                     if (!additionalProperties) {
                       results.push({
-                        type: 'key',
+                        type: 'enum',
+                        dataType: 'key',
                         dataPath: dataPath + '/' + k,
                         expectedValues: Object.keys(
                           schemaNode.properties
@@ -182,10 +228,8 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                           p => !(p in dataNode)
                         ),
                         actualValue: k,
-                        actualType: 'string',
                         ancestors: schemaAncestors,
-                        prettyType: schemaNode.__type,
-                        message: schemaNode.__message
+                        prettyType: schemaNode.__type
                       });
                     }
                   } else {
@@ -199,9 +243,9 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   }
                 }
               }
-              if (results.length)
-                return results.reduce((acc, v) => acc.concat(v), []);
             }
+            if (results.length)
+              return results.reduce((acc, v) => acc.concat(v), []);
             break;
           }
           case 'boolean':
@@ -221,7 +265,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
       if (
         schemaNode.oneOf
           ? results.length == schemaNode.oneOf.length
-          : results.length != list.length
+          : results.length > 0
       ) {
         // return the result with more values / longer key
         results.sort((a, b) =>
@@ -245,10 +289,12 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
       );
       if (!result || result.length == 0) {
         return {
-          type: null,
+          type: 'other',
           dataPath,
-          ancestors: schemaAncestors,
-          message: schemaNode.__message
+          dataType: null,
+          message: schemaNode.__message,
+          actualValue: dataNode,
+          ancestors: schemaAncestors
         };
       }
     } else if (Object.keys(schemaNode).length == 0) {
@@ -295,10 +341,13 @@ validateSchema.diagnostic = function(
           JSON.stringify(dataContents, null, '\t');
     let keys = errors.map(e => {
       let message;
-      let {expectedValues, actualValue, type} = e;
-      if (expectedValues) {
+      if (e.type === 'enum') {
+        let {actualValue} = e;
+        let expectedValues = e.expectedValues.map(String);
         let likely =
-          actualValue != null ? fuzzySearch(expectedValues, actualValue) : [];
+          actualValue != null
+            ? fuzzySearch(expectedValues, String(actualValue))
+            : [];
 
         if (likely.length > 0) {
           message = `Did you mean ${likely
@@ -309,36 +358,42 @@ validateSchema.diagnostic = function(
             .map(v => JSON.stringify(v))
             .join(', ')}`;
         } else {
-          message = 'Unknown value';
+          message = 'Unexpected value';
         }
-      } else if (e.forbidden && actualValue != null) {
-        let schemaNode = e.ancestors[0];
-        if (schemaNode.type === 'object') {
-          let likely = fuzzySearch(
-            // $FlowFixMe schemaNode *is* an object
-            Object.keys(schemaNode.properties),
-            actualValue
-          );
-          if (likely.length > 0) {
-            type = 'key';
-            message = `Did you mean ${likely
-              .map(v => JSON.stringify(v))
-              .join(', ')}?`;
-          } else {
-            type = 'key';
-            message = 'Illegal key';
-          }
+      } else if (e.type === 'forbidden-prop') {
+        let {prop, expectedProps, actualProps} = e;
+        let likely = fuzzySearch(expectedProps, prop).filter(
+          v => !actualProps.includes(v)
+        );
+        if (likely.length > 0) {
+          message = `Did you mean ${likely
+            .map(v => JSON.stringify(v))
+            .join(', ')}?`;
         } else {
-          message = `Illegal key: ${actualValue}`;
+          message = 'Unexpected property';
         }
-      } else if (e.message != null) {
+      } else if (e.type === 'missing-prop') {
+        let {prop, expectedProps, actualProps} = e;
+        let likely = fuzzySearch(actualProps, prop);
+        if (likely.length > 0) {
+          message = `Did you mean ${likely
+            .map(v => JSON.stringify(v))
+            .join(', ')}?`;
+          e.dataPath += '/' + prop;
+          e.dataType = 'key';
+        } else {
+          message = `Missing property ${prop}`;
+        }
+      } else if (e.type === 'type') {
+        if (e.prettyType != null) {
+          message = `Expected ${e.prettyType}`;
+        } else {
+          message = `Expected type ${e.expectedTypes.join(', ')}`;
+        }
+      } else {
         message = e.message;
-      } else if (e.prettyType != null) {
-        message = `Expected ${e.prettyType}`;
-      } else if (e.expectedType) {
-        message = `Expected type ${e.expectedType.join(' or ')}`;
       }
-      return {key: e.dataPath, type, message};
+      return {key: e.dataPath, type: e.dataType, message};
     });
     let codeFrame = {
       code: dataContentsString,
