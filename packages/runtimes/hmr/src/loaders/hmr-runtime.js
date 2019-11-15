@@ -73,13 +73,25 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     }
 
     if (data.type === 'error') {
-      console.error(
-        '[parcel] 🚨  ' + data.ansiError.message + '\n' + data.ansiError.stack
-      );
+      // Log parcel errors to console
+      for (let ansiDiagnostic of data.diagnostics.ansi) {
+        let stack = ansiDiagnostic.codeframe
+          ? ansiDiagnostic.codeframe
+          : ansiDiagnostic.stack;
 
+        console.error(
+          '🚨 [parcel]: ' +
+            ansiDiagnostic.message +
+            '\n' +
+            stack +
+            '\n\n' +
+            ansiDiagnostic.hints.join('\n')
+        );
+      }
+
+      // Render the fancy html overlay
       removeErrorOverlay();
-
-      var overlay = createErrorOverlay(data);
+      var overlay = createErrorOverlay(data.diagnostics.html);
       document.body.appendChild(overlay);
     }
   };
@@ -99,27 +111,34 @@ function removeErrorOverlay() {
   }
 }
 
-function createErrorOverlay(data) {
+function createErrorOverlay(diagnostics) {
   var overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
 
-  // html encode message and stack trace
-  var message = document.createElement('div');
-  var stackTrace = document.createElement('pre');
-  message.innerHTML = data.htmlError.message;
-  stackTrace.innerHTML = data.htmlError.stack;
+  let errorHTML =
+    '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
-  overlay.innerHTML =
-    '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' +
-    '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' +
-    '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' +
-    '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' +
-    message.innerHTML +
-    '</div>' +
-    '<pre>' +
-    stackTrace.innerHTML +
-    '</pre>' +
-    '</div>';
+  for (let diagnostic of diagnostics) {
+    let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
+
+    errorHTML += `
+      <div>
+        <div style="font-size: 18px; font-weight: bold; margin-top: 20px;">
+          🚨 ${diagnostic.message}
+        </div>
+        <pre>
+          ${stack}
+        </pre>
+        <div>
+          ${diagnostic.hints.map(hint => '<div>' + hint + '</div>').join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  errorHTML += '</div>';
+
+  overlay.innerHTML = errorHTML;
 
   return overlay;
 }

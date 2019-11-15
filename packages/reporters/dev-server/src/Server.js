@@ -11,7 +11,13 @@ import path from 'path';
 import http from 'http';
 import https from 'https';
 import url from 'url';
-import {loadConfig, generateCertificate, getCertificate} from '@parcel/utils';
+import {
+  loadConfig,
+  generateCertificate,
+  getCertificate,
+  prettyDiagnostic,
+  ansiHtml
+} from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
@@ -42,7 +48,6 @@ const TEMPLATE_500 = fs.readFileSync(
   path.join(__dirname, 'templates/500.html'),
   'utf8'
 );
-
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
 export default class Server extends EventEmitter {
@@ -50,7 +55,11 @@ export default class Server extends EventEmitter {
   options: DevServerOptions;
   rootPath: ?string;
   bundleGraph: BundleGraph | null;
-  error: Diagnostic | null;
+  errors: Array<{|
+    message: string,
+    stack: string,
+    hints: Array<string>
+  |}> | null;
   server: HTTPServer | HTTPSServer;
 
   constructor(options: DevServerOptions) {
@@ -64,25 +73,35 @@ export default class Server extends EventEmitter {
     }
     this.pending = true;
     this.bundleGraph = null;
-    this.error = null;
+    this.errors = null;
   }
 
   buildSuccess(bundleGraph: BundleGraph) {
     this.bundleGraph = bundleGraph;
-    this.error = null;
+    this.errors = null;
     this.pending = false;
 
     this.emit('bundled');
   }
 
   buildError(diagnostics: Array<Diagnostic>) {
-    this.error = diagnostics[0];
+    this.errors = diagnostics.map(d => {
+      let ansiDiagnostic = prettyDiagnostic(d);
+
+      return {
+        message: ansiHtml(ansiDiagnostic.message),
+        stack: ansiDiagnostic.codeframe
+          ? ansiHtml(ansiDiagnostic.codeframe)
+          : ansiHtml(ansiDiagnostic.stack),
+        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint))
+      };
+    });
   }
 
   respond(req: Request, res: Response) {
     let {pathname} = url.parse(req.originalUrl || req.url);
 
-    if (this.error) {
+    if (this.errors) {
       return this.send500(req, res);
     } else if (
       !pathname ||
@@ -238,17 +257,12 @@ export default class Server extends EventEmitter {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 
-    if (this.error) {
-      res.end(
+    if (this.errors) {
+      return res.end(
         ejs.render(TEMPLATE_500, {
-          error: {
-            message: this.error.message,
-            stack: this.error.stack
-          }
+          errors: this.errors
         })
       );
-    } else {
-      res.end();
     }
   }
 

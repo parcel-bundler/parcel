@@ -1357,6 +1357,49 @@ describe('javascript', function() {
     assert.equal(test, 2);
   });
 
+  it('should package successfully with comments on last line', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`)
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
+
+  it('should package successfully with comments on last line and minification', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`)
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
+
+  it('should package successfully with comments on last line and scope hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`),
+      {
+        scopeHoist: true
+      }
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
+
+  it('should package successfully with comments on last line, scope hoisting and minification', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-comment/index.js`),
+      {
+        scopeHoist: true,
+        minify: true
+      }
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'Hello World!');
+  });
+
   it.skip('should not dedupe imports with different contents', async function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-different-contents/index.js`),
