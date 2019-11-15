@@ -41,6 +41,10 @@ export function createDependency(opts: DependencyOpts): Dependency {
   return {
     ...opts,
     id,
+    isAsync: opts.isAsync ?? false,
+    isEntry: opts.isEntry ?? false,
+    isOptional: opts.isOptional ?? false,
+    isURL: opts.isURL ?? false,
     meta: opts.meta || {},
     symbols: opts.symbols || new Map()
   };
