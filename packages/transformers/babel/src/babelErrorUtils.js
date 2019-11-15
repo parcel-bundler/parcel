@@ -22,7 +22,7 @@ export async function babelErrorEnhancer(
       .trim();
   }
 
-  error.source = (await asset.getCode()).toString();
+  error.source = await asset.getCode();
   error.filePath = asset.filePath;
 
   return error;
