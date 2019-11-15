@@ -30,19 +30,20 @@ describe('watcher', function() {
   });
 
   it('should rebuild on source file change', async function() {
+    await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(
-      path.join('/index.js'),
+      path.join(inputDir, '/index.js'),
       'module.exports = "hello"',
       'utf8'
     );
-    let b = bundler('/index.js', {inputFS: overlayFS});
+    let b = bundler(path.join(inputDir, '/index.js'), {inputFS: overlayFS});
     subscription = await b.watch();
     let buildEvent = await getNextBuild(b);
     let output = await run(buildEvent.bundleGraph);
     assert.equal(output, 'hello');
 
     await outputFS.writeFile(
-      '/index.js',
+      path.join(inputDir, '/index.js'),
       'module.exports = "something else"',
       'utf8'
     );
@@ -52,13 +53,22 @@ describe('watcher', function() {
   });
 
   it('should rebuild on a source file change after a failed transformation', async () => {
-    await outputFS.writeFile(path.join('/index.js'), 'syntax\\error', 'utf8');
-    let b = bundler('/index.js', {inputFS: overlayFS});
+    await outputFS.mkdirp(inputDir);
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.js'),
+      'syntax\\error',
+      'utf8'
+    );
+    let b = bundler(path.join(inputDir, '/index.js'), {inputFS: overlayFS});
     subscription = await b.watch();
-    await getNextBuild(b);
-    assert(!(await outputFS.exists(path.join('dist', 'index.js'))));
-    await outputFS.writeFile('/index.js', 'module.exports = "hello"', 'utf8');
     let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildFailure');
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.js'),
+      'module.exports = "hello"',
+      'utf8'
+    );
+    buildEvent = await getNextBuild(b);
     let output = await run(buildEvent.bundleGraph);
 
     assert.equal(output, 'hello');
