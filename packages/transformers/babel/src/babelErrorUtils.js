@@ -8,6 +8,7 @@ export type BabelError = Error & {
     ...
   },
   source?: string,
+  filePath?: string,
   ...
 };
 
@@ -22,6 +23,7 @@ export async function babelErrorEnhancer(
   }
 
   error.source = (await asset.getCode()).toString();
+  error.filePath = asset.filePath;
 
   return error;
 }
