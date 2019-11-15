@@ -18,9 +18,7 @@ import {loadConfig, validateSchema} from '@parcel/utils';
 import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
-import DESCRIPTOR_SCHEMA, {
-  engines as ENGINES_SCHEMA
-} from './TargetDescriptor.schema';
+import DESCRIPTOR_SCHEMA, {ENGINES_SCHEMA} from './TargetDescriptor.schema';
 
 export type TargetResolveResult = {|
   targets: Array<Target>,
