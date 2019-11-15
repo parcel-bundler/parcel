@@ -35,7 +35,8 @@ export default new Reporter({
           `
           <html>
             <head>
-              <title>${targetName}</title>
+              <meta charset="utf-8">
+              <title>📦Parcel Bundle Analyzer | ${targetName}</title>
               <style>
                 body {
                   margin: 0;
@@ -72,7 +73,7 @@ export default new Reporter({
                 )}
               </script>
               <script id="bundle-data" type="application/json">
-                ${JSON.stringify(getBundleData(bundles, options), null, 2)}
+                ${JSON.stringify(getBundleData(bundles, options))}
               </script>
             </head>
             <body>
