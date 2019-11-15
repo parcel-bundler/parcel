@@ -288,7 +288,11 @@ export default class InternalAsset {
             ? new Map(this.value.dependencies)
             : new Map(),
         includedFiles: new Map(this.value.includedFiles),
-        meta: {...this.value.meta, ...result.meta},
+        meta: {
+          ...this.value.meta,
+          // $FlowFixMe
+          ...result.meta
+        },
         pipeline:
           result.pipeline ??
           (this.value.type === result.type ? this.value.pipeline : null),

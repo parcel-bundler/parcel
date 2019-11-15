@@ -31,6 +31,9 @@ export default new Bundler({
         if (node.type !== 'dependency') {
           return {
             ...context,
+            bundleGroup: context?.bundleGroup,
+            bundleByType: context?.bundleByType,
+            bundleGroupDependency: context?.bundleGroupDependency,
             parentNode: node
           };
         }
@@ -72,14 +75,18 @@ export default new Bundler({
         }
 
         invariant(context != null);
+        invariant(context.parentNode.type === 'asset');
+        let bundleGroup = nullthrows(context.bundleGroup);
+        let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
+        let bundleByType = nullthrows(context.bundleByType);
+
         for (let asset of assets) {
-          invariant(context.parentNode.type === 'asset');
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
             continue;
           }
 
-          let existingBundle = context.bundleByType.get(asset.type);
+          let existingBundle = bundleByType.get(asset.type);
           if (existingBundle) {
             // If a bundle of this type has already been created in this group,
             // merge this subgraph into it.
@@ -88,14 +95,14 @@ export default new Bundler({
           } else {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              target: context.bundleGroup.target,
-              isEntry: context.bundleGroupDependency.isEntry,
+              target: bundleGroup.target,
+              isEntry: bundleGroupDependency.isEntry,
               isInline: asset.isInline
             });
-            context.bundleByType.set(bundle.type, bundle);
+            bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
             bundleGraph.createAssetReference(dependency, asset);
-            bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
+            bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
         }
 
