@@ -33,7 +33,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
-export type ParcelConfigFile = {
+export type ParcelConfigFile = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {[Glob]: Array<PackageName>, ...},
@@ -43,15 +43,14 @@ export type ParcelConfigFile = {
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: Array<PackageName>, ...},
   reporters?: Array<PackageName>,
-  validators?: {[Glob]: Array<PackageName>, ...},
-  ...
-};
+  validators?: {[Glob]: Array<PackageName>, ...}
+|};
 
-export type ResolvedParcelConfigFile = {
+export type ResolvedParcelConfigFile = {|
   ...ParcelConfigFile,
   filePath: FilePath,
-  ...
-};
+  resolveFrom?: FilePath
+|};
 
 export type Engines = {
   browsers?: string | Array<string>,

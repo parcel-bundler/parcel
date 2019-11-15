@@ -79,7 +79,7 @@ export async function readAndProcess(
 }
 
 export async function processConfig(
-  configFile: ParcelConfigFile,
+  configFile: ParcelConfigFile | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions
 ) {
@@ -126,7 +126,7 @@ export async function resolveExtends(
 }
 
 export function validateConfigFile(
-  config: ParcelConfigFile,
+  config: ParcelConfigFile | ResolvedParcelConfigFile,
   relativePath: FilePath
 ) {
   validateNotEmpty(config, relativePath);
@@ -173,7 +173,7 @@ export function validateConfigFile(
 }
 
 export function validateNotEmpty(
-  config: ParcelConfigFile,
+  config: ParcelConfigFile | ResolvedParcelConfigFile,
   relativePath: FilePath
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
