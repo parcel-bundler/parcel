@@ -29,23 +29,39 @@ describe('watcher', function() {
     subscription = null;
   });
 
-  it.skip('should rebuild on source file change', async function() {
-    await ncp(path.join(__dirname, '/integration/commonjs'), inputDir);
-
-    let b = bundler(path.join(inputDir, '/index.js'), {watch: true});
-    let bundle = await b.bundle();
-    let output = await run(bundle);
-    assert.equal(output(), 3);
-
-    await sleep(100);
-    fs.writeFile(
-      path.join(inputDir, '/local.js'),
-      'exports.a = 5; exports.b = 5;'
+  it('should rebuild on source file change', async function() {
+    await outputFS.writeFile(
+      path.join('/index.js'),
+      'module.exports = "hello"',
+      'utf8'
     );
+    let b = bundler('/index.js', {inputFS: overlayFS});
+    subscription = await b.watch();
+    let buildEvent = await getNextBuild(b);
+    let output = await run(buildEvent.bundleGraph);
+    assert.equal(output, 'hello');
 
-    bundle = await nextBundle(b);
-    output = await run(bundle);
-    assert.equal(output(), 10);
+    await outputFS.writeFile(
+      '/index.js',
+      'module.exports = "something else"',
+      'utf8'
+    );
+    buildEvent = await getNextBuild(b);
+    output = await run(buildEvent.bundleGraph);
+    assert.equal(output, 'something else');
+  });
+
+  it('should rebuild on a source file change after a failed transformation', async () => {
+    await outputFS.writeFile(path.join('/index.js'), 'syntax\\error', 'utf8');
+    let b = bundler('/index.js', {inputFS: overlayFS});
+    subscription = await b.watch();
+    await getNextBuild(b);
+    assert(!(await outputFS.exists(path.join('dist', 'index.js'))));
+    await outputFS.writeFile('/index.js', 'module.exports = "hello"', 'utf8');
+    let buildEvent = await getNextBuild(b);
+    let output = await run(buildEvent.bundleGraph);
+
+    assert.equal(output, 'hello');
   });
 
   it('should rebuild on a config file change', async function() {
