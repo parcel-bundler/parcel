@@ -68,7 +68,19 @@ export class OverlayFS implements FileSystem {
 
   readFile = read('readFile');
   writeFile = write('writeFile');
-  copyFile = write('copyFile');
+  async copyFile(source: FilePath, destination: FilePath) {
+    if (await this.writable.exists(source)) {
+      await this.writable.writeFile(
+        destination,
+        await this.writable.readFile(source)
+      );
+    } else {
+      await this.writable.writeFile(
+        destination,
+        await this.readable.readFile(source)
+      );
+    }
+  }
   stat = read('stat');
   unlink = write('unlink');
   mkdirp = write('mkdirp');
