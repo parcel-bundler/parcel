@@ -276,7 +276,7 @@ export type File = {|
   hash?: string
 |};
 
-interface BaseAsset {
+export interface BaseAsset {
   +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
