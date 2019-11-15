@@ -20,7 +20,7 @@ function Module(moduleName) {
 }
 
 module.bundle.Module = Module;
-var checkedAssets, assetsToAccept;
+var checkedAssets, assetsToAccept, acceptedAssets;
 
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
@@ -32,6 +32,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   ws.onmessage = function(event) {
     checkedAssets = {};
     assetsToAccept = [];
+    acceptedAssets = {};
 
     var data = JSON.parse(event.data);
 
@@ -47,11 +48,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Handle HMR Update
       var handled = false;
       assets.forEach(asset => {
-        if (!asset.isNew) {
-          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
-          if (didAccept) {
-            handled = true;
-          }
+        var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+        if (didAccept) {
+          handled = true;
         }
       });
 
@@ -62,9 +61,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           hmrApply(global.parcelRequire, asset);
         });
 
-        assetsToAccept.forEach(function(v) {
-          hmrAcceptRun(v[0], v[1]);
-        });
+        for (var i = 0; i < assetsToAccept.length; i++) {
+          var id = assetsToAccept[i][1];
+          if (!acceptedAssets[id]) {
+            hmrAcceptRun(assetsToAccept[i][0], id);
+          }
+        }
       } else {
         window.location.reload();
       }
@@ -80,6 +82,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var overlay = createErrorOverlay(data);
       document.body.appendChild(overlay);
     }
+  };
+  ws.onerror = function(e) {
+    console.error(e.message);
+  };
+  ws.onclose = function(e) {
+    console.warn('[parcel] 🚨 Connection to the HMR server was lost');
   };
 }
 
@@ -130,7 +138,7 @@ function getParents(bundle, id) {
       dep = modules[k][1][d];
 
       if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
-        parents.push(k);
+        parents.push([bundle, k]);
       }
     }
   }
@@ -150,7 +158,6 @@ function hmrApply(bundle, asset) {
 
   if (modules[asset.id] || !bundle.parent) {
     var fn = new Function('require', 'module', 'exports', asset.output);
-    asset.isNew = !modules[asset.id];
     modules[asset.id] = [fn, asset.deps];
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
@@ -182,15 +189,15 @@ function hmrAcceptCheck(bundle, id) {
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function(id) {
-    return hmrAcceptCheck(global.parcelRequire, id);
+  return getParents(global.parcelRequire, id).some(function(v) {
+    return hmrAcceptCheck(v[0], v[1]);
   });
 }
 
 function hmrAcceptRun(bundle, id) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
-  if (cached) {
+  if (cached && cached.hot) {
     cached.hot.data = bundle.hotData;
   }
 
@@ -206,8 +213,13 @@ function hmrAcceptRun(bundle, id) {
   cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function(cb) {
-      cb();
+      var assetsToAlsoAccept = cb(function() {
+        return getParents(global.parcelRequire, id);
+      });
+      if (assetsToAlsoAccept && assetsToAccept.length) {
+        assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
+      }
     });
-    return true;
   }
+  acceptedAssets[id] = true;
 }

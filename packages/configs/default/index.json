@@ -5,8 +5,10 @@
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
-      "@parcel/transformer-js"
+      "@parcel/transformer-js",
+      "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
@@ -27,7 +29,11 @@
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "browser": [
+      "@parcel/runtime-js",
+      "@parcel/runtime-browser-hmr",
+      "@parcel/runtime-react-refresh"
+    ],
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
