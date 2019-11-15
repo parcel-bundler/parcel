@@ -15,14 +15,10 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {
-  urlJoin,
-  md5FromObject,
-  md5FromString,
-  blobToStream
-} from '@parcel/utils';
+import {md5FromObject, md5FromString, blobToStream} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
@@ -230,43 +226,39 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packaged = await packager.package({
-      bundle,
-      bundleGraph: new BundleGraph(bundleGraph, this.options),
-      getSourceMapReference: map => {
-        return bundle.isInline ||
-          (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-          ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-          : path.basename(bundle.filePath) + '.map';
-      },
-      options: this.pluginOptions,
-      getInlineBundleContents: (
-        bundle: BundleType,
-        bundleGraph: BundleGraphType
-      ) => {
-        if (!bundle.isInline) {
-          throw new Error(
-            'Bundle is not inline and unable to retrieve contents'
+    try {
+      return await packager.plugin.package({
+        bundle,
+        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        getSourceMapReference: map => {
+          return bundle.isInline ||
+            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+            : path.basename(bundle.filePath) + '.map';
+        },
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: packager.name}),
+        getInlineBundleContents: (
+          bundle: BundleType,
+          bundleGraph: BundleGraphType
+        ) => {
+          if (!bundle.isInline) {
+            throw new Error(
+              'Bundle is not inline and unable to retrieve contents'
+            );
+          }
+
+          return this.getBundleResult(
+            bundleToInternalBundle(bundle),
+            bundleGraphToInternalBundleGraph(bundleGraph)
           );
         }
-
-        return this.getBundleResult(
-          bundleToInternalBundle(bundle),
-          bundleGraphToInternalBundleGraph(bundleGraph)
-        );
-      }
-    });
-
-    return {
-      contents:
-        typeof packaged.contents === 'string'
-          ? replaceReferences(
-              packaged.contents,
-              generateDepToBundlePath(internalBundle, bundleGraph)
-            )
-          : packaged.contents,
-      map: packaged.map
-    };
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, packager.name)
+      });
+    }
   }
 
   async optimize(
@@ -276,7 +268,10 @@ export default class PackagerRunner {
     map?: ?SourceMap
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
-    let optimizers = await this.config.getOptimizers(bundle.filePath);
+    let optimizers = await this.config.getOptimizers(
+      bundle.filePath,
+      internalBundle.pipeline
+    );
     if (!optimizers.length) {
       return {contents, map};
     }
@@ -289,12 +284,19 @@ export default class PackagerRunner {
 
     let optimized = {contents, map};
     for (let optimizer of optimizers) {
-      optimized = await optimizer.optimize({
-        bundle,
-        contents: optimized.contents,
-        map: optimized.map,
-        options: this.pluginOptions
-      });
+      try {
+        optimized = await optimizer.plugin.optimize({
+          bundle,
+          contents: optimized.contents,
+          map: optimized.map,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: optimizer.name})
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, optimizer.name)
+        });
+      }
     }
 
     return optimized;
@@ -472,72 +474,6 @@ function writeFileStream(
       .on('finish', () => resolve(fsStream.bytesWritten))
       .on('error', reject);
   });
-}
-
-/*
- * Build a mapping from async, url dependency ids to web-friendly relative paths
- * to their bundles. These will be relative to the current bundle if `publicUrl`
- * is not provided. If `publicUrl` is provided, the paths will be joined to it.
- *
- * These are used to translate any placeholder dependency ids written during
- * transformation back to a path that can be loaded in a browser (such as
- * in a "raw" loader or any transformed dependencies referred to by url).
- */
-function generateDepToBundlePath(
-  bundle: InternalBundle,
-  bundleGraph: InternalBundleGraph
-): Map<string, FilePath> {
-  let depToBundlePath: Map<string, FilePath> = new Map();
-  bundleGraph.traverseBundle(bundle, node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dep = node.value;
-    if (!dep.isURL || !dep.isAsync) {
-      return;
-    }
-
-    let [bundleGroupNode] = bundleGraph._graph.getNodesConnectedFrom(node);
-    invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
-
-    let [entryBundleNode] = bundleGraph._graph.getNodesConnectedFrom(
-      bundleGroupNode,
-      'bundle'
-    );
-    invariant(entryBundleNode && entryBundleNode.type === 'bundle');
-
-    let entryBundle = entryBundleNode.value;
-    depToBundlePath.set(
-      dep.id,
-      urlJoin(
-        nullthrows(entryBundle.target).publicUrl ?? '/',
-        nullthrows(entryBundle.name)
-      )
-    );
-  });
-
-  return depToBundlePath;
-}
-
-// replace references to url dependencies with relative paths to their
-// corresponding bundles.
-// TODO: This likely alters the length of the column in the source text.
-//       Update any sourcemaps accordingly.
-function replaceReferences(
-  code: string,
-  depToBundlePath: Map<string, FilePath>
-): string {
-  let output = code;
-  for (let [depId, replacement] of depToBundlePath) {
-    let split = output.split(depId);
-    if (split.length > 1) {
-      // the dependency id was found in the text. replace it.
-      output = split.join(replacement);
-    }
-  }
-
-  return output;
 }
 
 function getContentKey(cacheKey: string) {

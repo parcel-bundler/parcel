@@ -8,13 +8,13 @@ import type {
   AssetGroupNode,
   Dependency,
   DependencyNode,
+  NodeId,
   Target
 } from './types';
 
-import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
 import crypto from 'crypto';
-
+import {md5FromObject} from '@parcel/utils';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
@@ -69,14 +69,24 @@ const nodeFromEntryFile = (entry: string) => ({
   value: entry
 });
 
+// Types that are considered incomplete when they don't have a child node
+const INCOMPLETE_TYPES = [
+  'entry_specifier',
+  'entry_file',
+  'dependency',
+  'asset_group'
+];
+
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
+  incompleteNodeIds: Set<NodeId> = new Set();
   hash: ?string;
 
   // $FlowFixMe
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
     let res = new AssetGraph(opts);
+    res.incompleteNodeIds = opts.incompleteNodeIds;
     res.hash = opts.hash;
     return res;
   }
@@ -85,6 +95,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   serialize(): SerializedAssetGraph {
     return {
       ...super.serialize(),
+      incompleteNodeIds: this.incompleteNodeIds,
       hash: this.hash
     };
   }
@@ -109,25 +120,39 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup))
       );
     }
-
     this.replaceNodesConnectedTo(rootNode, nodes);
   }
 
   addNode(node: AssetGraphNode) {
     this.hash = null;
+    let existingNode = this.getNode(node.id);
+    if (
+      INCOMPLETE_TYPES.includes(node.type) &&
+      !node.deferred &&
+      (!existingNode || existingNode.deferred)
+    ) {
+      this.incompleteNodeIds.add(node.id);
+    }
     this.onNodeAdded && this.onNodeAdded(node);
     return super.addNode(node);
   }
 
   removeNode(node: AssetGraphNode) {
     this.hash = null;
+    this.incompleteNodeIds.delete(node.id);
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
   }
 
+  hasIncompleteNodes() {
+    return this.incompleteNodeIds.size > 0;
+  }
+
   resolveEntry(entry: string, resolved: Array<FilePath>) {
+    let entrySpecifierNode = nodeFromEntrySpecifier(entry);
     let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
-    this.replaceNodesConnectedTo(nodeFromEntrySpecifier(entry), entryFileNodes);
+    this.replaceNodesConnectedTo(entrySpecifierNode, entryFileNodes);
+    this.incompleteNodeIds.delete(entrySpecifierNode.id);
   }
 
   resolveTargets(entryFile: FilePath, targets: Array<Target>) {
@@ -146,29 +171,31 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let entryNode = nodeFromEntryFile(entryFile);
     if (this.hasNode(entryNode.id)) {
       this.replaceNodesConnectedTo(entryNode, depNodes);
+      this.incompleteNodeIds.delete(entryNode.id);
     }
   }
 
-  resolveDependency(dependency: Dependency, assetGroupNode: AssetGroupNode) {
+  resolveDependency(
+    dependency: Dependency,
+    assetGroupNode: AssetGroupNode | null
+  ) {
     let depNode = this.nodes.get(dependency.id);
     if (!depNode) return;
+    this.incompleteNodeIds.delete(depNode.id);
 
-    this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
+    if (assetGroupNode) {
+      this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
+    }
   }
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
+    this.incompleteNodeIds.delete(assetGroupNode.id);
     if (!this.hasNode(assetGroupNode.id)) {
       return;
     }
 
     let assetNodes = assets.map(asset => nodeFromAsset(asset));
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
-
-    for (let asset of assets) {
-      let assetNode = nodeFromAsset(asset);
-      assetNodes.push(assetNode);
-    }
     this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
 
     for (let assetNode of assetNodes) {

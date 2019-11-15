@@ -25,7 +25,7 @@ export function generate(
   let entry = bundle.getMainEntry();
   let isAsync = entry && !isEntry(bundle, bundleGraph);
   if (!options.minify && (isAsync || bundle.env.outputFormat === 'global')) {
-    code = `\n${code}\n`;
+    code = `\n${code}`;
   }
 
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
@@ -34,12 +34,13 @@ export function generate(
   if (isAsync && bundle.env.outputFormat === 'global') {
     contents = `${hashBang}parcelRequire.registerBundle(${JSON.stringify(
       nullthrows(entry).id
-    )},function(){${code}});`;
+    )},function(){${code}\n});`;
   } else {
     contents =
-      bundle.env.outputFormat !== 'global'
-        ? hashBang + code
-        : `${hashBang}(function(){${code}})();`;
+      hashBang +
+      (bundle.env.outputFormat === 'global'
+        ? `(function(){${code}\n})();`
+        : code);
   }
 
   return {contents};

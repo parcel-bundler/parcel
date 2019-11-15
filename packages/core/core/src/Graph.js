@@ -317,7 +317,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   replaceNodesConnectedTo(
     fromNode: TNode,
     toNodes: Array<TNode>,
-    replaceFilter?: TNode => boolean,
+    replaceFilter?: null | (TNode => boolean),
     type?: TEdgeType | null = null
   ): void {
     assertHasNode(this, fromNode);

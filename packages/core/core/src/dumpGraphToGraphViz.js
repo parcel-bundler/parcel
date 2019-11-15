@@ -66,9 +66,8 @@ export default async function dumpGraphToGraphViz(
         ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'bundle') {
       label += node.id;
-    } else {
-      // label += node.id;
-      // label = node.type;
+    } else if (node.type === 'request') {
+      label = node.value.type + ':' + node.id;
     }
     n.set('label', label);
   }

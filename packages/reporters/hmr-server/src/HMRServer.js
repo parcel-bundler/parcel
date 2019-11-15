@@ -15,7 +15,6 @@ import {
   prettyDiagnostic,
   ansiHtml
 } from '@parcel/utils';
-import logger from '@parcel/logger';
 
 type HMRAsset = {|
   id: string,
@@ -162,7 +161,7 @@ export default class HMRServer {
       return;
     }
 
-    logger.warn({
+    this.options.logger.warn({
       origin: '@parcel/reporter-hmr-server',
       message: `[${err.code}]: ${err.message}`,
       stack: err.stack
