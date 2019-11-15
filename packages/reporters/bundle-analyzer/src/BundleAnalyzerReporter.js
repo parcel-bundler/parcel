@@ -43,12 +43,13 @@ export default new Reporter({
                 }
 
                 .tooltip {
+                  background-color: rgba(255, 255, 255, 0.7);
+                  left: 0;
+                  padding: 20px;
+                  pointer-events: none;
                   position: absolute;
                   top: 0;
-                  left: 0;
-                  transform: translateX(0) translateY(0);
-                  padding: 20px;
-                  background-color: rgba(255, 255, 255, 0.7);
+                  transform: translate3d(0, 0, 0);
                 }
 
                 .tooltip-content {

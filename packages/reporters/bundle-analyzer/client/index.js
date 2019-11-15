@@ -8,9 +8,7 @@ visualization.style.height = '100vh';
 visualization.style.width = '100vw';
 document.body.appendChild(visualization);
 
-let tooltip = document.createElement('div');
-tooltip.classList.add('tooltip');
-document.body.appendChild(tooltip);
+let tooltip;
 
 // Foam Tree docs:
 // https://get.carrotsearch.com/foamtree/demo/api/index.html
@@ -32,11 +30,21 @@ let foamtree = new CarrotSearchFoamTree({
   pullbackDuration: 0,
   maxLabelSizeForTitleBar: 0, // disable the title bar
   onGroupHover(e) {
-    if (e.group.label == null) {
-      tooltip.innerHTML = '';
+    if (e.group.label == null || e.group.weight == null) {
+      if (tooltip != null) {
+        tooltip.remove();
+        tooltip = null;
+      }
       return;
     }
 
+    if (tooltip == null) {
+      tooltip = document.createElement('div');
+      tooltip.classList.add('tooltip');
+      document.body.appendChild(tooltip);
+    }
+
+    tooltip.style.transform = translate3d(e.xAbsolute, e.yAbsolute, 0);
     tooltip.innerHTML = `
       <div class="tooltip-content">
         <div>
@@ -57,9 +65,15 @@ let foamtree = new CarrotSearchFoamTree({
 });
 
 visualization.addEventListener('mousemove', e => {
-  tooltip.style.transform = `translateX(${visualization.clientLeft +
-    e.clientX +
-    5}px) translateY(${visualization.clientTop + e.clientY + 5}px)`;
+  if (tooltip == null) {
+    return;
+  }
+
+  tooltip.style.transform = translate3d(
+    visualization.clientLeft + e.clientX,
+    visualization.clientTop + e.clientY,
+    0
+  );
 });
 
 window.addEventListener(
@@ -81,4 +95,8 @@ function debounce(fn, delay) {
       fn(...args);
     }, delay);
   };
+}
+
+function translate3d(x, y, z) {
+  return `translate3d(${x}px, ${y}px, ${z}px)`;
 }
