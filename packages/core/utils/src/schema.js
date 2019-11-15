@@ -373,7 +373,7 @@ validateSchema.diagnostic = function(
           message = 'Unexpected property';
         }
       } else if (e.type === 'missing-prop') {
-        let {prop, expectedProps, actualProps} = e;
+        let {prop, actualProps} = e;
         let likely = fuzzySearch(actualProps, prop);
         if (likely.length > 0) {
           message = `Did you mean ${likely
