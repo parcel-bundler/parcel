@@ -34,9 +34,9 @@ type SerializedSourceMap = {
 };
 
 function generateInlineMap(map: string): string {
-  return `data:application/json;charset=utf-8;base64,${new Buffer(map).toString(
-    'base64'
-  )}`;
+  return `data:application/json;charset=utf-8;base64,${Buffer.from(
+    map
+  ).toString('base64')}`;
 }
 
 export default class SourceMap {
