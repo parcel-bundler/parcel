@@ -20,7 +20,7 @@ export default new Transformer({
     // return from compile is based on sourceMaps option
     if (options.sourceMaps) {
       asset.setCode(output.js);
-      asset.setMap(SourceMap.fromRawSourceMap(output.v3SourceMap));
+      asset.setMap(await SourceMap.fromRawSourceMap(output.v3SourceMap));
     } else {
       asset.setCode(output);
     }
