@@ -29,7 +29,7 @@ export default new Resolver({
     }
 
     const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
+      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
       options
     });
     const resolved = await resolver.resolve({
