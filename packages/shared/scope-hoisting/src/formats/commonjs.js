@@ -53,8 +53,8 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
     for (let specifier of specifiers) {
       statements.push(
         ASSIGN_TEMPLATE({
-          SPECIFIERS: specifier.key,
-          MODULE: t.memberExpression(value, specifier.value)
+          SPECIFIERS: specifier.value,
+          MODULE: t.memberExpression(value, specifier.key)
         })
       );
     }

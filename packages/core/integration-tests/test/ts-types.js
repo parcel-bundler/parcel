@@ -119,4 +119,20 @@ describe('typescript types', function() {
     );
     assert.equal(dist, expected);
   });
+
+  it('should remove private properties', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/ts-types/private/index.ts')
+    );
+
+    let dist = (await outputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/private/dist/types.d.ts'),
+      'utf8'
+    )).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/private/expected.d.ts'),
+      'utf8'
+    );
+    assert.equal(dist, expected);
+  });
 });
