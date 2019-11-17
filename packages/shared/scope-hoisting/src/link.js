@@ -320,7 +320,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
             );
-          } else if (dep.isWeak) {
+          } else if (dep.isWeak && !bundle.env.isLibrary) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
@@ -557,11 +557,13 @@ export function link({
         }
 
         // Generate exports
+        // $FlowFixMe
         let exported = format.generateExports(
           bundleGraph,
           bundle,
           referencedAssets,
-          path
+          path,
+          replacements
         );
 
         treeShake(path.scope, exported);

@@ -351,6 +351,26 @@ describe('output formats', function() {
       assert(dist.includes('import { add } from "lodash"'));
     });
 
+    it('should support esmodule output with external modules (export)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-external/export.js')
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('import { add } from "lodash"'));
+      assert(dist.includes('export { add }'));
+    });
+
+    it('should support esmodule output with external modules (re-export)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-external/re-export.js')
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('import { add } from "lodash"'));
+      assert(dist.includes('export { add }'));
+    });
+
     it('should support importing sibling bundles in library mode', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-siblings/a.js')

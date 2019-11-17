@@ -78,15 +78,18 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any
+  path: any,
+  replacements: Map<Symbol, Symbol>
 ) {
   let exportedIdentifiers = new Map();
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
+      symbol = replacements.get(symbol) || symbol;
+
       // If there is an existing binding with the exported name (e.g. an import),
       // rename it so we can use the name for the export instead.
-      if (path.scope.hasBinding(exportSymbol)) {
+      if (path.scope.hasBinding(exportSymbol) && exportSymbol !== symbol) {
         rename(path.scope, exportSymbol, path.scope.generateUid(exportSymbol));
       }
 
@@ -104,16 +107,16 @@ export function generateExports(
 
   path.traverse({
     Declaration(path) {
-      if (
-        path.isExportDeclaration() ||
-        path.parentPath.isExportDeclaration() ||
-        path.isImportDeclaration()
-      ) {
+      if (path.isExportDeclaration() || path.parentPath.isExportDeclaration()) {
         return;
       }
 
       let bindingIdentifiers = path.getBindingIdentifierPaths(false, true);
       let ids = Object.keys(bindingIdentifiers);
+      if (ids.length === 0) {
+        return;
+      }
+
       let exportedIds = ids.filter(
         id =>
           exportedIdentifiers.has(id) &&
@@ -125,7 +128,7 @@ export function generateExports(
 
       // If all exports in the binding are named exports, export the entire declaration.
       // Also rename all of the identifiers to their exported name.
-      if (exportedIds.length === ids.length) {
+      if (exportedIds.length === ids.length && !path.isImportDeclaration()) {
         path.replaceWith(t.exportNamedDeclaration(path.node, []));
         for (let id of exportedIds) {
           let exportName = nullthrows(exportedIdentifiers.get(id));
@@ -137,7 +140,8 @@ export function generateExports(
       } else if (
         ids.length === 1 &&
         defaultExport &&
-        !path.isVariableDeclaration()
+        !path.isVariableDeclaration() &&
+        !path.isImportDeclaration()
       ) {
         path.replaceWith(t.exportDefaultDeclaration(path.node));
 
