@@ -69,10 +69,10 @@ export function shake(
           if (exported.length > 0) {
             return ts.updateExportDeclaration(
               node,
-              null, // decorators
-              null, // modifiers
+              undefined, // decorators
+              undefined, // modifiers
               ts.updateNamedExports(node.exportClause, exported),
-              null // moduleSpecifier
+              undefined // moduleSpecifier
             );
           }
         }
