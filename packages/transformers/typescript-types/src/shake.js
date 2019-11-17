@@ -150,6 +150,16 @@ export function shake(
       }
     }
 
+    // Remove private properties
+    if (ts.isPropertyDeclaration(node)) {
+      let isPrivate =
+        node.modifiers &&
+        node.modifiers.some(m => m.kind === ts.SyntaxKind.PrivateKeyword);
+      if (isPrivate) {
+        return null;
+      }
+    }
+
     return ts.visitEachChild(node, visit, context);
   };
 
