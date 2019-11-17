@@ -1,5 +1,5 @@
 {
-  "name": "commonjs-sideeffects",
+  "name": "commonjs-dynamic",
   "private": true,
   "main": "dist/index.js",
   "sideEffects": false

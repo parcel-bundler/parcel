@@ -1,1 +1,1 @@
-export * from './other';
+export * from './middle';
