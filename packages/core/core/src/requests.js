@@ -350,7 +350,8 @@ export class DepPathRequestRunner extends RequestRunner<
     if (
       dependency.isWeak &&
       sideEffects === false &&
-      !dependency.symbols.has('*')
+      !dependency.symbols.has('*') &&
+      !dependency.env.isLibrary // TODO (T-232): improve the logic below and remove this.
     ) {
       let depNode = this.assetGraph.getNode(dependency.id);
       invariant(depNode);

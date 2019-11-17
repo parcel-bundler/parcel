@@ -90,7 +90,7 @@ describe('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it('should generate ts declarations with imports', async function() {
+  it('should generate ts declarations with externals', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/externals/index.tsx')
     );
