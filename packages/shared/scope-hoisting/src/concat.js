@@ -53,7 +53,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldExcludeAsset(asset, usedExports)) {
+      if (shouldExcludeAsset(asset, usedExports, bundle)) {
         return context;
       }
 
@@ -63,7 +63,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      if (!context || shouldExcludeAsset(asset, usedExports)) {
+      if (!context || shouldExcludeAsset(asset, usedExports, bundle)) {
         return;
       }
 
@@ -191,10 +191,12 @@ function getUsedExports(
 
 function shouldExcludeAsset(
   asset: Asset,
-  usedExports: Map<string, Set<Symbol>>
+  usedExports: Map<string, Set<Symbol>>,
+  bundle: Bundle
 ) {
   return (
     asset.sideEffects === false &&
+    asset.id !== bundle.getMainEntry()?.id &&
     (!usedExports.has(asset.id) ||
       nullthrows(usedExports.get(asset.id)).size === 0)
   );
