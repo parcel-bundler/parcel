@@ -248,7 +248,7 @@ export function link({
           programScope.hasBinding(imported) ||
           programScope.hasReference(imported)
         ) {
-          programScope.generateUid(imported);
+          renamed = programScope.generateUid(imported);
         }
 
         programScope.references[renamed] = true;
