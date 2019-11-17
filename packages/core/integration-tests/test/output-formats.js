@@ -291,6 +291,34 @@ describe('output formats', function() {
         ).test(async2)
       );
     });
+
+    it('should support sideEffects: false', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-sideeffects/index.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('function test'));
+      assert(dist.includes('exports.test = test;'));
+    });
+
+    it('should support commonjs input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-dynamic/index.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('Object.assign(exports'));
+    });
   });
 
   describe('esmodule', function() {

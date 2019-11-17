@@ -1,0 +1,6 @@
+{
+  "name": "commonjs-sideeffects",
+  "private": true,
+  "main": "dist/index.js",
+  "sideEffects": false
+}
