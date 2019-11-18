@@ -2,11 +2,15 @@
   "name": "@parcel/transformer-babel",
   "version": "2.0.0-alpha.2.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/BabelTransformer.js",
+  "main": "lib/BabelTransformer.js",
+  "source": "src/BabelTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
@@ -20,7 +24,6 @@
     "@babel/preset-env": "^7.0.0",
     "@babel/traverse": "^7.0.0",
     "@parcel/babel-preset-env": "^2.0.0-alpha.2.1",
-    "@parcel/logger": "^2.0.0-alpha.2.1",
     "@parcel/plugin": "^2.0.0-alpha.2.1",
     "@parcel/source-map": "^2.0.0-alpha.2.1",
     "@parcel/utils": "^2.0.0-alpha.2.1",

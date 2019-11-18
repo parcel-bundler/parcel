@@ -1,7 +1,7 @@
 // @flow
 import type {Request, Response, DevServerOptions} from './types.js.flow';
 import type {BundleGraph, FilePath} from '@parcel/types';
-import type {PrintableError} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {Server as HTTPServer} from 'http';
 import type {Server as HTTPSServer} from 'https';
 import type {FileSystem} from '@parcel/fs';
@@ -11,10 +11,13 @@ import path from 'path';
 import http from 'http';
 import https from 'https';
 import url from 'url';
-import ansiHtml from 'ansi-html';
-import logger from '@parcel/logger';
-import {prettyError} from '@parcel/utils';
-import {loadConfig, generateCertificate, getCertificate} from '@parcel/utils';
+import {
+  loadConfig,
+  generateCertificate,
+  getCertificate,
+  prettyDiagnostic,
+  ansiHtml
+} from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
@@ -45,7 +48,6 @@ const TEMPLATE_500 = fs.readFileSync(
   path.join(__dirname, 'templates/500.html'),
   'utf8'
 );
-
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
 export default class Server extends EventEmitter {
@@ -53,7 +55,11 @@ export default class Server extends EventEmitter {
   options: DevServerOptions;
   rootPath: ?string;
   bundleGraph: BundleGraph | null;
-  error: PrintableError | null;
+  errors: Array<{|
+    message: string,
+    stack: string,
+    hints: Array<string>
+  |}> | null;
   server: HTTPServer | HTTPSServer;
 
   constructor(options: DevServerOptions) {
@@ -67,25 +73,35 @@ export default class Server extends EventEmitter {
     }
     this.pending = true;
     this.bundleGraph = null;
-    this.error = null;
+    this.errors = null;
   }
 
   buildSuccess(bundleGraph: BundleGraph) {
     this.bundleGraph = bundleGraph;
-    this.error = null;
+    this.errors = null;
     this.pending = false;
 
     this.emit('bundled');
   }
 
-  buildError(error: PrintableError) {
-    this.error = error;
+  buildError(diagnostics: Array<Diagnostic>) {
+    this.errors = diagnostics.map(d => {
+      let ansiDiagnostic = prettyDiagnostic(d);
+
+      return {
+        message: ansiHtml(ansiDiagnostic.message),
+        stack: ansiDiagnostic.codeframe
+          ? ansiHtml(ansiDiagnostic.codeframe)
+          : ansiHtml(ansiDiagnostic.stack),
+        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint))
+      };
+    });
   }
 
   respond(req: Request, res: Response) {
     let {pathname} = url.parse(req.originalUrl || req.url);
 
-    if (this.error) {
+    if (this.errors) {
       return this.send500(req, res);
     } else if (
       !pathname ||
@@ -206,7 +222,10 @@ export default class Server extends EventEmitter {
 
     setHeaders(res);
     res.setHeader('Content-Length', '' + stat.size);
-    res.setHeader('Content-Type', mime.getType(filePath));
+    let mimeType = mime.getType(filePath);
+    if (mimeType != null) {
+      res.setHeader('Content-Type', mimeType + '; charset=utf-8');
+    }
     if (req.method === 'HEAD') {
       res.end();
       return;
@@ -238,23 +257,19 @@ export default class Server extends EventEmitter {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 
-    if (this.error) {
-      let error = prettyError(this.error, {color: true});
-      error.message = ansiHtml(error.message);
-      error.stack = ansiHtml(error.stack);
-
-      res.end(
+    if (this.errors) {
+      return res.end(
         ejs.render(TEMPLATE_500, {
-          error
+          errors: this.errors
         })
       );
-    } else {
-      res.end();
     }
   }
 
   logAccessIfVerbose(req: Request) {
-    logger.verbose(`Request: ${req.headers.host}${req.originalUrl || req.url}`);
+    this.options.logger.verbose({
+      message: `Request: ${req.headers.host}${req.originalUrl || req.url}`
+    });
   }
 
   /**
@@ -278,17 +293,19 @@ export default class Server extends EventEmitter {
 
     if (filename === '.proxyrc.js') {
       if (typeof cfg !== 'function') {
-        logger.warn(
-          "Proxy configuration file '.proxyrc.js' should export a function. Skipping..."
-        );
+        this.options.logger.warn({
+          message:
+            "Proxy configuration file '.proxyrc.js' should export a function. Skipping..."
+        });
         return this;
       }
       cfg(app);
     } else if (filename === '.proxyrc') {
       if (typeof cfg !== 'object') {
-        logger.warn(
-          "Proxy table in '.proxyrc' should be of object type. Skipping..."
-        );
+        this.options.logger.warn({
+          message:
+            "Proxy table in '.proxyrc' should be of object type. Skipping..."
+        });
         return this;
       }
       for (const [context, options] of Object.entries(cfg)) {
@@ -336,7 +353,9 @@ export default class Server extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       this.server.once('error', err => {
-        logger.error(new Error(serverErrors(err, this.options.port)));
+        this.options.logger.error({
+          message: serverErrors(err, this.options.port)
+        });
         reject(err);
       });
 

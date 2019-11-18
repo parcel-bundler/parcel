@@ -1,8 +1,8 @@
 // @flow
+import type {PluginLogger} from '@parcel/logger';
 
 import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
-import logger from '@parcel/logger';
 import {dirname} from 'path';
 import {NodeFS} from '@parcel/fs';
 
@@ -12,14 +12,19 @@ const fs = new NodeFS();
 
 let didWarnAboutNodeSass = false;
 
-async function warnAboutNodeSassBeingUnsupported(filePath) {
+async function warnAboutNodeSassBeingUnsupported(
+  filePath,
+  logger: PluginLogger
+) {
   if (!didWarnAboutNodeSass) {
     try {
       // TODO: replace this with the actual filesystem later
       await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
-      logger.warn(
-        '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
-      );
+      logger.warn({
+        origin: '@parcel/transformer-sass',
+        message:
+          '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
+      });
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND') {
         throw err;
@@ -62,8 +67,8 @@ export default new Transformer({
     return config;
   },
 
-  async transform({asset, options, config}) {
-    await warnAboutNodeSassBeingUnsupported(asset.filePath);
+  async transform({asset, options, config, logger}) {
+    await warnAboutNodeSassBeingUnsupported(asset.filePath, logger);
     let sass = await options.packageManager.require('sass', asset.filePath);
     const sassRender = promisify(sass.render.bind(sass));
 

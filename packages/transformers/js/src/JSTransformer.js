@@ -70,7 +70,7 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, options}) {
+  async transform({asset, options, logger}) {
     asset.type = 'js';
     let ast = await asset.getAST();
     if (!ast) {
@@ -113,7 +113,7 @@ export default new Transformer({
           pkg.browser.fs === false;
 
         if (!ignore) {
-          traverse(ast.program, fsVisitor, null, {asset, ast});
+          traverse(ast.program, fsVisitor, null, {asset, logger, ast});
         }
       }
 

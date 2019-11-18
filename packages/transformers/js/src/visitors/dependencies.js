@@ -154,7 +154,11 @@ function evaluateExpression(node) {
   return res;
 }
 
-function addDependency(asset, node, opts = {}) {
+function addDependency(
+  asset,
+  node,
+  opts: ?{|isAsync?: boolean, isOptional?: boolean|}
+) {
   // If this came from an inline <script> tag, throw an error.
   // TODO: run JSPackager on inline script tags.
   // let inlineHTML =
@@ -170,7 +174,8 @@ function addDependency(asset, node, opts = {}) {
   asset.addDependency({
     moduleSpecifier: node.value,
     loc: node.loc && node.loc.start,
-    ...opts
+    isAsync: opts ? opts.isAsync : false,
+    isOptional: opts ? opts.isOptional : false
   });
 }
 

@@ -2,7 +2,6 @@ import * as t from '@babel/types';
 import Path from 'path';
 import fs from 'fs';
 import template from '@babel/template';
-import logger from '@parcel/logger';
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
 
@@ -20,7 +19,7 @@ export default {
     }
   },
 
-  CallExpression(path, {asset, ast}) {
+  CallExpression(path, {asset, logger, ast}) {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.filePath),

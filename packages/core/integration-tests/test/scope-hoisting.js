@@ -2,14 +2,20 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle as _bundle,
+  bundler as _bundler,
   run,
   outputFS,
+  overlayFS,
   assertBundles,
-  distDir
+  distDir,
+  getNextBuild
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
+
+const bundler = (name, opts = {}) =>
+  _bundler(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -227,7 +233,9 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert(err.message.endsWith("b.js does not export 'default'"));
+        assert(
+          err.diagnostics[0].message.endsWith("b.js does not export 'default'")
+        );
       }
 
       assert(threw);
@@ -304,7 +312,11 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert(err.message.includes("Export 'Test' is not defined (1:8)"));
+        assert(
+          err.diagnostics[0].message.includes(
+            "Export 'Test' is not defined (1:8)"
+          )
+        );
       }
 
       assert(threw);
@@ -392,6 +404,70 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 123);
+    });
+
+    it('correctly updates deferred assets that are reexported', async function() {
+      let testDir = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported'
+      );
+
+      let b = bundler(path.join(testDir, 'index.js'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS
+      });
+
+      let subscription = await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      let output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '12345hello');
+
+      await overlayFS.mkdirp(path.join(testDir, 'node_modules', 'foo'));
+      await overlayFS.copyFile(
+        path.join(testDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(testDir, 'node_modules', 'foo', 'foo.js')
+      );
+
+      bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '1234556789');
+
+      await subscription.unsubscribe();
+    });
+
+    it('correctly updates deferred assets that are reexported and imported directly', async function() {
+      let testDir = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/side-effects-update-deferred-direct'
+      );
+
+      let b = bundler(path.join(testDir, 'index.js'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS
+      });
+
+      let subscription = await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      let output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '12345hello');
+
+      await overlayFS.mkdirp(path.join(testDir, 'node_modules', 'foo'));
+      await overlayFS.copyFile(
+        path.join(testDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(testDir, 'node_modules', 'foo', 'foo.js')
+      );
+
+      bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '1234556789');
+
+      await subscription.unsubscribe();
     });
 
     it('keeps side effects by default', async function() {
@@ -974,6 +1050,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, {foo: 2});
+    });
+
+    it('should not rename function local variables according to global replacements', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/keep-local-function-var/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
     });
 
     it('supports assigning to this as exports object', async function() {

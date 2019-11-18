@@ -29,6 +29,11 @@ const EMPTY_OPTIONS = {
 };
 
 describe('SimpleCLIReporter', () => {
+  // $FlowFixMe only run in CI
+  if (process.stdout.isTTY) {
+    return;
+  }
+
   let originalStdout;
   let originalStderr;
   let stdoutOutput;
@@ -60,34 +65,100 @@ describe('SimpleCLIReporter', () => {
       logLevel: 'verbose'
     };
 
-    _report({type: 'log', level: 'info', message: 'info'}, options);
+    _report(
+      {
+        type: 'log',
+        level: 'info',
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'info'
+          }
+        ]
+      },
+      options
+    );
     _report({type: 'log', level: 'success', message: 'success'}, options);
-    _report({type: 'log', level: 'verbose', message: 'verbose'}, options);
+    _report(
+      {
+        type: 'log',
+        level: 'verbose',
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'verbose'
+          }
+        ]
+      },
+      options
+    );
 
-    assert.equal(stdoutOutput, 'info\nsuccess\nverbose\n');
+    assert.equal(stdoutOutput, 'test: info\nsuccess\ntest: verbose\n');
   });
 
   it('writes errors and warnings to stderr', () => {
-    _report({type: 'log', level: 'error', message: 'error'}, EMPTY_OPTIONS);
-    _report({type: 'log', level: 'warn', message: 'warn'}, EMPTY_OPTIONS);
+    _report(
+      {
+        type: 'log',
+        level: 'error',
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'error'
+          }
+        ]
+      },
+      EMPTY_OPTIONS
+    );
+    _report(
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'warn'
+          }
+        ]
+      },
+      EMPTY_OPTIONS
+    );
 
     assert.equal(stdoutOutput, '');
-    assert.equal(stderrOutput, 'parcel: error\nparcel: warn\n');
+    assert.equal(stderrOutput, 'test: error\ntest: warn\n');
   });
 
   it('prints errors nicely', () => {
     _report(
-      {type: 'log', level: 'error', message: new Error('error')},
+      {
+        type: 'log',
+        level: 'error',
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'error'
+          }
+        ]
+      },
       EMPTY_OPTIONS
     );
     _report(
-      {type: 'log', level: 'warn', message: new Error('warn')},
+      {
+        type: 'log',
+        level: 'warn',
+        diagnostics: [
+          {
+            origin: 'test',
+            message: 'warn'
+          }
+        ]
+      },
       EMPTY_OPTIONS
     );
 
     assert.equal(stdoutOutput, '');
-    assert(stderrOutput.includes('parcel: error\n'));
-    assert(stderrOutput.includes('parcel: warn\n'));
+    assert(stderrOutput.includes('test: error\n'));
+    assert(stderrOutput.includes('test: warn\n'));
   });
 
   it('writes buildProgress messages to stdout on the default loglevel', () => {

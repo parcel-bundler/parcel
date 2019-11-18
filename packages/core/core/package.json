@@ -2,17 +2,22 @@
   "name": "@parcel/core",
   "version": "2.0.0-alpha.2.1",
   "license": "MIT",
-  "main": "./src/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "lib/index.js",
+  "source": "src/index.js",
   "scripts": {
     "test": "mocha",
     "test-ci": "mocha"
   },
   "dependencies": {
     "@parcel/cache": "^2.0.0-alpha.2.1",
+    "@parcel/diagnostic": "^2.0.0-alpha.2.1",
     "@parcel/events": "^2.0.0-alpha.2.1",
     "@parcel/fs": "^2.0.0-alpha.2.1",
     "@parcel/logger": "^2.0.0-alpha.2.1",

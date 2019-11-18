@@ -16,12 +16,11 @@ import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {
   deserialize,
-  errorToJson,
-  jsonToError,
   prepareForSerialization,
   restoreDeserializedObject,
   serialize
 } from '@parcel/utils';
+import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -271,7 +270,7 @@ export default class WorkerFarm extends EventEmitter {
       idx,
       type: 'response',
       contentType: 'error',
-      content: errorToJson(e)
+      content: anyToDiagnostic(e)
     });
 
     let result;
@@ -301,7 +300,7 @@ export default class WorkerFarm extends EventEmitter {
         worker.send(result);
       } else {
         if (result.contentType === 'error') {
-          throw jsonToError(result.content);
+          throw new ThrowableDiagnostic({diagnostic: result.content});
         }
         return result.content;
       }
@@ -466,7 +465,10 @@ export default class WorkerFarm extends EventEmitter {
       stream.once('finish', resolve);
     });
 
-    logger.info(`Wrote profile to ${filename}`);
+    logger.info({
+      origin: '@parcel/workers',
+      message: `Wrote profile to ${filename}`
+    });
   }
 
   static getNumWorkers() {

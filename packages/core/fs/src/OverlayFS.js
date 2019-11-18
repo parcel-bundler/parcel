@@ -68,7 +68,19 @@ export class OverlayFS implements FileSystem {
 
   readFile = read('readFile');
   writeFile = write('writeFile');
-  copyFile = write('copyFile');
+  async copyFile(source: FilePath, destination: FilePath) {
+    if (await this.writable.exists(source)) {
+      await this.writable.writeFile(
+        destination,
+        await this.writable.readFile(source)
+      );
+    } else {
+      await this.writable.writeFile(
+        destination,
+        await this.readable.readFile(source)
+      );
+    }
+  }
   stat = read('stat');
   unlink = write('unlink');
   mkdirp = write('mkdirp');
@@ -103,6 +115,25 @@ export class OverlayFS implements FileSystem {
 
     try {
       readable = await this.readable.readdir(path, opts);
+    } catch (err) {
+      // do nothing
+    }
+
+    return Array.from(new Set([...writable, ...readable]));
+  }
+
+  readdirSync(path: FilePath, opts?: ReaddirOptions): any {
+    // Read from both filesystems and merge the results
+    let writable = [];
+    let readable = [];
+    try {
+      writable = this.writable.readdirSync(path, opts);
+    } catch (err) {
+      // do nothing
+    }
+
+    try {
+      readable = this.readable.readdirSync(path, opts);
     } catch (err) {
       // do nothing
     }

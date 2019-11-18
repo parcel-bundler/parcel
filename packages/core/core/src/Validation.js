@@ -1,19 +1,15 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {
-  AssetRequest,
-  Config,
-  NodeId,
-  ConfigRequest,
-  ParcelOptions
-} from './types';
-import type ParcelConfig from './ParcelConfig';
+import type {AssetRequestDesc, ConfigRequestDesc, ParcelOptions} from './types';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
-
+import logger, {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ParcelConfig from './ParcelConfig';
+import ConfigLoader from './ConfigLoader';
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
@@ -21,36 +17,24 @@ import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
-  request: AssetRequest,
-  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
-  parentNodeId: NodeId,
+  request: AssetRequestDesc,
   options: ParcelOptions,
   workerApi: WorkerApi
 |};
 
 export default class Validation {
-  request: AssetRequest;
-  configRequests: Array<ConfigRequest>;
-  loadConfig: ConfigRequest => Promise<Config>;
+  request: AssetRequestDesc;
+  configRequests: Array<ConfigRequestDesc>;
+  configLoader: ConfigLoader;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
   workerApi: WorkerApi;
 
-  constructor({
-    request,
-    loadConfig,
-    parentNodeId,
-    options,
-    workerApi
-  }: ValidationOpts) {
+  constructor({request, options, workerApi}: ValidationOpts) {
     this.request = request;
-    this.configRequests = [];
-    this.loadConfig = configRequest => {
-      this.configRequests.push(configRequest);
-      return loadConfig(configRequest, parentNodeId);
-    };
     this.options = options;
     this.workerApi = workerApi;
+    this.configLoader = new ConfigLoader(options);
   }
 
   async run(): Promise<void> {
@@ -70,32 +54,59 @@ export default class Validation {
       env: this.request.env
     };
 
-    let config = await this.loadConfig(configRequest);
-    let parcelConfig: ParcelConfig = nullthrows(config.result);
+    let config = await this.configLoader.load(configRequest);
+    nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
 
     for (let validator of validators) {
-      let config = null;
-      if (validator.getConfig) {
-        config = await validator.getConfig({
+      let validatorLogger = new PluginLogger({origin: validator.name});
+      try {
+        let config = null;
+        if (validator.plugin.getConfig) {
+          config = await validator.plugin.getConfig({
+            asset: new Asset(asset),
+            options: pluginOptions,
+            logger: validatorLogger,
+            resolveConfig: (configNames: Array<string>) =>
+              resolveConfig(
+                this.options.inputFS,
+                asset.value.filePath,
+                configNames
+              )
+          });
+        }
+
+        let validatorResult = await validator.plugin.validate({
           asset: new Asset(asset),
           options: pluginOptions,
-          resolveConfig: (configNames: Array<string>) =>
-            resolveConfig(
-              this.options.inputFS,
-              asset.value.filePath,
-              configNames
-            )
+          config,
+          logger: validatorLogger
+        });
+
+        if (validatorResult) {
+          let {warnings, errors} = validatorResult;
+
+          if (errors.length > 0) {
+            throw new ThrowableDiagnostic({
+              diagnostic: errors
+            });
+          }
+
+          if (warnings.length > 0) {
+            logger.warn(warnings);
+          }
+        }
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, validator.name)
         });
       }
-
-      await validator.validate({
-        asset: new Asset(asset),
-        options: pluginOptions,
-        config
-      });
     }
   }
 

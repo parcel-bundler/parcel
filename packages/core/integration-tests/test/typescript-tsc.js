@@ -26,4 +26,17 @@ describe('typescript tsc', function() {
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!js.includes('/* test comment */'));
   });
+
+  it('should support loading tsconfig.json with extends', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/typescript-config-extends/index.ts'),
+      {config}
+    );
+
+    let output = await run(b);
+    assert.equal(output, 2);
+
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!js.includes('/* test comment */'));
+  });
 });

@@ -11,9 +11,11 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import invariant from 'assert';
+import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
@@ -152,7 +154,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.error);
+      throw new BuildError(result.diagnostics);
     }
 
     return result.bundleGraph;
@@ -247,7 +249,9 @@ export default class Parcel {
         type: 'buildStart'
       });
 
-      let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
+      let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
+        signal
+      );
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
@@ -270,17 +274,21 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
         throw e;
       }
 
+      let diagnostic = anyToDiagnostic(e);
       let event = {
         type: 'buildFailure',
-        error: e
+        diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
       };
+
       await this.#reporterRunner.report(event);
+
       return event;
     } finally {
       if (options.profile) {
@@ -363,16 +371,11 @@ export default class Parcel {
   }
 }
 
-export class BuildError extends Error {
-  name = 'BuildError';
-  error: mixed;
+export class BuildError extends ThrowableDiagnostic {
+  constructor(diagnostics: Array<Diagnostic>) {
+    super({diagnostic: diagnostics});
 
-  constructor(error: mixed) {
-    super(error instanceof Error ? error.message : 'Unknown Build Error');
-    this.error = error;
-    if (error instanceof Error) {
-      this.stack = error.stack;
-    }
+    this.name = 'BuildError';
   }
 }
 

@@ -1,5 +1,4 @@
 // @flow strict-local
-
 import type {BuildProgressEvent, LogEvent} from '@parcel/types';
 import type {BundleReport} from '@parcel/utils';
 
@@ -22,7 +21,7 @@ const LOG_LEVELS = {
 };
 
 export default new Reporter({
-  report(event, options) {
+  report({event, options}) {
     let logLevelFilter = options.logLevel || 'info';
 
     switch (event.type) {
@@ -34,7 +33,7 @@ export default new Reporter({
       case 'buildFailure':
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.error) {
           writeToStderr(
-            {type: 'buildFailure', message: event.error.message},
+            {type: 'buildFailure', message: event.diagnostics[0].message},
             logLevelFilter
           );
         }
@@ -81,7 +80,17 @@ function makeWriter(
       // This should never happen so long as JSONReportEvent is easily serializable
       if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.error) {
         writeToStderr(
-          {type: 'log', level: 'error', message: err},
+          {
+            type: 'log',
+            level: 'error',
+            diagnostics: [
+              {
+                origin: '@parcel/reporter-json',
+                message: err.message,
+                stack: err.stack
+              }
+            ]
+          },
           logLevelFilter
         );
       }
@@ -108,17 +117,7 @@ function writeLogEvent(
       break;
     case 'warn':
     case 'error':
-      writeToStderr(
-        {
-          type: 'log',
-          level: event.level,
-          message:
-            typeof event.message === 'string'
-              ? event.message
-              : event.message.message
-        },
-        logLevelFilter
-      );
+      writeToStderr(event, logLevelFilter);
       break;
   }
 }
@@ -149,11 +148,7 @@ function progressEventToJSONEvent(
 }
 
 type JSONReportEvent =
-  | {|
-      +type: 'log',
-      +level: 'info' | 'success' | 'verbose' | 'progress' | 'warn' | 'error',
-      +message: string
-    |}
+  | LogEvent
   | {|+type: 'buildStart'|}
   | {|+type: 'buildFailure', message: string|}
   | {|

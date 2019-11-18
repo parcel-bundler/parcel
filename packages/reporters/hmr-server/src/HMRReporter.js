@@ -6,7 +6,7 @@ import HMRServer from './HMRServer';
 
 let servers: Map<number, HMRServer> = new Map();
 export default new Reporter({
-  async report(event, options) {
+  async report({event, options, logger}) {
     let hot = options.hot;
     if (!hot) return;
 
@@ -14,7 +14,8 @@ export default new Reporter({
       ...hot,
       cacheDir: options.cacheDir,
       inputFS: options.inputFS,
-      outputFS: options.outputFS
+      outputFS: options.outputFS,
+      logger
     };
 
     let server = servers.get(hmrOptions.port);
@@ -29,7 +30,7 @@ export default new Reporter({
     }
 
     if (event.type === 'buildFailure') {
-      server.emitError(event.error);
+      server.emitError(event.diagnostics);
     }
   }
 });

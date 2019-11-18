@@ -7,7 +7,7 @@ import path from 'path';
 
 let servers: Map<number, Server> = new Map();
 export default new Reporter({
-  async report(event, options) {
+  async report({event, options, logger}) {
     let serve = options.serve;
     if (!serve) return;
 
@@ -27,7 +27,8 @@ export default new Reporter({
           // This could be configurable in the future.
           publicUrl: serve.publicUrl ?? '/',
           inputFS: options.inputFS,
-          outputFS: options.outputFS
+          outputFS: options.outputFS,
+          logger
         };
 
         server = new Server(serverOptions);
@@ -47,7 +48,7 @@ export default new Reporter({
         break;
       case 'buildFailure':
         invariant(server != null);
-        server.buildError(event.error);
+        server.buildError(event.diagnostics);
         break;
     }
   }

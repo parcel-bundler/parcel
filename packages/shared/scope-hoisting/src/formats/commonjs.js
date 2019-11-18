@@ -11,6 +11,7 @@ import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
 import {relativeBundlePath} from '@parcel/utils';
+import rename from '../renamer';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
 const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
@@ -53,8 +54,8 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
     for (let specifier of specifiers) {
       statements.push(
         ASSIGN_TEMPLATE({
-          SPECIFIERS: specifier.key,
-          MODULE: t.memberExpression(value, specifier.value)
+          SPECIFIERS: specifier.value,
+          MODULE: t.memberExpression(value, specifier.key)
         })
       );
     }
@@ -221,7 +222,8 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any
+  path: any,
+  replacements: Map<Symbol, Symbol>
 ) {
   let exported = new Set<Symbol>();
   let statements = [];
@@ -240,27 +242,68 @@ export function generateExports(
 
   let entry = bundle.getMainEntry();
   if (entry) {
-    let exportsId = entry.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    if (entry.meta.isCommonJS) {
+      let exportsId = entry.meta.exportsIdentifier;
+      invariant(typeof exportsId === 'string');
 
-    let binding = path.scope.getBinding(exportsId);
-    if (binding) {
-      // If the exports object is constant, then we can just remove it and rename the
-      // references to the builtin CommonJS exports object. Otherwise, assign to module.exports.
-      if (binding.constant) {
-        for (let path of binding.referencePaths) {
-          path.node.name = 'exports';
+      let binding = path.scope.getBinding(exportsId);
+      if (binding) {
+        // If the exports object is constant, then we can just remove it and rename the
+        // references to the builtin CommonJS exports object. Otherwise, assign to module.exports.
+        if (binding.constant) {
+          for (let path of binding.referencePaths) {
+            path.node.name = 'exports';
+          }
+
+          binding.path.remove();
+          exported.add('exports');
+        } else {
+          exported.add(exportsId);
+          statements.push(
+            MODULE_EXPORTS_TEMPLATE({
+              IDENTIFIER: t.identifier(exportsId)
+            })
+          );
+        }
+      }
+    } else {
+      for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(
+        entry
+      )) {
+        if (symbol) {
+          symbol = replacements.get(symbol) || symbol;
         }
 
-        binding.path.remove();
-        exported.add('exports');
-      } else {
-        exported.add(exportsId);
-        statements.push(
-          MODULE_EXPORTS_TEMPLATE({
-            IDENTIFIER: t.identifier(exportsId)
+        // If there is an existing binding with the exported name (e.g. an import),
+        // rename it so we can use the name for the export instead.
+        if (path.scope.hasBinding(exportSymbol) && exportSymbol !== symbol) {
+          rename(
+            path.scope,
+            exportSymbol,
+            path.scope.generateUid(exportSymbol)
+          );
+        }
+
+        let binding = path.scope.getBinding(symbol);
+        rename(path.scope, symbol, exportSymbol);
+
+        binding.path.getStatementParent().insertAfter(
+          EXPORT_TEMPLATE({
+            IDENTIFIER: t.identifier(exportSymbol)
           })
         );
+
+        // Exports other than the default export are live bindings. Insert an assignment
+        // after each constant violation so this remains true.
+        if (exportSymbol !== 'default') {
+          for (let path of binding.constantViolations) {
+            path.insertAfter(
+              EXPORT_TEMPLATE({
+                IDENTIFIER: t.identifier(exportSymbol)
+              })
+            );
+          }
+        }
       }
     }
   }

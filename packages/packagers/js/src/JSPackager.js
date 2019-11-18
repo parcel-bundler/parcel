@@ -5,7 +5,12 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {countLines, PromiseQueue, relativeBundlePath} from '@parcel/utils';
+import {
+  countLines,
+  PromiseQueue,
+  relativeBundlePath,
+  replaceBundleReferences
+} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
@@ -14,12 +19,35 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, getSourceMapReference, options}) {
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    getSourceMapReference,
+    options
+  }) {
+    function replaceReferences({contents, map}) {
+      return replaceBundleReferences({
+        bundle,
+        bundleGraph,
+        contents,
+        getInlineReplacement: (dependency, inlineType, content) => ({
+          from: `"${dependency.id}"`,
+          to: inlineType === 'string' ? JSON.stringify(content) : content
+        }),
+        getInlineBundleContents,
+        map
+      });
+    }
+
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
-      return generate(bundleGraph, bundle, ast, options);
+      return replaceReferences({
+        contents: generate(bundleGraph, bundle, ast, options).contents,
+        map: null
+      });
     }
 
     if (bundle.env.outputFormat === 'esmodule') {
@@ -141,7 +169,7 @@ export default new Packager({
 
     let sourceMapReference = await getSourceMapReference(map);
 
-    return {
+    return replaceReferences({
       contents:
         // If the entry asset included a hashbang, repeat it at the top of the bundle
         (interpreter != null ? `#!${interpreter}\n` : '') +
@@ -158,6 +186,6 @@ export default new Packager({
           sourceMapReference +
           '\n'),
       map
-    };
+    });
   }
 });

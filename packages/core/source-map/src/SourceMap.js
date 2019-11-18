@@ -34,9 +34,9 @@ type SerializedSourceMap = {
 };
 
 function generateInlineMap(map: string): string {
-  return `data:application/json;charset=utf-8;base64,${new Buffer(map).toString(
-    'base64'
-  )}`;
+  return `data:application/json;charset=utf-8;base64,${Buffer.from(
+    map
+  ).toString('base64')}`;
 }
 
 export default class SourceMap {
@@ -61,7 +61,10 @@ export default class SourceMap {
   }
 
   // Static Helper functions
-  static generateEmptyMap(sourceName: string, sourceContent: string) {
+  static generateEmptyMap(
+    sourceName: string,
+    sourceContent: string
+  ): SourceMap {
     let map = new SourceMap();
     map.setSourceContentFor(sourceName, sourceContent);
 
@@ -84,7 +87,7 @@ export default class SourceMap {
     return map;
   }
 
-  static async fromRawSourceMap(input: RawMapInput) {
+  static async fromRawSourceMap(input: RawMapInput): Promise<SourceMap> {
     let map = new SourceMap();
     await map.addRawMap(input);
     return map;
@@ -108,7 +111,7 @@ export default class SourceMap {
     map: RawMapInput,
     lineOffset: number = 0,
     columnOffset: number = 0
-  ) {
+  ): Promise<SourceMap> {
     let consumer = await this.getConsumer(map);
 
     consumer.eachMapping(mapping => {
@@ -130,7 +133,11 @@ export default class SourceMap {
     return this;
   }
 
-  addMap(map: SourceMap, lineOffset: number = 0, columnOffset: number = 0) {
+  addMap(
+    map: SourceMap,
+    lineOffset: number = 0,
+    columnOffset: number = 0
+  ): SourceMap {
     if (lineOffset === 0 && columnOffset === 0) {
       this.mappings.push(...map.mappings);
     } else {
@@ -206,7 +213,7 @@ export default class SourceMap {
     this.mappings.forEach(callback);
   }
 
-  async extend(extension: SourceMap | RawMapInput) {
+  async extend(extension: SourceMap | RawMapInput): Promise<SourceMap> {
     let sourceMap =
       extension instanceof SourceMap
         ? extension
@@ -215,7 +222,7 @@ export default class SourceMap {
     return this._extend(sourceMap);
   }
 
-  _extend(extension: SourceMap) {
+  _extend(extension: SourceMap): SourceMap {
     extension.eachMapping(mapping => {
       let originalMappingIndex = null;
       if (mapping.original != null) {

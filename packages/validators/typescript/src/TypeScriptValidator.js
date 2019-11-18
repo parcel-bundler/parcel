@@ -1,10 +1,10 @@
 // @flow
+import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
+
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
-
-import formatDiagnostics from './formatDiagnostics';
-import LanguageServiceHost from './languageServiceHost';
+import {LanguageServiceHost} from '@parcel/ts-utils';
 
 let langServiceCache = {};
 
@@ -50,7 +50,7 @@ export default new Validator({
       );
 
       langServiceCache[configHash] = ts.createLanguageService(
-        new LanguageServiceHost(parsedCommandLine, ts, baseDir),
+        new LanguageServiceHost(options.inputFS, ts, parsedCommandLine),
         ts.createDocumentRegistry()
       );
     }
@@ -61,13 +61,70 @@ export default new Validator({
       asset.filePath
     );
 
+    let validatorResult = {
+      warnings: [],
+      errors: []
+    };
+
     if (diagnostics.length > 0) {
-      const formatted = formatDiagnostics(
-        diagnostics,
-        asset.filePath,
-        asset.fs.cwd()
-      );
-      throw formatted;
+      for (let diagnostic of diagnostics) {
+        let filename = asset.filePath;
+        let {file} = diagnostic;
+
+        let diagnosticMessage =
+          typeof diagnostic.messageText === 'string'
+            ? diagnostic.messageText
+            : diagnostic.messageText.messageText;
+
+        let codeframe: ?DiagnosticCodeFrame;
+        if (file != null && diagnostic.start != null) {
+          let source = file.text || diagnostic.source;
+          if (file.fileName) {
+            filename = file.fileName;
+          }
+
+          if (source) {
+            let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
+            let start = {
+              line: lineChar.line + 1,
+              column: lineChar.character + 1
+            };
+            let end = {
+              line: start.line,
+              column: start.column + 1
+            };
+
+            if (typeof diagnostic.length === 'number') {
+              let endCharPosition = file.getLineAndCharacterOfPosition(
+                diagnostic.start + diagnostic.length
+              );
+
+              end = {
+                line: endCharPosition.line + 1,
+                column: endCharPosition.character + 1
+              };
+            }
+
+            codeframe = {
+              code: source,
+              codeHighlights: {
+                start,
+                end,
+                message: diagnosticMessage
+              }
+            };
+          }
+        }
+
+        validatorResult.errors.push({
+          origin: '@parcel/validator-typescript',
+          message: diagnosticMessage,
+          filePath: filename,
+          codeFrame: codeframe ? codeframe : undefined
+        });
+      }
     }
+
+    return validatorResult;
   }
 });

@@ -201,6 +201,7 @@ function shouldExcludeAsset(
 ) {
   return (
     asset.sideEffects === false &&
+    !asset.meta.isCommonJS &&
     (!usedExports.has(asset.id) ||
       nullthrows(usedExports.get(asset.id)).size === 0)
   );

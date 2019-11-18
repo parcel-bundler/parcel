@@ -98,8 +98,22 @@ export default class ParcelConfig {
     return plugin;
   }
 
-  loadPlugins(plugins: Pipeline) {
-    return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
+  loadPlugins<T>(
+    plugins: Pipeline
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: T
+    |}>
+  > {
+    return Promise.all(
+      plugins.map(async pluginName => {
+        return {
+          name: pluginName,
+          plugin: await this.loadPlugin(pluginName)
+        };
+      })
+    );
   }
 
   getResolverNames() {
@@ -110,8 +124,8 @@ export default class ParcelConfig {
     return this.resolvers;
   }
 
-  getResolvers(): Promise<Array<Resolver>> {
-    return this.loadPlugins(this.getResolverNames());
+  getResolvers() {
+    return this.loadPlugins<Resolver>(this.getResolverNames());
   }
 
   getValidatorNames(filePath: FilePath): Array<string> {
@@ -134,15 +148,21 @@ export default class ParcelConfig {
     return transformers;
   }
 
-  getValidators(filePath: FilePath): Promise<Array<Validator>> {
-    return this.loadPlugins(this.getValidatorNames(filePath));
+  getValidators(filePath: FilePath) {
+    let names = this.getValidatorNames(filePath);
+    return this.loadPlugins<Validator>(names);
   }
 
-  getTransformers(
-    filePath: FilePath,
-    pipeline?: ?string
-  ): Promise<Array<Transformer>> {
-    return this.loadPlugins(this.getTransformerNames(filePath, pipeline));
+  getNamedPipelines(): $ReadOnlyArray<string> {
+    return Object.keys(this.transforms)
+      .filter(glob => glob.includes(':'))
+      .map(glob => glob.split(':')[0]);
+  }
+
+  getTransformers(filePath: FilePath, pipeline?: ?string) {
+    return this.loadPlugins<Transformer>(
+      this.getTransformerNames(filePath, pipeline)
+    );
   }
 
   getBundler(): Promise<Bundler> {
@@ -153,21 +173,28 @@ export default class ParcelConfig {
     return this.loadPlugin(this.bundler);
   }
 
-  getNamers(): Promise<Array<Namer>> {
+  getNamers() {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
 
-    return this.loadPlugins(this.namers);
+    return this.loadPlugins<Namer>(this.namers);
   }
 
-  getRuntimes(context: EnvironmentContext): Promise<Array<Runtime>> {
+  getRuntimes(
+    context: EnvironmentContext
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Runtime
+    |}>
+  > {
     let runtimes = this.runtimes[context];
     if (!runtimes) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins(runtimes);
+    return this.loadPlugins<Runtime>(runtimes);
   }
 
   getPackagerName(filePath: FilePath): string {
@@ -181,33 +208,44 @@ export default class ParcelConfig {
     return packagerName;
   }
 
-  getPackager(filePath: FilePath): Promise<Packager> {
+  async getPackager(
+    filePath: FilePath
+  ): Promise<{|
+    name: string,
+    plugin: Packager
+  |}> {
     let packagerName = this.getPackagerName(filePath);
-    return this.loadPlugin(packagerName);
+    return {
+      name: packagerName,
+      plugin: await this.loadPlugin(packagerName)
+    };
   }
 
-  getOptimizerNames(filePath: FilePath): Array<string> {
-    let optimizers: ?Pipeline = this.matchGlobMapPipelines(
-      filePath,
-      this.optimizers
+  getOptimizerNames(filePath: FilePath, pipeline: ?string): Array<string> {
+    return (
+      this.matchGlobMapPipelines(filePath, this.optimizers, pipeline) ?? []
     );
-    if (!optimizers) {
-      return [];
-    }
-    return optimizers;
   }
 
-  getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
-    let optimizers = this.getOptimizerNames(filePath);
+  getOptimizers(
+    filePath: FilePath,
+    pipeline: ?string
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Optimizer
+    |}>
+  > {
+    let optimizers = this.getOptimizerNames(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
     }
 
-    return this.loadPlugins(optimizers);
+    return this.loadPlugins<Optimizer>(optimizers);
   }
 
-  getReporters(): Promise<Array<Reporter>> {
-    return this.loadPlugins(this.reporters);
+  getReporters() {
+    return this.loadPlugins<Reporter>(this.reporters);
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string) {

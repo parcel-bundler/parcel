@@ -5,6 +5,8 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
@@ -13,6 +15,7 @@ export type ConfigResult = _ConfigResult;
 
 export type JSONValue =
   | null
+  | void // ? Is this okay?
   | boolean
   | number
   | string
@@ -30,7 +33,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
-export type ParcelConfigFile = {
+export type ParcelConfigFile = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {[Glob]: Array<PackageName>, ...},
@@ -40,15 +43,14 @@ export type ParcelConfigFile = {
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: Array<PackageName>, ...},
   reporters?: Array<PackageName>,
-  validators?: {[Glob]: Array<PackageName>, ...},
-  ...
-};
+  validators?: {[Glob]: Array<PackageName>, ...}
+|};
 
-export type ResolvedParcelConfigFile = {
+export type ResolvedParcelConfigFile = {|
   ...ParcelConfigFile,
   filePath: FilePath,
-  ...
-};
+  resolveFrom?: FilePath
+|};
 
 export type Engines = {
   browsers?: string | Array<string>,
@@ -89,7 +91,8 @@ export type PackageTargetDescriptor = {|
   outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
-  sourceMap?: TargetSourceMapOptions
+  sourceMap?: TargetSourceMapOptions,
+  isLibrary?: boolean
 |};
 
 export type TargetDescriptor = {|
@@ -134,6 +137,7 @@ export type PackageJSON = {
   version: Semver,
   main?: FilePath,
   module?: FilePath,
+  types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | {[FilePath]: FilePath, ...},
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
@@ -276,7 +280,7 @@ export type ASTGenerator = {|
   version: string
 |};
 
-interface BaseAsset {
+export interface BaseAsset {
   +env: Environment;
   +fs: FileSystem;
   +filePath: FilePath;
@@ -333,6 +337,7 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
+  +resolvedPath: ?FilePath;
 
   setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix
@@ -388,12 +393,13 @@ export interface TransformerResult {
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
+  pipeline?: ?string;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
   uniqueKey?: ?string;
 }
 
-type Async<T> = T | Promise<T>;
+export type Async<T> = T | Promise<T>;
 
 export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
@@ -401,16 +407,23 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>
 ) => Promise<FilePath | null>;
 
+export type ValidateResult = {|
+  warnings: Array<Diagnostic>,
+  errors: Array<Diagnostic>
+|};
+
 export type Validator = {|
   validate({|
     asset: Asset,
     config: ConfigResult | void,
-    options: PluginOptions
-  |}): Async<void>,
+    options: PluginOptions,
+    logger: PluginLogger
+  |}): Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<ConfigResult | void>
 |};
 
@@ -419,42 +432,54 @@ export type Transformer = {|
   getConfig?: ({|
     asset: MutableAsset,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<void>,
-  rehydrateConfig?: ({|
+  preSerializeConfig?: ({|
     config: Config,
     options: PluginOptions
   |}) => Async<void>,
+  postDeserializeConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger
+  |}) => Async<void>,
   canReuseAST?: ({|
     ast: AST,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => boolean,
   parse?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<?AST>,
   transform({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
     asset: Asset,
     ast: AST,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<GenerateOutput>,
   postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ?ConfigResult,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}) => Async<Array<TransformerResult>>
 |};
 
@@ -609,11 +634,13 @@ export type ResolveResult = {|
 export type Bundler = {|
   bundle({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void>
 |};
 
@@ -621,7 +648,8 @@ export type Namer = {|
   name({|
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<?FilePath>
 |};
 
@@ -636,7 +664,8 @@ export type Runtime = {|
   apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
@@ -646,6 +675,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: PluginOptions,
     getSourceMapReference: (map: SourceMap) => Promise<string> | string,
+    logger: PluginLogger,
     getInlineBundleContents: (
       Bundle,
       BundleGraph
@@ -658,14 +688,17 @@ export type Optimizer = {|
     bundle: NamedBundle,
     contents: Blob,
     map: ?SourceMap,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger
   |}): Async<BundleResult>
 |};
 
 export type Resolver = {|
   resolve({|
     dependency: Dependency,
-    options: PluginOptions
+    options: PluginOptions,
+    logger: PluginLogger,
+    filePath: FilePath
   |}): Async<?ResolveResult>
 |};
 
@@ -675,18 +708,19 @@ export type ProgressLogEvent = {|
   +message: string
 |};
 
-export type LogEvent =
-  | ProgressLogEvent
-  | {|
-      +type: 'log',
-      +level: 'error' | 'warn',
-      +message: string | Error
-    |}
-  | {|
-      +type: 'log',
-      +level: 'info' | 'success' | 'verbose',
-      +message: string
-    |};
+export type DiagnosticLogEvent = {|
+  +type: 'log',
+  +level: 'error' | 'warn' | 'info' | 'verbose',
+  +diagnostics: Array<Diagnostic>
+|};
+
+export type TextLogEvent = {|
+  +type: 'log',
+  +level: 'success',
+  +message: string
+|};
+
+export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 export type BuildStartEvent = {|
   type: 'buildStart'
@@ -745,7 +779,7 @@ export type BuildSuccessEvent = {|
 
 export type BuildFailureEvent = {|
   type: 'buildFailure',
-  error: Error
+  diagnostics: Array<Diagnostic>
 |};
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
@@ -766,7 +800,11 @@ export type ReporterEvent =
   | ValidationEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: PluginOptions): Async<void>
+  report({|
+    event: ReporterEvent,
+    options: PluginOptions,
+    logger: PluginLogger
+  |}): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

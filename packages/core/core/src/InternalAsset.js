@@ -35,6 +35,7 @@ import {PARCEL_VERSION} from './constants';
 import loadPlugin from './loadParcelPlugin';
 import PluginOptions from './public/PluginOptions';
 import {Asset as PublicAsset} from './public/Asset';
+import {PluginLogger} from '@parcel/logger';
 
 type AssetOptions = {|
   id?: string,
@@ -53,6 +54,7 @@ type AssetOptions = {|
   isSource: boolean,
   env: Environment,
   meta?: Meta,
+  pipeline?: ?string,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean,
@@ -82,6 +84,7 @@ export function createAsset(options: AssetOptions): Asset {
     dependencies: options.dependencies || new Map(),
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
+    pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
@@ -213,7 +216,8 @@ export default class InternalAsset {
     let {code, map} = await plugin.generate({
       asset: new PublicAsset(this),
       ast,
-      options: new PluginOptions(this.options)
+      options: new PluginOptions(this.options),
+      logger: new PluginLogger({origin: pluginName})
     });
 
     // TODO: store this in the cache for next time
@@ -393,7 +397,14 @@ export default class InternalAsset {
             ? new Map(this.value.dependencies)
             : new Map(),
         includedFiles: new Map(this.value.includedFiles),
-        meta: {...this.value.meta, ...result.meta},
+        meta: {
+          ...this.value.meta,
+          // $FlowFixMe
+          ...result.meta
+        },
+        pipeline:
+          result.pipeline ??
+          (this.value.type === result.type ? this.value.pipeline : null),
         stats: {
           time: 0,
           size

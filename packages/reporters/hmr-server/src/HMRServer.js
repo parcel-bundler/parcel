@@ -1,17 +1,20 @@
 // @flow
 
 import type {BuildSuccessEvent} from '@parcel/types';
-import type {PrintableError} from '@parcel/utils';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
 
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
-import ansiHtml from 'ansi-html';
-import {getCertificate, generateCertificate} from '@parcel/utils';
-import logger from '@parcel/logger';
-import {prettyError} from '@parcel/utils';
-import {md5FromObject} from '@parcel/utils';
+import {
+  getCertificate,
+  generateCertificate,
+  md5FromObject,
+  prettyDiagnostic,
+  ansiHtml
+} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,
@@ -21,17 +24,18 @@ type HMRAsset = {|
   deps: Object
 |};
 
-type HMRError = {|
-  message: string,
-  stack?: string
-|};
-
-type HMRMessage = {|
-  type: string,
-  ansiError?: HMRError,
-  htmlError?: HMRError,
-  assets?: Array<HMRAsset>
-|};
+type HMRMessage =
+  | {|
+      type: 'update',
+      assets: Array<HMRAsset>
+    |}
+  | {|
+      type: 'error',
+      diagnostics: {|
+        ansi: Array<AnsiDiagnosticResult>,
+        html: Array<AnsiDiagnosticResult>
+      |}
+    |};
 
 export default class HMRServer {
   server: Server;
@@ -92,20 +96,23 @@ export default class HMRServer {
     this.server.close();
   }
 
-  emitError(err: PrintableError) {
-    let {message, stack} = prettyError(err);
+  emitError(diagnostics: Array<Diagnostic>) {
+    let renderedDiagnostics = diagnostics.map(d => prettyDiagnostic(d));
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {
       type: 'error',
-      ansiError: {
-        message,
-        stack
-      },
-      htmlError: {
-        message: ansiHtml(message),
-        stack: ansiHtml(stack)
+      diagnostics: {
+        ansi: renderedDiagnostics,
+        html: renderedDiagnostics.map(d => {
+          return {
+            message: ansiHtml(d.message),
+            stack: ansiHtml(d.stack),
+            codeframe: ansiHtml(d.codeframe),
+            hints: d.hints.map(hint => ansiHtml(hint))
+          };
+        })
       }
     };
 
@@ -154,7 +161,11 @@ export default class HMRServer {
       return;
     }
 
-    logger.warn(err);
+    this.options.logger.warn({
+      origin: '@parcel/reporter-hmr-server',
+      message: `[${err.code}]: ${err.message}`,
+      stack: err.stack
+    });
   }
 
   broadcast(msg: HMRMessage) {

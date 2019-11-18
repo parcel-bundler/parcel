@@ -5,7 +5,7 @@ import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
 import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
-import RequestGraph from './RequestGraph';
+import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';

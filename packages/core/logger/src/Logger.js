@@ -1,9 +1,16 @@
 // @flow strict-local
 
 import type {IDisposable, LogEvent} from '@parcel/types';
+import type {Diagnostic, Diagnostifiable} from '@parcel/diagnostic';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
+import {errorToDiagnostic, anyToDiagnostic} from '@parcel/diagnostic';
+
+export type PluginInputDiagnostic = {|
+  ...Diagnostic,
+  origin?: string
+|};
 
 class Logger {
   #logEmitter = new ValueEmitter<LogEvent>();
@@ -12,39 +19,52 @@ class Logger {
     return this.#logEmitter.addListener(cb);
   }
 
-  verbose(message: string): void {
+  verbose(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'verbose',
-      message
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
-  info(message: string): void {
-    this.log(message);
+  info(diagnostic: Diagnostic | Array<Diagnostic>): void {
+    this.log(diagnostic);
   }
 
-  log(message: string): void {
+  log(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'info',
-      message
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
-  warn(err: Error | string): void {
+  warn(diagnostic: Diagnostic | Array<Diagnostic>): void {
     this.#logEmitter.emit({
       type: 'log',
       level: 'warn',
-      message: err
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
-  error(err: Error | string): void {
+  error(input: Diagnostifiable, realOrigin?: string): void {
+    // $FlowFixMe origin is undefined on PluginInputDiagnostic
+    let diagnostic = anyToDiagnostic(input);
+    if (typeof realOrigin === 'string') {
+      diagnostic = Array.isArray(diagnostic)
+        ? diagnostic.map(d => {
+            return {...d, origin: realOrigin};
+          })
+        : {
+            ...diagnostic,
+            origin: realOrigin
+          };
+    }
+
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
-      message: err
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
     });
   }
 
@@ -60,6 +80,60 @@ class Logger {
 const logger = new Logger();
 export default logger;
 
+export type PluginLoggerOpts = {|
+  origin: string
+|};
+
+export class PluginLogger {
+  origin: string;
+
+  constructor(opts: PluginLoggerOpts) {
+    this.origin = opts.origin;
+  }
+
+  updateOrigin(
+    diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>
+  ): Diagnostic | Array<Diagnostic> {
+    return Array.isArray(diagnostic)
+      ? diagnostic.map(d => {
+          return {...d, origin: this.origin};
+        })
+      : {...diagnostic, origin: this.origin};
+  }
+
+  verbose(
+    diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>
+  ): void {
+    logger.verbose(this.updateOrigin(diagnostic));
+  }
+
+  info(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+    logger.info(this.updateOrigin(diagnostic));
+  }
+
+  log(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+    logger.log(this.updateOrigin(diagnostic));
+  }
+
+  warn(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+    logger.warn(this.updateOrigin(diagnostic));
+  }
+
+  error(
+    input:
+      | Diagnostifiable
+      | PluginInputDiagnostic
+      | Array<PluginInputDiagnostic>
+  ): void {
+    // $FlowFixMe it should work, don't really wanna mess with the types of logger.error though...
+    logger.error(input, this.origin);
+  }
+
+  progress(message: string): void {
+    logger.progress(message);
+  }
+}
+
 let consolePatched = false;
 
 // Patch `console` APIs within workers to forward their messages to the Logger
@@ -74,27 +148,42 @@ export function patchConsole() {
   /* eslint-disable no-console */
   // $FlowFixMe
   console.log = console.info = (...messages: Array<mixed>) => {
-    logger.info(joinLogMessages(messages));
+    logger.info(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.debug = (...messages: Array<mixed>) => {
     // TODO: dedicated debug level?
-    logger.verbose(joinLogMessages(messages));
+    logger.verbose(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.warn = (...messages: Array<mixed>) => {
-    logger.warn(joinLogMessages(messages));
+    logger.warn(messagesToDiagnostic(messages));
   };
 
   // $FlowFixMe
   console.error = (...messages: Array<mixed>) => {
-    logger.error(joinLogMessages(messages));
+    logger.error(messagesToDiagnostic(messages));
   };
 
   /* eslint-enable no-console */
   consolePatched = true;
+}
+
+function messagesToDiagnostic(
+  messages: Array<mixed>
+): Diagnostic | Array<Diagnostic> {
+  if (messages.length === 1 && messages[0] instanceof Error) {
+    let error: Error = messages[0];
+
+    return errorToDiagnostic(error);
+  } else {
+    return {
+      message: joinLogMessages(messages),
+      origin: 'console'
+    };
+  }
 }
 
 function joinLogMessages(messages: Array<mixed>): string {

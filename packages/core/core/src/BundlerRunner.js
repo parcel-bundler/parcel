@@ -10,6 +10,8 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {removeAssetGroups} from './BundleGraph';
@@ -76,17 +78,32 @@ export default class BundlerRunner {
     );
 
     let bundler = await this.config.getBundler();
-    await bundler.bundle({
-      bundleGraph: mutableBundleGraph,
-      options: this.pluginOptions
-    });
+
+    try {
+      await bundler.bundle({
+        bundleGraph: mutableBundleGraph,
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: this.config.bundler})
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, this.config.bundler)
+      });
+    }
     assertSignalNotAborted(signal);
 
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
-    await bundler.optimize({
-      bundleGraph: mutableBundleGraph,
-      options: this.pluginOptions
-    });
+    try {
+      await bundler.optimize({
+        bundleGraph: mutableBundleGraph,
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: this.config.bundler})
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, this.config.bundler)
+      });
+    }
     assertSignalNotAborted(signal);
 
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
@@ -143,7 +160,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<Namer>,
+    namers: Array<{|name: string, plugin: Namer|}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph
   ): Promise<void> {
@@ -151,28 +168,35 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
 
     for (let namer of namers) {
-      let name = await namer.name({
-        bundle,
-        bundleGraph,
-        options: this.pluginOptions
-      });
+      try {
+        let name = await namer.plugin.name({
+          bundle,
+          bundleGraph,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: namer.name})
+        });
 
-      if (name != null) {
-        if (path.extname(name).slice(1) !== bundle.type) {
-          throw new Error(
-            `Destination name ${name} extension does not match bundle type "${
-              bundle.type
-            }"`
+        if (name != null) {
+          if (path.extname(name).slice(1) !== bundle.type) {
+            throw new Error(
+              `Destination name ${name} extension does not match bundle type "${
+                bundle.type
+              }"`
+            );
+          }
+
+          let target = nullthrows(internalBundle.target);
+          internalBundle.filePath = path.join(
+            target.distDir,
+            normalizeSeparators(name)
           );
+          internalBundle.name = name;
+          return;
         }
-
-        let target = nullthrows(internalBundle.target);
-        internalBundle.filePath = path.join(
-          target.distDir,
-          normalizeSeparators(name)
-        );
-        internalBundle.name = name;
-        return;
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, namer.name)
+        });
       }
     }
 

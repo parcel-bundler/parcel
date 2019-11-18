@@ -16,19 +16,47 @@ describe('Logger', () => {
     logDisposable.dispose();
   });
 
-  it('emits log messages with info level', () => {
-    Logger.log('hello');
-    assert(onLog.calledWith({level: 'info', message: 'hello', type: 'log'}));
+  it('emits log diagnostics with info level', () => {
+    let diagnostic = {
+      message: 'hello',
+      origin: 'logger'
+    };
+
+    Logger.log(diagnostic);
+
+    assert(
+      onLog.calledWith({
+        level: 'info',
+        diagnostics: [diagnostic],
+        type: 'log'
+      })
+    );
   });
 
-  it('emits warn messages with warn level', () => {
-    Logger.warn('zomg');
-    assert(onLog.calledWith({level: 'warn', message: 'zomg', type: 'log'}));
+  it('emits warn diagnostic with warn level', () => {
+    let diagnostic = {
+      message: 'zomg',
+      origin: 'logger'
+    };
+
+    Logger.warn(diagnostic);
+
+    assert(
+      onLog.calledWith({level: 'warn', diagnostics: [diagnostic], type: 'log'})
+    );
   });
 
   it('emits error messages with error level', () => {
-    Logger.error('oh noes');
-    assert(onLog.calledWith({level: 'error', message: 'oh noes', type: 'log'}));
+    let diagnostic = {
+      message: 'oh noes',
+      origin: 'logger'
+    };
+
+    Logger.error(diagnostic);
+
+    assert(
+      onLog.calledWith({level: 'error', diagnostics: [diagnostic], type: 'log'})
+    );
   });
 
   it('emits progress messages with progress level', () => {

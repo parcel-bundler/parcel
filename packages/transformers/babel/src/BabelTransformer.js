@@ -7,15 +7,20 @@ import generate from '@babel/generator';
 import semver from 'semver';
 import babel7 from './babel7';
 import {relativeUrl} from '@parcel/utils';
-import {load, rehydrate} from './config';
+import {load, preSerialize, postDeserialize} from './config';
+import {babelErrorEnhancer} from './babelErrorUtils';
 
 export default new Transformer({
-  async loadConfig({config, options}) {
-    await load(config, options);
+  async loadConfig({config, options, logger}) {
+    await load(config, options, logger);
   },
 
-  rehydrateConfig({config, options}) {
-    return rehydrate(config, options);
+  preSerializeConfig({config}) {
+    return preSerialize(config);
+  },
+
+  postDeserializeConfig({config, options}) {
+    return postDeserialize(config, options);
   },
 
   canReuseAST({ast}) {
@@ -24,29 +29,46 @@ export default new Transformer({
 
   async transform({asset, config, options}) {
     // TODO: come up with a better name
-    if (config?.config) {
-      await babel7(asset, options, config);
-    }
+    try {
+      if (config?.config) {
+        if (
+          asset.meta.babelPlugins != null &&
+          Array.isArray(asset.meta.babelPlugins)
+        ) {
+          // $FlowFixMe
+          await babel7(asset, options, config, asset.meta.babelPlugins);
+        } else {
+          await babel7(asset, options, config);
+        }
+      }
 
-    return [asset];
+      return [asset];
+    } catch (e) {
+      throw await babelErrorEnhancer(e, asset);
+    }
   },
 
-  generate({asset, ast, options}) {
+  async generate({asset, ast, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
       asset.filePath
     );
 
-    let generated = generate(ast.program, {
-      sourceMaps: options.sourceMaps,
-      sourceFileName: sourceFileName
-    });
+    try {
+      // $FlowFixMe: figure out how to make AST required in generate method
+      let generated = generate(asset.ast.program, {
+        sourceMaps: options.sourceMaps,
+        sourceFileName: sourceFileName
+      });
 
-    return {
-      code: generated.code,
-      map: new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null
-      })
-    };
+      return {
+        code: generated.code,
+        map: new SourceMap(generated.rawMappings, {
+          [sourceFileName]: null
+        })
+      };
+    } catch (e) {
+      throw await babelErrorEnhancer(e, asset);
+    }
   }
 });
