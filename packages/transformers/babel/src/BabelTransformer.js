@@ -55,8 +55,7 @@ export default new Transformer({
     );
 
     try {
-      // $FlowFixMe: figure out how to make AST required in generate method
-      let generated = generate(asset.ast.program, {
+      let generated = generate(ast.program, {
         sourceMaps: options.sourceMaps,
         sourceFileName: sourceFileName
       });

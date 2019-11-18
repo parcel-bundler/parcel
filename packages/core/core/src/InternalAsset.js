@@ -19,13 +19,14 @@ import type {
 import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 
 import {Readable} from 'stream';
-import crypto from 'crypto';
 import SourceMap from '@parcel/source-map';
 import {
   bufferStream,
   loadConfig,
   md5FromString,
   blobToStream,
+  streamFromPromise,
+  fallbackStream,
   TapStream
 } from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -98,7 +99,7 @@ export function createAsset(options: AssetOptions): Asset {
 type InternalAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
-  content?: Blob,
+  content?: ?Blob,
   map?: ?SourceMap,
   ast?: ?AST,
   isASTDirty?: ?boolean,
@@ -151,41 +152,37 @@ export default class InternalAsset {
     }
 
     let size = 0;
-    let hash = crypto.createHash('md5');
+    let contentKey = this.getCacheKey('content' + pipelineKey);
+    let mapKey = this.getCacheKey('map' + pipelineKey);
+    let astKey =
+      this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
-    let [contentKey, mapKey, astKey] = await Promise.all([
-      this.ast != null
+    await Promise.all([
+      this.content == null
         ? Promise.resolve()
         : this.options.cache.setStream(
-            this.getCacheKey('content' + pipelineKey),
+            contentKey,
             contentStream.pipe(
               new TapStream(buf => {
                 size += buf.length;
-                hash.update(buf);
               })
             )
           ),
-      this.map == null || this.ast != null
+      this.map == null
         ? Promise.resolve()
-        : this.options.cache.set(
-            this.getCacheKey('map' + pipelineKey),
-            this.map
-          ),
-      this.ast == null
+        : this.options.cache.set(mapKey, this.map),
+      astKey == null
         ? Promise.resolve()
-        : this.options.cache.set(
-            this.getCacheKey('ast' + pipelineKey),
-            this.ast
-          )
+        : this.options.cache.set(astKey, this.ast)
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
 
     // TODO: how should we set the size when we only store an AST?
-    if (contentKey != null) {
+    if (this.content != null) {
       this.value.stats.size = size;
     }
   }
@@ -220,36 +217,49 @@ export default class InternalAsset {
       logger: new PluginLogger({origin: pluginName})
     });
 
-    // TODO: store this in the cache for next time
     this.content = code;
     this.map = map;
+
+    // Store the results in the cache so we can avoid generating again next time
+    await Promise.all([
+      this.options.cache.setStream(
+        nullthrows(this.value.contentKey),
+        this.getStream()
+      ),
+      this.map == null
+        ? Promise.resolve()
+        : this.options.cache.set(nullthrows(this.value.mapKey), this.map)
+    ]);
+
     this.isGenerating = false;
+    return this.content || '';
+  }
+
+  ensureContent() {
+    let contentKey = this.value.contentKey;
+    if (contentKey != null && this.content == null) {
+      // First try the contentKey, and if it doesn't exist, fall back to generating from AST
+      this.content = fallbackStream(
+        this.options.cache.getStream(contentKey),
+        () => streamFromPromise(this.generateFromAST())
+      );
+    }
   }
 
   async getCode(): Promise<string> {
-    if (this.content == null && this.value.astKey != null) {
-      await this.generateFromAST();
-    }
-
-    if (this.value.contentKey != null && this.content == null) {
-      this.content = this.options.cache.getStream(this.value.contentKey);
-    }
+    this.ensureContent();
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
       this.content = this.content.toString();
     } else if (this.content != null) {
       this.content = (await bufferStream(this.content)).toString();
-    } else {
-      this.content = '';
     }
 
-    return this.content;
+    return this.content || '';
   }
 
   async getBuffer(): Promise<Buffer> {
-    if (this.value.contentKey != null && this.content == null) {
-      this.content = this.options.cache.getStream(this.value.contentKey);
-    }
+    this.ensureContent();
 
     if (this.content == null) {
       return Buffer.alloc(0);
@@ -265,10 +275,7 @@ export default class InternalAsset {
   }
 
   getStream(): Readable {
-    if (this.value.contentKey != null && this.content == null) {
-      this.content = this.options.cache.getStream(this.value.contentKey);
-    }
-
+    this.ensureContent();
     return blobToStream(this.content != null ? this.content : Buffer.alloc(0));
   }
 
@@ -288,10 +295,16 @@ export default class InternalAsset {
   }
 
   async getMap(): Promise<?SourceMap> {
-    // TODO: also generate from AST here??
-
     if (this.value.mapKey != null && this.map == null) {
-      this.map = await this.options.cache.get(this.value.mapKey);
+      try {
+        this.map = await this.options.cache.get(this.value.mapKey);
+      } catch (err) {
+        if (err.code === 'ENOENT' && this.value.astKey != null) {
+          await this.generateFromAST();
+        } else {
+          throw err;
+        }
+      }
     }
 
     return this.map;
@@ -367,7 +380,7 @@ export default class InternalAsset {
     result: TransformerResult,
     plugin: PackageName
   ): InternalAsset {
-    let content = result.content ?? result.code ?? '';
+    let content = result.content ?? result.code ?? null;
 
     let asset = new InternalAsset({
       value: createAsset({

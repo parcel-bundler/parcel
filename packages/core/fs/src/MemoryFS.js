@@ -165,7 +165,12 @@ export class MemoryFS implements FileSystem {
   }
 
   readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
-    return Promise.resolve(this.readFileSync(filePath, encoding));
+    try {
+      let res = this.readFileSync(filePath, encoding);
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 
   readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
@@ -205,7 +210,12 @@ export class MemoryFS implements FileSystem {
   }
 
   stat(filePath: FilePath) {
-    return Promise.resolve(this.statSync(filePath));
+    try {
+      let res = this.statSync(filePath);
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 
   readdirSync(dir: FilePath, opts?: ReaddirOptions): any {
@@ -249,7 +259,12 @@ export class MemoryFS implements FileSystem {
   }
 
   readdir(dir: FilePath, opts?: ReaddirOptions): Promise<any> {
-    return Promise.resolve(this.readdirSync(dir, opts));
+    try {
+      let res = this.readdirSync(dir, opts);
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 
   async unlink(filePath: FilePath) {
@@ -450,7 +465,12 @@ export class MemoryFS implements FileSystem {
   }
 
   realpath(filePath: FilePath) {
-    return Promise.resolve(this.realpathSync(filePath));
+    try {
+      let res = this.realpathSync(filePath);
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 
   async symlink(target: FilePath, path: FilePath) {
@@ -470,7 +490,12 @@ export class MemoryFS implements FileSystem {
   }
 
   exists(filePath: FilePath) {
-    return Promise.resolve(this.existsSync(filePath));
+    try {
+      let res = this.existsSync(filePath);
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
 
   _triggerEvent(event: Event) {

@@ -477,6 +477,7 @@ class Pipeline {
     // use the previous transform to generate code that we can re-parse.
     if (
       asset.ast &&
+      asset.isASTDirty &&
       (!transformer.canReuseAST ||
         !transformer.canReuseAST({
           ast: asset.ast,
@@ -521,13 +522,7 @@ class Pipeline {
 
     // Create generate and postProcess functions that can be called later
     this.generate = (input: InternalAsset): Promise<GenerateOutput> => {
-      if (transformer.generate) {
-        if (!input.ast || !input.isASTDirty) {
-          return Promise.resolve({
-            code: input.content || ''
-          });
-        }
-
+      if (transformer.generate && input.ast) {
         return Promise.resolve(
           transformer.generate({
             asset: new Asset(input),
@@ -578,7 +573,7 @@ function normalizeAssets(
     let internalAsset = assetToInternalAsset(result);
     return {
       type: result.type,
-      content: internalAsset.content || '',
+      content: internalAsset.content,
       ast: internalAsset.ast,
       map: internalAsset.map,
       // $FlowFixMe

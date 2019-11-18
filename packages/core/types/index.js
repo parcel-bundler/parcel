@@ -384,7 +384,7 @@ export interface TransformerResult {
   type: string;
   code?: string;
   map?: ?SourceMap;
-  content?: Blob;
+  content?: ?Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
   includedFiles?: $ReadOnlyArray<File>;
