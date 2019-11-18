@@ -369,23 +369,10 @@ export default class InternalAsset {
   ): InternalAsset {
     let content = result.content ?? result.code ?? '';
 
-    let hash;
-    let size;
-    if (content === this.content) {
-      hash = this.value.hash;
-      size = this.value.stats.size;
-    } else if (typeof content === 'string' || content instanceof Buffer) {
-      hash = md5FromString(content);
-      size = content.length;
-    } else {
-      hash = null;
-      size = NaN;
-    }
-
     let asset = new InternalAsset({
       value: createAsset({
         idBase: this.idBase,
-        hash,
+        hash: this.value.hash,
         filePath: this.value.filePath,
         type: result.type,
         isIsolated: result.isIsolated ?? this.value.isIsolated,
@@ -407,7 +394,7 @@ export default class InternalAsset {
           (this.value.type === result.type ? this.value.pipeline : null),
         stats: {
           time: 0,
-          size
+          size: this.value.stats.size
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
         sideEffects: result.sideEffects ?? this.value.sideEffects,

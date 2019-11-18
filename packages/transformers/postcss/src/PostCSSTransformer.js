@@ -119,7 +119,8 @@ export default new Transformer({
     }
 
     let ast = nullthrows(await asset.getAST());
-    if (COMPOSES_RE.test(await asset.getCode())) {
+    let code = await asset.getCode();
+    if (!code || COMPOSES_RE.test(code)) {
       ast.program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
         if (decl.prop === 'composes' && importPath != null) {
