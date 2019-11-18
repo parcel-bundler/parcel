@@ -1,12 +1,7 @@
 // @flow
 
-import type {
-  Asset,
-  Bundle,
-  BundleGraph,
-  Symbol,
-  ModuleSpecifier
-} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
@@ -100,10 +95,10 @@ export function generateBundleImports(
 
 export function generateExternalImport(
   bundle: Bundle,
-  source: ModuleSpecifier,
-  specifiers: Map<Symbol, Symbol>,
+  external: ExternalModule,
   scope: any
 ) {
+  let {source, specifiers, isCommonJS} = external;
   let statements = [];
   let properties = [];
   let categories = new Set();
@@ -141,13 +136,18 @@ export function generateExternalImport(
     );
 
     if (specifiers.has('*')) {
+      let value = name;
+      if (!isCommonJS) {
+        value = NAMESPACE_TEMPLATE({
+          NAMESPACE: t.objectExpression([]),
+          MODULE: value
+        }).expression;
+      }
+
       statements.push(
         ASSIGN_TEMPLATE({
           SPECIFIERS: t.identifier(specifiers.get('*')),
-          MODULE: NAMESPACE_TEMPLATE({
-            NAMESPACE: t.objectExpression([]),
-            MODULE: name
-          }).expression
+          MODULE: value
         })
       );
     }
@@ -185,15 +185,21 @@ export function generateExternalImport(
       })
     );
   } else if (specifiers.has('*')) {
+    let require = REQUIRE_TEMPLATE({
+      BUNDLE: t.stringLiteral(source)
+    }).expression;
+
+    if (!isCommonJS) {
+      require = NAMESPACE_TEMPLATE({
+        NAMESPACE: t.objectExpression([]),
+        MODULE: require
+      }).expression;
+    }
+
     statements.push(
       ASSIGN_TEMPLATE({
         SPECIFIERS: t.identifier(specifiers.get('*')),
-        MODULE: NAMESPACE_TEMPLATE({
-          NAMESPACE: t.objectExpression([]),
-          MODULE: REQUIRE_TEMPLATE({
-            BUNDLE: t.stringLiteral(source)
-          }).expression
-        }).expression
+        MODULE: require
       })
     );
   } else if (properties.length > 0) {
@@ -250,7 +256,10 @@ export function generateExports(
       if (binding) {
         // If the exports object is constant, then we can just remove it and rename the
         // references to the builtin CommonJS exports object. Otherwise, assign to module.exports.
-        if (binding.constant) {
+        let init = binding.path.node.init;
+        let isEmptyObject =
+          init && t.isObjectExpression(init) && init.properties.length === 0;
+        if (binding.constant && isEmptyObject) {
           for (let path of binding.referencePaths) {
             path.node.name = 'exports';
           }
