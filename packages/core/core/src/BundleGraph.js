@@ -519,11 +519,10 @@ export default class BundleGraph {
   }
 
   resolveSymbol(asset: Asset, symbol: Symbol) {
-    if (symbol === '*') {
-      return {asset, exportSymbol: '*', symbol: '*'};
-    }
-
     let identifier = asset.symbols.get(symbol);
+    if (symbol === '*') {
+      return {asset, exportSymbol: '*', symbol: identifier};
+    }
 
     let deps = this.getDependencies(asset).reverse();
     for (let dep of deps) {
