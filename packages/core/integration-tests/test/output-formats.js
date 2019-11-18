@@ -319,6 +319,18 @@ describe('output formats', function() {
       );
       assert(dist.includes('Object.assign(exports'));
     });
+
+    it('should support commonjs requires without interop', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-require/index.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('= require("lodash")'));
+    });
   });
 
   describe('esmodule', function() {
@@ -675,6 +687,19 @@ describe('output formats', function() {
       assert(
         new RegExp(`import { .+ } from "\\.\\/${sharedName}"`).test(async2)
       );
+    });
+
+    it('should generating ESM from CommonJS', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-esm/index.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('import _lodash from "lodash"'));
+      assert(dist.includes('export default'));
     });
   });
 });

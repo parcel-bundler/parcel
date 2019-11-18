@@ -1,12 +1,7 @@
 // @flow
 
-import type {
-  Asset,
-  Bundle,
-  BundleGraph,
-  Symbol,
-  ModuleSpecifier
-} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
 import {relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -33,14 +28,14 @@ export function generateBundleImports(
 
 export function generateExternalImport(
   bundle: Bundle,
-  source: ModuleSpecifier,
-  specifiers: Map<Symbol, Symbol>
+  external: ExternalModule
 ) {
+  let {source, specifiers, isCommonJS} = external;
   let defaultSpecifier = null;
   let namespaceSpecifier = null;
   let namedSpecifiers = [];
   for (let [imported, symbol] of specifiers) {
-    if (imported === 'default') {
+    if (imported === 'default' || isCommonJS) {
       defaultSpecifier = t.importDefaultSpecifier(t.identifier(symbol));
     } else if (imported === '*') {
       namespaceSpecifier = t.importNamespaceSpecifier(t.identifier(symbol));
@@ -87,6 +82,11 @@ export function generateExports(
     for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
       if (symbol) {
         symbol = replacements.get(symbol) || symbol;
+      }
+
+      // Map CommonJS module.exports assignments to default ESM exports for interop
+      if (exportSymbol === '*') {
+        exportSymbol = 'default';
       }
 
       // If there is an existing binding with the exported name (e.g. an import),

@@ -173,8 +173,16 @@ const VISITOR = {
     }
 
     if (t.matchesPattern(path.node, 'module.exports')) {
-      path.replaceWith(getExportsIdentifier(asset, path.scope));
+      let exportsId = getExportsIdentifier(asset, path.scope);
+      path.replaceWith(exportsId);
       asset.meta.isCommonJS = true;
+      asset.symbols.set('*', exportsId.name);
+
+      if (!path.scope.hasBinding(exportsId.name)) {
+        path.scope
+          .getProgramParent()
+          .push({id: exportsId, init: t.objectExpression([])});
+      }
     }
 
     if (t.matchesPattern(path.node, 'module.id')) {
@@ -236,11 +244,39 @@ const VISITOR = {
   },
 
   AssignmentExpression(path, asset: MutableAsset) {
-    if (path.scope.hasBinding('exports') || path.scope.getData('shouldWrap')) {
+    if (path.scope.getData('shouldWrap')) {
       return;
     }
 
     let {left, right} = path.node;
+
+    // Match module.exports = expression; assignments and replace with a variable declaration
+    // if this is the first assignemnt. This avoids the extra empty object assignment in many cases.
+    if (
+      t.matchesPattern(left, 'module.exports') &&
+      !path.scope.hasBinding('module')
+    ) {
+      let exportsId = getExportsIdentifier(asset, path.scope);
+      asset.meta.isCommonJS = true;
+      asset.symbols.set('*', exportsId.name);
+
+      if (
+        path.scope === path.scope.getProgramParent() &&
+        !path.scope.getBinding(exportsId.name) &&
+        path.parentPath.isStatement()
+      ) {
+        let [decl] = path.parentPath.replaceWith(
+          t.variableDeclaration('var', [t.variableDeclarator(exportsId, right)])
+        );
+
+        path.scope.registerDeclaration(decl);
+      }
+    }
+
+    if (path.scope.hasBinding('exports')) {
+      return;
+    }
+
     if (t.isIdentifier(left) && left.name === 'exports') {
       path.get('left').replaceWith(getExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
@@ -345,6 +381,7 @@ const VISITOR = {
         dep.meta.shouldWrap = true;
       }
 
+      dep.meta.isCommonJS = true;
       dep.symbols.set('*', getName(asset, 'require', source));
 
       // Generate a variable name based on the current asset id and the module name to require.
