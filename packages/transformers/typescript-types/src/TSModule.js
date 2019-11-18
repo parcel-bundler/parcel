@@ -45,4 +45,8 @@ export class TSModule {
   getName(name: string) {
     return this.names.get(name) || name;
   }
+
+  hasBinding(name: string) {
+    return this.bindings.has(name);
+  }
 }

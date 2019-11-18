@@ -53,6 +53,30 @@ export function shake(
         !node.moduleSpecifier ||
         moduleGraph.getModule(node.moduleSpecifier.text)
       ) {
+        if (!node.moduleSpecifier && node.exportClause) {
+          // Filter exported elements to only external re-exports
+          let exported = [];
+          for (let element of node.exportClause.elements) {
+            let name = (element.propertyName ?? element.name).text;
+            if (
+              exportedNames.get(name) === currentModule &&
+              !currentModule.hasBinding(name)
+            ) {
+              exported.push(element);
+            }
+          }
+
+          if (exported.length > 0) {
+            return ts.updateExportDeclaration(
+              node,
+              undefined, // decorators
+              undefined, // modifiers
+              ts.updateNamedExports(node.exportClause, exported),
+              undefined // moduleSpecifier
+            );
+          }
+        }
+
         return null;
       }
     }
@@ -139,7 +163,7 @@ export function shake(
         node.left.text,
         node.right.text
       );
-      if (resolved) {
+      if (resolved && resolved.module.hasBinding(resolved.name)) {
         return ts.createIdentifier(resolved.name);
       } else {
         return ts.updateQualifiedName(
@@ -147,6 +171,16 @@ export function shake(
           ts.createIdentifier(currentModule.getName(node.left.text)),
           node.right
         );
+      }
+    }
+
+    // Remove private properties
+    if (ts.isPropertyDeclaration(node)) {
+      let isPrivate =
+        node.modifiers &&
+        node.modifiers.some(m => m.kind === ts.SyntaxKind.PrivateKeyword);
+      if (isPrivate) {
+        return null;
       }
     }
 
