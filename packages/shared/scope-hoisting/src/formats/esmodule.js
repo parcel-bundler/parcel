@@ -150,7 +150,14 @@ export function generateExports(
         // Otherwise, add export statements after for each identifier.
       } else {
         if (defaultExport) {
-          path.insertAfter(
+          let binding = path.scope.getBinding(defaultExport);
+          let insertPath = path;
+          if (binding && !binding.constant) {
+            insertPath =
+              binding.constantViolations[binding.constantViolations.length - 1];
+          }
+
+          insertPath.insertAfter(
             t.exportDefaultDeclaration(t.identifier(defaultExport))
           );
         }

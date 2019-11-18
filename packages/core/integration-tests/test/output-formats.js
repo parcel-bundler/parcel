@@ -701,5 +701,22 @@ describe('output formats', function() {
       assert(dist.includes('import _lodash from "lodash"'));
       assert(dist.includes('export default'));
     });
+
+    it('should support re-assigning to module.exports', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-esm/re-assign.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(
+        dist
+          .split('\n')
+          .pop()
+          .startsWith('export default')
+      );
+    });
   });
 });
