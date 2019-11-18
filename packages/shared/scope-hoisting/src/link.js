@@ -8,6 +8,7 @@ import type {
   PluginOptions,
   Symbol
 } from '@parcel/types';
+import type {ExternalModule, ExternalBundle} from './types';
 
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
@@ -56,7 +57,7 @@ export function link({
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
-  let importedFiles = new Map();
+  let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
 
   // If building a library, the target is actually another bundler rather
@@ -67,7 +68,7 @@ export function link({
   if (bundle.env.isLibrary) {
     let bundles = bundleGraph.getSiblingBundles(bundle);
     for (let b of bundles) {
-      importedFiles.set(b.filePath, {
+      importedFiles.set(nullthrows(b.filePath), {
         bundle: b,
         assets: new Set()
       });
@@ -101,7 +102,7 @@ export function link({
     let identifier = symbol;
 
     // If this is a wildcard import, resolve to the exports object.
-    if (asset && identifier === '*') {
+    if (asset && exportSymbol === '*') {
       identifier = assertString(asset.meta.exportsIdentifier);
     }
 
@@ -216,7 +217,8 @@ export function link({
     if (!importedFile) {
       importedFile = {
         source: dep.moduleSpecifier,
-        specifiers: new Map()
+        specifiers: new Map(),
+        isCommonJS: !!dep.meta.isCommonJS
       };
 
       importedFiles.set(dep.moduleSpecifier, importedFile);
@@ -268,13 +270,14 @@ export function link({
     let bundles = bundleGraph.findBundlesWithAsset(mod);
     let importedBundle =
       bundles.find(b => b.env.context === bundle.env.context) || bundles[0];
-    let imported = importedFiles.get(importedBundle.filePath);
+    let filePath = nullthrows(importedBundle.filePath);
+    let imported = importedFiles.get(filePath);
     if (!imported) {
       imported = {
         bundle: importedBundle,
         assets: new Set()
       };
-      importedFiles.set(importedBundle.filePath, imported);
+      importedFiles.set(filePath, imported);
     }
 
     // If not unused, add the asset to the list of specifiers to import.
@@ -540,12 +543,7 @@ export function link({
           } else {
             imports.push(
               // $FlowFixMe
-              ...format.generateExternalImport(
-                bundle,
-                file.source,
-                file.specifiers,
-                path.scope
-              )
+              ...format.generateExternalImport(bundle, file, path.scope)
             );
           }
         }
