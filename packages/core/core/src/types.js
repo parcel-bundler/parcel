@@ -81,6 +81,7 @@ export type Asset = {|
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
+  pipeline: ?string,
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
   uniqueKey?: ?string
@@ -284,6 +285,7 @@ export type Bundle = {|
   target: Target,
   filePath: ?FilePath,
   name: ?string,
+  pipeline: ?string,
   stats: Stats
 |};
 

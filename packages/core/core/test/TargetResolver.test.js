@@ -470,6 +470,17 @@ describe('TargetResolver', () => {
                     column: 5,
                     line: 8
                   }
+                },
+                {
+                  end: {
+                    column: 5,
+                    line: 7
+                  },
+                  message: 'Expected type string',
+                  start: {
+                    column: 13,
+                    line: 5
+                  }
                 }
               ]
             }

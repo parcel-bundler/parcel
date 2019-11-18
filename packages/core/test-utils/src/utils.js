@@ -17,7 +17,7 @@ import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 
-import {makeDeferredWithPromise, syncPromise} from '@parcel/utils';
+import {makeDeferredWithPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -96,7 +96,7 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts: InitialParcelOptions
+  opts?: InitialParcelOptions
 ) {
   return new Parcel({
     entries,
@@ -118,7 +118,7 @@ export function bundler(
 
 export async function bundle(
   entries: FilePath | Array<FilePath>,
-  opts: InitialParcelOptions
+  opts?: InitialParcelOptions
 ): Promise<BundleGraph> {
   return nullthrows(await bundler(entries, opts).run());
 }
@@ -350,11 +350,9 @@ function prepareBrowserContext(
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
-                  syncPromise(
-                    overlayFS.readFile(
-                      path.join(path.dirname(filePath), el.src),
-                      'utf8'
-                    )
+                  overlayFS.readFileSync(
+                    path.join(path.dirname(filePath), el.src),
+                    'utf8'
                   ),
                   ctx
                 );
@@ -425,11 +423,11 @@ function prepareNodeContext(filePath, globals) {
       preserveSymlinks: true,
       extensions: ['.js', '.json'],
       readFileSync: (...args) => {
-        return syncPromise(overlayFS.readFile(...args));
+        return overlayFS.readFileSync(...args);
       },
       isFile: file => {
         try {
-          var stat = syncPromise(overlayFS.stat(file));
+          var stat = overlayFS.statSync(file);
         } catch (err) {
           return false;
         }
@@ -437,7 +435,7 @@ function prepareNodeContext(filePath, globals) {
       },
       isDirectory: file => {
         try {
-          var stat = syncPromise(overlayFS.stat(file));
+          var stat = overlayFS.statSync(file);
         } catch (err) {
           return false;
         }
@@ -453,7 +451,7 @@ function prepareNodeContext(filePath, globals) {
           cb(null, res);
         },
         readFileSync: (file, encoding) => {
-          return syncPromise(overlayFS.readFile(file, encoding));
+          return overlayFS.readFileSync(file, encoding);
         }
       };
     }
@@ -470,7 +468,7 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(syncPromise(overlayFS.readFile(res, 'utf8')), ctx);
+    vm.runInContext(overlayFS.readFileSync(res, 'utf8'), ctx);
     return ctx.module.exports;
   };
 

@@ -45,6 +45,7 @@ type AssetOptions = {|
   outputHash?: string,
   env: Environment,
   meta?: Meta,
+  pipeline?: ?string,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean,
@@ -72,6 +73,7 @@ export function createAsset(options: AssetOptions): Asset {
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
     outputHash: options.outputHash || '',
+    pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
@@ -286,7 +288,14 @@ export default class InternalAsset {
             ? new Map(this.value.dependencies)
             : new Map(),
         includedFiles: new Map(this.value.includedFiles),
-        meta: {...this.value.meta, ...result.meta},
+        meta: {
+          ...this.value.meta,
+          // $FlowFixMe
+          ...result.meta
+        },
+        pipeline:
+          result.pipeline ??
+          (this.value.type === result.type ? this.value.pipeline : null),
         stats: {
           time: 0,
           size

@@ -33,7 +33,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
-export type ParcelConfigFile = {
+export type ParcelConfigFile = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {[Glob]: Array<PackageName>, ...},
@@ -43,15 +43,14 @@ export type ParcelConfigFile = {
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: Array<PackageName>, ...},
   reporters?: Array<PackageName>,
-  validators?: {[Glob]: Array<PackageName>, ...},
-  ...
-};
+  validators?: {[Glob]: Array<PackageName>, ...}
+|};
 
-export type ResolvedParcelConfigFile = {
+export type ResolvedParcelConfigFile = {|
   ...ParcelConfigFile,
   filePath: FilePath,
-  ...
-};
+  resolveFrom?: FilePath
+|};
 
 export type Engines = {
   browsers?: string | Array<string>,
@@ -276,7 +275,7 @@ export type File = {|
   hash?: string
 |};
 
-interface BaseAsset {
+export interface BaseAsset {
   +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
@@ -389,12 +388,13 @@ export interface TransformerResult {
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
+  pipeline?: ?string;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
   uniqueKey?: ?string;
 }
 
-type Async<T> = T | Promise<T>;
+export type Async<T> = T | Promise<T>;
 
 export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
@@ -693,7 +693,8 @@ export type Resolver = {|
   resolve({|
     dependency: Dependency,
     options: PluginOptions,
-    logger: PluginLogger
+    logger: PluginLogger,
+    filePath: FilePath
   |}): Async<?ResolveResult>
 |};
 

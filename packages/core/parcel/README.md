@@ -1252,7 +1252,7 @@ of Parcel that your plugin supports:
 
 ```json
 {
-  "name": "parcel-transform-imagemin"
+  "name": "parcel-transform-imagemin",
   "engines": {
     "parcel": "2.x"
   }

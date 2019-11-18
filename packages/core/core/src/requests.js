@@ -153,7 +153,8 @@ export class AssetRequestRunner extends RequestRunner<
     this.assetGraph = opts.assetGraph;
   }
 
-  async run(request: AssetRequestDesc) {
+  async run(request: AssetRequestDesc, api: RequestRunnerAPI) {
+    api.invalidateOnFileUpdate(request.filePath);
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,
@@ -175,8 +176,6 @@ export class AssetRequestRunner extends RequestRunner<
     this.assetGraph.resolveAssetGroup(request, result.assets);
 
     let {assets, configRequests} = result;
-
-    api.invalidateOnFileUpdate(request.filePath);
 
     for (let asset of assets) {
       for (let filePath of asset.includedFiles.keys()) {
@@ -351,7 +350,8 @@ export class DepPathRequestRunner extends RequestRunner<
     if (
       dependency.isWeak &&
       sideEffects === false &&
-      !dependency.symbols.has('*')
+      !dependency.symbols.has('*') &&
+      !dependency.env.isLibrary // TODO (T-232): improve the logic below and remove this.
     ) {
       let depNode = this.assetGraph.getNode(dependency.id);
       invariant(depNode);

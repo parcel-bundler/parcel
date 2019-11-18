@@ -79,16 +79,27 @@ export class TSModuleGraph {
 
     // Re-export
     if (e.specifier && e.imported) {
-      let {module, name} = nullthrows(
-        this.resolveExport(nullthrows(this.getModule(e.specifier)), e.imported)
-      );
-      return {module, imported: name, name: exportName};
+      let m = this.getModule(e.specifier);
+      if (!m) {
+        return null;
+      }
+
+      let exp = this.resolveExport(m, e.imported);
+      if (!exp) {
+        return null;
+      }
+
+      return {module: exp.module, imported: exp.name, name: exportName};
     }
 
     // Import and then export
     if (m.imports.has(exportName)) {
-      let {module, name} = nullthrows(this.resolveImport(m, exportName));
-      return {module, imported: name, name: exportName};
+      let imp = this.resolveImport(m, exportName);
+      if (!imp) {
+        return null;
+      }
+
+      return {module: imp.module, imported: imp.name, name: exportName};
     }
 
     // Named export
@@ -107,7 +118,8 @@ export class TSModuleGraph {
 
     let m = this.getModule(i.specifier);
     if (!m) {
-      return null;
+      // External module. pass through the import.
+      return {module, name: local, imported: imported || i.imported};
     }
 
     return this.resolveExport(m, imported || i.imported);
@@ -133,7 +145,10 @@ export class TSModuleGraph {
     let res = [];
     for (let e of module.exports) {
       if (e.name && (!excludeDefault || e.name !== 'default')) {
-        res.push(this.getExport(module, e));
+        let exp = this.getExport(module, e);
+        if (exp) {
+          res.push(exp);
+        }
       } else if (e.specifier) {
         let m = this.getModule(e.specifier);
         if (m) {

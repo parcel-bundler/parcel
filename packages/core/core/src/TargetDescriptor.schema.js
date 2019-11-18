@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {SchemaEntity} from '@parcel/utils';
 
-export const engines: SchemaEntity = {
+export const ENGINES_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
     browsers: {
@@ -16,28 +16,12 @@ export const engines: SchemaEntity = {
           type: 'string'
         }
       ]
-    },
-    node: {
-      oneOf: [
-        {
-          type: 'array'
-        },
-        {
-          type: 'string'
-        }
-      ]
-    },
-    electron: {
-      type: 'string'
-    },
-    parcel: {
-      type: 'string'
-    },
-    npm: {
-      type: 'string'
     }
   },
-  additionalProperties: false
+  __forbiddenProperties: ['browser'],
+  additionalProperties: {
+    type: 'string'
+  }
 };
 
 export default ({
@@ -62,7 +46,7 @@ export default ({
           type: 'array',
           items: {
             type: 'string',
-            __pattern: 'a wildcard or filepath'
+            __type: 'a wildcard or filepath'
           }
         }
       ]
@@ -102,7 +86,7 @@ export default ({
         }
       ]
     },
-    engines
+    engines: ENGINES_SCHEMA
   },
   additionalProperties: false
 }: SchemaEntity);
