@@ -59,6 +59,20 @@ export default function UI({events, options}: Props) {
   );
 }
 
+const getMessageIdentifier = (l: LogEvent) => {
+  // $FlowFixMe this is a sketchy null check...
+  if (l.message) {
+    return l.message;
+  } else if (l.diagnostics) {
+    return l.diagnostics.reduce(
+      (acc, d) => d.message + d.origin + (d.codeFrame ? d.codeFrame.code : ''),
+      ''
+    );
+  } else {
+    return '';
+  }
+};
+
 function reducer(
   state: State,
   event: ReporterEvent,
@@ -149,10 +163,10 @@ function reducer(
       }
 
       // Skip duplicate logs
-      /*let messages = new Set(state.logs.map(l => l.message));
-      if (messages.has(event.message)) {
+      let messages = new Set(state.logs.map(getMessageIdentifier));
+      if (messages.has(getMessageIdentifier(event))) {
         break;
-      }*/
+      }
 
       return {
         ...state,
