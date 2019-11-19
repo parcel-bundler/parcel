@@ -31,6 +31,7 @@ export * from './Deferred';
 export * from './glob';
 export * from './md5';
 export * from './schema';
+export * from './http-server';
 export * from './path';
 export * from './replaceBundleReferences';
 export * from './serializer';
