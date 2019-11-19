@@ -288,7 +288,7 @@ async function reload(config: Config, options: PluginOptions) {
 }
 
 function loadBabelCore(config: Config, options: PluginOptions): Promise<any> {
-  return config.isSource || config.result?.internal
+  return !config.isSource || config.result?.internal
     ? bundledBabelCore
     : options.packageManager.require('@babel/core', config.searchPath);
 }
