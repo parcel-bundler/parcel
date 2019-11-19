@@ -16,9 +16,10 @@ export default async function babel7(
 ): Promise<?AST> {
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
-  let babel = babelOptions.internal
-    ? require('@babel/core')
-    : await options.packageManager.require('@babel/core', asset.filePath);
+  let babel =
+    asset.isSource || babelOptions.internal
+      ? require('@babel/core')
+      : await options.packageManager.require('@babel/core', asset.filePath);
 
   let config = {
     ...babelOptions.config,

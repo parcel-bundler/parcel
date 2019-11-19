@@ -6,7 +6,7 @@ import type {PluginLogger} from '@parcel/logger';
 
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {loadPartialConfig, createConfigItem} from '@babel/core';
+import * as bundledBabelCore from '@babel/core';
 import {md5FromObject} from '@parcel/utils';
 
 import getEnvOptions from './env';
@@ -32,7 +32,8 @@ export async function load(
     return buildDefaultBabelConfig(config);
   }
 
-  let partialConfig = loadPartialConfig({
+  let babelCore = await loadBabelCore(config, options);
+  let partialConfig = babelCore.loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot
@@ -47,15 +48,16 @@ export async function load(
       config: partialConfig.options,
       targets: enginesToBabelTargets(config.env)
     });
-    await rebuildConfigWithLocalBabel(config, options);
 
-    let {babelrc, config: configjs} = partialConfig;
+    let {babelrc: babelrcPath, config: configPath} = partialConfig;
     let {canBeRehydrated, dependsOnRelative, dependsOnLocal} = getStats(
       partialConfig.options
     );
 
     let configIsJS =
-      (babelrc != null && path.extname(babelrc) === '.js') || configjs != null;
+      (typeof babelrcPath === 'string' &&
+        path.extname(babelrcPath) === '.js') ||
+      (typeof configPath === 'string' && path.extname(configPath) === '.js');
 
     if (configIsJS) {
       logger.verbose({
@@ -65,10 +67,12 @@ export async function load(
       config.shouldInvalidateOnStartup();
       // babel.config.js files get required by @babel/core so there's no use in setting resolved path for watch mode invalidation
     } else {
-      config.setResolvedPath(babelrc);
+      config.setResolvedPath(
+        typeof babelrcPath === 'string' ? babelrcPath : configPath
+      );
     }
 
-    if (babelrc && (await isExtended(/*babelrc*/))) {
+    if (babelrcPath && (await isExtended(/* babelrcPath */))) {
       logger.verbose({
         message:
           'WARNING: You are using `extends` in your Babel config, which means you are losing out on some of the caching features of Parcel. Maybe try using a reusable preset instead.'
@@ -99,34 +103,6 @@ export async function load(
   }
 }
 
-async function rebuildConfigWithLocalBabel(
-  config: Config,
-  options: PluginOptions
-) {
-  let babelConfig = config.result.config;
-
-  if (babelConfig != null) {
-    let babelCore = await options.packageManager.require(
-      '@babel/core',
-      config.searchPath
-    );
-    babelConfig.presets = (babelConfig.presets || []).map(
-      ({value, dirname, options: presetOptions}) =>
-        babelCore.createConfigItem([value, presetOptions], {
-          dirname,
-          type: 'preset'
-        })
-    );
-    babelConfig.plugins = (babelConfig.plugins || []).map(
-      ({value, dirname, options: pluginOptions}) =>
-        babelCore.createConfigItem([value, pluginOptions], {
-          dirname,
-          type: 'plugin'
-        })
-    );
-  }
-}
-
 async function buildDefaultBabelConfig(config: Config) {
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
@@ -145,13 +121,13 @@ async function buildDefaultBabelConfig(config: Config) {
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>
-      createConfigItem(preset, {
+      bundledBabelCore.createConfigItem(preset, {
         type: 'preset',
         dirname: BABEL_TRANSFORMER_DIR
       })
     );
     babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-      createConfigItem(plugin, {
+      bundledBabelCore.createConfigItem(plugin, {
         type: 'plugin',
         dirname: BABEL_TRANSFORMER_DIR
       })
@@ -264,7 +240,7 @@ async function definePluginDependencies(config) {
 
 export async function postDeserialize(config: Config, options: PluginOptions) {
   let babelCore = config.result.internal
-    ? require('@babel/core')
+    ? bundledBabelCore
     : await options.packageManager.require('@babel/core', config.searchPath);
 
   config.result.config.presets = await Promise.all(
@@ -295,13 +271,10 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
   );
 }
 
-export async function reload(config: Config, options: PluginOptions) {
-  let babelCore = await options.packageManager.require(
-    '@babel/core',
-    config.searchPath
-  );
+async function reload(config: Config, options: PluginOptions) {
+  let {loadPartialConfig} = await loadBabelCore(config, options);
 
-  let partialConfig = babelCore.loadPartialConfig({
+  let partialConfig = loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot
@@ -312,4 +285,10 @@ export async function reload(config: Config, options: PluginOptions) {
     config: partialConfig.options,
     targets: enginesToBabelTargets(config.env)
   });
+}
+
+function loadBabelCore(config: Config, options: PluginOptions): Promise<any> {
+  return config.isSource || config.result?.internal
+    ? bundledBabelCore
+    : options.packageManager.require('@babel/core', config.searchPath);
 }
