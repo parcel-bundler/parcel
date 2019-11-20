@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-graphql",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,7 +12,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.2.1"
+    "@parcel/plugin": "^2.0.0-alpha.3"
   },
   "devDependencies": {
     "graphql-tag": "^2.10.1"
