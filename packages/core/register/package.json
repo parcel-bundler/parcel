@@ -1,6 +1,6 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,9 +19,9 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-alpha.2.1",
-    "@parcel/core": "^2.0.0-alpha.2.1",
-    "@parcel/fs": "^2.0.0-alpha.2",
-    "@parcel/package-manager": "^2.0.0-alpha.2"
+    "@parcel/config-default": "^2.0.0-alpha.3.1",
+    "@parcel/core": "^2.0.0-alpha.3.1",
+    "@parcel/fs": "^2.0.0-alpha.3.1",
+    "@parcel/package-manager": "^2.0.0-alpha.3.1"
   }
 }
