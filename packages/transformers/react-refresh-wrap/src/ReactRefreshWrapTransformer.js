@@ -68,7 +68,12 @@ export default new Transformer({
       return [asset];
     }
 
-    let wrapperPath = path.relative(path.dirname(asset.filePath), WRAPPER);
+    let wrapperPath = path
+      .relative(path.dirname(asset.filePath), WRAPPER)
+      .replace(/\\/g, '/');
+    if (!wrapperPath.startsWith('.')) {
+      wrapperPath = './' + wrapperPath;
+    }
 
     ast.program.program.body = wrapper({
       helper: t.stringLiteral(wrapperPath),
