@@ -25,45 +25,55 @@ const canSerializeConfig = config => {
 
 export default new Transformer({
   async loadConfig({config, options}) {
-    let configResult = await config.getConfig([
+    let loaded = await config.getConfig([
       '.posthtmlrc',
       '.posthtmlrc.js',
       'posthtml.config.js'
     ]);
 
-    configResult = configResult || {};
-    configResult.skipParse = true;
+    loaded = loaded || {};
+    loaded.skipParse = true;
 
-    // isReload case
-    if (config.result != null) {
-      configResult.plugins = await loadPlugins(
-        configResult.plugins,
-        config.searchPath,
-        options
-      );
-      config.setResult(configResult);
-    } else if (!canSerializeConfig(configResult)) {
-      config.shouldReload();
-      config.setResult({isReload: true});
+    if (!canSerializeConfig(loaded)) {
+      config.setResult({fullyLoaded: loaded});
+      config.shouldInvalidateOnStartup();
       config.setResultHash(JSON.stringify(Date.now()));
     } else {
-      if (configResult.plugins) {
-        config.shouldRehydrate();
-      }
-
-      config.setResult(configResult);
+      let fullyLoaded = {
+        ...loaded,
+        plugins: await loadPlugins(loaded.plugins, config.searchPath, options)
+      };
+      config.setResult({
+        loaded,
+        fullyLoaded
+      });
     }
   },
 
-  async rehydrateConfig({config, options}) {
-    let configResult = config.result;
+  preSerializeConfig({config}) {
+    // remove fullyLoaded so v8 doesn't choke on functions
+    delete config.result.fullyLoaded;
+  },
 
-    // convert plugins from config to functions
-    configResult.plugins = await loadPlugins(
-      configResult.plugins,
-      config.searchPath,
-      options
-    );
+  async postDeserializeConfig({config, options}) {
+    let configResult = config.result;
+    let {loaded} = configResult;
+
+    if (!loaded) {
+      loaded = await config.getConfig([
+        '.posthtmlrc',
+        '.posthtmlrc.js',
+        'posthtml.config.js'
+      ]);
+      loaded = loaded || {};
+      loaded.skipParse = true;
+      config.fullyLoaded = loaded;
+    } else {
+      configResult.fullyLoaded = {
+        ...loaded,
+        plugins: await loadPlugins(loaded.plugins, config.searchPath, options)
+      };
+    }
   },
 
   canReuseAST({ast}) {
@@ -92,7 +102,10 @@ export default new Transformer({
 
     const ast = nullthrows(asset.ast);
 
-    let res = await posthtml(config.plugins).process(ast.program, config);
+    let res = await posthtml(config.plugins).process(
+      ast.program,
+      config.fullyLoaded
+    );
 
     if (res.messages) {
       await Promise.all(
