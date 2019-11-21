@@ -9,6 +9,7 @@ export {default as getCertificate} from './getCertificate';
 export {default as getRootDir} from './getRootDir';
 export {default as isURL} from './is-url';
 export {default as objectHash} from './objectHash';
+export {default as openInBrowser} from './openInBrowser';
 export {default as prettifyTime} from './prettifyTime';
 export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';

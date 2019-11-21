@@ -6,6 +6,7 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic} from '@parcel/utils';
+import {openInBrowser} from '@parcel/utils';
 
 require('v8-compile-cache');
 
@@ -192,6 +193,16 @@ async function run(entries: Array<string>, command: any) {
         throw err;
       }
     });
+
+    command.target = command.target.length > 0 ? command.target : 'browser';
+    if (command.open && command.target === 'browser') {
+      const port = command.port || process.env.PORT || 1234;
+      await openInBrowser(
+        `${command.https ? 'https' : 'http'}://${command.host ||
+          'localhost'}:${port}`,
+        command.open
+      );
+    }
 
     let isExiting;
     const exit = async () => {
