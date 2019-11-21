@@ -150,13 +150,12 @@ export default class AssetGraphBuilder extends EventEmitter {
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>
   |}> {
-    let i = 0;
     let lastQueueError;
-    while (
-      this.requestTracker.hasInvalidRequests() &&
-      i < requestPriorities.length
-    ) {
-      let currPriorities = requestPriorities[i++];
+    for (let currPriorities of requestPriorities) {
+      if (!this.requestTracker.hasInvalidRequests()) {
+        break;
+      }
+
       let promises = [];
       for (let request of this.requestTracker.getInvalidRequests()) {
         // $FlowFixMe
