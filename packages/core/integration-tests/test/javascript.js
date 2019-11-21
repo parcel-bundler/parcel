@@ -5,6 +5,8 @@ import {
   bundler,
   run,
   assertBundles,
+  ncp,
+  overlayFS,
   removeDistDirectory,
   distDir,
   outputFS,
@@ -795,6 +797,40 @@ describe('javascript', function() {
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
     let stats = await outputFS.stat(path.join(distDir, output()));
     assert.equal(stats.size, 9);
+  });
+
+  it('should support importing a URL to a large raw asset', async function() {
+    // 6 megabytes, which exceeds the threshold in summarizeRequest for buffering
+    // entire contents into memory and should stream content instead
+    let assetSizeBytes = 6000000;
+
+    let distDir = '/dist';
+    let fixtureDir = path.join(__dirname, '/integration/import-raw');
+    let inputDir = path.join(__dirname, 'input');
+
+    await ncp(fixtureDir, inputDir);
+    await outputFS.writeFile(
+      path.join(inputDir, 'test.txt'),
+      Buffer.alloc(assetSizeBytes)
+    );
+
+    let b = await bundle(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'test.txt.js']
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
+    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert.equal(stats.size, assetSizeBytes);
   });
 
   it('should minify JS in production mode', async function() {
