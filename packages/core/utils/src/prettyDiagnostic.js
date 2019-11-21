@@ -3,6 +3,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
+import chalk from 'chalk';
 import path from 'path';
 
 export type AnsiDiagnosticResult = {|
@@ -22,7 +23,8 @@ export default function prettyDiagnostic(
     codeFrame,
     hints,
     filePath,
-    language
+    language,
+    skipFormatting
   } = diagnostic;
 
   let result = {
@@ -32,7 +34,8 @@ export default function prettyDiagnostic(
     hints: []
   };
 
-  result.message = mdAnsi(`**${origin}**: ${message}`);
+  result.message =
+    mdAnsi(`**${origin}**: `) + (skipFormatting ? message : mdAnsi(message));
   result.stack = stack || '';
 
   if (codeFrame !== undefined) {
@@ -51,17 +54,17 @@ export default function prettyDiagnostic(
     result.codeframe +=
       typeof filePath !== 'string'
         ? ''
-        : mdAnsi(
-            `__${filePath}:${highlights[0].start.line}:${
+        : chalk.italic(
+            `${filePath}:${highlights[0].start.line}:${
               highlights[0].start.column
-            }__\n`
+            }\n`
           );
     result.codeframe += formattedCodeFrame;
   }
 
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
-      return mdAnsi(h);
+      return skipFormatting ? h : mdAnsi(h);
     });
   }
 
