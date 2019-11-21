@@ -427,6 +427,81 @@ describe('javascript', function() {
     ]);
   });
 
+  for (let workerType of ['webworker', 'serviceworker']) {
+    it(`should split bundles when ${workerType}s use importScripts`, async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          `/integration/worker-import-scripts/index-${workerType}.js`
+        )
+      );
+
+      assertBundles(b, [
+        {
+          name: `index-${workerType}.js`,
+          assets: [`index-${workerType}.js`]
+        },
+        {
+          assets: ['importScripts.js']
+        },
+        {
+          assets: ['imported.js']
+        },
+        {
+          assets: ['imported2.js']
+        }
+      ]);
+
+      let workerBundleFile = path.join(
+        distDir,
+        (await outputFS.readdir(distDir)).find(file =>
+          file.startsWith('importScripts')
+        )
+      );
+      let workerBundleContents = await outputFS.readFile(
+        workerBundleFile,
+        'utf8'
+      );
+
+      assert(
+        workerBundleContents.match(
+          /importScripts\("\/imported\.[0-9a-f]*\.js"\);\nimportScripts\("\/imported\.[0-9a-f]*\.js", "\/imported2\.[0-9a-f]*\.js"\);/
+        )
+      );
+    });
+  }
+
+  it('should not create bundles of external scripts referenced by importScripts', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/index-external.js'
+      )
+    );
+
+    assertBundles(b, [
+      {name: 'index-external.js', assets: ['index-external.js']},
+      {assets: ['external.js']}
+    ]);
+
+    let workerBundleFile = path.join(
+      distDir,
+      (await outputFS.readdir(distDir)).find(file =>
+        file.startsWith('external')
+      )
+    );
+    let workerBundleContents = await outputFS.readFile(
+      workerBundleFile,
+      'utf8'
+    );
+
+    assert(
+      workerBundleContents.includes(
+        'importScripts("https://unpkg.com/parcel");'
+      )
+    );
+  });
+
   it('should support bundling service-workers', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/service-worker/a/index.js')
