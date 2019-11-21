@@ -54,7 +54,7 @@ export default function prettyDiagnostic(
     result.codeframe +=
       typeof filePath !== 'string'
         ? ''
-        : chalk.italic(
+        : chalk.underline(
             `${filePath}:${highlights[0].start.line}:${
               highlights[0].start.column
             }\n`
