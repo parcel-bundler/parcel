@@ -102,7 +102,7 @@ export default new Transformer({
 
     const ast = nullthrows(asset.ast);
 
-    let res = await posthtml(config.plugins).process(
+    let res = await posthtml(config.fullyLoaded.plugins).process(
       ast.program,
       config.fullyLoaded,
     );
