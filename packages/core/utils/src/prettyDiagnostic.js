@@ -64,7 +64,7 @@ export default function prettyDiagnostic(
 
   if (Array.isArray(hints) && hints.length) {
     result.hints = hints.map(h => {
-      return skipFormatting ? h : mdAnsi(h);
+      return mdAnsi(h);
     });
   }
 
