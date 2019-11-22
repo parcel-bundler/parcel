@@ -13,6 +13,7 @@ import type {Config, ParcelOptions} from '../types';
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
 
 import Environment from './Environment';
+import path from 'path';
 
 const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,
@@ -112,10 +113,16 @@ export default class PublicConfig implements IConfig {
     }
 
     if (!options || !options.exclude) {
+      let filePath = conf.files[0].filePath;
       if (this.#config.resolvedPath == null) {
-        this.setResolvedPath(conf.files[0].filePath);
+        this.setResolvedPath(filePath);
       } else {
-        this.addIncludedFile(conf.files[0].filePath);
+        this.addIncludedFile(filePath);
+      }
+
+      if (typeof filePath === 'string' && path.extname(filePath) === '.js') {
+        // TODO: figure out how to log from here about using a static file
+        this.shouldInvalidateOnStartup();
       }
     }
 
