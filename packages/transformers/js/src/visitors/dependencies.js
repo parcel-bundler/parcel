@@ -4,7 +4,7 @@ import type {MutableAsset, PluginOptions} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
-import {isURL} from '@parcel/utils';
+import {isURL, createDependencyLocation} from '@parcel/utils';
 import {hasBinding} from './utils';
 import invariant from 'assert';
 
@@ -170,27 +170,6 @@ function evaluateExpression(node) {
   return res;
 }
 
-// Maybe make this more general and move into @parcel/utils?
-function babelLocationToDependencyLocation(
-  start: {|
-    line: number,
-    column: number
-  |},
-  moduleSpecifier: string
-) {
-  return {
-    filePath: moduleSpecifier,
-    start: {
-      line: start.line + 1,
-      column: start.column + 1
-    },
-    end: {
-      line: start.line + 1,
-      column: start.column + moduleSpecifier.length + 3
-    }
-  };
-}
-
 function addDependency(
   asset,
   node,
@@ -210,8 +189,7 @@ function addDependency(
 
   asset.addDependency({
     moduleSpecifier: node.value,
-    loc:
-      node.loc && babelLocationToDependencyLocation(node.loc.start, node.value),
+    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 1, 1),
     isAsync: opts ? opts.isAsync : false,
     isOptional: opts ? opts.isOptional : false
   });
@@ -219,8 +197,7 @@ function addDependency(
 
 function addURLDependency(asset, node, opts = {}) {
   node.value = asset.addURLDependency(node.value, {
-    loc:
-      node.loc && babelLocationToDependencyLocation(node.loc.start, node.value),
+    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 1, 1),
     ...opts
   });
   invariant(asset.ast);

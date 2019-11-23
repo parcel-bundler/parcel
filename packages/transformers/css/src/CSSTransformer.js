@@ -3,6 +3,7 @@
 import type {FilePath} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
+import {createDependencyLocation} from '@parcel/utils';
 import postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
@@ -13,24 +14,6 @@ const PROTOCOL_RE = /^[a-z]+:/;
 
 function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
-}
-
-// TODO: ensure this is 1-indexed...
-function postCSSLocationToDependencyLocation(
-  start: {|
-    line: number,
-    column: number
-  |},
-  moduleSpecifier: string
-) {
-  return {
-    filePath: moduleSpecifier,
-    start: start,
-    end: {
-      line: start.line,
-      column: start.column + moduleSpecifier.length
-    }
-  };
 }
 
 export default new Transformer({
@@ -106,10 +89,7 @@ export default new Transformer({
       media = valueParser.stringify(media).trim();
       let dep = {
         moduleSpecifier,
-        loc: postCSSLocationToDependencyLocation(
-          rule.source.start,
-          moduleSpecifier
-        ),
+        loc: createDependencyLocation(rule.source.start, moduleSpecifier),
         meta: {
           media
         }
@@ -133,7 +113,7 @@ export default new Transformer({
             node.nodes.length
           ) {
             node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
-              loc: postCSSLocationToDependencyLocation(
+              loc: createDependencyLocation(
                 decl.source.start,
                 node.nodes[0].value
               )
