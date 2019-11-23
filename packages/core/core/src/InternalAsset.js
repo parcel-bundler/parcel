@@ -127,7 +127,9 @@ export default class InternalAsset {
     if (
       // $FlowFixMe
       typeof contentStream.bytesRead === 'number' &&
-      contentStream.bytesRead > 0
+      // If the amount of data read from this stream so far isn't exactly the amount
+      // of data that is available to be read, then it has been read from.
+      contentStream.bytesRead !== contentStream.readableLength
     ) {
       throw new Error(
         'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.'
