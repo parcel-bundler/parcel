@@ -36,12 +36,6 @@ export default class ResolverRunner {
     };
 
     if (dependency.loc && dependency.sourcePath) {
-      // Dependency loc is 0 based?
-      // Maybe it should be 1 based like codeframes?
-      // Maybe we should also not allow {column, line} in loc and just {start: Location, end: Location}?
-      let start = dependency.loc.start ? dependency.loc.start : dependency.loc;
-      let end = dependency.loc.end ? dependency.loc.end : dependency.loc;
-
       diagnostic.filePath = dependency.sourcePath;
       diagnostic.codeFrame = {
         code: await this.options.inputFS.readFile(
@@ -49,18 +43,7 @@ export default class ResolverRunner {
           'utf8'
         ),
         codeHighlights: dependency.loc
-          ? [
-              {
-                start: {
-                  line: start.line + 1,
-                  column: start.column + 1
-                },
-                end: {
-                  line: end.line + 1,
-                  column: end.column + 1
-                }
-              }
-            ]
+          ? [{start: dependency.loc.start, end: dependency.loc.end}]
           : []
       };
     }

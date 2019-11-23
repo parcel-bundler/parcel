@@ -15,6 +15,24 @@ function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
+// TODO: ensure this is 1-indexed...
+function postCSSLocationToDependencyLocation(
+  start: {|
+    line: number,
+    column: number
+  |},
+  moduleSpecifier: string
+) {
+  return {
+    filePath: moduleSpecifier,
+    start: start,
+    end: {
+      line: start.line,
+      column: start.column + moduleSpecifier.length
+    }
+  };
+}
+
 export default new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
@@ -88,7 +106,10 @@ export default new Transformer({
       media = valueParser.stringify(media).trim();
       let dep = {
         moduleSpecifier,
-        loc: rule.source.start,
+        loc: postCSSLocationToDependencyLocation(
+          rule.source.start,
+          moduleSpecifier
+        ),
         meta: {
           media
         }
@@ -112,7 +133,10 @@ export default new Transformer({
             node.nodes.length
           ) {
             node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
-              loc: decl.source.start
+              loc: postCSSLocationToDependencyLocation(
+                decl.source.start,
+                node.nodes[0].value
+              )
             });
             isDirty = true;
           }

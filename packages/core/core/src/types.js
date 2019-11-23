@@ -55,13 +55,7 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
-  loc: ?(
-    | SourceLocation
-    | {|
-        line: number,
-        column: number
-      |}
-  ),
+  loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
