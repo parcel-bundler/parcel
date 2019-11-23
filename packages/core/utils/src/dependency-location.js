@@ -20,7 +20,8 @@ export default function createDependencyLocation(
       line: start.line + lineOffset,
       column:
         start.column +
-        moduleSpecifier.length +
+        moduleSpecifier.length -
+        1 +
         importWrapperLength +
         columnOffset
     }

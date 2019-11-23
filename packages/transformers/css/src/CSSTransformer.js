@@ -89,7 +89,8 @@ export default new Transformer({
       media = valueParser.stringify(media).trim();
       let dep = {
         moduleSpecifier,
-        loc: createDependencyLocation(rule.source.start, moduleSpecifier),
+        // Offset by 8 as it does not include `@import `
+        loc: createDependencyLocation(rule.source.start, moduleSpecifier, 0, 8),
         meta: {
           media
         }
