@@ -212,28 +212,33 @@ export default class Transformation {
     for (let transformer of pipeline.transformers) {
       resultingAssets = [];
       for (let asset of inputAssets) {
-        // TODO: I think there may be a bug here if the type changes but does not
-        // change pipelines (e.g. .html -> .htm). It should continue on the same
-        // pipeline in that case.
-        if (asset.value.type !== initialType) {
+        if (
+          asset.value.type !== initialType &&
+          (await this.loadNextPipeline({
+            filePath: initialAsset.value.filePath,
+            isSource: asset.value.isSource,
+            nextType: asset.value.type,
+            currentPipeline: pipeline
+          }))
+        ) {
           finalAssets.push(asset);
-        } else {
-          try {
-            let transformerResults = await pipeline.runTransformer(
-              asset,
-              transformer.plugin,
-              transformer.name,
-              transformer.config
-            );
+          continue;
+        }
+        try {
+          let transformerResults = await pipeline.runTransformer(
+            asset,
+            transformer.plugin,
+            transformer.name,
+            transformer.config
+          );
 
-            for (let result of transformerResults) {
-              resultingAssets.push(asset.createChildAsset(result));
-            }
-          } catch (e) {
-            throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, transformer.name)
-            });
+          for (let result of transformerResults) {
+            resultingAssets.push(asset.createChildAsset(result));
           }
+        } catch (e) {
+          throw new ThrowableDiagnostic({
+            diagnostic: errorToDiagnostic(e, transformer.name)
+          });
         }
       }
       inputAssets = resultingAssets;
