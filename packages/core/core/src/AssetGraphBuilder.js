@@ -17,7 +17,7 @@ import type {AssetGraphBuildRequest} from './requests';
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {md5FromObject, md5FromString} from '@parcel/utils';
+import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import RequestTracker, {
   RequestGraph,
@@ -42,11 +42,10 @@ type Opts = {|
   workerFarm: WorkerFarm
 |};
 
-const requestPriority: $ReadOnlyArray<string> = [
-  'entry_request',
-  'target_request',
-  'dep_path_request',
-  'asset_request'
+const requestPriorities: $ReadOnlyArray<$ReadOnlyArray<string>> = [
+  ['entry_request'],
+  ['target_request'],
+  ['dep_path_request', 'asset_request']
 ];
 
 export default class AssetGraphBuilder extends EventEmitter {
@@ -59,6 +58,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   assetRequestRunner: AssetRequestRunner;
   assetRequests: Array<AssetRequestDesc>;
   runValidate: ValidationOpts => Promise<void>;
+  queue: PromiseQueue<mixed>;
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
@@ -87,6 +87,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       entries
     });
 
+    this.queue = new PromiseQueue();
+
     this.runValidate = workerFarm.createHandle('runValidate');
     this.handle = workerFarm.createReverseHandle(() => {
       // Do nothing, this is here because there is a bug in `@parcel/workers`
@@ -99,7 +101,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     this.assetGraph.initOptions({
-      onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node)
+      onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
+      onIncompleteNode: node => this.handleIncompleteNode(node)
     });
 
     let assetGraph = this.assetGraph;
@@ -147,37 +150,38 @@ export default class AssetGraphBuilder extends EventEmitter {
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>
   |}> {
-    // TODO: optimize prioritized running of invalid nodes
-    let i = 0;
+    let lastQueueError;
+    for (let currPriorities of requestPriorities) {
+      if (!this.requestTracker.hasInvalidRequests()) {
+        break;
+      }
 
-    while (
-      this.requestTracker.hasInvalidRequests() &&
-      i < requestPriority.length
-    ) {
-      let currPriority = requestPriority[i++];
       let promises = [];
       for (let request of this.requestTracker.getInvalidRequests()) {
         // $FlowFixMe
         let assetGraphBuildRequest: AssetGraphBuildRequest = (request: any);
-        if (request.type === currPriority) {
+        if (currPriorities.includes(request.type)) {
           promises.push(this.runRequest(assetGraphBuildRequest, {signal}));
         }
       }
       await Promise.all(promises);
+      if (lastQueueError) {
+        throw lastQueueError;
+      }
+      this.queue.run().catch(e => {
+        lastQueueError = e;
+      });
     }
 
-    while (this.assetGraph.hasIncompleteNodes()) {
-      let promises = [];
+    if (this.assetGraph.hasIncompleteNodes()) {
       for (let id of this.assetGraph.incompleteNodeIds) {
-        promises.push(
-          this.processIncompleteAssetGraphNode(
-            nullthrows(this.assetGraph.getNode(id)),
-            signal
-          )
+        this.processIncompleteAssetGraphNode(
+          nullthrows(this.assetGraph.getNode(id)),
+          signal
         );
       }
 
-      await Promise.all(promises);
+      await this.queue.run();
     }
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
@@ -260,9 +264,21 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   processIncompleteAssetGraphNode(node: AssetGraphNode, signal: ?AbortSignal) {
     let request = nullthrows(this.getCorrespondingRequest(node));
-    return this.runRequest(request, {
-      signal
-    });
+    if (!this.requestTracker.isTracked(request.id)) {
+      this.queue
+        .add(() =>
+          this.runRequest(request, {
+            signal
+          })
+        )
+        .catch(() => {
+          // Do nothing, the individual promise is not being awaited, but the queue is and will throw
+        });
+    }
+  }
+
+  handleIncompleteNode(node: AssetGraphNode) {
+    this.processIncompleteAssetGraphNode(node);
   }
 
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
