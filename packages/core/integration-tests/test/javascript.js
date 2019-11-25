@@ -5,6 +5,8 @@ import {
   bundler,
   run,
   assertBundles,
+  ncp,
+  overlayFS,
   removeDistDirectory,
   distDir,
   outputFS,
@@ -425,6 +427,81 @@ describe('javascript', function() {
     ]);
   });
 
+  for (let workerType of ['webworker', 'serviceworker']) {
+    it(`should split bundles when ${workerType}s use importScripts`, async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          `/integration/worker-import-scripts/index-${workerType}.js`
+        )
+      );
+
+      assertBundles(b, [
+        {
+          name: `index-${workerType}.js`,
+          assets: [`index-${workerType}.js`]
+        },
+        {
+          assets: ['importScripts.js']
+        },
+        {
+          assets: ['imported.js']
+        },
+        {
+          assets: ['imported2.js']
+        }
+      ]);
+
+      let workerBundleFile = path.join(
+        distDir,
+        (await outputFS.readdir(distDir)).find(file =>
+          file.startsWith('importScripts')
+        )
+      );
+      let workerBundleContents = await outputFS.readFile(
+        workerBundleFile,
+        'utf8'
+      );
+
+      assert(
+        workerBundleContents.match(
+          /importScripts\("\/imported\.[0-9a-f]*\.js"\);\nimportScripts\("\/imported\.[0-9a-f]*\.js", "\/imported2\.[0-9a-f]*\.js"\);/
+        )
+      );
+    });
+  }
+
+  it('should not create bundles of external scripts referenced by importScripts', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/worker-import-scripts/index-external.js'
+      )
+    );
+
+    assertBundles(b, [
+      {name: 'index-external.js', assets: ['index-external.js']},
+      {assets: ['external.js']}
+    ]);
+
+    let workerBundleFile = path.join(
+      distDir,
+      (await outputFS.readdir(distDir)).find(file =>
+        file.startsWith('external')
+      )
+    );
+    let workerBundleContents = await outputFS.readFile(
+      workerBundleFile,
+      'utf8'
+    );
+
+    assert(
+      workerBundleContents.includes(
+        'importScripts("https://unpkg.com/parcel");'
+      )
+    );
+  });
+
   it('should support bundling service-workers', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/service-worker/a/index.js')
@@ -795,6 +872,40 @@ describe('javascript', function() {
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
     let stats = await outputFS.stat(path.join(distDir, output()));
     assert.equal(stats.size, 9);
+  });
+
+  it('should support importing a URL to a large raw asset', async function() {
+    // 6 megabytes, which exceeds the threshold in summarizeRequest for buffering
+    // entire contents into memory and should stream content instead
+    let assetSizeBytes = 6000000;
+
+    let distDir = '/dist';
+    let fixtureDir = path.join(__dirname, '/integration/import-raw');
+    let inputDir = path.join(__dirname, 'input');
+
+    await ncp(fixtureDir, inputDir);
+    await outputFS.writeFile(
+      path.join(inputDir, 'test.txt'),
+      Buffer.alloc(assetSizeBytes)
+    );
+
+    let b = await bundle(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'test.txt.js']
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
+    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert.equal(stats.size, assetSizeBytes);
   });
 
   it('should minify JS in production mode', async function() {
@@ -1691,5 +1802,59 @@ describe('javascript', function() {
     );
 
     assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
+  });
+
+  it('should detect typescript style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts.js',
+        assets: ['ts.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
+
+  it('should detect rollup style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/rollup.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rollup.js',
+        assets: ['rollup.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
+
+  it('should detect parcel style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/parcel.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'parcel.js',
+        assets: ['parcel.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
   });
 });
