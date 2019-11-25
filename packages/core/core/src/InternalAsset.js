@@ -60,7 +60,8 @@ type AssetOptions = {|
   symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
-  plugin?: PackageName
+  plugin?: PackageName,
+  configPath?: FilePath
 |};
 
 export function createAsset(options: AssetOptions): Asset {
@@ -92,7 +93,8 @@ export function createAsset(options: AssetOptions): Asset {
     symbols: options.symbols || new Map(),
     sideEffects: options.sideEffects != null ? options.sideEffects : true,
     uniqueKey: uniqueKey,
-    plugin: options.plugin
+    plugin: options.plugin,
+    configPath: options.configPath
   };
 }
 
@@ -201,12 +203,11 @@ export default class InternalAsset {
       throw new Error('Asset has no AST');
     }
 
-    // TODO: where should we really load relative to??
     let pluginName = nullthrows(this.value.plugin);
     let plugin: Transformer = await loadPlugin(
       this.options.packageManager,
       pluginName,
-      __dirname
+      nullthrows(this.value.configPath)
     );
     if (!plugin.generate) {
       throw new Error(`${pluginName} does not have a generate method`);
@@ -380,7 +381,8 @@ export default class InternalAsset {
 
   createChildAsset(
     result: TransformerResult,
-    plugin: PackageName
+    plugin: PackageName,
+    configPath: FilePath
   ): InternalAsset {
     let content = result.content ?? result.code ?? null;
 
@@ -417,7 +419,8 @@ export default class InternalAsset {
         astGenerator: result.ast
           ? {type: result.ast.type, version: result.ast.version}
           : null,
-        plugin
+        plugin,
+        configPath
       }),
       options: this.options,
       content,

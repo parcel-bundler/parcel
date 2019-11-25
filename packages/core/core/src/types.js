@@ -87,6 +87,7 @@ export type Asset = {|
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
   uniqueKey?: ?string,
+  configPath?: FilePath,
   plugin?: ?PackageName
 |};
 

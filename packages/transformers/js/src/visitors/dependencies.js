@@ -84,14 +84,12 @@ export default ({
     }
 
     let isImportScripts =
-      (asset.env.context === 'web-worker' ||
-        asset.env.context === 'service-worker') &&
-      callee.name === 'importScripts';
+      asset.env.isWorker() && callee.name === 'importScripts';
 
     if (isImportScripts) {
       for (let arg of args) {
         if (types.isStringLiteral(arg)) {
-          addURLDependency(asset, arg);
+          addURLDependency(asset, ast, arg);
         }
       }
       return;

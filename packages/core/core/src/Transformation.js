@@ -373,6 +373,7 @@ class Pipeline {
   configs: ConfigMap;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
+  parcelConfig: ParcelConfig;
   resolverRunner: ResolverRunner;
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
@@ -388,12 +389,12 @@ class Pipeline {
     }));
     this.configs = configs;
     this.options = options;
-    let parcelConfig = new ParcelConfig(
+    this.parcelConfig = new ParcelConfig(
       nullthrows(nullthrows(this.configs.get('parcel')).result),
       this.options.packageManager
     );
     this.resolverRunner = new ResolverRunner({
-      config: parcelConfig,
+      config: this.parcelConfig,
       options
     });
 
@@ -425,7 +426,11 @@ class Pipeline {
 
             for (let result of transformerResults) {
               resultingAssets.push(
-                asset.createChildAsset(result, transformer.name)
+                asset.createChildAsset(
+                  result,
+                  transformer.name,
+                  this.parcelConfig.filePath
+                )
               );
             }
           } catch (e) {
@@ -553,7 +558,13 @@ class Pipeline {
         });
 
         return Promise.all(
-          results.map(result => asset.createChildAsset(result, transformerName))
+          results.map(result =>
+            asset.createChildAsset(
+              result,
+              transformerName,
+              this.parcelConfig.filePath
+            )
+          )
         );
       };
     }
