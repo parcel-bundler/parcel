@@ -53,6 +53,7 @@ export default class Profiler {
         this.sendCommand('Profiler.start')
       ]);
     } catch (err) {
+      /* eslint-disable no-console */
       console.error('Profiling not available', err);
     }
   }
