@@ -39,17 +39,22 @@ type PositionTickInfo = {|
 export default class Profiler {
   session: Session;
 
-  startProfiling() {
-    this.session = new Session();
-    this.session.connect();
+  async startProfiling() {
+    try {
+      const inspector: any = await require('inspector');
+      this.session = new inspector.Session();
+      this.session.connect();
 
-    return Promise.all([
-      this.sendCommand('Profiler.setSamplingInterval', {
-        interval: 100
-      }),
-      this.sendCommand('Profiler.enable'),
-      this.sendCommand('Profiler.start')
-    ]);
+      return Promise.all([
+        this.sendCommand('Profiler.setSamplingInterval', {
+          interval: 100
+        }),
+        this.sendCommand('Profiler.enable'),
+        this.sendCommand('Profiler.start')
+      ]);
+    } catch (err) {
+      console.error('Profiling not available', err);
+    }
   }
 
   sendCommand(method: string, params: mixed): Promise<{profile: Profile, ...}> {
