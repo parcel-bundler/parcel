@@ -14,6 +14,7 @@ import {assertSignalNotAborted} from './utils';
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode, RequestGraphEdgeType>,
   invalidNodeIds: Set<NodeId>,
+  incompleteNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>
 |};
@@ -73,6 +74,7 @@ export class RequestGraph extends Graph<
   static deserialize(opts: SerializedRequestGraph) {
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
+    deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe
@@ -84,6 +86,7 @@ export class RequestGraph extends Graph<
     return {
       ...super.serialize(),
       invalidNodeIds: this.invalidNodeIds,
+      incompleteNodeIds: this.incompleteNodeIds,
       globNodeIds: this.globNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds
     };
@@ -126,9 +129,8 @@ export class RequestGraph extends Graph<
   }
 
   completeRequest(request: Request) {
-    let requestNode = this.getRequestNode(request.id);
-    this.invalidNodeIds.delete(requestNode.id);
-    this.incompleteNodeIds.delete(requestNode.id);
+    this.invalidNodeIds.delete(request.id);
+    this.incompleteNodeIds.delete(request.id);
   }
 
   replaceSubrequests(
@@ -289,12 +291,20 @@ export default class RequestTracker {
       return;
     }
 
+    this.graph.incompleteNodeIds.add(request.id);
     let node = nodeFromRequest(request);
     this.graph.addNode(node);
   }
 
   untrackRequest(id: string) {
     this.graph.removeById(id);
+  }
+
+  hasValidResult(id: string) {
+    return (
+      !this.graph.invalidNodeIds.has(id) &&
+      !this.graph.incompleteNodeIds.has(id)
+    );
   }
 
   getRequestResult(id: string) {
@@ -374,10 +384,10 @@ export class RequestRunner<TRequest, TResult> {
     let api = this.createAPI(id);
 
     this.tracker.trackRequest(request);
-    let result: TResult =
-      // $FlowFixMe
-      (this.tracker.getRequestResult(id): any) ||
-      (await this.run(requestDesc, api));
+    let result: TResult = this.tracker.hasValidResult(id)
+      ? // $FlowFixMe
+        (this.tracker.getRequestResult(id): any)
+      : await this.run(requestDesc, api);
     assertSignalNotAborted(signal);
     // Request may have been removed by a parent request
     if (!this.tracker.isTracked(id)) {
@@ -391,16 +401,17 @@ export class RequestRunner<TRequest, TResult> {
 
   // unused vars are used for types
   // eslint-disable-next-line no-unused-vars
-  run(request: TRequest, api: RequestRunnerAPI) {
+  run(request: TRequest, api: RequestRunnerAPI): Promise<TResult> {
     throw new Error(
-      `RequestRunner for type ${this.type} did not implement a run()`
+      `RequestRunner for type ${this.type} did not implement run()`
     );
   }
 
+  // unused vars are used for types
   // eslint-disable-next-line no-unused-vars
   onComplete(request: TRequest, result: TResult, api: RequestRunnerAPI) {
     throw new Error(
-      `RequestRunner for type ${this.type} did not implement a onComplete()`
+      `RequestRunner for type ${this.type} did not implement onComplete()`
     );
   }
 

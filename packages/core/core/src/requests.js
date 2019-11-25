@@ -52,11 +52,12 @@ type AssetRequest = {|
   result?: AssetRequestResult
 |};
 
+type DependencyResult = AssetRequestDesc | null | void;
 type DepPathRequest = {|
   id: string,
   +type: 'dep_path_request',
   request: Dependency,
-  result?: AssetRequestDesc
+  result?: DependencyResult
 |};
 
 export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
@@ -262,7 +263,7 @@ const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
 
 export class DepPathRequestRunner extends RequestRunner<
   Dependency,
-  AssetRequestDesc
+  DependencyResult
 > {
   resolverRunner: ResolverRunner;
   assetGraph: AssetGraph;
@@ -289,7 +290,7 @@ export class DepPathRequestRunner extends RequestRunner<
 
   onComplete(
     request: Dependency,
-    result: AssetRequestDesc,
+    result: DependencyResult,
     api: RequestRunnerAPI
   ) {
     let dependency = request;
@@ -324,7 +325,7 @@ export class DepPathRequestRunner extends RequestRunner<
             !this.shouldDeferDependency(parent.value, node.value.sideEffects)
           ) {
             node.deferred = false;
-            this.assetGraph.incompleteNodeIds.add(node.id);
+            this.assetGraph.markIncomplete(node);
           }
 
           actions.skipChildren();
@@ -335,7 +336,7 @@ export class DepPathRequestRunner extends RequestRunner<
     }
 
     // ? Should this happen if asset is deferred?
-    api.invalidateOnFileDelete(result.filePath);
+    api.invalidateOnFileDelete(assetGroup.filePath);
 
     // TODO: invalidate dep path requests that have failed and a file creation may fulfill the request
   }
