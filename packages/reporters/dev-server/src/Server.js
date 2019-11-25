@@ -1,20 +1,17 @@
 // @flow
+
 import type {Request, Response, DevServerOptions} from './types.js.flow';
 import type {BundleGraph, FilePath} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Server as HTTPServer} from 'http';
-import type {Server as HTTPSServer} from 'https';
 import type {FileSystem} from '@parcel/fs';
 
+import invariant from 'assert';
 import EventEmitter from 'events';
 import path from 'path';
-import http from 'http';
-import https from 'https';
 import url from 'url';
 import {
   loadConfig,
-  generateCertificate,
-  getCertificate,
+  createHTTPServer,
   prettyDiagnostic,
   ansiHtml
 } from '@parcel/utils';
@@ -60,7 +57,7 @@ export default class Server extends EventEmitter {
     stack: string,
     hints: Array<string>
   |}> | null;
-  server: HTTPServer | HTTPSServer;
+  stopServer: ?() => Promise<void>;
 
   constructor(options: DevServerOptions) {
     super();
@@ -335,45 +332,33 @@ export default class Server extends EventEmitter {
     await this.applyProxyTable(app);
     app.use(finalHandler);
 
-    if (!this.options.https) {
-      this.server = http.createServer(app);
-    } else if (typeof this.options.https === 'boolean') {
-      this.server = https.createServer(
-        await generateCertificate(this.options.outputFS, this.options.cacheDir),
-        app
-      );
-    } else {
-      this.server = https.createServer(
-        await getCertificate(this.options.inputFS, this.options.https),
-        app
-      );
-    }
+    let {server, stop} = await createHTTPServer({
+      cacheDir: this.options.cacheDir,
+      https: this.options.https,
+      inputFS: this.options.inputFS,
+      listener: app,
+      outputFS: this.options.outputFS
+    });
+    this.stopServer = stop;
 
-    this.server.listen(this.options.port, this.options.host);
-
+    server.listen(this.options.port, this.options.host);
     return new Promise((resolve, reject) => {
-      this.server.once('error', err => {
+      server.once('error', err => {
         this.options.logger.error({
           message: serverErrors(err, this.options.port)
         });
         reject(err);
       });
 
-      this.server.once('listening', () => {
-        resolve(this.server);
+      server.once('listening', () => {
+        resolve(server);
       });
     });
   }
 
-  stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.server.close(err => {
-        if (err != null) {
-          reject(err);
-          return;
-        }
-        resolve();
-      });
-    });
+  async stop(): Promise<void> {
+    invariant(this.stopServer != null);
+    await this.stopServer();
+    this.stopServer = null;
   }
 }

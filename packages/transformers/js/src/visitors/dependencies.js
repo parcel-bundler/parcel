@@ -67,7 +67,7 @@ export default ({
       return;
     }
 
-    const isRegisterServiceWorker =
+    let isRegisterServiceWorker =
       types.isStringLiteral(args[0]) &&
       types.matchesPattern(callee, serviceWorkerPattern) &&
       !hasBinding(ancestors, 'navigator') &&
@@ -80,6 +80,20 @@ export default ({
         isEntry: true,
         env: {context: 'service-worker'}
       });
+      return;
+    }
+
+    let isImportScripts =
+      (asset.env.context === 'web-worker' ||
+        asset.env.context === 'service-worker') &&
+      callee.name === 'importScripts';
+
+    if (isImportScripts) {
+      for (let arg of args) {
+        if (types.isStringLiteral(arg)) {
+          addURLDependency(asset, arg);
+        }
+      }
       return;
     }
   },

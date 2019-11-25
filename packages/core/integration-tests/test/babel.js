@@ -11,6 +11,7 @@ import {
   distDir,
   sleep
 } from '@parcel/test-utils';
+import Logger from '@parcel/logger';
 import os from 'os';
 import {spawnSync} from 'child_process';
 import {symlinkSync} from 'fs';
@@ -86,11 +87,30 @@ describe('babel', function() {
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
-    await bundle(path.join(__dirname, '/integration/babel-custom/index.js'));
+    await bundle(path.join(__dirname, '/integration/babelrc-custom/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!file.includes('REPLACE_ME'));
     assert(file.includes('hello there'));
+  });
+
+  it('should support compiling with babel using babel.config.json config without warnings', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    await bundle(
+      path.join(__dirname, '/integration/babel-config-json-custom/index.js'),
+      {
+        logLevel: 'verbose'
+      }
+    );
+    loggerDisposable.dispose();
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('hello there'));
+    assert.deepEqual(messages, []);
   });
 
   it('should compile with babel with default engines if no config', async function() {
@@ -350,7 +370,7 @@ describe('babel', function() {
     let tmpDir = tempy.directory();
     let distDir = path.join(tmpDir, 'dist');
     await fs.ncp(
-      path.join(__dirname, '/integration/babel-custom'),
+      path.join(__dirname, '/integration/babelrc-custom'),
       path.join(tmpDir, '/input')
     );
     await bundle(path.join(tmpDir, '/input/index.js'), {
@@ -378,7 +398,10 @@ describe('babel', function() {
       let differentPath = path.join(inputDir, 'differentConfig');
       let configPath = path.join(inputDir, '.babelrc');
 
-      await fs.ncp(path.join(__dirname, 'integration/babel-custom'), inputDir);
+      await fs.ncp(
+        path.join(__dirname, 'integration/babelrc-custom'),
+        inputDir
+      );
 
       let b = bundler(path.join(inputDir, 'index.js'), {
         outputFS: fs
