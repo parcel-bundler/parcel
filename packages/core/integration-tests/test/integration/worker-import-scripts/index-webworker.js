@@ -1,0 +1,1 @@
+new Worker('importScripts.js');
