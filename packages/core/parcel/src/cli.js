@@ -194,8 +194,7 @@ async function run(entries: Array<string>, command: any) {
       }
     });
 
-    command.target = command.target.length > 0 ? command.target : 'browser';
-    if (command.open && command.target === 'browser') {
+    if (command.open && command.name() === 'serve') {
       const port = command.port || process.env.PORT || 1234;
       await openInBrowser(
         `${command.https ? 'https' : 'http'}://${command.host ||
