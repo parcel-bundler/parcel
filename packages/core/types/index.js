@@ -701,6 +701,7 @@ export type Resolver = {|
 export type ProgressLogEvent = {|
   +type: 'log',
   +level: 'progress',
+  +phase?: string,
   +message: string
 |};
 

@@ -15,7 +15,7 @@ import {Log, Progress, ServerInfo} from './Log';
 import BundleReport from './BundleReport';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
-import {prettifyTime} from '@parcel/utils';
+import {prettifyTime, throttle} from '@parcel/utils';
 
 type Props = {|
   events: ValueEmitter<ReporterEvent>,
@@ -40,7 +40,20 @@ export default function UI({events, options}: Props) {
     defaultState
   );
 
-  useLayoutEffect(() => events.addListener(dispatch).dispose, [events]);
+  useLayoutEffect(() => {
+    const throttledDispatch = throttle(dispatch, 100);
+    const enhancedDispatch = event => {
+      if (
+        event.type === 'buildProgress' &&
+        event.phase === state.progress?.phase
+      ) {
+        throttledDispatch(event);
+      } else {
+        dispatch(event);
+      }
+    };
+    return events.addListener(enhancedDispatch).dispose;
+  }, [events, state.progress?.phase]);
 
   let {logs, progress, bundleGraph} = state;
   return (
@@ -89,6 +102,7 @@ function reducer(
         progress = {
           type: 'log',
           level: 'progress',
+          phase: event.phase,
           message
         };
       }
