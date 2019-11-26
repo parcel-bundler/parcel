@@ -1269,17 +1269,23 @@ describe('javascript', function() {
   });
 
   it('should minify JSON files', async function() {
-    await bundle(path.join(__dirname, '/integration/uglify-json/index.json'), {
-      minify: true,
-      scopeHoist: false
-    });
+    let b = await bundle(
+      path.join(__dirname, '/integration/uglify-json/index.json'),
+      {
+        minify: true,
+        scopeHoist: false
+      }
+    );
 
     let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(json.includes('{test:"test"}'));
+    assert(json.includes('{"test":"test"}'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {test: 'test'});
   });
 
   it('should minify JSON5 files', async function() {
-    await bundle(
+    let b = await bundle(
       path.join(__dirname, '/integration/uglify-json5/index.json5'),
       {
         minify: true,
@@ -1288,7 +1294,10 @@ describe('javascript', function() {
     );
 
     let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(json.includes('{test:"test"}'));
+    assert(json.includes('{"test":"test"}'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {test: 'test'});
   });
 
   it.skip('should minify YAML for production', async function() {
