@@ -1812,4 +1812,58 @@ describe('javascript', function() {
 
     assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
   });
+
+  it('should detect typescript style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts.js',
+        assets: ['ts.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
+
+  it('should detect rollup style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/rollup.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rollup.js',
+        assets: ['rollup.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
+
+  it('should detect parcel style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/parcel.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'parcel.js',
+        assets: ['parcel.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
 });

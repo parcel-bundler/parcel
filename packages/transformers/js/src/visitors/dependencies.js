@@ -46,7 +46,8 @@ export default ({
     if (isRequire) {
       let isOptional =
         ancestors.some(a => types.isTryStatement(a)) || undefined;
-      addDependency(asset, args[0], {isOptional});
+      let isAsync = isRequireAsync(ancestors, node);
+      addDependency(asset, args[0], {isOptional, isAsync});
       return;
     }
 
@@ -170,23 +171,73 @@ function evaluateExpression(node) {
   return res;
 }
 
+// TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
+//   1. TypeScript - Promise.resolve().then(function () { return require(...) })
+//   2. Rollup - new Promise(function (resolve) { resolve(require(...)) })
+//   3. Parcel - Promise.resolve(require(...))
+function isRequireAsync(ancestors, requireNode) {
+  let parent = ancestors[ancestors.length - 2];
+
+  // Promise.resolve().then(() => require('foo'))
+  // Promise.resolve().then(() => { return require('foo') })
+  // Promise.resolve().then(function () { return require('foo') })
+  let functionParent = getFunctionParent(ancestors);
+  if (
+    functionParent &&
+    types.isCallExpression(functionParent) &&
+    types.isMemberExpression(functionParent.callee) &&
+    functionParent.callee.property.name === 'then' &&
+    isPromiseResolve(functionParent.callee.object)
+  ) {
+    return true;
+  }
+
+  // Promise.resolve(require('foo'))
+  if (isPromiseResolve(parent) && parent.arguments[0] === requireNode) {
+    return true;
+  }
+
+  // new Promise(resolve => resolve(require('foo')))
+  // new Promise(resolve => { resolve(require('foo')) })
+  // new Promise(function (resolve) { resolve(require('foo')) })
+  if (
+    functionParent &&
+    types.isCallExpression(parent) &&
+    types.isIdentifier(parent.callee) &&
+    types.isNewExpression(functionParent) &&
+    types.isIdentifier(functionParent.callee) &&
+    functionParent.callee.name === 'Promise' &&
+    types.isFunction(functionParent.arguments[0]) &&
+    types.isIdentifier(functionParent.arguments[0].params[0]) &&
+    parent.callee.name === functionParent.arguments[0].params[0].name
+  ) {
+    return true;
+  }
+}
+
+function isPromiseResolve(node) {
+  return (
+    types.isCallExpression(node) &&
+    types.isMemberExpression(node.callee) &&
+    types.isIdentifier(node.callee.object) &&
+    node.callee.object.name === 'Promise' &&
+    node.callee.property.name === 'resolve'
+  );
+}
+
+function getFunctionParent(ancestors) {
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    if (types.isFunction(ancestors[i])) {
+      return ancestors[i - 1];
+    }
+  }
+}
+
 function addDependency(
   asset,
   node,
   opts: ?{|isAsync?: boolean, isOptional?: boolean|}
 ) {
-  // If this came from an inline <script> tag, throw an error.
-  // TODO: run JSPackager on inline script tags.
-  // let inlineHTML =
-  //   asset.options.rendition && asset.options.rendition.inlineHTML;
-  // if (inlineHTML) {
-  //   let err = new Error(
-  //     'Imports and requires are not supported inside inline <script> tags yet.'
-  //   );
-  //   err.loc = node.loc && node.loc.start;
-  //   throw err;
-  // }
-
   asset.addDependency({
     moduleSpecifier: node.value,
     loc: node.loc && node.loc.start,
