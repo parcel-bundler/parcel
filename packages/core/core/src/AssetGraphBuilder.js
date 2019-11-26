@@ -124,7 +124,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       tracker,
       options,
       workerFarm,
-      assetGraph
+      assetGraph,
+      config
     });
     this.depPathRequestRunner = new DepPathRequestRunner({
       tracker,

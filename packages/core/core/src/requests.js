@@ -145,13 +145,15 @@ export class AssetRequestRunner extends RequestRunner<
     tracker: RequestTracker,
     options: ParcelOptions,
     workerFarm: WorkerFarm,
-    assetGraph: AssetGraph
+    assetGraph: AssetGraph,
+    config: ParcelConfig
   |}) {
     super(opts);
     this.type = 'asset_request';
     this.options = opts.options;
     this.runTransform = opts.workerFarm.createHandle('runTransform');
     this.assetGraph = opts.assetGraph;
+    this.config = opts.config;
   }
 
   async run(request: AssetRequestDesc, api: RequestRunnerAPI) {
@@ -159,7 +161,8 @@ export class AssetRequestRunner extends RequestRunner<
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,
-      options: this.options
+      options: this.options,
+      config: this.config
     });
 
     let time = Date.now() - start;

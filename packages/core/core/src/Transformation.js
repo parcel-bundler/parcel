@@ -62,12 +62,13 @@ export default class Transformation {
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
 
-  constructor({request, options, workerApi}: TransformationOpts) {
+  constructor({request, options, config, workerApi}: TransformationOpts) {
     this.request = request;
     this.configRequests = [];
     this.configLoader = new ConfigLoader(options);
     this.options = options;
     this.workerApi = workerApi;
+    this.parcelConfig = config;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {minify, hot, scopeHoist} = this.options;
@@ -258,36 +259,38 @@ export default class Transformation {
     isSource: boolean,
     pipelineName?: ?string
   ): Promise<Pipeline> {
-    let configRequest = {
-      filePath,
-      env: this.request.env,
-      isSource,
-      pipeline: pipelineName,
-      meta: {
-        actionType: 'transformation'
-      }
-    };
+    // let configRequest = {
+    //   filePath,
+    //   env: this.request.env,
+    //   isSource,
+    //   pipeline: pipelineName,
+    //   meta: {
+    //     actionType: 'transformation'
+    //   }
+    // };
     let configs = new Map();
 
-    let config = await this.loadConfig(configRequest);
-    let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(
-      config.result,
-      this.options.packageManager
-    );
-    // A little hacky
-    this.parcelConfig = parcelConfig;
+    //let config = await this.loadConfig(configRequest);
+    // let result = nullthrows(config.result);
+    // let parcelConfig = new ParcelConfig(
+    //   config.result,
+    //   this.options.packageManager
+    // );
+    // // A little hacky
+    // this.parcelConfig = parcelConfig;
 
-    configs.set('parcel', config);
+    configs.set('parcel', {devDeps: new Map(), result: this.parcelConfig});
+    let parcelConfig = this.parcelConfig;
 
-    for (let [moduleName] of config.devDeps) {
+    for (let moduleName of await parcelConfig.getTransformerNames(filePath)) {
       let plugin = await parcelConfig.loadPlugin(moduleName);
       // TODO: implement loadPlugin in existing plugins that require config
       if (plugin.loadConfig) {
         let thirdPartyConfig = await this.loadTransformerConfig({
           filePath,
           plugin: moduleName,
-          parcelConfigPath: result.filePath,
+          parcelConfigPath:
+            '/Users/mteegarden/dev/repos/parcel/node_modules/@parcel/config-default/index.json', //result.filePath,
           isSource
         });
 
