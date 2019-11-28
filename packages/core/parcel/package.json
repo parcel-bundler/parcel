@@ -1,6 +1,7 @@
 {
   "name": "parcel",
-  "version": "2.0.0-alpha.3.2",
+  "version": "2.0.0-alpha.3.1",
+  "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -12,6 +13,9 @@
   "bin": "src/bin.js",
   "main": "lib/bin.js",
   "source": "src/bin.js",
+  "engines": {
+    "node": ">= 10.0.0"
+  },
   "dependencies": {
     "@parcel/config-default": "^2.0.0-alpha.3.1",
     "@parcel/core": "^2.0.0-alpha.3.2",
