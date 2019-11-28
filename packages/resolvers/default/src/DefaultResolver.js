@@ -451,20 +451,10 @@ class NodeResolver {
       }
     }
 
-    let mainFields = [pkg.source, browser];
-
-    // If scope hoisting is enabled, we can get smaller builds using esmodule input, so choose `module` over `main`.
-    // Otherwise, we'd be wasting time transforming esmodules to commonjs, so choose `main` over `module`.
-    if (this.options.scopeHoist) {
-      mainFields.push(pkg.module, pkg.main);
-    } else {
-      mainFields.push(pkg.main, pkg.module);
-    }
-
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    return mainFields
+    return [pkg.source, browser, pkg.module, pkg.main]
       .filter(entry => typeof entry === 'string')
       .map(main => {
         // Default to index file if no main field find
