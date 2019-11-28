@@ -1117,32 +1117,37 @@ describe('scope hoisting', function() {
       assert.equal(output.require, 'function');
     });
 
-    it('supports require.resolve calls', async function() {
+    it("doesn't support require.resolve calls", async function() {
+      try {
+        /* let b =  */ await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/commonjs/require-resolve/a.js'
+          )
+        );
+        assert.fail();
+      } catch (e) {
+        assert.equal(
+          e.message,
+          "`require.resolve` calls for local assets aren't supported with scope hoisting"
+        );
+      }
+    });
+
+    it('supports require.resolve calls for excluded modules', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-resolve/a.js'
+          '/integration/scope-hoisting/commonjs/require-resolve-excluded/a.js'
         )
       );
 
-      let entryBundle;
-      b.traverseBundles((bundle, ctx, traversal) => {
-        if (bundle.isEntry) {
-          entryBundle = bundle;
-          traversal.stop();
+      let output = await run(b, {
+        require: {
+          resolve: () => 'my-resolved-fs'
         }
       });
-
-      let asset;
-      entryBundle.traverseAssets((a, ctx, traversal) => {
-        if (a.filePath.endsWith('b.js')) {
-          asset = a;
-          traversal.stop();
-        }
-      });
-
-      let output = await run(b);
-      assert.equal(output, asset.id);
+      assert.deepEqual(output, 'my-resolved-fs');
     });
 
     it('supports requiring a re-exported ES6 import', async function() {

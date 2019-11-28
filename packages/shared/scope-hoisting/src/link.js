@@ -28,6 +28,7 @@ const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
+const REQUIRE_RESOLVE_CALL_TEMPLATE = template('require.resolve(ID)');
 
 const FORMATS = {
   esmodule,
@@ -399,8 +400,18 @@ export function link({
             .getDependencies(mapped)
             .find(dep => dep.moduleSpecifier === source.value)
         );
-        let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
-        path.replaceWith(t.valueToNode(mod.id));
+        if (!bundleGraph.getDependencyResolution(dep)) {
+          // was excluded from bundling
+          path.replaceWith(
+            REQUIRE_RESOLVE_CALL_TEMPLATE({ID: t.stringLiteral(source.value)})
+          );
+        } else {
+          throw new Error(
+            "`require.resolve` calls for local assets aren't supported with scope hoisting"
+          );
+          // let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
+          // path.replaceWith(t.valueToNode(mod.id));
+        }
       }
     },
     VariableDeclarator: {
