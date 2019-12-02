@@ -1831,6 +1831,60 @@ describe('javascript', function() {
     assert.equal(await run(b), 2);
   });
 
+  it('should detect typescript style async requires in commonjs with esModuleInterop flag', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts-interop.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts-interop.js',
+        assets: [
+          'ts-interop.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.deepEqual(await run(b), {default: 2});
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+    assert(/.then\(function \(\$parcel\$.*?\) {/.test(contents));
+  });
+
+  it('should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts-interop-arrow.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts-interop-arrow.js',
+        assets: [
+          'ts-interop-arrow.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.deepEqual(await run(b), {default: 2});
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+    assert(/.then\(\$parcel\$.*? =>/.test(contents));
+  });
+
   it('should detect rollup style async requires in commonjs', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/require-async/rollup.js')

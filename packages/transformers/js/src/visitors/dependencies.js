@@ -4,8 +4,8 @@ import type {MutableAsset, PluginOptions} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
-import {isURL} from '@parcel/utils';
-import {hasBinding} from './utils';
+import {isURL, md5FromString} from '@parcel/utils';
+import {hasBinding, morph} from './utils';
 import invariant from 'assert';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
@@ -46,7 +46,8 @@ export default ({
     if (isRequire) {
       let isOptional =
         ancestors.some(a => types.isTryStatement(a)) || undefined;
-      let isAsync = isRequireAsync(ancestors, node);
+      invariant(asset.ast);
+      let isAsync = isRequireAsync(ancestors, node, asset.ast);
       addDependency(asset, args[0], {isOptional, isAsync});
       return;
     }
@@ -175,7 +176,7 @@ function evaluateExpression(node) {
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
 //   2. Rollup - new Promise(function (resolve) { resolve(require(...)) })
 //   3. Parcel - Promise.resolve(require(...))
-function isRequireAsync(ancestors, requireNode) {
+function isRequireAsync(ancestors, requireNode, ast) {
   let parent = ancestors[ancestors.length - 2];
 
   // Promise.resolve().then(() => require('foo'))
@@ -189,6 +190,50 @@ function isRequireAsync(ancestors, requireNode) {
     functionParent.callee.property.name === 'then' &&
     isPromiseResolve(functionParent.callee.object)
   ) {
+    // If the `require` call is not immediately returned (e.g. wrapped in another function),
+    // then transform the AST to create a promise chain so that the require is by itself.
+    // This is because the require will return a promise rather than the module synchronously.
+    // For example, TypeScript generates the following with the esModuleInterop flag:
+    //   Promise.resolve().then(() => __importStar(require('./foo')));
+    // This is transformed into:
+    //   Promise.resolve().then(() => require('./foo')).then(res => __importStar(res));
+    if (
+      !types.isArrowFunctionExpression(parent) &&
+      !types.isReturnStatement(parent)
+    ) {
+      // Replace the original `require` call with a reference to a variable
+      let requireClone = types.clone(requireNode);
+      let v = types.identifier(
+        '$parcel$' + md5FromString(requireNode.arguments[0].value).slice(-4)
+      );
+      morph(requireNode, v);
+
+      // Add the variable as a param to the parent function
+      let fn = functionParent.arguments[0];
+      fn.params[0] = v;
+
+      // Replace original function with only the require call
+      functionParent.arguments[0] = types.isArrowFunctionExpression(fn)
+        ? types.arrowFunctionExpression([], requireClone)
+        : types.functionExpression(
+            null,
+            [],
+            types.blockStatement([types.returnStatement(requireClone)])
+          );
+
+      // Add the original function as an additional promise chain
+      let replacement = types.callExpression(
+        types.memberExpression(
+          types.clone(functionParent),
+          types.identifier('then')
+        ),
+        [fn]
+      );
+
+      morph(functionParent, replacement);
+      ast.isDirty = true;
+    }
+
     return true;
   }
 
