@@ -35,7 +35,8 @@ export default function prettyDiagnostic(
   };
 
   result.message =
-    mdAnsi(`**${origin}**: `) + (skipFormatting ? message : mdAnsi(message));
+    mdAnsi(`**${origin ?? 'unknown'}**: `) +
+    (skipFormatting ? message : mdAnsi(message));
   result.stack = stack || '';
 
   if (codeFrame !== undefined) {

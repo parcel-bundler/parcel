@@ -73,6 +73,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: ?string;
+  +loc: ?SourceLocation;
 }
 
 export type EnvironmentContext =
