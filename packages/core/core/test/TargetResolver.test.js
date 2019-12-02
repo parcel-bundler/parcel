@@ -680,8 +680,9 @@ describe('TargetResolver', () => {
     await assert.rejects(() => targetResolver.resolve(fixture), {
       diagnostics: [
         {
-          message:
-            'Multiple targets have the same destination path "dist/index.js"',
+          message: `Multiple targets have the same destination path "${path.normalize(
+            'dist/index.js'
+          )}"`,
           origin: '@parcel/core',
           filePath: path.join(fixture, 'package.json'),
           language: 'json',
