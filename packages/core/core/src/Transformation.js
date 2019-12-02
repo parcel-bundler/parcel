@@ -96,7 +96,7 @@ export default class Transformation {
       asset.value.isSource,
       this.request.pipeline
     );
-    let results = await this.runPipeline(pipeline, asset);
+    let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
 
     for (let {request, result} of this.configRequests) {
@@ -141,7 +141,7 @@ export default class Transformation {
     });
   }
 
-  async runPipeline(
+  async runPipelines(
     pipeline: Pipeline,
     initialAsset: InternalAsset
   ): Promise<Array<InternalAsset>> {
@@ -152,7 +152,8 @@ export default class Transformation {
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
-    let assets = initialCacheEntry || (await pipeline.transform(initialAsset));
+    let assets =
+      initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
     if (!initialCacheEntry) {
       await this.writeToCache(initialAssetCacheKey, assets, pipeline.configs);
     }
@@ -170,7 +171,7 @@ export default class Transformation {
       }
 
       if (nextPipeline) {
-        let nextPipelineAssets = await this.runPipeline(nextPipeline, asset);
+        let nextPipelineAssets = await this.runPipelines(nextPipeline, asset);
         finalAssets = finalAssets.concat(nextPipelineAssets);
       } else {
         finalAssets.push(asset);
@@ -198,6 +199,60 @@ export default class Transformation {
     }
 
     return processedFinalAssets;
+  }
+
+  async runPipeline(
+    pipeline: Pipeline,
+    initialAsset: InternalAsset
+  ): Promise<Array<InternalAsset>> {
+    let initialType = initialAsset.value.type;
+    let inputAssets = [initialAsset];
+    let resultingAssets;
+    let finalAssets = [];
+    for (let transformer of pipeline.transformers) {
+      resultingAssets = [];
+      for (let asset of inputAssets) {
+        if (
+          asset.value.type !== initialType &&
+          (await this.loadNextPipeline({
+            filePath: initialAsset.value.filePath,
+            isSource: asset.value.isSource,
+            nextType: asset.value.type,
+            currentPipeline: pipeline
+          }))
+        ) {
+          finalAssets.push(asset);
+          continue;
+        }
+
+        try {
+          let transformerResults = await runTransformer(
+            pipeline,
+            asset,
+            transformer.plugin,
+            transformer.name,
+            transformer.config
+          );
+
+          for (let result of transformerResults) {
+            resultingAssets.push(asset.createChildAsset(result));
+          }
+        } catch (e) {
+          throw new ThrowableDiagnostic({
+            diagnostic: errorToDiagnostic(e, transformer.name)
+          });
+        }
+      }
+      inputAssets = resultingAssets;
+    }
+
+    finalAssets = finalAssets.concat(resultingAssets);
+
+    return Promise.all(
+      finalAssets.map(asset =>
+        finalize(nullthrows(asset), nullthrows(pipeline.generate))
+      )
+    );
   }
 
   async readFromCache(cacheKey: string): Promise<null | Array<InternalAsset>> {
@@ -295,12 +350,31 @@ export default class Transformation {
       }
     }
 
-    let pipeline = new Pipeline({
-      transformers: await parcelConfig.getTransformers(filePath, pipelineName),
+    let transformers = await parcelConfig.getTransformers(
+      filePath,
+      pipelineName
+    );
+    let pipeline = {
+      id: transformers.map(t => t.name).join(':'),
+
+      transformers: transformers.map(transformer => ({
+        name: transformer.name,
+        config: configs.get(transformer.name)?.result,
+        plugin: transformer.plugin
+      })),
       configs,
       options: this.options,
+      resolverRunner: new ResolverRunner({
+        config: new ParcelConfig(
+          nullthrows(nullthrows(configs.get('parcel')).result),
+          this.options.packageManager
+        ),
+        options: this.options
+      }),
+
+      pluginOptions: new PluginOptions(this.options),
       workerApi: this.workerApi
-    });
+    };
 
     return pipeline;
   }
@@ -355,11 +429,16 @@ export default class Transformation {
   }
 }
 
-type PipelineOpts = {|
-  transformers: Array<{|name: PackageName, plugin: Transformer|}>,
+type Pipeline = {|
+  id: string,
+  transformers: Array<TransformerWithNameAndConfig>,
   configs: ConfigMap,
   options: ParcelOptions,
-  workerApi: WorkerApi
+  pluginOptions: PluginOptions,
+  resolverRunner: ResolverRunner,
+  workerApi: WorkerApi,
+  postProcess?: PostProcessFunc,
+  generate?: GenerateFunc
 |};
 
 type TransformerWithNameAndConfig = {|
@@ -368,195 +447,117 @@ type TransformerWithNameAndConfig = {|
   config: ?Config
 |};
 
-class Pipeline {
-  id: string;
-  transformers: Array<TransformerWithNameAndConfig>;
-  configs: ConfigMap;
-  options: ParcelOptions;
-  pluginOptions: PluginOptions;
-  resolverRunner: ResolverRunner;
-  generate: GenerateFunc;
-  postProcess: ?PostProcessFunc;
-  workerApi: WorkerApi;
+async function runTransformer(
+  pipeline: Pipeline,
+  asset: InternalAsset,
+  transformer: Transformer,
+  transformerName: string,
+  preloadedConfig: ?Config
+): Promise<Array<TransformerResult>> {
+  const logger = new PluginLogger({origin: transformerName});
 
-  constructor({transformers, configs, options, workerApi}: PipelineOpts) {
-    this.id = transformers.map(t => t.name).join(':');
+  const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+    return nullthrows(
+      await pipeline.resolverRunner.resolve(
+        createDependency({
+          env: asset.value.env,
+          moduleSpecifier: to,
+          sourcePath: from
+        })
+      )
+    ).filePath;
+  };
 
-    this.transformers = transformers.map(transformer => ({
-      name: transformer.name,
-      config: configs.get(transformer.name)?.result,
-      plugin: transformer.plugin
-    }));
-    this.configs = configs;
-    this.options = options;
-    let parcelConfig = new ParcelConfig(
-      nullthrows(nullthrows(this.configs.get('parcel')).result),
-      this.options.packageManager
-    );
-    this.resolverRunner = new ResolverRunner({
-      config: parcelConfig,
-      options
+  // Load config for the transformer.
+  let config = preloadedConfig;
+  if (transformer.getConfig) {
+    // TODO: deprecate getConfig
+    config = await transformer.getConfig({
+      asset: new MutableAsset(asset),
+      options: pipeline.pluginOptions,
+      resolve,
+      logger
     });
-
-    this.pluginOptions = new PluginOptions(this.options);
-    this.workerApi = workerApi;
   }
 
-  async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
-    let initialType = initialAsset.value.type;
-    let inputAssets = [initialAsset];
-    let resultingAssets;
-    let finalAssets = [];
-    for (let transformer of this.transformers) {
-      resultingAssets = [];
-      for (let asset of inputAssets) {
-        // TODO: I think there may be a bug here if the type changes but does not
-        // change pipelines (e.g. .html -> .htm). It should continue on the same
-        // pipeline in that case.
-        if (asset.value.type !== initialType) {
-          finalAssets.push(asset);
-        } else {
-          try {
-            let transformerResults = await this.runTransformer(
-              asset,
-              transformer.plugin,
-              transformer.name,
-              transformer.config
-            );
-
-            for (let result of transformerResults) {
-              resultingAssets.push(asset.createChildAsset(result));
-            }
-          } catch (e) {
-            throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, transformer.name)
-            });
-          }
-        }
-      }
-      inputAssets = resultingAssets;
-    }
-
-    finalAssets = finalAssets.concat(resultingAssets);
-
-    return Promise.all(
-      finalAssets.map(asset => finalize(nullthrows(asset), this.generate))
-    );
+  // If an ast exists on the asset, but we cannot reuse it,
+  // use the previous transform to generate code that we can re-parse.
+  if (
+    asset.ast &&
+    (!transformer.canReuseAST ||
+      !transformer.canReuseAST({
+        ast: asset.ast,
+        options: pipeline.pluginOptions,
+        logger
+      })) &&
+    pipeline.generate
+  ) {
+    let output = await pipeline.generate(new MutableAsset(asset));
+    asset.content = output.code;
+    asset.ast = null;
   }
 
-  async runTransformer(
-    asset: InternalAsset,
-    transformer: Transformer,
-    transformerName: string,
-    preloadedConfig: ?Config
-  ): Promise<Array<TransformerResult>> {
-    const logger = new PluginLogger({origin: transformerName});
+  // Parse if there is no AST available from a previous transform.
+  if (!asset.ast && transformer.parse) {
+    asset.ast = await transformer.parse({
+      asset: new MutableAsset(asset),
+      config,
+      options: pipeline.pluginOptions,
+      resolve,
+      logger
+    });
+  }
 
-    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      return nullthrows(
-        await this.resolverRunner.resolve(
-          createDependency({
-            env: asset.value.env,
-            moduleSpecifier: to,
-            sourcePath: from
-          })
-        )
-      ).filePath;
-    };
+  // Transform.
+  let results = await normalizeAssets(
+    // $FlowFixMe
+    await transformer.transform({
+      asset: new MutableAsset(asset),
+      config,
+      options: pipeline.pluginOptions,
+      resolve,
+      logger
+    })
+  );
 
-    // Load config for the transformer.
-    let config = preloadedConfig;
-    if (transformer.getConfig) {
-      // TODO: deprecate getConfig
-      config = await transformer.getConfig({
-        asset: new MutableAsset(asset),
-        options: this.pluginOptions,
-        resolve,
-        logger
-      });
-    }
-
-    // If an ast exists on the asset, but we cannot reuse it,
-    // use the previous transform to generate code that we can re-parse.
-    if (
-      asset.ast &&
-      (!transformer.canReuseAST ||
-        !transformer.canReuseAST({
-          ast: asset.ast,
-          options: this.pluginOptions,
-          logger
-        })) &&
-      this.generate
-    ) {
-      let output = await this.generate(new MutableAsset(asset));
-      asset.content = output.code;
-      asset.ast = null;
-    }
-
-    // Parse if there is no AST available from a previous transform.
-    if (!asset.ast && transformer.parse) {
-      asset.ast = await transformer.parse({
-        asset: new MutableAsset(asset),
-        config,
-        options: this.pluginOptions,
-        resolve,
-        logger
-      });
-    }
-
-    // Transform.
-    let results = await normalizeAssets(
-      // $FlowFixMe
-      await transformer.transform({
-        asset: new MutableAsset(asset),
-        config,
-        options: this.pluginOptions,
-        resolve,
-        logger
-      })
-    );
-
-    // Create generate and postProcess functions that can be called later
-    this.generate = (input: IMutableAsset): Promise<GenerateOutput> => {
-      if (transformer.generate) {
-        return Promise.resolve(
-          transformer.generate({
-            asset: input,
-            config,
-            options: this.pluginOptions,
-            resolve,
-            logger
-          })
-        );
-      }
-
-      throw new Error(
-        'Asset has an AST but no generate method is available on the transform'
-      );
-    };
-
-    // For Flow
-    let postProcess = transformer.postProcess;
-    if (postProcess) {
-      this.postProcess = async (
-        assets: Array<InternalAsset>
-      ): Promise<Array<InternalAsset> | null> => {
-        let results = await postProcess.call(transformer, {
-          assets: assets.map(asset => new MutableAsset(asset)),
+  // Create generate and postProcess functions that can be called later
+  pipeline.generate = (input: IMutableAsset): Promise<GenerateOutput> => {
+    if (transformer.generate) {
+      return Promise.resolve(
+        transformer.generate({
+          asset: input,
           config,
-          options: this.pluginOptions,
+          options: pipeline.pluginOptions,
           resolve,
           logger
-        });
-
-        return Promise.all(
-          results.map(result => asset.createChildAsset(result))
-        );
-      };
+        })
+      );
     }
 
-    return results;
+    throw new Error(
+      'Asset has an AST but no generate method is available on the transform'
+    );
+  };
+
+  // For Flow
+  let postProcess = transformer.postProcess;
+  if (postProcess) {
+    pipeline.postProcess = async (
+      assets: Array<InternalAsset>
+    ): Promise<Array<InternalAsset> | null> => {
+      let results = await postProcess.call(transformer, {
+        assets: assets.map(asset => new MutableAsset(asset)),
+        config,
+        options: pipeline.pluginOptions,
+        resolve,
+        logger
+      });
+
+      return Promise.all(results.map(result => asset.createChildAsset(result)));
+    };
   }
+
+  return results;
 }
 
 async function finalize(

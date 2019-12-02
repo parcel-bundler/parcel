@@ -44,7 +44,9 @@ export type Diagnostic = {|
   codeFrame?: DiagnosticCodeFrame,
 
   // Hints to resolve issues faster
-  hints?: Array<string>
+  hints?: Array<string>,
+
+  skipFormatting?: boolean
 |};
 
 // This type should represent all error formats Parcel can encounter...
