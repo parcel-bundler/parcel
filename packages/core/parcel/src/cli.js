@@ -152,7 +152,7 @@ async function run(entries: Array<string>, command: any) {
         __filename
       )).resolved
     },
-    patchConsole: false,
+    patchConsole: true,
     ...(await normalizeOptions(command))
   });
 
