@@ -36,7 +36,6 @@
     "json-source-map": "^0.6.1",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
-    "pirates": "^4.0.0",
     "semver": "^5.4.1"
   },
   "devDependencies": {
