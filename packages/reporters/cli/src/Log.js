@@ -60,8 +60,9 @@ export function Log({event}: LogProps) {
 function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
+      {' ' /* spacer */}
       {hints.map((hint, i) => {
-        return <div key={i}>{`- ${hint}`}</div>;
+        return <Color blue bold key={i}>{`${Emoji.hint}  ${hint}`}</Color>;
       })}
     </div>
   );
@@ -84,8 +85,9 @@ function DiagnosticContainer({
 
         return (
           <div key={i}>
+            {i > 0 ? ' ' : '' /* spacer */}
             <Color keyword={color}>
-              <Color bold>{`${emoji}`}</Color> {message}
+              <Color bold>{`${emoji} `}</Color> {message}
             </Color>
             {!codeframe && stack && (
               <div>
