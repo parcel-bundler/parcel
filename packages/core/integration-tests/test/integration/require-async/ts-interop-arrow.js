@@ -1,3 +1,4 @@
+// TypeScript's esModuleInterop flag generates code like this when compiling dynamic import()
 "use strict";
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
