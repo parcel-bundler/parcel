@@ -287,7 +287,7 @@ function addDependency(
 ) {
   asset.addDependency({
     moduleSpecifier: node.value,
-    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 1, 1),
+    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     isAsync: opts ? opts.isAsync : false,
     isOptional: opts ? opts.isOptional : false
   });
@@ -295,7 +295,7 @@ function addDependency(
 
 function addURLDependency(asset, node, opts = {}) {
   node.value = asset.addURLDependency(node.value, {
-    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 1, 1),
+    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     ...opts
   });
   invariant(asset.ast);
