@@ -1,5 +1,5 @@
 // @flow
-import {Session} from 'inspector';
+import type {Session} from 'inspector';
 import invariant from 'assert';
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-Profile
