@@ -73,6 +73,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: ?string;
+  +loc: ?SourceLocation;
 }
 
 export type EnvironmentContext =
@@ -701,6 +702,7 @@ export type Resolver = {|
 export type ProgressLogEvent = {|
   +type: 'log',
   +level: 'progress',
+  +phase?: string,
   +message: string
 |};
 

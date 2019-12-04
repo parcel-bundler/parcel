@@ -4,8 +4,8 @@ import type {MutableAsset, PluginOptions} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
-import {isURL} from '@parcel/utils';
-import {hasBinding} from './utils';
+import {isURL, md5FromString} from '@parcel/utils';
+import {hasBinding, morph} from './utils';
 import invariant from 'assert';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
@@ -46,7 +46,9 @@ export default ({
     if (isRequire) {
       let isOptional =
         ancestors.some(a => types.isTryStatement(a)) || undefined;
-      addDependency(asset, args[0], {isOptional});
+      invariant(asset.ast);
+      let isAsync = isRequireAsync(ancestors, node, asset.ast);
+      addDependency(asset, args[0], {isOptional, isAsync});
       return;
     }
 
@@ -170,23 +172,117 @@ function evaluateExpression(node) {
   return res;
 }
 
+// TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
+//   1. TypeScript - Promise.resolve().then(function () { return require(...) })
+//   2. Rollup - new Promise(function (resolve) { resolve(require(...)) })
+//   3. Parcel - Promise.resolve(require(...))
+function isRequireAsync(ancestors, requireNode, ast) {
+  let parent = ancestors[ancestors.length - 2];
+
+  // Promise.resolve().then(() => require('foo'))
+  // Promise.resolve().then(() => { return require('foo') })
+  // Promise.resolve().then(function () { return require('foo') })
+  let functionParent = getFunctionParent(ancestors);
+  if (
+    functionParent &&
+    types.isCallExpression(functionParent) &&
+    types.isMemberExpression(functionParent.callee) &&
+    functionParent.callee.property.name === 'then' &&
+    isPromiseResolve(functionParent.callee.object)
+  ) {
+    // If the `require` call is not immediately returned (e.g. wrapped in another function),
+    // then transform the AST to create a promise chain so that the require is by itself.
+    // This is because the require will return a promise rather than the module synchronously.
+    // For example, TypeScript generates the following with the esModuleInterop flag:
+    //   Promise.resolve().then(() => __importStar(require('./foo')));
+    // This is transformed into:
+    //   Promise.resolve().then(() => require('./foo')).then(res => __importStar(res));
+    if (
+      !types.isArrowFunctionExpression(parent) &&
+      !types.isReturnStatement(parent)
+    ) {
+      // Replace the original `require` call with a reference to a variable
+      let requireClone = types.clone(requireNode);
+      let v = types.identifier(
+        '$parcel$' + md5FromString(requireNode.arguments[0].value).slice(-4)
+      );
+      morph(requireNode, v);
+
+      // Add the variable as a param to the parent function
+      let fn = functionParent.arguments[0];
+      fn.params[0] = v;
+
+      // Replace original function with only the require call
+      functionParent.arguments[0] = types.isArrowFunctionExpression(fn)
+        ? types.arrowFunctionExpression([], requireClone)
+        : types.functionExpression(
+            null,
+            [],
+            types.blockStatement([types.returnStatement(requireClone)])
+          );
+
+      // Add the original function as an additional promise chain
+      let replacement = types.callExpression(
+        types.memberExpression(
+          types.clone(functionParent),
+          types.identifier('then')
+        ),
+        [fn]
+      );
+
+      morph(functionParent, replacement);
+      ast.isDirty = true;
+    }
+
+    return true;
+  }
+
+  // Promise.resolve(require('foo'))
+  if (isPromiseResolve(parent) && parent.arguments[0] === requireNode) {
+    return true;
+  }
+
+  // new Promise(resolve => resolve(require('foo')))
+  // new Promise(resolve => { resolve(require('foo')) })
+  // new Promise(function (resolve) { resolve(require('foo')) })
+  if (
+    functionParent &&
+    types.isCallExpression(parent) &&
+    types.isIdentifier(parent.callee) &&
+    types.isNewExpression(functionParent) &&
+    types.isIdentifier(functionParent.callee) &&
+    functionParent.callee.name === 'Promise' &&
+    types.isFunction(functionParent.arguments[0]) &&
+    types.isIdentifier(functionParent.arguments[0].params[0]) &&
+    parent.callee.name === functionParent.arguments[0].params[0].name
+  ) {
+    return true;
+  }
+}
+
+function isPromiseResolve(node) {
+  return (
+    types.isCallExpression(node) &&
+    types.isMemberExpression(node.callee) &&
+    types.isIdentifier(node.callee.object) &&
+    node.callee.object.name === 'Promise' &&
+    node.callee.property.name === 'resolve'
+  );
+}
+
+function getFunctionParent(ancestors) {
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    if (types.isFunction(ancestors[i])) {
+      return ancestors[i - 1];
+    }
+  }
+}
+
 function addDependency(
   asset,
   node,
   opts: ?{|isAsync?: boolean, isOptional?: boolean|}
 ) {
-  // If this came from an inline <script> tag, throw an error.
-  // TODO: run JSPackager on inline script tags.
-  // let inlineHTML =
-  //   asset.options.rendition && asset.options.rendition.inlineHTML;
-  // if (inlineHTML) {
-  //   let err = new Error(
-  //     'Imports and requires are not supported inside inline <script> tags yet.'
-  //   );
-  //   err.loc = node.loc && node.loc.start;
-  //   throw err;
-  // }
-
   asset.addDependency({
     moduleSpecifier: node.value,
     loc: node.loc && node.loc.start,

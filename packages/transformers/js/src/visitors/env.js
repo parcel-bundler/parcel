@@ -1,4 +1,5 @@
 import * as types from '@babel/types';
+import {morph} from './utils';
 
 export default {
   MemberExpression(node, {asset, env}) {
@@ -19,14 +20,3 @@ export default {
     }
   }
 };
-
-// replace object properties
-function morph(object, newProperties) {
-  for (let key in object) {
-    delete object[key];
-  }
-
-  for (let key in newProperties) {
-    object[key] = newProperties[key];
-  }
-}

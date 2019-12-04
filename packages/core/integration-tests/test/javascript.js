@@ -1269,17 +1269,23 @@ describe('javascript', function() {
   });
 
   it('should minify JSON files', async function() {
-    await bundle(path.join(__dirname, '/integration/uglify-json/index.json'), {
-      minify: true,
-      scopeHoist: false
-    });
+    let b = await bundle(
+      path.join(__dirname, '/integration/uglify-json/index.json'),
+      {
+        minify: true,
+        scopeHoist: false
+      }
+    );
 
     let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(json.includes('{test:"test"}'));
+    assert(json.includes('{"test":"test"}'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {test: 'test'});
   });
 
   it('should minify JSON5 files', async function() {
-    await bundle(
+    let b = await bundle(
       path.join(__dirname, '/integration/uglify-json5/index.json5'),
       {
         minify: true,
@@ -1288,7 +1294,10 @@ describe('javascript', function() {
     );
 
     let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(json.includes('{test:"test"}'));
+    assert(json.includes('{"test":"test"}'));
+
+    let output = await run(b);
+    assert.deepEqual(output, {test: 'test'});
   });
 
   it.skip('should minify YAML for production', async function() {
@@ -1802,5 +1811,113 @@ describe('javascript', function() {
     );
 
     assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
+  });
+
+  it('should detect typescript style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts.js',
+        assets: ['ts.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
+
+  it('should detect typescript style async requires in commonjs with esModuleInterop flag', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts-interop.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts-interop.js',
+        assets: [
+          'ts-interop.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.deepEqual(await run(b), {default: 2});
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+    assert(/.then\(function \(\$parcel\$.*?\) {/.test(contents));
+  });
+
+  it('should detect typescript style async requires in commonjs with esModuleInterop flag and arrow functions', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/ts-interop-arrow.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'ts-interop-arrow.js',
+        assets: [
+          'ts-interop-arrow.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.deepEqual(await run(b), {default: 2});
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
+    assert(/.then\(\$parcel\$.*? =>/.test(contents));
+  });
+
+  it('should detect rollup style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/rollup.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'rollup.js',
+        assets: ['rollup.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
+  });
+
+  it('should detect parcel style async requires in commonjs', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/require-async/parcel.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'parcel.js',
+        assets: ['parcel.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['async.js']
+      }
+    ]);
+
+    assert.equal(await run(b), 2);
   });
 });
