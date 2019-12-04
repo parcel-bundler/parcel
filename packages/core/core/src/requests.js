@@ -52,11 +52,12 @@ type AssetRequest = {|
   result?: AssetRequestResult
 |};
 
+type DependencyResult = AssetRequestDesc | null | void;
 type DepPathRequest = {|
   id: string,
   +type: 'dep_path_request',
   request: Dependency,
-  result?: AssetRequestDesc
+  result?: DependencyResult
 |};
 
 export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
@@ -153,7 +154,8 @@ export class AssetRequestRunner extends RequestRunner<
     this.assetGraph = opts.assetGraph;
   }
 
-  async run(request: AssetRequestDesc) {
+  async run(request: AssetRequestDesc, api: RequestRunnerAPI) {
+    api.invalidateOnFileUpdate(request.filePath);
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,
@@ -175,8 +177,6 @@ export class AssetRequestRunner extends RequestRunner<
     this.assetGraph.resolveAssetGroup(request, result.assets);
 
     let {assets, configRequests} = result;
-
-    api.invalidateOnFileUpdate(request.filePath);
 
     for (let asset of assets) {
       for (let filePath of asset.includedFiles.keys()) {
@@ -263,7 +263,7 @@ const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
 
 export class DepPathRequestRunner extends RequestRunner<
   Dependency,
-  AssetRequestDesc
+  DependencyResult
 > {
   resolverRunner: ResolverRunner;
   assetGraph: AssetGraph;
@@ -290,7 +290,7 @@ export class DepPathRequestRunner extends RequestRunner<
 
   onComplete(
     request: Dependency,
-    result: AssetRequestDesc,
+    result: DependencyResult,
     api: RequestRunnerAPI
   ) {
     let dependency = request;
@@ -325,7 +325,7 @@ export class DepPathRequestRunner extends RequestRunner<
             !this.shouldDeferDependency(parent.value, node.value.sideEffects)
           ) {
             node.deferred = false;
-            this.assetGraph.incompleteNodeIds.add(node.id);
+            this.assetGraph.markIncomplete(node);
           }
 
           actions.skipChildren();
@@ -336,7 +336,7 @@ export class DepPathRequestRunner extends RequestRunner<
     }
 
     // ? Should this happen if asset is deferred?
-    api.invalidateOnFileDelete(result.filePath);
+    api.invalidateOnFileDelete(assetGroup.filePath);
 
     // TODO: invalidate dep path requests that have failed and a file creation may fulfill the request
   }
@@ -351,7 +351,8 @@ export class DepPathRequestRunner extends RequestRunner<
     if (
       dependency.isWeak &&
       sideEffects === false &&
-      !dependency.symbols.has('*')
+      !dependency.symbols.has('*') &&
+      !dependency.env.isLibrary // TODO (T-232): improve the logic below and remove this.
     ) {
       let depNode = this.assetGraph.getNode(dependency.id);
       invariant(depNode);

@@ -3,14 +3,12 @@
 import type {BuildSuccessEvent} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
-import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
+import type {ServerError, HMRServerOptions} from './types.js.flow';
 
-import http from 'http';
-import https from 'https';
+import invariant from 'assert';
 import WebSocket from 'ws';
 import {
-  getCertificate,
-  generateCertificate,
+  createHTTPServer,
   md5FromObject,
   prettyDiagnostic,
   ansiHtml
@@ -38,7 +36,7 @@ type HMRMessage =
     |};
 
 export default class HMRServer {
-  server: Server;
+  stopServer: ?() => Promise<void>;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
@@ -49,23 +47,16 @@ export default class HMRServer {
 
   async start() {
     await new Promise(async resolve => {
-      if (!this.options.https) {
-        this.server = http.createServer();
-      } else if (this.options.https === true) {
-        this.server = https.createServer(
-          await generateCertificate(
-            this.options.outputFS,
-            this.options.cacheDir
-          )
-        );
-      } else {
-        this.server = https.createServer(
-          await getCertificate(this.options.inputFS, this.options.https)
-        );
-      }
+      let {server, stop} = await createHTTPServer({
+        https: this.options.https,
+        inputFS: this.options.inputFS,
+        outputFS: this.options.outputFS,
+        cacheDir: this.options.cacheDir
+      });
+      this.stopServer = stop;
 
       let websocketOptions = {
-        server: this.server
+        server
         /*verifyClient: info => {
           if (!this.options.host) return true;
 
@@ -75,7 +66,7 @@ export default class HMRServer {
       };
 
       this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(this.options.port, this.options.host, resolve);
+      server.listen(this.options.port, this.options.host, resolve);
     });
 
     this.wss.on('connection', ws => {
@@ -91,9 +82,13 @@ export default class HMRServer {
     return this.wss._server.address().port;
   }
 
-  stop() {
+  async stop() {
     this.wss.close();
-    this.server.close();
+
+    invariant(this.stopServer != null);
+    await this.stopServer();
+
+    this.stopServer = null;
   }
 
   emitError(diagnostics: Array<Diagnostic>) {

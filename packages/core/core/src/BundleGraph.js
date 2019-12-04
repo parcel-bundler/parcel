@@ -519,11 +519,10 @@ export default class BundleGraph {
   }
 
   resolveSymbol(asset: Asset, symbol: Symbol) {
-    if (symbol === '*') {
-      return {asset, exportSymbol: '*', symbol: '*'};
-    }
-
     let identifier = asset.symbols.get(symbol);
+    if (symbol === '*') {
+      return {asset, exportSymbol: '*', symbol: identifier};
+    }
 
     let deps = this.getDependencies(asset).reverse();
     for (let dep of deps) {
@@ -533,19 +532,29 @@ export default class BundleGraph {
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
-        let resolvedAsset = nullthrows(this.getDependencyResolution(dep));
-        let {asset, symbol: resolvedSymbol, exportSymbol} = this.resolveSymbol(
-          resolvedAsset,
-          depSymbol
-        );
+        let resolved = this.getDependencyResolution(dep);
+        if (!resolved) {
+          // External module.
+          break;
+        }
+
+        let {
+          asset: resolvedAsset,
+          symbol: resolvedSymbol,
+          exportSymbol
+        } = this.resolveSymbol(resolved, depSymbol);
 
         // If it didn't resolve to anything (likely CommonJS), pass through where we got to
         if (resolvedSymbol == null) {
-          return {asset, symbol: resolvedSymbol, exportSymbol};
+          return {asset: resolvedAsset, symbol: resolvedSymbol, exportSymbol};
         }
 
         // Otherwise, keep the original symbol name along with the resolved symbol
-        return {asset, symbol: resolvedSymbol, exportSymbol: symbol};
+        return {
+          asset: resolvedAsset,
+          symbol: resolvedSymbol,
+          exportSymbol: symbol
+        };
       }
 
       // If this module exports wildcards, resolve the original module.

@@ -20,6 +20,7 @@ import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
+  onIncompleteNode?: (node: AssetGraphNode) => mixed,
   onNodeAdded?: (node: AssetGraphNode) => mixed,
   onNodeRemoved?: (node: AssetGraphNode) => mixed
 |};
@@ -80,6 +81,7 @@ const INCOMPLETE_TYPES = [
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
+  onIncompleteNode: ?(node: AssetGraphNode) => mixed;
   incompleteNodeIds: Set<NodeId> = new Set();
   hash: ?string;
 
@@ -100,9 +102,14 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     };
   }
 
-  initOptions({onNodeAdded, onNodeRemoved}: AssetGraphOpts = {}) {
+  initOptions({
+    onNodeAdded,
+    onNodeRemoved,
+    onIncompleteNode
+  }: AssetGraphOpts = {}) {
     this.onNodeAdded = onNodeAdded;
     this.onNodeRemoved = onNodeRemoved;
+    this.onIncompleteNode = onIncompleteNode;
   }
 
   initialize({entries, assetGroups}: InitOpts) {
@@ -131,7 +138,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       !node.deferred &&
       (!existingNode || existingNode.deferred)
     ) {
-      this.incompleteNodeIds.add(node.id);
+      this.markIncomplete(node);
     }
     this.onNodeAdded && this.onNodeAdded(node);
     return super.addNode(node);
@@ -142,6 +149,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.incompleteNodeIds.delete(node.id);
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
+  }
+
+  markIncomplete(node: AssetGraphNode) {
+    this.incompleteNodeIds.add(node.id);
+    if (this.onIncompleteNode) {
+      this.onIncompleteNode(node);
+    }
   }
 
   hasIncompleteNodes() {

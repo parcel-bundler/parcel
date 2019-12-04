@@ -73,6 +73,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: ?string;
+  +loc: ?SourceLocation;
 }
 
 export type EnvironmentContext =
@@ -218,6 +219,7 @@ export type HTTPSOptions = {|
   key: FilePath
 |};
 
+// Source locations are 1-based, meaning lines and columns start at 1
 export type SourceLocation = {|
   filePath: string,
   start: {|
@@ -275,7 +277,7 @@ export type File = {|
   hash?: string
 |};
 
-interface BaseAsset {
+export interface BaseAsset {
   +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
@@ -701,6 +703,7 @@ export type Resolver = {|
 export type ProgressLogEvent = {|
   +type: 'log',
   +level: 'progress',
+  +phase?: string,
   +message: string
 |};
 

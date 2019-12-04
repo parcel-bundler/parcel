@@ -1,6 +1,7 @@
 // @flow
 
 import type {AssetRequestDesc, Dependency, ParcelOptions} from './types';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
@@ -26,6 +27,28 @@ export default class ResolverRunner {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
+  }
+
+  async getThrowableDiagnostic(dependency: Dependency, message: string) {
+    let diagnostic: Diagnostic = {
+      message,
+      origin: '@parcel/resolver-default'
+    };
+
+    if (dependency.loc && dependency.sourcePath) {
+      diagnostic.filePath = dependency.sourcePath;
+      diagnostic.codeFrame = {
+        code: await this.options.inputFS.readFile(
+          dependency.sourcePath,
+          'utf8'
+        ),
+        codeHighlights: dependency.loc
+          ? [{start: dependency.loc.start, end: dependency.loc.end}]
+          : []
+      };
+    }
+
+    return new ThrowableDiagnostic({diagnostic});
   }
 
   async resolve(dependency: Dependency): Promise<?AssetRequestDesc> {
@@ -105,11 +128,14 @@ export default class ResolverRunner {
     let dir = dependency.sourcePath
       ? path.dirname(dependency.sourcePath)
       : '<none>';
-    let err = new Error(
+
+    let err: any = await this.getThrowableDiagnostic(
+      dependency,
       `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`
     );
 
-    (err: any).code = 'MODULE_NOT_FOUND';
+    err.code = 'MODULE_NOT_FOUND';
+
     throw err;
   }
 }

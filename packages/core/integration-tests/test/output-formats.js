@@ -66,6 +66,25 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 3);
     });
 
+    it('should support commonjs output with external modules (named import with same name)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-external/named-same.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.bar'));
+      assert(/var {\s*assign\s*} = require\("lodash\/fp"\)/.test(dist));
+      let match = dist.match(
+        /var {\s*assign:\s*(.*)\s*} = require\("lodash"\)/
+      );
+      assert(match);
+      assert.notEqual(match[1], 'assign');
+      assert.equal((await run(b)).bar, true);
+    });
+
     it('should support commonjs output with external modules (namespace import)', async function() {
       let b = await bundle(
         path.join(
@@ -131,6 +150,21 @@ describe('output formats', function() {
       assert(dist.includes('exports.bar'));
       assert(dist.includes('var add = require("lodash").add'));
       assert.equal((await run(b)).bar, 3);
+    });
+
+    it('should support commonjs output with old node without destructuring (multiple single with same name)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-destructuring-node/single-same.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.bar'));
+      assert(dist.includes('var assign = require("lodash/fp").assign;'));
+      assert(dist.includes('var _assign = require("lodash").assign;'));
+      assert.equal((await run(b)).bar, true);
     });
 
     it('should support commonjs output with old node without destructuring (multiple)', async function() {
@@ -257,6 +291,46 @@ describe('output formats', function() {
         ).test(async2)
       );
     });
+
+    it('should support sideEffects: false', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-sideeffects/index.js'
+        )
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('function test'));
+      assert(dist.includes('exports.test = test;'));
+    });
+
+    it('should support commonjs input', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-dynamic/index.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('Object.assign(exports'));
+    });
+
+    it('should support commonjs requires without interop', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-require/index.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('= require("lodash")'));
+    });
   });
 
   describe('esmodule', function() {
@@ -320,6 +394,18 @@ describe('output formats', function() {
       assert(dist.includes('import { add } from "lodash"'));
     });
 
+    it('should support esmodule output with external modules (named import with same name)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-external/named-same.js')
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('export const bar'));
+      assert(dist.includes('import { assign } from "lodash/fp"'));
+      assert(dist.includes('import { assign as _assign } from "lodash"'));
+      assert(dist.includes('assign !== _assign'));
+    });
+
     it('should support esmodule output with external modules (namespace import)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-external/namespace.js')
@@ -349,6 +435,26 @@ describe('output formats', function() {
       assert(dist.includes('export const bar'));
       assert(dist.includes('import _lodash, * as _lodash2 from "lodash"'));
       assert(dist.includes('import { add } from "lodash"'));
+    });
+
+    it('should support esmodule output with external modules (export)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-external/export.js')
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('import { add } from "lodash"'));
+      assert(dist.includes('export { add }'));
+    });
+
+    it('should support esmodule output with external modules (re-export)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-external/re-export.js')
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('import { add } from "lodash"'));
+      assert(dist.includes('export { add }'));
     });
 
     it('should support importing sibling bundles in library mode', async function() {
@@ -580,6 +686,36 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(`import { .+ } from "\\.\\/${sharedName}"`).test(async2)
+      );
+    });
+
+    it('should generating ESM from CommonJS', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-esm/index.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(dist.includes('import _lodash from "lodash"'));
+      assert(dist.includes('export default'));
+    });
+
+    it('should support re-assigning to module.exports', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs-esm/re-assign.js')
+      );
+
+      let dist = await outputFS.readFile(
+        b.getBundles().find(b => b.type === 'js').filePath,
+        'utf8'
+      );
+      assert(
+        dist
+          .split('\n')
+          .pop()
+          .startsWith('export default')
       );
     });
   });

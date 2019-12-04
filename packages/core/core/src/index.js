@@ -1,4 +1,9 @@
 // @flow
 
-export {default, BuildError, createWorkerFarm} from './Parcel';
-export {default as register} from './register';
+export {
+  default,
+  BuildError,
+  createWorkerFarm,
+  INTERNAL_RESOLVE,
+  INTERNAL_TRANSFORM
+} from './Parcel';
