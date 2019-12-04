@@ -39,9 +39,9 @@ type PositionTickInfo = {|
 export default class Profiler {
   session: Session;
 
-  async startProfiling() {
+  startProfiling() {
     try {
-      const inspector: any = await require('inspector');
+      const inspector: any = require('inspector');
       this.session = new inspector.Session();
       this.session.connect();
 
