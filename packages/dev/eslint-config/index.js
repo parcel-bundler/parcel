@@ -47,7 +47,9 @@ module.exports = {
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
     'no-return-await': 'error',
-    'require-await': 'error'
+    'require-await': 'error',
+    'require-atomic-updates': 'off',
+    'no-prototype-builtins': 'off'
   },
   settings: {
     flowtype: {
