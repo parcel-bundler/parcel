@@ -18,11 +18,13 @@ export {default as PromiseQueue} from './PromiseQueue';
 // $FlowFixMe this is untyped
 export {default as promisify} from './promisify';
 export {default as validateSchema} from './schema';
-export {default as syncPromise} from './syncPromise';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
 export {default as loadSourceMapUrl} from './loadSourceMapUrl';
 export {default as relativeUrl} from './relativeUrl';
+export {default as createDependencyLocation} from './dependency-location';
+export {default as debounce} from './debounce';
+export {default as throttle} from './throttle';
 
 export * from './blob';
 export * from './collection';

@@ -30,7 +30,7 @@ export type DiagnosticCodeFrame = {|
 // The reporter's are responsible for rendering the message, codeframes, hints, ...
 export type Diagnostic = {|
   message: string,
-  origin: string, // Name of plugin or file that threw this error
+  origin?: string, // Name of plugin or file that threw this error
 
   // basic error data
   stack?: string,
@@ -44,7 +44,9 @@ export type Diagnostic = {|
   codeFrame?: DiagnosticCodeFrame,
 
   // Hints to resolve issues faster
-  hints?: Array<string>
+  hints?: Array<string>,
+
+  skipFormatting?: boolean
 |};
 
 // This type should represent all error formats Parcel can encounter...
@@ -169,25 +171,29 @@ export function generateJSONCodeHighlights(
   let map = jsonMap.parse(code.replace(/\t/g, ' '));
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
-    if (!type && pos.value) {
-      // key and value
-      return {
-        start: {line: pos.key.line + 1, column: pos.key.column + 1},
-        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
-        message
-      };
-    } else if (type == 'key' || !pos.value) {
-      return {
-        start: {line: pos.key.line + 1, column: pos.key.column + 1},
-        end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
-        message
-      };
-    } else {
-      return {
-        start: {line: pos.value.line + 1, column: pos.value.column + 1},
-        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
-        message
-      };
-    }
+    return {
+      ...getJSONSourceLocation(pos, type),
+      message
+    };
   });
+}
+
+export function getJSONSourceLocation(pos: any, type?: ?'key' | 'value') {
+  if (!type && pos.value) {
+    // key and value
+    return {
+      start: {line: pos.key.line + 1, column: pos.key.column + 1},
+      end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column}
+    };
+  } else if (type == 'key' || !pos.value) {
+    return {
+      start: {line: pos.key.line + 1, column: pos.key.column + 1},
+      end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column}
+    };
+  } else {
+    return {
+      start: {line: pos.value.line + 1, column: pos.value.column + 1},
+      end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column}
+    };
+  }
 }

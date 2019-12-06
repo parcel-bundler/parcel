@@ -129,7 +129,14 @@ export default new Transformer({
             if (node.type === 'string') {
               asset.addDependency({
                 moduleSpecifier: importPath,
-                loc: decl.source.start
+                loc: {
+                  filePath: importPath,
+                  start: decl.source.start,
+                  end: {
+                    line: decl.source.start.line,
+                    column: decl.source.start.column + importPath.length
+                  }
+                }
               });
             }
           });

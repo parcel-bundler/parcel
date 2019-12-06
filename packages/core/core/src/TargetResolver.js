@@ -10,14 +10,18 @@ import type {
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import ThrowableDiagnostic, {
-  generateJSONCodeHighlights
+  generateJSONCodeHighlights,
+  getJSONSourceLocation
 } from '@parcel/diagnostic';
 import {loadConfig, validateSchema} from '@parcel/utils';
 import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
+import jsonMap from 'json-source-map';
+import invariant from 'assert';
 import DESCRIPTOR_SCHEMA, {ENGINES_SCHEMA} from './TargetDescriptor.schema';
 
 export type TargetResolveResult = {|
@@ -62,7 +66,7 @@ export default class TargetResolver {
         if (optionTargets.length === 0) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Targets is an empty array`,
+              message: `Targets option is an empty array`,
               origin: '@parcel/core'
             }
           });
@@ -193,6 +197,7 @@ export default class TargetResolver {
     let pkgContents;
     let pkgFilePath: ?FilePath;
     let pkgDir: FilePath;
+    let pkgMap;
     if (conf) {
       pkg = (conf.config: PackageJSON);
       let pkgFile = conf.files[0];
@@ -207,6 +212,7 @@ export default class TargetResolver {
       pkgFilePath = pkgFile.filePath;
       pkgDir = path.dirname(pkgFilePath);
       pkgContents = await this.fs.readFile(pkgFilePath, 'utf8');
+      pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
     } else {
       pkg = {};
       pkgDir = this.fs.cwd();
@@ -255,6 +261,7 @@ export default class TargetResolver {
 
     for (let targetName of COMMON_TARGETS) {
       let targetDist;
+      let pointer;
       if (
         targetName === 'browser' &&
         pkg[targetName] != null &&
@@ -262,18 +269,28 @@ export default class TargetResolver {
       ) {
         // The `browser` field can be a file path or an alias map.
         targetDist = pkg[targetName][pkg.name];
+        pointer = `/${targetName}/${pkg.name}`;
       } else {
         targetDist = pkg[targetName];
+        pointer = `/${targetName}`;
       }
 
       if (typeof targetDist === 'string' || pkgTargets[targetName]) {
         let distDir;
         let distEntry;
+        let loc;
+
+        invariant(typeof pkgFilePath === 'string');
+        invariant(pkgMap != null);
 
         let _descriptor: mixed = pkgTargets[targetName] || {};
         if (typeof targetDist === 'string') {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
+          loc = {
+            filePath: pkgFilePath,
+            ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value')
+          };
         } else {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
@@ -284,6 +301,10 @@ export default class TargetResolver {
           pkgFilePath,
           pkgContents
         );
+        let isLibrary =
+          typeof distEntry === 'string'
+            ? path.extname(distEntry) === '.js'
+            : false;
         targets.set(targetName, {
           name: targetName,
           distDir,
@@ -298,13 +319,18 @@ export default class TargetResolver {
                 : targetName === 'module'
                 ? moduleContext
                 : mainContext),
-            includeNodeModules: descriptor.includeNodeModules ?? false,
+            includeNodeModules: descriptor.includeNodeModules ?? !isLibrary,
             outputFormat:
               descriptor.outputFormat ??
-              (targetName === 'module' ? 'esmodule' : 'commonjs'),
-            isLibrary: true
+              (isLibrary
+                ? targetName === 'module'
+                  ? 'esmodule'
+                  : 'commonjs'
+                : 'global'),
+            isLibrary: isLibrary
           }),
-          sourceMap: descriptor.sourceMap
+          sourceMap: descriptor.sourceMap,
+          loc
         });
       }
     }
@@ -319,6 +345,7 @@ export default class TargetResolver {
       let distPath: mixed = pkg[targetName];
       let distDir;
       let distEntry;
+      let loc;
       if (distPath == null) {
         distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
       } else {
@@ -349,6 +376,13 @@ export default class TargetResolver {
         }
         distDir = path.resolve(pkgDir, path.dirname(distPath));
         distEntry = path.basename(distPath);
+
+        invariant(typeof pkgFilePath === 'string');
+        invariant(pkgMap != null);
+        loc = {
+          filePath: pkgFilePath,
+          ...getJSONSourceLocation(pkgMap.pointers[`/${targetName}`], 'value')
+        };
       }
 
       if (_descriptor) {
@@ -370,7 +404,8 @@ export default class TargetResolver {
             outputFormat: descriptor.outputFormat,
             isLibrary: descriptor.isLibrary
           }),
-          sourceMap: descriptor.sourceMap
+          sourceMap: descriptor.sourceMap,
+          loc
         });
       }
     }
@@ -387,6 +422,8 @@ export default class TargetResolver {
         })
       });
     }
+
+    assertNoDuplicateTargets(targets, pkgFilePath, pkgContents);
 
     return {
       targets,
@@ -438,4 +475,55 @@ function parseDescriptor(
 
   // $FlowFixMe we just verified this
   return descriptor;
+}
+
+function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
+  // Detect duplicate targets by destination path and provide a nice error.
+  // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
+  let targetsByPath: Map<string, Array<string>> = new Map();
+  for (let target of targets.values()) {
+    if (target.distEntry) {
+      let distPath = path.join(target.distDir, target.distEntry);
+      if (!targetsByPath.has(distPath)) {
+        targetsByPath.set(distPath, []);
+      }
+      targetsByPath.get(distPath)?.push(target.name);
+    }
+  }
+
+  let diagnostics: Array<Diagnostic> = [];
+  for (let [targetPath, targetNames] of targetsByPath) {
+    if (targetNames.length > 1 && pkgContents && pkgFilePath) {
+      diagnostics.push({
+        message: `Multiple targets have the same destination path "${path.relative(
+          path.dirname(pkgFilePath),
+          targetPath
+        )}"`,
+        origin: '@parcel/core',
+        language: 'json',
+        filePath: pkgFilePath || undefined,
+        codeFrame: {
+          code: pkgContents,
+          codeHighlights: generateJSONCodeHighlights(
+            pkgContents,
+            targetNames.map(t => ({
+              key: `/${t}`,
+              type: 'value'
+            }))
+          )
+        }
+      });
+    }
+  }
+
+  if (diagnostics.length > 0) {
+    // Only add hints to the last diagnostic so it isn't duplicated on each one
+    diagnostics[diagnostics.length - 1].hints = [
+      'Try removing the duplicate targets, or changing the destination paths.'
+    ];
+
+    throw new ThrowableDiagnostic({
+      diagnostic: diagnostics
+    });
+  }
 }

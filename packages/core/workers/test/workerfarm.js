@@ -152,7 +152,8 @@ describe('WorkerFarm', function() {
         diagnostics: [
           {
             origin: 'console',
-            message: 'one'
+            message: 'one',
+            skipFormatting: true
           }
         ]
       },
@@ -162,7 +163,8 @@ describe('WorkerFarm', function() {
         diagnostics: [
           {
             origin: 'console',
-            message: 'two'
+            message: 'two',
+            skipFormatting: true
           }
         ]
       },
@@ -172,7 +174,8 @@ describe('WorkerFarm', function() {
         diagnostics: [
           {
             origin: 'console',
-            message: 'three'
+            message: 'three',
+            skipFormatting: true
           }
         ]
       },
@@ -182,7 +185,8 @@ describe('WorkerFarm', function() {
         diagnostics: [
           {
             origin: 'console',
-            message: 'four'
+            message: 'four',
+            skipFormatting: true
           }
         ]
       },
@@ -192,7 +196,8 @@ describe('WorkerFarm', function() {
         diagnostics: [
           {
             message: 'five',
-            origin: 'console'
+            origin: 'console',
+            skipFormatting: true
           }
         ]
       }
