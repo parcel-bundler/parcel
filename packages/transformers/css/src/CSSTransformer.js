@@ -3,6 +3,7 @@
 import type {FilePath} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
+import {createDependencyLocation} from '@parcel/utils';
 import postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
@@ -88,7 +89,8 @@ export default new Transformer({
       media = valueParser.stringify(media).trim();
       let dep = {
         moduleSpecifier,
-        loc: rule.source.start,
+        // Offset by 8 as it does not include `@import `
+        loc: createDependencyLocation(rule.source.start, moduleSpecifier, 0, 8),
         meta: {
           media
         }
@@ -112,7 +114,10 @@ export default new Transformer({
             node.nodes.length
           ) {
             node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
-              loc: decl.source.start
+              loc: createDependencyLocation(
+                decl.source.start,
+                node.nodes[0].value
+              )
             });
             isDirty = true;
           }

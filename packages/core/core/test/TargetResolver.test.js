@@ -126,7 +126,18 @@ describe('TargetResolver', () => {
               outputFormat: 'commonjs',
               isLibrary: true
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 11,
+                line: 2
+              },
+              end: {
+                column: 30,
+                line: 2
+              }
+            }
           },
           {
             name: 'module',
@@ -147,6 +158,17 @@ describe('TargetResolver', () => {
             },
             sourceMap: {
               inlineSources: true
+            },
+            loc: {
+              filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 13,
+                line: 3
+              },
+              end: {
+                column: 34,
+                line: 3
+              }
             }
           },
           {
@@ -166,7 +188,18 @@ describe('TargetResolver', () => {
               outputFormat: 'commonjs',
               isLibrary: true
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 14,
+                line: 4
+              },
+              end: {
+                column: 36,
+                line: 4
+              }
+            }
           }
         ]
       }
@@ -196,7 +229,18 @@ describe('TargetResolver', () => {
               outputFormat: 'commonjs',
               isLibrary: true
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 11,
+                line: 2
+              },
+              end: {
+                column: 30,
+                line: 2
+              }
+            }
           },
           {
             name: 'browserModern',
@@ -215,7 +259,18 @@ describe('TargetResolver', () => {
               outputFormat: 'global',
               isLibrary: false
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 20,
+                line: 3
+              },
+              end: {
+                column: 48,
+                line: 3
+              }
+            }
           },
           {
             name: 'browserLegacy',
@@ -234,7 +289,18 @@ describe('TargetResolver', () => {
               outputFormat: 'global',
               isLibrary: false
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 20,
+                line: 4
+              },
+              end: {
+                column: 48,
+                line: 4
+              }
+            }
           }
         ]
       }
@@ -265,7 +331,60 @@ describe('TargetResolver', () => {
             isLibrary: true,
             outputFormat: 'commonjs'
           },
-          sourceMap: undefined
+          sourceMap: undefined,
+          loc: {
+            filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json'),
+            start: {
+              column: 11,
+              line: 2
+            },
+            end: {
+              column: 30,
+              line: 2
+            }
+          }
+        }
+      ]
+    });
+  });
+
+  it('resolves main target as an application when non-js file extension is used', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    let fixture = path.join(__dirname, 'fixtures/application-targets');
+    assert.deepEqual(await targetResolver.resolve(fixture), {
+      files: [{filePath: path.join(fixture, 'package.json')}],
+      targets: [
+        {
+          name: 'main',
+          distDir: path.join(fixture, 'dist'),
+          distEntry: 'index.html',
+          publicUrl: '/',
+          env: {
+            context: 'browser',
+            engines: {
+              browsers: [
+                'last 1 Chrome version',
+                'last 1 Safari version',
+                'last 1 Firefox version',
+                'last 1 Edge version'
+              ]
+            },
+            includeNodeModules: true,
+            isLibrary: false,
+            outputFormat: 'global'
+          },
+          sourceMap: undefined,
+          loc: {
+            filePath: path.join(fixture, 'package.json'),
+            start: {
+              column: 11,
+              line: 2
+            },
+            end: {
+              column: 27,
+              line: 2
+            }
+          }
         }
       ]
     });
@@ -298,7 +417,18 @@ describe('TargetResolver', () => {
               outputFormat: 'commonjs',
               isLibrary: true
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 11,
+                line: 2
+              },
+              end: {
+                column: 30,
+                line: 2
+              }
+            }
           },
           {
             name: 'browser',
@@ -317,7 +447,18 @@ describe('TargetResolver', () => {
               outputFormat: 'commonjs',
               isLibrary: true
             },
-            sourceMap: undefined
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
+              start: {
+                column: 14,
+                line: 4
+              },
+              end: {
+                column: 36,
+                line: 4
+              }
+            }
           }
         ]
       }
@@ -526,5 +667,57 @@ describe('TargetResolver', () => {
         ]
       }
     );
+  });
+
+  it('rejects duplicate target paths', async () => {
+    let fixture = path.join(__dirname, 'fixtures/duplicate-targets');
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    let code = await fs.readFileSync(
+      path.join(fixture, 'package.json'),
+      'utf8'
+    );
+    // $FlowFixMe assert.rejects is Node 10+
+    await assert.rejects(() => targetResolver.resolve(fixture), {
+      diagnostics: [
+        {
+          message: `Multiple targets have the same destination path "${path.normalize(
+            'dist/index.js'
+          )}"`,
+          origin: '@parcel/core',
+          filePath: path.join(fixture, 'package.json'),
+          language: 'json',
+          codeFrame: {
+            code,
+            codeHighlights: [
+              {
+                end: {
+                  column: 25,
+                  line: 2
+                },
+                message: undefined,
+                start: {
+                  column: 11,
+                  line: 2
+                }
+              },
+              {
+                end: {
+                  column: 27,
+                  line: 3
+                },
+                message: undefined,
+                start: {
+                  column: 13,
+                  line: 3
+                }
+              }
+            ]
+          },
+          hints: [
+            'Try removing the duplicate targets, or changing the destination paths.'
+          ]
+        }
+      ]
+    });
   });
 });

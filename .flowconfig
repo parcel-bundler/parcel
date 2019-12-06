@@ -23,6 +23,8 @@ untyped-type-import=error
 esproposal.export_star_as=enable
 esproposal.nullish_coalescing=enable
 esproposal.optional_chaining=enable
+module.system.node.main_field=source
+module.system.node.main_field=main
 
 [strict]
 nonstrict-import
@@ -35,4 +37,4 @@ untyped-import
 untyped-type-import
 
 [version]
-0.112.0
+0.113.0
