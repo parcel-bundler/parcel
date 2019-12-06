@@ -4,11 +4,28 @@ import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
+function logUncaughtError(e: mixed) {
+  if (e instanceof ThrowableDiagnostic) {
+    for (let diagnostic of e.diagnostics) {
+      let out = prettyDiagnostic(diagnostic);
+      console.error(out.message);
+      console.error(out.codeframe || out.stack);
+      for (let h of out.hints) {
+        console.error(h);
+      }
+    }
+  } else {
+    console.error(e);
+  }
+}
+
 process.on('unhandledRejection', (reason: mixed) => {
-  console.error(reason);
+  logUncaughtError(reason);
   process.exit(1);
 });
 
@@ -204,7 +221,9 @@ async function run(entries: Array<string>, command: any) {
     } catch (e) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) console.error(e);
+      if (!(e instanceof BuildError)) {
+        logUncaughtError(e);
+      }
       process.exit(1);
     }
   }

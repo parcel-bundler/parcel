@@ -6,12 +6,13 @@ import type {
   PackageName
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
-import {resolveConfig, resolve} from '@parcel/utils';
+import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
 import ParcelConfig from './ParcelConfig';
+import ParcelConfigSchema from './ParcelConfig.schema';
 
 type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V, ...};
@@ -130,7 +131,18 @@ export function validateConfigFile(
   relativePath: FilePath
 ) {
   validateNotEmpty(config, relativePath);
-  validateExtends(config.extends, relativePath);
+
+  validateSchema.diagnostic(
+    ParcelConfigSchema,
+    config,
+    relativePath,
+    JSON.stringify(config, null, '\t'),
+    '@parcel/core',
+    '',
+    'Invalid Parcel Config'
+  );
+
+  /*validateExtends(config.extends, relativePath);
   validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
   validateMap(
     config.transforms,
@@ -169,7 +181,7 @@ export function validateConfigFile(
     'optimizers',
     relativePath
   );
-  validatePipeline(config.reporters, 'reporter', 'reporters', relativePath);
+  validatePipeline(config.reporters, 'reporter', 'reporters', relativePath);*/
 }
 
 export function validateNotEmpty(
