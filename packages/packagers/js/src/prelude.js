@@ -130,5 +130,7 @@
     } else if (globalName) {
       this[globalName] = mainExports;
     }
+
+    return mainExports;
   }
 });

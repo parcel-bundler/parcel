@@ -13,6 +13,7 @@ import {
   inputFS
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise} from '@parcel/utils';
+import vm from 'vm';
 
 describe('javascript', function() {
   beforeEach(async () => {
@@ -42,6 +43,25 @@ describe('javascript', function() {
     assert.equal(typeof output, 'object');
     assert.equal(typeof output.default, 'function');
     assert.equal(output.default(), 3);
+  });
+
+  it('should produce an expression that returns the main exports in global mode', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/commonjs/index.js')
+    );
+
+    let entryBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(entryBundle.filePath);
+    let ctx = vm.createContext({global: {}});
+
+    vm.runInContext(
+      'global.result = (' +
+        // Wrap in parens to validate it as a valid expression
+        contents.toString() +
+        ')',
+      ctx
+    );
+    assert.equal(ctx.global.result(), 3);
   });
 
   it('should detect dependencies inserted by a prior transform', async () => {
