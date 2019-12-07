@@ -241,7 +241,7 @@ describe('css', () => {
     );
   });
 
-  it.only('should ignore url() with IE behavior specifiers', async function() {
+  it('should ignore url() with IE behavior specifiers', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url-behavior/index.css')
     );
