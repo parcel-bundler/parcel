@@ -111,7 +111,8 @@ export default new Transformer({
           if (
             node.type === 'function' &&
             node.value === 'url' &&
-            node.nodes.length
+            node.nodes.length > 0 &&
+            !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
               loc: createDependencyLocation(
