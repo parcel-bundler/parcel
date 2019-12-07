@@ -4,9 +4,6 @@ import path from 'path';
 import ParcelConfig from '../src/ParcelConfig';
 import {
   validatePackageName,
-  validatePipeline,
-  validateMap,
-  validateExtends,
   validateConfigFile,
   mergePipelines,
   mergeMaps,
@@ -90,127 +87,6 @@ describe('loadParcelConfig', () => {
         'transforms',
         '.parcelrc'
       );
-    });
-  });
-
-  describe('validatePipeline', () => {
-    it('should require pipeline to be an array', () => {
-      assert.throws(() => {
-        // $FlowFixMe
-        validatePipeline('123', 'resolver', 'resolvers', '.parcelrc');
-      }, /"resolvers" must be an array in .parcelrc/);
-    });
-
-    it('should require pipeline elements to be strings', () => {
-      assert.throws(() => {
-        validatePipeline(
-          // $FlowFixMe
-          [1, 'foo', 3],
-          'resolver',
-          'resolvers',
-          '.parcelrc'
-        );
-      }, /"resolvers" elements must be strings in .parcelrc/);
-    });
-
-    it('should require package names to be valid', () => {
-      assert.throws(() => {
-        validatePipeline(
-          ['parcel-foo-bar'],
-          'resolver',
-          'resolvers',
-          '.parcelrc'
-        );
-      }, /Parcel resolver packages must be named according to "parcel-resolver-{name}" but got "parcel-foo-bar" in .parcelrc./);
-    });
-
-    it('should succeed with an array of valid package names', () => {
-      validatePipeline(
-        ['parcel-resolver-test'],
-        'resolver',
-        'resolvers',
-        '.parcelrc'
-      );
-    });
-
-    it('should support spread elements', () => {
-      validatePipeline(
-        ['parcel-resolver-test', '...'],
-        'resolver',
-        'resolvers',
-        '.parcelrc'
-      );
-    });
-  });
-
-  describe('validateMap', () => {
-    it('should require glob map to be an object', () => {
-      assert.throws(() => {
-        validateMap(
-          // $FlowFixMe
-          'foo',
-          () => {},
-          'transform',
-          'transforms',
-          '.parcelrc'
-        );
-      }, /"transforms" must be an object in .parcelrc/);
-    });
-
-    it('should trigger the validator function for each key', () => {
-      assert.throws(() => {
-        validateMap(
-          {
-            '*.js': ['foo']
-          },
-          validatePipeline,
-          'transform',
-          'transforms',
-          '.parcelrc'
-        );
-      });
-
-      validateMap(
-        {
-          '*.js': ['parcel-transform-foo']
-        },
-        validatePipeline,
-        'transform',
-        'transforms',
-        '.parcelrc'
-      );
-    });
-  });
-
-  describe('validateExtends', () => {
-    it('should require extends to be a string or array of strings', () => {
-      assert.throws(() => {
-        // $FlowFixMe
-        validateExtends(2, '.parcelrc');
-      }, /"extends" must be a string or array of strings in .parcelrc/);
-
-      assert.throws(() => {
-        // $FlowFixMe
-        validateExtends([2, 4], '.parcelrc');
-      }, /"extends" elements must be strings in .parcelrc/);
-    });
-
-    it('should support relative paths', () => {
-      validateExtends('./foo', '.parcelrc');
-      validateExtends(['./foo', './bar'], '.parcelrc');
-    });
-
-    it('should validate package names', () => {
-      assert.throws(() => {
-        validateExtends('foo', '.parcelrc');
-      });
-
-      assert.throws(() => {
-        validateExtends(['foo', 'bar'], '.parcelrc');
-      });
-
-      validateExtends('parcel-config-foo', '.parcelrc');
-      validateExtends(['parcel-config-foo', 'parcel-config-bar'], '.parcelrc');
     });
   });
 

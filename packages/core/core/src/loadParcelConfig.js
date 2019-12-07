@@ -133,7 +133,7 @@ export function validateConfigFile(
   validateNotEmpty(config, relativePath);
 
   validateSchema.diagnostic(
-    ParcelConfigSchema,
+    ParcelConfigSchema(relativePath),
     config,
     relativePath,
     JSON.stringify(config, null, '\t'),
@@ -141,47 +141,6 @@ export function validateConfigFile(
     '',
     'Invalid Parcel Config'
   );
-
-  /*validateExtends(config.extends, relativePath);
-  validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
-  validateMap(
-    config.transforms,
-    validatePipeline.bind(this),
-    'transformer',
-    'transforms',
-    relativePath
-  );
-  validateMap(
-    config.validators,
-    validatePipeline.bind(this),
-    'validator',
-    'validators',
-    relativePath
-  );
-  validatePackageName(config.bundler, 'bundler', 'bundler', relativePath);
-  validatePipeline(config.namers, 'namer', 'namers', relativePath);
-  validateMap(
-    config.runtimes,
-    validatePipeline.bind(this),
-    'runtime',
-    'runtimes',
-    relativePath
-  );
-  validateMap(
-    config.packagers,
-    validatePackageName.bind(this),
-    'packager',
-    'packagers',
-    relativePath
-  );
-  validateMap(
-    config.optimizers,
-    validatePipeline.bind(this),
-    'optimizer',
-    'optimizers',
-    relativePath
-  );
-  validatePipeline(config.reporters, 'reporter', 'reporters', relativePath);*/
 }
 
 export function validateNotEmpty(
@@ -189,80 +148,6 @@ export function validateNotEmpty(
   relativePath: FilePath
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
-}
-
-export function validateExtends(
-  exts: string | Array<string> | void,
-  relativePath: FilePath
-) {
-  if (Array.isArray(exts)) {
-    for (let ext of exts) {
-      assert(
-        typeof ext === 'string',
-        `"extends" elements must be strings in ${relativePath}`
-      );
-      validateExtendsConfig(ext, relativePath);
-    }
-  } else if (exts) {
-    assert(
-      typeof exts === 'string',
-      `"extends" must be a string or array of strings in ${relativePath}`
-    );
-    validateExtendsConfig(exts, relativePath);
-  }
-}
-
-export function validateExtendsConfig(ext: string, relativePath: FilePath) {
-  if (!ext.startsWith('.')) {
-    validatePackageName(ext, 'config', 'extends', relativePath);
-  }
-}
-
-export function validatePipeline(
-  pipeline: ?Pipeline,
-  pluginType: string,
-  key: string,
-  relativePath: FilePath
-) {
-  if (!pipeline) {
-    return;
-  }
-
-  assert(
-    Array.isArray(pipeline),
-    `"${key}" must be an array in ${relativePath}`
-  );
-  assert(
-    pipeline.every(pkg => typeof pkg === 'string'),
-    `"${key}" elements must be strings in ${relativePath}`
-  );
-  for (let pkg of pipeline) {
-    if (pkg !== '...') {
-      validatePackageName(pkg, pluginType, key, relativePath);
-    }
-  }
-}
-
-export function validateMap<K, V>(
-  globMap: ?ConfigMap<K, V>,
-  validator: (v: V, p: string, k: string, p: FilePath) => void,
-  pluginType: string,
-  configKey: string,
-  relativePath: FilePath
-) {
-  if (!globMap) {
-    return;
-  }
-
-  assert(
-    typeof globMap === 'object',
-    `"${configKey}" must be an object in ${relativePath}`
-  );
-  for (let k in globMap) {
-    // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
-    let key: K = (k: any);
-    validator(globMap[key], pluginType, `${configKey}["${k}"]`, relativePath);
-  }
 }
 
 // Reasoning behind this validation:
