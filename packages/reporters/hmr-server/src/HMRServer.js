@@ -46,26 +46,27 @@ export default class HMRServer {
   }
 
   async start() {
-    await new Promise(async resolve => {
-      let {server, stop} = await createHTTPServer({
-        https: this.options.https,
-        inputFS: this.options.inputFS,
-        outputFS: this.options.outputFS,
-        cacheDir: this.options.cacheDir
-      });
-      this.stopServer = stop;
+    let {server, stop} = await createHTTPServer({
+      https: this.options.https,
+      inputFS: this.options.inputFS,
+      outputFS: this.options.outputFS,
+      cacheDir: this.options.cacheDir
+    });
+    this.stopServer = stop;
 
-      let websocketOptions = {
-        server
-        /*verifyClient: info => {
+    let websocketOptions = {
+      server
+      /*verifyClient: info => {
           if (!this.options.host) return true;
 
           let originator = new URL(info.origin);
           return this.options.host === originator.hostname;
         }*/
-      };
+    };
 
-      this.wss = new WebSocket.Server(websocketOptions);
+    this.wss = new WebSocket.Server(websocketOptions);
+
+    await new Promise(resolve => {
       server.listen(this.options.port, this.options.host, resolve);
     });
 
