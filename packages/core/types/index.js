@@ -219,6 +219,7 @@ export type HTTPSOptions = {|
   key: FilePath
 |};
 
+// Source locations are 1-based, meaning lines and columns start at 1
 export type SourceLocation = {|
   filePath: string,
   start: {|

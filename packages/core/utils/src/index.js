@@ -22,6 +22,7 @@ export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
 export {default as loadSourceMapUrl} from './loadSourceMapUrl';
 export {default as relativeUrl} from './relativeUrl';
+export {default as createDependencyLocation} from './dependency-location';
 export {default as debounce} from './debounce';
 export {default as throttle} from './throttle';
 

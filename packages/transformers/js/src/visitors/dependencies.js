@@ -4,7 +4,7 @@ import type {MutableAsset, PluginOptions} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
-import {isURL, md5FromString} from '@parcel/utils';
+import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {hasBinding, morph} from './utils';
 import invariant from 'assert';
 
@@ -285,7 +285,7 @@ function addDependency(
 ) {
   asset.addDependency({
     moduleSpecifier: node.value,
-    loc: node.loc && node.loc.start,
+    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     isAsync: opts ? opts.isAsync : false,
     isOptional: opts ? opts.isOptional : false
   });
@@ -293,7 +293,7 @@ function addDependency(
 
 function addURLDependency(asset, node, opts = {}) {
   node.value = asset.addURLDependency(node.value, {
-    loc: node.loc && node.loc.start,
+    loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     ...opts
   });
   invariant(asset.ast);
