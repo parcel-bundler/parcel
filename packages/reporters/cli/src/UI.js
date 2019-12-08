@@ -79,7 +79,10 @@ const getMessageIdentifier = (l: LogEvent) => {
   } else if (l.diagnostics) {
     return l.diagnostics.reduce(
       (acc, d) =>
-        acc + d.message + d.origin + (d.codeFrame ? d.codeFrame.code : ''),
+        acc +
+        d.message +
+        (d.origin || '') +
+        (d.codeFrame ? d.codeFrame.code : ''),
       ''
     );
   } else {
