@@ -72,6 +72,10 @@ export default class Parcel {
     this.#initialOptions = options;
   }
 
+  getOptions() {
+    return this.#resolvedOptions;
+  }
+
   async init(): Promise<void> {
     if (this.#initialized) {
       return;

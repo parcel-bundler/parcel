@@ -195,10 +195,11 @@ async function run(entries: Array<string>, command: any) {
     });
 
     if (command.open && command.name() === 'serve') {
-      const port = command.port || process.env.PORT || 1234;
+      const {
+        serve: {port, https, host}
+      } = parcel.getOptions();
       await openInBrowser(
-        `${command.https ? 'https' : 'http'}://${command.host ||
-          'localhost'}:${port}`,
+        `${https ? 'https' : 'http'}://${host || 'localhost'}:${port}`,
         command.open
       );
     }
