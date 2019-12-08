@@ -1,6 +1,7 @@
 // @flow
 import type {Session} from 'inspector';
 import invariant from 'assert';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-Profile
 export type Profile = {|
@@ -53,7 +54,9 @@ export default class Profiler {
         this.sendCommand('Profiler.start')
       ]);
     } catch (err) {
-      throw err;
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(err)
+      });
     }
   }
 
