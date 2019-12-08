@@ -106,6 +106,175 @@ describe('loadParcelConfig', () => {
       });
     });
 
+    it('should require pipeline to be an array', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            // $FlowFixMe
+            resolvers: '123'
+          },
+          '.parcelrc'
+        );
+      });
+    });
+
+    it('should require pipeline elements to be strings', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            // $FlowFixMe
+            resolvers: [1, '123', 5]
+          },
+          '.parcelrc'
+        );
+      });
+    });
+
+    it('should require package names to be valid', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            // $FlowFixMe
+            resolvers: ['parcel-foo-bar']
+          },
+          '.parcelrc'
+        );
+      });
+    });
+
+    it('should succeed with an array of valid package names', () => {
+      validateConfigFile(
+        {
+          filePath: '.parcelrc',
+          // $FlowFixMe
+          resolvers: ['parcel-resolver-test']
+        },
+        '.parcelrc'
+      );
+    });
+
+    it('should support spread elements', () => {
+      validateConfigFile(
+        {
+          filePath: '.parcelrc',
+          // $FlowFixMe
+          resolvers: ['parcel-resolver-test', '...']
+        },
+        '.parcelrc'
+      );
+    });
+
+    it('should require glob map to be an object', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            // $FlowFixMe
+            transforms: ['parcel-transformer-test', '...']
+          },
+          '.parcelrc'
+        );
+      });
+    });
+
+    it('should trigger the validator function for each key', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            transforms: {
+              'types:*.{ts,tsx}': ['@parcel/transformer-typescript-types'],
+              'bundle-text:*': ['-inline-string', '...']
+            }
+          },
+          '.parcelrc'
+        );
+      });
+    });
+
+    it('should require extends to be a string or array of strings', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            // $FlowFixMe
+            extends: 2
+          },
+          '.parcelrc'
+        );
+      });
+
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            // $FlowFixMe
+            extends: [2, 7]
+          },
+          '.parcelrc'
+        );
+      });
+    });
+
+    it('should support relative paths', () => {
+      validateConfigFile(
+        {
+          filePath: '.parcelrc',
+          extends: './foo'
+        },
+        '.parcelrc'
+      );
+
+      validateConfigFile(
+        {
+          filePath: '.parcelrc',
+          extends: ['./foo', './bar']
+        },
+        '.parcelrc'
+      );
+    });
+
+    it('should validate package names', () => {
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            extends: 'foo'
+          },
+          '.parcelrc'
+        );
+      });
+
+      assert.throws(() => {
+        validateConfigFile(
+          {
+            filePath: '.parcelrc',
+            extends: ['foo', 'bar']
+          },
+          '.parcelrc'
+        );
+      });
+
+      validateConfigFile(
+        {
+          filePath: '.parcelrc',
+          extends: 'parcel-config-foo'
+        },
+        '.parcelrc'
+      );
+
+      validateConfigFile(
+        {
+          filePath: '.parcelrc',
+          extends: ['parcel-config-foo', 'parcel-config-bar']
+        },
+        '.parcelrc'
+      );
+    });
+
     it('should succeed on valid config', () => {
       validateConfigFile(
         {
