@@ -241,6 +241,23 @@ describe('css', () => {
     );
   });
 
+  it('should ignore url() with IE behavior specifiers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-url-behavior/index.css')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.css']
+      }
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url(#default#VML)'));
+  });
+
   it('should minify CSS when minify is set', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
