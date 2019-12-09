@@ -36,6 +36,7 @@ export type SchemaNot = {|
 export type SchemaString = {|
   type: 'string',
   enum?: Array<string>,
+  validate?: (val: string) => ?string,
   __type?: string
 |};
 export type SchemaObject = {|
@@ -147,6 +148,19 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   dataType: 'value',
                   dataPath,
                   expectedValues: schemaNode.enum,
+                  actualValue: value,
+                  ancestors: schemaAncestors
+                };
+              }
+            } else if (schemaNode.validate) {
+              let validationError = schemaNode.validate(value);
+              // $FlowFixMe
+              if (validationError) {
+                return {
+                  type: 'other',
+                  dataType: 'value',
+                  dataPath,
+                  message: validationError,
                   actualValue: value,
                   ancestors: schemaAncestors
                 };

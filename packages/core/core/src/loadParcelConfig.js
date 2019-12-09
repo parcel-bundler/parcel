@@ -6,12 +6,13 @@ import type {
   PackageName
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
-import {resolveConfig, resolve} from '@parcel/utils';
+import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
 import ParcelConfig from './ParcelConfig';
+import ParcelConfigSchema from './ParcelConfig.schema';
 
 type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V, ...};
@@ -130,46 +131,16 @@ export function validateConfigFile(
   relativePath: FilePath
 ) {
   validateNotEmpty(config, relativePath);
-  validateExtends(config.extends, relativePath);
-  validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
-  validateMap(
-    config.transforms,
-    validatePipeline.bind(this),
-    'transformer',
-    'transforms',
-    relativePath
+
+  validateSchema.diagnostic(
+    ParcelConfigSchema,
+    config,
+    relativePath,
+    JSON.stringify(config, null, '\t'),
+    '@parcel/core',
+    '',
+    'Invalid Parcel Config'
   );
-  validateMap(
-    config.validators,
-    validatePipeline.bind(this),
-    'validator',
-    'validators',
-    relativePath
-  );
-  validatePackageName(config.bundler, 'bundler', 'bundler', relativePath);
-  validatePipeline(config.namers, 'namer', 'namers', relativePath);
-  validateMap(
-    config.runtimes,
-    validatePipeline.bind(this),
-    'runtime',
-    'runtimes',
-    relativePath
-  );
-  validateMap(
-    config.packagers,
-    validatePackageName.bind(this),
-    'packager',
-    'packagers',
-    relativePath
-  );
-  validateMap(
-    config.optimizers,
-    validatePipeline.bind(this),
-    'optimizer',
-    'optimizers',
-    relativePath
-  );
-  validatePipeline(config.reporters, 'reporter', 'reporters', relativePath);
 }
 
 export function validateNotEmpty(
@@ -177,116 +148,6 @@ export function validateNotEmpty(
   relativePath: FilePath
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
-}
-
-export function validateExtends(
-  exts: string | Array<string> | void,
-  relativePath: FilePath
-) {
-  if (Array.isArray(exts)) {
-    for (let ext of exts) {
-      assert(
-        typeof ext === 'string',
-        `"extends" elements must be strings in ${relativePath}`
-      );
-      validateExtendsConfig(ext, relativePath);
-    }
-  } else if (exts) {
-    assert(
-      typeof exts === 'string',
-      `"extends" must be a string or array of strings in ${relativePath}`
-    );
-    validateExtendsConfig(exts, relativePath);
-  }
-}
-
-export function validateExtendsConfig(ext: string, relativePath: FilePath) {
-  if (!ext.startsWith('.')) {
-    validatePackageName(ext, 'config', 'extends', relativePath);
-  }
-}
-
-export function validatePipeline(
-  pipeline: ?Pipeline,
-  pluginType: string,
-  key: string,
-  relativePath: FilePath
-) {
-  if (!pipeline) {
-    return;
-  }
-
-  assert(
-    Array.isArray(pipeline),
-    `"${key}" must be an array in ${relativePath}`
-  );
-  assert(
-    pipeline.every(pkg => typeof pkg === 'string'),
-    `"${key}" elements must be strings in ${relativePath}`
-  );
-  for (let pkg of pipeline) {
-    if (pkg !== '...') {
-      validatePackageName(pkg, pluginType, key, relativePath);
-    }
-  }
-}
-
-export function validateMap<K, V>(
-  globMap: ?ConfigMap<K, V>,
-  validator: (v: V, p: string, k: string, p: FilePath) => void,
-  pluginType: string,
-  configKey: string,
-  relativePath: FilePath
-) {
-  if (!globMap) {
-    return;
-  }
-
-  assert(
-    typeof globMap === 'object',
-    `"${configKey}" must be an object in ${relativePath}`
-  );
-  for (let k in globMap) {
-    // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
-    let key: K = (k: any);
-    validator(globMap[key], pluginType, `${configKey}["${k}"]`, relativePath);
-  }
-}
-
-// Reasoning behind this validation:
-// https://github.com/parcel-bundler/parcel/issues/3397#issuecomment-521353931
-export function validatePackageName(
-  pkg: ?PackageName,
-  pluginType: string,
-  key: string,
-  relativePath: FilePath
-) {
-  if (!pkg) {
-    return;
-  }
-
-  assert(
-    typeof pkg === 'string',
-    `"${key}" must be a string in ${relativePath}`
-  );
-
-  if (pkg.startsWith('@parcel')) {
-    assert(
-      pkg.replace(/^@parcel\//, '').startsWith(`${pluginType}-`),
-      `Official parcel ${pluginType} packages must be named according to "@parcel/${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
-    );
-  } else if (pkg.startsWith('@')) {
-    let [scope, name] = pkg.split('/');
-    assert(
-      name.startsWith(`parcel-${pluginType}-`),
-      `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
-    );
-  } else {
-    assert(
-      pkg.startsWith(`parcel-${pluginType}-`),
-      `Parcel ${pluginType} packages must be named according to "parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
-    );
-  }
 }
 
 export function mergeConfigs(
