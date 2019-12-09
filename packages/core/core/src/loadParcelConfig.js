@@ -133,7 +133,7 @@ export function validateConfigFile(
   validateNotEmpty(config, relativePath);
 
   validateSchema.diagnostic(
-    ParcelConfigSchema(relativePath),
+    ParcelConfigSchema,
     config,
     relativePath,
     JSON.stringify(config, null, '\t'),
@@ -148,42 +148,6 @@ export function validateNotEmpty(
   relativePath: FilePath
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
-}
-
-// Reasoning behind this validation:
-// https://github.com/parcel-bundler/parcel/issues/3397#issuecomment-521353931
-export function validatePackageName(
-  pkg: ?PackageName,
-  pluginType: string,
-  key: string,
-  relativePath: FilePath
-) {
-  if (!pkg) {
-    return;
-  }
-
-  assert(
-    typeof pkg === 'string',
-    `"${key}" must be a string in ${relativePath}`
-  );
-
-  if (pkg.startsWith('@parcel')) {
-    assert(
-      pkg.replace(/^@parcel\//, '').startsWith(`${pluginType}-`),
-      `Official parcel ${pluginType} packages must be named according to "@parcel/${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
-    );
-  } else if (pkg.startsWith('@')) {
-    let [scope, name] = pkg.split('/');
-    assert(
-      name.startsWith(`parcel-${pluginType}-`),
-      `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
-    );
-  } else {
-    assert(
-      pkg.startsWith(`parcel-${pluginType}-`),
-      `Parcel ${pluginType} packages must be named according to "parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
-    );
-  }
 }
 
 export function mergeConfigs(

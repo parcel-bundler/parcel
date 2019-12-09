@@ -3,7 +3,6 @@ import assert from 'assert';
 import path from 'path';
 import ParcelConfig from '../src/ParcelConfig';
 import {
-  validatePackageName,
   validateConfigFile,
   mergePipelines,
   mergeMaps,
@@ -12,80 +11,50 @@ import {
   readAndProcess,
   resolveParcelConfig
 } from '../src/loadParcelConfig';
+import {validatePackageName} from '../src/ParcelConfig.schema';
 import {DEFAULT_OPTIONS} from './utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
     it('should error on an invalid official package', () => {
       assert.throws(() => {
-        validatePackageName(
-          '@parcel/foo-bar',
-          'transform',
-          'transforms',
-          '.parcelrc'
-        );
-      }, /Official parcel transform packages must be named according to "@parcel\/transform-{name}" but got "@parcel\/foo-bar" in .parcelrc./);
+        validatePackageName('@parcel/foo-bar', 'transform', 'transforms');
+      }, /Official parcel transform packages must be named according to "@parcel\/transform-{name}"/);
     });
 
     it('should succeed on a valid official package', () => {
-      validatePackageName(
-        '@parcel/transform-bar',
-        'transform',
-        'transforms',
-        '.parcelrc'
-      );
+      validatePackageName('@parcel/transform-bar', 'transform', 'transforms');
     });
 
     it('should error on an invalid community package', () => {
       assert.throws(() => {
-        validatePackageName('foo-bar', 'transform', 'transforms', '.parcelrc');
-      }, /Parcel transform packages must be named according to "parcel-transform-{name}" but got "foo-bar" in .parcelrc./);
+        validatePackageName('foo-bar', 'transform', 'transforms');
+      }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
 
       assert.throws(() => {
-        validatePackageName(
-          'parcel-foo-bar',
-          'transform',
-          'transforms',
-          '.parcelrc'
-        );
-      }, /Parcel transform packages must be named according to "parcel-transform-{name}" but got "parcel-foo-bar" in .parcelrc./);
+        validatePackageName('parcel-foo-bar', 'transform', 'transforms');
+      }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
     });
 
     it('should succeed on a valid community package', () => {
-      validatePackageName(
-        'parcel-transform-bar',
-        'transform',
-        'transforms',
-        '.parcelrc'
-      );
+      validatePackageName('parcel-transform-bar', 'transform', 'transforms');
     });
 
     it('should error on an invalid scoped package', () => {
       assert.throws(() => {
-        validatePackageName(
-          '@test/foo-bar',
-          'transform',
-          'transforms',
-          '.parcelrc'
-        );
-      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}" but got "@test\/foo-bar" in .parcelrc./);
+        validatePackageName('@test/foo-bar', 'transform', 'transforms');
+      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
 
       assert.throws(() => {
-        validatePackageName(
-          '@test/parcel-foo-bar',
-          'transform',
-          'transforms',
-          '.parcelrc'
-        );
-      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}" but got "@test\/parcel-foo-bar" in .parcelrc./);
+        validatePackageName('@test/parcel-foo-bar', 'transform', 'transforms');
+      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
     });
 
     it('should succeed on a valid scoped package', () => {
       validatePackageName(
         '@test/parcel-transform-bar',
         'transform',
-        'transforms',
-        '.parcelrc'
+        'transforms'
       );
     });
   });
