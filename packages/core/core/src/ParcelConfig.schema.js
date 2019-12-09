@@ -65,7 +65,7 @@ const pipelineSchema = (pluginType: string, key: string): SchemaEntity => {
     type: 'array',
     items: {
       type: 'string',
-      validate: validatePluginName(pluginType, key)
+      __validate: validatePluginName(pluginType, key)
     }
   };
 };
@@ -84,7 +84,7 @@ const mapStringSchema = (pluginType: string, key: string): SchemaEntity => {
     properties: {},
     additionalProperties: {
       type: 'string',
-      validate: validatePluginName(pluginType, key)
+      __validate: validatePluginName(pluginType, key)
     }
   };
 };
@@ -96,20 +96,20 @@ export default {
       oneOf: [
         {
           type: 'string',
-          validate: validateExtends
+          __validate: validateExtends
         },
         {
           type: 'array',
           items: {
             type: 'string',
-            validate: validateExtends
+            __validate: validateExtends
           }
         }
       ]
     },
     bundler: {
       type: 'string',
-      validate: validatePluginName('bundler', 'bundler')
+      __validate: validatePluginName('bundler', 'bundler')
     },
     resolvers: pipelineSchema('resolver', 'resolvers'),
     transforms: mapPipelineSchema('transformer', 'transforms'),
