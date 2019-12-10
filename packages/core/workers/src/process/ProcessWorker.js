@@ -5,7 +5,7 @@ import type {
   MessageHandler,
   ErrorHandler,
   ExitHandler,
-  WorkerMessage
+  WorkerMessage,
 } from '../types';
 import childProcess, {type ChildProcess} from 'child_process';
 import path from 'path';
@@ -26,7 +26,7 @@ export default class ProcessWorker implements WorkerImpl {
     execArgv: Object,
     onMessage: MessageHandler,
     onError: ErrorHandler,
-    onExit: ExitHandler
+    onExit: ExitHandler,
   ) {
     this.execArgv = execArgv;
     this.onMessage = onMessage;
@@ -38,7 +38,7 @@ export default class ProcessWorker implements WorkerImpl {
     this.child = childProcess.fork(WORKER_PATH, process.argv, {
       execArgv: this.execArgv,
       env: process.env,
-      cwd: process.cwd()
+      cwd: process.cwd(),
     });
 
     this.child.on('message', (data: string) => {

@@ -15,14 +15,14 @@ class RawAsset extends Asset {
 
     const pathToAsset = urlJoin(
       this.options.publicURL,
-      this.generateBundleName()
+      this.generateBundleName(),
     );
 
     return [
       {
         type: 'js',
-        value: `module.exports=${JSON.stringify(pathToAsset)};`
-      }
+        value: `module.exports=${JSON.stringify(pathToAsset)};`,
+      },
     ];
   }
 

@@ -3,7 +3,7 @@
 import type {ChildProcess} from 'child_process';
 
 export default function promiseFromProcess(
-  childProcess: ChildProcess
+  childProcess: ChildProcess,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     childProcess.on('error', reject);

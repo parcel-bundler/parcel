@@ -4,7 +4,7 @@ import type {
   BundleGroup,
   GraphVisitor,
   Symbol,
-  TraversalActions
+  TraversalActions,
 } from '@parcel/types';
 
 import type {
@@ -14,7 +14,7 @@ import type {
   BundleGraphNode,
   BundleGroupNode,
   Dependency,
-  DependencyNode
+  DependencyNode,
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -50,10 +50,10 @@ export default class BundleGraph {
 
   constructor({
     graph,
-    bundleContentHashes
+    bundleContentHashes,
   }: {|
     graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    bundleContentHashes?: Map<string, string>
+    bundleContentHashes?: Map<string, string>,
   |}) {
     this._graph = graph;
     this._bundleContentHashes = bundleContentHashes || new Map();
@@ -61,11 +61,11 @@ export default class BundleGraph {
 
   static deserialize(opts: {|
     _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    _bundleContentHashes: Map<string, string>
+    _bundleContentHashes: Map<string, string>,
   |}): BundleGraph {
     return new BundleGraph({
       graph: opts._graph,
-      bundleContentHashes: opts._bundleContentHashes
+      bundleContentHashes: opts._bundleContentHashes,
     });
   }
 
@@ -117,7 +117,7 @@ export default class BundleGraph {
             // is disabled for performance reasons as these edges are removed as part
             // of a traversal, and checking for orphans becomes quite expensive in
             // aggregate.
-            false /* removeOrphans */
+            false /* removeOrphans */,
           );
           if (node.type === 'asset') {
             bundle.stats.size -= asset.stats.size;
@@ -139,7 +139,8 @@ export default class BundleGraph {
           // then the connection between this bundle and the group is safe to remove.
           if (
             inboundDependencies.every(
-              depNode => !this._graph.hasEdge(bundle.id, depNode.id, 'contains')
+              depNode =>
+                !this._graph.hasEdge(bundle.id, depNode.id, 'contains'),
             )
           ) {
             this._graph.removeEdge(bundle.id, bundleGroupNode.id, 'bundle');
@@ -167,7 +168,7 @@ export default class BundleGraph {
     return this._graph
       .getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),
-        'contains'
+        'contains',
       )
       .filter(node => node.type === 'bundle')
       .map(node => {
@@ -228,11 +229,11 @@ export default class BundleGraph {
 
   traverseAssets<TContext>(
     bundle: Bundle,
-    visit: GraphVisitor<Asset, TContext>
+    visit: GraphVisitor<Asset, TContext>,
   ): ?TContext {
     return this.traverseBundle(
       bundle,
-      mapVisitor(node => (node.type === 'asset' ? node.value : null), visit)
+      mapVisitor(node => (node.type === 'asset' ? node.value : null), visit),
     );
   }
 
@@ -240,7 +241,7 @@ export default class BundleGraph {
     return (
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),
-        'references'
+        'references',
       ).length > 0
     );
   }
@@ -249,8 +250,8 @@ export default class BundleGraph {
     let referringBundles = new Set(
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),
-        'contains'
-      )
+        'contains',
+      ),
     );
 
     // is `asset` referenced by a dependency from an asset of `type`
@@ -269,7 +270,7 @@ export default class BundleGraph {
       node => {
         invariant(node.type === 'dependency');
         return this._graph.getNodesConnectedTo(node, null);
-      }
+      },
     )
       .filter(node => node.type === 'asset')
       .some(node => {
@@ -282,9 +283,9 @@ export default class BundleGraph {
     return flatMap(
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(bundle.id)),
-        'bundle'
+        'bundle',
       ),
-      node => this._graph.getNodesConnectedTo(node, 'bundle')
+      node => this._graph.getNodesConnectedTo(node, 'bundle'),
     ).every(node => node.type === 'bundle' && node.value.type === type);
   }
 
@@ -292,12 +293,12 @@ export default class BundleGraph {
     let parentBundleNodes = flatMap(
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(bundle.id)),
-        'bundle'
+        'bundle',
       ),
       bundleGroupNode => {
         invariant(bundleGroupNode.type === 'bundle_group');
         return this._graph.getNodesConnectedTo(bundleGroupNode, 'bundle');
-      }
+      },
     );
 
     return parentBundleNodes.every(parentNode => {
@@ -315,7 +316,7 @@ export default class BundleGraph {
             actions.stop();
           }
         },
-        'bundle'
+        'bundle',
       );
 
       return inBundle;
@@ -324,7 +325,7 @@ export default class BundleGraph {
 
   traverseBundle<TContext>(
     bundle: Bundle,
-    visit: GraphVisitor<AssetNode | DependencyNode, TContext>
+    visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
     return this._graph.filteredTraverse(
       (node, actions) => {
@@ -341,17 +342,17 @@ export default class BundleGraph {
         actions.skipChildren();
       },
       visit,
-      nullthrows(this._graph.getNode(bundle.id))
+      nullthrows(this._graph.getNode(bundle.id)),
     );
   }
 
   traverseContents<TContext>(
-    visit: GraphVisitor<AssetNode | DependencyNode, TContext>
+    visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
     return this._graph.filteredTraverse(
       node =>
         node.type === 'asset' || node.type === 'dependency' ? node : null,
-      visit
+      visit,
     );
   }
 
@@ -370,13 +371,13 @@ export default class BundleGraph {
 
   traverseBundles<TContext>(
     visit: GraphVisitor<Bundle, TContext>,
-    startBundle?: Bundle
+    startBundle?: Bundle,
   ): ?TContext {
     return this._graph.filteredTraverse(
       node => (node.type === 'bundle' ? node.value : null),
       visit,
       startBundle ? nullthrows(this._graph.getNode(startBundle.id)) : null,
-      'bundle'
+      'bundle',
     );
   }
 
@@ -418,7 +419,7 @@ export default class BundleGraph {
     return this._graph
       .getNodesConnectedFrom(
         nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-        'bundle'
+        'bundle',
       )
       .filter(node => node.type === 'bundle')
       .map(node => {
@@ -444,7 +445,7 @@ export default class BundleGraph {
   }
 
   getBundleGroupsReferencedByBundle(
-    bundle: Bundle
+    bundle: Bundle,
   ): Array<{
     bundleGroup: BundleGroup,
     dependency: Dependency,
@@ -452,7 +453,7 @@ export default class BundleGraph {
   }> {
     let node = nullthrows(
       this._graph.getNode(bundle.id),
-      'Bundle graph must contain bundle'
+      'Bundle graph must contain bundle',
     );
 
     let groupNodes: Array<BundleGroupNode> = [];
@@ -464,7 +465,7 @@ export default class BundleGraph {
         }
       },
       node,
-      'bundle'
+      'bundle',
     );
 
     return flatMap(groupNodes, groupNode => {
@@ -473,7 +474,7 @@ export default class BundleGraph {
         .filter(
           node =>
             node.type === 'dependency' &&
-            this._graph.hasEdge(bundle.id, node.id, 'contains')
+            this._graph.hasEdge(bundle.id, node.id, 'contains'),
         )
         .map(dependencyNode => {
           // TODO: Enforce non-null when bundle groups have the correct bundles
@@ -482,7 +483,7 @@ export default class BundleGraph {
 
           return {
             bundleGroup: groupNode.value,
-            dependency: dependencyNode.value
+            dependency: dependencyNode.value,
           };
         });
     });
@@ -509,12 +510,12 @@ export default class BundleGraph {
   filteredTraverse<TValue, TContext>(
     bundle: Bundle,
     filter: (BundleGraphNode, TraversalActions) => ?TValue,
-    visit: GraphVisitor<TValue, TContext>
+    visit: GraphVisitor<TValue, TContext>,
   ): ?TContext {
     return this._graph.filteredTraverse(
       filter,
       visit,
-      nullthrows(this._graph.getNode(bundle.id))
+      nullthrows(this._graph.getNode(bundle.id)),
     );
   }
 
@@ -528,7 +529,7 @@ export default class BundleGraph {
     for (let dep of deps) {
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
-        [...dep.symbols].map(([key, val]) => [val, key])
+        [...dep.symbols].map(([key, val]) => [val, key]),
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
@@ -541,7 +542,7 @@ export default class BundleGraph {
         let {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
-          exportSymbol
+          exportSymbol,
         } = this.resolveSymbol(resolved, depSymbol);
 
         // If it didn't resolve to anything (likely CommonJS), pass through where we got to
@@ -553,7 +554,7 @@ export default class BundleGraph {
         return {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
-          exportSymbol: symbol
+          exportSymbol: symbol,
         };
       }
 
@@ -566,7 +567,7 @@ export default class BundleGraph {
           return {
             asset: result.asset,
             symbol: result.symbol,
-            exportSymbol: symbol
+            exportSymbol: symbol,
           };
         }
       }
@@ -587,7 +588,7 @@ export default class BundleGraph {
       if (dep.symbols.get('*') === '*') {
         let resolved = nullthrows(this.getDependencyResolution(dep));
         let exported = this.getExportedSymbols(resolved).filter(
-          s => s.exportSymbol !== 'default'
+          s => s.exportSymbol !== 'default',
         );
         symbols.push(...exported);
       }
@@ -625,7 +626,7 @@ export default class BundleGraph {
 }
 
 export function removeAssetGroups(
-  assetGraph: AssetGraph
+  assetGraph: AssetGraph,
 ): Graph<BundleGraphNode> {
   let graph = new Graph<BundleGraphNode>();
 

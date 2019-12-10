@@ -31,9 +31,9 @@ export default new Runtime({
         return {
           filePath: __filename,
           code: CODE,
-          isEntry: true
+          isEntry: true,
         };
       }
     }
-  }
+  },
 });

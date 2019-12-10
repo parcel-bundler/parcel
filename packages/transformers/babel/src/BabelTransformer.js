@@ -36,7 +36,7 @@ export default new Transformer({
             asset,
             options,
             config,
-            asset.meta.babelPlugins
+            asset.meta.babelPlugins,
           );
         } else {
           asset.ast = await babel7(asset, options, config);
@@ -52,24 +52,24 @@ export default new Transformer({
   async generate({asset, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
-      asset.filePath
+      asset.filePath,
     );
 
     try {
       // $FlowFixMe: figure out how to make AST required in generate method
       let generated = generate(asset.ast.program, {
         sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName
+        sourceFileName: sourceFileName,
       });
 
       return {
         code: generated.code,
         map: new SourceMap(generated.rawMappings, {
-          [sourceFileName]: null
-        })
+          [sourceFileName]: null,
+        }),
       };
     } catch (e) {
       throw await babelErrorEnhancer(e, asset);
     }
-  }
+  },
 });

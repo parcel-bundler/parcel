@@ -11,15 +11,15 @@ export type BundleReport = {|
     largestAssets: Array<{|
       filePath: string,
       size: number,
-      time: number
+      time: number,
     |}>,
-    totalAssets: number
-  |}>
+    totalAssets: number,
+  |}>,
 |};
 
 export default function generateBundleReport(
   bundleGraph: BundleGraph,
-  largestAssetCount: number = 10
+  largestAssetCount: number = 10,
 ): BundleReport {
   let bundles = [];
   bundleGraph.traverseBundles(bundle => {
@@ -42,10 +42,10 @@ export default function generateBundleReport(
         largestAssets: assets.slice(0, largestAssetCount).map(asset => ({
           filePath: asset.filePath,
           size: asset.stats.size,
-          time: asset.stats.time
+          time: asset.stats.time,
         })),
-        totalAssets: assets.length
+        totalAssets: assets.length,
       };
-    })
+    }),
   };
 }

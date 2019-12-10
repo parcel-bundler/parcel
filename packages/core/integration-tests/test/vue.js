@@ -5,7 +5,7 @@ import {bundle, assertBundleTree, run, outputFS} from '@parcel/test-utils';
 describe.skip('vue', function() {
   it('should produce a basic vue bundle', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-basic/Basic.vue')
+      path.join(__dirname, '/integration/vue-basic/Basic.vue'),
     );
 
     await assertBundleTree(b, {
@@ -13,12 +13,12 @@ describe.skip('vue', function() {
       assets: ['Basic.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'css',
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = (await run(b)).default;
@@ -30,7 +30,7 @@ describe.skip('vue', function() {
 
   it('should produce a vue bundle with dependencies', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-dependencies/App.vue')
+      path.join(__dirname, '/integration/vue-dependencies/App.vue'),
     );
 
     await assertBundleTree(b, {
@@ -38,16 +38,16 @@ describe.skip('vue', function() {
       assets: ['App.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'css',
         },
         {
-          type: 'map'
+          type: 'map',
         },
         {
           assets: ['logo.png'],
-          type: 'png'
-        }
-      ]
+          type: 'png',
+        },
+      ],
     });
 
     let output = (await run(b)).default;
@@ -58,7 +58,7 @@ describe.skip('vue', function() {
 
   it('should produce a vue bundle using preprocessors', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-preprocessors/pre-processors.vue')
+      path.join(__dirname, '/integration/vue-preprocessors/pre-processors.vue'),
     );
 
     await assertBundleTree(b, {
@@ -66,12 +66,12 @@ describe.skip('vue', function() {
       assets: ['pre-processors.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'css',
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -81,7 +81,7 @@ describe.skip('vue', function() {
 
     let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/pre-processors.css'),
-      'utf8'
+      'utf8',
     );
     assert(contents.includes('color: #999'));
     assert(contents.includes('background: red'));
@@ -90,7 +90,7 @@ describe.skip('vue', function() {
 
   it('should produce a vue bundle using a functional component', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-functional/functional.vue')
+      path.join(__dirname, '/integration/vue-functional/functional.vue'),
     );
 
     await assertBundleTree(b, {
@@ -98,9 +98,9 @@ describe.skip('vue', function() {
       assets: ['functional.vue'],
       childBundles: [
         {
-          type: 'css'
-        }
-      ]
+          type: 'css',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -115,14 +115,14 @@ describe.skip('vue', function() {
 
     let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/functional.css'),
-      'utf8'
+      'utf8',
     );
     assert(contents.includes('.' + ctx.$style.red));
   });
 
   it('should produce a vue bundle using scoped styles', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-scoped/App.vue')
+      path.join(__dirname, '/integration/vue-scoped/App.vue'),
     );
 
     await assertBundleTree(b, {
@@ -130,12 +130,12 @@ describe.skip('vue', function() {
       assets: ['App.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'css',
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = (await run(b)).default;
@@ -146,14 +146,14 @@ describe.skip('vue', function() {
 
     let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/App.css'),
-      'utf8'
+      'utf8',
     );
     assert(contents.includes(`.test[${output._scopeId}]`));
   });
 
   it('should produce a vue bundle using CSS modules', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-css-modules/App.vue')
+      path.join(__dirname, '/integration/vue-css-modules/App.vue'),
     );
 
     await assertBundleTree(b, {
@@ -161,12 +161,12 @@ describe.skip('vue', function() {
       assets: ['App.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'css',
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = (await run(b)).default;
@@ -181,14 +181,14 @@ describe.skip('vue', function() {
 
     let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/App.css'),
-      'utf8'
+      'utf8',
     );
     assert(contents.includes('.' + ctx.$style.red));
   });
 
   it('should bundle nested components dynamically', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/vue-nested-components/testcomp.vue')
+      path.join(__dirname, '/integration/vue-nested-components/testcomp.vue'),
     );
 
     await assertBundleTree(b, {
@@ -198,7 +198,7 @@ describe.skip('vue', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'css-loader.js',
-        'js-loader.js'
+        'js-loader.js',
       ],
       childBundles: [
         {
@@ -206,17 +206,17 @@ describe.skip('vue', function() {
           assets: ['insidecomp.vue'],
           childBundles: [
             {
-              type: 'css'
+              type: 'css',
             },
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = (await run(b)).default;
@@ -231,8 +231,8 @@ describe.skip('vue', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-basic/Basic.vue'),
       {
-        production: true
-      }
+        production: true,
+      },
     );
 
     await assertBundleTree(b, {
@@ -240,12 +240,12 @@ describe.skip('vue', function() {
       assets: ['Basic.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'css',
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = (await run(b)).default;

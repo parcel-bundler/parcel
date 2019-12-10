@@ -11,12 +11,12 @@ const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
 const prelude = getExisting(
   path.join(__dirname, '../builtins/prelude2.min.js'),
-  path.join(__dirname, '../builtins/prelude2.js')
+  path.join(__dirname, '../builtins/prelude2.js'),
 );
 
 const helpers = getExisting(
   path.join(__dirname, '../builtins/helpers.min.js'),
-  path.join(__dirname, '../builtins/helpers.js')
+  path.join(__dirname, '../builtins/helpers.js'),
 );
 
 class JSConcatPackager extends Packager {
@@ -204,7 +204,7 @@ class JSConcatPackager extends Packager {
     let shouldWrap = [...asset.parentDeps].some(
       dep =>
         dep.shouldWrap ||
-        this.shouldWrap(this.bundler.loadedAssets.get(dep.parent))
+        this.shouldWrap(this.bundler.loadedAssets.get(dep.parent)),
     );
 
     asset.cacheData.shouldWrap = shouldWrap;
@@ -246,7 +246,7 @@ class JSConcatPackager extends Packager {
       }
       statements[0].leadingComments.push({
         type: 'CommentLine',
-        value: ` ASSET: ${path.relative(this.options.rootDir, asset.name)}`
+        value: ` ASSET: ${path.relative(this.options.rootDir, asset.name)}`,
       });
     }
 
@@ -291,8 +291,8 @@ class JSConcatPackager extends Packager {
             if (decl.init) {
               body.push(
                 t.expressionStatement(
-                  t.assignmentExpression('=', decl.id, decl.init)
-                )
+                  t.assignmentExpression('=', decl.id, decl.init),
+                ),
               );
             }
           } else {
@@ -303,9 +303,9 @@ class JSConcatPackager extends Packager {
                   t.assignmentExpression(
                     '=',
                     t.identifier(decl.id.name),
-                    decl.init
-                  )
-                )
+                    decl.init,
+                  ),
+                ),
               );
             }
           }
@@ -322,9 +322,9 @@ class JSConcatPackager extends Packager {
             t.assignmentExpression(
               '=',
               t.identifier(node.id.name),
-              t.toExpression(node)
-            )
-          )
+              t.toExpression(node),
+            ),
+          ),
         );
       } else {
         body.push(node);
@@ -333,7 +333,7 @@ class JSConcatPackager extends Packager {
 
     let executed = getName(asset, 'executed');
     decls.push(
-      t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false))
+      t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false)),
     );
 
     let init = t.functionDeclaration(
@@ -345,11 +345,11 @@ class JSConcatPackager extends Packager {
           t.assignmentExpression(
             '=',
             t.identifier(executed),
-            t.booleanLiteral(true)
-          )
+            t.booleanLiteral(true),
+          ),
         ),
-        ...body
-      ])
+        ...body,
+      ]),
     );
 
     return [t.variableDeclaration('var', decls), ...fns, init];
@@ -358,7 +358,7 @@ class JSConcatPackager extends Packager {
   parse(code, filename) {
     let ast = babylon.parse(code, {
       sourceFilename: filename,
-      allowReturnOutsideFunction: true
+      allowReturnOutsideFunction: true,
     });
 
     return ast.program.body;
@@ -376,10 +376,10 @@ class JSConcatPackager extends Packager {
 
         if (callee.name === '$parcel$require') {
           result.push(
-            asset.depAssets.get(asset.dependencies.get(args[1].value))
+            asset.depAssets.get(asset.dependencies.get(args[1].value)),
           );
         }
-      }
+      },
     });
 
     return result;
@@ -419,7 +419,7 @@ class JSConcatPackager extends Packager {
     }
 
     let bundleLoader = this.bundler.loadedAssets.get(
-      require.resolve('../builtins/bundle-loader')
+      require.resolve('../builtins/bundle-loader'),
     );
     if (!bundleLoader && !dynamic) {
       bundleLoader = await this.bundler.getAsset('_bundle_loader');
@@ -442,8 +442,8 @@ class JSConcatPackager extends Packager {
       this.assetPostludes.set(
         asset,
         `${this.getExportIdentifier(bundleLoader)}.register(${JSON.stringify(
-          bundleType
-        )},${this.getExportIdentifier(asset)});\n`
+          bundleType,
+        )},${this.getExportIdentifier(asset)});\n`,
       );
 
       await this.addAssetToBundle(asset);
@@ -459,7 +459,7 @@ class JSConcatPackager extends Packager {
     // Preload external modules before running entry point if needed
     if (this.externalModules.size > 0) {
       let bundleLoader = this.bundler.loadedAssets.get(
-        require.resolve('../builtins/bundle-loader')
+        require.resolve('../builtins/bundle-loader'),
       );
 
       let preload = [];
@@ -472,7 +472,7 @@ class JSConcatPackager extends Packager {
       }
 
       let loads = `${this.getExportIdentifier(
-        bundleLoader
+        bundleLoader,
       )}.load(${JSON.stringify(preload)})`;
       if (this.bundle.entryAsset) {
         loads += '.then($parcel$entry)';
@@ -515,7 +515,7 @@ class JSConcatPackager extends Packager {
       for (let m of this.exposedModules) {
         if (m.cacheData.isES6Module) {
           prepareModule.push(
-            `${this.getExportIdentifier(m)}.__esModule = true;`
+            `${this.getExportIdentifier(m)}.__esModule = true;`,
           );
         }
 
@@ -552,7 +552,7 @@ class JSConcatPackager extends Packager {
         if (mapBundle) {
           let mapUrl = urlJoin(
             this.options.publicURL,
-            path.basename(mapBundle.name)
+            path.basename(mapBundle.name),
           );
           output += `\n//# sourceMappingURL=${mapUrl}`;
         }
@@ -610,7 +610,7 @@ class JSConcatPackager extends Packager {
     return {
       identifier: exp,
       name,
-      id
+      id,
     };
   }
 }

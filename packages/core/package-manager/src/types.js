@@ -16,7 +16,7 @@ export type InstallerOptions = {|
   fs: FileSystem,
   cwd: FilePath,
   packagePath?: ?FilePath,
-  saveDev?: boolean
+  saveDev?: boolean,
 |};
 
 export interface PackageInstaller {

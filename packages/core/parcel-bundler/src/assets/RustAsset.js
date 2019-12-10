@@ -51,7 +51,7 @@ class RustAsset extends Asset {
 
       cargoDir = path.dirname(await config.resolve(this.name, ['Cargo.toml']));
       isMainFile = mainFiles.some(
-        file => path.join(cargoDir, file) === this.name
+        file => path.join(cargoDir, file) === this.name,
       );
     }
 
@@ -74,7 +74,7 @@ class RustAsset extends Asset {
       await commandExists('rustup');
     } catch (e) {
       throw new Error(
-        "Rust isn't installed. Visit https://www.rustup.rs/ for more info"
+        "Rust isn't installed. Visit https://www.rustup.rs/ for more info",
       );
     }
 
@@ -90,7 +90,7 @@ class RustAsset extends Asset {
       'target',
       'list',
       '--toolchain',
-      'nightly'
+      'nightly',
     ]);
     if (!stdout.includes(RUST_TARGET + ' (installed)')) {
       await pipeSpawn('rustup', [
@@ -98,7 +98,7 @@ class RustAsset extends Asset {
         'add',
         RUST_TARGET,
         '--toolchain',
-        'nightly'
+        'nightly',
       ]);
     }
 
@@ -119,7 +119,7 @@ class RustAsset extends Asset {
       cargoConfig.lib['crate-type'].push('cdylib');
       await fs.writeFile(
         path.join(cargoDir, 'Cargo.toml'),
-        toml.stringify(cargoConfig)
+        toml.stringify(cargoConfig),
       );
     }
 
@@ -129,7 +129,7 @@ class RustAsset extends Asset {
 
     // Get output file paths
     let [stdout] = await exec('cargo', ['metadata', '--format-version', '1'], {
-      cwd: cargoDir
+      cwd: cargoDir,
     });
     const cargoMetadata = JSON.parse(stdout);
     const cargoTargetDir = cargoMetadata.target_directory;
@@ -156,7 +156,7 @@ class RustAsset extends Asset {
       '--crate-type=cdylib',
       this.name,
       '-o',
-      this.wasmPath
+      this.wasmPath,
     ];
 
     await exec('rustc', args);
@@ -188,8 +188,8 @@ class RustAsset extends Asset {
     return {
       wasm: {
         path: this.wasmPath, // pass output path to RawPackager
-        mtime: Date.now() // force re-bundling since otherwise the hash would never change
-      }
+        mtime: Date.now(), // force re-bundling since otherwise the hash would never change
+      },
     };
   }
 }

@@ -5,7 +5,7 @@ import type {Readable, Writable} from 'stream';
 import type {
   Event,
   Options as WatcherOptions,
-  AsyncSubscription
+  AsyncSubscription,
 } from '@parcel/watcher';
 
 export type FileOptions = {mode?: number, ...};
@@ -21,18 +21,18 @@ export interface FileSystem {
   writeFile(
     filePath: FilePath,
     contents: Buffer | string,
-    options: ?FileOptions
+    options: ?FileOptions,
   ): Promise<void>;
   copyFile(
     source: FilePath,
     destination: FilePath,
-    flags?: number
+    flags?: number,
   ): Promise<void>;
   stat(filePath: FilePath): Promise<$Shape<Stats>>;
   statSync(filePath: FilePath): $Shape<Stats>;
   readdir(
     path: FilePath,
-    opts?: {withFileTypes?: false, ...}
+    opts?: {withFileTypes?: false, ...},
   ): Promise<FilePath[]>;
   readdir(path: FilePath, opts: {withFileTypes: true, ...}): Promise<Dirent[]>;
   readdirSync(path: FilePath, opts?: {withFileTypes?: false, ...}): FilePath[];
@@ -52,17 +52,17 @@ export interface FileSystem {
   watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<AsyncSubscription>;
   getEventsSince(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<Array<Event>>;
   writeSnapshot(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<void>;
 }
 

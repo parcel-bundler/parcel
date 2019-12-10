@@ -8,25 +8,25 @@ import defaultConfigContents from '@parcel/config-default';
 const metricsConfig = {
   ...defaultConfigContents,
   reporters: ['@parcel/reporter-build-metrics'],
-  filePath: require.resolve('@parcel/config-default')
+  filePath: require.resolve('@parcel/config-default'),
 };
 
 describe('Build Metrics Reporter', () => {
   it('Should dump bundle metrics to parcel-metrics.json', async () => {
     await bundle(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultConfig: metricsConfig,
-      logLevel: 'info'
+      logLevel: 'info',
     });
 
     let cwd = process.cwd();
     let dirContent = await outputFS.readdir(cwd);
     assert(
       dirContent.includes('parcel-metrics.json'),
-      'Should create a parcel-metrics.json file'
+      'Should create a parcel-metrics.json file',
     );
 
     let metrics = JSON.parse(
-      await outputFS.readFile(path.join(cwd, 'parcel-metrics.json'), 'utf8')
+      await outputFS.readFile(path.join(cwd, 'parcel-metrics.json'), 'utf8'),
     );
 
     assert(!!metrics.buildTime, 'Should contain buildTime');
@@ -37,11 +37,11 @@ describe('Build Metrics Reporter', () => {
       assert(bundle.time, 'Each bundle should have a time');
       assert(
         Array.isArray(bundle.largestAssets),
-        'Each bundle should contain a list of largest assets'
+        'Each bundle should contain a list of largest assets',
       );
       assert(
         bundle.totalAssets,
-        'Each bundle should contain the amount of assets'
+        'Each bundle should contain the amount of assets',
       );
     }
   });

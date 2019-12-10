@@ -78,12 +78,12 @@ describe('FSCache', () => {
       dependencies: [
         {
           includedInParent: true,
-          name: __filename
+          name: __filename,
         },
         {
-          name: __filename
-        }
-      ]
+          name: __filename,
+        },
+      ],
     });
 
     const cached = await cache.read(__filename);
@@ -100,9 +100,9 @@ describe('FSCache', () => {
       dependencies: [
         {
           includedInParent: true,
-          name: filePath
-        }
-      ]
+          name: filePath,
+        },
+      ],
     });
 
     // delay and update dependency
@@ -116,7 +116,7 @@ describe('FSCache', () => {
   it('should return null on read error', async () => {
     const cache = new FSCache({cacheDir: cachePath});
     const cached = await cache.read(
-      path.join(__dirname, '/does/not/exist.txt')
+      path.join(__dirname, '/does/not/exist.txt'),
     );
 
     assert.equal(cached, null);
@@ -131,9 +131,9 @@ describe('FSCache', () => {
         dependencies: [
           {
             includedInParent: true,
-            name: filePath
-          }
-        ]
+            name: filePath,
+          },
+        ],
       });
     });
   });
@@ -149,9 +149,9 @@ describe('FSCache', () => {
       dependencies: [
         {
           includedInParent: true,
-          name: path.join(wildcardPath, '*')
-        }
-      ]
+          name: path.join(wildcardPath, '*'),
+        },
+      ],
     });
 
     let cached = await cache.read(__filename);

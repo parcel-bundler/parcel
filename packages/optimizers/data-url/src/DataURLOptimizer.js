@@ -17,10 +17,10 @@ export default new Optimizer({
     let content = encodeURIComponent(
       hasBinaryContent
         ? bufferContents.toString('base64')
-        : bufferContents.toString()
+        : bufferContents.toString(),
     );
     return {
-      contents: `data:${mimeType}${encoding},${content}`
+      contents: `data:${mimeType}${encoding},${content}`,
     };
-  }
+  },
 });

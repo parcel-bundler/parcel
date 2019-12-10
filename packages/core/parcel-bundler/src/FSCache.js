@@ -13,7 +13,7 @@ const OPTION_KEYS = [
   'hmr',
   'target',
   'scopeHoist',
-  'sourceMaps'
+  'sourceMaps',
 ];
 
 class FSCache {
@@ -23,8 +23,8 @@ class FSCache {
     this.invalidated = new Set();
     this.optionsHash = objectHash(
       OPTION_KEYS.reduce((p, k) => ((p[k] = options[k]), p), {
-        version: pkg.version
-      })
+        version: pkg.version,
+      }),
     );
   }
 
@@ -52,12 +52,14 @@ class FSCache {
   async getLastModified(filename) {
     if (isGlob(filename)) {
       let files = await glob(filename, {
-        onlyFiles: true
+        onlyFiles: true,
       });
 
-      return (await Promise.all(
-        files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime()))
-      )).reduce((a, b) => Math.max(a, b), 0);
+      return (
+        await Promise.all(
+          files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime())),
+        )
+      ).reduce((a, b) => Math.max(a, b), 0);
     }
     return (await fs.stat(filename)).mtime.getTime();
   }

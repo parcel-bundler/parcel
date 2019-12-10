@@ -8,28 +8,28 @@ import {
   inputFS,
   outputFS,
   overlayFS,
-  ncp
+  ncp,
 } from '@parcel/test-utils';
 import {
   NodePackageManager,
-  MockPackageInstaller
+  MockPackageInstaller,
 } from '@parcel/package-manager';
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-modules/index.js')
+      path.join(__dirname, '/integration/postcss-modules/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'foo.module.css']
+        assets: ['index.js', 'foo.module.css'],
       },
       {
         name: 'index.css',
-        assets: ['index.css', 'foo.module.css']
-      }
+        assets: ['index.css', 'foo.module.css'],
+      },
     ]);
 
     let output = await run(b);
@@ -46,10 +46,10 @@ describe('postcss', () => {
 
   it('should support transforming with postcss twice with the same result', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-plugins/index.js')
+      path.join(__dirname, '/integration/postcss-plugins/index.js'),
     );
     let c = await bundle(
-      path.join(__dirname, '/integration/postcss-plugins/index2.js')
+      path.join(__dirname, '/integration/postcss-plugins/index2.js'),
     );
 
     let [run1, run2] = await Promise.all([run(b), run(c)]);
@@ -59,7 +59,7 @@ describe('postcss', () => {
 
   it('should support postcss composes imports', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index.js')
+      path.join(__dirname, '/integration/postcss-composes/index.js'),
     );
 
     assertBundles(b, [
@@ -69,17 +69,17 @@ describe('postcss', () => {
           'index.js',
           'composes-1.module.css',
           'composes-2.module.css',
-          'mixins.module.css'
-        ]
+          'mixins.module.css',
+        ],
       },
       {
         name: 'index.css',
         assets: [
           'composes-1.module.css',
           'composes-2.module.css',
-          'mixins.module.css'
-        ]
-      }
+          'mixins.module.css',
+        ],
+      },
     ]);
 
     let output = await run(b);
@@ -102,7 +102,7 @@ describe('postcss', () => {
 
   it('should not include css twice for postcss composes imports', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index.js')
+      path.join(__dirname, '/integration/postcss-composes/index.js'),
     );
 
     await run(b);
@@ -110,24 +110,24 @@ describe('postcss', () => {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert.equal(
       css.indexOf('height: 100px;'),
-      css.lastIndexOf('height: 100px;')
+      css.lastIndexOf('height: 100px;'),
     );
   });
 
   it('should support postcss composes imports for sass', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index2.js')
+      path.join(__dirname, '/integration/postcss-composes/index2.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index2.js',
-        assets: ['index2.js', 'composes-3.module.css', 'mixins.module.scss']
+        assets: ['index2.js', 'composes-3.module.css', 'mixins.module.scss'],
       },
       {
         name: 'index2.css',
-        assets: ['composes-3.module.css', 'mixins.module.scss']
-      }
+        assets: ['composes-3.module.css', 'mixins.module.scss'],
+      },
     ]);
 
     let output = await run(b);
@@ -144,18 +144,18 @@ describe('postcss', () => {
 
   it('should support postcss composes imports with custom path names', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index3.js')
+      path.join(__dirname, '/integration/postcss-composes/index3.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index3.js',
-        assets: ['index3.js', 'composes-4.module.css', 'mixins.module.css']
+        assets: ['index3.js', 'composes-4.module.css', 'mixins.module.css'],
       },
       {
         name: 'index3.css',
-        assets: ['composes-4.module.css', 'mixins.module.css']
-      }
+        assets: ['composes-4.module.css', 'mixins.module.css'],
+      },
     ]);
 
     let output = await run(b);
@@ -172,7 +172,7 @@ describe('postcss', () => {
 
   it('should support deep nested postcss composes imports', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index4.js')
+      path.join(__dirname, '/integration/postcss-composes/index4.js'),
     );
 
     assertBundles(b, [
@@ -182,17 +182,17 @@ describe('postcss', () => {
           'index4.js',
           'composes-5.module.css',
           'mixins-intermediate.module.css',
-          'mixins.module.css'
-        ]
+          'mixins.module.css',
+        ],
       },
       {
         name: 'index4.css',
         assets: [
           'composes-5.module.css',
           'mixins-intermediate.module.css',
-          'mixins.module.css'
-        ]
-      }
+          'mixins.module.css',
+        ],
+      },
     ]);
 
     let output = await run(b);
@@ -212,18 +212,18 @@ describe('postcss', () => {
 
   it('should support postcss composes imports for multiple selectors', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-composes/index5.js')
+      path.join(__dirname, '/integration/postcss-composes/index5.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index5.js',
-        assets: ['index5.js', 'composes-6.module.css', 'mixins.module.css']
+        assets: ['index5.js', 'composes-6.module.css', 'mixins.module.css'],
       },
       {
         name: 'index5.css',
-        assets: ['composes-6.module.css', 'mixins.module.css']
-      }
+        assets: ['composes-6.module.css', 'mixins.module.css'],
+      },
     ]);
 
     let output = await run(b);
@@ -240,14 +240,14 @@ describe('postcss', () => {
     await outputFS.rimraf(path.join(__dirname, '/input'));
     await ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/npm'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let packageInstaller = new MockPackageInstaller();
     packageInstaller.register(
       'postcss-test',
       inputFS,
-      path.join(__dirname, '/integration/postcss-autoinstall/postcss-test')
+      path.join(__dirname, '/integration/postcss-autoinstall/postcss-test'),
     );
 
     // The package manager uses an overlay filesystem, which performs writes to
@@ -256,22 +256,22 @@ describe('postcss', () => {
 
     await bundle(path.join(__dirname, '/input/index.css'), {
       inputFS: outputFS,
-      packageManager
+      packageManager,
     });
 
     // cssnext was installed
     let pkg = JSON.parse(
       await outputFS.readFile(
         path.join(__dirname, '/input/package.json'),
-        'utf8'
-      )
+        'utf8',
+      ),
     );
     assert(pkg.devDependencies['postcss-test']);
 
     // postcss-test is applied
     let css = await outputFS.readFile(
       path.join(outputFS.cwd(), 'dist', 'index.css'),
-      'utf8'
+      'utf8',
     );
     assert(css.includes('background: green'));
 

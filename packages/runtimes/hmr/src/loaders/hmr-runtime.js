@@ -13,7 +13,7 @@ function Module(moduleName) {
     },
     dispose: function(fn) {
       this._disposeCallbacks.push(fn);
-    }
+    },
   };
 
   module.bundle.hotData = null;
@@ -28,7 +28,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(
-    protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/'
+    protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/',
   );
   ws.onmessage = function(event) {
     checkedAssets = {};
@@ -43,7 +43,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
       let assets = data.assets.filter(
         // eslint-disable-next-line no-undef
-        asset => asset.envHash === __PARCEL_HMR_ENV_HASH
+        asset => asset.envHash === __PARCEL_HMR_ENV_HASH,
       );
 
       // Handle HMR Update
@@ -86,7 +86,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             '\n' +
             stack +
             '\n\n' +
-            ansiDiagnostic.hints.join('\n')
+            ansiDiagnostic.hints.join('\n'),
         );
       }
 

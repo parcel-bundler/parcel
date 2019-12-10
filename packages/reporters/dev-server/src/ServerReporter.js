@@ -28,7 +28,7 @@ export default new Reporter({
           publicUrl: serve.publicUrl ?? '/',
           inputFS: options.inputFS,
           outputFS: options.outputFS,
-          logger
+          logger,
         };
 
         server = new Server(serverOptions);
@@ -51,5 +51,5 @@ export default new Reporter({
         server.buildError(event.diagnostics);
         break;
     }
-  }
+  },
 });

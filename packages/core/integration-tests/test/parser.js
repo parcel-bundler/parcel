@@ -7,8 +7,8 @@ describe.skip('parser', function() {
     let b = await bundle(
       path.join(
         __dirname,
-        '/integration/parser-case-insensitive-ext/index.html'
-      )
+        '/integration/parser-case-insensitive-ext/index.html',
+      ),
     );
 
     await assertBundleTree(b, {
@@ -18,16 +18,16 @@ describe.skip('parser', function() {
         {
           type: 'svg',
           assets: ['icons.SVG'],
-          childBundles: []
+          childBundles: [],
         },
         {
           type: 'css',
           assets: ['index.cSs'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
           type: 'html',
@@ -38,13 +38,13 @@ describe.skip('parser', function() {
               assets: ['index.js'],
               childBundles: [
                 {
-                  type: 'map'
-                }
-              ]
-            }
-          ]
-        }
-      ]
+                  type: 'map',
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
 
     let files = await fs.readdir(path.join(__dirname, '/dist'));

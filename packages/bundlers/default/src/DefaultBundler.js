@@ -10,7 +10,7 @@ import nullthrows from 'nullthrows';
 const OPTIONS = {
   minBundles: 1,
   minBundleSize: 30000,
-  maxParallelRequests: 5
+  maxParallelRequests: 5,
 };
 
 export default new Bundler({
@@ -34,7 +34,7 @@ export default new Bundler({
             bundleGroup: context?.bundleGroup,
             bundleByType: context?.bundleByType,
             bundleGroupDependency: context?.bundleGroupDependency,
-            parentNode: node
+            parentNode: node,
           };
         }
 
@@ -50,7 +50,7 @@ export default new Bundler({
         ) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,
-            nullthrows(dependency.target ?? context?.bundleGroup?.target)
+            nullthrows(dependency.target ?? context?.bundleGroup?.target),
           );
           let bundleByType: Map<string, Bundle> = new Map();
 
@@ -59,7 +59,7 @@ export default new Bundler({
               entryAsset: asset,
               isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
               isInline: asset.isInline,
-              target: bundleGroup.target
+              target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
@@ -70,7 +70,7 @@ export default new Bundler({
             bundleGroup,
             bundleByType,
             bundleGroupDependency: dependency,
-            parentNode: node
+            parentNode: node,
           };
         }
 
@@ -97,7 +97,7 @@ export default new Bundler({
               entryAsset: asset,
               target: bundleGroup.target,
               isEntry: bundleGroupDependency.isEntry,
-              isInline: asset.isInline
+              isInline: asset.isInline,
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
@@ -108,9 +108,9 @@ export default new Bundler({
 
         return {
           ...context,
-          parentNode: node
+          parentNode: node,
         };
-      }
+      },
     });
 
     for (let [bundle, rootAssets] of bundleRoots) {
@@ -125,7 +125,7 @@ export default new Bundler({
     bundleGraph.traverseBundles({
       exit(bundle) {
         deduplicateBundle(bundleGraph, bundle);
-      }
+      },
     });
 
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
@@ -135,8 +135,8 @@ export default new Bundler({
       {|
         assets: Array<Asset>,
         sourceBundles: Set<Bundle>,
-        size: number
-      |}
+        size: number,
+      |},
     > = new Map();
 
     bundleGraph.traverseContents((node, ctx, actions) => {
@@ -169,7 +169,7 @@ export default new Bundler({
           candidateBundles.set(id, {
             assets: [asset],
             sourceBundles: new Set(containingBundles),
-            size: bundleGraph.getTotalSize(asset)
+            size: bundleGraph.getTotalSize(asset),
           });
         }
 
@@ -182,7 +182,7 @@ export default new Bundler({
     let sortedCandidates: Array<{|
       assets: Array<Asset>,
       sourceBundles: Set<Bundle>,
-      size: number
+      size: number,
     |}> = Array.from(candidateBundles.values())
       .filter(bundle => bundle.size >= OPTIONS.minBundleSize)
       .sort((a, b) => b.size - a.size);
@@ -193,7 +193,7 @@ export default new Bundler({
 
       for (let bundle of sourceBundles) {
         for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(
-          bundle
+          bundle,
         )) {
           bundleGroups.add(bundleGroup);
         }
@@ -204,7 +204,7 @@ export default new Bundler({
         Array.from(bundleGroups).some(
           group =>
             bundleGraph.getBundlesInBundleGroup(group).length >=
-            OPTIONS.maxParallelRequests
+            OPTIONS.maxParallelRequests,
         )
       ) {
         continue;
@@ -215,7 +215,7 @@ export default new Bundler({
         id: md5FromString([...sourceBundles].map(b => b.id).join(':')),
         env: firstBundle.env,
         target: firstBundle.target,
-        type: firstBundle.type
+        type: firstBundle.type,
       });
 
       // Remove all of the root assets from each of the original bundles
@@ -233,7 +233,7 @@ export default new Bundler({
 
       deduplicateBundle(bundleGraph, sharedBundle);
     }
-  }
+  },
 });
 
 function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {

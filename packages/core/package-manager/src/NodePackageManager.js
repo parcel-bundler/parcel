@@ -36,7 +36,7 @@ export class NodePackageManager implements PackageManager {
     return {
       $$raw: false,
       fs: this.fs,
-      installer: this.installer
+      installer: this.installer,
     };
   }
 
@@ -93,7 +93,7 @@ export class NodePackageManager implements PackageManager {
   async resolve(
     name: ModuleSpecifier,
     from: FilePath,
-    triedInstall: boolean = false
+    triedInstall: boolean = false,
   ) {
     let basedir = dirname(from);
     let key = basedir + ':' + name;
@@ -102,7 +102,7 @@ export class NodePackageManager implements PackageManager {
       try {
         resolved = await resolve(this.fs, name, {
           basedir,
-          extensions: Object.keys(Module._extensions)
+          extensions: Object.keys(Module._extensions),
         });
       } catch (e) {
         if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
@@ -121,23 +121,23 @@ export class NodePackageManager implements PackageManager {
     let basedir = dirname(from);
     return resolveSync(this.fs, name, {
       basedir,
-      extensions: Object.keys(Module._extensions)
+      extensions: Object.keys(Module._extensions),
     });
   }
 
   async install(
     modules: Array<ModuleSpecifier>,
     from: FilePath,
-    opts?: InstallOptions
+    opts?: InstallOptions,
   ) {
     await installPackage(this.fs, modules, from, {
       packageInstaller: this.installer,
-      ...opts
+      ...opts,
     });
   }
 }
 
 registerSerializableClass(
   `${pkg.version}:NodePackageManager`,
-  NodePackageManager
+  NodePackageManager,
 );

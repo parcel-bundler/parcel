@@ -9,9 +9,9 @@ class Bus extends EventEmitter {
         {
           location: __filename,
           method: 'emit',
-          args: [event, ...args]
+          args: [event, ...args],
         },
-        false
+        false,
       );
       return true;
     } else {

@@ -9,7 +9,7 @@ import type {
   GraphVisitor,
   MutableBundleGraph as IMutableBundleGraph,
   BundlerBundleGraphTraversable,
-  Target
+  Target,
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
 
@@ -37,7 +37,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.addAssetGraphToBundle(
       assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
+      bundleToInternalBundle(bundle),
     );
   }
 
@@ -48,23 +48,23 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     }
 
     let resolved = this.#graph.getDependencyResolution(
-      dependencyToInternalDependency(dependency)
+      dependencyToInternalDependency(dependency),
     );
     if (!resolved) {
       throw new Error(
-        'Dependency did not resolve to an asset ' + dependency.id
+        'Dependency did not resolve to an asset ' + dependency.id,
       );
     }
 
     let bundleGroup: BundleGroup = {
       target,
-      entryAssetId: resolved.id
+      entryAssetId: resolved.id,
     };
 
     let bundleGroupNode = {
       id: getBundleGroupId(bundleGroup),
       type: 'bundle_group',
-      value: bundleGroup
+      value: bundleGroup,
     };
 
     this.#graph._graph.addNode(bundleGroupNode);
@@ -77,19 +77,19 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       this.#graph._graph.addEdge(
         nullthrows(this.#graph._graph.getRootNode()).id,
         bundleGroupNode.id,
-        'bundle'
+        'bundle',
       );
     } else {
       let inboundBundleNodes = this.#graph._graph.getNodesConnectedTo(
         dependencyNode,
-        'contains'
+        'contains',
       );
       for (let inboundBundleNode of inboundBundleNodes) {
         invariant(inboundBundleNode.type === 'bundle');
         this.#graph._graph.addEdge(
           inboundBundleNode.id,
           bundleGroupNode.id,
-          'bundle'
+          'bundle',
         );
       }
     }
@@ -119,8 +119,8 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         isInline: opts.isInline,
         target: targetToInternalTarget(opts.target),
         name: null,
-        stats: {size: 0, time: 0}
-      }
+        stats: {size: 0, time: 0},
+      },
     };
 
     this.#graph._graph.addNode(bundleNode);
@@ -146,7 +146,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   createAssetReference(dependency: IDependency, asset: IAsset): void {
     return this.#graph.createAssetReference(
       dependencyToInternalDependency(dependency),
-      assetToInternalAsset(asset).value
+      assetToInternalAsset(asset).value,
     );
   }
 
@@ -158,7 +158,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
 
   getDependencyResolution(dependency: IDependency): ?IAsset {
     let resolved = this.#graph.getDependencyResolution(
-      dependencyToInternalDependency(dependency)
+      dependencyToInternalDependency(dependency),
     );
 
     if (resolved) {
@@ -167,14 +167,14 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   }
 
   traverse<TContext>(
-    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>
+    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext {
     return this.#graph._graph.filteredTraverse(
       node => {
         if (node.type === 'asset') {
           return {
             type: 'asset',
-            value: assetFromValue(node.value, this.#options)
+            value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
           return {type: 'dependency', value: new Dependency(node.value)};
@@ -183,7 +183,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       visit,
       undefined, // start with root
       // $FlowFixMe
-      ALL_EDGE_TYPES
+      ALL_EDGE_TYPES,
     );
   }
 
@@ -195,7 +195,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
-      bundleToInternalBundle(bundle)
+      bundleToInternalBundle(bundle),
     );
   }
 
@@ -212,14 +212,14 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
     return this.#graph.isAssetInAncestorBundles(
       bundleToInternalBundle(bundle),
-      assetToInternalAsset(asset).value
+      assetToInternalAsset(asset).value,
     );
   }
 
   removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
       assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
+      bundleToInternalBundle(bundle),
     );
   }
 
@@ -227,13 +227,13 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     return this.#graph.traverseBundles(
       mapVisitor(
         bundle => new Bundle(bundle, this.#graph, this.#options),
-        visit
-      )
+        visit,
+      ),
     );
   }
 
   traverseContents<TContext>(
-    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>
+    visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext {
     return this.#graph.traverseContents(
       mapVisitor(
@@ -242,10 +242,10 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
             ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
             : {
                 type: 'dependency',
-                value: new Dependency(node.value)
+                value: new Dependency(node.value),
               },
-        visit
-      )
+        visit,
+      ),
     );
   }
 }

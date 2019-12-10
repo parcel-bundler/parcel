@@ -31,8 +31,8 @@ async function getEnvConfig(asset, isSourceModule) {
     internal: true,
     babelVersion: 7,
     config: {
-      plugins: targetEnv
-    }
+      plugins: targetEnv,
+    },
   };
 }
 
@@ -52,7 +52,7 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
     targets,
     modules: false,
     useBuiltIns: useBuiltIns ? 'entry' : false,
-    shippedProposals: true
+    shippedProposals: true,
   };
 
   if (useBuiltIns) {

@@ -11,7 +11,7 @@ describe('Validate Module Specifiers', () => {
       '@org/some-package@v1.0.0-alpha.1',
       'something.js/something/index.js',
       '@some.org/something.js/index.js',
-      'lodash/something/index.js'
+      'lodash/something/index.js',
     ];
 
     assert.deepEqual(validateModuleSpecifiers(modules), [
@@ -20,7 +20,7 @@ describe('Validate Module Specifiers', () => {
       '@org/some-package@v1.0.0-alpha.1',
       'something.js',
       '@some.org/something.js',
-      'lodash'
+      'lodash',
     ]);
   });
 

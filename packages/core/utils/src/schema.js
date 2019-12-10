@@ -1,6 +1,6 @@
 // @flow strict-local
 import ThrowableDiagnostic, {
-  generateJSONCodeHighlights
+  generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
 // $FlowFixMe untyped
 import levenshteinDistance from 'js-levenshtein';
@@ -17,26 +17,27 @@ export type SchemaEntity =
 export type SchemaArray = {|
   type: 'array',
   items?: SchemaEntity,
-  __type?: string
+  __type?: string,
 |};
 export type SchemaBoolean = {|
   type: 'boolean',
-  __type?: string
+  __type?: string,
 |};
 export type SchemaOneOf = {|
-  oneOf: Array<SchemaEntity>
+  oneOf: Array<SchemaEntity>,
 |};
 export type SchemaAllOf = {|
-  allOf: Array<SchemaEntity>
+  allOf: Array<SchemaEntity>,
 |};
 export type SchemaNot = {|
   not: SchemaEntity,
-  __message: string
+  __message: string,
 |};
 export type SchemaString = {|
   type: 'string',
   enum?: Array<string>,
-  __type?: string
+  __validate?: (val: string) => ?string,
+  __type?: string,
 |};
 export type SchemaObject = {|
   type: 'object',
@@ -44,7 +45,7 @@ export type SchemaObject = {|
   additionalProperties?: boolean | SchemaEntity,
   required?: Array<string>,
   __forbiddenProperties?: Array<string>,
-  __type?: string
+  __type?: string,
 |};
 export type SchemaAny = {||};
 export type SchemaError =
@@ -55,7 +56,7 @@ export type SchemaError =
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
-      prettyType?: string
+      prettyType?: string,
     |}
   | {|
       type: 'enum',
@@ -65,7 +66,7 @@ export type SchemaError =
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
-      prettyType?: string
+      prettyType?: string,
     |}
   | {|
       type: 'forbidden-prop',
@@ -76,7 +77,7 @@ export type SchemaError =
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
-      prettyType?: string
+      prettyType?: string,
     |}
   | {|
       type: 'missing-prop',
@@ -87,7 +88,7 @@ export type SchemaError =
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
-      prettyType?: string
+      prettyType?: string,
     |}
   | {|
       type: 'other',
@@ -96,14 +97,14 @@ export type SchemaError =
       message?: string,
 
       dataPath: string,
-      ancestors: Array<SchemaEntity>
+      ancestors: Array<SchemaEntity>,
     |};
 
 function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
   function walk(
     schemaAncestors,
     dataNode,
-    dataPath
+    dataPath,
   ): ?SchemaError | Array<SchemaError> {
     let [schemaNode] = schemaAncestors;
     if (schemaNode.type) {
@@ -115,7 +116,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
           dataPath,
           expectedTypes: [schemaNode.type],
           ancestors: schemaAncestors,
-          prettyType: schemaNode.__type
+          prettyType: schemaNode.__type,
         };
       } else {
         switch (schemaNode.type) {
@@ -128,7 +129,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   [schemaNode.items].concat(schemaAncestors),
                   // $FlowFixMe type was already checked
                   dataNode[i],
-                  dataPath + '/' + i
+                  dataPath + '/' + i,
                 );
                 if (result) results.push(result);
               }
@@ -148,7 +149,20 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   dataPath,
                   expectedValues: schemaNode.enum,
                   actualValue: value,
-                  ancestors: schemaAncestors
+                  ancestors: schemaAncestors,
+                };
+              }
+            } else if (schemaNode.__validate) {
+              let validationError = schemaNode.__validate(value);
+              // $FlowFixMe
+              if (validationError) {
+                return {
+                  type: 'other',
+                  dataType: 'value',
+                  dataPath,
+                  message: validationError,
+                  actualValue: value,
+                  ancestors: schemaAncestors,
                 };
               }
             }
@@ -161,7 +175,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               // $FlowFixMe type was already checked
               let keys = Object.keys(dataNode);
               invalidProps = schemaNode.__forbiddenProperties.filter(val =>
-                keys.includes(val)
+                keys.includes(val),
               );
               results.push(
                 ...invalidProps.map(
@@ -173,16 +187,16 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                       prop: k,
                       expectedProps: Object.keys(schemaNode.properties),
                       actualProps: keys,
-                      ancestors: schemaAncestors
-                    }: SchemaError)
-                )
+                      ancestors: schemaAncestors,
+                    }: SchemaError),
+                ),
               );
             }
             if (schemaNode.required) {
               // $FlowFixMe type was already checked
               let keys = Object.keys(dataNode);
               let missingKeys = schemaNode.required.filter(
-                val => !keys.includes(val)
+                val => !keys.includes(val),
               );
               results.push(
                 ...missingKeys.map(
@@ -194,9 +208,9 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                       prop: k,
                       expectedProps: schemaNode.required,
                       actualProps: keys,
-                      ancestors: schemaAncestors
-                    }: SchemaError)
-                )
+                      ancestors: schemaAncestors,
+                    }: SchemaError),
+                ),
               );
             }
             if (schemaNode.properties) {
@@ -211,7 +225,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                     [schemaNode.properties[k]].concat(schemaAncestors),
                     // $FlowFixMe type was already checked
                     dataNode[k],
-                    dataPath + '/' + k
+                    dataPath + '/' + k,
                   );
                   if (result) results.push(result);
                 } else {
@@ -222,14 +236,14 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                         dataType: 'key',
                         dataPath: dataPath + '/' + k,
                         expectedValues: Object.keys(
-                          schemaNode.properties
+                          schemaNode.properties,
                         ).filter(
                           // $FlowFixMe type was already checked
-                          p => !(p in dataNode)
+                          p => !(p in dataNode),
                         ),
                         actualValue: k,
                         ancestors: schemaAncestors,
-                        prettyType: schemaNode.__type
+                        prettyType: schemaNode.__type,
                       });
                     }
                   } else {
@@ -237,7 +251,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                       [additionalProperties].concat(schemaAncestors),
                       // $FlowFixMe type was already checked
                       dataNode[k],
-                      dataPath + '/' + k
+                      dataPath + '/' + k,
                     );
                     if (result) results.push(result);
                   }
@@ -277,7 +291,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               : Array.isArray(a) && Array.isArray(b)
               ? b.length - a.length
               : 0
-            : b.dataPath.length - a.dataPath.length
+            : b.dataPath.length - a.dataPath.length,
         );
         return results[0];
       }
@@ -285,7 +299,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
       let result = walk(
         [schemaNode.not].concat(schemaAncestors),
         dataNode,
-        dataPath
+        dataPath,
       );
       if (!result || result.length == 0) {
         return {
@@ -294,7 +308,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
           dataType: null,
           message: schemaNode.__message,
           actualValue: dataNode,
-          ancestors: schemaAncestors
+          ancestors: schemaAncestors,
         };
       }
     } else if (Object.keys(schemaNode).length == 0) {
@@ -317,7 +331,7 @@ function fuzzySearch(expectedValues: Array<string>, actualValue: string) {
     .map(exp => [exp, levenshteinDistance(exp, actualValue)])
     .filter(
       // Remove if more than half of the string would need to be changed
-      ([, d]) => d * 2 < actualValue.length
+      ([, d]) => d * 2 < actualValue.length,
     );
   result.sort(([, a], [, b]) => a - b);
   return result.map(([v]) => v);
@@ -330,7 +344,7 @@ validateSchema.diagnostic = function(
   dataContents: string | mixed,
   origin: string,
   prependKey: string,
-  message: string
+  message: string,
 ): void {
   let errors = validateSchema(schema, data);
   if (errors.length) {
@@ -363,7 +377,7 @@ validateSchema.diagnostic = function(
       } else if (e.type === 'forbidden-prop') {
         let {prop, expectedProps, actualProps} = e;
         let likely = fuzzySearch(expectedProps, prop).filter(
-          v => !actualProps.includes(v)
+          v => !actualProps.includes(v),
         );
         if (likely.length > 0) {
           message = `Did you mean ${likely
@@ -402,9 +416,9 @@ validateSchema.diagnostic = function(
         keys.map(({key, type, message}) => ({
           key: prependKey + key,
           type: type,
-          message
-        }))
-      )
+          message,
+        })),
+      ),
     };
 
     throw new ThrowableDiagnostic({
@@ -414,8 +428,8 @@ validateSchema.diagnostic = function(
         // $FlowFixMe should be a sketchy string check
         filePath: dataContentsPath || undefined,
         language: 'json',
-        codeFrame
-      }
+        codeFrame,
+      },
     });
   }
 };

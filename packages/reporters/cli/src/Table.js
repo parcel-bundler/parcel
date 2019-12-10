@@ -6,7 +6,7 @@ import {Box} from 'ink';
 import {countBreaks} from 'grapheme-breaker';
 
 type TableProps = {|
-  children: React.Element<typeof Row> | Iterable<React.Element<typeof Row>>
+  children: React.Element<typeof Row> | Iterable<React.Element<typeof Row>>,
 |};
 export function Table({children}: TableProps) {
   // Measure column widths
@@ -26,7 +26,7 @@ export function Table({children}: TableProps) {
 
 type RowProps = {|
   colWidths?: Array<number>,
-  children?: React.Element<typeof Cell> | Iterable<React.Element<typeof Cell>>
+  children?: React.Element<typeof Cell> | Iterable<React.Element<typeof Cell>>,
 |};
 
 export function Row(props: RowProps) {
@@ -56,7 +56,7 @@ function getAlign(node: React.Element<typeof Cell>): 'left' | 'right' {
 type CellProps = {|
   align?: 'left' | 'right',
   children: React.Node,
-  length?: number
+  length?: number,
 |};
 export function Cell(props: CellProps) {
   // This is injected above in cloneElement

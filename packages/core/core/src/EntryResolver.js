@@ -7,7 +7,7 @@ import {isGlob, glob} from '@parcel/utils';
 
 export type EntryResult = {|
   entries: Array<FilePath>,
-  files: Array<File>
+  files: Array<File>,
 |};
 
 export class EntryResolver {
@@ -21,15 +21,15 @@ export class EntryResolver {
     if (isGlob(entry)) {
       let files = await glob(entry, this.fs, {
         absolute: true,
-        onlyFiles: false
+        onlyFiles: false,
       });
       let results = await Promise.all(files.map(f => this.resolveEntry(f)));
       return results.reduce(
         (p, res) => ({
           entries: p.entries.concat(res.entries),
-          files: p.files.concat(res.files)
+          files: p.files.concat(res.files),
         }),
-        {entries: [], files: []}
+        {entries: [], files: []},
       );
     }
 
@@ -50,8 +50,8 @@ export class EntryResolver {
           throw new Error(
             `${pkg.source} in ${path.relative(
               this.fs.cwd(),
-              pkg.filePath
-            )}#source does not exist`
+              pkg.filePath,
+            )}#source does not exist`,
           );
         }
 
@@ -59,14 +59,14 @@ export class EntryResolver {
           throw new Error(
             `${pkg.source} in ${path.relative(
               this.fs.cwd(),
-              pkg.filePath
-            )}#source is not a file`
+              pkg.filePath,
+            )}#source is not a file`,
           );
         }
 
         return {
           entries: [source],
-          files: [{filePath: pkg.filePath}]
+          files: [{filePath: pkg.filePath}],
         };
       }
 
@@ -74,7 +74,7 @@ export class EntryResolver {
     } else if (stat.isFile()) {
       return {
         entries: [entry],
-        files: []
+        files: [],
       };
     }
 
@@ -94,7 +94,9 @@ export class EntryResolver {
       pkg = JSON.parse(content);
     } catch (err) {
       throw new Error(
-        `Error parsing ${path.relative(this.fs.cwd(), pkgFile)}: ${err.message}`
+        `Error parsing ${path.relative(this.fs.cwd(), pkgFile)}: ${
+          err.message
+        }`,
       );
     }
 

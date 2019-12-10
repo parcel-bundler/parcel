@@ -42,12 +42,12 @@ export default class ConfigLoader {
     let config = createConfig({
       isSource,
       searchPath: filePath,
-      env
+      env,
     });
     let publicConfig = new Config(config, this.options);
 
     let {config: parcelConfig, extendedFiles} = nullthrows(
-      await loadParcelConfig(filePath, this.options)
+      await loadParcelConfig(filePath, this.options),
     );
 
     publicConfig.setResolvedPath(parcelConfig.filePath);
@@ -85,24 +85,24 @@ export default class ConfigLoader {
     env,
     isSource,
     filePath,
-    meta: {parcelConfigPath}
+    meta: {parcelConfigPath},
   }: ConfigRequestDesc) {
     let config = createConfig({
       isSource,
       searchPath: filePath,
-      env
+      env,
     });
     invariant(typeof parcelConfigPath === 'string');
     let pluginInstance = await loadPlugin(
       this.options.packageManager,
       nullthrows(plugin),
-      parcelConfigPath
+      parcelConfigPath,
     );
     if (pluginInstance.loadConfig != null) {
       await pluginInstance.loadConfig({
         config: new Config(config, this.options),
         options: this.options,
-        logger: new PluginLogger({origin: nullthrows(plugin)})
+        logger: new PluginLogger({origin: nullthrows(plugin)}),
       });
     }
 

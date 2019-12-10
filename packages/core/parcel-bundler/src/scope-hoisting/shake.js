@@ -49,7 +49,7 @@ function getUnusedBinding(path, name) {
 
   // Is there any references which aren't simple assignments?
   let bailout = binding.referencePaths.some(
-    path => !isExportAssignment(path) && !isUnusedWildcard(path)
+    path => !isExportAssignment(path) && !isUnusedWildcard(path),
   );
 
   if (!bailout && pure) {

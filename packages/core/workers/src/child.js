@@ -7,7 +7,7 @@ import type {
   WorkerMessage,
   WorkerRequest,
   WorkerResponse,
-  ChildImpl
+  ChildImpl,
 } from './types';
 import type {IDisposable} from '@parcel/types';
 import type {WorkerApi} from './WorkerFarm';
@@ -22,7 +22,7 @@ import Handle from './Handle';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
-  reject: (error: any) => void
+  reject: (error: any) => void,
 |};
 
 export class Child {
@@ -42,7 +42,7 @@ export class Child {
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
       this.messageListener.bind(this),
-      this.handleEnd.bind(this)
+      this.handleEnd.bind(this),
     );
 
     // Monitior all logging events inside this child process and forward to
@@ -55,11 +55,11 @@ export class Child {
   workerApi = {
     callMaster: (
       request: CallRequest,
-      awaitResponse: ?boolean = true
+      awaitResponse: ?boolean = true,
     ): Promise<mixed> => this.addCall(request, awaitResponse),
     createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
       this.createReverseHandle(fn),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref)
+    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
   };
 
   messageListener(message: WorkerMessage): void | Promise<void> {
@@ -89,7 +89,7 @@ export class Child {
       child,
       type: 'response',
       contentType: 'data',
-      content
+      content,
     });
 
     const errorResponseFromError = (e: Error): WorkerErrorResponse => ({
@@ -97,7 +97,7 @@ export class Child {
       child,
       type: 'response',
       contentType: 'error',
-      content: anyToDiagnostic(e)
+      content: anyToDiagnostic(e),
     });
 
     let result;
@@ -143,7 +143,7 @@ export class Child {
       try {
         result = responseFromContent(
           // $FlowFixMe
-          await this.module[method](this.workerApi, ...args)
+          await this.module[method](this.workerApi, ...args),
         );
       } catch (e) {
         result = errorResponseFromError(e);
@@ -175,7 +175,7 @@ export class Child {
   // Keep in mind to make sure responses to these calls are JSON.Stringify safe
   addCall(
     request: CallRequest,
-    awaitResponse: ?boolean = true
+    awaitResponse: ?boolean = true,
   ): Promise<mixed> {
     // $FlowFixMe
     let call: ChildCall = {
@@ -184,7 +184,7 @@ export class Child {
       child: this.childId,
       awaitResponse,
       resolve: () => {},
-      reject: () => {}
+      reject: () => {},
     };
 
     let promise;
@@ -216,7 +216,7 @@ export class Child {
       handle: call.handle,
       method: call.method,
       args: call.args,
-      awaitResponse: call.awaitResponse
+      awaitResponse: call.awaitResponse,
     });
   }
 
@@ -238,7 +238,7 @@ export class Child {
     let handle = new Handle({
       fn,
       workerApi: this.workerApi,
-      childId: this.childId
+      childId: this.childId,
     });
     this.handles.set(handle.id, handle);
     return handle;

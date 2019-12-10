@@ -11,7 +11,7 @@ const EXPORTS_RE = /^\$([^$]+)\$exports$/;
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
-  'var NAME = $parcel$interopDefault(MODULE)'
+  'var NAME = $parcel$interopDefault(MODULE)',
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
@@ -34,7 +34,7 @@ module.exports = (packager, ast) => {
     let {identifier, name, id} = packager.findExportModule(
       module.id,
       originalName,
-      replacements
+      replacements,
     );
     let mod = assets.get(id);
     let node;
@@ -89,8 +89,8 @@ module.exports = (packager, ast) => {
         let [decl] = path.getStatementParent().insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
-            MODULE: node
-          })
+            MODULE: node,
+          }),
         );
 
         let binding = path.scope.getBinding(getName(mod, 'exports'));
@@ -139,7 +139,7 @@ module.exports = (packager, ast) => {
           !t.isStringLiteral(source)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require(number, string)'
+            'invariant: invalid signature, expected : $parcel$require(number, string)',
           );
         }
 
@@ -149,11 +149,11 @@ module.exports = (packager, ast) => {
         if (!mod) {
           if (asset.dependencies.get(source.value).optional) {
             path.replaceWith(
-              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
+              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
           } else {
             throw new Error(
-              `Cannot find module "${source.value}" in asset ${id.value}`
+              `Cannot find module "${source.value}" in asset ${id.value}`,
             );
           }
         } else {
@@ -214,7 +214,7 @@ module.exports = (packager, ast) => {
           !t.isStringLiteral(source)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require$resolve(number, string)'
+            'invariant: invalid signature, expected : $parcel$require$resolve(number, string)',
           );
         }
 
@@ -266,7 +266,7 @@ module.exports = (packager, ast) => {
             let {identifier} = packager.findExportModule(
               match[1],
               key.name,
-              replacements
+              replacements,
             );
             if (identifier) {
               replace(value.name, identifier, p);
@@ -293,7 +293,7 @@ module.exports = (packager, ast) => {
           replacements.set(id, init);
           path.remove();
         }
-      }
+      },
     },
     MemberExpression: {
       exit(path) {
@@ -320,7 +320,7 @@ module.exports = (packager, ast) => {
           let {identifier} = packager.findExportModule(
             match[1],
             name,
-            replacements
+            replacements,
           );
 
           // Check if $id$export$name exists and if so, replace the node by it.
@@ -328,7 +328,7 @@ module.exports = (packager, ast) => {
             path.replaceWith(t.identifier(identifier));
           }
         }
-      }
+      },
     },
     ReferencedIdentifier(path) {
       let {name} = path.node;
@@ -368,15 +368,15 @@ module.exports = (packager, ast) => {
         if (packager.options.minify) {
           mangleScope(path.scope);
         }
-      }
-    }
+      },
+    },
   });
 
   let opts = {
     sourceMaps: packager.options.sourceMaps,
     sourceFileName: packager.bundle.name,
     minified: packager.options.minify,
-    comments: !packager.options.minify
+    comments: !packager.options.minify,
   };
 
   return generate(ast, opts);

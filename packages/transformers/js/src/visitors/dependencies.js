@@ -97,7 +97,7 @@ export default ({
       // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
       addURLDependency(asset, args[0], {
         isEntry: true,
-        env: {context: 'service-worker'}
+        env: {context: 'service-worker'},
       });
       return;
     }
@@ -132,7 +132,7 @@ export default ({
       let isModule = false;
       if (types.isObjectExpression(args[1])) {
         let prop = args[1].properties.find(v =>
-          types.isIdentifier(v.key, {name: 'type'})
+          types.isIdentifier(v.key, {name: 'type'}),
         );
         if (prop && types.isStringLiteral(prop.value))
           isModule = prop.value.value === 'module';
@@ -141,19 +141,19 @@ export default ({
       addURLDependency(asset, args[0], {
         env: {
           context: 'web-worker',
-          outputFormat: isModule && options.scopeHoist ? 'esmodule' : undefined
-        }
+          outputFormat: isModule && options.scopeHoist ? 'esmodule' : undefined,
+        },
       });
       return;
     }
-  }
+  },
 }: {
   [key: string]: (
     node: any,
     {|asset: MutableAsset, options: PluginOptions|},
-    ancestors: Array<any>
+    ancestors: Array<any>,
   ) => void,
-  ...
+  ...,
 });
 
 function isInFalsyBranch(ancestors) {
@@ -181,7 +181,7 @@ function evaluateExpression(node) {
     Expression(path) {
       res = path.evaluate();
       path.stop();
-    }
+    },
   });
 
   return res;
@@ -219,7 +219,7 @@ function isRequireAsync(ancestors, requireNode, ast) {
       // Replace the original `require` call with a reference to a variable
       let requireClone = types.clone(requireNode);
       let v = types.identifier(
-        '$parcel$' + md5FromString(requireNode.arguments[0].value).slice(-4)
+        '$parcel$' + md5FromString(requireNode.arguments[0].value).slice(-4),
       );
       morph(requireNode, v);
 
@@ -233,16 +233,16 @@ function isRequireAsync(ancestors, requireNode, ast) {
         : types.functionExpression(
             null,
             [],
-            types.blockStatement([types.returnStatement(requireClone)])
+            types.blockStatement([types.returnStatement(requireClone)]),
           );
 
       // Add the original function as an additional promise chain
       let replacement = types.callExpression(
         types.memberExpression(
           types.clone(functionParent),
-          types.identifier('then')
+          types.identifier('then'),
         ),
-        [fn]
+        [fn],
       );
 
       morph(functionParent, replacement);
@@ -296,20 +296,20 @@ function getFunctionParent(ancestors) {
 function addDependency(
   asset,
   node,
-  opts: ?{|isAsync?: boolean, isOptional?: boolean|}
+  opts: ?{|isAsync?: boolean, isOptional?: boolean|},
 ) {
   asset.addDependency({
     moduleSpecifier: node.value,
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     isAsync: opts ? opts.isAsync : false,
-    isOptional: opts ? opts.isOptional : false
+    isOptional: opts ? opts.isOptional : false,
   });
 }
 
 function addURLDependency(asset, node, opts = {}) {
   node.value = asset.addURLDependency(node.value, {
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
-    ...opts
+    ...opts,
   });
   invariant(asset.ast);
   asset.ast.isDirty = true;

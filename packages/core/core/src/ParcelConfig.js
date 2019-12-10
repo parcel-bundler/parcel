@@ -13,7 +13,7 @@ import type {
   Packager,
   Optimizer,
   Reporter,
-  Validator
+  Validator,
 } from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
 import {isMatch} from 'micromatch';
@@ -25,7 +25,7 @@ type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
   $$raw: boolean,
   config: ResolvedParcelConfigFile,
-  packageManager: PackageManager
+  packageManager: PackageManager,
 |};
 
 export default class ParcelConfig {
@@ -44,7 +44,7 @@ export default class ParcelConfig {
 
   constructor(
     config: ResolvedParcelConfigFile,
-    packageManager: PackageManager
+    packageManager: PackageManager,
   ) {
     this.packageManager = packageManager;
     this.filePath = config.filePath;
@@ -75,7 +75,7 @@ export default class ParcelConfig {
       namers: this.namers,
       packagers: this.packagers,
       optimizers: this.optimizers,
-      reporters: this.reporters
+      reporters: this.reporters,
     };
   }
 
@@ -83,7 +83,7 @@ export default class ParcelConfig {
     return {
       $$raw: false,
       packageManager: this.packageManager,
-      config: this.getConfig()
+      config: this.getConfig(),
     };
   }
 
@@ -99,20 +99,20 @@ export default class ParcelConfig {
   }
 
   loadPlugins<T>(
-    plugins: Pipeline
+    plugins: Pipeline,
   ): Promise<
     Array<{|
       name: string,
-      plugin: T
-    |}>
+      plugin: T,
+    |}>,
   > {
     return Promise.all(
       plugins.map(async pluginName => {
         return {
           name: pluginName,
-          plugin: await this.loadPlugin(pluginName)
+          plugin: await this.loadPlugin(pluginName),
         };
-      })
+      }),
     );
   }
 
@@ -139,7 +139,7 @@ export default class ParcelConfig {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
       this.transforms,
-      pipeline
+      pipeline,
     );
     if (!transformers || transformers.length === 0) {
       throw new Error(`No transformers found for "${filePath}".`);
@@ -161,7 +161,7 @@ export default class ParcelConfig {
 
   getTransformers(filePath: FilePath, pipeline?: ?string) {
     return this.loadPlugins<Transformer>(
-      this.getTransformerNames(filePath, pipeline)
+      this.getTransformerNames(filePath, pipeline),
     );
   }
 
@@ -182,12 +182,12 @@ export default class ParcelConfig {
   }
 
   getRuntimes(
-    context: EnvironmentContext
+    context: EnvironmentContext,
   ): Promise<
     Array<{|
       name: string,
-      plugin: Runtime
-    |}>
+      plugin: Runtime,
+    |}>,
   > {
     let runtimes = this.runtimes[context];
     if (!runtimes) {
@@ -200,7 +200,7 @@ export default class ParcelConfig {
   getPackagerName(filePath: FilePath): string {
     let packagerName: ?PackageName = this.matchGlobMap(
       filePath,
-      this.packagers
+      this.packagers,
     );
     if (!packagerName) {
       throw new Error(`No packager found for "${filePath}".`);
@@ -209,15 +209,15 @@ export default class ParcelConfig {
   }
 
   async getPackager(
-    filePath: FilePath
+    filePath: FilePath,
   ): Promise<{|
     name: string,
-    plugin: Packager
+    plugin: Packager,
   |}> {
     let packagerName = this.getPackagerName(filePath);
     return {
       name: packagerName,
-      plugin: await this.loadPlugin(packagerName)
+      plugin: await this.loadPlugin(packagerName),
     };
   }
 
@@ -229,12 +229,12 @@ export default class ParcelConfig {
 
   getOptimizers(
     filePath: FilePath,
-    pipeline: ?string
+    pipeline: ?string,
   ): Promise<
     Array<{|
       name: string,
-      plugin: Optimizer
-    |}>
+      plugin: Optimizer,
+    |}>,
   > {
     let optimizers = this.getOptimizerNames(filePath, pipeline);
     if (optimizers.length === 0) {
@@ -269,7 +269,7 @@ export default class ParcelConfig {
   matchGlobMapPipelines(
     filePath: FilePath,
     globMap: {[Glob]: Pipeline, ...},
-    pipeline?: ?string
+    pipeline?: ?string,
   ) {
     let matches = [];
     for (let pattern in globMap) {
@@ -285,13 +285,13 @@ export default class ParcelConfig {
         pipeline = [
           ...pipeline.slice(0, spreadIndex),
           ...flatten(),
-          ...pipeline.slice(spreadIndex + 1)
+          ...pipeline.slice(spreadIndex + 1),
         ];
       }
 
       if (pipeline.includes('...')) {
         throw new Error(
-          'Only one spread parameter can be included in a config pipeline'
+          'Only one spread parameter can be included in a config pipeline',
         );
       }
 

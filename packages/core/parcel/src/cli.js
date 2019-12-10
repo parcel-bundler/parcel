@@ -4,11 +4,28 @@ import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
+function logUncaughtError(e: mixed) {
+  if (e instanceof ThrowableDiagnostic) {
+    for (let diagnostic of e.diagnostics) {
+      let out = prettyDiagnostic(diagnostic);
+      console.error(out.message);
+      console.error(out.codeframe || out.stack);
+      for (let h of out.hints) {
+        console.error(h);
+      }
+    }
+  } else {
+    console.error(e);
+  }
+}
+
 process.on('unhandledRejection', (reason: mixed) => {
-  console.error(reason);
+  logUncaughtError(reason);
   process.exit(1);
 });
 
@@ -31,34 +48,34 @@ const commonOptions = {
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
-    []
+    [],
   ],
   '--log-level <level>': [
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
-    /^(none|error|warn|info|verbose)$/
+    /^(none|error|warn|info|verbose)$/,
   ],
   '--profile': 'enable build profiling',
-  '-V, --version': 'output the version number'
+  '-V, --version': 'output the version number',
 };
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '--hmr-port <port>': [
     'set the port to serve HMR websockets, defaults to random',
-    parseInt
+    parseInt,
   ],
   '--hmr-host <hostname>':
     'set the hostname of HMR websockets, defaults to location.hostname of current window',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
-  '--key <path>': 'path to private key to use with HTTPS'
+  '--key <path>': 'path to private key to use with HTTPS',
 };
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
     cmd.option(
       opt,
-      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]])
+      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]]),
     );
   }
 }
@@ -69,16 +86,16 @@ let serve = program
   .option(
     '-p, --port <port>',
     'set the port to serve on. defaults to 1234',
-    parseInt
+    parseInt,
   )
   .option('--public-url <url>', 'set the path prefix to use in serve mode')
   .option(
     '--host <host>',
-    'set the host to listen on, defaults to listening on all interfaces'
+    'set the host to listen on, defaults to listening on all interfaces',
   )
   .option(
     '--open [browser]',
-    'automatically open in specified browser, defaults to default browser'
+    'automatically open in specified browser, defaults to default browser',
   )
   .action(run);
 
@@ -115,7 +132,7 @@ program.on('--help', function() {
   console.log(
     '  Run `' +
       chalk.bold('parcel help <command>') +
-      '` for more information on specific commands'
+      '` for more information on specific commands',
   );
   console.log('');
 });
@@ -140,20 +157,19 @@ async function run(entries: Array<string>, command: any) {
   let packageManager = new NodePackageManager(new NodeFS());
   let defaultConfig: ParcelConfigFile = await packageManager.require(
     '@parcel/config-default',
-    __filename
+    __filename,
   );
   let parcel = new Parcel({
     entries,
     packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: (await packageManager.resolve(
-        '@parcel/config-default',
-        __filename
-      )).resolved
+      filePath: (
+        await packageManager.resolve('@parcel/config-default', __filename)
+      ).resolved,
     },
     patchConsole: true,
-    ...(await normalizeOptions(command))
+    ...(await normalizeOptions(command)),
   });
 
   if (command.name() === 'watch' || command.name() === 'serve') {
@@ -204,7 +220,9 @@ async function run(entries: Array<string>, command: any) {
     } catch (e) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) console.error(e);
+      if (!(e instanceof BuildError)) {
+        logUncaughtError(e);
+      }
       process.exit(1);
     }
   }
@@ -221,7 +239,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.cert && command.key) {
     https = {
       cert: command.cert,
-      key: command.key
+      key: command.key,
     };
   }
 
@@ -233,7 +251,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     if (command.port && port !== command.port) {
       // Parcel logger is not set up at this point, so just use native console.
       console.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`)
+        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
     }
 
@@ -241,7 +259,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
       https,
       port,
       host,
-      publicUrl
+      publicUrl,
     };
   }
 
@@ -257,7 +275,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     hmr = {
       https,
       port,
-      host
+      host,
     };
   }
 
@@ -274,6 +292,6 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile
+    profile: command.profile,
   };
 }

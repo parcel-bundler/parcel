@@ -12,11 +12,11 @@ const SCRIPT_TYPES = {
   'text/javascript': 'js',
   'application/json': false,
   'application/ld+json': 'jsonld',
-  'text/html': false
+  'text/html': false,
 };
 
 export default function extractInlineAssets(
-  asset: MutableAsset
+  asset: MutableAsset,
 ): Array<TransformerResult> {
   let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
@@ -82,8 +82,8 @@ export default function extractInlineAssets(
           isInline: true,
           meta: {
             type: 'tag',
-            node
-          }
+            node,
+          },
         });
       }
     }
@@ -98,8 +98,8 @@ export default function extractInlineAssets(
         isInline: true,
         meta: {
           type: 'attr',
-          node
-        }
+          node,
+        },
       });
     }
 

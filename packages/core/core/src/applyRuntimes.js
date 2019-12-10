@@ -5,7 +5,7 @@ import type {
   AssetRequestDesc,
   Bundle as InternalBundle,
   NodeId,
-  ParcelOptions
+  ParcelOptions,
 } from './types';
 import type InternalBundleGraph from './BundleGraph';
 import type AssetGraphBuilder from './AssetGraphBuilder';
@@ -26,7 +26,7 @@ type RuntimeConnection = {|
   bundle: InternalBundle,
   assetRequest: AssetRequestDesc,
   dependency: ?Dependency,
-  isEntry: ?boolean
+  isEntry: ?boolean,
 |};
 
 export default async function applyRuntimes({
@@ -34,13 +34,13 @@ export default async function applyRuntimes({
   config,
   options,
   pluginOptions,
-  runtimesBuilder
+  runtimesBuilder,
 }: {|
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
   options: ParcelOptions,
   pluginOptions: PluginOptions,
-  runtimesBuilder: AssetGraphBuilder
+  runtimesBuilder: AssetGraphBuilder,
 |}): Promise<void> {
   let connections: Array<RuntimeConnection> = [];
 
@@ -52,7 +52,7 @@ export default async function applyRuntimes({
           bundle: new NamedBundle(bundle, bundleGraph, options),
           bundleGraph: new BundleGraph(bundleGraph, options),
           options: pluginOptions,
-          logger: new PluginLogger({origin: runtime.name})
+          logger: new PluginLogger({origin: runtime.name}),
         });
 
         if (applied) {
@@ -61,19 +61,19 @@ export default async function applyRuntimes({
             let assetRequest = {
               code,
               filePath,
-              env: bundle.env
+              env: bundle.env,
             };
             connections.push({
               bundle,
               assetRequest,
               dependency: dependency,
-              isEntry
+              isEntry,
             });
           }
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, runtime.name)
+          diagnostic: errorToDiagnostic(e, runtime.name),
         });
       }
     }
@@ -81,7 +81,7 @@ export default async function applyRuntimes({
 
   let runtimesAssetGraph = await reconcileNewRuntimes(
     runtimesBuilder,
-    connections
+    connections,
   );
 
   let runtimesGraph = removeAssetGroups(runtimesAssetGraph);
@@ -93,7 +93,7 @@ export default async function applyRuntimes({
   for (let {bundle, assetRequest, dependency, isEntry} of connections) {
     let assetGroupNode = nodeFromAssetGroup(assetRequest);
     let assetGroupAssets = runtimesAssetGraph.getNodesConnectedFrom(
-      assetGroupNode
+      assetGroupNode,
     );
     invariant(assetGroupAssets.length === 1);
     let runtimeNode = assetGroupAssets[0];
@@ -133,7 +133,7 @@ export default async function applyRuntimes({
       dependency
         ? dependency.id
         : nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-      runtimeNode.id
+      runtimeNode.id,
     );
 
     if (isEntry) {
@@ -144,7 +144,7 @@ export default async function applyRuntimes({
 
 async function reconcileNewRuntimes(
   runtimesBuilder: AssetGraphBuilder,
-  connections: Array<RuntimeConnection>
+  connections: Array<RuntimeConnection>,
 ): Promise<AssetGraph> {
   let {assetGraph} = runtimesBuilder;
 
@@ -154,11 +154,11 @@ async function reconcileNewRuntimes(
       .map(request => {
         let node = nodeFromAssetGroup(request);
         return [node.id, node];
-      })
+      }),
   );
   let newRequestIds = new Set(assetRequestNodesById.keys());
   let oldRequestIds = new Set(
-    assetGraph.getEntryAssetGroupNodes().map(node => node.id)
+    assetGraph.getEntryAssetGroupNodes().map(node => node.id),
   );
 
   let toAdd = setDifference(newRequestIds, oldRequestIds);
@@ -167,9 +167,9 @@ async function reconcileNewRuntimes(
   assetGraph.replaceNodesConnectedTo(
     nullthrows(assetGraph.getRootNode()),
     [...toAdd].map(requestId =>
-      nullthrows(assetRequestNodesById.get(requestId))
+      nullthrows(assetRequestNodesById.get(requestId)),
     ),
-    node => toRemove.has(node.id)
+    node => toRemove.has(node.id),
   );
 
   // rebuild the graph

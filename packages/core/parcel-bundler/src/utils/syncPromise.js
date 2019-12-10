@@ -16,7 +16,7 @@ function syncPromise(promise) {
     error => {
       err = error;
       isDone = true;
-    }
+    },
   );
 
   deasync.loopWhile(() => !isDone);

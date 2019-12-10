@@ -7,11 +7,11 @@ import {babel6toBabel7} from './astConverter';
 export default async function babel6(
   asset: MutableAsset,
   options: PluginOptions,
-  babelOptions: any
+  babelOptions: any,
 ): Promise<?AST> {
   let babel = await options.packageManager.require(
     'babel-core',
-    asset.filePath
+    asset.filePath,
   );
 
   let config = babelOptions.config;
@@ -25,7 +25,7 @@ export default async function babel6(
     ecmaVersion: Infinity,
     strictMode: false,
     sourceType: 'module',
-    locations: true
+    locations: true,
   });
 
   // Passing a list of plugins as part of parserOpts seems to override any custom
@@ -38,7 +38,7 @@ export default async function babel6(
     return {
       type: 'babel',
       version: '7.0.0',
-      program: babel6toBabel7(res.ast)
+      program: babel6toBabel7(res.ast),
     };
   }
 }
@@ -47,6 +47,6 @@ function dynamicImport() {
   return {
     manipulateOptions(opts, parserOpts) {
       parserOpts.plugins.push('dynamicImport');
-    }
+    },
   };
 }
