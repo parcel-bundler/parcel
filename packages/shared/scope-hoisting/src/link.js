@@ -401,16 +401,21 @@ export function link({
             .find(dep => dep.moduleSpecifier === source.value),
         );
         if (!bundleGraph.getDependencyResolution(dep)) {
-          // was excluded from bundling
+          // was excluded from bundling (e.g. includeNodeModules = false)
+
+          if (bundle.env.outputFormat !== 'commonjs') {
+            throw new Error(
+              "`require.resolve` calls for excluded assets are only supported with outputFormat = 'commonjs'",
+            );
+          }
+
           path.replaceWith(
             REQUIRE_RESOLVE_CALL_TEMPLATE({ID: t.stringLiteral(source.value)}),
           );
         } else {
           throw new Error(
-            "`require.resolve` calls for local assets aren't supported with scope hoisting",
+            "`require.resolve` calls for modules or assets aren't supported with scope hoisting",
           );
-          // let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
-          // path.replaceWith(t.valueToNode(mod.id));
         }
       }
     },
