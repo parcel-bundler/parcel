@@ -994,6 +994,18 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
+  it("should insert the user's NODE_ENV as process.env.NODE_ENV if passed", async function() {
+    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.env') === -1);
+    assert.equal(output(), 'production:production');
+  });
+
   it('should insert environment variables from a file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
@@ -1004,6 +1016,16 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(output, 'bartest');
+  });
+
+  it("should insert environment variables matching the user's NODE_ENV if passed", async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-file/index.js'),
+      {env: {NODE_ENV: 'production'}},
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'productiontest');
   });
 
   it.skip('should support adding implicit dependencies', async function() {

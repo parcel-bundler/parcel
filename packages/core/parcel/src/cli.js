@@ -229,10 +229,11 @@ async function run(entries: Array<string>, command: any) {
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
+  let nodeEnv;
   if (command.name() === 'build') {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+    nodeEnv = process.env.NODE_ENV || 'production';
   } else {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+    nodeEnv = process.env.NODE_ENV || 'development';
   }
 
   let https = !!command.https;
@@ -293,5 +294,6 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    nodeEnv,
   };
 }
