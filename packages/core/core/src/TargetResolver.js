@@ -6,7 +6,7 @@ import type {
   FilePath,
   PackageJSON,
   PackageTargetDescriptor,
-  TargetDescriptor
+  TargetDescriptor,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ParcelOptions, Target} from './types';
@@ -14,7 +14,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
-  getJSONSourceLocation
+  getJSONSourceLocation,
 } from '@parcel/diagnostic';
 import {loadConfig, validateSchema} from '@parcel/utils';
 import {createEnvironment} from './Environment';
@@ -26,7 +26,7 @@ import DESCRIPTOR_SCHEMA, {ENGINES_SCHEMA} from './TargetDescriptor.schema';
 
 export type TargetResolveResult = {|
   targets: Array<Target>,
-  files: Array<File>
+  files: Array<File>,
 |};
 
 const DEFAULT_DEVELOPMENT_ENGINES = {
@@ -35,13 +35,13 @@ const DEFAULT_DEVELOPMENT_ENGINES = {
     'last 1 Chrome version',
     'last 1 Safari version',
     'last 1 Firefox version',
-    'last 1 Edge version'
-  ]
+    'last 1 Edge version',
+  ],
 };
 
 const DEFAULT_PRODUCTION_ENGINES = {
   browsers: ['>= 0.25%'],
-  node: '8'
+  node: '8',
 };
 
 const DEFAULT_DIST_DIRNAME = 'dist';
@@ -67,8 +67,8 @@ export default class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Targets option is an empty array`,
-              origin: '@parcel/core'
-            }
+              origin: '@parcel/core',
+            },
           });
         }
 
@@ -81,8 +81,8 @@ export default class TargetResolver {
             throw new ThrowableDiagnostic({
               diagnostic: {
                 message: `Could not find target with name "${target}"`,
-                origin: '@parcel/core'
-              }
+                origin: '@parcel/core',
+              },
             });
           }
           return matchingTarget;
@@ -96,7 +96,7 @@ export default class TargetResolver {
             name,
             _descriptor,
             null,
-            {targets: optionTargets}
+            {targets: optionTargets},
           );
           if (!distDir) {
             let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
@@ -111,12 +111,12 @@ export default class TargetResolver {
                     [
                       {
                         key: `/${name}`,
-                        type: 'value'
-                      }
-                    ]
-                  )
-                }
-              }
+                        type: 'value',
+                      },
+                    ],
+                  ),
+                },
+              },
             });
           }
           return {
@@ -128,9 +128,9 @@ export default class TargetResolver {
               context: descriptor.context,
               isLibrary: descriptor.isLibrary,
               includeNodeModules: descriptor.includeNodeModules,
-              outputFormat: descriptor.outputFormat
+              outputFormat: descriptor.outputFormat,
             }),
-            sourceMap: descriptor.sourceMap
+            sourceMap: descriptor.sourceMap,
           };
         });
       }
@@ -142,16 +142,16 @@ export default class TargetResolver {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `More than one target is not supported in serve mode`,
-              origin: '@parcel/core'
-            }
+              origin: '@parcel/core',
+            },
           });
         }
         if (targets[0].env.context !== 'browser') {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
-              origin: '@parcel/core'
-            }
+              origin: '@parcel/core',
+            },
           });
         }
       }
@@ -173,10 +173,10 @@ export default class TargetResolver {
             env: createEnvironment({
               context: 'browser',
               engines: {
-                browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers
-              }
-            })
-          }
+                browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers,
+              },
+            }),
+          },
         ];
       } else {
         let packageTargets = await this.resolvePackageTargets(rootDir);
@@ -190,7 +190,7 @@ export default class TargetResolver {
 
   async resolvePackageTargets(rootDir: FilePath) {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
-      'package.json'
+      'package.json',
     ]);
 
     let pkg;
@@ -205,8 +205,8 @@ export default class TargetResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: `Expected package.json file in ${rootDir}`,
-            origin: '@parcel/core'
-          }
+            origin: '@parcel/core',
+          },
         });
       }
       pkgFilePath = pkgFile.filePath;
@@ -225,7 +225,7 @@ export default class TargetResolver {
         pkgFilePath,
         pkgContents,
         '/engines',
-        'Invalid engines in package.json'
+        'Invalid engines in package.json',
       ) || {};
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
@@ -289,7 +289,7 @@ export default class TargetResolver {
           distEntry = path.basename(targetDist);
           loc = {
             filePath: pkgFilePath,
-            ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value')
+            ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value'),
           };
         } else {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
@@ -299,7 +299,7 @@ export default class TargetResolver {
           targetName,
           _descriptor,
           pkgFilePath,
-          pkgContents
+          pkgContents,
         );
         let isLibrary =
           typeof distEntry === 'string'
@@ -327,10 +327,10 @@ export default class TargetResolver {
                   ? 'esmodule'
                   : 'commonjs'
                 : 'global'),
-            isLibrary: isLibrary
+            isLibrary: isLibrary,
           }),
           sourceMap: descriptor.sourceMap,
-          loc
+          loc,
         });
       }
     }
@@ -367,11 +367,11 @@ export default class TargetResolver {
                   {
                     key: `/${targetName}`,
                     type: 'value',
-                    message: 'Expected type string'
-                  }
-                ])
-              }
-            }
+                    message: 'Expected type string',
+                  },
+                ]),
+              },
+            },
           });
         }
         distDir = path.resolve(pkgDir, path.dirname(distPath));
@@ -381,7 +381,7 @@ export default class TargetResolver {
         invariant(pkgMap != null);
         loc = {
           filePath: pkgFilePath,
-          ...getJSONSourceLocation(pkgMap.pointers[`/${targetName}`], 'value')
+          ...getJSONSourceLocation(pkgMap.pointers[`/${targetName}`], 'value'),
         };
       }
 
@@ -390,7 +390,7 @@ export default class TargetResolver {
           targetName,
           _descriptor,
           pkgFilePath,
-          pkgContents
+          pkgContents,
         );
         targets.set(targetName, {
           name: targetName,
@@ -402,10 +402,10 @@ export default class TargetResolver {
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat: descriptor.outputFormat,
-            isLibrary: descriptor.isLibrary
+            isLibrary: descriptor.isLibrary,
           }),
           sourceMap: descriptor.sourceMap,
-          loc
+          loc,
         });
       }
     }
@@ -418,8 +418,8 @@ export default class TargetResolver {
         publicUrl: '/',
         env: createEnvironment({
           engines: pkgEngines,
-          context
-        })
+          context,
+        }),
       });
     }
 
@@ -427,7 +427,7 @@ export default class TargetResolver {
 
     return {
       targets,
-      files: conf ? conf.files : []
+      files: conf ? conf.files : [],
     };
   }
 }
@@ -437,7 +437,7 @@ function parseEngines(
   pkgPath: ?FilePath,
   pkgContents: string | mixed,
   prependKey: string,
-  message: string
+  message: string,
 ): Engines | typeof undefined {
   if (engines === undefined) {
     return engines;
@@ -449,7 +449,7 @@ function parseEngines(
       pkgContents,
       '@parcel/core',
       prependKey,
-      message
+      message,
     );
 
     // $FlowFixMe we just verified this
@@ -461,7 +461,7 @@ function parseDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed
+  pkgContents: string | mixed,
 ): TargetDescriptor | PackageTargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
@@ -470,7 +470,7 @@ function parseDescriptor(
     pkgContents,
     '@parcel/core',
     `/targets/${targetName}`,
-    `Invalid target descriptor for target "${targetName}"`
+    `Invalid target descriptor for target "${targetName}"`,
   );
 
   // $FlowFixMe we just verified this
@@ -497,7 +497,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
       diagnostics.push({
         message: `Multiple targets have the same destination path "${path.relative(
           path.dirname(pkgFilePath),
-          targetPath
+          targetPath,
         )}"`,
         origin: '@parcel/core',
         language: 'json',
@@ -508,10 +508,10 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
             pkgContents,
             targetNames.map(t => ({
               key: `/${t}`,
-              type: 'value'
-            }))
-          )
-        }
+              type: 'value',
+            })),
+          ),
+        },
       });
     }
   }
@@ -519,11 +519,11 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
   if (diagnostics.length > 0) {
     // Only add hints to the last diagnostic so it isn't duplicated on each one
     diagnostics[diagnostics.length - 1].hints = [
-      'Try removing the duplicate targets, or changing the destination paths.'
+      'Try removing the duplicate targets, or changing the destination paths.',
     ];
 
     throw new ThrowableDiagnostic({
-      diagnostic: diagnostics
+      diagnostic: diagnostics,
     });
   }
 }

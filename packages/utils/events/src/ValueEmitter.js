@@ -18,7 +18,7 @@ export default class ValueEmitter<TValue> implements IDisposable {
   addListener(listener: (value: TValue) => mixed): IDisposable {
     if (this._disposed) {
       throw new AlreadyDisposedError(
-        'Cannot add a listener since this ValueEmitter has been disposed'
+        'Cannot add a listener since this ValueEmitter has been disposed',
       );
     }
 
@@ -47,14 +47,14 @@ export default class ValueEmitter<TValue> implements IDisposable {
         }
 
         emitter = null;
-      }
+      },
     };
   }
 
   emit(value: TValue): void {
     if (this._disposed) {
       throw new AlreadyDisposedError(
-        'Cannot emit since this ValueEmitter has been disposed'
+        'Cannot emit since this ValueEmitter has been disposed',
       );
     }
 

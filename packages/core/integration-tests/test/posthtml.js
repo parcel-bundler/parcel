@@ -4,7 +4,7 @@ import {
   assertBundles,
   removeDistDirectory,
   distDir,
-  outputFS
+  outputFS,
 } from '@parcel/test-utils';
 import path from 'path';
 
@@ -15,14 +15,14 @@ describe('posthtml', function() {
 
   it('should support transforming HTML with posthtml', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/posthtml/index.html')
+      path.join(__dirname, '/integration/posthtml/index.html'),
     );
 
     assertBundles(b, [
       {
         name: 'index.html',
-        assets: ['index.html']
-      }
+        assets: ['index.html'],
+      },
     ]);
 
     let html = await outputFS.readFile(path.join(distDir, 'index.html'));
@@ -31,29 +31,29 @@ describe('posthtml', function() {
 
   it('should find assets inside posthtml', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/posthtml-assets/index.html')
+      path.join(__dirname, '/integration/posthtml-assets/index.html'),
     );
 
     assertBundles(b, [
       {
         type: 'html',
-        assets: ['index.html']
+        assets: ['index.html'],
       },
       {
         type: 'js',
-        assets: ['index.js']
-      }
+        assets: ['index.js'],
+      },
     ]);
   });
 
   it.skip('should add dependencies referenced by posthtml-include', async () => {
     const b = await bundle(
-      path.join(__dirname, '/integration/posthtml-assets/index.html')
+      path.join(__dirname, '/integration/posthtml-assets/index.html'),
     );
     const asset = b.assets.values().next().value;
     const other = path.join(
       __dirname,
-      '/integration/posthtml-assets/other.html'
+      '/integration/posthtml-assets/other.html',
     );
     assert(asset.dependencies.has(other));
     assert(asset.dependencies.get(other).includedInParent);
@@ -61,12 +61,12 @@ describe('posthtml', function() {
 
   it.skip('should add dependencies referenced by plugins', async () => {
     const b = await bundle(
-      path.join(__dirname, '/integration/posthtml-plugin-deps/index.html')
+      path.join(__dirname, '/integration/posthtml-plugin-deps/index.html'),
     );
     const asset = b.assets.values().next().value;
     const other = path.join(
       __dirname,
-      '/integration/posthtml-plugin-deps/base.html'
+      '/integration/posthtml-plugin-deps/base.html',
     );
     assert(asset.dependencies.has(other));
     assert(asset.dependencies.get(other).includedInParent);

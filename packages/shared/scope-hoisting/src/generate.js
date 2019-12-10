@@ -9,11 +9,11 @@ export function generate(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   ast: AST,
-  options: PluginOptions
+  options: PluginOptions,
 ) {
   let {code} = babelGenerate(ast, {
     minified: options.minify,
-    comments: true // retain /*@__PURE__*/ comments for terser
+    comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
   // $FlowFixMe
@@ -33,7 +33,7 @@ export function generate(
   let contents = '';
   if (isAsync && bundle.env.outputFormat === 'global') {
     contents = `${hashBang}parcelRequire.registerBundle(${JSON.stringify(
-      nullthrows(entry).id
+      nullthrows(entry).id,
     )},function(){${code}\n});`;
   } else {
     contents =

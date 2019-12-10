@@ -7,5 +7,5 @@ export default new Transformer({
     asset.isInline = true;
     asset.meta.inlineType = 'string';
     return [asset];
-  }
+  },
 });

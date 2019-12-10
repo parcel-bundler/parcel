@@ -13,5 +13,5 @@ module.exports = {
         path.replaceWith(t.booleanLiteral(true));
       }
     }
-  }
+  },
 };

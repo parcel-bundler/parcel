@@ -3,7 +3,7 @@ import type {
   FilePath,
   ParcelConfigFile,
   ResolvedParcelConfigFile,
-  PackageName
+  PackageName,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
@@ -19,25 +19,25 @@ type ConfigMap<K, V> = {[K]: V, ...};
 
 export default async function loadParcelConfig(
   filePath: FilePath,
-  options: ParcelOptions
+  options: ParcelOptions,
 ) {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
         {
           ...options.config,
-          resolveFrom: options.inputFS.cwd()
+          resolveFrom: options.inputFS.cwd(),
         },
-        options
+        options,
       )
     : await resolveParcelConfig(filePath, options);
   if (!parcelConfig && options.defaultConfig) {
     parcelConfig = await create(
       {
         ...options.defaultConfig,
-        resolveFrom: options.inputFS.cwd()
+        resolveFrom: options.inputFS.cwd(),
       },
-      options
+      options,
     );
   }
 
@@ -50,10 +50,10 @@ export default async function loadParcelConfig(
 
 export async function resolveParcelConfig(
   filePath: FilePath,
-  options: ParcelOptions
+  options: ParcelOptions,
 ) {
   let configPath = await resolveConfig(options.inputFS, filePath, [
-    '.parcelrc'
+    '.parcelrc',
   ]);
   if (!configPath) {
     return null;
@@ -64,17 +64,17 @@ export async function resolveParcelConfig(
 
 export function create(
   config: ResolvedParcelConfigFile,
-  options: ParcelOptions
+  options: ParcelOptions,
 ) {
   return processConfig(config, config.filePath, options);
 }
 
 export async function readAndProcess(
   configPath: FilePath,
-  options: ParcelOptions
+  options: ParcelOptions,
 ) {
   let config: ParcelConfigFile = parse(
-    await options.inputFS.readFile(configPath)
+    await options.inputFS.readFile(configPath),
   );
   return processConfig(config, configPath, options);
 }
@@ -82,7 +82,7 @@ export async function readAndProcess(
 export async function processConfig(
   configFile: ParcelConfigFile | ResolvedParcelConfigFile,
   filePath: FilePath,
-  options: ParcelOptions
+  options: ParcelOptions,
 ) {
   let resolvedFile: ResolvedParcelConfigFile = {filePath, ...configFile};
   let config = new ParcelConfig(resolvedFile, options.packageManager);
@@ -100,7 +100,7 @@ export async function processConfig(
       extendedFiles.push(resolved);
       let {
         extendedFiles: moreExtendedFiles,
-        config: baseConfig
+        config: baseConfig,
       } = await readAndProcess(resolved, options);
       extendedFiles = extendedFiles.concat(moreExtendedFiles);
       config = mergeConfigs(baseConfig, resolvedFile);
@@ -113,14 +113,14 @@ export async function processConfig(
 export async function resolveExtends(
   ext: string,
   configPath: FilePath,
-  options: ParcelOptions
+  options: ParcelOptions,
 ) {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
     let {resolved} = await resolve(options.inputFS, ext, {
       basedir: path.dirname(configPath),
-      extensions: ['.json']
+      extensions: ['.json'],
     });
     return options.inputFS.realpath(resolved);
   }
@@ -128,7 +128,7 @@ export async function resolveExtends(
 
 export function validateConfigFile(
   config: ParcelConfigFile | ResolvedParcelConfigFile,
-  relativePath: FilePath
+  relativePath: FilePath,
 ) {
   validateNotEmpty(config, relativePath);
 
@@ -139,20 +139,20 @@ export function validateConfigFile(
     JSON.stringify(config, null, '\t'),
     '@parcel/core',
     '',
-    'Invalid Parcel Config'
+    'Invalid Parcel Config',
   );
 }
 
 export function validateNotEmpty(
   config: ParcelConfigFile | ResolvedParcelConfigFile,
-  relativePath: FilePath
+  relativePath: FilePath,
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
 }
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: ResolvedParcelConfigFile
+  ext: ResolvedParcelConfigFile,
 ): ParcelConfig {
   return new ParcelConfig(
     {
@@ -165,9 +165,9 @@ export function mergeConfigs(
       runtimes: mergeMaps(base.runtimes, ext.runtimes),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-      reporters: mergePipelines(base.reporters, ext.reporters)
+      reporters: mergePipelines(base.reporters, ext.reporters),
     },
-    base.packageManager
+    base.packageManager,
   );
 }
 
@@ -182,14 +182,14 @@ export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
     if (spreadIndex >= 0) {
       if (ext.filter(v => v === '...').length > 1) {
         throw new Error(
-          'Only one spread element can be included in a config pipeline'
+          'Only one spread element can be included in a config pipeline',
         );
       }
 
       ext = [
         ...ext.slice(0, spreadIndex),
         ...(base || []),
-        ...ext.slice(spreadIndex + 1)
+        ...ext.slice(spreadIndex + 1),
       ];
     }
   }
@@ -200,7 +200,7 @@ export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
 export function mergeMaps<K, V>(
   base: ?ConfigMap<K, V>,
   ext: ?ConfigMap<K, V>,
-  merger?: (a: V, b: V) => V
+  merger?: (a: V, b: V) => V,
 ): ConfigMap<K, V> {
   if (!ext) {
     return base || {};

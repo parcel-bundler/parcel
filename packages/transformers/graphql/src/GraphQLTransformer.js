@@ -11,7 +11,7 @@ export default new Transformer({
 
     let gql = await options.packageManager.require(
       'graphql-tag',
-      asset.filePath
+      asset.filePath,
     );
 
     let gqlMap = new Map();
@@ -33,11 +33,11 @@ export default new Transformer({
 
             let code = await options.inputFS.readFile(resolved, 'utf8');
             asset.addIncludedFile({
-              filePath: resolved
+              filePath: resolved,
             });
 
             await traverseImports(resolved, code);
-          })
+          }),
       );
     };
 
@@ -48,10 +48,10 @@ export default new Transformer({
       `module.exports=${JSON.stringify(
         gql([...gqlMap.values()].join('\n')),
         null,
-        2
-      )};`
+        2,
+      )};`,
     );
 
     return [asset];
-  }
+  },
 });

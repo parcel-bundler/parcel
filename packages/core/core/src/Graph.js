@@ -10,12 +10,12 @@ import nullthrows from 'nullthrows';
 export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
   nodes?: Map<NodeId, TNode>,
   edges?: Array<Edge<TEdgeType | null>>,
-  rootNodeId?: ?NodeId
+  rootNodeId?: ?NodeId,
 |};
 
 type AdjacencyList<TEdgeType> = DefaultMap<
   NodeId,
-  DefaultMap<TEdgeType, Set<NodeId>>
+  DefaultMap<TEdgeType, Set<NodeId>>,
 >;
 
 export const ALL_EDGE_TYPES = '@@all_edge_types';
@@ -23,15 +23,15 @@ export const ALL_EDGE_TYPES = '@@all_edge_types';
 export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   nodes: Map<NodeId, TNode>;
   inboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
-    () => new DefaultMap(() => new Set())
+    () => new DefaultMap(() => new Set()),
   );
   outboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
-    () => new DefaultMap(() => new Set())
+    () => new DefaultMap(() => new Set()),
   );
   rootNodeId: ?NodeId;
 
   constructor(
-    opts: GraphOpts<TNode, TEdgeType> = ({}: any) // flow is dumb
+    opts: GraphOpts<TNode, TEdgeType> = ({}: any), // flow is dumb
   ) {
     this.nodes = opts.nodes || new Map();
     this.rootNodeId = opts.rootNodeId;
@@ -51,7 +51,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return {
       nodes: this.nodes,
       edges: this.getAllEdges(),
-      rootNodeId: this.rootNodeId
+      rootNodeId: this.rootNodeId,
     };
   }
 
@@ -120,7 +120,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedTo(
     node: TNode,
-    type: TEdgeType | null = null
+    type: TEdgeType | null = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -144,7 +144,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedFrom(
     node: TNode,
-    type: TEdgeType | null = null
+    type: TEdgeType | null = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -188,7 +188,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
           type,
           // Do not allow orphans to be removed as this node could be one
           // and is already being removed.
-          false /* removeOrphans */
+          false /* removeOrphans */,
         );
       }
     }
@@ -221,7 +221,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     from: NodeId,
     to: NodeId,
     type: TEdgeType | null = null,
-    removeOrphans: boolean = true
+    removeOrphans: boolean = true,
   ) {
     if (
       !this.outboundEdges
@@ -286,7 +286,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         }
       },
       // $FlowFixMe
-      ALL_EDGE_TYPES
+      ALL_EDGE_TYPES,
     );
 
     if (hasPathToRoot) {
@@ -299,7 +299,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   replaceNode(
     fromNode: TNode,
     toNode: TNode,
-    type: TEdgeType | null = null
+    type: TEdgeType | null = null,
   ): void {
     assertHasNode(this, fromNode);
 
@@ -318,7 +318,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     fromNode: TNode,
     toNodes: Array<TNode>,
     replaceFilter?: null | (TNode => boolean),
-    type?: TEdgeType | null = null
+    type?: TEdgeType | null = null,
   ): void {
     assertHasNode(this, fromNode);
 
@@ -326,9 +326,9 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     let childrenToRemove = new Set(
       replaceFilter
         ? [...outboundEdges].filter(toNodeId =>
-            replaceFilter(nullthrows(this.nodes.get(toNodeId)))
+            replaceFilter(nullthrows(this.nodes.get(toNodeId))),
           )
-        : outboundEdges
+        : outboundEdges,
     );
     for (let toNode of toNodes) {
       this.addNode(toNode);
@@ -347,12 +347,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverse<TContext>(
     visit: GraphVisitor<TNode, TContext>,
     startNode: ?TNode,
-    type: TEdgeType | null = null
+    type: TEdgeType | null = null,
   ): ?TContext {
     return this.dfs({
       visit,
       startNode,
-      getChildren: node => this.getNodesConnectedFrom(node, type)
+      getChildren: node => this.getNodesConnectedFrom(node, type),
     });
   }
 
@@ -360,7 +360,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNode: ?TNode,
-    type?: TEdgeType | null
+    type?: TEdgeType | null,
   ): ?TContext {
     return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
@@ -368,23 +368,23 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverseAncestors<TContext>(
     startNode: TNode,
     visit: GraphVisitor<TNode, TContext>,
-    type: TEdgeType | null = null
+    type: TEdgeType | null = null,
   ) {
     return this.dfs({
       visit,
       startNode,
-      getChildren: node => this.getNodesConnectedTo(node, type)
+      getChildren: node => this.getNodesConnectedTo(node, type),
     });
   }
 
   dfs<TContext>({
     visit,
     startNode,
-    getChildren
+    getChildren,
   }: {|
     visit: GraphVisitor<TNode, TContext>,
     getChildren(node: TNode): Array<TNode>,
-    startNode?: ?TNode
+    startNode?: ?TNode,
   |}): ?TContext {
     let root = startNode ?? this.getRootNode();
     if (root == null) {
@@ -401,7 +401,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       },
       stop() {
         stopped = true;
-      }
+      },
     };
 
     let walk = (node, context) => {
@@ -558,7 +558,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
 export function mapVisitor<TNode, TValue, TContext>(
   filter: (TNode, TraversalActions) => ?TValue,
-  visit: GraphVisitor<TValue, TContext>
+  visit: GraphVisitor<TValue, TContext>,
 ): GraphVisitor<TNode, TContext> {
   return {
     enter: (node, context, actions) => {
@@ -586,7 +586,7 @@ export function mapVisitor<TNode, TValue, TContext>(
       if (value != null) {
         return exit(value, context, actions);
       }
-    }
+    },
   };
 }
 

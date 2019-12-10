@@ -17,7 +17,7 @@ export function hasBinding(node, name) {
     return (
       (node.id && node.id.name === name) ||
       node.params.some(
-        param => types.isIdentifier(param) && param.name === name
+        param => types.isIdentifier(param) && param.name === name,
       )
     );
   } else if (types.isVariableDeclaration(node)) {

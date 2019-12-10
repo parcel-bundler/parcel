@@ -15,7 +15,7 @@ type ConfigOpts = {|
   devDeps?: Map<PackageName, ?string>,
   shouldRehydrate?: boolean,
   shouldReload?: boolean,
-  shouldInvalidateOnStartup?: boolean
+  shouldInvalidateOnStartup?: boolean,
 |};
 
 export function createConfig({
@@ -29,7 +29,7 @@ export function createConfig({
   devDeps,
   shouldRehydrate,
   shouldReload,
-  shouldInvalidateOnStartup
+  shouldInvalidateOnStartup,
 }: ConfigOpts): Config {
   return {
     isSource,
@@ -44,14 +44,14 @@ export function createConfig({
     devDeps: devDeps ?? new Map(),
     shouldRehydrate: shouldRehydrate ?? false,
     shouldReload: shouldReload ?? false,
-    shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false
+    shouldInvalidateOnStartup: shouldInvalidateOnStartup ?? false,
   };
 }
 
 export function addDevDependency(
   config: Config,
   name: PackageName,
-  version?: string
+  version?: string,
 ) {
   config.devDeps.set(name, version);
 }
@@ -63,19 +63,19 @@ export function getInvalidations(config: Config) {
   if (config.watchGlob != null) {
     invalidations.push({
       action: 'add',
-      pattern: config.watchGlob
+      pattern: config.watchGlob,
     });
   }
 
   for (let filePath of [config.resolvedPath, ...config.includedFiles]) {
     invalidations.push({
       action: 'change',
-      pattern: filePath
+      pattern: filePath,
     });
 
     invalidations.push({
       action: 'unlink',
-      pattern: filePath
+      pattern: filePath,
     });
   }
 

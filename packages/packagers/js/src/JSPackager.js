@@ -9,7 +9,7 @@ import {
   countLines,
   PromiseQueue,
   relativeBundlePath,
-  replaceBundleReferences
+  replaceBundleReferences,
 } from '@parcel/utils';
 import path from 'path';
 
@@ -24,7 +24,7 @@ export default new Packager({
     bundleGraph,
     getInlineBundleContents,
     getSourceMapReference,
-    options
+    options,
   }) {
     function replaceReferences({contents, map}) {
       return replaceBundleReferences({
@@ -33,10 +33,10 @@ export default new Packager({
         contents,
         getInlineReplacement: (dependency, inlineType, content) => ({
           from: `"${dependency.id}"`,
-          to: inlineType === 'string' ? JSON.stringify(content) : content
+          to: inlineType === 'string' ? JSON.stringify(content) : content,
         }),
         getInlineBundleContents,
-        map
+        map,
       });
     }
 
@@ -46,13 +46,13 @@ export default new Packager({
       ast = link({bundle, bundleGraph, ast, options});
       return replaceReferences({
         contents: generate(bundleGraph, bundle, ast, options).contents,
-        map: null
+        map: null,
       });
     }
 
     if (bundle.env.outputFormat === 'esmodule') {
       throw new Error(
-        `esmodule output is not supported without scope hoisting.`
+        `esmodule output is not supported without scope hoisting.`,
       );
     }
 
@@ -99,7 +99,7 @@ export default new Packager({
         let asset = node.value;
         invariant(
           asset.type === 'js',
-          'all assets in a js bundle must be js assets'
+          'all assets in a js bundle must be js assets',
         );
 
         let deps = {};
@@ -127,7 +127,7 @@ export default new Packager({
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
-              output
+              output,
             );
 
           map.addMap(assetMap, lineOffset);
@@ -184,7 +184,7 @@ export default new Packager({
           '//# sourceMappingURL=' +
           sourceMapReference +
           '\n'),
-      map
+      map,
     });
-  }
+  },
 });

@@ -13,7 +13,7 @@ class SourceMapPackager extends Packager {
       await this.sourceMap.addMap(
         asset.sourceMaps[asset.type],
         offsets[0],
-        offsets[1]
+        offsets[1],
       );
     }
   }
@@ -24,8 +24,8 @@ class SourceMapPackager extends Packager {
     await this.write(
       this.sourceMap.stringify(
         file,
-        path.relative(this.options.outDir, this.options.rootDir)
-      )
+        path.relative(this.options.outDir, this.options.rootDir),
+      ),
     );
     await super.end();
   }

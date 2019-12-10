@@ -24,7 +24,7 @@ module.exports = {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.name),
-        __filename: asset.basename
+        __filename: asset.basename,
       };
       let filename, args, res;
 
@@ -56,7 +56,7 @@ module.exports = {
       if (Buffer.isBuffer(res)) {
         replacementNode = bufferTemplate({
           CONTENT: t.stringLiteral(res.toString('base64')),
-          ENC: t.stringLiteral('base64')
+          ENC: t.stringLiteral('base64'),
         });
       } else {
         replacementNode = t.stringLiteral(res);
@@ -66,7 +66,7 @@ module.exports = {
       path.replaceWith(replacementNode);
       asset.isAstDirty = true;
     }
-  }
+  },
 };
 
 function isRequire(node, name, method) {
@@ -182,7 +182,7 @@ function evaluate(path, vars) {
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));
       }
-    }
+    },
   });
 
   let res = path.evaluate();

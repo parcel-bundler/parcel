@@ -4,7 +4,7 @@ import {
   VictoryChart,
   VictoryLine,
   VictoryScatter,
-  VictoryContainer
+  VictoryContainer,
 } from 'victory';
 
 const BLACK = '#262626';
@@ -21,10 +21,10 @@ function getStyleMutationObj(color) {
     {
       mutation: props => {
         return {
-          style: Object.assign({}, props.style, {fill: color})
+          style: Object.assign({}, props.style, {fill: color}),
         };
-      }
-    }
+      },
+    },
   ];
 }
 
@@ -45,57 +45,57 @@ class Graph extends React.Component {
         grid: {
           stroke: GRAY,
           strokeWidth: data => (data.index === lastIndex ? 1 : 0),
-          strokeDasharray: '3 3'
+          strokeDasharray: '3 3',
         },
         axis: {
           stroke: BLACK,
-          strokeWidth: 1
+          strokeWidth: 1,
         },
         ticks: {
           size: 5,
           stroke: BLACK,
-          strokeWidth: 1
+          strokeWidth: 1,
         },
         tickLabels: {
           fill: BLACK,
           fontFamily: 'inherit',
-          fontSize: 14
-        }
+          fontSize: 14,
+        },
       },
       yAxis: {
         grid: {
           stroke: GRAY,
           strokeWidth: data => (data === 0 ? 0 : 1),
-          strokeDasharray: '3 3'
+          strokeDasharray: '3 3',
         },
         axis: {
           stroke: BLACK,
-          strokeWidth: 1
+          strokeWidth: 1,
         },
         ticks: {
           size: 5,
           stroke: BLACK,
-          strokeWidth: 1
+          strokeWidth: 1,
         },
         tickLabels: {
           fill: BLACK,
           fontFamily: 'inherit',
-          fontSize: 14
-        }
+          fontSize: 14,
+        },
       },
       line: {
         data: {
           stroke: BLACK,
-          strokeWidth: 3
-        }
+          strokeWidth: 3,
+        },
       },
       scatter: {
         data: {
           strokeWidth: 10,
           stroke: 'transparent',
-          fill: data => (data.index === lastIndex ? BLACK : 'transparent')
-        }
-      }
+          fill: data => (data.index === lastIndex ? BLACK : 'transparent'),
+        },
+      },
     };
 
     return (
@@ -141,7 +141,7 @@ class Graph extends React.Component {
                   onMouseOver: (event, point) => {
                     this.props.onMouseOver(
                       event,
-                      getTooltipContent(point.datum)
+                      getTooltipContent(point.datum),
                     );
                     return getStyleMutationObj(BLACK);
                   },
@@ -154,9 +154,9 @@ class Graph extends React.Component {
                     let hash = point.datum.gitHash;
                     let url = `https://github.com/parcel-bundler/parcel/commit/${hash}`;
                     window.open(url);
-                  }
-                }
-              }
+                  },
+                },
+              },
             ]}
           />
         </VictoryChart>

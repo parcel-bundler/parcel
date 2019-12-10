@@ -9,7 +9,7 @@ const inputPath = path.join(__dirname, '/input');
 
 const cacheOptions = {
   cacheDir: cachePath,
-  cache: true
+  cache: true,
 };
 
 describe('generateCertificate', () => {

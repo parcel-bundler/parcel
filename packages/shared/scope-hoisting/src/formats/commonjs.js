@@ -14,7 +14,7 @@ const MODULE_EXPORTS_TEMPLATE = template('module.exports = IDENTIFIER');
 const INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 const ASSIGN_TEMPLATE = template('var SPECIFIERS = MODULE');
 const NAMESPACE_TEMPLATE = template(
-  '$parcel$exportWildcard(NAMESPACE, MODULE)'
+  '$parcel$exportWildcard(NAMESPACE, MODULE)',
 );
 
 // List of engines that support object destructuring syntax
@@ -27,7 +27,7 @@ const DESTRUCTURING_ENGINES = {
   ios: '10',
   samsung: '5',
   opera: '38',
-  electron: '1.2'
+  electron: '1.2',
 };
 
 function generateDestructuringAssignment(env, specifiers, value, scope) {
@@ -40,8 +40,8 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
       statements.push(
         ASSIGN_TEMPLATE({
           SPECIFIERS: t.identifier(name),
-          MODULE: value
-        })
+          MODULE: value,
+        }),
       );
       value = t.identifier(name);
     }
@@ -50,8 +50,8 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
       statements.push(
         ASSIGN_TEMPLATE({
           SPECIFIERS: specifier.value,
-          MODULE: t.memberExpression(value, specifier.key)
-        })
+          MODULE: t.memberExpression(value, specifier.key),
+        }),
       );
     }
 
@@ -61,8 +61,8 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
   return [
     ASSIGN_TEMPLATE({
       SPECIFIERS: t.objectPattern(specifiers),
-      MODULE: value
-    })
+      MODULE: value,
+    }),
   ];
 }
 
@@ -70,7 +70,7 @@ export function generateBundleImports(
   from: Bundle,
   bundle: Bundle,
   assets: Set<Asset>,
-  scope: any
+  scope: any,
 ) {
   let specifiers = [...assets].map(asset => {
     let id = t.identifier(asset.meta.exportsIdentifier);
@@ -78,7 +78,7 @@ export function generateBundleImports(
   });
 
   let statement = REQUIRE_TEMPLATE({
-    BUNDLE: t.stringLiteral(relativeBundlePath(from, bundle))
+    BUNDLE: t.stringLiteral(relativeBundlePath(from, bundle)),
   });
 
   if (specifiers.length > 0) {
@@ -86,7 +86,7 @@ export function generateBundleImports(
       bundle.env,
       specifiers,
       statement.expression,
-      scope
+      scope,
     );
   }
 
@@ -96,7 +96,7 @@ export function generateBundleImports(
 export function generateExternalImport(
   bundle: Bundle,
   external: ExternalModule,
-  scope: any
+  scope: any,
 ) {
   let {source, specifiers, isCommonJS} = external;
   let statements = [];
@@ -114,8 +114,8 @@ export function generateExternalImport(
           t.identifier(imported),
           t.identifier(symbol),
           false,
-          symbol === imported
-        )
+          symbol === imported,
+        ),
       );
     }
   }
@@ -130,9 +130,9 @@ export function generateExternalImport(
       ASSIGN_TEMPLATE({
         SPECIFIERS: t.identifier(name),
         MODULE: REQUIRE_TEMPLATE({
-          BUNDLE: t.stringLiteral(source)
-        }).expression
-      })
+          BUNDLE: t.stringLiteral(source),
+        }).expression,
+      }),
     );
 
     if (specifiers.has('*')) {
@@ -140,15 +140,15 @@ export function generateExternalImport(
       if (!isCommonJS) {
         value = NAMESPACE_TEMPLATE({
           NAMESPACE: t.objectExpression([]),
-          MODULE: value
+          MODULE: value,
         }).expression;
       }
 
       statements.push(
         ASSIGN_TEMPLATE({
           SPECIFIERS: t.identifier(specifiers.get('*')),
-          MODULE: value
-        })
+          MODULE: value,
+        }),
       );
     }
 
@@ -157,9 +157,9 @@ export function generateExternalImport(
         ASSIGN_TEMPLATE({
           SPECIFIERS: t.identifier(specifiers.get('default')),
           MODULE: INTEROP_TEMPLATE({
-            MODULE: t.identifier(name)
-          }).expression
-        })
+            MODULE: t.identifier(name),
+          }).expression,
+        }),
       );
     }
 
@@ -169,8 +169,8 @@ export function generateExternalImport(
           bundle.env,
           properties,
           t.identifier(name),
-          scope
-        )
+          scope,
+        ),
       );
     }
   } else if (specifiers.has('default')) {
@@ -179,28 +179,28 @@ export function generateExternalImport(
         SPECIFIERS: t.identifier(specifiers.get('default')),
         MODULE: INTEROP_TEMPLATE({
           MODULE: REQUIRE_TEMPLATE({
-            BUNDLE: t.stringLiteral(source)
-          }).expression
-        }).expression
-      })
+            BUNDLE: t.stringLiteral(source),
+          }).expression,
+        }).expression,
+      }),
     );
   } else if (specifiers.has('*')) {
     let require = REQUIRE_TEMPLATE({
-      BUNDLE: t.stringLiteral(source)
+      BUNDLE: t.stringLiteral(source),
     }).expression;
 
     if (!isCommonJS) {
       require = NAMESPACE_TEMPLATE({
         NAMESPACE: t.objectExpression([]),
-        MODULE: require
+        MODULE: require,
       }).expression;
     }
 
     statements.push(
       ASSIGN_TEMPLATE({
         SPECIFIERS: t.identifier(specifiers.get('*')),
-        MODULE: require
-      })
+        MODULE: require,
+      }),
     );
   } else if (properties.length > 0) {
     statements.push(
@@ -208,16 +208,16 @@ export function generateExternalImport(
         bundle.env,
         properties,
         REQUIRE_TEMPLATE({
-          BUNDLE: t.stringLiteral(source)
+          BUNDLE: t.stringLiteral(source),
         }).expression,
-        scope
-      )
+        scope,
+      ),
     );
   } else {
     statements.push(
       REQUIRE_TEMPLATE({
-        BUNDLE: t.stringLiteral(source)
-      })
+        BUNDLE: t.stringLiteral(source),
+      }),
     );
   }
 
@@ -229,7 +229,7 @@ export function generateExports(
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: any,
-  replacements: Map<Symbol, Symbol>
+  replacements: Map<Symbol, Symbol>,
 ) {
   let exported = new Set<Symbol>();
   let statements = [];
@@ -241,8 +241,8 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
-        IDENTIFIER: t.identifier(exportsId)
-      })
+        IDENTIFIER: t.identifier(exportsId),
+      }),
     );
   }
 
@@ -270,14 +270,14 @@ export function generateExports(
           exported.add(exportsId);
           statements.push(
             MODULE_EXPORTS_TEMPLATE({
-              IDENTIFIER: t.identifier(exportsId)
-            })
+              IDENTIFIER: t.identifier(exportsId),
+            }),
           );
         }
       }
     } else {
       for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(
-        entry
+        entry,
       )) {
         if (symbol) {
           symbol = replacements.get(symbol) || symbol;
@@ -289,7 +289,7 @@ export function generateExports(
           rename(
             path.scope,
             exportSymbol,
-            path.scope.generateUid(exportSymbol)
+            path.scope.generateUid(exportSymbol),
           );
         }
 
@@ -298,8 +298,8 @@ export function generateExports(
 
         binding.path.getStatementParent().insertAfter(
           EXPORT_TEMPLATE({
-            IDENTIFIER: t.identifier(exportSymbol)
-          })
+            IDENTIFIER: t.identifier(exportSymbol),
+          }),
         );
 
         // Exports other than the default export are live bindings. Insert an assignment
@@ -308,8 +308,8 @@ export function generateExports(
           for (let path of binding.constantViolations) {
             path.insertAfter(
               EXPORT_TEMPLATE({
-                IDENTIFIER: t.identifier(exportSymbol)
-              })
+                IDENTIFIER: t.identifier(exportSymbol),
+              }),
             );
           }
         }

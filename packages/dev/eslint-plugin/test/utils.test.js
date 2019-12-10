@@ -8,7 +8,7 @@ const readPkgUp = require('read-pkg-up');
 const {
   isStaticRequire,
   isStaticResolve,
-  relativePathForRequire
+  relativePathForRequire,
 } = require('../src/utils');
 
 const pkgInfo = readPkgUp.sync({cwd: __dirname});
@@ -20,14 +20,14 @@ describe('utils', () => {
     it('identifies requires', () => {
       assert.equal(
         isStaticRequire(getFirstExpression(parse("require('@parcel/core')"))),
-        true
+        true,
       );
     });
 
     it("doesn't handle dynamic requires", () => {
       assert.equal(
         isStaticRequire(getFirstExpression(parse('require(dynamic)'))),
-        false
+        false,
       );
     });
   });
@@ -36,9 +36,9 @@ describe('utils', () => {
     it('identifies built-in require.resolve', () => {
       assert.equal(
         isStaticResolve(
-          getFirstExpression(parse("require.resolve('@parcel/core')"))
+          getFirstExpression(parse("require.resolve('@parcel/core')")),
         ),
-        true
+        true,
       );
     });
   });
@@ -52,9 +52,9 @@ describe('utils', () => {
           origin: __filename,
           request: '@parcel/eslint-plugin/',
           pkgName,
-          pkgPath
+          pkgPath,
         }),
-        '../'
+        '../',
       );
       path.sep = sep;
     });
@@ -67,9 +67,9 @@ describe('utils', () => {
           origin: __filename,
           request: '@parcel/eslint-plugin/',
           pkgName,
-          pkgPath
+          pkgPath,
         }),
-        '../'
+        '../',
       );
       path.sep = sep;
     });
@@ -80,9 +80,9 @@ describe('utils', () => {
           origin: __filename,
           request: '/a/b',
           pkgName,
-          pkgPath
+          pkgPath,
         }),
-        '/a/b'
+        '/a/b',
       );
     });
 
@@ -92,9 +92,9 @@ describe('utils', () => {
           origin: __filename,
           request: '@parcel/eslint-plugin/test/baz',
           pkgName,
-          pkgPath
+          pkgPath,
         }),
-        './baz'
+        './baz',
       );
     });
   });

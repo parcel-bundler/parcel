@@ -8,7 +8,7 @@ import assert from 'assert';
 export function validatePackageName(
   pkg: ?PackageName,
   pluginType: string,
-  key: string
+  key: string,
 ) {
   // $FlowFixMe
   if (!pkg) {
@@ -20,18 +20,18 @@ export function validatePackageName(
   if (pkg.startsWith('@parcel')) {
     assert(
       pkg.replace(/^@parcel\//, '').startsWith(`${pluginType}-`),
-      `Official parcel ${pluginType} packages must be named according to "@parcel/${pluginType}-{name}"`
+      `Official parcel ${pluginType} packages must be named according to "@parcel/${pluginType}-{name}"`,
     );
   } else if (pkg.startsWith('@')) {
     let [scope, name] = pkg.split('/');
     assert(
       name.startsWith(`parcel-${pluginType}-`),
-      `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}-{name}"`
+      `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}-{name}"`,
     );
   } else {
     assert(
       pkg.startsWith(`parcel-${pluginType}-`),
-      `Parcel ${pluginType} packages must be named according to "parcel-${pluginType}-{name}"`
+      `Parcel ${pluginType} packages must be named according to "parcel-${pluginType}-{name}"`,
     );
   }
 }
@@ -65,8 +65,8 @@ const pipelineSchema = (pluginType: string, key: string): SchemaEntity => {
     type: 'array',
     items: {
       type: 'string',
-      __validate: validatePluginName(pluginType, key)
-    }
+      __validate: validatePluginName(pluginType, key),
+    },
   };
 };
 
@@ -74,7 +74,7 @@ const mapPipelineSchema = (pluginType: string, key: string): SchemaEntity => {
   return {
     type: 'object',
     properties: {},
-    additionalProperties: pipelineSchema(pluginType, key)
+    additionalProperties: pipelineSchema(pluginType, key),
   };
 };
 
@@ -84,8 +84,8 @@ const mapStringSchema = (pluginType: string, key: string): SchemaEntity => {
     properties: {},
     additionalProperties: {
       type: 'string',
-      __validate: validatePluginName(pluginType, key)
-    }
+      __validate: validatePluginName(pluginType, key),
+    },
   };
 };
 
@@ -96,20 +96,20 @@ export default {
       oneOf: [
         {
           type: 'string',
-          __validate: validateExtends
+          __validate: validateExtends,
         },
         {
           type: 'array',
           items: {
             type: 'string',
-            __validate: validateExtends
-          }
-        }
-      ]
+            __validate: validateExtends,
+          },
+        },
+      ],
     },
     bundler: {
       type: 'string',
-      __validate: validatePluginName('bundler', 'bundler')
+      __validate: validatePluginName('bundler', 'bundler'),
     },
     resolvers: pipelineSchema('resolver', 'resolvers'),
     transforms: mapPipelineSchema('transformer', 'transforms'),
@@ -120,11 +120,11 @@ export default {
     reporters: pipelineSchema('reporter', 'reporters'),
     runtimes: mapPipelineSchema('runtime', 'runtimes'),
     filePath: {
-      type: 'string'
+      type: 'string',
     },
     resolveFrom: {
-      type: 'string'
-    }
+      type: 'string',
+    },
   },
-  additionalProperties: false
+  additionalProperties: false,
 };

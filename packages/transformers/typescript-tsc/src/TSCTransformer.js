@@ -27,7 +27,7 @@ export default new Transformer({
 
     let [typescript, code] = await Promise.all([
       options.packageManager.require('typescript', asset.filePath),
-      asset.getCode()
+      asset.getCode(),
     ]);
 
     let transpiled = typescript.transpileModule(
@@ -42,17 +42,17 @@ export default new Transformer({
           noEmit: false,
           // Don't compile ES `import`s -- scope hoisting prefers them and they will
           // otherwise compiled to CJS via babel in the js transformer
-          module: typescript.ModuleKind.ESNext
+          module: typescript.ModuleKind.ESNext,
         },
-        fileName: asset.filePath // Should be relativePath?
-      }: TypescriptTranspilerOptions)
+        fileName: asset.filePath, // Should be relativePath?
+      }: TypescriptTranspilerOptions),
     );
 
     return [
       {
         type: 'js',
-        code: transpiled.outputText
-      }
+        code: transpiled.outputText,
+      },
     ];
-  }
+  },
 });

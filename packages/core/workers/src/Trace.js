@@ -32,11 +32,11 @@ export default class Trace {
             {
               frame: '0xfff',
               url: 'parcel',
-              name: ''
-            }
-          ]
-        }
-      }
+              name: '',
+            },
+          ],
+        },
+      },
     });
 
     this.tracer.instantEvent({
@@ -45,9 +45,9 @@ export default class Trace {
       cat: ['disabled-by-default-devtools.timeline'],
       args: {
         data: {
-          sessionId: '-1'
-        }
-      }
+          sessionId: '-1',
+        },
+      },
     });
   }
 
@@ -66,9 +66,9 @@ export default class Trace {
       name: 'TaskQueueManager::ProcessTaskFromWorkQueue',
       args: {
         src_file: '../../ipc/ipc_moji_bootstrap.cc',
-        src_func: 'Accept'
+        src_func: 'Accept',
       },
-      ts: cpuStartTime
+      ts: cpuStartTime,
     });
 
     trace.completeEvent({
@@ -83,9 +83,9 @@ export default class Trace {
           url: 'parcel',
           lineNumber: 1,
           columnNumber: 1,
-          frame: '0xFFF'
-        }
-      }
+          frame: '0xFFF',
+        },
+      },
     });
 
     trace.instantEvent({
@@ -94,7 +94,7 @@ export default class Trace {
       ph: 'M',
       cat: ['__metadata'],
       name: 'thread_name',
-      args: {name}
+      args: {name},
     });
 
     trace.instantEvent({
@@ -105,9 +105,9 @@ export default class Trace {
       ts: cpuEndTime,
       args: {
         data: {
-          cpuProfile: profile
-        }
-      }
+          cpuProfile: profile,
+        },
+      },
     });
   }
 

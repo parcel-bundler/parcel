@@ -3,7 +3,7 @@ import type {
   SourceLocation,
   Meta,
   ModuleSpecifier,
-  Symbol
+  Symbol,
 } from '@parcel/types';
 import {md5FromObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
@@ -24,7 +24,7 @@ type DependencyOpts = {|
   meta?: Meta,
   target?: Target,
   symbols?: Map<Symbol, Symbol>,
-  pipeline?: ?string
+  pipeline?: ?string,
 |};
 
 export function createDependency(opts: DependencyOpts): Dependency {
@@ -35,7 +35,7 @@ export function createDependency(opts: DependencyOpts): Dependency {
       moduleSpecifier: opts.moduleSpecifier,
       env: getEnvironmentHash(opts.env),
       target: opts.target,
-      pipeline: opts.pipeline
+      pipeline: opts.pipeline,
     });
 
   return {
@@ -46,7 +46,7 @@ export function createDependency(opts: DependencyOpts): Dependency {
     isOptional: opts.isOptional ?? false,
     isURL: opts.isURL ?? false,
     meta: opts.meta || {},
-    symbols: opts.symbols || new Map()
+    symbols: opts.symbols || new Map(),
   };
 }
 

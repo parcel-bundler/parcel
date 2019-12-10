@@ -17,7 +17,7 @@ const ATTRS = {
     'source',
     'track',
     'iframe',
-    'embed'
+    'embed',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
@@ -25,7 +25,7 @@ const ATTRS = {
   poster: ['video'],
   'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
-  data: ['object']
+  data: ['object'],
 };
 
 // A list of metadata that should produce a dependency
@@ -42,7 +42,7 @@ const META = {
     'og:audio',
     'og:audio:secure_url',
     'og:video',
-    'og:video:secure_url'
+    'og:video:secure_url',
   ],
   name: [
     'twitter:image',
@@ -51,7 +51,7 @@ const META = {
     'msapplication-square70x70logo',
     'msapplication-wide310x150logo',
     'msapplication-TileImage',
-    'msapplication-config'
+    'msapplication-config',
   ],
   itemprop: [
     'image',
@@ -59,8 +59,8 @@ const META = {
     'screenshot',
     'thumbnailUrl',
     'contentUrl',
-    'downloadUrl'
-  ]
+    'downloadUrl',
+  ],
 };
 
 const SCRIPT_TYPES = {
@@ -68,17 +68,17 @@ const SCRIPT_TYPES = {
   'text/javascript': 'js',
   'application/json': false,
   'application/ld+json': 'jsonld',
-  'text/html': false
+  'text/html': false,
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
-    href: {entry: true}
+    href: {entry: true},
   },
   iframe: {
-    src: {entry: true}
-  }
+    src: {entry: true},
+  },
 };
 
 class HTMLAsset extends Asset {
@@ -130,7 +130,7 @@ class HTMLAsset extends Asset {
       ast.messages.forEach(message => {
         if (message.type === 'dependency') {
           this.addDependency(message.file, {
-            includedInParent: true
+            includedInParent: true,
           });
         }
       });
@@ -162,7 +162,7 @@ class HTMLAsset extends Asset {
           node.attrs.href = this.getAttrDepHandler('href').call(
             this,
             node.attrs.href,
-            {entry: true}
+            {entry: true},
           );
           this.isAstDirty = true;
           return node;
@@ -188,7 +188,7 @@ class HTMLAsset extends Asset {
             node.attrs[attr] = depHandler.call(
               this,
               attrVal,
-              options && options[attr]
+              options && options[attr],
             );
             this.isAstDirty = true;
           }
@@ -246,8 +246,8 @@ class HTMLAsset extends Asset {
               inlineHTML: true,
               meta: {
                 type: 'tag',
-                node
-              }
+                node,
+              },
             });
           }
         }
@@ -259,8 +259,8 @@ class HTMLAsset extends Asset {
             value: node.attrs.style,
             meta: {
               type: 'attr',
-              node
-            }
+              node,
+            },
           });
         }
 
@@ -297,8 +297,8 @@ class HTMLAsset extends Asset {
     return [
       {
         type: 'html',
-        value: render(this.ast)
-      }
+        value: render(this.ast),
+      },
     ];
   }
 }

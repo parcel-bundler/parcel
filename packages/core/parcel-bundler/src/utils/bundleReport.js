@@ -8,13 +8,13 @@ const DEFAULT_NUM_LARGE_ASSETS = 10;
 const COLUMNS = [
   {align: 'left'}, // name
   {align: 'right'}, // size
-  {align: 'right'} // time
+  {align: 'right'}, // time
 ];
 
 function bundleReport(mainBundle, detailed = false) {
   // Get a list of bundles sorted by size
   let bundles = Array.from(iterateBundles(mainBundle)).sort(
-    (a, b) => b.totalSize - a.totalSize
+    (a, b) => b.totalSize - a.totalSize,
   );
   let rows = [];
 
@@ -23,9 +23,9 @@ function bundleReport(mainBundle, detailed = false) {
     rows.push([
       formatFilename(bundle.name, logger.chalk.cyan.bold),
       logger.chalk.bold(
-        prettifySize(bundle.totalSize, bundle.totalSize > LARGE_BUNDLE_SIZE)
+        prettifySize(bundle.totalSize, bundle.totalSize > LARGE_BUNDLE_SIZE),
       ),
-      logger.chalk.green.bold(prettifyTime(bundle.bundleTime))
+      logger.chalk.green.bold(prettifyTime(bundle.bundleTime)),
     ]);
 
     // If detailed, generate a list of the largest assets in the bundle
@@ -41,7 +41,7 @@ function bundleReport(mainBundle, detailed = false) {
           0,
           isNaN(detailed) || typeof detailed === 'boolean'
             ? DEFAULT_NUM_LARGE_ASSETS
-            : parseInt(detailed, 10)
+            : parseInt(detailed, 10),
         );
       })();
       for (let asset of largestAssets) {
@@ -50,7 +50,7 @@ function bundleReport(mainBundle, detailed = false) {
           (asset == assets[assets.length - 1] ? '└── ' : '├── ') +
             formatFilename(asset.name, logger.chalk.reset),
           logger.chalk.dim(prettifySize(asset.bundledSize)),
-          logger.chalk.dim(logger.chalk.green(prettifyTime(asset.buildTime)))
+          logger.chalk.dim(logger.chalk.green(prettifyTime(asset.buildTime))),
         ]);
       }
 
@@ -59,8 +59,8 @@ function bundleReport(mainBundle, detailed = false) {
         rows.push([
           '└── ' +
             logger.chalk.dim(
-              `+ ${assets.length - largestAssets.length} more assets`
-            )
+              `+ ${assets.length - largestAssets.length} more assets`,
+            ),
         ]);
       }
 

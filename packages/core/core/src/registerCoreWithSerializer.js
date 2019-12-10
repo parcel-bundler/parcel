@@ -27,7 +27,7 @@ export default function registerCoreWithSerializer() {
     BundleGraph,
     Graph,
     ParcelConfig,
-    RequestGraph
+    RequestGraph,
   ]) {
     register(ctor);
   }

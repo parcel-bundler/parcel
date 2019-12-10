@@ -2,20 +2,20 @@ const path = require('path');
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
-  '.tsx': true
+  '.tsx': true,
 };
 
 const JSX_PRAGMA = {
   react: 'React.createElement',
   preact: 'h',
   nervjs: 'Nerv.createElement',
-  hyperapp: 'h'
+  hyperapp: 'h',
 };
 
 function createJSXRegexFor(dependency) {
   // result looks like /from\s+[`"']react[`"']|require\([`"']react[`"']\)/
   return new RegExp(
-    `from\\s+[\`"']${dependency}[\`"']|require\\([\`"']${dependency}[\`"']\\)`
+    `from\\s+[\`"']${dependency}[\`"']|require\\([\`"']${dependency}[\`"']\\)`,
   );
 }
 
@@ -79,11 +79,11 @@ async function getJSXConfig(asset, isSourceModule) {
             require('@babel/plugin-transform-react-jsx'),
             {
               pragma,
-              pragmaFrag: 'React.Fragment'
-            }
-          ]
-        ]
-      }
+              pragmaFrag: 'React.Fragment',
+            },
+          ],
+        ],
+      },
     };
   }
 }

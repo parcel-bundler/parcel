@@ -14,7 +14,7 @@ export type BabelError = Error & {
 
 export async function babelErrorEnhancer(
   error: BabelError,
-  asset: BaseAsset
+  asset: BaseAsset,
 ): Promise<BabelError> {
   if (error.loc) {
     error.message = error.message

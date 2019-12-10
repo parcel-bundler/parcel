@@ -20,7 +20,7 @@ export default new Transformer({
   async transform({asset, config, options}) {
     let ts: TypeScriptModule = await options.packageManager.require(
       'typescript',
-      asset.filePath
+      asset.filePath,
     );
 
     let opts: CompilerOptions = {
@@ -33,7 +33,7 @@ export default new Transformer({
       isolatedModules: false,
       emitDeclarationOnly: true,
       outFile: 'index.d.ts',
-      moduleResolution: ts.ModuleResolutionKind.NodeJs
+      moduleResolution: ts.ModuleResolutionKind.NodeJs,
     };
 
     let host = new CompilerHost(options.inputFS, ts);
@@ -59,8 +59,8 @@ export default new Transformer({
         // 2. Tree shake and rename types
         context => sourceFile => {
           return shake(ts, moduleGraph, context, sourceFile);
-        }
-      ]
+        },
+      ],
     });
 
     let code = nullthrows(host.outputCode);
@@ -68,7 +68,7 @@ export default new Transformer({
 
     let map = JSON.parse(nullthrows(host.outputMap));
     map.sources = map.sources.map(source =>
-      path.join(path.dirname(asset.filePath), source)
+      path.join(path.dirname(asset.filePath), source),
     );
 
     return [
@@ -76,8 +76,8 @@ export default new Transformer({
         type: 'ts',
         code,
         map: await SourceMap.fromRawSourceMap(map),
-        includedFiles
-      }
+        includedFiles,
+      },
     ];
-  }
+  },
 });

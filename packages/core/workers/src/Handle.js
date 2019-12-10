@@ -14,7 +14,7 @@ export type HandleFunction = (...args: Array<any>) => any;
 type HandleOpts = {|
   fn: HandleFunction,
   childId?: ?number,
-  workerApi: WorkerApi
+  workerApi: WorkerApi,
 |};
 
 const handleById: Map<number, Handle> = new Map();
@@ -40,7 +40,7 @@ export default class Handle {
   serialize() {
     return {
       id: this.id,
-      childId: this.childId
+      childId: this.childId,
     };
   }
 
@@ -53,7 +53,7 @@ export default class Handle {
         let handle = handleById.get(opts.id);
         if (!handle) {
           throw new Error(
-            'Corresponding Handle was not found. It may have been disposed.'
+            'Corresponding Handle was not found. It may have been disposed.',
           );
         }
         workerApi = handle.workerApi;

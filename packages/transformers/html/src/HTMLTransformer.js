@@ -18,8 +18,8 @@ export default new Transformer({
       type: 'posthtml',
       version: '0.4.1',
       program: parse(await asset.getCode(), {
-        lowerCaseAttributeNames: true
-      })
+        lowerCaseAttributeNames: true,
+      }),
     };
   },
 
@@ -32,7 +32,7 @@ export default new Transformer({
 
   generate({asset}) {
     return {
-      code: render(nullthrows(asset.ast).program)
+      code: render(nullthrows(asset.ast).program),
     };
-  }
+  },
 });

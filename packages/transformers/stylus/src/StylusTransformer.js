@@ -9,7 +9,7 @@ const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 export default new Transformer({
   getConfig({asset}) {
     return asset.getConfig(['.stylusrc', '.stylusrc.js'], {
-      packageKey: 'stylus'
+      packageKey: 'stylus',
     });
   },
 
@@ -28,14 +28,14 @@ export default new Transformer({
     });
     style.set(
       'Evaluator',
-      await createEvaluator(code, asset, resolve, style.options, options)
+      await createEvaluator(code, asset, resolve, style.options, options),
     );
 
     asset.type = 'css';
     asset.setCode(style.render());
     asset.meta.hasDependencies = false;
     return [asset];
-  }
+  },
 });
 
 async function getDependencies(
@@ -45,13 +45,13 @@ async function getDependencies(
   resolve,
   options,
   parcelOptions,
-  seen = new Set()
+  seen = new Set(),
 ) {
   seen.add(filepath);
   const [Parser, DepsResolver, nodes, utils] = await Promise.all(
     ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
-      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath)
-    )
+      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath),
+    ),
   );
 
   nodes.filename = asset.filePath;
@@ -72,18 +72,18 @@ async function getDependencies(
               path.resolve(path.dirname(filepath), importedPath),
               parcelOptions.inputFS,
               {
-                onlyFiles: true
-              }
+                onlyFiles: true,
+              },
             ).then(entries =>
               Promise.all(
                 entries.map(entry =>
                   resolve(
                     filepath,
-                    './' + path.relative(path.dirname(filepath), entry)
-                  )
-                )
-              )
-            )
+                    './' + path.relative(path.dirname(filepath), entry),
+                  ),
+                ),
+              ),
+            ),
           );
         } else {
           deps.set(importedPath, resolve(filepath, importedPath));
@@ -142,13 +142,13 @@ async function getDependencies(
             resolve,
             options,
             parcelOptions,
-            seen
+            seen,
           )) {
             res.set(path, resolvedPath);
           }
         }
       }
-    })
+    }),
   );
 
   return res;
@@ -161,11 +161,11 @@ async function createEvaluator(code, asset, resolve, options, parcelOptions) {
     asset,
     resolve,
     options,
-    parcelOptions
+    parcelOptions,
   );
   const Evaluator = await parcelOptions.packageManager.require(
     'stylus/lib/visitor/evaluator',
-    asset.filePath
+    asset.filePath,
   );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
@@ -191,7 +191,7 @@ async function createEvaluator(code, asset, resolve, options, parcelOptions) {
               resolved.map(resolvedPath => {
                 node.string = resolvedPath;
                 return super.visitImport(imported.clone());
-              })
+              }),
             );
           }
         }

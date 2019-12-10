@@ -5,7 +5,7 @@ import {
   run,
   assertBundles,
   distDir,
-  outputFS
+  outputFS,
 } from '@parcel/test-utils';
 
 describe('sass', function() {
@@ -15,12 +15,12 @@ describe('sass', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.sass']
-      }
+        assets: ['index.sass'],
+      },
     ]);
 
     let output = await run(b);
@@ -37,12 +37,12 @@ describe('sass', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.scss']
-      }
+        assets: ['index.scss'],
+      },
     ]);
 
     let output = await run(b);
@@ -55,18 +55,18 @@ describe('sass', function() {
 
   it('should support scss imports', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/scss-import/index.js')
+      path.join(__dirname, '/integration/scss-import/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.scss']
-      }
+        assets: ['index.scss'],
+      },
     ]);
 
     let output = await run(b);
@@ -81,18 +81,18 @@ describe('sass', function() {
 
   it('should support requiring empty scss files', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/scss-empty/index.js')
+      path.join(__dirname, '/integration/scss-empty/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.scss']
-      }
+        assets: ['index.scss'],
+      },
     ]);
 
     let output = await run(b);
@@ -105,26 +105,26 @@ describe('sass', function() {
 
   it('should support linking to assets with url() from scss', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/scss-url/index.js')
+      path.join(__dirname, '/integration/scss-url/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         type: 'jpeg',
-        assets: ['image.jpeg']
+        assets: ['image.jpeg'],
       },
       {
         name: 'index.css',
-        assets: ['index.scss']
+        assets: ['index.scss'],
       },
       {
         type: 'woff2',
-        assets: ['test.woff2']
-      }
+        assets: ['test.woff2'],
+      },
     ]);
 
     let output = await run(b);
@@ -138,25 +138,25 @@ describe('sass', function() {
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1])
-      )
+        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]),
+      ),
     );
   });
 
   it('should support transforming scss with postcss', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/scss-postcss/index.js')
+      path.join(__dirname, '/integration/scss-postcss/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'index.module.scss']
+        assets: ['index.js', 'index.module.scss'],
       },
       {
         name: 'index.css',
-        assets: ['index.module.scss']
-      }
+        assets: ['index.module.scss'],
+      },
     ]);
 
     let output = await run(b);
@@ -170,34 +170,33 @@ describe('sass', function() {
 
   it('should support advanced import syntax', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/sass-advanced-import/index.sass')
+      path.join(__dirname, '/integration/sass-advanced-import/index.sass'),
     );
 
     assertBundles(b, [
       {
         name: 'index.css',
-        assets: ['index.sass']
-      }
+        assets: ['index.sass'],
+      },
     ]);
 
-    let css = (await outputFS.readFile(
-      path.join(distDir, 'index.css'),
-      'utf8'
-    )).replace(/\s+/g, ' ');
+    let css = (
+      await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8')
+    ).replace(/\s+/g, ' ');
     assert(css.includes('.foo { color: blue;'));
     assert(css.includes('.bar { color: green;'));
   });
 
   it('should support absolute imports', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
+      path.join(__dirname, '/integration/scss-absolute-imports/style.scss'),
     );
 
     assertBundles(b, [
       {
         name: 'style.css',
-        assets: ['style.scss']
-      }
+        assets: ['style.scss'],
+      },
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
@@ -211,8 +210,8 @@ describe('sass', function() {
       await bundle(
         path.join(
           __dirname,
-          '/integration/sass-webpack-import-error/index.sass'
-        )
+          '/integration/sass-webpack-import-error/index.sass',
+        ),
       );
     } catch (err) {
       assert.equal(
@@ -225,9 +224,7 @@ To @import files from node_modules, use "library/style.sass"
 1 │ @import "~library/style.sass"
   │         ^^^^^^^^^^^^^^^^^^^^^
   ╵
-  test${path.sep}integration${path.sep}sass-webpack-import-error${
-          path.sep
-        }index.sass 1:9  root stylesheet`.trim()
+  test${path.sep}integration${path.sep}sass-webpack-import-error${path.sep}index.sass 1:9  root stylesheet`.trim(),
       );
       didThrow = true;
     }
@@ -237,14 +234,14 @@ To @import files from node_modules, use "library/style.sass"
 
   it('should support node_modules imports', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/sass-node-modules-import/index.sass')
+      path.join(__dirname, '/integration/sass-node-modules-import/index.sass'),
     );
 
     assertBundles(b, [
       {
         name: 'index.css',
-        assets: ['index.sass']
-      }
+        assets: ['index.sass'],
+      },
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
@@ -253,14 +250,14 @@ To @import files from node_modules, use "library/style.sass"
 
   it('should support imports from includePaths', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/sass-include-paths-import/index.sass')
+      path.join(__dirname, '/integration/sass-include-paths-import/index.sass'),
     );
 
     assertBundles(b, [
       {
         name: 'index.css',
-        assets: ['index.sass']
-      }
+        assets: ['index.sass'],
+      },
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');

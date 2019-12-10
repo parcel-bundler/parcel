@@ -28,7 +28,7 @@ function processGraphData(rawGraphData) {
       passing,
       percent,
       x: date,
-      y: percent
+      y: percent,
     };
   });
 }
@@ -43,7 +43,7 @@ let render = () => {
       graphData={graphData}
       mostRecent={graphData[graphData.length - 1]}
     />,
-    document.getElementById('app')
+    document.getElementById('app'),
   );
 };
 

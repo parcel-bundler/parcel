@@ -5,7 +5,7 @@ import {
   run,
   assertBundles,
   distDir,
-  outputFS
+  outputFS,
 } from '@parcel/test-utils';
 
 describe('less', function() {
@@ -15,12 +15,12 @@ describe('less', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.less']
-      }
+        assets: ['index.less'],
+      },
     ]);
 
     let output = await run(b);
@@ -33,18 +33,18 @@ describe('less', function() {
 
   it('should support less imports', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/less-import/index.js')
+      path.join(__dirname, '/integration/less-import/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.less']
-      }
+        assets: ['index.less'],
+      },
     ]);
 
     let output = await run(b);
@@ -60,18 +60,18 @@ describe('less', function() {
 
   it('should support advanced less imports', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/less-advanced-import/index.js')
+      path.join(__dirname, '/integration/less-advanced-import/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.less']
-      }
+        assets: ['index.less'],
+      },
     ]);
 
     let output = await run(b);
@@ -89,18 +89,18 @@ describe('less', function() {
 
   it('should support requiring empty less files', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/less-empty/index.js')
+      path.join(__dirname, '/integration/less-empty/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.less']
-      }
+        assets: ['index.less'],
+      },
     ]);
 
     let output = await run(b);
@@ -113,22 +113,22 @@ describe('less', function() {
 
   it('should support linking to assets with url() from less', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/less-url/index.js')
+      path.join(__dirname, '/integration/less-url/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.less']
+        assets: ['index.less'],
       },
       {
         type: 'woff2',
-        assets: ['test.woff2']
-      }
+        assets: ['test.woff2'],
+      },
     ]);
 
     let output = await run(b);
@@ -142,28 +142,28 @@ describe('less', function() {
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("\/(test\.[0-9a-f]+\.woff2)"\)/)[1])
-      )
+        path.join(distDir, css.match(/url\("\/(test\.[0-9a-f]+\.woff2)"\)/)[1]),
+      ),
     );
   });
 
   it('should support transforming less with postcss', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/less-postcss/index.js')
+      path.join(__dirname, '/integration/less-postcss/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'index.module.less']
+        assets: ['index.js', 'index.module.less'],
       },
       {
         name: 'index.css',
-        assets: ['index.module.less']
+        assets: ['index.module.less'],
       },
       {
-        assets: ['img.svg']
-      }
+        assets: ['img.svg'],
+      },
     ]);
 
     let output = await run(b);
@@ -179,12 +179,12 @@ describe('less', function() {
 
     try {
       await bundle(
-        path.join(__dirname, '/integration/less-webpack-import-error/index.js')
+        path.join(__dirname, '/integration/less-webpack-import-error/index.js'),
       );
     } catch (err) {
       assert.equal(
         err.diagnostics[0].message,
-        'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "library/style.less"'
+        'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "library/style.less"',
       );
       didThrow = true;
     }
@@ -194,18 +194,18 @@ describe('less', function() {
 
   it('should support configuring less include paths', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/less-include-paths/index.js')
+      path.join(__dirname, '/integration/less-include-paths/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.less']
-      }
+        assets: ['index.less'],
+      },
     ]);
 
     let output = await run(b);

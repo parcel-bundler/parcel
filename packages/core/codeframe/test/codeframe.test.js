@@ -12,25 +12,25 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
-          }
+            line: 1,
+          },
         },
         {
           start: {
             column: 3,
-            line: 1
+            line: 1,
           },
           end: {
             column: 5,
-            line: 1
-          }
-        }
+            line: 1,
+          },
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -45,25 +45,25 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
-          }
+            line: 1,
+          },
         },
         {
           start: {
             column: 7,
-            line: 1
+            line: 1,
           },
           end: {
             column: 10,
-            line: 2
-          }
-        }
+            line: 2,
+          },
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -80,35 +80,35 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
-          }
+            line: 1,
+          },
         },
         {
           start: {
             column: 7,
-            line: 1
+            line: 1,
           },
           end: {
             column: 10,
-            line: 2
-          }
+            line: 2,
+          },
         },
         {
           start: {
             column: 4,
-            line: 2
+            line: 2,
           },
           end: {
             column: 7,
-            line: 2
-          }
-        }
+            line: 2,
+          },
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -125,35 +125,35 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
-          }
+            line: 1,
+          },
         },
         {
           start: {
             column: 7,
-            line: 1
+            line: 1,
           },
           end: {
             column: 10,
-            line: 2
-          }
+            line: 2,
+          },
         },
         {
           start: {
             column: 4,
-            line: 2
+            line: 2,
           },
           end: {
             column: 12,
-            line: 2
-          }
-        }
+            line: 2,
+          },
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -170,16 +170,16 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 6,
-            line: 1
+            line: 1,
           },
-          message: 'test'
-        }
+          message: 'test',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -195,27 +195,27 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 3,
-            line: 1
+            line: 1,
           },
-          message: 'test'
+          message: 'test',
         },
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 6,
-            line: 1
+            line: 1,
           },
-          message: 'this should be printed'
-        }
+          message: 'this should be printed',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -231,27 +231,27 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
+            line: 1,
           },
-          message: 'test'
+          message: 'test',
         },
         {
           start: {
             column: 3,
-            line: 1
+            line: 1,
           },
           end: {
             column: 7,
-            line: 1
+            line: 1,
           },
-          message: 'this should be printed'
-        }
+          message: 'this should be printed',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -267,38 +267,38 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
+            line: 1,
           },
-          message: 'test'
+          message: 'test',
         },
         {
           start: {
             column: 3,
-            line: 1
+            line: 1,
           },
           end: {
             column: 7,
-            line: 1
+            line: 1,
           },
-          message: 'this should be printed'
+          message: 'this should be printed',
         },
         {
           start: {
             column: 3,
-            line: 2
+            line: 2,
           },
           end: {
             column: 7,
-            line: 3
+            line: 3,
           },
-          message: 'message line 2'
-        }
+          message: 'message line 2',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -317,38 +317,38 @@ describe('codeframe', () => {
         {
           start: {
             column: 1,
-            line: 1
+            line: 1,
           },
           end: {
             column: 1,
-            line: 1
+            line: 1,
           },
-          message: 'test'
+          message: 'test',
         },
         {
           start: {
             column: 3,
-            line: 1
+            line: 1,
           },
           end: {
             column: 7,
-            line: 1
+            line: 1,
           },
-          message: 'this should be printed'
+          message: 'this should be printed',
         },
         {
           start: {
             column: 3,
-            line: 2
+            line: 2,
           },
           end: {
             column: 7,
-            line: 3
+            line: 3,
           },
-          message: 'message line 2'
-        }
+          message: 'message line 2',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -367,22 +367,22 @@ describe('codeframe', () => {
         {
           start: {
             column: 2,
-            line: 5
+            line: 5,
           },
           end: {
             column: 2,
-            line: 5
+            line: 5,
           },
-          message: 'test'
-        }
+          message: 'test',
+        },
       ],
       {
         useColor: false,
         padding: {
           before: 2,
-          after: 4
-        }
-      }
+          after: 4,
+        },
+      },
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -398,25 +398,25 @@ describe('codeframe', () => {
       {
         start: {
           column: 2,
-          line: 99
+          line: 99,
         },
         end: {
           column: 2,
-          line: 99
+          line: 99,
         },
-        message: 'test'
+        message: 'test',
       },
       {
         start: {
           column: 2,
-          line: 100
+          line: 100,
         },
         end: {
           column: 2,
-          line: 100
+          line: 100,
         },
-        message: 'test'
-      }
+        message: 'test',
+      },
     ]);
 
     let lines = codeframeString.split(LINE_END);
@@ -430,25 +430,25 @@ describe('codeframe', () => {
       {
         start: {
           column: 2,
-          line: 7
+          line: 7,
         },
         end: {
           column: 2,
-          line: 7
+          line: 7,
         },
-        message: 'test'
+        message: 'test',
       },
       {
         start: {
           column: 2,
-          line: 12
+          line: 12,
         },
         end: {
           column: 2,
-          line: 12
+          line: 12,
         },
-        message: 'test'
-      }
+        message: 'test',
+      },
     ]);
 
     let lines = codeframeString.split(LINE_END);
@@ -464,30 +464,30 @@ describe('codeframe', () => {
         {
           start: {
             column: 2,
-            line: 5
+            line: 5,
           },
           end: {
             column: 2,
-            line: 5
+            line: 5,
           },
-          message: 'test'
+          message: 'test',
         },
         {
           start: {
             column: 2,
-            line: 12
+            line: 12,
           },
           end: {
             column: 2,
-            line: 20
+            line: 20,
           },
-          message: 'test'
-        }
+          message: 'test',
+        },
       ],
       {
         useColor: false,
-        maxLines: 10
-      }
+        maxLines: 10,
+      },
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -504,16 +504,16 @@ describe('codeframe', () => {
         {
           start: {
             column: 5,
-            line: 1
+            line: 1,
           },
           end: {
             column: 7,
-            line: 1
+            line: 1,
           },
-          message: 'test'
-        }
+          message: 'test',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -529,27 +529,27 @@ describe('codeframe', () => {
         {
           start: {
             column: 3,
-            line: 1
+            line: 1,
           },
           end: {
             column: 5,
-            line: 1
+            line: 1,
           },
-          message: 'test'
+          message: 'test',
         },
         {
           start: {
             column: 7,
-            line: 1
+            line: 1,
           },
           end: {
             column: 8,
-            line: 1
+            line: 1,
           },
-          message: 'test'
-        }
+          message: 'test',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -565,16 +565,16 @@ describe('codeframe', () => {
         {
           start: {
             column: 3,
-            line: 1
+            line: 1,
           },
           end: {
             column: 2,
-            line: 3
+            line: 3,
           },
-          message: 'test'
-        }
+          message: 'test',
+        },
       ],
-      {useColor: false}
+      {useColor: false},
     );
 
     let lines = codeframeString.split(LINE_END);

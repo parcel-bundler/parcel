@@ -10,7 +10,7 @@ import pkg from '../package.json';
 
 type Package = {|
   fs: FileSystem,
-  packagePath: FilePath
+  packagePath: FilePath,
 |};
 
 // This PackageInstaller implementation simply copies files from one filesystem to another.
@@ -27,7 +27,7 @@ export class MockPackageInstaller implements PackageInstaller {
     fs,
     cwd,
     packagePath,
-    saveDev = true
+    saveDev = true,
   }: InstallerOptions): Promise<void> {
     if (packagePath == null) {
       packagePath = path.join(cwd, 'package.json');
@@ -52,7 +52,7 @@ export class MockPackageInstaller implements PackageInstaller {
   async installPackage(
     packageName: string,
     fs: FileSystem,
-    packagePath: FilePath
+    packagePath: FilePath,
   ) {
     let pkg = this.packages.get(packageName);
     if (!pkg) {
@@ -62,12 +62,12 @@ export class MockPackageInstaller implements PackageInstaller {
     let dest = path.join(
       path.dirname(packagePath),
       'node_modules',
-      packageName
+      packageName,
     );
     await ncp(pkg.fs, pkg.packagePath, fs, dest);
 
     let packageJSON = JSON.parse(
-      await fs.readFile(path.join(dest, 'package.json'), 'utf8')
+      await fs.readFile(path.join(dest, 'package.json'), 'utf8'),
     );
     let deps = packageJSON.dependencies || {};
     for (let dep in deps) {
@@ -80,5 +80,5 @@ export class MockPackageInstaller implements PackageInstaller {
 
 registerSerializableClass(
   `${pkg.version}:MockPackageInstaller`,
-  MockPackageInstaller
+  MockPackageInstaller,
 );
