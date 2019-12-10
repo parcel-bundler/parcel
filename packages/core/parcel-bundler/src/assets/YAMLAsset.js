@@ -15,7 +15,7 @@ class YAMLAsset extends Asset {
   generate() {
     return serializeObject(
       this.ast,
-      this.options.minify && !this.options.scopeHoist
+      this.options.minify && !this.options.scopeHoist,
     );
   }
 }

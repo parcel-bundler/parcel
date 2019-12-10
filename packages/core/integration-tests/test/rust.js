@@ -5,7 +5,7 @@ import {
   bundler,
   run,
   assertBundleTree,
-  outputFS
+  outputFS,
 } from '@parcel/test-utils';
 import commandExists from 'command-exists';
 
@@ -13,7 +13,7 @@ describe.skip('rust', function() {
   if (typeof WebAssembly === 'undefined' || !commandExists.sync('rustup')) {
     // eslint-disable-next-line no-console
     console.log(
-      'Skipping Rust tests. Install https://www.rustup.rs/ to run them.'
+      'Skipping Rust tests. Install https://www.rustup.rs/ to run them.',
     );
     return;
   }
@@ -28,18 +28,18 @@ describe.skip('rust', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'index.js',
-        'wasm-loader.js'
+        'wasm-loader.js',
       ],
       childBundles: [
         {
           type: 'wasm',
           assets: ['add.rs'],
-          childBundles: []
+          childBundles: [],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     var res = await await run(b);
@@ -47,14 +47,14 @@ describe.skip('rust', function() {
 
     // not minified
     assert(
-      (await outputFS.stat(Array.from(b.childBundles)[0].name)).size > 500
+      (await outputFS.stat(Array.from(b.childBundles)[0].name)).size > 500,
     );
   });
 
   it('should generate a wasm file from a rust file with rustc with --target=node', async function() {
     this.timeout(500000);
     let b = await bundle(path.join(__dirname, '/integration/rust/index.js'), {
-      target: 'node'
+      target: 'node',
     });
 
     await assertBundleTree(b, {
@@ -63,18 +63,18 @@ describe.skip('rust', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'index.js',
-        'wasm-loader.js'
+        'wasm-loader.js',
       ],
       childBundles: [
         {
           type: 'wasm',
           assets: ['add.rs'],
-          childBundles: []
+          childBundles: [],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     var res = await run(b);
@@ -82,7 +82,7 @@ describe.skip('rust', function() {
 
     // not minified
     assert(
-      (await outputFS.stat(Array.from(b.childBundles)[0].name)).size > 500
+      (await outputFS.stat(Array.from(b.childBundles)[0].name)).size > 500,
     );
   });
 
@@ -97,18 +97,18 @@ describe.skip('rust', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'index.js',
-        'wasm-loader.js'
+        'wasm-loader.js',
       ],
       childBundles: [
         {
-          type: 'map'
+          type: 'map',
         },
         {
           type: 'wasm',
           assets: ['test.rs'],
-          childBundles: []
-        }
-      ]
+          childBundles: [],
+        },
+      ],
     });
 
     var res = await run(bundle);
@@ -118,7 +118,7 @@ describe.skip('rust', function() {
   it('should generate a wasm file from a rust file with cargo', async function() {
     this.timeout(500000);
     let b = await bundle(
-      path.join(__dirname, '/integration/rust-cargo/src/index.js')
+      path.join(__dirname, '/integration/rust-cargo/src/index.js'),
     );
 
     await assertBundleTree(b, {
@@ -127,18 +127,18 @@ describe.skip('rust', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'index.js',
-        'wasm-loader.js'
+        'wasm-loader.js',
       ],
       childBundles: [
         {
-          type: 'map'
+          type: 'map',
         },
         {
           type: 'wasm',
           assets: ['lib.rs'],
-          childBundles: []
-        }
-      ]
+          childBundles: [],
+        },
+      ],
     });
 
     var res = await run(b);
@@ -150,8 +150,8 @@ describe.skip('rust', function() {
     let b = await bundle(
       path.join(
         __dirname,
-        '/integration/rust-cargo-workspace/member/src/index.js'
-      )
+        '/integration/rust-cargo-workspace/member/src/index.js',
+      ),
     );
 
     await assertBundleTree(b, {
@@ -160,18 +160,18 @@ describe.skip('rust', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'index.js',
-        'wasm-loader.js'
+        'wasm-loader.js',
       ],
       childBundles: [
         {
-          type: 'map'
+          type: 'map',
         },
         {
           type: 'wasm',
           assets: ['lib.rs'],
-          childBundles: []
-        }
-      ]
+          childBundles: [],
+        },
+      ],
     });
 
     var res = await run(b);

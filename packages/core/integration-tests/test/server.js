@@ -7,7 +7,7 @@ import {
   outputFS,
   overlayFS,
   defaultConfig,
-  ncp
+  ncp,
 } from '@parcel/test-utils';
 import http from 'http';
 import https from 'https';
@@ -16,7 +16,7 @@ import getPort from 'get-port';
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = {
   ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server']
+  reporters: ['@parcel/reporter-dev-server'],
 };
 
 function get(file, port, client = http) {
@@ -26,7 +26,7 @@ function get(file, port, client = http) {
         hostname: 'localhost',
         port: port,
         path: file,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
       res => {
         res.setEncoding('utf8');
@@ -39,7 +39,7 @@ function get(file, port, client = http) {
 
           resolve(data);
         });
-      }
+      },
     );
   });
 }
@@ -61,8 +61,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -71,7 +71,7 @@ describe('server', function() {
     let data = await get('/index.js', port);
     let distFile = await outputFS.readFile(
       path.join(distDir, 'index.js'),
-      'utf8'
+      'utf8',
     );
 
     assert.equal(data, distFile);
@@ -85,8 +85,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -94,7 +94,7 @@ describe('server', function() {
 
     let data = await get(
       '/__parcel_source_root/integration/commonjs/index.js',
-      port
+      port,
     );
     let inputFile = await inputFS.readFile(inputPath, 'utf8');
 
@@ -109,8 +109,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -118,7 +118,7 @@ describe('server', function() {
 
     let outputFile = await outputFS.readFile(
       path.join(distDir, 'index.html'),
-      'utf8'
+      'utf8',
     );
 
     let data = await get('/', port);
@@ -135,8 +135,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -164,8 +164,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -194,8 +194,8 @@ describe('server', function() {
       serve: {
         https: true,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -204,7 +204,7 @@ describe('server', function() {
     let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
     );
   });
 
@@ -215,11 +215,11 @@ describe('server', function() {
       serve: {
         https: {
           key: path.join(__dirname, '/integration/https/private.pem'),
-          cert: path.join(__dirname, '/integration/https/primary.crt')
+          cert: path.join(__dirname, '/integration/https/primary.crt'),
         },
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -228,7 +228,7 @@ describe('server', function() {
     let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
     );
   });
 
@@ -240,8 +240,8 @@ describe('server', function() {
         https: false,
         port: port,
         host: 'localhost',
-        publicUrl: '/dist'
-      }
+        publicUrl: '/dist',
+      },
     });
 
     subscription = await b.watch();
@@ -250,7 +250,7 @@ describe('server', function() {
     let data = await get('/dist/index.js', port);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
     );
   });
 
@@ -261,8 +261,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -271,7 +271,7 @@ describe('server', function() {
     let data = await get('/index.js?foo=bar.baz', port);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
     );
   });
 
@@ -282,8 +282,8 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -292,7 +292,7 @@ describe('server', function() {
     let data = await get('/bar.baz', port);
     assert.equal(
       data,
-      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8'),
     );
   });
 });

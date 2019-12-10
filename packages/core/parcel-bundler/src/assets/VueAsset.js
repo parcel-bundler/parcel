@@ -14,7 +14,7 @@ class VueAsset extends Asset {
     // Is being used in component-compiler-utils, errors if not installed...
     this.vueTemplateCompiler = await localRequire(
       'vue-template-compiler',
-      this.name
+      this.name,
     );
     this.vue = await localRequire('@vue/component-compiler-utils', this.name);
 
@@ -23,7 +23,7 @@ class VueAsset extends Asset {
       needMap: this.options.sourceMaps,
       filename: this.relativeName, // Used for sourcemaps
       sourceRoot: '', // Used for sourcemaps. Override so it doesn't use cwd
-      compiler: this.vueTemplateCompiler
+      compiler: this.vueTemplateCompiler,
     });
   }
 
@@ -35,14 +35,14 @@ class VueAsset extends Asset {
       parts.push({
         type: descriptor.script.lang || 'js',
         value: descriptor.script.content,
-        map: descriptor.script.map
+        map: descriptor.script.map,
       });
     }
 
     if (descriptor.template) {
       parts.push({
         type: descriptor.template.lang || 'html',
-        value: descriptor.template.content.trim()
+        value: descriptor.template.content.trim(),
       });
     }
 
@@ -51,7 +51,7 @@ class VueAsset extends Asset {
         parts.push({
           type: style.lang || 'css',
           value: style.content.trim(),
-          modules: !!style.module
+          modules: !!style.module,
         });
       }
     }
@@ -118,7 +118,7 @@ class VueAsset extends Asset {
       result.push({
         type: 'js',
         value: js,
-        map: this.options.sourceMaps && this.ast.script && generated[0].map
+        map: this.options.sourceMaps && this.ast.script && generated[0].map,
       });
     }
 
@@ -126,7 +126,7 @@ class VueAsset extends Asset {
     if (css) {
       result.push({
         type: 'css',
-        value: css
+        value: css,
       });
     }
 
@@ -144,8 +144,8 @@ class VueAsset extends Asset {
         isProduction: this.options.production,
         isFunctional,
         compilerOptions: {
-          scopeId
-        }
+          scopeId,
+        },
       });
 
       if (Array.isArray(template.errors) && template.errors.length >= 1) {
@@ -226,7 +226,7 @@ class VueAsset extends Asset {
             source: css,
             filename: this.relativeName,
             id: scopeId,
-            scoped
+            scoped,
           });
 
           if (errors.length) {

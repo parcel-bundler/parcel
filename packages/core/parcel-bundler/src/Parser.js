@@ -87,7 +87,7 @@ class Parser {
         logger.warn(
           `Parser "${relParserName}" failed to initialize when processing ` +
             `asset "${relFilename}". Threw the following error:\n` +
-            `${err.stack || err.message || err} falling back to RawAsset`
+            `${err.stack || err.message || err} falling back to RawAsset`,
         );
         return RawAsset;
       }

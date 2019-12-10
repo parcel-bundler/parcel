@@ -2,19 +2,19 @@
 export default function createDependencyLocation(
   start: {|
     line: number,
-    column: number
+    column: number,
   |},
   moduleSpecifier: string,
   lineOffset: number = 0,
   columnOffset: number = 0,
   // Imports are usually wrapped in quotes
-  importWrapperLength: number = 2
+  importWrapperLength: number = 2,
 ) {
   return {
     filePath: moduleSpecifier,
     start: {
       line: start.line + lineOffset,
-      column: start.column + columnOffset
+      column: start.column + columnOffset,
     },
     end: {
       line: start.line + lineOffset,
@@ -23,7 +23,7 @@ export default function createDependencyLocation(
         moduleSpecifier.length -
         1 +
         importWrapperLength +
-        columnOffset
-    }
+        columnOffset,
+    },
   };
 }

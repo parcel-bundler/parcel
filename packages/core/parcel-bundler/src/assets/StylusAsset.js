@@ -18,7 +18,7 @@ class StylusAsset extends Asset {
     // stylus should be installed locally in the module that's being required
     let stylus = await localRequire('stylus', this.name);
     let opts = await this.getConfig(['.stylusrc', '.stylusrc.js'], {
-      packageKey: 'stylus'
+      packageKey: 'stylus',
     });
     let style = stylus(code, opts);
     style.set('filename', this.name);
@@ -38,8 +38,8 @@ class StylusAsset extends Asset {
       {
         type: 'css',
         value: this.ast.render(),
-        hasDependencies: false
-      }
+        hasDependencies: false,
+      },
     ];
   }
 
@@ -56,13 +56,13 @@ async function getDependencies(
   filepath,
   asset,
   options,
-  seen = new Set()
+  seen = new Set(),
 ) {
   seen.add(filepath);
   const [Parser, DepsResolver, nodes, utils] = await Promise.all(
     ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
-      localRequire('stylus/lib/' + dep, filepath)
-    )
+      localRequire('stylus/lib/' + dep, filepath),
+    ),
   );
 
   nodes.filename = asset.name;
@@ -72,8 +72,8 @@ async function getDependencies(
   let deps = new Map();
   let resolver = new Resolver(
     Object.assign({}, asset.options, {
-      extensions: ['.styl', '.css']
-    })
+      extensions: ['.styl', '.css'],
+    }),
   );
 
   class ImportVisitor extends DepsResolver {
@@ -85,17 +85,17 @@ async function getDependencies(
           deps.set(
             path,
             glob(resolve(dirname(filepath), path), {
-              onlyFiles: true
+              onlyFiles: true,
             }).then(entries =>
               Promise.all(
                 entries.map(entry =>
                   resolver.resolve(
                     './' + relative(dirname(filepath), entry),
-                    filepath
-                  )
-                )
-              )
-            )
+                    filepath,
+                  ),
+                ),
+              ),
+            ),
           );
         } else {
           deps.set(path, resolver.resolve(path, filepath));
@@ -155,13 +155,13 @@ async function getDependencies(
             resolved,
             asset,
             options,
-            seen
+            seen,
           )) {
             res.set(path, resolvedPath);
           }
         }
       }
-    })
+    }),
   );
 
   return res;
@@ -171,7 +171,7 @@ async function createEvaluator(code, asset, options) {
   const deps = await getDependencies(code, asset.name, asset, options);
   const Evaluator = await localRequire(
     'stylus/lib/visitor/evaluator',
-    asset.name
+    asset.name,
   );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
@@ -197,7 +197,7 @@ async function createEvaluator(code, asset, options) {
               resolved.map(resolvedPath => {
                 node.string = resolvedPath;
                 return super.visitImport(imported.clone());
-              })
+              }),
             );
           }
         }

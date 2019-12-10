@@ -37,7 +37,7 @@ export default class PromiseQueue<T> {
           err => {
             reject(err);
             throw err;
-          }
+          },
         );
 
       this._queue.push(wrapped);

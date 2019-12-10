@@ -14,7 +14,7 @@ export default class JSONParseStream extends Transform {
   _transform(
     chunk: Buffer | string,
     encoding: string,
-    callback: (err: ?Error, parsed: ?JSONObject) => mixed
+    callback: (err: ?Error, parsed: ?JSONObject) => mixed,
   ) {
     try {
       callback(null, JSON.parse(chunk.toString()));

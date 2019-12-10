@@ -12,6 +12,6 @@ module.exports = (minifiedPath, sourcePath) => {
           .readFileSync(minifiedPath, 'utf8')
           .trim()
           .replace(/;$/, '')
-      : source
+      : source,
   };
 };

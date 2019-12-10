@@ -6,20 +6,20 @@ import type {PackageManager} from '@parcel/package-manager';
 export default async function loadExternalPlugins(
   plugins: Array<string> | {+[pluginName: string]: mixed, ...},
   relative: FilePath,
-  options: PluginOptions
+  options: PluginOptions,
 ): Promise<Array<mixed>> {
   if (Array.isArray(plugins)) {
     return Promise.all(
       plugins
         .map(p => loadPlugin(p, relative, null, options.packageManager))
-        .filter(Boolean)
+        .filter(Boolean),
     );
   } else if (typeof plugins === 'object') {
     let _plugins = plugins;
     let mapPlugins = await Promise.all(
       Object.keys(plugins).map(p =>
-        loadPlugin(p, relative, _plugins[p], options.packageManager)
-      )
+        loadPlugin(p, relative, _plugins[p], options.packageManager),
+      ),
     );
     return mapPlugins.filter(Boolean);
   } else {
@@ -31,7 +31,7 @@ async function loadPlugin(
   pluginArg: string | Function,
   relative: FilePath,
   options: mixed = {},
-  packageManager: PackageManager
+  packageManager: PackageManager,
 ): mixed {
   if (typeof pluginArg !== 'string') {
     return pluginArg;

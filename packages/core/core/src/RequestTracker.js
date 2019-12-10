@@ -16,7 +16,7 @@ type SerializedRequestGraph = {|
   invalidNodeIds: Set<NodeId>,
   incompleteNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
-  unpredicatableNodeIds: Set<NodeId>
+  unpredicatableNodeIds: Set<NodeId>,
 |};
 
 type FileNode = {|id: string, +type: 'file', value: File|};
@@ -25,13 +25,13 @@ export type Request = {|
   id: string,
   +type: string,
   request: mixed,
-  result?: mixed
+  result?: mixed,
 |};
 
 type RequestNode = {|
   id: string,
   +type: 'request',
-  value: Request
+  value: Request,
 |};
 type RequestGraphNode = RequestNode | FileNode | GlobNode;
 
@@ -44,24 +44,24 @@ type RequestGraphEdgeType =
 const nodeFromFilePath = (filePath: string) => ({
   id: filePath,
   type: 'file',
-  value: {filePath}
+  value: {filePath},
 });
 
 const nodeFromGlob = (glob: Glob) => ({
   id: glob,
   type: 'glob',
-  value: glob
+  value: glob,
 });
 
 const nodeFromRequest = (request: Request) => ({
   id: request.id,
   type: 'request',
-  value: request
+  value: request,
 });
 
 export class RequestGraph extends Graph<
   RequestGraphNode,
-  RequestGraphEdgeType
+  RequestGraphEdgeType,
 > {
   invalidNodeIds: Set<NodeId> = new Set();
   incompleteNodeIds: Set<NodeId> = new Set();
@@ -88,7 +88,7 @@ export class RequestGraph extends Graph<
       invalidNodeIds: this.invalidNodeIds,
       incompleteNodeIds: this.incompleteNodeIds,
       globNodeIds: this.globNodeIds,
-      unpredicatableNodeIds: this.unpredicatableNodeIds
+      unpredicatableNodeIds: this.unpredicatableNodeIds,
     };
   }
 
@@ -135,7 +135,7 @@ export class RequestGraph extends Graph<
 
   replaceSubrequests(
     requestId: string,
-    subrequestNodes: Array<RequestGraphNode>
+    subrequestNodes: Array<RequestGraphNode>,
   ) {
     let requestNode = this.getRequestNode(requestId);
     if (!this.hasNode(requestId)) {
@@ -150,7 +150,7 @@ export class RequestGraph extends Graph<
       requestNode,
       subrequestNodes,
       null,
-      'subrequest'
+      'subrequest',
     );
   }
 
@@ -235,7 +235,7 @@ export class RequestGraph extends Graph<
       if (node && (type === 'create' || type === 'update')) {
         for (let connectedNode of this.getNodesConnectedTo(
           node,
-          'invalidated_by_update'
+          'invalidated_by_update',
         )) {
           this.invalidateNode(connectedNode);
           isInvalid = true;
@@ -248,7 +248,7 @@ export class RequestGraph extends Graph<
           if (isGlobMatch(path, globNode.value)) {
             let connectedNodes = this.getNodesConnectedTo(
               globNode,
-              'invalidated_by_create'
+              'invalidated_by_create',
             );
             for (let connectedNode of connectedNodes) {
               this.invalidateNode(connectedNode);
@@ -259,7 +259,7 @@ export class RequestGraph extends Graph<
       } else if (node && type === 'delete') {
         for (let connectedNode of this.getNodesConnectedTo(
           node,
-          'invalidated_by_delete'
+          'invalidated_by_delete',
         )) {
           this.invalidateNode(connectedNode);
           isInvalid = true;
@@ -338,7 +338,7 @@ export default class RequestTracker {
 
   replaceSubrequests(
     requestId: string,
-    subrequestNodes: Array<RequestGraphNode>
+    subrequestNodes: Array<RequestGraphNode>,
   ) {
     this.graph.replaceSubrequests(requestId, subrequestNodes);
   }
@@ -351,7 +351,7 @@ type RequestRunnerOpts = {
 
 export type RunRequestOpts = {|
   signal?: ?AbortSignal,
-  parentId?: string
+  parentId?: string,
 |};
 
 export type RequestRunnerAPI = {|
@@ -359,7 +359,7 @@ export type RequestRunnerAPI = {|
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
-  replaceSubrequests: (Array<RequestGraphNode>) => void
+  replaceSubrequests: (Array<RequestGraphNode>) => void,
 |};
 
 export function generateRequestId(type: string, request: mixed) {
@@ -376,7 +376,7 @@ export class RequestRunner<TRequest, TResult> {
 
   async runRequest(
     requestDesc: TRequest,
-    {signal}: RunRequestOpts = {}
+    {signal}: RunRequestOpts = {},
   ): Promise<TResult | void> {
     let id = this.generateRequestId(requestDesc);
     let request = {id, type: this.type, request: requestDesc};
@@ -403,7 +403,7 @@ export class RequestRunner<TRequest, TResult> {
   // eslint-disable-next-line no-unused-vars
   run(request: TRequest, api: RequestRunnerAPI): Promise<TResult> {
     throw new Error(
-      `RequestRunner for type ${this.type} did not implement run()`
+      `RequestRunner for type ${this.type} did not implement run()`,
     );
   }
 
@@ -411,7 +411,7 @@ export class RequestRunner<TRequest, TResult> {
   // eslint-disable-next-line no-unused-vars
   onComplete(request: TRequest, result: TResult, api: RequestRunnerAPI) {
     throw new Error(
-      `RequestRunner for type ${this.type} did not implement onComplete()`
+      `RequestRunner for type ${this.type} did not implement onComplete()`,
     );
   }
 
@@ -430,7 +430,7 @@ export class RequestRunner<TRequest, TResult> {
       invalidateOnStartup: () =>
         this.tracker.graph.invalidateOnStartup(requestId),
       replaceSubrequests: subrequestNodes =>
-        this.tracker.graph.replaceSubrequests(requestId, subrequestNodes)
+        this.tracker.graph.replaceSubrequests(requestId, subrequestNodes),
     };
 
     return api;

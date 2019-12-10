@@ -12,8 +12,8 @@ module.exports = async function(asset) {
     warnings: true,
     safari10: true,
     mangle: {
-      toplevel: !asset.options.scopeHoist
-    }
+      toplevel: !asset.options.scopeHoist,
+    },
   };
 
   let sourceMap;
@@ -27,15 +27,15 @@ module.exports = async function(asset) {
             name,
             original: {
               line: orig_line,
-              column: orig_col
+              column: orig_col,
             },
             generated: {
               line: gen_line,
-              column: gen_col
-            }
+              column: gen_col,
+            },
           });
-        }
-      }
+        },
+      },
     };
   }
 
@@ -53,7 +53,7 @@ module.exports = async function(asset) {
     if (asset.sourceMap) {
       asset.sourceMap = await new SourceMap().extendSourceMap(
         asset.sourceMap,
-        sourceMap
+        sourceMap,
       );
     } else {
       asset.sourceMap = sourceMap;

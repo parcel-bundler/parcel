@@ -27,9 +27,9 @@ export default new Packager({
             }
 
             return css;
-          })
+          }),
         );
-      }
+      },
     });
 
     let outputs = await queue.run();
@@ -40,8 +40,8 @@ export default new Packager({
       getInlineBundleContents,
       getInlineReplacement: (dep, inlineType, contents) => ({
         from: dep.id,
-        to: contents
-      })
+        to: contents,
+      }),
     });
-  }
+  },
 });

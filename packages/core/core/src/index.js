@@ -5,5 +5,5 @@ export {
   BuildError,
   createWorkerFarm,
   INTERNAL_RESOLVE,
-  INTERNAL_TRANSFORM
+  INTERNAL_TRANSFORM,
 } from './Parcel';

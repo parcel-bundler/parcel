@@ -18,7 +18,7 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol
+  Symbol,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -29,11 +29,11 @@ import InternalAsset from '../InternalAsset';
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
-  InternalAsset
+  InternalAsset,
 > = new WeakMap();
 
 export function assetToInternalAsset(
-  asset: IAsset | IMutableAsset
+  asset: IAsset | IMutableAsset,
 ): InternalAsset {
   return nullthrows(_assetToInternalAsset.get(asset));
 }
@@ -42,8 +42,8 @@ export function assetFromValue(value: AssetValue, options: ParcelOptions) {
   return new Asset(
     new InternalAsset({
       value,
-      options
-    })
+      options,
+    }),
   );
 }
 
@@ -111,8 +111,8 @@ class BaseAsset {
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
-      parse?: boolean
-    |}
+      parse?: boolean,
+    |},
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }
@@ -232,7 +232,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       moduleSpecifier: url,
       isURL: true,
       isAsync: true, // The browser has native loaders for url dependencies
-      ...opts
+      ...opts,
     });
   }
 }

@@ -156,14 +156,13 @@ describe('Graph', () => {
 
     graph.removeById('b');
 
-    assert.deepEqual([...graph.nodes.values()].map(node => node.id), [
-      'a',
-      'c',
-      'f'
-    ]);
+    assert.deepEqual(
+      [...graph.nodes.values()].map(node => node.id),
+      ['a', 'c', 'f'],
+    );
     assert.deepEqual(graph.getAllEdges(), [
       {from: 'a', to: 'c', type: null},
-      {from: 'c', to: 'f', type: null}
+      {from: 'c', to: 'f', type: null},
     ]);
   });
 
@@ -204,14 +203,13 @@ describe('Graph', () => {
 
     graph.removeById('b');
 
-    assert.deepEqual([...graph.nodes.values()].map(node => node.id), [
-      'a',
-      'c',
-      'f'
-    ]);
+    assert.deepEqual(
+      [...graph.nodes.values()].map(node => node.id),
+      ['a', 'c', 'f'],
+    );
     assert.deepEqual(graph.getAllEdges(), [
       {from: 'a', to: 'c', type: null},
-      {from: 'c', to: 'f', type: null}
+      {from: 'c', to: 'f', type: null},
     ]);
   });
 
@@ -248,7 +246,7 @@ describe('Graph', () => {
       {from: 'b', to: 'c', type: null},
       {from: 'b', to: 'd', type: null},
       {from: 'd', to: 'e', type: null},
-      {from: 'e', to: 'b', type: null}
+      {from: 'e', to: 'b', type: null},
     ]);
   });
 
@@ -286,7 +284,7 @@ describe('Graph', () => {
     assert(graph.nodes.has('d'));
     assert.deepEqual(graph.getAllEdges(), [
       {from: 'a', to: 'b', type: null},
-      {from: 'a', to: 'd', type: null}
+      {from: 'a', to: 'd', type: null},
     ]);
   });
 
@@ -310,7 +308,7 @@ describe('Graph', () => {
         visited.push(node.id);
       },
       null, // use root as startNode
-      'edgetype'
+      'edgetype',
     );
     assert.deepEqual(visited, ['a', 'b', 'd']);
   });

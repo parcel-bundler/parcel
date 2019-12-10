@@ -6,7 +6,7 @@ import logger from '@parcel/logger';
 
 export default async function generateCertificate(
   fs: FileSystem,
-  cacheDir: string
+  cacheDir: string,
 ) {
   let certDirectory = cacheDir;
 
@@ -20,7 +20,7 @@ export default async function generateCertificate(
   if (cachedKey && cachedCert) {
     return {
       key: cachedKey,
-      cert: cachedCert
+      cert: cachedCert,
     };
   }
 
@@ -39,28 +39,28 @@ export default async function generateCertificate(
   const attrs = [
     {
       name: 'commonName',
-      value: 'parceljs.org'
+      value: 'parceljs.org',
     },
     {
       name: 'countryName',
-      value: 'US'
+      value: 'US',
     },
     {
       shortName: 'ST',
-      value: 'Virginia'
+      value: 'Virginia',
     },
     {
       name: 'localityName',
-      value: 'Blacksburg'
+      value: 'Blacksburg',
     },
     {
       name: 'organizationName',
-      value: 'parcelBundler'
+      value: 'parcelBundler',
     },
     {
       shortName: 'OU',
-      value: 'Test'
-    }
+      value: 'Test',
+    },
   ];
 
   cert.setSubject(attrs);
@@ -68,7 +68,7 @@ export default async function generateCertificate(
   cert.setExtensions([
     {
       name: 'basicConstraints',
-      cA: true
+      cA: true,
     },
     {
       name: 'keyUsage',
@@ -76,7 +76,7 @@ export default async function generateCertificate(
       digitalSignature: true,
       nonRepudiation: true,
       keyEncipherment: true,
-      dataEncipherment: true
+      dataEncipherment: true,
     },
     {
       name: 'extKeyUsage',
@@ -84,7 +84,7 @@ export default async function generateCertificate(
       clientAuth: true,
       codeSigning: true,
       emailProtection: true,
-      timeStamping: true
+      timeStamping: true,
     },
     {
       name: 'nsCertType',
@@ -94,24 +94,24 @@ export default async function generateCertificate(
       objsign: true,
       sslCA: true,
       emailCA: true,
-      objCA: true
+      objCA: true,
     },
     {
       name: 'subjectAltName',
       altNames: [
         {
           type: 6, // URI
-          value: 'http://example.org/webid#me'
+          value: 'http://example.org/webid#me',
         },
         {
           type: 7, // IP
-          ip: '127.0.0.1'
-        }
-      ]
+          ip: '127.0.0.1',
+        },
+      ],
     },
     {
-      name: 'subjectKeyIdentifier'
-    }
+      name: 'subjectKeyIdentifier',
+    },
   ]);
 
   cert.sign(keys.privateKey, forge.md.sha256.create());
@@ -125,6 +125,6 @@ export default async function generateCertificate(
 
   return {
     key: privPem,
-    cert: certPem
+    cert: certPem,
   };
 }

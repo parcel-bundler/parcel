@@ -4,22 +4,22 @@ import React from 'react';
 import spinners, {type CLISpinner} from 'cli-spinners';
 
 type Props = {|
-  type: string
+  type: string,
 |};
 
 type State = {|
-  frame: number
+  frame: number,
 |};
 
 export default class Spinner extends React.Component<Props, State> {
   static defaultProps = {
-    type: 'dots'
+    type: 'dots',
   };
 
   timer: IntervalID;
 
   state = {
-    frame: 0
+    frame: 0,
   };
 
   getSpinner(): CLISpinner {
@@ -48,7 +48,7 @@ export default class Spinner extends React.Component<Props, State> {
     const nextFrame = isLastFrame ? 0 : frame + 1;
 
     this.setState({
-      frame: nextFrame
+      frame: nextFrame,
     });
   };
 }

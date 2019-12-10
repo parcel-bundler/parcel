@@ -11,7 +11,7 @@ describe('Disposable', () => {
     new Disposable({
       dispose() {
         disposed = true;
-      }
+      },
     }).dispose();
     assert.equal(disposed, true);
   });
@@ -32,11 +32,11 @@ describe('Disposable', () => {
       {
         dispose() {
           disposed1 = true;
-        }
+        },
       },
       () => {
         disposed2 = true;
-      }
+      },
     ).dispose();
     assert.equal(disposed1, true);
     assert.equal(disposed2, true);
@@ -52,11 +52,11 @@ describe('Disposable', () => {
       {
         dispose() {
           disposed1 = true;
-        }
+        },
       },
       () => {
         disposed2 = true;
-      }
+      },
     );
 
     disposable.add(
@@ -66,8 +66,8 @@ describe('Disposable', () => {
       {
         dispose() {
           disposed4 = true;
-        }
-      }
+        },
+      },
     );
 
     assert.notEqual(disposed1, true);
@@ -98,7 +98,7 @@ describe('Disposable', () => {
 
       disposable.dispose();
       disposable.dispose();
-    }
+    },
   );
 
   it('throws if `add` is called after it has been disposed', () => {

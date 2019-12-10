@@ -11,9 +11,9 @@ export default new Transformer({
     // Apply `JSON.stringify` twice to make it a valid string literal.
     asset.setCode(
       `module.exports = JSON.parse(${JSON.stringify(
-        JSON.stringify(json5.parse(await asset.getCode()))
-      )});`
+        JSON.stringify(json5.parse(await asset.getCode())),
+      )});`,
     );
     return [asset];
-  }
+  },
 });

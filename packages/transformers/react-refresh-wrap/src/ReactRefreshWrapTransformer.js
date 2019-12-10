@@ -57,8 +57,8 @@ export default new Transformer({
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
-      })
+        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+      }),
     };
   },
 
@@ -77,13 +77,13 @@ export default new Transformer({
 
     ast.program.program.body = wrapper({
       helper: t.stringLiteral(wrapperPath),
-      module: ast.program.program.body
+      module: ast.program.program.body,
     });
     ast.isDirty = true;
 
     // The JSTransformer has already run, do it manually
     asset.addDependency({
-      moduleSpecifier: wrapperPath
+      moduleSpecifier: wrapperPath,
     });
 
     return [asset];
@@ -92,29 +92,29 @@ export default new Transformer({
   async generate({asset, options}) {
     let code = await asset.getCode();
     let res = {
-      code
+      code,
     };
 
     let ast = asset.ast;
     if (ast && ast.isDirty !== false) {
       let sourceFileName: string = relativeUrl(
         options.projectRoot,
-        asset.filePath
+        asset.filePath,
       );
 
       let generated = generate(
         ast.program,
         {
           sourceMaps: options.sourceMaps,
-          sourceFileName: sourceFileName
+          sourceFileName: sourceFileName,
         },
-        code
+        code,
       );
 
       res.code = generated.code;
       // $FlowFixMe...
       res.map = new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null
+        [sourceFileName]: null,
       });
     }
 
@@ -129,5 +129,5 @@ export default new Transformer({
     delete asset.meta.globals;
 
     return res;
-  }
+  },
 });

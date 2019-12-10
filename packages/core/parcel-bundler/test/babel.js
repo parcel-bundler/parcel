@@ -2,7 +2,7 @@ const babelCore = require('@babel/core');
 const fs = require('@parcel/fs');
 const {
   babel6toBabel7,
-  babel7toBabel6
+  babel7toBabel6,
 } = require('../src/transforms/babel/astConverter');
 const path = require('path');
 const BabelFlowPreset = require('@babel/preset-flow');
@@ -21,14 +21,14 @@ describe('babel', function() {
         strictMode: false,
         sourceType: 'module',
         locations: true,
-        tokens: true
+        tokens: true,
       },
-      presets: [BabelFlowPreset, babelPresetEnv]
+      presets: [BabelFlowPreset, babelPresetEnv],
     };
 
     let code = await fs.readFile(
       path.join(__dirname, './integration/babel-ast-conversion/index.js'),
-      'utf8'
+      'utf8',
     );
 
     ast = babelCore.parse(code, options);
@@ -56,7 +56,7 @@ describe('babel', function() {
         if (path.node.type === 'ArrowFunctionExpression') {
           assert(path.node.expression !== undefined);
         }
-      }
+      },
     });
 
     // Check Renaming/Removal of Nodes
@@ -104,7 +104,7 @@ describe('babel', function() {
         if (path.node.type === 'ArrowFunctionExpression') {
           assert(path.node.expression === undefined);
         }
-      }
+      },
     });
 
     // Check Renaming/Removal of Nodes

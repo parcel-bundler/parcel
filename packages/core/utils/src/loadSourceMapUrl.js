@@ -12,7 +12,7 @@ export function matchSourceMappingURL(contents: string) {
 export default async function loadSourceMapUrl(
   fs: FileSystem,
   filename: string,
-  contents: string
+  contents: string,
 ) {
   let match = matchSourceMappingURL(contents);
   if (match) {
@@ -26,8 +26,8 @@ export default async function loadSourceMapUrl(
       map: JSON.parse(
         dataURLMatch
           ? Buffer.from(dataURLMatch[1], 'base64').toString()
-          : await fs.readFile(filename, 'utf8')
-      )
+          : await fs.readFile(filename, 'utf8'),
+      ),
     };
   }
 }

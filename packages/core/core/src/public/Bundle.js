@@ -11,7 +11,7 @@ import type {
   NamedBundle as INamedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor
+  GraphVisitor,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 
@@ -39,7 +39,7 @@ export class Bundle implements IBundle {
   constructor(
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
+    options: ParcelOptions,
   ) {
     this.#bundle = bundle;
     this.#bundleGraph = bundleGraph;
@@ -86,7 +86,7 @@ export class Bundle implements IBundle {
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
-      assetToInternalAsset(asset).value
+      assetToInternalAsset(asset).value,
     );
   }
 
@@ -104,7 +104,7 @@ export class Bundle implements IBundle {
   }
 
   traverse<TContext>(
-    visit: GraphVisitor<BundleTraversable, TContext>
+    visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext {
     return this.#bundleGraph.traverseBundle(
       this.#bundle,
@@ -112,19 +112,19 @@ export class Bundle implements IBundle {
         if (node.type === 'asset') {
           return {
             type: 'asset',
-            value: assetFromValue(node.value, this.#options)
+            value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
           return {type: 'dependency', value: new Dependency(node.value)};
         }
-      }, visit)
+      }, visit),
     );
   }
 
   traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
-      mapVisitor(asset => assetFromValue(asset, this.#options), visit)
+      mapVisitor(asset => assetFromValue(asset, this.#options), visit),
     );
   }
 
@@ -140,7 +140,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
   constructor(
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
+    options: ParcelOptions,
   ) {
     super(bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow

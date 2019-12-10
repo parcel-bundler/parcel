@@ -8,7 +8,7 @@ import type {
   AssetGraphNode,
   AssetRequestDesc,
   ParcelOptions,
-  ValidationOpts
+  ValidationOpts,
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type {RunRequestOpts} from './RequestTracker';
@@ -21,14 +21,14 @@ import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import RequestTracker, {
   RequestGraph,
-  generateRequestId
+  generateRequestId,
 } from './RequestTracker';
 import {PARCEL_VERSION} from './constants';
 import {
   EntryRequestRunner,
   TargetRequestRunner,
   AssetRequestRunner,
-  DepPathRequestRunner
+  DepPathRequestRunner,
 } from './requests';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
@@ -39,13 +39,13 @@ type Opts = {|
   name: string,
   entries?: Array<string>,
   assetRequests?: Array<AssetRequestDesc>,
-  workerFarm: WorkerFarm
+  workerFarm: WorkerFarm,
 |};
 
 const requestPriorities: $ReadOnlyArray<$ReadOnlyArray<string>> = [
   ['entry_request'],
   ['target_request'],
-  ['dep_path_request', 'asset_request']
+  ['dep_path_request', 'asset_request'],
 ];
 
 export default class AssetGraphBuilder extends EventEmitter {
@@ -74,7 +74,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     entries,
     name,
     assetRequests,
-    workerFarm
+    workerFarm,
   }: Opts) {
     this.options = options;
     this.assetRequests = [];
@@ -84,7 +84,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       parcelVersion: PARCEL_VERSION,
       name,
       options: {minify, hot, scopeHoist},
-      entries
+      entries,
     });
 
     this.queue = new PromiseQueue();
@@ -102,35 +102,35 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.assetGraph.initOptions({
       onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
-      onIncompleteNode: node => this.handleIncompleteNode(node)
+      onIncompleteNode: node => this.handleIncompleteNode(node),
     });
 
     let assetGraph = this.assetGraph;
     this.requestTracker = new RequestTracker({
-      graph: this.requestGraph
+      graph: this.requestGraph,
     });
     let tracker = this.requestTracker;
     this.entryRequestRunner = new EntryRequestRunner({
       tracker,
       options,
-      assetGraph
+      assetGraph,
     });
     this.targetRequestRunner = new TargetRequestRunner({
       tracker,
       options,
-      assetGraph
+      assetGraph,
     });
     this.assetRequestRunner = new AssetRequestRunner({
       tracker,
       options,
       workerFarm,
-      assetGraph
+      assetGraph,
     });
     this.depPathRequestRunner = new DepPathRequestRunner({
       tracker,
       options,
       config,
-      assetGraph
+      assetGraph,
     });
 
     if (changes) {
@@ -139,16 +139,16 @@ export default class AssetGraphBuilder extends EventEmitter {
     } else {
       this.assetGraph.initialize({
         entries,
-        assetGroups: assetRequests
+        assetGroups: assetRequests,
       });
     }
   }
 
   async build(
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<{|
     assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>
+    changedAssets: Map<string, Asset>,
   |}> {
     let lastQueueError;
     for (let currPriorities of requestPriorities) {
@@ -177,7 +177,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       for (let id of this.assetGraph.incompleteNodeIds) {
         this.processIncompleteAssetGraphNode(
           nullthrows(this.assetGraph.getNode(id)),
-          signal
+          signal,
         );
       }
 
@@ -195,7 +195,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async validate(): Promise<void> {
     let promises = this.assetRequests.map(request =>
-      this.runValidate({request, options: this.options})
+      this.runValidate({request, options: this.options}),
     );
     this.assetRequests = [];
     await Promise.all(promises);
@@ -213,7 +213,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         this.assetRequests.push(request.request);
         let result = await this.assetRequestRunner.runRequest(
           request.request,
-          runOpts
+          runOpts,
         );
         if (result != null) {
           for (let asset of result.assets) {
@@ -232,7 +232,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
       case 'entry_file': {
@@ -240,7 +240,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
       case 'dependency': {
@@ -248,7 +248,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
       case 'asset_group': {
@@ -256,7 +256,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
     }
@@ -268,8 +268,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       this.queue
         .add(() =>
           this.runRequest(request, {
-            signal
-          })
+            signal,
+          }),
         )
         .catch(() => {
           // Do nothing, the individual promise is not being awaited, but the queue is and will throw
@@ -294,7 +294,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   getWatcherOptions() {
     let vcsDirs = ['.git', '.hg'].map(dir =>
-      path.join(this.options.projectRoot, dir)
+      path.join(this.options.projectRoot, dir),
     );
     let ignore = [this.options.cacheDir, ...vcsDirs];
     return {ignore};
@@ -325,7 +325,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       return this.options.inputFS.getEventsSince(
         this.options.projectRoot,
         snapshotPath,
-        opts
+        opts,
       );
     }
 
@@ -346,7 +346,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     await this.options.inputFS.writeSnapshot(
       this.options.projectRoot,
       snapshotPath,
-      opts
+      opts,
     );
   }
 }

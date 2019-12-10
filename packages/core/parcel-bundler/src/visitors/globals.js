@@ -19,7 +19,7 @@ const VARS = {
   // Ideally the CommonJS check would come before the AMD check, but many
   // existing modules do the checks the opposite way leading to modules
   // not exporting anything to Parcel.
-  define: () => 'var define;'
+  define: () => 'var define;',
 };
 
 module.exports = {
@@ -43,7 +43,7 @@ module.exports = {
         asset.globals.set(id, '');
       }
     }
-  }
+  },
 };
 
 function inScope(ancestors) {

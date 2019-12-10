@@ -24,7 +24,7 @@ export default class Cache {
     return path.join(
       this.dir,
       cacheId.slice(0, 2),
-      cacheId.slice(2) + extension
+      cacheId.slice(2) + extension,
     );
   }
 
@@ -82,7 +82,7 @@ export default class Cache {
 
 export async function createCacheDir(
   fs: FileSystem,
-  dir: FilePath
+  dir: FilePath,
 ): Promise<void> {
   // First, create the main cache directory if necessary.
   await fs.mkdirp(dir);
@@ -92,7 +92,7 @@ export async function createCacheDir(
   let dirPromises = [];
   for (let i = 0; i < 256; i++) {
     dirPromises.push(
-      fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2)))
+      fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2))),
     );
   }
 

@@ -16,7 +16,7 @@ describe.skip('detect directory changes', function() {
     it('should rebuild when the file is added', async function() {
       // 1. Bundle
       let b = bundler('test/input/detect-dir-change/src/*.js', {
-        watch: true
+        watch: true,
       });
       await b.bundle();
 
@@ -31,7 +31,7 @@ describe.skip('detect directory changes', function() {
       // 2. Write file and assert.
       await fs.writeFile(
         Path.join(inputRoot, './src/app.js'),
-        "module.exports = function () { return 'app' }"
+        "module.exports = function () { return 'app' }",
       );
 
       await sleep(1000);
@@ -44,18 +44,18 @@ describe.skip('detect directory changes', function() {
       let filePath = Path.join(inputRoot, './src/app.js');
       await fs.writeFile(
         filePath,
-        "module.exports = function () { return 'app' }"
+        "module.exports = function () { return 'app' }",
       );
 
       let b = bundler('test/input/detect-dir-change/src/*.js', {
-        watch: true
+        watch: true,
       });
 
       let bundle = await b.bundle();
 
-      let childBundleNames = Array.from(bundle.childBundles.values()).map(
-        bundle => Path.basename(bundle.name)
-      );
+      let childBundleNames = Array.from(
+        bundle.childBundles.values(),
+      ).map(bundle => Path.basename(bundle.name));
 
       assert(childBundleNames.includes('index.js'));
       assert(childBundleNames.includes('app.js'));
@@ -78,7 +78,7 @@ describe.skip('detect directory changes', function() {
     it('should not rebuild when the file is added', async function() {
       // 1. Bundle
       let b = bundler('test/input/detect-dir-change/src/*.js', {
-        watch: true
+        watch: true,
       });
       await b.bundle();
 
@@ -93,7 +93,7 @@ describe.skip('detect directory changes', function() {
       // 2. Create unrelated file and assert
       await fs.writeFile(
         Path.join(inputRoot, './src/app2.ts'),
-        "module.exports = function () { return 'app' }"
+        "module.exports = function () { return 'app' }",
       );
 
       await sleep(1000);
@@ -106,7 +106,7 @@ describe.skip('detect directory changes', function() {
       await fs.writeFile(filePath, '<html></html>');
 
       let b = bundler('test/input/detect-dir-change/src/*.js', {
-        watch: true
+        watch: true,
       });
 
       let bundle = await b.bundle();

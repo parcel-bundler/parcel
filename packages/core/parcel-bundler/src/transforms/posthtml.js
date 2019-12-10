@@ -27,8 +27,8 @@ async function getConfig(asset) {
   let config = await asset.getConfig(
     ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
     {
-      packageKey: 'posthtml'
-    }
+      packageKey: 'posthtml',
+    },
   );
   if (!config && !asset.options.minify) {
     return;
@@ -42,8 +42,8 @@ async function getConfig(asset) {
     const depConfig = {
       addDependencyTo: {
         addDependency: name =>
-          asset.addDependency(name, {includedInParent: true})
-      }
+          asset.addDependency(name, {includedInParent: true}),
+      },
     };
     Object.keys(plugins).forEach(p => Object.assign(plugins[p], depConfig));
   }

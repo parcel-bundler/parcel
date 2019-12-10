@@ -23,7 +23,7 @@ type BrowserslistConfig = {|[string]: string | Array<string>|};
  * versions, not semver ranges, of its targets.
  */
 export default async function getBabelTargets(
-  config: Config
+  config: Config,
 ): Promise<?BabelTargets> {
   let targets = {};
   let compileTarget = BROWSER_CONTEXT.has(config.env.context)
@@ -86,8 +86,8 @@ async function loadBrowserslist(config): Promise<?BrowserslistConfig> {
   let browserslistConfig = await config.getConfig(
     ['browserslist', '.browserslistrc'],
     {
-      parse: false
-    }
+      parse: false,
+    },
   );
 
   if (browserslistConfig) {

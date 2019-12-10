@@ -101,7 +101,7 @@
       function(require, module) {
         module.exports = exports;
       },
-      {}
+      {},
     ];
   };
 

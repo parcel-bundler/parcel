@@ -13,7 +13,7 @@ export async function ncp(
   sourceFS: FileSystem,
   source: FilePath,
   destinationFS: FileSystem,
-  destination: FilePath
+  destination: FilePath,
 ) {
   await destinationFS.mkdirp(destination);
   let files = await sourceFS.readdir(source);

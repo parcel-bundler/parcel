@@ -25,7 +25,7 @@ class WebManifestAsset extends Asset {
 
     if (this.ast.serviceworker && this.ast.serviceworker.src) {
       this.ast.serviceworker.src = this.addURLDependency(
-        this.ast.serviceworker.src
+        this.ast.serviceworker.src,
       );
     }
   }

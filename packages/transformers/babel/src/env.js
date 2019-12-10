@@ -40,23 +40,23 @@ export default async function getEnvOptions(config: Config) {
           corejs: 3,
           shippedProposals: true,
           ignoreBrowserslistConfig: true,
-          targets: appBabelTargets
-        }
-      ]
-    ]
+          targets: appBabelTargets,
+        },
+      ],
+    ],
   };
 }
 
 function getNeededPlugins(targets: BabelTargets): Array<mixed> {
   return presetEnv(
     {assertVersion: () => true},
-    {targets: targets}
+    {targets: targets},
   ).plugins.filter(p => p[0]);
 }
 
 function shouldCompileFurther(
   sourceBabelTargets: BabelTargets,
-  appBabelTargets: BabelTargets
+  appBabelTargets: BabelTargets,
 ): boolean {
   let sourcePlugins = new Set(getNeededPlugins(sourceBabelTargets));
   let appPlugins = getNeededPlugins(appBabelTargets);

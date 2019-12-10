@@ -6,21 +6,21 @@ import defaultConfigContents from '@parcel/config-default';
 const config = {
   ...defaultConfigContents,
   validators: {
-    '*.{ts,tsx}': ['@parcel/validator-typescript']
+    '*.{ts,tsx}': ['@parcel/validator-typescript'],
   },
   reporters: [],
-  filePath: require.resolve('@parcel/config-default')
+  filePath: require.resolve('@parcel/config-default'),
 };
 
 describe('ts-validator', function() {
   it('should throw validation error on typescript typing errors', async function() {
     let didThrow = false;
     let entry = normalizeFilePath(
-      path.join(__dirname, '/integration/ts-validation-error/index.ts')
+      path.join(__dirname, '/integration/ts-validation-error/index.ts'),
     );
     try {
       await bundle(entry, {
-        defaultConfig: config
+        defaultConfig: config,
       });
     } catch (e) {
       assert.equal(e.name, 'BuildError');
@@ -29,7 +29,7 @@ describe('ts-validator', function() {
       assert.equal(e.diagnostics[0].origin, '@parcel/validator-typescript');
       assert.equal(
         e.diagnostics[0].message,
-        `Property 'world' does not exist on type 'Params'.`
+        `Property 'world' does not exist on type 'Params'.`,
       );
       assert.equal(e.diagnostics[0].filePath, entry);
 

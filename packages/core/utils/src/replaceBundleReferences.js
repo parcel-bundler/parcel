@@ -7,7 +7,7 @@ import type {
   Bundle,
   BundleResult,
   BundleGraph,
-  Dependency
+  Dependency,
 } from '@parcel/types';
 
 import {Readable} from 'stream';
@@ -17,7 +17,7 @@ import {bufferStream, urlJoin} from '../';
 
 type ReplacementMap = Map<
   string /* dependency id */,
-  {|from: string, to: string|}
+  {|from: string, to: string|},
 >;
 
 /*
@@ -33,7 +33,7 @@ export async function replaceBundleReferences({
   contents,
   map,
   getInlineReplacement,
-  getInlineBundleContents
+  getInlineBundleContents,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
@@ -41,26 +41,26 @@ export async function replaceBundleReferences({
   getInlineReplacement: (
     Dependency,
     ?'string',
-    string
+    string,
   ) => {|from: string, to: string|},
   getInlineBundleContents: (
     Bundle,
-    BundleGraph
+    BundleGraph,
   ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
-  map?: ?SourceMap
+  map?: ?SourceMap,
 |}): Promise<BundleResult> {
   let replacements = new Map();
 
   for (let {
     dependency,
-    bundleGroup
+    bundleGroup,
   } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
     let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
     if (entryBundle.isInline) {
       // inline bundles
       let packagedBundle = await getInlineBundleContents(
         entryBundle,
-        bundleGraph
+        bundleGraph,
       );
       let packagedContents = (packagedBundle.contents instanceof Readable
         ? await bufferStream(packagedBundle.contents)
@@ -71,14 +71,14 @@ export async function replaceBundleReferences({
       if (inlineType == null || inlineType === 'string') {
         replacements.set(
           dependency.id,
-          getInlineReplacement(dependency, inlineType, packagedContents)
+          getInlineReplacement(dependency, inlineType, packagedContents),
         );
       }
     } else if (dependency.isURL) {
       // url references
       replacements.set(
         dependency.id,
-        getURLReplacement(dependency, entryBundle)
+        getURLReplacement(dependency, entryBundle),
       );
     }
   }
@@ -91,25 +91,25 @@ export function replaceURLReferences({
   bundle,
   bundleGraph,
   contents,
-  map
+  map,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   contents: string,
-  map?: ?SourceMap
+  map?: ?SourceMap,
 |}): BundleResult {
   let replacements: ReplacementMap = new Map();
 
   for (let {
     dependency,
-    bundleGroup
+    bundleGroup,
   } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
     let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
     if (dependency.isURL && !entryBundle.isInline) {
       // url references
       replacements.set(
         dependency.id,
-        getURLReplacement(dependency, entryBundle)
+        getURLReplacement(dependency, entryBundle),
       );
     }
   }
@@ -120,7 +120,7 @@ export function replaceURLReferences({
 
 function collectExternalReferences(
   bundle: Bundle,
-  replacements: Map<string, {|from: string, to: string|}>
+  replacements: Map<string, {|from: string, to: string|}>,
 ): void {
   bundle.traverse(node => {
     if (node.type !== 'dependency') {
@@ -131,7 +131,7 @@ function collectExternalReferences(
     if (dependency.isURL && !replacements.has(dependency.id)) {
       replacements.set(dependency.id, {
         from: dependency.id,
-        to: dependency.moduleSpecifier
+        to: dependency.moduleSpecifier,
       });
     }
   });
@@ -142,14 +142,14 @@ function getURLReplacement(dependency: Dependency, bundle: Bundle) {
   url.pathname = nullthrows(bundle.name);
   return {
     from: dependency.id,
-    to: urlJoin(bundle.target.publicUrl ?? '/', URL.format(url))
+    to: urlJoin(bundle.target.publicUrl ?? '/', URL.format(url)),
   };
 }
 
 function performReplacement(
   replacements: ReplacementMap,
   contents: string,
-  map?: ?SourceMap
+  map?: ?SourceMap,
 ): BundleResult {
   let finalContents = contents;
   for (let {from, to} of replacements.values()) {
@@ -160,6 +160,6 @@ function performReplacement(
   return {
     contents: finalContents,
     // TODO: Update sourcemap with adjusted contents
-    map
+    map,
   };
 }

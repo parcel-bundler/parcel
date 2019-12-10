@@ -6,7 +6,7 @@ import emphasize from 'emphasize';
 
 type CodeFramePadding = {|
   before: number,
-  after: number
+  after: number,
 |};
 
 type CodeFrameOptionsInput = {|
@@ -14,7 +14,7 @@ type CodeFrameOptionsInput = {|
   maxLines?: number,
   padding?: CodeFramePadding,
   syntaxHighlighting?: boolean,
-  language?: string
+  language?: string,
 |};
 
 type CodeFrameOptions = {|
@@ -22,7 +22,7 @@ type CodeFrameOptions = {|
   syntaxHighlighting: boolean,
   maxLines: number,
   padding: CodeFramePadding,
-  language?: string
+  language?: string,
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
@@ -45,7 +45,7 @@ export default function codeFrame(
   code: string,
   highlights: Array<DiagnosticCodeHighlight>,
   // $FlowFixMe
-  inputOpts: CodeFrameOptionsInput = {}
+  inputOpts: CodeFrameOptionsInput = {},
 ): string {
   if (highlights.length < 1) return '';
 
@@ -56,8 +56,8 @@ export default function codeFrame(
     maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
     padding: inputOpts.padding || {
       before: 1,
-      after: 2
-    }
+      after: 2,
+    },
   };
 
   const highlighter = (s: string, bold?: boolean) => {
@@ -72,7 +72,7 @@ export default function codeFrame(
   const lineNumberPrefixer = (params: {|
     lineNumber?: string,
     endLine: string,
-    isHighlighted: boolean
+    isHighlighted: boolean,
   |}) => {
     let {lineNumber, endLine, isHighlighted} = params;
 
@@ -88,13 +88,13 @@ export default function codeFrame(
     return {
       start: {
         column: h.start.column - 1,
-        line: h.start.line - 1
+        line: h.start.line - 1,
       },
       end: {
         column: h.end.column - 1,
-        line: h.end.line - 1
+        line: h.end.line - 1,
       },
-      message: h.message
+      message: h.message,
     };
   });
 
@@ -131,25 +131,25 @@ export default function codeFrame(
     let syntaxHighlightedLine = syntaxHighlightedLines[i];
 
     let foundHighlights = highlights.filter(
-      highlight => highlight.start.line <= i && highlight.end.line >= i
+      highlight => highlight.start.line <= i && highlight.end.line >= i,
     );
 
     resultLines.push(
       lineNumberPrefixer({
         lineNumber: (i + 1).toString(10),
         endLine: endLineString,
-        isHighlighted: foundHighlights.length > 0
-      }) + syntaxHighlightedLine
+        isHighlighted: foundHighlights.length > 0,
+      }) + syntaxHighlightedLine,
     );
 
     if (foundHighlights.length > 0) {
       let highlightLine = lineNumberPrefixer({
         endLine: endLineString,
-        isHighlighted: true
+        isHighlighted: true,
       });
 
       let isWholeLine = !!foundHighlights.find(
-        h => h.start.line < i && h.end.line > i
+        h => h.start.line < i && h.end.line > i,
       );
 
       if (isWholeLine) {
@@ -157,8 +157,8 @@ export default function codeFrame(
         // don't even bother creating seperate highlight
         highlightLine += highlighter(
           '^'.repeat(
-            originalLine.replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length
-          )
+            originalLine.replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length,
+          ),
         );
       } else {
         let sortedColumns =
@@ -166,7 +166,7 @@ export default function codeFrame(
             ? foundHighlights.sort(
                 (a, b) =>
                   (a.start.line < i ? 0 : a.start.column) -
-                  (b.start.line < i ? 0 : b.start.column)
+                  (b.start.line < i ? 0 : b.start.column),
               )
             : foundHighlights;
 
@@ -200,7 +200,7 @@ export default function codeFrame(
         let endsWithFullLine = !!sortedColumns.find(h => h.end.line > i);
         if (!endsWithFullLine) {
           let sortedByEnd = sortedColumns.sort(
-            (a, b) => a.end.column - b.end.column
+            (a, b) => a.end.column - b.end.column,
           );
 
           let lastHighlightForColumn = sortedByEnd[sortedByEnd.length - 1];

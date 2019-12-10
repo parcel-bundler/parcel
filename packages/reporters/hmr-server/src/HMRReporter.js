@@ -15,7 +15,7 @@ export default new Reporter({
       cacheDir: options.cacheDir,
       inputFS: options.inputFS,
       outputFS: options.outputFS,
-      logger
+      logger,
     };
 
     let server = servers.get(hmrOptions.port);
@@ -32,5 +32,5 @@ export default new Reporter({
     if (event.type === 'buildFailure') {
       server.emitError(event.diagnostics);
     }
-  }
+  },
 });
