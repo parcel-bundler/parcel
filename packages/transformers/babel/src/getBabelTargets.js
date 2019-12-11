@@ -37,6 +37,7 @@ export default async function getBabelTargets(
     // Use package.engines.node by default if we are compiling for node.
     if (typeof nodeVersion === 'string') {
       try {
+        //$FlowFixMe catch error when minVersion() returned null
         targets.node = semver.minVersion(nodeVersion).version;
       } catch (e) {
         throw new Error("Expected 'node' engine to be a valid Semver Range");
