@@ -11,7 +11,7 @@ async function loadEnv(filepath) {
     // since normally you expect tests to produce the same
     // results for everyone
     NODE_ENV !== 'test' && '.env.local',
-    '.env'
+    '.env',
   ].filter(Boolean);
 
   await Promise.all(
@@ -21,7 +21,7 @@ async function loadEnv(filepath) {
         const envs = dotenv.config({path: envPath});
         variableExpansion(envs);
       }
-    })
+    }),
   );
 }
 

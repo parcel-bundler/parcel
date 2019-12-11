@@ -15,7 +15,7 @@ module.exports = {
         }
       }
     }
-  }
+  },
 };
 
 // replace object properties

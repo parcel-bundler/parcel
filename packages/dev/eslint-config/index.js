@@ -6,39 +6,39 @@ module.exports = {
     'plugin:react/recommended',
     'prettier',
     'prettier/flowtype',
-    'prettier/react'
+    'prettier/react',
   ],
   parser: 'babel-eslint',
   plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react'],
   parserOptions: {
     ecmaVersion: 2018,
     ecmaFeatures: {
-      jsx: true
+      jsx: true,
     },
-    sourceType: 'module'
+    sourceType: 'module',
   },
   env: {
     node: true,
-    es6: true
+    es6: true,
   },
   globals: {
     parcelRequire: true,
     define: true,
-    SharedArrayBuffer: true
+    SharedArrayBuffer: true,
   },
   // https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns
   overrides: [
     {
       files: ['**/test/**', '*.test.js', 'packages/core/integration-tests/**'],
       env: {
-        mocha: true
+        mocha: true,
       },
       rules: {
         'import/no-extraneous-dependencies': 'off',
         'monorepo/no-internal-import': 'off',
-        'monorepo/no-relative-import': 'off'
-      }
-    }
+        'monorepo/no-relative-import': 'off',
+      },
+    },
   ],
   rules: {
     '@parcel/no-self-package-imports': 'error',
@@ -47,14 +47,16 @@ module.exports = {
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
     'no-return-await': 'error',
-    'require-await': 'error'
+    'require-await': 'error',
+    'require-atomic-updates': 'off',
+    'no-prototype-builtins': 'off',
   },
   settings: {
     flowtype: {
-      onlyFilesWithFlowAnnotation: true
+      onlyFilesWithFlowAnnotation: true,
     },
     react: {
-      version: 'detect'
-    }
-  }
+      version: 'detect',
+    },
+  },
 };

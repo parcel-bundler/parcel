@@ -16,7 +16,7 @@ export default class TapStream extends Transform {
   _transform(
     chunk: Buffer | string,
     encoding: string,
-    callback: (err: ?Error, chunk?: Buffer | string) => mixed
+    callback: (err: ?Error, chunk?: Buffer | string) => mixed,
   ) {
     try {
       this._tap(Buffer.from(chunk));

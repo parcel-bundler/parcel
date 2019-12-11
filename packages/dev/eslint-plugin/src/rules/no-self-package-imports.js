@@ -20,7 +20,7 @@ const readPkgUp = require('read-pkg-up');
 const {
   getRequiredPath,
   isStaticRequireOrResolve,
-  relativePathForRequire
+  relativePathForRequire,
 } = require('../utils');
 
 const message =
@@ -30,7 +30,7 @@ module.exports = {
   meta: {
     description:
       'Forbid importing modules from own package given own package name',
-    fixable: 'code'
+    fixable: 'code',
   },
   create(context) {
     let filename = context.getFilename();
@@ -65,11 +65,11 @@ module.exports = {
                     origin: filename,
                     request: getRequiredPath(node),
                     pkgName,
-                    pkgPath
-                  })
-                )
+                    pkgPath,
+                  }),
+                ),
               );
-            }
+            },
           });
         }
       },
@@ -87,16 +87,16 @@ module.exports = {
                     origin: filename,
                     request,
                     pkgName,
-                    pkgPath
-                  })
-                )
+                    pkgPath,
+                  }),
+                ),
               );
-            }
+            },
           });
         }
-      }
+      },
     };
-  }
+  },
 };
 
 function quote(str) {

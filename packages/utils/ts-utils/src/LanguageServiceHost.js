@@ -22,7 +22,7 @@ export class LanguageServiceHost extends FSHost {
       entry.version++;
     } else {
       this.files[fileName] = {
-        version: 0
+        version: 0,
       };
     }
   }

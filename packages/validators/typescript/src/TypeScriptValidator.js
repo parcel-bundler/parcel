@@ -12,14 +12,14 @@ type TSValidatorConfig = {|
   filepath: string | null,
   baseDir: string,
   configHash: string,
-  tsconfig: any
+  tsconfig: any,
 |};
 
 export default new Validator({
   async getConfig({
     asset,
     options,
-    resolveConfig
+    resolveConfig,
   }): Promise<?TSValidatorConfig> {
     let configNames = ['tsconfig.json'];
     let tsconfig = await asset.getConfig(configNames);
@@ -31,7 +31,7 @@ export default new Validator({
       filepath: configPath,
       baseDir,
       configHash,
-      tsconfig
+      tsconfig,
     };
   },
 
@@ -46,24 +46,24 @@ export default new Validator({
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
         ts.sys,
-        baseDir
+        baseDir,
       );
 
       langServiceCache[configHash] = ts.createLanguageService(
         new LanguageServiceHost(options.inputFS, ts, parsedCommandLine),
-        ts.createDocumentRegistry()
+        ts.createDocumentRegistry(),
       );
     }
 
     if (!langServiceCache[configHash]) return;
 
     const diagnostics = langServiceCache[configHash].getSemanticDiagnostics(
-      asset.filePath
+      asset.filePath,
     );
 
     let validatorResult = {
       warnings: [],
-      errors: []
+      errors: [],
     };
 
     if (diagnostics.length > 0) {
@@ -87,21 +87,21 @@ export default new Validator({
             let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
             let start = {
               line: lineChar.line + 1,
-              column: lineChar.character + 1
+              column: lineChar.character + 1,
             };
             let end = {
               line: start.line,
-              column: start.column + 1
+              column: start.column + 1,
             };
 
             if (typeof diagnostic.length === 'number') {
               let endCharPosition = file.getLineAndCharacterOfPosition(
-                diagnostic.start + diagnostic.length
+                diagnostic.start + diagnostic.length,
               );
 
               end = {
                 line: endCharPosition.line + 1,
-                column: endCharPosition.character + 1
+                column: endCharPosition.character + 1,
               };
             }
 
@@ -110,8 +110,8 @@ export default new Validator({
               codeHighlights: {
                 start,
                 end,
-                message: diagnosticMessage
-              }
+                message: diagnosticMessage,
+              },
             };
           }
         }
@@ -120,11 +120,11 @@ export default new Validator({
           origin: '@parcel/validator-typescript',
           message: diagnosticMessage,
           filePath: filename,
-          codeFrame: codeframe ? codeframe : undefined
+          codeFrame: codeframe ? codeframe : undefined,
         });
       }
     }
 
     return validatorResult;
-  }
+  },
 });

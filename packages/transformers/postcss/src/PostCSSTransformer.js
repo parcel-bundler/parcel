@@ -28,7 +28,7 @@ export default new Transformer({
   async getConfig({asset, resolve, options}): Promise<?ParcelPostCSSConfig> {
     let configFile: mixed = await asset.getConfig(
       ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
-      {packageKey: 'postcss'}
+      {packageKey: 'postcss'},
     );
 
     // Use a basic, modules-only PostCSS config if the file opts in by a name
@@ -36,8 +36,8 @@ export default new Transformer({
     if (configFile == null && asset.filePath.match(MODULE_BY_NAME_RE)) {
       configFile = {
         plugins: {
-          'postcss-modules': {}
-        }
+          'postcss-modules': {},
+        },
       };
     }
 
@@ -74,7 +74,7 @@ export default new Transformer({
     if (originalModulesConfig || configFile.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
-        asset.filePath
+        asset.filePath,
       );
 
       plugins.push(
@@ -83,15 +83,15 @@ export default new Transformer({
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename, css) =>
             `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
-          ...originalModulesConfig
-        })
+          ...originalModulesConfig,
+        }),
       );
     }
 
     return {
       plugins,
       from: asset.filePath,
-      to: asset.filePath
+      to: asset.filePath,
     };
   },
 
@@ -108,8 +108,8 @@ export default new Transformer({
       type: 'postcss',
       version: '7.0.0',
       program: postcss.parse(await asset.getCode(), {
-        from: asset.filePath
-      })
+        from: asset.filePath,
+      }),
     };
   },
 
@@ -129,7 +129,14 @@ export default new Transformer({
             if (node.type === 'string') {
               asset.addDependency({
                 moduleSpecifier: importPath,
-                loc: decl.source.start
+                loc: {
+                  filePath: importPath,
+                  start: decl.source.start,
+                  end: {
+                    line: decl.source.start.line,
+                    column: decl.source.start.column + importPath.length,
+                  },
+                },
               });
             }
           });
@@ -158,7 +165,7 @@ export default new Transformer({
       assets.push({
         type: 'js',
         filePath: asset.filePath + '.js',
-        code
+        code,
       });
     }
     return assets;
@@ -171,14 +178,14 @@ export default new Transformer({
     postcss.stringify(ast.program, c => (code += c));
 
     return {
-      code
+      code,
     };
-  }
+  },
 });
 
 function createLoader(
   asset: MutableAsset,
-  resolve: (from: FilePath, to: string) => Promise<FilePath>
+  resolve: (from: FilePath, to: string) => Promise<FilePath>,
 ) {
   return class ParcelFileSystemLoader extends FileSystemLoader {
     async fetch(composesPath, relativeTo) {
@@ -197,7 +204,7 @@ function createLoader(
         source,
         rootRelativePath,
         undefined,
-        this.fetch.bind(this)
+        this.fetch.bind(this),
       );
       return exportTokens;
     }

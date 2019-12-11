@@ -6,7 +6,7 @@ import {
   run,
   ncp,
   prepareBrowserContext,
-  inputFS as fs
+  inputFS as fs,
 } from '@parcel/test-utils';
 import vm from 'vm';
 import {sleep} from '@parcel/test-utils';
@@ -28,7 +28,7 @@ describe('hmr', function() {
 
   async function nextWSMessage(ws) {
     return json5.parse(
-      await new Promise(resolve => ws.once('message', resolve))
+      await new Promise(resolve => ws.once('message', resolve)),
     );
   }
 
@@ -43,7 +43,7 @@ describe('hmr', function() {
   it.skip('should emit an HMR update for the file that changed', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -51,9 +51,9 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
@@ -63,7 +63,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'exports.a = 5;\nexports.b = 5;'
+      'exports.a = 5;\nexports.b = 5;',
     );
 
     /*let message = await nextWSMessage(ws);
@@ -83,7 +83,7 @@ describe('hmr', function() {
   it.skip('should emit an HMR update for all new dependencies along with the changed file', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -91,9 +91,9 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
@@ -103,7 +103,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"); exports.a = 5; exports.b = 5;'
+      'require("fs"); exports.a = 5; exports.b = 5;',
     );
 
     let message = await nextWSMessage(ws);
@@ -118,7 +118,7 @@ describe('hmr', function() {
   it.skip('should emit an HMR error on bundle failure', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -126,9 +126,9 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
@@ -138,7 +138,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"; exports.a = 5; exports.b = 5;'
+      'require("fs"; exports.a = 5; exports.b = 5;',
     );
 
     let message = await nextWSMessage(ws);
@@ -165,7 +165,7 @@ describe('hmr', function() {
   it.skip('should emit an HMR error to new connections after a bundle failure', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -173,16 +173,16 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"; exports.a = 5; exports.b = 5;'
+      'require("fs"; exports.a = 5; exports.b = 5;',
     );
 
     let ws = new WebSocket('ws://localhost:' + port);
@@ -196,7 +196,7 @@ describe('hmr', function() {
   it.skip('should emit an HMR update after error has been resolved', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -204,9 +204,9 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
@@ -216,7 +216,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"; exports.a = 5; exports.b = 5;'
+      'require("fs"; exports.a = 5; exports.b = 5;',
     );
 
     let message = await nextWSMessage(ws);
@@ -226,7 +226,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"); exports.a = 5; exports.b = 5;'
+      'require("fs"); exports.a = 5; exports.b = 5;',
     );
 
     message = await nextWSMessage(ws);
@@ -239,12 +239,12 @@ describe('hmr', function() {
   it.skip('should work with circular dependencies', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-circular'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
     });
     let bundle = await b.bundle();
     let outputs = [];
@@ -252,7 +252,7 @@ describe('hmr', function() {
     await run(bundle, {
       output(o) {
         outputs.push(o);
-      }
+      },
     });
 
     assert.deepEqual(outputs, [3]);
@@ -260,7 +260,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      "var other = require('./index.js'); exports.a = 5; exports.b = 5;"
+      "var other = require('./index.js'); exports.a = 5; exports.b = 5;",
     );
 
     // await nextEvent(b, 'bundled');
@@ -271,12 +271,12 @@ describe('hmr', function() {
     await fs.mkdirp(path.join(__dirname, '/input'));
     fs.writeFile(
       path.join(__dirname, '/input/index.js'),
-      'module.hot.accept();throw new Error("Something");\noutput(123);'
+      'module.hot.accept();throw new Error("Something");\noutput(123);',
     );
 
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
     });
     let bundle = await b.bundle();
 
@@ -289,7 +289,7 @@ describe('hmr', function() {
       },
       error(e) {
         errors.push(e);
-      }
+      },
     });
     vm.createContext(ctx);
     vm.runInContext(
@@ -298,7 +298,7 @@ describe('hmr', function() {
       } catch(e) {
         error(e);
       }`,
-      ctx
+      ctx,
     );
 
     assert.deepEqual(outputs, []);
@@ -316,7 +316,7 @@ describe('hmr', function() {
   it.skip('should call dispose and accept callbacks', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-callbacks'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -324,13 +324,13 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
       env: {
         HMR_HOSTNAME: 'localhost',
-        HMR_PORT: port
+        HMR_PORT: port,
       },
-      watch: true
+      watch: true,
     });
 
     let outputs = [];
@@ -342,7 +342,7 @@ describe('hmr', function() {
       },
       output(o) {
         outputs.push(o);
-      }
+      },
     });
 
     assert.deepEqual(outputs, [3]);
@@ -352,7 +352,7 @@ describe('hmr', function() {
     await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'exports.a = 5; exports.b = 5;'
+      'exports.a = 5; exports.b = 5;',
     );
 
     await nextWSMessage(ws);
@@ -363,7 +363,7 @@ describe('hmr', function() {
       3,
       'dispose-' + moduleId,
       10,
-      'accept-' + moduleId
+      'accept-' + moduleId,
     ]);
   });
 
@@ -371,7 +371,7 @@ describe('hmr', function() {
   it.skip('should work across bundles', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-dynamic'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -379,13 +379,13 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
       env: {
         HMR_HOSTNAME: 'localhost',
-        HMR_PORT: port
+        HMR_PORT: port,
       },
-      watch: true
+      watch: true,
     });
 
     let outputs = [];
@@ -393,7 +393,7 @@ describe('hmr', function() {
     await run(b, {
       output(o) {
         outputs.push(o);
-      }
+      },
     });
 
     await sleep(50);
@@ -404,7 +404,7 @@ describe('hmr', function() {
     await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'exports.a = 5; exports.b = 5;'
+      'exports.a = 5; exports.b = 5;',
     );
 
     await nextWSMessage(ws);
@@ -416,12 +416,12 @@ describe('hmr', function() {
   it.skip('should bubble up HMR events to a page reload', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-reload'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
     });
     let bundle = await b.bundle();
 
@@ -431,9 +431,9 @@ describe('hmr', function() {
       {
         output(o) {
           outputs.push(o);
-        }
+        },
       },
-      {require: false}
+      {require: false},
     );
     let spy = sinon.spy(ctx.location, 'reload');
 
@@ -444,7 +444,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'exports.a = 5; exports.b = 5;'
+      'exports.a = 5; exports.b = 5;',
     );
 
     // await nextEvent(b, 'bundled');
@@ -455,12 +455,12 @@ describe('hmr', function() {
   it.skip('should trigger a page reload when a new bundle is created', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-new-bundle'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let b = bundler(path.join(__dirname, '/input/index.html'), {
       watch: true,
-      hmr: true
+      hmr: true,
     });
     let bundle = await b.bundle();
 
@@ -473,7 +473,7 @@ describe('hmr', function() {
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/index.js'),
-      'import "./index.css"'
+      'import "./index.css"',
     );
 
     // await nextEvent(b, 'bundled');
@@ -481,7 +481,7 @@ describe('hmr', function() {
 
     let contents = await fs.readFile(
       path.join(__dirname, '/dist/index.html'),
-      'utf8'
+      'utf8',
     );
     assert(contents.includes('.css'));
   });
@@ -489,7 +489,7 @@ describe('hmr', function() {
   it.skip('should log emitted errors and show an error overlay', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -497,13 +497,13 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
       env: {
         HMR_HOSTNAME: 'localhost',
-        HMR_PORT: port
+        HMR_PORT: port,
       },
-      watch: true
+      watch: true,
     });
 
     let logs = [];
@@ -515,10 +515,10 @@ describe('hmr', function() {
             logs.push(msg);
           },
           log() {},
-          clear() {}
-        }
+          clear() {},
+        },
       },
-      {require: false}
+      {require: false},
     );
 
     let spy = sinon.spy(ctx.document.body, 'appendChild');
@@ -527,7 +527,7 @@ describe('hmr', function() {
     await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"; exports.a = 5; exports.b = 5;'
+      'require("fs"; exports.a = 5; exports.b = 5;',
     );
 
     await nextWSMessage(ws);
@@ -541,7 +541,7 @@ describe('hmr', function() {
   it.skip('should log when errors resolve', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -549,13 +549,13 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
       env: {
         HMR_HOSTNAME: 'localhost',
-        HMR_PORT: port
+        HMR_PORT: port,
       },
-      watch: true
+      watch: true,
     });
 
     let logs = [];
@@ -569,11 +569,11 @@ describe('hmr', function() {
           log(msg) {
             logs.push(msg);
           },
-          clear() {}
+          clear() {},
         },
-        location: {hostname: 'localhost', reload: function() {}}
+        location: {hostname: 'localhost', reload: function() {}},
       },
-      {require: false}
+      {require: false},
     );
 
     let appendSpy = sinon.spy(ctx.document.body, 'appendChild');
@@ -583,7 +583,7 @@ describe('hmr', function() {
     await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"; exports.a = 5; exports.b = 5;'
+      'require("fs"; exports.a = 5; exports.b = 5;',
     );
 
     await nextWSMessage(ws);
@@ -594,7 +594,7 @@ describe('hmr', function() {
     await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'require("fs"); exports.a = 5; exports.b = 5;'
+      'require("fs"); exports.a = 5; exports.b = 5;',
     );
     await nextWSMessage(ws);
     await sleep(50);
@@ -609,7 +609,7 @@ describe('hmr', function() {
   it.skip('should make a secure connection', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -617,21 +617,21 @@ describe('hmr', function() {
       hot: {
         https: true,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
 
     let ws = new WebSocket('wss://localhost:' + port, {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     });
 
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'exports.a = 5;\nexports.b = 5;'
+      'exports.a = 5;\nexports.b = 5;',
     );
 
     let message = await nextWSMessage(ws);
@@ -649,7 +649,7 @@ describe('hmr', function() {
   it.skip('should make a secure connection with custom certificate', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -657,24 +657,24 @@ describe('hmr', function() {
       hot: {
         https: {
           key: path.join(__dirname, '/integration/https/private.pem'),
-          cert: path.join(__dirname, '/integration/https/primary.crt')
+          cert: path.join(__dirname, '/integration/https/primary.crt'),
         },
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
 
     let ws = new WebSocket('wss://localhost:' + port, {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     });
 
     await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
-      'exports.a = 5;\nexports.b = 5;'
+      'exports.a = 5;\nexports.b = 5;',
     );
 
     let message = await nextWSMessage(ws);
@@ -693,7 +693,7 @@ describe('hmr', function() {
   it.skip('should watch new dependencies that cause errors', async function() {
     await ncp(
       path.join(__dirname, '/integration/elm-dep-error'),
-      path.join(__dirname, '/input')
+      path.join(__dirname, '/input'),
     );
 
     let port = await getPort();
@@ -701,9 +701,9 @@ describe('hmr', function() {
       hot: {
         https: false,
         port,
-        host: 'localhost'
+        host: 'localhost',
       },
-      watch: true
+      watch: true,
     });
 
     await b.run();
@@ -723,7 +723,7 @@ import Html
 
 main =
     Html.text "Hello, world!"
-    `
+    `,
     );
 
     let message = await nextWSMessage(ws);
@@ -739,7 +739,7 @@ module BrokenDep exposing (anError)
 anError : String
 anError =
     "fixed"
-      `
+      `,
     );
 
     message = await nextWSMessage(ws);

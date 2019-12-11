@@ -12,7 +12,7 @@ const DYNAMIC_IMPORT_BROWSERS = {
   firefox: '67',
   chrome: '63',
   safari: '11.1',
-  opera: '50'
+  opera: '50',
 };
 
 const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
@@ -21,14 +21,14 @@ const LOADERS = {
     css: './loaders/browser/css-loader',
     html: './loaders/browser/html-loader',
     js: './loaders/browser/js-loader',
-    wasm: './loaders/browser/wasm-loader'
+    wasm: './loaders/browser/wasm-loader',
   },
   node: {
     css: './loaders/node/css-loader',
     html: './loaders/node/html-loader',
     js: './loaders/node/js-loader',
-    wasm: './loaders/node/wasm-loader'
-  }
+    wasm: './loaders/node/wasm-loader',
+  },
 };
 
 export default new Runtime({
@@ -56,13 +56,13 @@ export default new Runtime({
     let needsDynamicImportPolyfill = false;
     if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
       needsDynamicImportPolyfill = !bundle.env.matchesEngines(
-        DYNAMIC_IMPORT_BROWSERS
+        DYNAMIC_IMPORT_BROWSERS,
       );
     }
 
     for (let {
       bundleGroup,
-      dependency
+      dependency,
     } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
       // Ignore deps with native loaders, e.g. workers.
       if (dependency.isURL) {
@@ -77,7 +77,7 @@ export default new Runtime({
         assets.push({
           filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
           code: `module.exports = "${dependency.id}";`,
-          dependency
+          dependency,
         });
 
         continue;
@@ -91,7 +91,7 @@ export default new Runtime({
             .map(asset => asset.id)
             .includes(bundleGroup.entryAssetId)
             ? 1
-            : -1
+            : -1,
         );
 
       // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
@@ -119,7 +119,7 @@ export default new Runtime({
           } else if (b.type === 'js' && b.env.outputFormat === 'commonjs') {
             return `Promise.resolve(require('' + '${relativeBundlePath(
               bundle,
-              b
+              b,
             )}'))`;
           }
 
@@ -143,15 +143,13 @@ export default new Runtime({
         }
 
         if (bundle.env.outputFormat === 'global') {
-          loaders += `.then(() => parcelRequire('${
-            bundleGroup.entryAssetId
-          }'))`;
+          loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}'))`;
         }
 
         assets.push({
           filePath: __filename,
           code: `module.exports = ${loaders};`,
-          dependency
+          dependency,
         });
       } else {
         for (let bundle of externalBundles) {
@@ -162,7 +160,7 @@ export default new Runtime({
 
           if (bundle.target.publicUrl == null) {
             throw new Error(
-              'JSRuntime: Bundle target did not have a publicUrl'
+              'JSRuntime: Bundle target did not have a publicUrl',
             );
           }
 
@@ -170,14 +168,14 @@ export default new Runtime({
             filePath: filePath + '.js',
             code: `module.exports = '${urlJoin(
               bundle.target.publicUrl,
-              nullthrows(bundle.name)
+              nullthrows(bundle.name),
             )}'`,
-            dependency
+            dependency,
           });
         }
       }
     }
 
     return assets;
-  }
+  },
 });

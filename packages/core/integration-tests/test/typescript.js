@@ -5,18 +5,18 @@ import {
   run,
   assertBundles,
   distDir,
-  outputFS
+  outputFS,
 } from '@parcel/test-utils';
 import {readFileSync} from 'fs';
 
 const configPath = path.join(
   __dirname,
-  '/integration/typescript-config/.parcelrc'
+  '/integration/typescript-config/.parcelrc',
 );
 
 const tscConfig = {
   ...JSON.parse(readFileSync(configPath)),
-  filePath: configPath
+  filePath: configPath,
 };
 
 describe('typescript', function() {
@@ -28,19 +28,19 @@ describe('typescript', function() {
   // If testing details specific to either implementation, create another suite.
   for (let config of [
     null /* default config -- testing babel typescript */,
-    tscConfig
+    tscConfig,
   ]) {
     it('should produce a ts bundle using ES6 imports', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript/index.ts'),
-        {config}
+        {config},
       );
 
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'Local.ts']
-        }
+          assets: ['index.ts', 'Local.ts'],
+        },
       ]);
 
       let output = await run(b);
@@ -51,14 +51,14 @@ describe('typescript', function() {
     it('should produce a ts bundle using commonJS require', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-require/index.ts'),
-        {config}
+        {config},
       );
 
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'Local.ts']
-        }
+          assets: ['index.ts', 'Local.ts'],
+        },
       ]);
 
       let output = await run(b);
@@ -68,7 +68,7 @@ describe('typescript', function() {
 
     it('should support json require', async function() {
       let b = await bundle(
-        path.join(__dirname, '/integration/typescript-json/index.ts')
+        path.join(__dirname, '/integration/typescript-json/index.ts'),
       );
 
       // assert.equal(b.assets.size, 2);
@@ -82,14 +82,14 @@ describe('typescript', function() {
     it('should support env variables', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-env/index.ts'),
-        {config}
+        {config},
       );
 
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts']
-        }
+          assets: ['index.ts'],
+        },
       ]);
 
       let output = await run(b);
@@ -100,18 +100,18 @@ describe('typescript', function() {
     it('should support importing a URL to a raw asset', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-raw/index.ts'),
-        {config}
+        {config},
       );
 
       assertBundles(b, [
         {
           name: 'index.js',
-          assets: ['index.ts', 'test.txt.js']
+          assets: ['index.ts', 'test.txt.js'],
         },
         {
           type: 'txt',
-          assets: ['test.txt']
-        }
+          assets: ['test.txt'],
+        },
       ]);
 
       let output = await run(b);
@@ -125,15 +125,15 @@ describe('typescript', function() {
         path.join(__dirname, '/integration/typescript-require/index.ts'),
         {
           config,
-          minify: true
-        }
+          minify: true,
+        },
       );
 
       assertBundles(b, [
         {
           type: 'js',
-          assets: ['index.ts', 'Local.ts']
-        }
+          assets: ['index.ts', 'Local.ts'],
+        },
       ]);
 
       let output = await run(b);
@@ -147,12 +147,12 @@ describe('typescript', function() {
     it('should support compiling JSX', async function() {
       await bundle(
         path.join(__dirname, '/integration/typescript-jsx/index.tsx'),
-        {config}
+        {config},
       );
 
       let file = await outputFS.readFile(
         path.join(distDir, 'index.js'),
-        'utf8'
+        'utf8',
       );
       assert(file.includes('React.createElement("div"'));
     });
@@ -160,14 +160,14 @@ describe('typescript', function() {
     it('should use esModuleInterop by default', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-interop/index.ts'),
-        {config}
+        {config},
       );
 
       assertBundles(b, [
         {
           name: 'index.js',
-          assets: ['index.ts', 'commonjs-module.js']
-        }
+          assets: ['index.ts', 'commonjs-module.js'],
+        },
       ]);
 
       let output = await run(b);
@@ -181,7 +181,7 @@ describe('typescript', function() {
       }
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-fs/index.ts'),
-        {config}
+        {config},
       );
 
       const text = 'export default <div>Hello</div>;';
@@ -189,7 +189,7 @@ describe('typescript', function() {
 
       assert.deepEqual(output, {
         fromTs: text,
-        fromTsx: text
+        fromTsx: text,
       });
     });
   }

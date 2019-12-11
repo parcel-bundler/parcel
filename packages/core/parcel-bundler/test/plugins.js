@@ -7,7 +7,7 @@ const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 describe.skip('plugins', function() {
   it('should load plugins and apply custom asset type', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/plugins/test-plugin/index.js')
+      path.join(__dirname, '/integration/plugins/test-plugin/index.js'),
     );
 
     await assertBundleTree(b, {
@@ -15,9 +15,9 @@ describe.skip('plugins', function() {
       assets: ['index.js', 'test.txt'],
       childBundles: [
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -28,8 +28,8 @@ describe.skip('plugins', function() {
     let b = await bundle(
       path.join(
         __dirname,
-        '/integration/plugins/test-plugin/sub-folder/index.js'
-      )
+        '/integration/plugins/test-plugin/sub-folder/index.js',
+      ),
     );
 
     await assertBundleTree(b, {
@@ -37,9 +37,9 @@ describe.skip('plugins', function() {
       assets: ['index.js', 'test.txt'],
       childBundles: [
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -50,7 +50,7 @@ describe.skip('plugins', function() {
     sinon.stub(logger, 'warn');
 
     let b = await bundle(
-      path.join(__dirname, '/integration/plugins/throwing-plugin/index.js')
+      path.join(__dirname, '/integration/plugins/throwing-plugin/index.js'),
     );
 
     await run(b);
@@ -58,8 +58,8 @@ describe.skip('plugins', function() {
     sinon.assert.calledWith(
       logger.warn,
       sinon.match(
-        'Plugin parcel-plugin-test failed to initialize: Error: Plugin error'
-      )
+        'Plugin parcel-plugin-test failed to initialize: Error: Plugin error',
+      ),
     );
 
     logger.warn.restore();
@@ -71,8 +71,8 @@ describe.skip('plugins', function() {
     let b = await bundle(
       path.join(
         __dirname,
-        '/integration/plugins/throwing-plugin-parser/index.js'
-      )
+        '/integration/plugins/throwing-plugin-parser/index.js',
+      ),
     );
 
     await run(b);
@@ -80,8 +80,8 @@ describe.skip('plugins', function() {
     sinon.assert.calledWith(
       logger.warn,
       sinon.match(
-        /Parser "test.integration.plugins.throwing-plugin-parser.node_modules.parcel-plugin-test.TextAsset\.js" failed to initialize when processing asset "test.integration.plugins.throwing-plugin-parser.test\.txt"\. Threw the following error:\nError: Parser error/
-      )
+        /Parser "test.integration.plugins.throwing-plugin-parser.node_modules.parcel-plugin-test.TextAsset\.js" failed to initialize when processing asset "test.integration.plugins.throwing-plugin-parser.test\.txt"\. Threw the following error:\nError: Parser error/,
+      ),
     );
 
     logger.warn.restore();

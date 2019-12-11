@@ -12,5 +12,5 @@ export default new Packager({
 
     assert.equal(assets.length, 1, 'Raw bundles must only contain one asset');
     return {contents: assets[0].getStream()};
-  }
+  },
 });

@@ -10,11 +10,11 @@ export type AnsiDiagnosticResult = {|
   message: string,
   stack: string,
   codeframe: string,
-  hints: Array<string>
+  hints: Array<string>,
 |};
 
 export default function prettyDiagnostic(
-  diagnostic: Diagnostic
+  diagnostic: Diagnostic,
 ): AnsiDiagnosticResult {
   let {
     origin,
@@ -24,18 +24,19 @@ export default function prettyDiagnostic(
     hints,
     filePath,
     language,
-    skipFormatting
+    skipFormatting,
   } = diagnostic;
 
   let result = {
     message: '',
     stack: '',
     codeframe: '',
-    hints: []
+    hints: [],
   };
 
   result.message =
-    mdAnsi(`**${origin}**: `) + (skipFormatting ? message : mdAnsi(message));
+    mdAnsi(`**${origin ?? 'unknown'}**: `) +
+    (skipFormatting ? message : mdAnsi(message));
   result.stack = stack || '';
 
   if (codeFrame !== undefined) {
@@ -48,16 +49,14 @@ export default function prettyDiagnostic(
       syntaxHighlighting: true,
       language:
         // $FlowFixMe sketchy null checks do not matter here...
-        language || (filePath ? path.extname(filePath).substr(1) : undefined)
+        language || (filePath ? path.extname(filePath).substr(1) : undefined),
     });
 
     result.codeframe +=
       typeof filePath !== 'string'
         ? ''
         : chalk.underline(
-            `${filePath}:${highlights[0].start.line}:${
-              highlights[0].start.column
-            }\n`
+            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
           );
     result.codeframe += formattedCodeFrame;
   }

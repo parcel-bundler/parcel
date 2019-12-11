@@ -7,16 +7,16 @@ module.exports = async function(asset) {
   let htmlNanoConfig = Object.assign(
     {},
     await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'], {
-      packageKey: 'htmlnano'
+      packageKey: 'htmlnano',
     }),
     {
       minifyCss: false,
-      minifyJs: false
-    }
+      minifyJs: false,
+    },
   );
 
   let res = await posthtml([htmlnano(htmlNanoConfig)]).process(asset.ast, {
-    skipParse: true
+    skipParse: true,
   });
 
   asset.ast = res.tree;

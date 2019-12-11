@@ -6,10 +6,10 @@ import defaultConfigContents from '@parcel/config-default';
 const config = {
   ...defaultConfigContents,
   validators: {
-    '*.{js,jsx,ts,tsx}': ['@parcel/validator-eslint']
+    '*.{js,jsx,ts,tsx}': ['@parcel/validator-eslint'],
   },
   reporters: [],
-  filePath: require.resolve('@parcel/config-default')
+  filePath: require.resolve('@parcel/config-default'),
 };
 
 describe('eslint-validator', function() {
@@ -18,7 +18,7 @@ describe('eslint-validator', function() {
     let entry = path.join(__dirname, '/integration/eslint-error/index.js');
     try {
       await bundle(entry, {
-        defaultConfig: config
+        defaultConfig: config,
       });
     } catch (e) {
       assert.equal(e.name, 'BuildError');
@@ -27,7 +27,7 @@ describe('eslint-validator', function() {
       assert.equal(e.diagnostics[0].origin, '@parcel/validator-eslint');
       assert.equal(
         e.diagnostics[0].message,
-        'ESLint found **1** __errors__ and **0** __warnings__.'
+        'ESLint found **1** __errors__ and **0** __warnings__.',
       );
       assert.equal(e.diagnostics[0].filePath, entry);
 

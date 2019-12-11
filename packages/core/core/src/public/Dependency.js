@@ -4,7 +4,7 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  Symbol
+  Symbol,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 import Environment from './Environment';
@@ -13,10 +13,10 @@ import nullthrows from 'nullthrows';
 
 const _dependencyToInternalDependency: WeakMap<
   IDependency,
-  InternalDependency
+  InternalDependency,
 > = new WeakMap();
 export function dependencyToInternalDependency(
-  dependency: IDependency
+  dependency: IDependency,
 ): InternalDependency {
   return nullthrows(_dependencyToInternalDependency.get(dependency));
 }

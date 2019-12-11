@@ -8,7 +8,7 @@ const WEBPACK_ALIAS_RE = /^~[^/]/;
 export default new Transformer({
   async getConfig({asset, resolve}) {
     let config = await asset.getConfig(['.lessrc', '.lessrc.js'], {
-      packageKey: 'less'
+      packageKey: 'less',
     });
 
     if (config === null) {
@@ -19,7 +19,7 @@ export default new Transformer({
     config.plugins = [
       ...(config.plugins || []),
       urlPlugin({asset}),
-      resolvePathPlugin({asset, resolve})
+      resolvePathPlugin({asset, resolve}),
     ];
 
     return config;
@@ -36,7 +36,7 @@ export default new Transformer({
       err.fileName = err.filename;
       err.loc = {
         line: err.line,
-        column: err.column
+        column: err.column,
       };
       throw err;
     }
@@ -45,7 +45,7 @@ export default new Transformer({
     asset.setCode(css);
     asset.meta.hasDependencies = false;
     return [asset];
-  }
+  },
 });
 
 function urlPlugin({asset}) {
@@ -55,15 +55,15 @@ function urlPlugin({asset}) {
         visitUrl(node) {
           node.value.value = asset.addURLDependency(
             node.value.value,
-            node.currentFileInfo.filename
+            node.currentFileInfo.filename,
           );
           return node;
-        }
+        },
       });
 
       visitor.run = visitor.visit;
       pluginManager.addVisitor(visitor);
-    }
+    },
   };
 }
 
@@ -85,7 +85,7 @@ function resolvePathPlugin({asset, resolve}) {
           if (WEBPACK_ALIAS_RE.test(filename)) {
             let correctPath = filename.replace(/^~/, '');
             throw new Error(
-              `The @import path "${filename}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`
+              `The @import path "${filename}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`,
             );
           }
 
@@ -102,6 +102,6 @@ function resolvePathPlugin({asset, resolve}) {
       }
 
       pluginManager.addFileManager(new LessFileManager());
-    }
+    },
   };
 }

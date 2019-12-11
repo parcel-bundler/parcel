@@ -7,7 +7,7 @@ const logLevels = {
   info: 3,
   progress: 3,
   success: 3,
-  verbose: 4
+  verbose: 4,
 };
 
 export default logLevels;

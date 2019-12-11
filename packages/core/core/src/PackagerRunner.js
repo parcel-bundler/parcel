@@ -6,7 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
-  Stats
+  Stats,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
@@ -26,7 +26,7 @@ import url from 'url';
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import BundleGraph, {
-  bundleGraphToInternalBundleGraph
+  bundleGraphToInternalBundleGraph,
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
@@ -34,7 +34,7 @@ import {PARCEL_VERSION} from './constants';
 type Opts = {|
   config: ParcelConfig,
   farm?: WorkerFarm,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
 
 export default class PackagerRunner {
@@ -49,7 +49,7 @@ export default class PackagerRunner {
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
-    options: ParcelOptions
+    options: ParcelOptions,
   |}) => Promise<Stats>;
 
   constructor({config, farm, options}: Opts) {
@@ -62,7 +62,7 @@ export default class PackagerRunner {
       ? farm.createHandle('runPackage')
       : () => {
           throw new Error(
-            'Cannot call PackagerRunner.writeBundleFromWorker() in a worker'
+            'Cannot call PackagerRunner.writeBundleFromWorker() in a worker',
           );
         };
   }
@@ -81,7 +81,7 @@ export default class PackagerRunner {
       promises.push(
         this.writeBundle(bundle, bundleGraph, ref).then(stats => {
           bundle.stats = stats;
-        })
+        }),
       );
     }
 
@@ -92,7 +92,7 @@ export default class PackagerRunner {
   async writeBundle(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    bundleGraphReference: number
+    bundleGraphReference: number,
   ) {
     let start = Date.now();
 
@@ -104,23 +104,23 @@ export default class PackagerRunner {
         cacheKey,
         bundleGraphReference,
         options: this.options,
-        config: this.config
+        config: this.config,
       }));
 
     return {
       time: Date.now() - start,
-      size
+      size,
     };
   }
 
   async writeBundleFromCache({
     bundle,
     bundleGraph,
-    cacheKey
+    cacheKey,
   }: {|
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: string
+    cacheKey: string,
   |}) {
     if (this.options.disableCache) {
       return;
@@ -136,7 +136,7 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       contents,
-      map
+      map,
     });
 
     return {size};
@@ -145,32 +145,32 @@ export default class PackagerRunner {
   async packageAndWriteBundle(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: string
+    cacheKey: string,
   ) {
     let start = Date.now();
 
     let {contents, map} = await this.getBundleResult(
       bundle,
       bundleGraph,
-      cacheKey
+      cacheKey,
     );
     let {size} = await this.writeToDist({
       bundle,
       bundleGraph,
       contents,
-      map
+      map,
     });
 
     return {
       time: Date.now() - start,
-      size
+      size,
     };
   }
 
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: ?string
+    cacheKey: ?string,
   ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
     let result;
     if (!cacheKey && !this.options.disableCache) {
@@ -181,7 +181,7 @@ export default class PackagerRunner {
         // NOTE: Returning a new object for flow
         return {
           contents: cacheResult.contents,
-          map: cacheResult.map
+          map: cacheResult.map,
         };
       }
     }
@@ -191,13 +191,13 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       packaged.contents,
-      packaged.map
+      packaged.map,
     );
 
     let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
     result = {
       contents: res.contents,
-      map
+      map,
     };
 
     if (cacheKey != null) {
@@ -206,7 +206,7 @@ export default class PackagerRunner {
       if (result.contents instanceof Readable) {
         return {
           contents: this.options.cache.getStream(getContentKey(cacheKey)),
-          map: result.map
+          map: result.map,
         };
       }
     }
@@ -216,13 +216,13 @@ export default class PackagerRunner {
 
   async package(
     internalBundle: InternalBundle,
-    bundleGraph: InternalBundleGraph
+    bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
     report({
       type: 'buildProgress',
       phase: 'packaging',
-      bundle
+      bundle,
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
@@ -240,23 +240,23 @@ export default class PackagerRunner {
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: (
           bundle: BundleType,
-          bundleGraph: BundleGraphType
+          bundleGraph: BundleGraphType,
         ) => {
           if (!bundle.isInline) {
             throw new Error(
-              'Bundle is not inline and unable to retrieve contents'
+              'Bundle is not inline and unable to retrieve contents',
             );
           }
 
           return this.getBundleResult(
             bundleToInternalBundle(bundle),
-            bundleGraphToInternalBundleGraph(bundleGraph)
+            bundleGraphToInternalBundleGraph(bundleGraph),
           );
-        }
+        },
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, packager.name)
+        diagnostic: errorToDiagnostic(e, packager.name),
       });
     }
   }
@@ -265,12 +265,12 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     contents: Blob,
-    map?: ?SourceMap
+    map?: ?SourceMap,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
     let optimizers = await this.config.getOptimizers(
       bundle.filePath,
-      internalBundle.pipeline
+      internalBundle.pipeline,
     );
     if (!optimizers.length) {
       return {contents, map};
@@ -279,7 +279,7 @@ export default class PackagerRunner {
     report({
       type: 'buildProgress',
       phase: 'optimizing',
-      bundle
+      bundle,
     });
 
     let optimized = {contents, map};
@@ -290,11 +290,11 @@ export default class PackagerRunner {
           contents: optimized.contents,
           map: optimized.map,
           options: this.pluginOptions,
-          logger: new PluginLogger({origin: optimizer.name})
+          logger: new PluginLogger({origin: optimizer.name}),
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, optimizer.name)
+          diagnostic: errorToDiagnostic(e, optimizer.name),
         });
       }
     }
@@ -307,7 +307,7 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     let sourceRoot: string = path.relative(
       path.dirname(filePath),
-      this.options.projectRoot
+      this.options.projectRoot,
     );
     let inlineSources = false;
 
@@ -346,13 +346,13 @@ export default class PackagerRunner {
       inlineSources,
       inlineMap:
         bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline),
     });
   }
 
   getCacheKey(
     bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph
+    bundleGraph: InternalBundleGraph,
   ): string {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
@@ -362,12 +362,12 @@ export default class PackagerRunner {
       [packager, ...optimizers].map(async pkg => {
         let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
           `${pkg}/package.json`,
-          `${this.config.filePath}/index`
+          `${this.config.filePath}/index`,
         );
 
         let version = nullthrows(resolvedPkg).version;
         return [pkg, version];
-      })
+      }),
     );
 
     // TODO: add third party configs to the cache key
@@ -376,15 +376,15 @@ export default class PackagerRunner {
       parcelVersion: PARCEL_VERSION,
       deps,
       opts: {minify, scopeHoist, sourceMaps},
-      hash: bundleGraph.getHash(bundle)
+      hash: bundleGraph.getHash(bundle),
     });
   }
 
   async readFromCache(
-    cacheKey: string
+    cacheKey: string,
   ): Promise<?{|
     contents: Readable,
-    map: ?Readable
+    map: ?Readable,
   |}> {
     let contentKey = getContentKey(cacheKey);
     let mapKey = getMapKey(cacheKey);
@@ -398,7 +398,7 @@ export default class PackagerRunner {
 
     return {
       contents: this.options.cache.getStream(contentKey),
-      map: mapExists ? this.options.cache.getStream(mapKey) : null
+      map: mapExists ? this.options.cache.getStream(mapKey) : null,
     };
   }
 
@@ -406,12 +406,12 @@ export default class PackagerRunner {
     bundle,
     bundleGraph,
     contents,
-    map
+    map,
   }: {|
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     contents: Blob,
-    map: ?(Readable | string)
+    map: ?(Readable | string),
   |}) {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
@@ -424,9 +424,9 @@ export default class PackagerRunner {
     let writeOptions = publicBundle.env.isBrowser()
       ? undefined
       : {
-          mode: (await inputFS.stat(
-            nullthrows(publicBundle.getMainEntry()).filePath
-          )).mode
+          mode: (
+            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
+          ).mode,
         };
 
     let size;
@@ -464,7 +464,7 @@ function writeFileStream(
   fs: FileSystem,
   filePath: FilePath,
   stream: Readable,
-  options: ?FileOptions
+  options: ?FileOptions,
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     let fsStream = fs.createWriteStream(filePath, options);

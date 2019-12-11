@@ -53,7 +53,7 @@ module.exports.postlude = function(module) {
       // to a function, we want to invalidate the boundary.
       var didInvalidate = shouldInvalidateReactRefreshBoundary(
         prevExports,
-        nextExports
+        nextExports,
       );
       if (isNoLongerABoundary || didInvalidate) {
         // We'll be conservative. The only case in which we won't do a full

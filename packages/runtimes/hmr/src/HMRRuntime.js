@@ -7,7 +7,7 @@ import path from 'path';
 
 const HMR_RUNTIME = fs.readFileSync(
   path.join(__dirname, './loaders/hmr-runtime.js'),
-  'utf8'
+  'utf8',
 );
 
 export default new Runtime({
@@ -18,7 +18,7 @@ export default new Runtime({
 
     if (typeof options.hot !== 'object') {
       throw new Error(
-        'options.hot should be an object, otherwise the HMR Runtime has no clue what port to use'
+        'options.hot should be an object, otherwise the HMR Runtime has no clue what port to use',
       );
     }
 
@@ -27,7 +27,7 @@ export default new Runtime({
       code:
         `var __PARCEL_HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
         HMR_RUNTIME,
-      isEntry: true
+      isEntry: true,
     };
-  }
+  },
 });

@@ -10,7 +10,7 @@ describe('loadSourceMap', () => {
     // load (due to false-positive match) sourcemap before fix was introduced
     let code = fs.readFileSync(
       path.join(__dirname, './input/sourcemap/no-sourcemap.js'),
-      'utf-8'
+      'utf-8',
     );
 
     assert(!matchSourceMappingURL(code));
@@ -19,7 +19,7 @@ describe('loadSourceMap', () => {
   it('should match referenced sourceMappingURL when correctly inserted at end of the bundle', () => {
     let code = fs.readFileSync(
       path.join(__dirname, './input/sourcemap/referenced.js'),
-      'utf-8'
+      'utf-8',
     );
 
     assert(!!matchSourceMappingURL(code));
@@ -29,7 +29,7 @@ describe('loadSourceMap', () => {
     // inline source map taken from https://github.com/thlorenz/inline-source-map
     let code = fs.readFileSync(
       path.join(__dirname, './input/sourcemap/inline.js'),
-      'utf-8'
+      'utf-8',
     );
 
     assert(!!matchSourceMappingURL(code));

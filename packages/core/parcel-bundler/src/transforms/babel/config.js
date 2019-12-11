@@ -15,7 +15,7 @@ const ENV_PRESETS = {
   latest: true,
   env: true,
   '@babel/preset-env': true,
-  '@babel/env': true
+  '@babel/env': true,
 };
 
 async function getBabelConfig(asset) {
@@ -60,12 +60,12 @@ async function getBabelConfig(asset) {
     (hasPlugin(babelrc.config.presets, [
       'react',
       '@babel/react',
-      '@babel/preset-react'
+      '@babel/preset-react',
     ]) ||
       hasPlugin(babelrc.config.plugins, [
         'transform-react-jsx',
         '@babel/transform-react-jsx',
-        '@babel/plugin-transform-react-jsx'
+        '@babel/plugin-transform-react-jsx',
       ]));
 
   if (!hasReact) {
@@ -78,7 +78,7 @@ async function getBabelConfig(asset) {
     hasPlugin(babelrc.config.plugins, [
       'transform-flow-strip-types',
       '@babel/transform-flow-strip-types',
-      '@babel/plugin-transform-flow-strip-types'
+      '@babel/plugin-transform-flow-strip-types',
     ]);
 
   if (!hasFlow) {
@@ -102,10 +102,10 @@ function mergeConfigs(result, config) {
   let merged = result[config.babelVersion];
   if (merged) {
     merged.config.presets = (merged.config.presets || []).concat(
-      config.config.presets || []
+      config.config.presets || [],
     );
     merged.config.plugins = (merged.config.plugins || []).concat(
-      config.config.plugins || []
+      config.config.plugins || [],
     );
   } else {
     result[config.babelVersion] = config;

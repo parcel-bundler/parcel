@@ -5,7 +5,7 @@ import type {
   LogEvent,
   DiagnosticLogEvent,
   TextLogEvent,
-  ProgressLogEvent
+  ProgressLogEvent,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {prettyDiagnostic} from '@parcel/utils';
@@ -36,7 +36,7 @@ type ProgressLogProps = {
 };
 
 type ServerInfoProps = {|
-  options: ServerOptions
+  options: ServerOptions,
 |};
 
 export function Log({event}: LogProps) {
@@ -60,8 +60,9 @@ export function Log({event}: LogProps) {
 function Hints({hints}: {hints: Array<string>, ...}) {
   return (
     <div>
+      {' ' /* spacer */}
       {hints.map((hint, i) => {
-        return <div key={i}>{`- ${hint}`}</div>;
+        return <Color blue bold key={i}>{`${Emoji.hint}  ${hint}`}</Color>;
       })}
     </div>
   );
@@ -70,7 +71,7 @@ function Hints({hints}: {hints: Array<string>, ...}) {
 function DiagnosticContainer({
   diagnostics,
   color,
-  emoji
+  emoji,
 }: {
   diagnostics: Array<Diagnostic>,
   color: string,
@@ -84,8 +85,9 @@ function DiagnosticContainer({
 
         return (
           <div key={i}>
+            {i > 0 ? ' ' : '' /* spacer */}
             <Color keyword={color}>
-              <Color bold>{`${emoji}`}</Color> {message}
+              <Color bold>{`${emoji} `}</Color> {message}
             </Color>
             {!codeframe && stack && (
               <div>

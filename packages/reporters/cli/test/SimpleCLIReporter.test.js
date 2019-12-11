@@ -25,7 +25,7 @@ const EMPTY_OPTIONS = {
   sourceMaps: false,
   inputFS,
   outputFS,
-  packageManager: new NodePackageManager(inputFS)
+  packageManager: new NodePackageManager(inputFS),
 };
 
 describe('SimpleCLIReporter', () => {
@@ -62,7 +62,7 @@ describe('SimpleCLIReporter', () => {
   it('writes log, info, success, and verbose log messages to stdout', () => {
     let options = {
       ...EMPTY_OPTIONS,
-      logLevel: 'verbose'
+      logLevel: 'verbose',
     };
 
     _report(
@@ -72,11 +72,11 @@ describe('SimpleCLIReporter', () => {
         diagnostics: [
           {
             origin: 'test',
-            message: 'info'
-          }
-        ]
+            message: 'info',
+          },
+        ],
       },
-      options
+      options,
     );
     _report({type: 'log', level: 'success', message: 'success'}, options);
     _report(
@@ -86,11 +86,11 @@ describe('SimpleCLIReporter', () => {
         diagnostics: [
           {
             origin: 'test',
-            message: 'verbose'
-          }
-        ]
+            message: 'verbose',
+          },
+        ],
       },
-      options
+      options,
     );
 
     assert.equal(stdoutOutput, 'test: info\nsuccess\ntest: verbose\n');
@@ -104,11 +104,11 @@ describe('SimpleCLIReporter', () => {
         diagnostics: [
           {
             origin: 'test',
-            message: 'error'
-          }
-        ]
+            message: 'error',
+          },
+        ],
       },
-      EMPTY_OPTIONS
+      EMPTY_OPTIONS,
     );
     _report(
       {
@@ -117,11 +117,11 @@ describe('SimpleCLIReporter', () => {
         diagnostics: [
           {
             origin: 'test',
-            message: 'warn'
-          }
-        ]
+            message: 'warn',
+          },
+        ],
       },
-      EMPTY_OPTIONS
+      EMPTY_OPTIONS,
     );
 
     assert.equal(stdoutOutput, '');
@@ -136,11 +136,11 @@ describe('SimpleCLIReporter', () => {
         diagnostics: [
           {
             origin: 'test',
-            message: 'error'
-          }
-        ]
+            message: 'error',
+          },
+        ],
       },
-      EMPTY_OPTIONS
+      EMPTY_OPTIONS,
     );
     _report(
       {
@@ -149,11 +149,11 @@ describe('SimpleCLIReporter', () => {
         diagnostics: [
           {
             origin: 'test',
-            message: 'warn'
-          }
-        ]
+            message: 'warn',
+          },
+        ],
       },
-      EMPTY_OPTIONS
+      EMPTY_OPTIONS,
     );
 
     assert.equal(stdoutOutput, '');

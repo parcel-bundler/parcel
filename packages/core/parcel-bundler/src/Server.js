@@ -13,7 +13,7 @@ const url = require('url');
 const ansiToHtml = new AnsiToHtml({newline: true});
 
 serveStatic.mime.define({
-  'application/wasm': ['wasm']
+  'application/wasm': ['wasm'],
 });
 
 function setHeaders(res) {
@@ -24,11 +24,11 @@ function enableCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
-    'GET, HEAD, PUT, PATCH, POST, DELETE'
+    'GET, HEAD, PUT, PATCH, POST, DELETE',
   );
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Content-Type'
+    'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
 }
 
@@ -37,7 +37,7 @@ function middleware(bundler) {
     index: false,
     redirect: false,
     setHeaders: setHeaders,
-    dotfiles: 'allow'
+    dotfiles: 'allow',
   });
 
   return function(req, res, next) {
@@ -90,7 +90,7 @@ function middleware(bundler) {
         errorMesssge += `<p><b>${message}</b></p>`;
         if (stack) {
           errorMesssge += `<div style="background: black; padding: 1rem;">${ansiToHtml.toHtml(
-            stack
+            stack,
           )}</div>`;
         }
       }
@@ -98,8 +98,8 @@ function middleware(bundler) {
         [
           `<!doctype html>`,
           `<head><title>🚨 Build Error</title></head>`,
-          `<body style="font-family: monospace; white-space: pre;">${errorMesssge}</body>`
-        ].join('')
+          `<body style="font-family: monospace; white-space: pre;">${errorMesssge}</body>`,
+        ].join(''),
       );
     }
 
@@ -118,7 +118,7 @@ function middleware(bundler) {
 
       logger.verbose({
         origin: '',
-        message: `Request: ${fullUrl}`
+        message: `Request: ${fullUrl}`,
       });
     }
   };
@@ -149,7 +149,7 @@ async function serve(bundler, port, host, useHTTPS = false) {
       let addon =
         server.address().port !== port
           ? `- ${logger.chalk.yellow(
-              `configured port ${port} could not be used.`
+              `configured port ${port} could not be used.`,
             )}`
           : '';
 
@@ -157,8 +157,8 @@ async function serve(bundler, port, host, useHTTPS = false) {
         `Server running at ${logger.chalk.cyan(
           `${useHTTPS ? 'https' : 'http'}://${host || 'localhost'}:${
             server.address().port
-          }`
-        )} ${addon}`
+          }`,
+        )} ${addon}`,
       );
 
       resolve(server);

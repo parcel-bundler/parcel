@@ -3,6 +3,7 @@
 import type {FilePath} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
+import {createDependencyLocation} from '@parcel/utils';
 import postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
@@ -41,8 +42,8 @@ export default new Transformer({
       version: '7.0.0',
       isDirty: false,
       program: postcss.parse(code, {
-        from: asset.filePath
-      })
+        from: asset.filePath,
+      }),
     };
   },
 
@@ -88,10 +89,11 @@ export default new Transformer({
       media = valueParser.stringify(media).trim();
       let dep = {
         moduleSpecifier,
-        loc: rule.source.start,
+        // Offset by 8 as it does not include `@import `
+        loc: createDependencyLocation(rule.source.start, moduleSpecifier, 0, 8),
         meta: {
-          media
-        }
+          media,
+        },
       };
       asset.addDependency(dep);
       rule.remove();
@@ -109,10 +111,14 @@ export default new Transformer({
           if (
             node.type === 'function' &&
             node.value === 'url' &&
-            node.nodes.length
+            node.nodes.length > 0 &&
+            !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
-              loc: decl.source.start
+              loc: createDependencyLocation(
+                decl.source.start,
+                node.nodes[0].value,
+              ),
             });
             isDirty = true;
           }
@@ -138,7 +144,7 @@ export default new Transformer({
     }
 
     return {
-      code
+      code,
     };
-  }
+  },
 });

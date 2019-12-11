@@ -35,7 +35,7 @@ type SerializedSourceMap = {
 
 function generateInlineMap(map: string): string {
   return `data:application/json;charset=utf-8;base64,${Buffer.from(
-    map
+    map,
   ).toString('base64')}`;
 }
 
@@ -56,14 +56,14 @@ export default class SourceMap {
   serialize(): SerializedSourceMap {
     return {
       mappings: this.mappings,
-      sources: this.sources
+      sources: this.sources,
     };
   }
 
   // Static Helper functions
   static generateEmptyMap(
     sourceName: string,
-    sourceContent: string
+    sourceContent: string,
   ): SourceMap {
     let map = new SourceMap();
     map.setSourceContentFor(sourceName, sourceContent);
@@ -74,12 +74,12 @@ export default class SourceMap {
         source: sourceName,
         original: {
           line: line,
-          column: 0
+          column: 0,
         },
         generated: {
           line: line,
-          column: 0
-        }
+          column: 0,
+        },
       });
     }
     map.linecount = lineCount;
@@ -110,7 +110,7 @@ export default class SourceMap {
   async addRawMap(
     map: RawMapInput,
     lineOffset: number = 0,
-    columnOffset: number = 0
+    columnOffset: number = 0,
   ): Promise<SourceMap> {
     let consumer = await this.getConsumer(map);
 
@@ -122,7 +122,7 @@ export default class SourceMap {
         if (!this.sourceContentFor(mapping.source)) {
           this.setSourceContentFor(
             mapping.source,
-            consumer.sourceContentFor(mapping.source, true)
+            consumer.sourceContentFor(mapping.source, true),
           );
         }
       }
@@ -136,7 +136,7 @@ export default class SourceMap {
   addMap(
     map: SourceMap,
     lineOffset: number = 0,
-    columnOffset: number = 0
+    columnOffset: number = 0,
   ): SourceMap {
     if (lineOffset === 0 && columnOffset === 0) {
       this.mappings.push(...map.mappings);
@@ -158,7 +158,7 @@ export default class SourceMap {
   addMapping(
     mapping: Mapping,
     lineOffset: number = 0,
-    columnOffset: number = 0
+    columnOffset: number = 0,
   ) {
     if (mapping.original) {
       this.mappings.push({
@@ -167,15 +167,15 @@ export default class SourceMap {
         original: mapping.original,
         generated: {
           line: mapping.generated.line + lineOffset,
-          column: mapping.generated.column + columnOffset
-        }
+          column: mapping.generated.column + columnOffset,
+        },
       });
     } else {
       this.mappings.push({
         generated: {
           line: mapping.generated.line + lineOffset,
-          column: mapping.generated.column + columnOffset
-        }
+          column: mapping.generated.column + columnOffset,
+        },
       });
     }
   }
@@ -183,7 +183,7 @@ export default class SourceMap {
   addConsumerMapping(
     mapping: MappingItem,
     lineOffset: number = 0,
-    columnOffset: number = 0
+    columnOffset: number = 0,
   ) {
     // $FlowFixMe a line value of 0 is invalid so this should be fine...
     if (mapping.originalLine) {
@@ -192,19 +192,19 @@ export default class SourceMap {
         name: mapping.name,
         original: {
           line: mapping.originalLine,
-          column: mapping.originalColumn
+          column: mapping.originalColumn,
         },
         generated: {
           line: mapping.generatedLine + lineOffset,
-          column: mapping.generatedColumn + columnOffset
-        }
+          column: mapping.generatedColumn + columnOffset,
+        },
       });
     } else {
       this.mappings.push({
         generated: {
           line: mapping.generatedLine + lineOffset,
-          column: mapping.generatedColumn + columnOffset
-        }
+          column: mapping.generatedColumn + columnOffset,
+        },
       });
     }
   }
@@ -228,7 +228,7 @@ export default class SourceMap {
       if (mapping.original != null) {
         originalMappingIndex = this.findClosest(
           mapping.original.line,
-          mapping.original.column
+          mapping.original.column,
         );
       }
 
@@ -242,11 +242,11 @@ export default class SourceMap {
             generated: mapping.generated,
             original: originalMapping.original,
             source: originalMapping.source,
-            name: originalMapping.name
+            name: originalMapping.name,
           };
         } else {
           this.mappings[originalMappingIndex] = {
-            generated: mapping.generated
+            generated: mapping.generated,
           };
         }
       }
@@ -254,7 +254,7 @@ export default class SourceMap {
       if (mapping.source != null && !this.sourceContentFor(mapping.source)) {
         this.setSourceContentFor(
           mapping.source,
-          extension.sourceContentFor(mapping.source)
+          extension.sourceContentFor(mapping.source),
         );
       }
     });
@@ -315,11 +315,11 @@ export default class SourceMap {
   }
 
   originalPositionFor(
-    generatedPosition: Position
+    generatedPosition: Position,
   ): OriginalPosition | NullOriginalPosition {
     let index = this.findClosest(
       generatedPosition.line,
-      generatedPosition.column
+      generatedPosition.column,
     );
 
     if (index === null) {
@@ -327,7 +327,7 @@ export default class SourceMap {
         source: null,
         name: null,
         line: null,
-        column: null
+        column: null,
       };
     }
 
@@ -343,7 +343,7 @@ export default class SourceMap {
         source: mapping.source,
         name: typeof mapping.name === 'string' ? mapping.name : null,
         line: mapping.original.line,
-        column: mapping.original.column
+        column: mapping.original.column,
       };
 
       return result;
@@ -352,7 +352,7 @@ export default class SourceMap {
         source: null,
         name: null,
         line: null,
-        column: null
+        column: null,
       };
     }
   }
@@ -370,8 +370,8 @@ export default class SourceMap {
       ...mapping,
       generated: {
         line: mapping.generated.line + lineOffset,
-        column: mapping.generated.column + columnOffset
-      }
+        column: mapping.generated.column + columnOffset,
+      },
     }));
   }
 
@@ -381,14 +381,14 @@ export default class SourceMap {
     rootDir,
     inlineSources,
     fs,
-    inlineMap
+    inlineMap,
   }: {|
     file?: string, // Filename of the bundle/file sourcemap applies to
     sourceRoot?: string, // The root dir of sourcemap sourceContent, all sourceContent of mappings should exist in here...
     rootDir?: string, // Parcel's rootDir where all mappings are relative to
     inlineSources?: boolean, // true = inline everything, false = inline nothing
     fs?: FileSystem,
-    inlineMap?: boolean
+    inlineMap?: boolean,
   |}): Promise<string> {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
@@ -405,7 +405,7 @@ export default class SourceMap {
           try {
             let content = await nullthrows(fs).readFile(
               path.join(rootDir || '', sourceName),
-              'utf8'
+              'utf8',
             );
 
             if (content) {

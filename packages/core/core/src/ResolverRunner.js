@@ -1,6 +1,7 @@
 // @flow
 
 import type {AssetRequestDesc, Dependency, ParcelOptions} from './types';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
@@ -14,7 +15,7 @@ import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
 
 export default class ResolverRunner {
@@ -28,12 +29,34 @@ export default class ResolverRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
+  async getThrowableDiagnostic(dependency: Dependency, message: string) {
+    let diagnostic: Diagnostic = {
+      message,
+      origin: '@parcel/resolver-default',
+    };
+
+    if (dependency.loc && dependency.sourcePath) {
+      diagnostic.filePath = dependency.sourcePath;
+      diagnostic.codeFrame = {
+        code: await this.options.inputFS.readFile(
+          dependency.sourcePath,
+          'utf8',
+        ),
+        codeHighlights: dependency.loc
+          ? [{start: dependency.loc.start, end: dependency.loc.end}]
+          : [],
+      };
+    }
+
+    return new ThrowableDiagnostic({diagnostic});
+  }
+
   async resolve(dependency: Dependency): Promise<?AssetRequestDesc> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
       phase: 'resolving',
-      dependency: dep
+      dependency: dep,
     });
 
     let resolvers = await this.config.getResolvers();
@@ -75,7 +98,7 @@ export default class ResolverRunner {
           filePath,
           dependency: dep,
           options: this.pluginOptions,
-          logger: new PluginLogger({origin: resolver.name})
+          logger: new PluginLogger({origin: resolver.name}),
         });
 
         if (result && result.isExcluded) {
@@ -88,12 +111,12 @@ export default class ResolverRunner {
             sideEffects: result.sideEffects,
             code: result.code,
             env: dependency.env,
-            pipeline: pipeline ?? dependency.pipeline
+            pipeline: pipeline ?? dependency.pipeline,
           };
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, resolver.name)
+          diagnostic: errorToDiagnostic(e, resolver.name),
         });
       }
     }
@@ -105,11 +128,14 @@ export default class ResolverRunner {
     let dir = dependency.sourcePath
       ? path.dirname(dependency.sourcePath)
       : '<none>';
-    let err = new Error(
-      `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`
+
+    let err: any = await this.getThrowableDiagnostic(
+      dependency,
+      `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`,
     );
 
-    (err: any).code = 'MODULE_NOT_FOUND';
+    err.code = 'MODULE_NOT_FOUND';
+
     throw err;
   }
 }

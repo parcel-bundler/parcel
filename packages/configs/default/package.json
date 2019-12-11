@@ -16,6 +16,7 @@
   "dependencies": {
     "@parcel/bundler-default": "^2.0.0-alpha.3.1",
     "@parcel/namer-default": "^2.0.0-alpha.3.1",
+    "@parcel/optimizer-blob-url": "^2.0.0-alpha.3.1",
     "@parcel/optimizer-cssnano": "^2.0.0-alpha.3.1",
     "@parcel/optimizer-data-url": "^2.0.0-alpha.3.1",
     "@parcel/optimizer-htmlnano": "^2.0.0-alpha.3.1",
@@ -37,6 +38,7 @@
     "@parcel/transformer-css": "^2.0.0-alpha.3.1",
     "@parcel/transformer-graphql": "^2.0.0-alpha.3.1",
     "@parcel/transformer-html": "^2.0.0-alpha.3.1",
+    "@parcel/transformer-inline": "^2.0.0-alpha.3.1",
     "@parcel/transformer-inline-string": "^2.0.0-alpha.3.1",
     "@parcel/transformer-js": "^2.0.0-alpha.3.1",
     "@parcel/transformer-json": "^2.0.0-alpha.3.1",

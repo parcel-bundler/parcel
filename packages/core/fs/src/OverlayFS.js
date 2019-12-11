@@ -4,7 +4,7 @@ import type {FilePath} from '@parcel/types';
 import type {
   Event,
   Options as WatcherOptions,
-  AsyncSubscription
+  AsyncSubscription,
 } from '@parcel/watcher';
 
 import {registerSerializableClass} from '@parcel/utils';
@@ -62,7 +62,7 @@ export class OverlayFS implements FileSystem {
     return {
       $$raw: false,
       writable: this.writable,
-      readable: this.readable
+      readable: this.readable,
     };
   }
 
@@ -72,12 +72,12 @@ export class OverlayFS implements FileSystem {
     if (await this.writable.exists(source)) {
       await this.writable.writeFile(
         destination,
-        await this.writable.readFile(source)
+        await this.writable.readFile(source),
       );
     } else {
       await this.writable.writeFile(
         destination,
-        await this.readable.readFile(source)
+        await this.readable.readFile(source),
       );
     }
   }
@@ -144,7 +144,7 @@ export class OverlayFS implements FileSystem {
   async watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<AsyncSubscription> {
     let writableSubscription = await this.writable.watch(dir, fn, opts);
     let readableSubscription = await this.readable.watch(dir, fn, opts);
@@ -152,24 +152,24 @@ export class OverlayFS implements FileSystem {
       unsubscribe: async () => {
         await writableSubscription.unsubscribe();
         await readableSubscription.unsubscribe();
-      }
+      },
     };
   }
 
   async getEventsSince(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<Array<Event>> {
     let writableEvents = await this.writable.getEventsSince(
       dir,
       snapshot,
-      opts
+      opts,
     );
     let readableEvents = await this.readable.getEventsSince(
       dir,
       snapshot,
-      opts
+      opts,
     );
     return [...writableEvents, ...readableEvents];
   }
@@ -177,7 +177,7 @@ export class OverlayFS implements FileSystem {
   async writeSnapshot(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<void> {
     await this.writable.writeSnapshot(dir, snapshot, opts);
   }

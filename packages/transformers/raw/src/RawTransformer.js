@@ -6,5 +6,5 @@ export default new Transformer({
   transform({asset}) {
     asset.isIsolated = true;
     return [asset];
-  }
+  },
 });

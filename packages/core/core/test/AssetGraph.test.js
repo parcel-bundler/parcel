@@ -9,8 +9,8 @@ import {createEnvironment} from '../src/Environment';
 const DEFAULT_ENV = createEnvironment({
   context: 'browser',
   engines: {
-    browsers: ['> 1%']
-  }
+    browsers: ['> 1%'],
+  },
 });
 
 const TARGETS = [
@@ -19,8 +19,8 @@ const TARGETS = [
     distDir: 'dist',
     distEntry: 'out.js',
     env: DEFAULT_ENV,
-    publicUrl: null
-  }
+    publicUrl: null,
+  },
 ];
 
 const stats = {size: 0, time: 0};
@@ -29,7 +29,7 @@ describe('AssetGraph', () => {
   it('initialization should create one root node with edges to entry_specifier nodes for each entry', () => {
     let graph = new AssetGraph();
     graph.initialize({
-      entries: ['/path/to/index1', '/path/to/index2']
+      entries: ['/path/to/index1', '/path/to/index2'],
     });
 
     assert(graph.nodes.has('@@root'));
@@ -40,7 +40,7 @@ describe('AssetGraph', () => {
   it('resolveEntry should connect an entry_specifier node to entry_file nodes', () => {
     let graph = new AssetGraph();
     graph.initialize({
-      entries: ['/path/to/index1', '/path/to/index2']
+      entries: ['/path/to/index1', '/path/to/index2'],
     });
 
     graph.resolveEntry('/path/to/index1', ['/path/to/index1/src/main.js']);
@@ -49,15 +49,15 @@ describe('AssetGraph', () => {
     assert(
       graph.hasEdge(
         'entry_specifier:/path/to/index1',
-        'entry_file:/path/to/index1/src/main.js'
-      )
+        'entry_file:/path/to/index1/src/main.js',
+      ),
     );
   });
 
   it('resolveTargets should connect an entry_file node to dependencies for each target', () => {
     let graph = new AssetGraph();
     graph.initialize({
-      entries: ['/path/to/index1', '/path/to/index2']
+      entries: ['/path/to/index1', '/path/to/index2'],
     });
 
     graph.resolveEntry('/path/to/index1', ['/path/to/index1/src/main.js']);
@@ -72,9 +72,9 @@ describe('AssetGraph', () => {
           moduleSpecifier: '/path/to/index1/src/main.js',
           pipeline: 'test',
           target: TARGETS[0],
-          env: DEFAULT_ENV
-        }).id
-      )
+          env: DEFAULT_ENV,
+        }).id,
+      ),
     );
     assert(
       graph.nodes.has(
@@ -82,30 +82,30 @@ describe('AssetGraph', () => {
           moduleSpecifier: '/path/to/index2/src/main.js',
           pipeline: 'test',
           target: TARGETS[0],
-          env: DEFAULT_ENV
-        }).id
-      )
+          env: DEFAULT_ENV,
+        }).id,
+      ),
     );
     assert.deepEqual(graph.getAllEdges(), [
       {
         from: '@@root',
         to: 'entry_specifier:/path/to/index1',
-        type: null
+        type: null,
       },
       {
         from: '@@root',
         to: 'entry_specifier:/path/to/index2',
-        type: null
+        type: null,
       },
       {
         from: 'entry_specifier:/path/to/index1',
         to: 'entry_file:/path/to/index1/src/main.js',
-        type: null
+        type: null,
       },
       {
         from: 'entry_specifier:/path/to/index2',
         to: 'entry_file:/path/to/index2/src/main.js',
-        type: null
+        type: null,
       },
       {
         from: 'entry_file:/path/to/index1/src/main.js',
@@ -113,9 +113,9 @@ describe('AssetGraph', () => {
           moduleSpecifier: '/path/to/index1/src/main.js',
           pipeline: 'test',
           target: TARGETS[0],
-          env: DEFAULT_ENV
+          env: DEFAULT_ENV,
         }).id,
-        type: null
+        type: null,
       },
       {
         from: 'entry_file:/path/to/index2/src/main.js',
@@ -123,10 +123,10 @@ describe('AssetGraph', () => {
           moduleSpecifier: '/path/to/index2/src/main.js',
           pipeline: 'test',
           target: TARGETS[0],
-          env: DEFAULT_ENV
+          env: DEFAULT_ENV,
         }).id,
-        type: null
-      }
+        type: null,
+      },
     ]);
   });
 
@@ -134,7 +134,7 @@ describe('AssetGraph', () => {
     let graph = new AssetGraph();
     graph.initialize({
       targets: TARGETS,
-      entries: ['/path/to/index']
+      entries: ['/path/to/index'],
     });
 
     graph.resolveEntry('/path/to/index', ['/path/to/index/src/main.js']);
@@ -144,7 +144,7 @@ describe('AssetGraph', () => {
       moduleSpecifier: '/path/to/index/src/main.js',
       pipeline: 'test',
       target: TARGETS[0],
-      env: DEFAULT_ENV
+      env: DEFAULT_ENV,
     });
     let req = {filePath: '/index.js', env: DEFAULT_ENV};
 
@@ -168,7 +168,7 @@ describe('AssetGraph', () => {
     let graph = new AssetGraph();
     graph.initialize({
       targets: TARGETS,
-      entries: ['/path/to/index']
+      entries: ['/path/to/index'],
     });
 
     graph.resolveEntry('/path/to/index', ['/path/to/index/src/main.js']);
@@ -179,7 +179,7 @@ describe('AssetGraph', () => {
       pipeline: 'test',
       target: TARGETS[0],
       env: DEFAULT_ENV,
-      sourcePath: ''
+      sourcePath: '',
     });
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
@@ -199,12 +199,12 @@ describe('AssetGraph', () => {
             createDependency({
               moduleSpecifier: './utils',
               env: DEFAULT_ENV,
-              sourcePath
-            })
-          ]
+              sourcePath,
+            }),
+          ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map()
+        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -219,12 +219,12 @@ describe('AssetGraph', () => {
             createDependency({
               moduleSpecifier: './styles',
               env: DEFAULT_ENV,
-              sourcePath
-            })
-          ]
+              sourcePath,
+            }),
+          ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map()
+        includedFiles: new Map(),
       }),
       createAsset({
         id: '3',
@@ -235,8 +235,8 @@ describe('AssetGraph', () => {
         dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        includedFiles: new Map()
-      })
+        includedFiles: new Map(),
+      }),
     ];
 
     graph.resolveAssetGroup(req, assets);
@@ -265,12 +265,12 @@ describe('AssetGraph', () => {
             createDependency({
               moduleSpecifier: './utils',
               env: DEFAULT_ENV,
-              sourcePath
-            })
-          ]
+              sourcePath,
+            }),
+          ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map()
+        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -281,8 +281,8 @@ describe('AssetGraph', () => {
         stats,
         dependencies: new Map(),
         env: DEFAULT_ENV,
-        includedFiles: new Map()
-      })
+        includedFiles: new Map(),
+      }),
     ];
 
     graph.resolveAssetGroup(req, assets2);
@@ -302,7 +302,7 @@ describe('AssetGraph', () => {
     let graph = new AssetGraph();
     graph.initialize({
       targets: TARGETS,
-      entries: ['./index']
+      entries: ['./index'],
     });
 
     graph.resolveEntry('./index', ['/path/to/index/src/main.js']);
@@ -312,7 +312,7 @@ describe('AssetGraph', () => {
       moduleSpecifier: '/path/to/index/src/main.js',
       pipeline: 'test',
       env: DEFAULT_ENV,
-      target: TARGETS[0]
+      target: TARGETS[0],
     });
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
@@ -332,20 +332,20 @@ describe('AssetGraph', () => {
             createDependency({
               moduleSpecifier: './utils',
               env: DEFAULT_ENV,
-              sourcePath
-            })
-          ]
+              sourcePath,
+            }),
+          ],
         ]),
         env: DEFAULT_ENV,
         includedFiles: new Map([
           [
             '/foo/bar',
             {
-              filePath: '/foo/bar'
-            }
-          ]
-        ])
-      })
+              filePath: '/foo/bar',
+            },
+          ],
+        ]),
+      }),
     ];
 
     graph.resolveAssetGroup(req, assets);

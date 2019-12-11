@@ -7,7 +7,7 @@ import type {
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
-  ModuleSpecifier
+  ModuleSpecifier,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
@@ -59,12 +59,12 @@ export default class Parcel {
   #watchEvents = new ValueEmitter<
     | {|
         +error: Error,
-        +buildEvent?: void
+        +buildEvent?: void,
       |}
     | {|
         +buildEvent: BuildEvent,
-        +error?: void
-      |}
+        +error?: void,
+      |},
   >();
   #watcherSubscription; // AsyncSubscription
   #watcherCount = 0; // number
@@ -79,20 +79,20 @@ export default class Parcel {
     }
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
-      this.#initialOptions
+      this.#initialOptions,
     );
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
 
     let {config} = await loadParcelConfig(
       path.join(resolvedOptions.inputFS.cwd(), 'index'),
-      resolvedOptions
+      resolvedOptions,
     );
     this.#config = config;
     this.#farm =
       this.#initialOptions.workerFarm ??
       createWorkerFarm({
-        patchConsole: resolvedOptions.patchConsole
+        patchConsole: resolvedOptions.patchConsole,
       });
 
     this.#assetGraphBuilder = new AssetGraphBuilder();
@@ -104,32 +104,32 @@ export default class Parcel {
         options: resolvedOptions,
         config,
         entries: resolvedOptions.entries,
-        workerFarm: this.#farm
+        workerFarm: this.#farm,
       }),
       this.#runtimesAssetGraphBuilder.init({
         name: 'RuntimesAssetGraph',
         options: resolvedOptions,
         config,
-        workerFarm: this.#farm
-      })
+        workerFarm: this.#farm,
+      }),
     ]);
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
       runtimesBuilder: this.#runtimesAssetGraphBuilder,
       config,
-      workerFarm: this.#farm
+      workerFarm: this.#farm,
     });
 
     this.#reporterRunner = new ReporterRunner({
       config,
-      options: resolvedOptions
+      options: resolvedOptions,
     });
 
     this.#packagerRunner = new PackagerRunner({
       config,
       options: resolvedOptions,
-      farm: this.#farm
+      farm: this.#farm,
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');
@@ -145,7 +145,7 @@ export default class Parcel {
     let result = await this.build({startTime});
     await Promise.all([
       this.#assetGraphBuilder.writeToCache(),
-      this.#runtimesAssetGraphBuilder.writeToCache()
+      this.#runtimesAssetGraphBuilder.writeToCache(),
     ]);
 
     if (!this.#initialOptions.workerFarm) {
@@ -166,8 +166,8 @@ export default class Parcel {
     try {
       this.#watchEvents.emit({
         buildEvent: await this.build({
-          signal: this.#watchAbortController.signal
-        })
+          signal: this.#watchAbortController.signal,
+        }),
       });
     } catch (err) {
       // Ignore BuildAbortErrors and only emit critical errors.
@@ -178,12 +178,12 @@ export default class Parcel {
   }
 
   async watch(
-    cb?: (err: ?Error, buildEvent?: BuildEvent) => mixed
+    cb?: (err: ?Error, buildEvent?: BuildEvent) => mixed,
   ): Promise<AsyncSubscription> {
     let watchEventsDisposable;
     if (cb) {
       watchEventsDisposable = this.#watchEvents.addListener(
-        ({error, buildEvent}) => cb(error, buildEvent)
+        ({error, buildEvent}) => cb(error, buildEvent),
       );
     }
 
@@ -216,7 +216,7 @@ export default class Parcel {
         await this.#reporterRunner.report({type: 'watchEnd'});
         await Promise.all([
           this.#assetGraphBuilder.writeToCache(),
-          this.#runtimesAssetGraphBuilder.writeToCache()
+          this.#runtimesAssetGraphBuilder.writeToCache(),
         ]);
       }
     };
@@ -228,16 +228,16 @@ export default class Parcel {
         }
 
         return unsubscribePromise;
-      }
+      },
     };
   }
 
   async build({
     signal,
-    startTime = Date.now()
+    startTime = Date.now(),
   }: {|
     signal?: AbortSignal,
-    startTime?: number
+    startTime?: number,
   |}): Promise<BuildEvent> {
     let options = nullthrows(this.#resolvedOptions);
     try {
@@ -246,11 +246,11 @@ export default class Parcel {
       }
 
       this.#reporterRunner.report({
-        type: 'buildStart'
+        type: 'buildStart',
       });
 
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
-        signal
+        signal,
       );
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
@@ -265,11 +265,11 @@ export default class Parcel {
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [
             id,
-            assetFromValue(asset, options)
-          ])
+            assetFromValue(asset, options),
+          ]),
         ),
         bundleGraph: new BundleGraph(bundleGraph, options),
-        buildTime: Date.now() - startTime
+        buildTime: Date.now() - startTime,
       };
       this.#reporterRunner.report(event);
 
@@ -284,7 +284,7 @@ export default class Parcel {
       let diagnostic = anyToDiagnostic(e);
       let event = {
         type: 'buildFailure',
-        diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+        diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
       };
 
       await this.#reporterRunner.report(event);
@@ -301,19 +301,19 @@ export default class Parcel {
   async [INTERNAL_TRANSFORM]({
     filePath,
     env,
-    code
+    code,
   }: {|
     filePath: FilePath,
     env: EnvironmentOpts,
-    code?: string
+    code?: string,
   |}) {
     let [result] = await Promise.all([
       this.#assetGraphBuilder.runTransform({
         filePath,
         code,
-        env: createEnvironment(env)
+        env: createEnvironment(env),
       }),
-      this.#reporterRunner.config.getReporters()
+      this.#reporterRunner.config.getReporters(),
     ]);
 
     return result;
@@ -323,18 +323,18 @@ export default class Parcel {
   async [INTERNAL_RESOLVE]({
     moduleSpecifier,
     sourcePath,
-    env
+    env,
   }: {|
     moduleSpecifier: ModuleSpecifier,
     sourcePath: FilePath,
-    env: EnvironmentOpts
+    env: EnvironmentOpts,
   |}): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
       createDependency({
         moduleSpecifier,
         sourcePath,
-        env: createEnvironment(env)
-      })
+        env: createEnvironment(env),
+      }),
     );
 
     return resolved.filePath;
@@ -366,7 +366,7 @@ export default class Parcel {
           this.#watchQueue.run();
         }
       },
-      opts
+      opts,
     );
   }
 }
@@ -384,6 +384,6 @@ export {default as Asset} from './InternalAsset';
 export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({
     ...options,
-    workerPath: require.resolve('./worker')
+    workerPath: require.resolve('./worker'),
   });
 }

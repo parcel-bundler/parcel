@@ -13,14 +13,14 @@ export async function loadTSConfig(config: Config, options: PluginOptions) {
 
   let ts: TypeScriptModule = await options.packageManager.require(
     'typescript',
-    config.searchPath
+    config.searchPath,
   );
 
   let host = new ParseConfigHost(options.inputFS, ts);
   let parsedConfig = ts.parseJsonConfigFileContent(
     configResult,
     host,
-    path.dirname(nullthrows(config.resolvedPath))
+    path.dirname(nullthrows(config.resolvedPath)),
   );
 
   // Add all of the extended config files to be watched

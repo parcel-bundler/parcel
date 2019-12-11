@@ -9,19 +9,19 @@ export const ENGINES_SCHEMA: SchemaEntity = {
         {
           type: 'array',
           items: {
-            type: 'string'
-          }
+            type: 'string',
+          },
         },
         {
-          type: 'string'
-        }
-      ]
-    }
+          type: 'string',
+        },
+      ],
+    },
   },
   __forbiddenProperties: ['browser'],
   additionalProperties: {
-    type: 'string'
-  }
+    type: 'string',
+  },
 };
 
 export default ({
@@ -34,59 +34,59 @@ export default ({
         'browser',
         'web-worker',
         'electron-main',
-        'electron-renderer'
-      ]
+        'electron-renderer',
+      ],
     },
     includeNodeModules: {
       oneOf: [
         {
-          type: 'boolean'
+          type: 'boolean',
         },
         {
           type: 'array',
           items: {
             type: 'string',
-            __type: 'a wildcard or filepath'
-          }
-        }
-      ]
+            __type: 'a wildcard or filepath',
+          },
+        },
+      ],
     },
     outputFormat: {
       type: 'string',
-      enum: ['global', 'esmodule', 'commonjs']
+      enum: ['global', 'esmodule', 'commonjs'],
     },
     distDir: {
-      type: 'string'
+      type: 'string',
     },
     publicUrl: {
-      type: 'string'
+      type: 'string',
     },
     isLibrary: {
-      type: 'boolean'
+      type: 'boolean',
     },
     sourceMap: {
       oneOf: [
         {
-          type: 'boolean'
+          type: 'boolean',
         },
         {
           type: 'object',
           properties: {
             inlineSources: {
-              type: 'boolean'
+              type: 'boolean',
             },
             sourceRoot: {
-              type: 'string'
+              type: 'string',
             },
             inline: {
-              type: 'boolean'
-            }
+              type: 'boolean',
+            },
           },
-          additionalProperties: false
-        }
-      ]
+          additionalProperties: false,
+        },
+      ],
     },
-    engines: ENGINES_SCHEMA
+    engines: ENGINES_SCHEMA,
   },
-  additionalProperties: false
+  additionalProperties: false,
 }: SchemaEntity);
