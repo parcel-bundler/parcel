@@ -37,7 +37,7 @@ export default async function getBabelTargets(
     // Use package.engines.node by default if we are compiling for node.
     if (typeof nodeVersion === 'string') {
       try {
-        targets.node = getMinSemver(nodeVersion);
+        targets.node = semver.minVersion(nodeVersion).version;
       } catch (e) {
         throw new Error("Expected 'node' engine to be a valid Semver Range");
       }
@@ -93,12 +93,4 @@ async function loadBrowserslist(config): Promise<?BrowserslistConfig> {
   if (browserslistConfig) {
     return browserslist.parseConfig(browserslistConfig);
   }
-}
-
-// TODO: Replace with `minVersion` (https://github.com/npm/node-semver#ranges-1)
-//       once semver has been upgraded across Parcel.
-function getMinSemver(version) {
-  let range = new semver.Range(version);
-  let sorted = range.set.sort((a, b) => a[0].semver.compare(b[0].semver));
-  return sorted[0][0].semver.version;
 }

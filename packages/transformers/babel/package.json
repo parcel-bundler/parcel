@@ -30,7 +30,7 @@
     "browserslist": "^4.6.6",
     "core-js": "^3.2.1",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1"
+    "semver": "^5.7.0"
   },
   "devDependencies": {
     "@parcel/types": "^2.0.0-alpha.3.1"
