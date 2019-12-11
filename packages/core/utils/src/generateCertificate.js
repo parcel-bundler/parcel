@@ -67,10 +67,6 @@ export default async function generateCertificate(
   cert.setIssuer(attrs);
   cert.setExtensions([
     {
-      name: 'basicConstraints',
-      cA: true,
-    },
-    {
       name: 'keyUsage',
       keyCertSign: true,
       digitalSignature: true,
