@@ -107,6 +107,7 @@ let serve = program
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
   )
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(serve, hmrOptions);
