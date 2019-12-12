@@ -338,6 +338,7 @@ export default class Server extends EventEmitter {
       inputFS: this.options.inputFS,
       listener: app,
       outputFS: this.options.outputFS,
+      host: this.options.host,
     });
     this.stopServer = stop;
 
