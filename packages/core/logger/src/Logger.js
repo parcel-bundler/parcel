@@ -140,7 +140,7 @@ export class PluginLogger {
 }
 
 let consolePatched = false;
-export const ORIGINAL_CONSOLE = {...console};
+export const INTERNAL_ORIGINAL_CONSOLE = {...console};
 
 // Patch `console` APIs within workers to forward their messages to the Logger
 // at the appropriate levels.
@@ -179,19 +179,19 @@ export function unpatchConsole() {
   if (!consolePatched) return;
 
   // $FlowFixMe
-  console.log = ORIGINAL_CONSOLE.log;
+  console.log = INTERNAL_ORIGINAL_CONSOLE.log;
 
   // $FlowFixMe
-  console.info = ORIGINAL_CONSOLE.info;
+  console.info = INTERNAL_ORIGINAL_CONSOLE.info;
 
   // $FlowFixMe
-  console.debug = ORIGINAL_CONSOLE.debug;
+  console.debug = INTERNAL_ORIGINAL_CONSOLE.debug;
 
   // $FlowFixMe
-  console.warn = ORIGINAL_CONSOLE.warn;
+  console.warn = INTERNAL_ORIGINAL_CONSOLE.warn;
 
   // $FlowFixMe
-  console.error = ORIGINAL_CONSOLE.error;
+  console.error = INTERNAL_ORIGINAL_CONSOLE.error;
 
   consolePatched = false;
 }
