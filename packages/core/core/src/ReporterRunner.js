@@ -7,7 +7,11 @@ import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
-import logger, {patchConsole, PluginLogger} from '@parcel/logger';
+import logger, {
+  patchConsole,
+  unpatchConsole,
+  PluginLogger,
+} from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -46,6 +50,8 @@ export default class ReporterRunner {
 
     if (this.options.patchConsole) {
       patchConsole();
+    } else {
+      unpatchConsole();
     }
   }
 

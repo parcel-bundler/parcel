@@ -140,15 +140,13 @@ export class PluginLogger {
 }
 
 let consolePatched = false;
+export const ORIGINAL_CONSOLE = {...console};
 
 // Patch `console` APIs within workers to forward their messages to the Logger
 // at the appropriate levels.
-// TODO: Implement the rest of the console api as needed.
-// TODO: Does this need to be disposable/reversible?
 export function patchConsole() {
-  if (consolePatched) {
-    return;
-  }
+  // Skip if console is already patched...
+  if (consolePatched) return;
 
   /* eslint-disable no-console */
   // $FlowFixMe
@@ -174,6 +172,28 @@ export function patchConsole() {
 
   /* eslint-enable no-console */
   consolePatched = true;
+}
+
+export function unpatchConsole() {
+  // Skip if console isn't patched...
+  if (!consolePatched) return;
+
+  // $FlowFixMe
+  console.log = ORIGINAL_CONSOLE.log;
+
+  // $FlowFixMe
+  console.info = ORIGINAL_CONSOLE.info;
+
+  // $FlowFixMe
+  console.debug = ORIGINAL_CONSOLE.debug;
+
+  // $FlowFixMe
+  console.warn = ORIGINAL_CONSOLE.warn;
+
+  // $FlowFixMe
+  console.error = ORIGINAL_CONSOLE.error;
+
+  consolePatched = false;
 }
 
 function messagesToDiagnostic(
