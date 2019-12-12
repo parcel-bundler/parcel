@@ -1,51 +1,67 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
-  bundle,
   bundler,
-  run,
+  defaultConfig,
+  getNextBuild,
+  overlayFS,
+  outputFS,
   ncp,
-  prepareBrowserContext,
-  inputFS as fs,
 } from '@parcel/test-utils';
-import vm from 'vm';
-import {sleep} from '@parcel/test-utils';
+// import {sleep} from '@parcel/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
-import sinon from 'sinon';
 import getPort from 'get-port';
 
-describe('hmr', function() {
-  let stub;
+const config = {
+  ...defaultConfig,
+  reporters: ['@parcel/reporter-hmr-server'],
+};
+
+describe.only('hmr', function() {
+  let subscription;
+  let ws;
+
   beforeEach(async function() {
-    stub = sinon.stub(console, 'clear');
-    await fs.rimraf(path.join(__dirname, '/input'));
+    await outputFS.rimraf(path.join(__dirname, '/input'));
+    await ncp(
+      path.join(__dirname, '/integration/commonjs'),
+      path.join(__dirname, '/input'),
+    );
   });
 
-  afterEach(function() {
-    stub.restore();
+  afterEach(async () => {
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+    subscription = null;
+    await closeSocket(ws);
   });
 
-  async function nextWSMessage(ws) {
+  async function nextWSMessage(ws: WebSocket) {
     return json5.parse(
       await new Promise(resolve => ws.once('message', resolve)),
     );
   }
 
-  async function closeSocket(ws) {
+  async function closeSocket(ws: WebSocket) {
     ws.close();
     await new Promise(resolve => (ws.onclose = resolve));
   }
 
-  // TODO: Figure out how to run all tests, instead of one at a time
-  // TODO: make sure that the accept callback of new assets isn't called, only for loaded ones?
-  // TODO: is there an hmr update for the initial build?
-  it.skip('should emit an HMR update for the file that changed', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
+  async function openSocket(uri: string) {
+    let ws = new WebSocket(uri);
 
+    await new Promise((resolve, reject) => {
+      ws.once('open', resolve);
+      ws.once('error', reject);
+    });
+
+    return ws;
+  }
+
+  it('should emit an HMR update for the file that changed', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       hot: {
@@ -53,39 +69,32 @@ describe('hmr', function() {
         port,
         host: 'localhost',
       },
-      watch: true,
+      inputFS: overlayFS,
+      config,
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
-    // let ws = new WebSocket('ws://localhost:' + port);
+    ws = await openSocket('ws://localhost:' + port);
 
-    await sleep(100);
-    fs.writeFile(
+    outputFS.writeFile(
       path.join(__dirname, '/input/local.js'),
       'exports.a = 5;\nexports.b = 5;',
     );
 
-    /*let message = await nextWSMessage(ws);
+    let message = await nextWSMessage(ws);
 
     assert.equal(message.type, 'update');
 
     // Figure out why output doesn't change...
-    // let localAsset = message.assets.find(asset => asset.output === 'exports.a = 5;\nexports.b = 5;');
-    // assert(!!localAsset);
-
-    // TODO: Get real diffs from assetgraph
-    // assert.equal(message.assets.length, 2);
-
-    await closeSocket(ws);*/
+    let localAsset = message.assets.find(
+      asset => asset.output === 'exports.a = 5;\nexports.b = 5;',
+    );
+    assert(!!localAsset);
   });
 
-  it.skip('should emit an HMR update for all new dependencies along with the changed file', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-
+  it('should emit an HMR update for all new dependencies along with the changed file', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       hot: {
@@ -93,15 +102,16 @@ describe('hmr', function() {
         port,
         host: 'localhost',
       },
-      watch: true,
+      inputFS: overlayFS,
+      config,
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
-    let ws = new WebSocket('ws://localhost:' + port);
+    ws = await openSocket('ws://localhost:' + port);
 
-    await sleep(100);
-    fs.writeFile(
+    outputFS.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"); exports.a = 5; exports.b = 5;',
     );
@@ -110,17 +120,10 @@ describe('hmr', function() {
 
     assert.equal(message.type, 'update');
 
-    // assert.equal(message.assets.length, 2);
-
-    await closeSocket(ws);
+    assert.equal(message.assets.length, 2);
   });
 
-  it.skip('should emit an HMR error on bundle failure', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-
+  it('should emit an HMR error on bundle failure', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       hot: {
@@ -128,15 +131,16 @@ describe('hmr', function() {
         port,
         host: 'localhost',
       },
-      watch: true,
+      inputFS: overlayFS,
+      config,
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
-    let ws = new WebSocket('ws://localhost:' + port);
+    ws = await openSocket('ws://localhost:' + port);
 
-    await sleep(100);
-    fs.writeFile(
+    outputFS.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"; exports.a = 5; exports.b = 5;',
     );
@@ -145,29 +149,36 @@ describe('hmr', function() {
 
     assert.equal(message.type, 'error');
 
-    // TODO: Figure out how to let HMRReporter use the proper errors
-    /*assert.equal(
-      message.error.message,
-      `${path.join(
-        __dirname,
-        '/input/local.js'
-      )}:1:12: Unexpected token, expected "," (1:12)`
-    );
+    assert(!!message.diagnostics, 'Should contain a diagnostics key');
+    assert(!!message.diagnostics.html, 'Should contain a html diagnostic');
+    assert(!!message.diagnostics.ansi, 'Should contain an ansi diagnostic');
 
-    assert.equal(
-      message.error.stack,
-      '> 1 | require("fs"; exports.a = 5; exports.b = 5;\n    |            ^'
-    );*/
+    assert.deepEqual(message.diagnostics.html, [
+      {
+        message:
+          '<span style="font-weight:bold;">@parcel/transformer-babel</span>: Unexpected token, expected &quot;,&quot; (1:12)',
+        stack:
+          'SyntaxError: Unexpected token, expected &quot;,&quot; (1:12)\n    at Object.raise (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:6930:17)\n    at Object.unexpected (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8323:16)\n    at Object.expect (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8309:28)\n    at Object.parseCallExpressionArguments (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9342:14)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9270:29)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2852:18)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9186:19)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2814:18)\n    at Object.parseExprSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9175:17)\n    at Object.parseMaybeUnary (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9145:21)',
+        codeframe:
+          '<u>/Users/jasperdemoor/Documents/open-source/parcel/packages/core/integration-tests/test/input/local.js:1:12</u>\n<u></u><span style="color:#ff0000;">&gt;</span> 1 | <span style="color:#ff0000;">require</span>(<span style="color:#00ffee;">&quot;fs&quot;</span>; exports.a = <span style="color:#00ffee;">5</span>; exports.b = <span style="color:#00ffee;">5</span>;\n<span style="color:#ff0000;">&gt;</span>   |            <span style="color:#ff0000;">^</span>',
+        hints: [],
+      },
+    ]);
 
-    await closeSocket(ws);
+    assert.deepEqual(message.diagnostics.ansi, [
+      {
+        message:
+          '\u001b[1m@parcel/transformer-babel\u001b[22m: Unexpected token, expected "," (1:12)',
+        stack:
+          'SyntaxError: Unexpected token, expected "," (1:12)\n    at Object.raise (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:6930:17)\n    at Object.unexpected (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8323:16)\n    at Object.expect (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8309:28)\n    at Object.parseCallExpressionArguments (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9342:14)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9270:29)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2852:18)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9186:19)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2814:18)\n    at Object.parseExprSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9175:17)\n    at Object.parseMaybeUnary (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9145:21)',
+        codeframe:
+          '\u001b[4m/Users/jasperdemoor/Documents/open-source/parcel/packages/core/integration-tests/test/input/local.js:1:12\u001b[24m\n\u001b[4m\u001b[24m\u001b[31m>\u001b[39m 1 | \u001b[31mrequire\u001b[39m(\u001b[36m"fs"\u001b[39m; exports.a = \u001b[36m5\u001b[39m; exports.b = \u001b[36m5\u001b[39m;\n\u001b[31m>\u001b[39m   |            \u001b[31m^\u001b[39m',
+        hints: [],
+      },
+    ]);
   });
 
-  it.skip('should emit an HMR error to new connections after a bundle failure', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-
+  it('should emit an HMR error to new connections after a bundle failure', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       hot: {
@@ -175,30 +186,25 @@ describe('hmr', function() {
         port,
         host: 'localhost',
       },
-      watch: true,
+      inputFS: overlayFS,
+      config,
     });
 
-    await b.run();
-    await sleep(100);
-    fs.writeFile(
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    await outputFS.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"; exports.a = 5; exports.b = 5;',
     );
 
-    let ws = new WebSocket('ws://localhost:' + port);
+    ws = await openSocket('ws://localhost:' + port);
     let message = await nextWSMessage(ws);
 
     assert.equal(message.type, 'error');
-
-    await closeSocket(ws);
   });
 
-  it.skip('should emit an HMR update after error has been resolved', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-
+  it('should emit an HMR update after error has been resolved', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/input/index.js'), {
       hot: {
@@ -206,15 +212,16 @@ describe('hmr', function() {
         port,
         host: 'localhost',
       },
-      watch: true,
+      inputFS: overlayFS,
+      config,
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
-    let ws = new WebSocket('ws://localhost:' + port);
+    ws = await openSocket('ws://localhost:' + port);
 
-    await sleep(100);
-    fs.writeFile(
+    await outputFS.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"; exports.a = 5; exports.b = 5;',
     );
@@ -223,8 +230,7 @@ describe('hmr', function() {
 
     assert.equal(message.type, 'error');
 
-    await sleep(100);
-    fs.writeFile(
+    await outputFS.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"); exports.a = 5; exports.b = 5;',
     );
@@ -232,11 +238,9 @@ describe('hmr', function() {
     message = await nextWSMessage(ws);
 
     assert.equal(message.type, 'update');
-
-    await closeSocket(ws);
   });
 
-  it.skip('should work with circular dependencies', async function() {
+  /*it.skip('should work with circular dependencies', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-circular'),
       path.join(__dirname, '/input'),
@@ -367,7 +371,6 @@ describe('hmr', function() {
     ]);
   });
 
-  // TODO: Get this to work...
   it.skip('should work across bundles', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-dynamic'),
@@ -638,10 +641,9 @@ describe('hmr', function() {
 
     assert.equal(message.type, 'update');
 
-    // TODO: Update this...
-    /*assert.equal(message.assets.length, 1);
+    assert.equal(message.assets.length, 1);
     assert.equal(message.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
-    assert.deepEqual(message.assets[0].deps, {});*/
+    assert.deepEqual(message.assets[0].deps, {});
 
     await closeSocket(ws);
   });
@@ -681,70 +683,10 @@ describe('hmr', function() {
 
     assert.equal(message.type, 'update');
 
-    // TODO: Update this...
-    /*assert.equal(message.assets.length, 1);
+    assert.equal(message.assets.length, 1);
     assert.equal(message.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
-    assert.deepEqual(message.assets[0].deps, {});*/
+    assert.deepEqual(message.assets[0].deps, {});
 
     await closeSocket(ws);
-  });
-
-  // Elm is not part of Parcel 2 yet
-  it.skip('should watch new dependencies that cause errors', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/elm-dep-error'),
-      path.join(__dirname, '/input'),
-    );
-
-    let port = await getPort();
-    let b = bundler(path.join(__dirname, '/input/index.js'), {
-      hot: {
-        https: false,
-        port,
-        host: 'localhost',
-      },
-      watch: true,
-    });
-
-    await b.run();
-
-    let ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
-
-    await nextWSMessage(ws);
-
-    await sleep(100);
-    fs.writeFile(
-      path.join(__dirname, '/input/src/Main.elm'),
-      `
-module Main exposing (main)
-
-import BrokenDep
-import Html
-
-main =
-    Html.text "Hello, world!"
-    `,
-    );
-
-    let message = await nextWSMessage(ws);
-    assert.equal(message.type, 'error');
-
-    await sleep(100);
-    fs.writeFile(
-      path.join(__dirname, '/input/src/BrokenDep.elm'),
-      `
-module BrokenDep exposing (anError)
-
-
-anError : String
-anError =
-    "fixed"
-      `,
-    );
-
-    message = await nextWSMessage(ws);
-    assert.equal(message.type, 'error-resolved');
-
-    await closeSocket(ws);
-  });
+  });*/
 });
