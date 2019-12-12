@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel serve src/index.html --no-cache"
+    "demo": "parcel serve src/index.html --no-cache --https"
   },
   "devDependencies": {
     "parcel": "^2.0.0-alpha.3.2"

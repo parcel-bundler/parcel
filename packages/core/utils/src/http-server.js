@@ -17,6 +17,7 @@ type CreateHTTPServerOpts = {|
   outputFS: FileSystem,
   cacheDir: FilePath,
   listener?: (mixed, mixed) => void,
+  host?: string,
 |};
 
 // Creates either an http or https server with an awaitable dispose
@@ -32,7 +33,11 @@ export async function createHTTPServer(
     server = http.createServer(options.listener);
   } else if (options.https === true) {
     server = https.createServer(
-      await generateCertificate(options.outputFS, options.cacheDir),
+      await generateCertificate(
+        options.outputFS,
+        options.cacheDir,
+        options.host,
+      ),
       options.listener,
     );
   } else {

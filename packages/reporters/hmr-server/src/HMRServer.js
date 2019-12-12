@@ -51,6 +51,7 @@ export default class HMRServer {
       inputFS: this.options.inputFS,
       outputFS: this.options.outputFS,
       cacheDir: this.options.cacheDir,
+      host: this.options.host,
     });
     this.stopServer = stop;
 
