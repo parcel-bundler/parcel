@@ -7,7 +7,7 @@ import logger from '@parcel/logger';
 export default async function generateCertificate(
   fs: FileSystem,
   cacheDir: string,
-  domain: ?string,
+  host: ?string,
 ) {
   let certDirectory = cacheDir;
 
@@ -75,10 +75,10 @@ export default async function generateCertificate(
     },
   ];
 
-  if (domain) {
+  if (host) {
     altNames.push({
       type: 2, // DNS
-      value: domain,
+      value: host,
     });
   }
 
