@@ -7,6 +7,7 @@ import logger from '@parcel/logger';
 export default async function generateCertificate(
   fs: FileSystem,
   cacheDir: string,
+  host: ?string,
 ) {
   let certDirectory = cacheDir;
 
@@ -63,12 +64,30 @@ export default async function generateCertificate(
     },
   ];
 
+  let altNames = [
+    {
+      type: 2, // DNS
+      value: 'localhost',
+    },
+    {
+      type: 7, // IP
+      ip: '127.0.0.1',
+    },
+  ];
+
+  if (host) {
+    altNames.push({
+      type: 2, // DNS
+      value: host,
+    });
+  }
+
   cert.setSubject(attrs);
   cert.setIssuer(attrs);
   cert.setExtensions([
     {
       name: 'basicConstraints',
-      cA: true,
+      cA: false,
     },
     {
       name: 'keyUsage',
@@ -98,16 +117,7 @@ export default async function generateCertificate(
     },
     {
       name: 'subjectAltName',
-      altNames: [
-        {
-          type: 6, // URI
-          value: 'http://example.org/webid#me',
-        },
-        {
-          type: 7, // IP
-          ip: '127.0.0.1',
-        },
-      ],
+      altNames,
     },
     {
       name: 'subjectKeyIdentifier',
