@@ -152,30 +152,6 @@ describe.only('hmr', function() {
     assert(!!message.diagnostics, 'Should contain a diagnostics key');
     assert(!!message.diagnostics.html, 'Should contain a html diagnostic');
     assert(!!message.diagnostics.ansi, 'Should contain an ansi diagnostic');
-
-    assert.deepEqual(message.diagnostics.html, [
-      {
-        message:
-          '<span style="font-weight:bold;">@parcel/transformer-babel</span>: Unexpected token, expected &quot;,&quot; (1:12)',
-        stack:
-          'SyntaxError: Unexpected token, expected &quot;,&quot; (1:12)\n    at Object.raise (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:6930:17)\n    at Object.unexpected (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8323:16)\n    at Object.expect (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8309:28)\n    at Object.parseCallExpressionArguments (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9342:14)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9270:29)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2852:18)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9186:19)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2814:18)\n    at Object.parseExprSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9175:17)\n    at Object.parseMaybeUnary (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9145:21)',
-        codeframe:
-          '<u>/Users/jasperdemoor/Documents/open-source/parcel/packages/core/integration-tests/test/input/local.js:1:12</u>\n<u></u><span style="color:#ff0000;">&gt;</span> 1 | <span style="color:#ff0000;">require</span>(<span style="color:#00ffee;">&quot;fs&quot;</span>; exports.a = <span style="color:#00ffee;">5</span>; exports.b = <span style="color:#00ffee;">5</span>;\n<span style="color:#ff0000;">&gt;</span>   |            <span style="color:#ff0000;">^</span>',
-        hints: [],
-      },
-    ]);
-
-    assert.deepEqual(message.diagnostics.ansi, [
-      {
-        message:
-          '\u001b[1m@parcel/transformer-babel\u001b[22m: Unexpected token, expected "," (1:12)',
-        stack:
-          'SyntaxError: Unexpected token, expected "," (1:12)\n    at Object.raise (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:6930:17)\n    at Object.unexpected (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8323:16)\n    at Object.expect (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:8309:28)\n    at Object.parseCallExpressionArguments (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9342:14)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9270:29)\n    at Object.parseSubscript (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2852:18)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9186:19)\n    at Object.parseSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:2814:18)\n    at Object.parseExprSubscripts (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9175:17)\n    at Object.parseMaybeUnary (/Users/jasperdemoor/Documents/open-source/parcel/node_modules/@babel/parser/lib/index.js:9145:21)',
-        codeframe:
-          '\u001b[4m/Users/jasperdemoor/Documents/open-source/parcel/packages/core/integration-tests/test/input/local.js:1:12\u001b[24m\n\u001b[4m\u001b[24m\u001b[31m>\u001b[39m 1 | \u001b[31mrequire\u001b[39m(\u001b[36m"fs"\u001b[39m; exports.a = \u001b[36m5\u001b[39m; exports.b = \u001b[36m5\u001b[39m;\n\u001b[31m>\u001b[39m   |            \u001b[31m^\u001b[39m',
-        hints: [],
-      },
-    ]);
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
