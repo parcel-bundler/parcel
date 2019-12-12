@@ -109,6 +109,7 @@ const VISITOR = {
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
+      path.scope.setData('moduleExportsReassignCount', 0);
     },
 
     exit(path, asset: MutableAsset) {
@@ -173,7 +174,7 @@ const VISITOR = {
     }
 
     if (t.matchesPattern(path.node, 'module.exports')) {
-      let exportsId = getExportsIdentifier(asset, path.scope);
+      let exportsId = getModuleExportsIdentifier(asset, path.scope);
       path.replaceWith(exportsId);
       asset.meta.isCommonJS = true;
       asset.symbols.set('*', exportsId.name);
@@ -249,6 +250,7 @@ const VISITOR = {
     }
 
     let {left, right} = path.node;
+    let programScope = path.scope.getProgramParent();
 
     // Match module.exports = expression; assignments and replace with a variable declaration
     // if this is the first assignemnt. This avoids the extra empty object assignment in many cases.
@@ -256,12 +258,17 @@ const VISITOR = {
       t.matchesPattern(left, 'module.exports') &&
       !path.scope.hasBinding('module')
     ) {
-      let exportsId = getExportsIdentifier(asset, path.scope);
+      programScope.setData(
+        'moduleExportsReassignCount',
+        programScope.getData('moduleExportsReassignCount') + 1,
+      );
+      let exportsId = getModuleExportsIdentifier(asset, path.scope);
       asset.meta.isCommonJS = true;
       asset.symbols.set('*', exportsId.name);
+      asset.meta.exportsIdentifier = exportsId.name;
 
       if (
-        path.scope === path.scope.getProgramParent() &&
+        path.scope === programScope &&
         !path.scope.getBinding(exportsId.name) &&
         path.parentPath.isStatement()
       ) {
@@ -305,7 +312,7 @@ const VISITOR = {
 
       // If this is the first assignment, create a binding for the ES6-style export identifier.
       // Otherwise, assign to the existing export binding.
-      let scope = path.scope.getProgramParent();
+      let scope = programScope;
       if (!scope.hasBinding(identifier.name)) {
         asset.symbols.set(name, identifier.name);
 
@@ -330,8 +337,6 @@ const VISITOR = {
           t.assignmentExpression('=', t.clone(identifier), right),
         );
       }
-
-      asset.meta.isCommonJS = true;
     }
   },
 
@@ -663,6 +668,27 @@ function getExportsIdentifier(asset: MutableAsset, scope) {
     return t.identifier('exports');
   } else {
     let id = getIdentifier(asset, 'exports');
+    if (!scope.hasBinding(id.name)) {
+      scope.getProgramParent().addGlobal(id);
+    }
+
+    return id;
+  }
+}
+
+function getModuleExportsIdentifier(asset: MutableAsset, scope) {
+  if (scope.getProgramParent().getData('shouldWrap')) {
+    return t.identifier('exports');
+  } else {
+    let reassignCount = scope
+      .getProgramParent()
+      .getData('moduleExportsReassignCount');
+
+    let id = getIdentifier(
+      asset,
+      'exports' + (reassignCount > 0 ? String(reassignCount) : ''),
+    );
+
     if (!scope.hasBinding(id.name)) {
       scope.getProgramParent().addGlobal(id);
     }
