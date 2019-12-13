@@ -274,7 +274,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['local.js'],
@@ -640,7 +646,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['local.js', 'test.txt.js'],
@@ -663,7 +675,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['local.js'],
@@ -691,6 +709,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -720,6 +739,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -747,6 +767,7 @@ describe('javascript', function() {
         assets: [
           'index.js',
           'common.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -774,12 +795,19 @@ describe('javascript', function() {
       },
       {
         name: 'b.js',
-        assets: ['b.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'b.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         name: 'a.js',
         assets: [
           'a.js',
+          'bundle-url.js',
           'common.js',
           'cacheLoader.js',
           'js-loader.js',
@@ -799,6 +827,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -1726,6 +1755,7 @@ describe('javascript', function() {
           'index.js',
           'JSRuntime.js',
           'JSRuntime.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
         ],
@@ -1821,7 +1851,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'ts.js',
-        assets: ['ts.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'ts.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['async.js'],
@@ -1841,6 +1877,7 @@ describe('javascript', function() {
         name: 'ts-interop.js',
         assets: [
           'ts-interop.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -1868,6 +1905,7 @@ describe('javascript', function() {
         name: 'ts-interop-arrow.js',
         assets: [
           'ts-interop-arrow.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
@@ -1893,7 +1931,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'rollup.js',
-        assets: ['rollup.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'rollup.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['async.js'],
@@ -1911,7 +1955,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'parcel.js',
-        assets: ['parcel.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js'],
+        assets: [
+          'parcel.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['async.js'],

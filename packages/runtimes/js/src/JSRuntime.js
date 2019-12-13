@@ -123,9 +123,10 @@ export default new Runtime({
             )}'))`;
           }
 
-          let url = urlJoin(nullthrows(b.target.publicUrl), nullthrows(b.name));
-
-          return `require(${JSON.stringify(loader)})('${url}')`;
+          let url = relativeBundlePath(bundle, b, {leadingDotSlash: false});
+          return `require(${JSON.stringify(
+            loader,
+          )})(require('./bundle-url').getBundleURL() + '${url}')`;
         })
         .filter(Boolean);
 
