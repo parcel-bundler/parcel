@@ -968,6 +968,30 @@ describe('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
+    it('builds commonjs modules that assigns to exports before module.exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-before-module-exports/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 42);
+    });
+
+    it('builds commonjs modules that assigns to module.exports before exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-exports-before-exports/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 42);
+    });
+
     it("doesn't insert parcelRequire for missing non-js assets", async function() {
       let b = await bundle(
         path.join(
