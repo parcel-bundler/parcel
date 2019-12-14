@@ -3,7 +3,7 @@ const babel = require('gulp-babel');
 const gulp = require('gulp');
 const path = require('path');
 const rimraf = require('rimraf');
-const babelConfig = require('./babel.config.js');
+const babelConfig = require('./babel.config.json');
 
 const IGNORED_PACKAGES = [
   '!packages/examples/**',
@@ -11,7 +11,7 @@ const IGNORED_PACKAGES = [
   '!packages/core/workers/test/integration/**',
   '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
-  '!packages/core/types/**'
+  '!packages/core/types/**',
 ];
 
 const paths = {
@@ -20,16 +20,16 @@ const paths = {
     '!packages/*/scope-hoisting/src/helpers.js',
     '!**/loaders/**',
     '!**/prelude.js',
-    ...IGNORED_PACKAGES
+    ...IGNORED_PACKAGES,
   ],
   packageOther: [
     'packages/*/scope-hoisting/src/helpers.js',
     'packages/*/*/src/**/loaders/**',
     'packages/*/*/src/**/prelude.js',
-    'packages/*/dev-server/src/templates/**'
+    'packages/*/dev-server/src/templates/**',
   ],
   packageJson: 'packages/core/parcel/package.json',
-  packages: 'packages/'
+  packages: 'packages/',
 };
 
 /*
@@ -59,7 +59,7 @@ exports.clean = function clean(cb) {
 exports.default = exports.build = gulp.series(
   gulp.parallel(buildBabel, copyOthers),
   // Babel reads from package.json so update these after babel has run
-  () => updatePackageJson(paths.packageJson)
+  () => updatePackageJson(paths.packageJson),
 );
 
 function buildBabel() {
@@ -94,7 +94,7 @@ function updatePackageJson(file) {
         }
 
         vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
-      })
+      }),
     )
     .pipe(gulp.dest(path.dirname(file)));
 }
