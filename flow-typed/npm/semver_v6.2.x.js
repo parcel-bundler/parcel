@@ -1,6 +1,5 @@
-// @flow
-
-// based off of flow_typed/semver_v5.6.x/flow_>=v0.104.x
+// flow-typed signature: 0f3a5488505547a0a71d5b49cf5c2954
+// flow-typed version: 01cfe946d5/semver_v6.2.x/flow_>=v0.104.x
 
 declare module "semver" {
   declare type Release =
@@ -40,6 +39,7 @@ declare module "semver" {
     compare(other: string | SemVer): -1 | 0 | 1;
     compareMain(other: string | SemVer): -1 | 0 | 1;
     comparePre(other: string | SemVer): -1 | 0 | 1;
+    compareBuild(other: string | SemVer): -1 | 0 | 1;
     format(): string;
     inc(release: Release, identifier: string): this;
   }
@@ -95,7 +95,7 @@ declare module "semver" {
   declare function minor(v: string | SemVer, options?: Options): number;
   declare function patch(v: string | SemVer, options?: Options): number;
   declare function intersects(r1: string | SemVer, r2: string | SemVer, loose?: boolean): boolean;
-  declare function minVersion(range: Range | string): ?SemVer;
+  declare function minVersion(r: string | Range): Range | null;
 
   // Comparison
   declare function gt(
@@ -205,7 +205,8 @@ declare module "semver" {
 
   // Coercion
   declare function coerce(
-    version: string | SemVer
+    version: string | SemVer,
+    options?: Options
   ): ?SemVer
 
   // Not explicitly documented, or deprecated
