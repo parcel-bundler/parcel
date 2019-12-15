@@ -1,12 +1,12 @@
 // @flow
 
-import type {HTTPServer} from './types.js.flow';
-export type {HTTPServer};
-
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import Server from './Server';
 import path from 'path';
+import type {HTTPServer} from './types.js.flow';
+
+export type {HTTPServer};
 
 let servers: Map<number, Server> = new Map();
 export let devServer: HTTPServer | null = null;

@@ -5,14 +5,8 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
 
-import invariant from 'assert';
 import WebSocket from 'ws';
-import {
-  createHTTPServer,
-  md5FromObject,
-  prettyDiagnostic,
-  ansiHtml,
-} from '@parcel/utils';
+import {md5FromObject, prettyDiagnostic, ansiHtml} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,
@@ -44,7 +38,7 @@ export default class HMRServer {
     this.options = options;
   }
 
-  async start() {
+  start() {
     let websocketOptions = {
       server: this.options.devServer,
       /*verifyClient: info => {
@@ -70,7 +64,7 @@ export default class HMRServer {
     return this.wss._server.address().port;
   }
 
-  async stop() {
+  stop() {
     this.wss.close();
   }
 
