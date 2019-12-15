@@ -71,29 +71,29 @@ export async function load(config: Config, options: PluginOptions) {
     {packageKey: 'postcss'},
   );
 
-  if (configFile == null) return;
-
-  if (typeof configFile !== 'object') {
-    throw new Error('PostCSS config should be an object.');
-  }
-
-  if (
-    configFile.plugins == null ||
-    typeof configFile.plugins !== 'object' ||
-    Object.keys(configFile.plugins) === 0
-  ) {
-    throw new Error('PostCSS config must have plugins');
-  }
-
-  let configFilePlugins = Object.keys(configFile.plugins);
-  for (let p of configFilePlugins) {
-    if (p.startsWith('.')) {
-      throw new Error(
-        'Relative plugins are not yet supported as these are not cacheable!',
-      );
+  if (configFile) {
+    if (typeof configFile !== 'object') {
+      throw new Error('PostCSS config should be an object.');
     }
 
-    config.addDevDependency(p);
+    if (
+      configFile.plugins == null ||
+      typeof configFile.plugins !== 'object' ||
+      Object.keys(configFile.plugins) === 0
+    ) {
+      throw new Error('PostCSS config must have plugins');
+    }
+
+    let configFilePlugins = Object.keys(configFile.plugins);
+    for (let p of configFilePlugins) {
+      if (p.startsWith('.')) {
+        throw new Error(
+          'Relative plugins are not yet supported as these are not cacheable!',
+        );
+      }
+
+      config.addDevDependency(p);
+    }
   }
 
   return configHydrator(configFile, config, options);
@@ -114,7 +114,5 @@ export function preSerialize(config: Config) {
 }
 
 export function postDeserialize(config: Config, options: PluginOptions) {
-  if (!config.result) return;
-
   return configHydrator(config.result.raw, config, options);
 }
