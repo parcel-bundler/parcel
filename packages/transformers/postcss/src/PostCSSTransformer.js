@@ -55,7 +55,7 @@ export default new Transformer({
     if (config.hydrated.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
-        config.hydrated.from,
+        asset.filePath,
       );
 
       config.hydrated.plugins.push(

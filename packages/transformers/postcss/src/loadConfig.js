@@ -10,39 +10,42 @@ async function configHydrator(
   config: Config,
   options: PluginOptions,
 ) {
-  // Use a basic, modules-only PostCSS config if the file opts in by a name
-  // like foo.module.css
-  if (configFile == null && config.searchPath.match(MODULE_BY_NAME_RE)) {
-    return config.setResult({
-      raw: configFile,
-      hydrated: {
-        plugins: await loadExternalPlugins(
-          ['postcss-modules'],
-          config.searchPath,
-          options,
-        ),
-        from: config.searchPath,
-        to: config.searchPath,
-      },
-    });
+  if (!configFile) {
+    // Use a basic, modules-only PostCSS config if the file opts in by a name
+    // like foo.module.css
+    if (config.searchPath.match(MODULE_BY_NAME_RE)) {
+      return config.setResult({
+        raw: configFile,
+        hydrated: {
+          plugins: await loadExternalPlugins(
+            ['postcss-modules'],
+            config.searchPath,
+            options,
+          ),
+          from: config.searchPath,
+          to: config.searchPath,
+        },
+      });
+    }
+
+    return;
   }
 
   // Load the custom config...
-  let originalModulesConfig;
+  let modules;
   let configPlugins = configFile.plugins;
   if (
     configPlugins != null &&
     typeof configPlugins === 'object' &&
     configPlugins['postcss-modules'] != null
   ) {
-    originalModulesConfig = configPlugins['postcss-modules'];
+    modules = configPlugins['postcss-modules'];
     // $FlowFixMe
     delete configPlugins['postcss-modules'];
   }
 
-  let modulesConfig = null;
-  if (originalModulesConfig || config.result.modules) {
-    modulesConfig = configFile.modules || {};
+  if (!modules && configFile.modules) {
+    modules = {};
   }
 
   let plugins = await loadExternalPlugins(
@@ -57,7 +60,7 @@ async function configHydrator(
       plugins,
       from: config.searchPath,
       to: config.searchPath,
-      modules: modulesConfig,
+      modules,
     },
   });
 }
@@ -97,6 +100,8 @@ export async function load(config: Config, options: PluginOptions) {
 }
 
 export function preSerialize(config: Config) {
+  if (!config.result) return;
+
   // This is a very weird bug
   /*config.setResult({
     raw: config.result.raw,
@@ -109,5 +114,7 @@ export function preSerialize(config: Config) {
 }
 
 export function postDeserialize(config: Config, options: PluginOptions) {
+  if (!config.result) return;
+
   return configHydrator(config.result.raw, config, options);
 }
