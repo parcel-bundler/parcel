@@ -7,9 +7,10 @@ import {
   IncomingMessage as HTTPSIncomingMessage,
   ServerResponse as HTTPSServerResponse
 } from 'https';
-import type {ServerOptions} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PluginLogger} from '@parcel/logger';
+import type {HTTPServer} from '@parcel/reporter-dev-server';
+export type {HTTPServer};
 
 export type Request = HTTPIncomingMessage | HTTPSIncomingMessage;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
@@ -20,9 +21,6 @@ export type ServerError = Error & {|
 |};
 
 export type HMRServerOptions = {|
-  ...ServerOptions,
-  cacheDir: string,
-  inputFS: FileSystem,
-  outputFS: FileSystem,
+  devServer: HTTPServer,
   logger: PluginLogger
 |};

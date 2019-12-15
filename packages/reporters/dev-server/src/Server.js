@@ -1,6 +1,11 @@
 // @flow
 
-import type {Request, Response, DevServerOptions} from './types.js.flow';
+import type {
+  Request,
+  Response,
+  DevServerOptions,
+  HTTPServer,
+} from './types.js.flow';
 import type {BundleGraph, FilePath} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';

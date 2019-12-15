@@ -1,11 +1,15 @@
 // @flow
 
+import type {HTTPServer} from './types.js.flow';
+export type {HTTPServer};
+
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import Server from './Server';
 import path from 'path';
 
 let servers: Map<number, Server> = new Map();
+export let devServer: HTTPServer | null = null;
 export default new Reporter({
   async report({event, options, logger}) {
     let serve = options.serve;
@@ -33,7 +37,7 @@ export default new Reporter({
 
         server = new Server(serverOptions);
         servers.set(serverOptions.port, server);
-        await server.start();
+        devServer = await server.start();
 
         break;
       }

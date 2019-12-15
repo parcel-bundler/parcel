@@ -2,15 +2,15 @@
 import type {ServerOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import type {FileSystem} from '@parcel/fs';
+import type {HTTPServer} from '@parcel/utils';
+export type {HTTPServer};
 import {
   IncomingMessage as HTTPIncomingMessage,
-  ServerResponse as HTTPServerResponse,
-  Server as HTTPServer
+  ServerResponse as HTTPServerResponse
 } from 'http';
 import {
   IncomingMessage as HTTPSIncomingMessage,
-  ServerResponse as HTTPSServerResponse,
-  Server as HTTPSServer
+  ServerResponse as HTTPSServerResponse
 } from 'https';
 
 interface HTTPRequest extends HTTPIncomingMessage {
@@ -21,7 +21,6 @@ interface HTTPSRequest extends HTTPSIncomingMessage {
 };
 export type Request = HTTPRequest | HTTPSRequest;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
-export type Server = HTTPServer | HTTPSServer;
 export type DevServerOptions = {|
   ...ServerOptions,
   projectRoot: string,

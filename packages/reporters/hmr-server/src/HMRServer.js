@@ -36,7 +36,6 @@ type HMRMessage =
     |};
 
 export default class HMRServer {
-  stopServer: ?() => Promise<void>;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
@@ -46,17 +45,8 @@ export default class HMRServer {
   }
 
   async start() {
-    let {server, stop} = await createHTTPServer({
-      https: this.options.https,
-      inputFS: this.options.inputFS,
-      outputFS: this.options.outputFS,
-      cacheDir: this.options.cacheDir,
-      host: this.options.host,
-    });
-    this.stopServer = stop;
-
     let websocketOptions = {
-      server,
+      server: this.options.devServer,
       /*verifyClient: info => {
           if (!this.options.host) return true;
 
@@ -66,10 +56,6 @@ export default class HMRServer {
     };
 
     this.wss = new WebSocket.Server(websocketOptions);
-
-    await new Promise(resolve => {
-      server.listen(this.options.port, this.options.host, resolve);
-    });
 
     this.wss.on('connection', ws => {
       ws.onerror = this.handleSocketError;
@@ -86,11 +72,6 @@ export default class HMRServer {
 
   async stop() {
     this.wss.close();
-
-    invariant(this.stopServer != null);
-    await this.stopServer();
-
-    this.stopServer = null;
   }
 
   emitError(diagnostics: Array<Diagnostic>) {
