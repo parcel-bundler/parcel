@@ -15,7 +15,7 @@ import getPort from 'get-port';
 
 const config = {
   ...defaultConfig,
-  reporters: ['@parcel/reporter-hmr-server'],
+  reporters: ['@parcel/reporter-dev-server', '@parcel/reporter-hmr-server'],
 };
 
 async function closeSocket(ws: WebSocket) {
@@ -62,11 +62,12 @@ describe('hmr', function() {
     it('should emit an HMR update for the file that changed', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: false,
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
@@ -82,6 +83,7 @@ describe('hmr', function() {
       );
 
       let message = await nextWSMessage(ws);
+      // console.log('message:', JSON.stringify(message, null, 2));
 
       assert.equal(message.type, 'update');
 
@@ -95,11 +97,12 @@ describe('hmr', function() {
     it('should emit an HMR update for all new dependencies along with the changed file', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: false,
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
@@ -124,11 +127,12 @@ describe('hmr', function() {
     it('should emit an HMR error on bundle failure', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: false,
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
@@ -144,6 +148,7 @@ describe('hmr', function() {
       );
 
       let message = await nextWSMessage(ws);
+      // console.log('message:', JSON.stringify(message, null, 2));
 
       assert.equal(message.type, 'error');
 
@@ -155,11 +160,12 @@ describe('hmr', function() {
     it('should emit an HMR error to new connections after a bundle failure', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: false,
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
@@ -181,11 +187,12 @@ describe('hmr', function() {
     it('should emit an HMR update after error has been resolved', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: false,
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
@@ -217,11 +224,12 @@ describe('hmr', function() {
     it('should make a secure connection', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: true,
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
@@ -246,7 +254,7 @@ describe('hmr', function() {
     it('should make a secure connection with custom certificate', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        hot: {
+        serve: {
           https: {
             key: path.join(__dirname, '/integration/https/private.pem'),
             cert: path.join(__dirname, '/integration/https/primary.crt'),
@@ -254,6 +262,7 @@ describe('hmr', function() {
           port,
           host: 'localhost',
         },
+        hot: true,
         inputFS: overlayFS,
         config,
       });
