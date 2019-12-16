@@ -52,6 +52,24 @@ export default new Transformer({
       return [asset];
     }
 
+    let plugins = [...config.hydrated.plugins];
+    if (config.hydrated.modules) {
+      let postcssModules = await options.packageManager.require(
+        'postcss-modules',
+        asset.filePath,
+      );
+
+      plugins.push(
+        postcssModules({
+          getJSON: (filename, json) => (asset.meta.cssModules = json),
+          Loader: createLoader(asset, resolve),
+          generateScopedName: (name, filename, css) =>
+            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
+          ...config.hydrated.modules,
+        }),
+      );
+    }
+
     let ast = nullthrows(asset.ast);
     if (COMPOSES_RE.test(await asset.getCode())) {
       ast.program.walkDecls(decl => {
@@ -76,24 +94,6 @@ export default new Transformer({
           });
         }
       });
-    }
-
-    let plugins = [...config.hydrated.plugins];
-    if (config.hydrated.modules) {
-      let postcssModules = await options.packageManager.require(
-        'postcss-modules',
-        asset.filePath,
-      );
-
-      plugins.push(
-        postcssModules({
-          getJSON: (filename, json) => (asset.meta.cssModules = json),
-          Loader: createLoader(asset, resolve),
-          generateScopedName: (name, filename, css) =>
-            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
-          ...config.hydrated.modules,
-        }),
-      );
     }
 
     let {root} = await postcss(plugins).process(ast.program, config.hydrated);

@@ -10,24 +10,17 @@ async function configHydrator(
   config: Config,
   options: PluginOptions,
 ) {
-  if (!configFile) {
-    // Use a basic, modules-only PostCSS config if the file opts in by a name
-    // like foo.module.css
-    if (config.searchPath.match(MODULE_BY_NAME_RE)) {
-      return config.setResult({
-        raw: configFile,
-        hydrated: {
-          plugins: await loadExternalPlugins(
-            ['postcss-modules'],
-            config.searchPath,
-            options,
-          ),
-          from: config.searchPath,
-          to: config.searchPath,
-        },
-      });
-    }
+  // Use a basic, modules-only PostCSS config if the file opts in by a name
+  // like foo.module.css
+  if (configFile == null && config.searchPath.match(MODULE_BY_NAME_RE)) {
+    configFile = {
+      plugins: {
+        'postcss-modules': {},
+      },
+    };
+  }
 
+  if (configFile == null) {
     return;
   }
 
