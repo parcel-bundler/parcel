@@ -44,7 +44,7 @@
     "cross-spawn": "^6.0.4",
     "css-modules-loader-core": "^1.1.0",
     "cssnano": "^4.0.0",
-    "deasync": "^0.1.14",
+    "deasync": "^0.1.16",
     "dotenv": "^7.0.0",
     "dotenv-expand": "^5.1.0",
     "envinfo": "^7.3.1",
