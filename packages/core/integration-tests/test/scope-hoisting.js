@@ -1129,7 +1129,7 @@ describe('scope hoisting', function() {
       } catch (e) {
         assert.equal(
           e.message,
-          "`require.resolve` calls for local assets aren't supported with scope hoisting",
+          "`require.resolve` calls for modules or assets aren't supported with scope hoisting",
         );
       }
     });
