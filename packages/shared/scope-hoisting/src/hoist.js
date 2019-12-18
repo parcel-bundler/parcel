@@ -109,6 +109,7 @@ const VISITOR = {
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
+      path.scope.setData('cjsExportsReassigned', false);
     },
 
     exit(path, asset: MutableAsset) {
@@ -208,7 +209,7 @@ const VISITOR = {
       !path.scope.hasBinding('exports') &&
       !path.scope.getData('shouldWrap')
     ) {
-      path.replaceWith(getExportsIdentifier(asset, path.scope));
+      path.replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
@@ -280,7 +281,8 @@ const VISITOR = {
     }
 
     if (t.isIdentifier(left) && left.name === 'exports') {
-      path.get('left').replaceWith(getExportsIdentifier(asset, path.scope));
+      path.scope.getProgramParent().setData('cjsExportsReassigned', true);
+      path.get('left').replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
@@ -668,5 +670,20 @@ function getExportsIdentifier(asset: MutableAsset, scope) {
     }
 
     return id;
+  }
+}
+
+function getCJSExportsIdentifier(asset: MutableAsset, scope) {
+  if (scope.getProgramParent().getData('shouldWrap')) {
+    return t.identifier('exports');
+  } else if (scope.getProgramParent().getData('cjsExportsReassigned')) {
+    let id = getIdentifier(asset, 'cjs_exports');
+    if (!scope.hasBinding(id.name)) {
+      scope.getProgramParent().addGlobal(id);
+    }
+
+    return id;
+  } else {
+    return getExportsIdentifier(asset, scope);
   }
 }
