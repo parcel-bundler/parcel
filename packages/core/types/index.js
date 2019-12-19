@@ -12,6 +12,7 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
+export type EnvMap = typeof process.env;
 
 export type JSONValue =
   | null
@@ -160,7 +161,7 @@ export type InitialParcelOptions = {|
   rootDir?: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
-  env?: {[string]: string, ...},
+  env?: EnvMap,
   targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
   disableCache?: boolean,
@@ -194,7 +195,7 @@ export interface PluginOptions {
   +minify: boolean;
   +scopeHoist: boolean;
   +sourceMaps: boolean;
-  +env: {+[string]: string, ...};
+  +env: EnvMap;
   +hot: ServerOptions | false;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
