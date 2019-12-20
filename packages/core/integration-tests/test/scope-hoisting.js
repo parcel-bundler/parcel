@@ -3640,6 +3640,17 @@ describe('scope hoisting', function() {
       assert.equal(output.require, 'function');
     });
 
+    it('can bundle browserify-produced umd bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/browserify-compat/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 'foo');
+    });
+
     it("doesn't support require.resolve calls for included assets", async function() {
       let message =
         "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting";
