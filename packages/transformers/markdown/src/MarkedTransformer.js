@@ -22,7 +22,7 @@ const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 const markedParse = promisify(marked.parse);
 
 export default new Transformer({
-  async transform({asset}) {
+  async transform({asset, resolve, options}) {
     asset.type = 'html';
 
     let code = await asset.getCode();
@@ -43,6 +43,14 @@ export default new Transformer({
     });
 
     let template = DEFAULT_TEMPLATE;
+    if (attributes.template) {
+      let templateLocation = await resolve(asset.filePath, attributes.template);
+      template = await options.inputFS.readFile(templateLocation, 'utf-8');
+      asset.addIncludedFile({
+        filePath: templateLocation,
+      });
+    }
+
     let res = Mustache.render(template, attributes);
 
     asset.setCode(res);

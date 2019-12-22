@@ -1,6 +1,7 @@
 ---
 title: Parcel Markdown Example
 description: Demonstrating the capabilities of markdown using Parcel 2
+template: ./template.html
 ---
 
 # Header 1
