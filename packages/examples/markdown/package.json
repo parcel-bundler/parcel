@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/markdown-example",
+  "version": "2.0.0-alpha.3.2",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "demo": "parcel src/*.md"
+  },
+  "devDependencies": {
+    "parcel": "^2.0.0-alpha.3.2"
+  },
+  "dependencies": {
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}

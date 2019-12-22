@@ -19,6 +19,7 @@
     "*.less": ["@parcel/transformer-less"],
     "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
     "*.sss": ["@parcel/transformer-sugarss"],
+    "*.md": ["@parcel/transformer-markdown-html"],
     "*.{htm,html}": [
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"
