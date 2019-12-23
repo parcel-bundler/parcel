@@ -62,7 +62,7 @@ class CSSPackager extends Packager {
       if (mapBundle) {
         let mapUrl = urlJoin(
           this.options.publicURL,
-          path.relative(this.options.outDir, mapBundle.name)
+          path.relative(this.options.outDir, mapBundle.name),
         );
         await this.write(`\n/*# sourceMappingURL=${mapUrl} */`);
       }
