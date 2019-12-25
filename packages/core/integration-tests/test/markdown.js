@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS, distDir} from '@parcel/test-utils';
 
-describe.only('markdown', function() {
+describe('markdown', function() {
   it('should support bundling Markdown', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/markdown/index.md'),
