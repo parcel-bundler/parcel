@@ -11,14 +11,14 @@ function pipeSpawn(cmd, params, opts) {
           {
             FORCE_COLOR: logger.color,
             npm_config_color: logger.color ? 'always' : '',
-            npm_config_progress: true
+            npm_config_progress: true,
           },
           process.env,
-          {NODE_ENV: null} // Passing NODE_ENV through causes strange issues with yarn
-        )
+          {NODE_ENV: null}, // Passing NODE_ENV through causes strange issues with yarn
+        ),
       },
-      opts
-    )
+      opts,
+    ),
   );
 
   cp.stdout.setEncoding('utf8').on('data', d => logger.writeRaw(d));

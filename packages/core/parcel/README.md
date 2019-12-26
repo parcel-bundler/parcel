@@ -626,7 +626,7 @@ See [Resolvers](#resolvers)
 ```json
 {
   "transforms": {
-    "*.js": ["@parcel/transform-babel"]
+    "*.js": ["@parcel/transformer-babel"]
   }
 }
 ```
@@ -1029,32 +1029,32 @@ asset graph. They mostly call out to different compilers and preprocessors.
 ```json
 {
   "transforms": {
-    "*.js": ["@parcel/transform-babel"]
+    "*.js": ["@parcel/transformer-babel"]
   }
 }
 ```
 
 **Official Transforms:**
 
-- `@parcel/transform-babel`
-- `@parcel/transform-coffeescript`
-- `@parcel/transform-graphql`
-- `@parcel/transform-json`
-- `@parcel/transform-json5`
-- `@parcel/transform-less`
-- `@parcel/transform-posthtml`
-- `@parcel/transform-postcss`
-- `@parcel/transform-pug`
-- `@parcel/transform-raw`
-- `@parcel/transform-reason`
-- `@parcel/transform-rust`
-- `@parcel/transform-stylus`
-- `@parcel/transform-toml`
-- `@parcel/transform-typescript`
-- `@parcel/transform-vue`
-- `@parcel/transform-wasm`
-- `@parcel/transform-webmanifest`
-- `@parcel/transform-yaml`
+- `@parcel/transformer-babel`
+- `@parcel/transformer-coffeescript`
+- `@parcel/transformer-graphql`
+- `@parcel/transformer-json`
+- `@parcel/transformer-json5`
+- `@parcel/transformer-less`
+- `@parcel/transformer-posthtml`
+- `@parcel/transformer-postcss`
+- `@parcel/transformer-pug`
+- `@parcel/transformer-raw`
+- `@parcel/transformer-reason`
+- `@parcel/transformer-rust`
+- `@parcel/transformer-stylus`
+- `@parcel/transformer-toml`
+- `@parcel/transformer-typescript`
+- `@parcel/transformer-vue`
+- `@parcel/transformer-wasm`
+- `@parcel/transformer-webmanifest`
+- `@parcel/transformer-yaml`
 - ...
 
 ### Bundlers
@@ -1191,7 +1191,7 @@ All plugins must follow a naming system:
 | ---------- | -------------------------- | ------------------------- | ------------------------------------ |
 | Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config[-{name}]`      |
 | Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver[-{name}]`    |
-| Transforms | `@parcel/transform-{name}` | `parcel-transform-{name}` | `@scope/parcel-transform[-{name}]`   |
+| Transforms | `@parcel/transformer-{name}` | `parcel-transformer-{name}` | `@scope/parcel-transformer[-{name}]`   |
 | Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler[-{name}]`     |
 | Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer[-{name}]`       |
 | Runtimes   | `@parcel/runtime-{name}`   | `parcel-runtime-{name}`   | `@scope/parcel-runtime[-{name}]`     |
@@ -1205,7 +1205,7 @@ package. Someone should be able to have an idea of what the package does simply
 by reading the name in a `.parcelrc` or `package.json#devDependencies`.
 
 ```
-parcel-transform-posthtml
+parcel-transformer-posthtml
 parcel-packager-wasm
 parcel-reporter-graph-visualizer
 ```
@@ -1214,16 +1214,16 @@ If your plugin adds support for a specific tool, please use the name of the
 tool.
 
 ```
-parcel-transform-es6 (bad)
-parcel-transform-babel (good)
+parcel-transformer-es6 (bad)
+parcel-transformer-babel (good)
 ```
 
 If your plugin is a reimplementation of something that exists, try naming it
 something that explains why it is a separate:
 
 ```
-parcel-transform-better-typescript (bad)
-parcel-transform-typescript-server (good)
+parcel-transformer-better-typescript (bad)
+parcel-transformer-typescript-server (good)
 ```
 
 We ask that community members work together and when forks happen to try and
@@ -1252,7 +1252,7 @@ of Parcel that your plugin supports:
 
 ```json
 {
-  "name": "parcel-transform-imagemin"
+  "name": "parcel-transform-imagemin",
   "engines": {
     "parcel": "2.x"
   }

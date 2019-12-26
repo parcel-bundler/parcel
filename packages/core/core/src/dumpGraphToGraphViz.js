@@ -13,19 +13,19 @@ const COLORS = {
   dependency: 'orange',
   transformer_request: 'cyan',
   file: 'gray',
-  default: 'white'
+  default: 'white',
 };
 
 const TYPE_COLORS = {
   bundle: 'blue',
   contains: 'grey',
-  references: 'red'
+  references: 'red',
 };
 
 export default async function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
-  name: string
+  name: string,
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
@@ -54,6 +54,10 @@ export default async function dumpGraphToGraphViz(
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
+    } else if (node.type === 'asset_group') {
+      if (node.deferred) {
+        label += '(deferred)';
+      }
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
     } else if (node.type === 'transformer_request') {
@@ -62,9 +66,8 @@ export default async function dumpGraphToGraphViz(
         ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'bundle') {
       label += node.id;
-    } else {
-      // label += node.id;
-      // label = node.type;
+    } else if (node.type === 'request') {
+      label = node.value.type + ':' + node.id;
     }
     n.set('label', label);
   }

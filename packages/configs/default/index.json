@@ -2,13 +2,18 @@
   "bundler": "@parcel/bundler-default",
   "transforms": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
+    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
+    "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
-      "@parcel/transformer-js"
+      "@parcel/transformer-js",
+      "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
+    "*.{gql,graphql}": ["@parcel/transformer-graphql"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.less": ["@parcel/transformer-less"],
@@ -24,12 +29,18 @@
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
-    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "browser": [
+      "@parcel/runtime-js",
+      "@parcel/runtime-browser-hmr",
+      "@parcel/runtime-react-refresh"
+    ],
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
+    "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
-    "*.js": ["@parcel/optimizer-terser"]
+    "*.js": ["@parcel/optimizer-terser"],
+    "*.html": ["@parcel/optimizer-htmlnano"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",

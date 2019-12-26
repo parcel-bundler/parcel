@@ -1,22 +1,27 @@
 {
   "name": "@parcel/transformer-typescript-types",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/TSTypesTransformer.js",
+  "main": "lib/TSTypesTransformer.js",
+  "source": "src/TSTypesTransformer.js",
   "engines": {
     "node": ">= 8.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.2.1",
-    "@parcel/source-map": "^2.0.0-alpha.2.1",
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "@parcel/source-map": "^2.0.0-alpha.3.1",
+    "@parcel/ts-utils": "^2.0.0-alpha.3.1",
     "nullthrows": "^1.1.1"
   },
-  "peerDependencies": {
+  "devDependencies": {
     "typescript": "^3.0.0"
   }
 }

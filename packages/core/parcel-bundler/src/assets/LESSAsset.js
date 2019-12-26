@@ -40,7 +40,7 @@ class LESSAsset extends Asset {
     if (this.ast && this.ast.map) {
       map = JSON.parse(this.ast.map.toString());
       map.sources = map.sources.map(v =>
-        path.relative(this.options.rootDir, v)
+        path.relative(this.options.rootDir, v),
       );
     }
     return [
@@ -48,8 +48,8 @@ class LESSAsset extends Asset {
         type: 'css',
         value: this.ast ? this.ast.css : '',
         hasDependencies: false,
-        map
-      }
+        map,
+      },
     ];
   }
 }
@@ -61,10 +61,10 @@ function urlPlugin(asset) {
         visitUrl: node => {
           node.value.value = asset.addURLDependency(
             node.value.value,
-            node.currentFileInfo.filename
+            node.currentFileInfo.filename,
           );
           return node;
-        }
+        },
       });
 
       visitor.run = visitor.visit;
@@ -72,14 +72,14 @@ function urlPlugin(asset) {
 
       let LessFileManager = getFileManager(less, asset.options);
       pluginManager.addFileManager(new LessFileManager());
-    }
+    },
   };
 }
 
 function getFileManager(less, options) {
   const resolver = new Resolver({
     extensions: ['.css', '.less'],
-    rootDir: options.rootDir
+    rootDir: options.rootDir,
   });
 
   class LessFileManager extends less.FileManager {
@@ -95,11 +95,11 @@ function getFileManager(less, options) {
       filename = parseCSSImport(filename);
       let resolved = await resolver.resolve(
         filename,
-        path.join(currentDirectory, 'index')
+        path.join(currentDirectory, 'index'),
       );
       return {
         contents: await fs.readFile(resolved.path, 'utf8'),
-        filename: resolved.path
+        filename: resolved.path,
       };
     }
   }

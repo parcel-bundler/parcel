@@ -28,7 +28,7 @@ export default class HeatMap extends React.Component {
         onMouseOver(
           event,
           node.getAttribute('data-tooltip'),
-          node.getAttribute('data-status')
+          node.getAttribute('data-status'),
         );
       }
     };

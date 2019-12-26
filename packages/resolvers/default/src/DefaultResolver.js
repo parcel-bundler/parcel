@@ -3,11 +3,10 @@
 import {Resolver} from '@parcel/plugin';
 import type {
   PluginOptions,
-  Dependency,
   PackageJSON,
   FilePath,
   ResolveResult,
-  Environment
+  Environment,
 } from '@parcel/types';
 import path from 'path';
 import {isGlob} from '@parcel/utils';
@@ -20,20 +19,23 @@ import invariant from 'assert';
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
 export default new Resolver({
-  async resolve({dependency, options}) {
+  async resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
       throw new Error(
-        `The import path: ${
-          dependency.moduleSpecifier
-        } is using webpack specific loader import syntax, which isn't supported by Parcel.`
+        `The import path: ${dependency.moduleSpecifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
 
     const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
-      options
+      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
+      options,
     });
-    const resolved = await resolver.resolve(dependency);
+    const resolved = await resolver.resolve({
+      filename: filePath,
+      isURL: dependency.isURL,
+      parent: dependency.sourcePath,
+      env: dependency.env,
+    });
 
     if (!resolved) {
       return null;
@@ -45,7 +47,7 @@ export default new Resolver({
 
     invariant(resolved.path != null);
     let result: ResolveResult = {
-      filePath: resolved.path
+      filePath: resolved.path,
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {
@@ -53,7 +55,7 @@ export default new Resolver({
     }
 
     return result;
-  }
+  },
 });
 
 function hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON) {
@@ -64,11 +66,11 @@ function hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON) {
       return micromatch.isMatch(
         path.relative(pkg.pkgdir, filePath),
         pkg.sideEffects,
-        {matchBase: true}
+        {matchBase: true},
       );
     case 'object':
       return pkg.sideEffects.some(sideEffects =>
-        hasSideEffects(filePath, {...pkg, sideEffects})
+        hasSideEffects(filePath, {...pkg, sideEffects}),
       );
   }
 
@@ -81,7 +83,7 @@ const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {|
   options: PluginOptions,
-  extensions: Array<string>
+  extensions: Array<string>,
 |};
 
 /**
@@ -105,7 +107,7 @@ class NodeResolver {
 
   constructor(opts: Options) {
     this.extensions = opts.extensions.map(ext =>
-      ext.startsWith('.') ? ext : '.' + ext
+      ext.startsWith('.') ? ext : '.' + ext,
     );
     this.options = opts.options;
     this.packageCache = new Map();
@@ -113,11 +115,16 @@ class NodeResolver {
   }
 
   async resolve({
-    moduleSpecifier: filename,
-    sourcePath: parent,
+    filename,
+    parent,
     isURL,
-    env
-  }: Dependency) {
+    env,
+  }: {|
+    filename: FilePath,
+    parent: ?FilePath,
+    isURL: boolean,
+    env: Environment,
+  |}) {
     // Check if this is a glob
     if (isGlob(filename)) {
       if (parent == null) {
@@ -138,21 +145,31 @@ class NodeResolver {
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule(filename, parent, isURL, env);
+    let module = await this.resolveModule({filename, parent, isURL, env});
     if (!module) {
       return {isExcluded: true};
     }
 
     if (module.moduleDir) {
-      return this.loadNodeModules(module, extensions);
+      return this.loadNodeModules(module, extensions, env);
     } else if (module.filePath) {
-      return this.loadRelative(module.filePath, extensions);
+      return this.loadRelative(module.filePath, extensions, env);
     } else {
       return null;
     }
   }
 
-  async resolveModule(filename, parent, isURL, env) {
+  async resolveModule({
+    filename,
+    parent,
+    isURL,
+    env,
+  }: {|
+    filename: string,
+    parent: ?FilePath,
+    isURL: boolean,
+    env: Environment,
+  |}) {
     let dir = parent ? path.dirname(parent) : this.options.inputFS.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
@@ -161,12 +178,12 @@ class NodeResolver {
     }
 
     // Resolve aliases in the parent module for this file.
-    filename = await this.loadAlias(filename, dir);
+    filename = await this.loadAlias(filename, dir, env);
 
     // Return just the file path if this is a file, not in node_modules
     if (path.isAbsolute(filename)) {
       return {
-        filePath: filename
+        filePath: filename,
       };
     }
 
@@ -192,7 +209,7 @@ class NodeResolver {
       let parts = this.getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
-        subPath: parts[1]
+        subPath: parts[1],
       };
     }
 
@@ -233,7 +250,7 @@ class NodeResolver {
           path.basename(path.dirname(dir)) !== 'node_modules' &&
           (insideNodeModules ||
             !(await this.options.inputFS.exists(
-              path.join(dir, 'package.json')
+              path.join(dir, 'package.json'),
             )))
         ) {
           dir = path.dirname(dir);
@@ -263,14 +280,18 @@ class NodeResolver {
     }
   }
 
-  async loadRelative(filename: string, extensions: Array<string>) {
+  async loadRelative(
+    filename: string,
+    extensions: Array<string>,
+    env: Environment,
+  ) {
     // Find a package.json file in the current package.
     let pkg = await this.findPackage(path.dirname(filename));
 
     // First try as a file, then as a directory.
     return (
-      (await this.loadAsFile(filename, extensions, pkg)) ||
-      (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await
+      (await this.loadAsFile({file: filename, extensions, env, pkg})) ||
+      (await this.loadDirectory({dir: filename, extensions, env, pkg})) // eslint-disable-line no-return-await
     );
   }
   findBuiltin(filename: string, env: Environment) {
@@ -302,7 +323,7 @@ class NodeResolver {
             moduleName: parts[0],
             subPath: parts[1],
             moduleDir: moduleDir,
-            filePath: path.join(dir, 'node_modules', filename)
+            filePath: path.join(dir, 'node_modules', filename),
           };
         }
       } catch (err) {
@@ -316,20 +337,25 @@ class NodeResolver {
     return undefined;
   }
 
-  async loadNodeModules(module, extensions: Array<string>) {
+  async loadNodeModules(module, extensions: Array<string>, env: Environment) {
     try {
       // If a module was specified as a module sub-path (e.g. some-module/some/path),
       // it is likely a file. Try loading it as a file first.
       if (module.subPath) {
         let pkg = await this.readPackage(module.moduleDir);
-        let res = await this.loadAsFile(module.filePath, extensions, pkg);
+        let res = await this.loadAsFile({
+          file: module.filePath,
+          extensions,
+          env,
+          pkg,
+        });
         if (res) {
           return res;
         }
       }
 
       // Otherwise, load as a directory.
-      return await this.loadDirectory(module.filePath, extensions);
+      return await this.loadDirectory({dir: module.filePath, extensions, env});
     } catch (e) {
       // ignore
     }
@@ -344,22 +370,28 @@ class NodeResolver {
     }
   }
 
-  async loadDirectory(
+  async loadDirectory({
+    dir,
+    extensions,
+    env,
+    pkg,
+  }: {|
     dir: string,
     extensions: Array<string>,
-    pkg: InternalPackageJSON | null = null
-  ) {
+    env: Environment,
+    pkg?: InternalPackageJSON | null,
+  |}) {
     try {
       pkg = await this.readPackage(dir);
 
       // Get a list of possible package entry points.
-      let entries = this.getPackageEntries(pkg);
+      let entries = this.getPackageEntries(pkg, env);
 
       for (let file of entries) {
         // First try loading package.main as a file, then try as a directory.
         const res =
-          (await this.loadAsFile(file, extensions, pkg)) ||
-          (await this.loadDirectory(file, extensions, pkg));
+          (await this.loadAsFile({file, extensions, env, pkg})) ||
+          (await this.loadDirectory({dir: file, extensions, env, pkg}));
         if (res) {
           return res;
         }
@@ -369,7 +401,12 @@ class NodeResolver {
     }
 
     // Fall back to an index file inside the directory.
-    return this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
+    return this.loadAsFile({
+      file: path.join(dir, 'index'),
+      extensions,
+      env,
+      pkg: pkg || null,
+    });
   }
 
   async readPackage(dir: string): Promise<InternalPackageJSON> {
@@ -399,22 +436,30 @@ class NodeResolver {
     return pkg;
   }
 
-  getBrowserField(pkg: InternalPackageJSON) {
-    // let target = this.options.cli.target || 'browser';
-    let target = 'browser';
-    return target === 'browser' ? pkg.browser : null;
-  }
+  getPackageEntries(pkg: InternalPackageJSON, env: Environment) {
+    let browser;
+    if (env.isBrowser() && pkg.browser != null) {
+      if (typeof pkg.browser === 'string') {
+        browser = pkg.browser;
+      } else if (typeof pkg.browser === 'object' && pkg.browser[pkg.name]) {
+        browser = pkg.browser[pkg.name];
+      }
+    }
 
-  getPackageEntries(pkg: InternalPackageJSON) {
-    let browser = this.getBrowserField(pkg);
-    if (browser && typeof browser === 'object' && browser[pkg.name]) {
-      browser = browser[pkg.name];
+    let mainFields = [pkg.source, browser];
+
+    // If scope hoisting is enabled, we can get smaller builds using esmodule input, so choose `module` over `main`.
+    // Otherwise, we'd be wasting time transforming esmodules to commonjs, so choose `main` over `module`.
+    if (this.options.scopeHoist) {
+      mainFields.push(pkg.module, pkg.main);
+    } else {
+      mainFields.push(pkg.main, pkg.module);
     }
 
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    return [pkg.source, browser, pkg.module, pkg.main]
+    return mainFields
       .filter(entry => typeof entry === 'string')
       .map(main => {
         // Default to index file if no main field find
@@ -430,13 +475,19 @@ class NodeResolver {
       });
   }
 
-  async loadAsFile(
+  async loadAsFile({
+    file,
+    extensions,
+    env,
+    pkg,
+  }: {|
     file: string,
     extensions: Array<string>,
-    pkg: InternalPackageJSON | null
-  ) {
+    env: Environment,
+    pkg: InternalPackageJSON | null,
+  |}) {
     // Try all supported extensions
-    for (let f of await this.expandFile(file, extensions, pkg)) {
+    for (let f of await this.expandFile(file, extensions, env, pkg)) {
       if (await this.isFile(f)) {
         return {path: f, pkg};
       }
@@ -446,8 +497,9 @@ class NodeResolver {
   async expandFile(
     file: string,
     extensions: Array<string>,
+    env: Environment,
     pkg: InternalPackageJSON | null,
-    expandAliases = true
+    expandAliases = true,
   ) {
     // Expand extensions and aliases
     let res = [];
@@ -455,10 +507,10 @@ class NodeResolver {
       let f = file + ext;
 
       if (expandAliases) {
-        let alias = await this.resolveAliases(file + ext, pkg);
+        let alias = await this.resolveAliases(file + ext, env, pkg);
         if (alias !== f) {
           res = res.concat(
-            await this.expandFile(alias, extensions, pkg, false)
+            await this.expandFile(alias, extensions, env, pkg, false),
           );
         }
       }
@@ -469,17 +521,23 @@ class NodeResolver {
     return res;
   }
 
-  async resolveAliases(filename: string, pkg: InternalPackageJSON | null) {
+  async resolveAliases(
+    filename: string,
+    env: Environment,
+    pkg: InternalPackageJSON | null,
+  ) {
     // First resolve local package aliases, then project global ones.
     return this.resolvePackageAliases(
-      await this.resolvePackageAliases(filename, pkg),
-      this.rootPackage
+      await this.resolvePackageAliases(filename, env, pkg),
+      env,
+      this.rootPackage,
     );
   }
 
   async resolvePackageAliases(
     filename: string,
-    pkg: InternalPackageJSON | null
+    env: Environment,
+    pkg: InternalPackageJSON | null,
   ) {
     if (!pkg) {
       return filename;
@@ -489,7 +547,8 @@ class NodeResolver {
     return (
       (await this.getAlias(filename, pkg.pkgdir, pkg.source)) ||
       (await this.getAlias(filename, pkg.pkgdir, pkg.alias)) ||
-      (await this.getAlias(filename, pkg.pkgdir, this.getBrowserField(pkg))) ||
+      (env.isBrowser() &&
+        (await this.getAlias(filename, pkg.pkgdir, pkg.browser))) ||
       filename
     );
   }
@@ -550,9 +609,11 @@ class NodeResolver {
 
     if (typeof alias === 'string') {
       return this.resolveFilename(alias, dir);
+    } else if (alias === false) {
+      return false;
     }
 
-    return typeof alias === 'string' ? alias : null;
+    return null;
   }
 
   async findPackage(dir: string) {
@@ -571,7 +632,7 @@ class NodeResolver {
     return null;
   }
 
-  async loadAlias(filename: string, dir: string) {
+  async loadAlias(filename: string, dir: string, env: Environment) {
     // Load the root project's package.json file if we haven't already
     if (!this.rootPackage) {
       this.rootPackage = await this.findPackage(this.options.rootDir);
@@ -579,7 +640,7 @@ class NodeResolver {
 
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
-    return this.resolveAliases(filename, pkg);
+    return this.resolveAliases(filename, env, pkg);
   }
 
   getModuleParts(name) {

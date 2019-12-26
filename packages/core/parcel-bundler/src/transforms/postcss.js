@@ -24,7 +24,7 @@ module.exports = async function(asset) {
 async function getConfig(asset) {
   let config = await asset.getConfig(
     ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
-    {packageKey: 'postcss'}
+    {packageKey: 'postcss'},
   );
 
   let enableModules =
@@ -47,13 +47,13 @@ async function getConfig(asset) {
     getJSON: (filename, json) => (asset.cssModules = json),
     Loader: createLoader(asset),
     generateScopedName: (name, filename) =>
-      `_${name}_${md5(filename).substr(0, 5)}`
+      `_${name}_${md5(filename).substr(0, 5)}`,
   };
 
   if (config.plugins && config.plugins['postcss-modules']) {
     postcssModulesConfig = Object.assign(
       postcssModulesConfig,
-      config.plugins['postcss-modules']
+      config.plugins['postcss-modules'],
     );
     delete config.plugins['postcss-modules'];
   }
@@ -74,9 +74,9 @@ async function getConfig(asset) {
           // Only enable safe css transforms if cssnano < 4
           // See: https://github.com/parcel-bundler/parcel/issues/698
           // See: https://github.com/ben-eb/cssnano/releases/tag/v4.0.0-rc.0
-          safe: semver.satisfies(version, '<4.0.0-rc')
-        }
-      )
+          safe: semver.satisfies(version, '<4.0.0-rc'),
+        },
+      ),
     );
   }
 
@@ -103,7 +103,7 @@ const createLoader = asset =>
         source,
         rootRelativePath,
         undefined,
-        this.fetch.bind(this)
+        this.fetch.bind(this),
       );
       return exportTokens;
     }

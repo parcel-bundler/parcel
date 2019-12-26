@@ -30,9 +30,9 @@ describe('@parcel/babel-preset-env', () => {
         name: 'parcel',
         version: '2.0.0',
         targets: JSON.stringify({
-          browsers: ['last 1 Chrome version']
-        })
-      }
+          browsers: ['last 1 Chrome version'],
+        }),
+      },
     });
 
     assert(transformed.includes('class Foo'));
@@ -48,9 +48,9 @@ describe('@parcel/babel-preset-env', () => {
         name: 'foo',
         version: '2.0.0',
         targets: JSON.stringify({
-          browsers: ['last 1 Chrome version']
-        })
-      }
+          browsers: ['last 1 Chrome version'],
+        }),
+      },
     });
 
     assert(!transformed.includes('class Foo'));
@@ -61,7 +61,7 @@ describe('@parcel/babel-preset-env', () => {
   it('does not compile against targets passed through caller when the caller is not present', () => {
     let {code: transformed} = babel.transformSync(input, {
       configFile: false,
-      presets: [preset]
+      presets: [preset],
     });
 
     assert(!transformed.includes('class Foo'));

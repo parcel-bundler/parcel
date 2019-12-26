@@ -1,7 +1,8 @@
 {
-  "name": "commonjs-external",
+  "name": "esm-external",
   "private": true,
   "module": "dist/index.js",
+  "sideEffects": false,
   "engines": {
     "node": ">= 10.x"
   }

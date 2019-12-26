@@ -4,7 +4,7 @@ import type {FilePath} from '@parcel/types';
 import type {
   Event,
   Options as WatcherOptions,
-  AsyncSubscription
+  AsyncSubscription,
 } from '@parcel/watcher';
 
 import {registerSerializableClass} from '@parcel/utils';
@@ -62,13 +62,25 @@ export class OverlayFS implements FileSystem {
     return {
       $$raw: false,
       writable: this.writable,
-      readable: this.readable
+      readable: this.readable,
     };
   }
 
   readFile = read('readFile');
   writeFile = write('writeFile');
-  copyFile = write('copyFile');
+  async copyFile(source: FilePath, destination: FilePath) {
+    if (await this.writable.exists(source)) {
+      await this.writable.writeFile(
+        destination,
+        await this.writable.readFile(source),
+      );
+    } else {
+      await this.writable.writeFile(
+        destination,
+        await this.readable.readFile(source),
+      );
+    }
+  }
   stat = read('stat');
   unlink = write('unlink');
   mkdirp = write('mkdirp');
@@ -110,10 +122,29 @@ export class OverlayFS implements FileSystem {
     return Array.from(new Set([...writable, ...readable]));
   }
 
+  readdirSync(path: FilePath, opts?: ReaddirOptions): any {
+    // Read from both filesystems and merge the results
+    let writable = [];
+    let readable = [];
+    try {
+      writable = this.writable.readdirSync(path, opts);
+    } catch (err) {
+      // do nothing
+    }
+
+    try {
+      readable = this.readable.readdirSync(path, opts);
+    } catch (err) {
+      // do nothing
+    }
+
+    return Array.from(new Set([...writable, ...readable]));
+  }
+
   async watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<AsyncSubscription> {
     let writableSubscription = await this.writable.watch(dir, fn, opts);
     let readableSubscription = await this.readable.watch(dir, fn, opts);
@@ -121,24 +152,24 @@ export class OverlayFS implements FileSystem {
       unsubscribe: async () => {
         await writableSubscription.unsubscribe();
         await readableSubscription.unsubscribe();
-      }
+      },
     };
   }
 
   async getEventsSince(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<Array<Event>> {
     let writableEvents = await this.writable.getEventsSince(
       dir,
       snapshot,
-      opts
+      opts,
     );
     let readableEvents = await this.readable.getEventsSince(
       dir,
       snapshot,
-      opts
+      opts,
     );
     return [...writableEvents, ...readableEvents];
   }
@@ -146,7 +177,7 @@ export class OverlayFS implements FileSystem {
   async writeSnapshot(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<void> {
     await this.writable.writeSnapshot(dir, snapshot, opts);
   }

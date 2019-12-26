@@ -6,7 +6,7 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  ConfigResult
+  ConfigResult,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
@@ -37,6 +37,10 @@ export default class PublicConfig implements IConfig {
 
   get isSource() {
     return this.#config.isSource;
+  }
+
+  get resolvedPath() {
+    return this.#config.resolvedPath;
   }
 
   setResolvedPath(filePath: FilePath) {
@@ -79,26 +83,28 @@ export default class PublicConfig implements IConfig {
   async getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
+      packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
-      ...
-    }
+    |},
   ): Promise<ConfigResult | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
       searchPath,
       filePaths,
-      parse == null ? null : {parse}
+      parse == null ? null : {parse},
     );
     if (conf == null) {
       return null;
     }
 
     if (!options || !options.exclude) {
-      for (let file of conf.files) {
-        this.addIncludedFile(file.filePath);
+      if (this.#config.resolvedPath == null) {
+        this.setResolvedPath(conf.files[0].filePath);
+      } else {
+        this.addIncludedFile(conf.files[0].filePath);
       }
     }
 
@@ -107,11 +113,11 @@ export default class PublicConfig implements IConfig {
 
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
+      packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
-      ...
-    }
+    |},
   ): Promise<ConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }

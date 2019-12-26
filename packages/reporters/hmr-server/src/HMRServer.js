@@ -1,40 +1,42 @@
 // @flow
 
 import type {BuildSuccessEvent} from '@parcel/types';
-import type {PrintableError} from '@parcel/utils';
-import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {AnsiDiagnosticResult} from '@parcel/utils';
+import type {ServerError, HMRServerOptions} from './types.js.flow';
 
-import http from 'http';
-import https from 'https';
+import invariant from 'assert';
 import WebSocket from 'ws';
-import ansiHtml from 'ansi-html';
-import {getCertificate, generateCertificate} from '@parcel/utils';
-import logger from '@parcel/logger';
-import {prettyError} from '@parcel/utils';
-import {md5FromObject} from '@parcel/utils';
+import {
+  createHTTPServer,
+  md5FromObject,
+  prettyDiagnostic,
+  ansiHtml,
+} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,
   type: string,
   output: string,
   envHash: string,
-  deps: Object
+  deps: Object,
 |};
 
-type HMRError = {|
-  message: string,
-  stack?: string
-|};
-
-type HMRMessage = {|
-  type: string,
-  ansiError?: HMRError,
-  htmlError?: HMRError,
-  assets?: Array<HMRAsset>
-|};
+type HMRMessage =
+  | {|
+      type: 'update',
+      assets: Array<HMRAsset>,
+    |}
+  | {|
+      type: 'error',
+      diagnostics: {|
+        ansi: Array<AnsiDiagnosticResult>,
+        html: Array<AnsiDiagnosticResult>,
+      |},
+    |};
 
 export default class HMRServer {
-  server: Server;
+  stopServer: ?() => Promise<void>;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
@@ -44,34 +46,29 @@ export default class HMRServer {
   }
 
   async start() {
-    await new Promise(async resolve => {
-      if (!this.options.https) {
-        this.server = http.createServer();
-      } else if (this.options.https === true) {
-        this.server = https.createServer(
-          await generateCertificate(
-            this.options.outputFS,
-            this.options.cacheDir
-          )
-        );
-      } else {
-        this.server = https.createServer(
-          await getCertificate(this.options.inputFS, this.options.https)
-        );
-      }
+    let {server, stop} = await createHTTPServer({
+      https: this.options.https,
+      inputFS: this.options.inputFS,
+      outputFS: this.options.outputFS,
+      cacheDir: this.options.cacheDir,
+      host: this.options.host,
+    });
+    this.stopServer = stop;
 
-      let websocketOptions = {
-        server: this.server
-        /*verifyClient: info => {
+    let websocketOptions = {
+      server,
+      /*verifyClient: info => {
           if (!this.options.host) return true;
 
           let originator = new URL(info.origin);
           return this.options.host === originator.hostname;
         }*/
-      };
+    };
 
-      this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(this.options.port, this.options.host, resolve);
+    this.wss = new WebSocket.Server(websocketOptions);
+
+    await new Promise(resolve => {
+      server.listen(this.options.port, this.options.host, resolve);
     });
 
     this.wss.on('connection', ws => {
@@ -87,26 +84,33 @@ export default class HMRServer {
     return this.wss._server.address().port;
   }
 
-  stop() {
+  async stop() {
     this.wss.close();
-    this.server.close();
+
+    invariant(this.stopServer != null);
+    await this.stopServer();
+
+    this.stopServer = null;
   }
 
-  emitError(err: PrintableError) {
-    let {message, stack} = prettyError(err);
+  emitError(diagnostics: Array<Diagnostic>) {
+    let renderedDiagnostics = diagnostics.map(d => prettyDiagnostic(d));
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {
       type: 'error',
-      ansiError: {
-        message,
-        stack
+      diagnostics: {
+        ansi: renderedDiagnostics,
+        html: renderedDiagnostics.map(d => {
+          return {
+            message: ansiHtml(d.message),
+            stack: ansiHtml(d.stack),
+            codeframe: ansiHtml(d.codeframe),
+            hints: d.hints.map(hint => ansiHtml(hint)),
+          };
+        }),
       },
-      htmlError: {
-        message: ansiHtml(message),
-        stack: ansiHtml(stack)
-      }
     };
 
     this.broadcast(this.unresolvedError);
@@ -116,7 +120,7 @@ export default class HMRServer {
     this.unresolvedError = null;
 
     let changedAssets = Array.from(event.changedAssets.values()).filter(
-      asset => asset.env.context === 'browser'
+      asset => asset.env.context === 'browser',
     );
 
     if (changedAssets.length === 0) return;
@@ -137,14 +141,14 @@ export default class HMRServer {
           type: asset.type,
           output: await asset.getCode(),
           envHash: md5FromObject(asset.env),
-          deps
+          deps,
         };
-      })
+      }),
     );
 
     this.broadcast({
       type: 'update',
-      assets: assets
+      assets: assets,
     });
   }
 
@@ -154,7 +158,11 @@ export default class HMRServer {
       return;
     }
 
-    logger.warn(err);
+    this.options.logger.warn({
+      origin: '@parcel/reporter-hmr-server',
+      message: `[${err.code}]: ${err.message}`,
+      stack: err.stack,
+    });
   }
 
   broadcast(msg: HMRMessage) {

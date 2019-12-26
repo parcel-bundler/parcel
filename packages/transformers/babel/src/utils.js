@@ -27,7 +27,7 @@ const ESMODULE_BROWSERS = [
   'not samsung < 8.2',
   'not and_qq > 0',
   'not baidu > 0',
-  'not kaios > 0'
+  'not kaios > 0',
 ];
 
 export function enginesToBabelTargets(env: Environment): BabelTargets {

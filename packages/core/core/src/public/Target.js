@@ -3,7 +3,7 @@ import type {
   FilePath,
   Target as ITarget,
   TargetSourceMapOptions,
-  Environment as IEnvironment
+  Environment as IEnvironment,
 } from '@parcel/types';
 import type {Target as TargetValue} from '../types';
 import Environment from './Environment';
@@ -44,5 +44,9 @@ export default class Target implements ITarget {
 
   get publicUrl(): ?string {
     return this.#target.publicUrl;
+  }
+
+  get loc() {
+    return this.#target.loc;
   }
 }

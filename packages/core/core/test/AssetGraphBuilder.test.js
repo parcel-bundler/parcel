@@ -6,29 +6,11 @@ import nullthrows from 'nullthrows';
 
 import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {createEnvironment} from '../src/Environment';
 import {resolveParcelConfig} from '../src/loadParcelConfig';
 import {DEFAULT_OPTIONS} from './utils';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 const CONFIG_DIR = path.join(FIXTURES_DIR, 'config');
-
-const DEFAULT_ENV = createEnvironment({
-  context: 'browser',
-  engines: {
-    browsers: ['> 1%']
-  }
-});
-
-const TARGETS = [
-  {
-    name: 'test',
-    distDir: 'dist',
-    distEntry: 'out.js',
-    env: DEFAULT_ENV,
-    publicUrl: null
-  }
-];
 
 describe('AssetGraphBuilder', function() {
   // This depends on spinning up a WorkerFarm, which can take some time.
@@ -48,7 +30,10 @@ describe('AssetGraphBuilder', function() {
 
   beforeEach(async () => {
     config = nullthrows(
-      await resolveParcelConfig(path.join(CONFIG_DIR, 'index'), DEFAULT_OPTIONS)
+      await resolveParcelConfig(
+        path.join(CONFIG_DIR, 'index'),
+        DEFAULT_OPTIONS,
+      ),
     ).config;
 
     builder = new AssetGraphBuilder();
@@ -57,8 +42,7 @@ describe('AssetGraphBuilder', function() {
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],
-      targets: TARGETS,
-      workerFarm
+      workerFarm,
     });
   });
 

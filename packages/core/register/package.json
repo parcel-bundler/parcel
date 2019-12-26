@@ -1,8 +1,16 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0-alpha.2.1",
-  "main": "./src/register.js",
+  "version": "2.0.0-alpha.3.2",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/register.js",
+  "source": "src/register.js",
   "engines": {
     "node": ">= 10.0.0"
   },
@@ -11,7 +19,11 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-alpha.2.1",
-    "@parcel/core": "^2.0.0-alpha.2.1"
+    "@parcel/config-default": "^2.0.0-alpha.3.1",
+    "@parcel/core": "^2.0.0-alpha.3.2",
+    "@parcel/fs": "^2.0.0-alpha.3.1",
+    "@parcel/package-manager": "^2.0.0-alpha.3.1",
+    "pirates": "^4.0.0",
+    "deasync": "^0.1.14"
   }
 }

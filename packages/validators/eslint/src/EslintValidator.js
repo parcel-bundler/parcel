@@ -1,8 +1,6 @@
 // @flow
 import {Validator} from '@parcel/plugin';
-import path from 'path';
-
-type CodeFrameError = Error & {codeFrame?: string, ...};
+import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 
 let cliEngine = null;
 
@@ -15,18 +13,47 @@ export default new Validator({
     let code = await asset.getCode();
     let report = cliEngine.executeOnText(code, asset.filePath);
 
+    let validatorResult = {
+      warnings: [],
+      errors: [],
+    };
+
     if (report.results.length > 0) {
-      let formatter = cliEngine.getFormatter('codeframe');
+      for (let result of report.results) {
+        if (!result.errorCount && !result.warningCount) continue;
 
-      let err: CodeFrameError = new Error(
-        `ESLint issues found in ${path.relative(
-          options.projectRoot,
-          asset.filePath
-        )}`
-      );
-      err.codeFrame = formatter(report.results);
+        let codeframe: DiagnosticCodeFrame = {
+          code: result.source,
+          codeHighlights: result.messages.map(message => {
+            return {
+              start: {
+                line: message.line,
+                column: message.column,
+              },
+              end: {
+                line: message.endLine,
+                column: message.endColumn,
+              },
+              message: message.message,
+            };
+          }),
+        };
 
-      throw err;
+        let diagnostic = {
+          origin: '@parcel/validator-eslint',
+          message: `ESLint found **${result.errorCount}** __errors__ and **${result.warningCount}** __warnings__.`,
+          filePath: asset.filePath,
+          codeFrame: codeframe,
+        };
+
+        if (result.errorCount > 0) {
+          validatorResult.errors.push(diagnostic);
+        } else {
+          validatorResult.warnings.push(diagnostic);
+        }
+      }
     }
-  }
+
+    return validatorResult;
+  },
 });

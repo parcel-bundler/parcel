@@ -1,17 +1,21 @@
 {
   "name": "@parcel/optimizer-cssnano",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/CSSNanoOptimizer.js",
+  "main": "lib/CSSNanoOptimizer.js",
+  "source": "src/CSSNanoOptimizer.js",
   "engines": {
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.2.1",
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
     "cssnano": "^4.1.10",
     "postcss": "^7.0.5"
   }

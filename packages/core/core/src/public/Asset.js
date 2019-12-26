@@ -18,24 +18,22 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol
+  Symbol,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
-import URL from 'url';
 import nullthrows from 'nullthrows';
-import {isURL} from '@parcel/utils';
 import Environment from './Environment';
 import Dependency from './Dependency';
 import InternalAsset from '../InternalAsset';
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
-  InternalAsset
+  InternalAsset,
 > = new WeakMap();
 
 export function assetToInternalAsset(
-  asset: IAsset | IMutableAsset
+  asset: IAsset | IMutableAsset,
 ): InternalAsset {
   return nullthrows(_assetToInternalAsset.get(asset));
 }
@@ -44,8 +42,8 @@ export function assetFromValue(value: AssetValue, options: ParcelOptions) {
   return new Asset(
     new InternalAsset({
       value,
-      options
-    })
+      options,
+    }),
   );
 }
 
@@ -111,11 +109,10 @@ class BaseAsset {
 
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
       parse?: boolean,
-      ...
-    }
+    |},
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }
@@ -231,22 +228,11 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {
-    if (isURL(url)) {
-      return url;
-    }
-
-    let parsed = URL.parse(url);
-    let pathname = parsed.pathname;
-    if (pathname == null) {
-      return url;
-    }
-
-    parsed.pathname = this.addDependency({
-      moduleSpecifier: decodeURIComponent(pathname),
+    return this.addDependency({
+      moduleSpecifier: url,
       isURL: true,
       isAsync: true, // The browser has native loaders for url dependencies
-      ...opts
+      ...opts,
     });
-    return URL.format(parsed);
   }
 }

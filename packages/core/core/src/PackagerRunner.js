@@ -6,7 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
-  Stats
+  Stats,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
@@ -15,14 +15,10 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {
-  urlJoin,
-  md5FromObject,
-  md5FromString,
-  blobToStream
-} from '@parcel/utils';
+import {md5FromObject, md5FromString, blobToStream} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
+import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
@@ -30,7 +26,7 @@ import url from 'url';
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import BundleGraph, {
-  bundleGraphToInternalBundleGraph
+  bundleGraphToInternalBundleGraph,
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
@@ -38,7 +34,7 @@ import {PARCEL_VERSION} from './constants';
 type Opts = {|
   config: ParcelConfig,
   farm?: WorkerFarm,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
 
 export default class PackagerRunner {
@@ -48,14 +44,13 @@ export default class PackagerRunner {
   pluginOptions: PluginOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
-  writeBundleFromWorker: ({
+  writeBundleFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
     options: ParcelOptions,
-    ...
-  }) => Promise<Stats>;
+  |}) => Promise<Stats>;
 
   constructor({config, farm, options}: Opts) {
     this.config = config;
@@ -67,7 +62,7 @@ export default class PackagerRunner {
       ? farm.createHandle('runPackage')
       : () => {
           throw new Error(
-            'Cannot call PackagerRunner.writeBundleFromWorker() in a worker'
+            'Cannot call PackagerRunner.writeBundleFromWorker() in a worker',
           );
         };
   }
@@ -86,7 +81,7 @@ export default class PackagerRunner {
       promises.push(
         this.writeBundle(bundle, bundleGraph, ref).then(stats => {
           bundle.stats = stats;
-        })
+        }),
       );
     }
 
@@ -97,7 +92,7 @@ export default class PackagerRunner {
   async writeBundle(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    bundleGraphReference: number
+    bundleGraphReference: number,
   ) {
     let start = Date.now();
 
@@ -109,23 +104,23 @@ export default class PackagerRunner {
         cacheKey,
         bundleGraphReference,
         options: this.options,
-        config: this.config
+        config: this.config,
       }));
 
     return {
       time: Date.now() - start,
-      size
+      size,
     };
   }
 
   async writeBundleFromCache({
     bundle,
     bundleGraph,
-    cacheKey
+    cacheKey,
   }: {|
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: string
+    cacheKey: string,
   |}) {
     if (this.options.disableCache) {
       return;
@@ -141,7 +136,7 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       contents,
-      map
+      map,
     });
 
     return {size};
@@ -150,32 +145,32 @@ export default class PackagerRunner {
   async packageAndWriteBundle(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: string
+    cacheKey: string,
   ) {
     let start = Date.now();
 
     let {contents, map} = await this.getBundleResult(
       bundle,
       bundleGraph,
-      cacheKey
+      cacheKey,
     );
     let {size} = await this.writeToDist({
       bundle,
       bundleGraph,
       contents,
-      map
+      map,
     });
 
     return {
       time: Date.now() - start,
-      size
+      size,
     };
   }
 
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: ?string
+    cacheKey: ?string,
   ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
     let result;
     if (!cacheKey && !this.options.disableCache) {
@@ -186,7 +181,7 @@ export default class PackagerRunner {
         // NOTE: Returning a new object for flow
         return {
           contents: cacheResult.contents,
-          map: cacheResult.map
+          map: cacheResult.map,
         };
       }
     }
@@ -196,13 +191,13 @@ export default class PackagerRunner {
       bundle,
       bundleGraph,
       packaged.contents,
-      packaged.map
+      packaged.map,
     );
 
     let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
     result = {
       contents: res.contents,
-      map
+      map,
     };
 
     if (cacheKey != null) {
@@ -211,7 +206,7 @@ export default class PackagerRunner {
       if (result.contents instanceof Readable) {
         return {
           contents: this.options.cache.getStream(getContentKey(cacheKey)),
-          map: result.map
+          map: result.map,
         };
       }
     }
@@ -221,63 +216,62 @@ export default class PackagerRunner {
 
   async package(
     internalBundle: InternalBundle,
-    bundleGraph: InternalBundleGraph
+    bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
     report({
       type: 'buildProgress',
       phase: 'packaging',
-      bundle
+      bundle,
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packaged = await packager.package({
-      bundle,
-      bundleGraph: new BundleGraph(bundleGraph, this.options),
-      getSourceMapReference: map => {
-        return bundle.isInline ||
-          (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-          ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-          : path.basename(bundle.filePath) + '.map';
-      },
-      options: this.pluginOptions,
-      getInlineBundleContents: (
-        bundle: BundleType,
-        bundleGraph: BundleGraphType
-      ) => {
-        if (!bundle.isInline) {
-          throw new Error(
-            'Bundle is not inline and unable to retrieve contents'
+    try {
+      return await packager.plugin.package({
+        bundle,
+        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        getSourceMapReference: map => {
+          return bundle.isInline ||
+            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+            : path.basename(bundle.filePath) + '.map';
+        },
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: packager.name}),
+        getInlineBundleContents: (
+          bundle: BundleType,
+          bundleGraph: BundleGraphType,
+        ) => {
+          if (!bundle.isInline) {
+            throw new Error(
+              'Bundle is not inline and unable to retrieve contents',
+            );
+          }
+
+          return this.getBundleResult(
+            bundleToInternalBundle(bundle),
+            bundleGraphToInternalBundleGraph(bundleGraph),
           );
-        }
-
-        return this.getBundleResult(
-          bundleToInternalBundle(bundle),
-          bundleGraphToInternalBundleGraph(bundleGraph)
-        );
-      }
-    });
-
-    return {
-      contents:
-        typeof packaged.contents === 'string'
-          ? replaceReferences(
-              packaged.contents,
-              generateDepToBundlePath(internalBundle, bundleGraph)
-            )
-          : packaged.contents,
-      map: packaged.map
-    };
+        },
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, packager.name),
+      });
+    }
   }
 
   async optimize(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     contents: Blob,
-    map?: ?SourceMap
+    map?: ?SourceMap,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
-    let optimizers = await this.config.getOptimizers(bundle.filePath);
+    let optimizers = await this.config.getOptimizers(
+      bundle.filePath,
+      internalBundle.pipeline,
+    );
     if (!optimizers.length) {
       return {contents, map};
     }
@@ -285,17 +279,24 @@ export default class PackagerRunner {
     report({
       type: 'buildProgress',
       phase: 'optimizing',
-      bundle
+      bundle,
     });
 
     let optimized = {contents, map};
     for (let optimizer of optimizers) {
-      optimized = await optimizer.optimize({
-        bundle,
-        contents: optimized.contents,
-        map: optimized.map,
-        options: this.pluginOptions
-      });
+      try {
+        optimized = await optimizer.plugin.optimize({
+          bundle,
+          contents: optimized.contents,
+          map: optimized.map,
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: optimizer.name}),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, optimizer.name),
+        });
+      }
     }
 
     return optimized;
@@ -306,7 +307,7 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     let sourceRoot: string = path.relative(
       path.dirname(filePath),
-      this.options.projectRoot
+      this.options.projectRoot,
     );
     let inlineSources = false;
 
@@ -345,13 +346,13 @@ export default class PackagerRunner {
       inlineSources,
       inlineMap:
         bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline),
     });
   }
 
   getCacheKey(
     bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph
+    bundleGraph: InternalBundleGraph,
   ): string {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
@@ -361,12 +362,12 @@ export default class PackagerRunner {
       [packager, ...optimizers].map(async pkg => {
         let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
           `${pkg}/package.json`,
-          `${this.config.filePath}/index`
+          `${this.config.filePath}/index`,
         );
 
         let version = nullthrows(resolvedPkg).version;
         return [pkg, version];
-      })
+      }),
     );
 
     // TODO: add third party configs to the cache key
@@ -375,15 +376,15 @@ export default class PackagerRunner {
       parcelVersion: PARCEL_VERSION,
       deps,
       opts: {minify, scopeHoist, sourceMaps},
-      hash: bundleGraph.getHash(bundle)
+      hash: bundleGraph.getHash(bundle),
     });
   }
 
   async readFromCache(
-    cacheKey: string
+    cacheKey: string,
   ): Promise<?{|
     contents: Readable,
-    map: ?Readable
+    map: ?Readable,
   |}> {
     let contentKey = getContentKey(cacheKey);
     let mapKey = getMapKey(cacheKey);
@@ -397,7 +398,7 @@ export default class PackagerRunner {
 
     return {
       contents: this.options.cache.getStream(contentKey),
-      map: mapExists ? this.options.cache.getStream(mapKey) : null
+      map: mapExists ? this.options.cache.getStream(mapKey) : null,
     };
   }
 
@@ -405,12 +406,12 @@ export default class PackagerRunner {
     bundle,
     bundleGraph,
     contents,
-    map
+    map,
   }: {|
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     contents: Blob,
-    map: ?(Readable | string)
+    map: ?(Readable | string),
   |}) {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
@@ -423,9 +424,9 @@ export default class PackagerRunner {
     let writeOptions = publicBundle.env.isBrowser()
       ? undefined
       : {
-          mode: (await inputFS.stat(
-            nullthrows(publicBundle.getMainEntry()).filePath
-          )).mode
+          mode: (
+            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
+          ).mode,
         };
 
     let size;
@@ -463,7 +464,7 @@ function writeFileStream(
   fs: FileSystem,
   filePath: FilePath,
   stream: Readable,
-  options: ?FileOptions
+  options: ?FileOptions,
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     let fsStream = fs.createWriteStream(filePath, options);
@@ -473,72 +474,6 @@ function writeFileStream(
       .on('finish', () => resolve(fsStream.bytesWritten))
       .on('error', reject);
   });
-}
-
-/*
- * Build a mapping from async, url dependency ids to web-friendly relative paths
- * to their bundles. These will be relative to the current bundle if `publicUrl`
- * is not provided. If `publicUrl` is provided, the paths will be joined to it.
- *
- * These are used to translate any placeholder dependency ids written during
- * transformation back to a path that can be loaded in a browser (such as
- * in a "raw" loader or any transformed dependencies referred to by url).
- */
-function generateDepToBundlePath(
-  bundle: InternalBundle,
-  bundleGraph: InternalBundleGraph
-): Map<string, FilePath> {
-  let depToBundlePath: Map<string, FilePath> = new Map();
-  bundleGraph.traverseBundle(bundle, node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dep = node.value;
-    if (!dep.isURL || !dep.isAsync) {
-      return;
-    }
-
-    let [bundleGroupNode] = bundleGraph._graph.getNodesConnectedFrom(node);
-    invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
-
-    let [entryBundleNode] = bundleGraph._graph.getNodesConnectedFrom(
-      bundleGroupNode,
-      'bundle'
-    );
-    invariant(entryBundleNode && entryBundleNode.type === 'bundle');
-
-    let entryBundle = entryBundleNode.value;
-    depToBundlePath.set(
-      dep.id,
-      urlJoin(
-        nullthrows(entryBundle.target).publicUrl ?? '/',
-        nullthrows(entryBundle.name)
-      )
-    );
-  });
-
-  return depToBundlePath;
-}
-
-// replace references to url dependencies with relative paths to their
-// corresponding bundles.
-// TODO: This likely alters the length of the column in the source text.
-//       Update any sourcemaps accordingly.
-function replaceReferences(
-  code: string,
-  depToBundlePath: Map<string, FilePath>
-): string {
-  let output = code;
-  for (let [depId, replacement] of depToBundlePath) {
-    let split = output.split(depId);
-    if (split.length > 1) {
-      // the dependency id was found in the text. replace it.
-      output = split.join(replacement);
-    }
-  }
-
-  return output;
 }
 
 function getContentKey(cacheKey: string) {

@@ -13,9 +13,9 @@ describe('line counter', async function() {
   });
 
   it('counts number of lines of a file from disk', async function() {
-    const input = (await fs.readFile(
-      path.join(__dirname, 'lineCounter.js')
-    )).toString();
+    const input = (
+      await fs.readFile(path.join(__dirname, 'lineCounter.js'))
+    ).toString();
     assert.equal(lineCounter(input), 22);
   });
 });

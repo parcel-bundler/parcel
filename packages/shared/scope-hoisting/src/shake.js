@@ -47,7 +47,7 @@ function getUnusedBinding(path, name) {
 
   // Is there any references which aren't simple assignments?
   let bailout = binding.referencePaths.some(
-    path => !isExportAssignment(path) && !isUnusedWildcard(path)
+    path => !isExportAssignment(path) && !isUnusedWildcard(path),
   );
 
   if (!bailout && pure) {
@@ -76,8 +76,9 @@ function isPure(binding) {
 
 function isExportAssignment(path) {
   return (
-    // match "path.any = any;"
+    // match "path.foo = bar;"
     path.parentPath.isMemberExpression() &&
+    path.parentPath.node.object === path.node &&
     path.parentPath.parentPath.isAssignmentExpression() &&
     path.parentPath.parentPath.node.left === path.parentPath.node
   );

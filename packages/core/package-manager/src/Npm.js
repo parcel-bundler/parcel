@@ -18,7 +18,7 @@ export class Npm implements PackageInstaller {
     modules,
     cwd,
     packagePath,
-    saveDev = true
+    saveDev = true,
   }: InstallerOptions): Promise<void> {
     // npm doesn't auto-create a package.json when installing,
     // so create an empty one if needed.
@@ -30,7 +30,7 @@ export class Npm implements PackageInstaller {
       'install',
       '--json',
       ...modules,
-      saveDev ? '--save-dev' : '--save'
+      saveDev ? '--save-dev' : '--save',
     ];
 
     let installProcess = spawn(NPM_CMD, args, {cwd});
@@ -50,14 +50,20 @@ export class Npm implements PackageInstaller {
       let results: NPMResults = JSON.parse(stdout);
       let addedCount = results.added.length;
       if (addedCount > 0) {
-        logger.log(`Added ${addedCount} packages via npm`);
+        logger.log({
+          origin: '@parcel/package-manager',
+          message: `Added ${addedCount} packages via npm`,
+        });
       }
 
       // Since we succeeded, stderr might have useful information not included
       // in the json written to stdout. It's also not necessary to log these as
       // errors as they often aren't.
       for (let message of stderr) {
-        logger.log(message);
+        logger.log({
+          origin: '@parcel/package-manager',
+          message,
+        });
       }
     } catch (e) {
       throw new Error('npm failed to install modules');
@@ -66,7 +72,7 @@ export class Npm implements PackageInstaller {
 }
 
 type NPMResults = {|
-  added: Array<{name: string, ...}>
+  added: Array<{name: string, ...}>,
 |};
 
 registerSerializableClass(`${pkg.version}:Npm`, Npm);

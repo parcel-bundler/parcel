@@ -1,17 +1,21 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/Cache",
+  "main": "lib/Cache.js",
+  "source": "src/Cache.js",
   "engines": {
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0-alpha.2.1",
-    "@parcel/utils": "^2.0.0-alpha.2.1"
+    "@parcel/logger": "^2.0.0-alpha.3.1",
+    "@parcel/utils": "^2.0.0-alpha.3.1"
   }
 }

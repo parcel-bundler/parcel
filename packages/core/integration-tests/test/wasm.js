@@ -13,8 +13,8 @@ describe.skip('wasm', function() {
         let b = await bundle(
           path.join(__dirname, '/integration/wasm-sync/index.js'),
           {
-            target
-          }
+            target,
+          },
         );
 
         await assertBundleTree(b, {
@@ -23,18 +23,18 @@ describe.skip('wasm', function() {
             'index.js',
             'bundle-loader.js',
             'bundle-url.js',
-            'wasm-loader.js'
+            'wasm-loader.js',
           ],
           childBundles: [
             {
               type: 'wasm',
               assets: ['add.wasm'],
-              childBundles: []
+              childBundles: [],
             },
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         });
 
         let promise = deferred();
@@ -46,8 +46,8 @@ describe.skip('wasm', function() {
         let b = await bundle(
           path.join(__dirname, '/integration/wasm-async/index.js'),
           {
-            target
-          }
+            target,
+          },
         );
 
         await assertBundleTree(b, {
@@ -56,18 +56,18 @@ describe.skip('wasm', function() {
             'index.js',
             'bundle-loader.js',
             'bundle-url.js',
-            'wasm-loader.js'
+            'wasm-loader.js',
           ],
           childBundles: [
             {
               type: 'wasm',
               assets: ['add.wasm'],
-              childBundles: []
+              childBundles: [],
             },
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         });
 
         var res = await run(b);
@@ -78,8 +78,8 @@ describe.skip('wasm', function() {
         let b = await bundle(
           path.join(__dirname, '/integration/wasm-dynamic/index.js'),
           {
-            target
-          }
+            target,
+          },
         );
 
         await assertBundleTree(b, {
@@ -89,7 +89,7 @@ describe.skip('wasm', function() {
             'bundle-loader.js',
             'bundle-url.js',
             'js-loader.js',
-            'wasm-loader.js'
+            'wasm-loader.js',
           ],
           childBundles: [
             {
@@ -99,17 +99,17 @@ describe.skip('wasm', function() {
                 {
                   type: 'wasm',
                   assets: ['add.wasm'],
-                  childBundles: []
+                  childBundles: [],
                 },
                 {
-                  type: 'map'
-                }
-              ]
+                  type: 'map',
+                },
+              ],
             },
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         });
 
         var res = await run(b);

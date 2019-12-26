@@ -5,45 +5,55 @@ import type {
   LogEvent,
   PluginOptions,
   ProgressLogEvent,
-  ReporterEvent
+  ReporterEvent,
 } from '@parcel/types';
 import type {ValueEmitter} from '@parcel/events';
 
 import {Color} from 'ink';
-import React, {useEffect, useReducer} from 'react';
+import React, {useLayoutEffect, useReducer} from 'react';
 import {Log, Progress, ServerInfo} from './Log';
 import BundleReport from './BundleReport';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
-import {prettifyTime} from '@parcel/utils';
+import {prettifyTime, throttle} from '@parcel/utils';
 
 type Props = {|
   events: ValueEmitter<ReporterEvent>,
-  options: PluginOptions
+  options: PluginOptions,
 |};
 
 type State = {|
   progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
-  bundleGraph: ?BundleGraph
+  bundleGraph: ?BundleGraph,
 |};
 
 const defaultState: State = {
   progress: null,
   logs: [],
-  bundleGraph: null
+  bundleGraph: null,
 };
 
 export default function UI({events, options}: Props) {
   let [state, dispatch] = useReducer(
     (state, event) => reducer(state, event, options),
-    defaultState
+    defaultState,
   );
 
-  useEffect(() => {
-    let {dispose} = events.addListener(dispatch);
-    return dispose;
-  }, [events]);
+  useLayoutEffect(() => {
+    const throttledDispatch = throttle(dispatch, 100);
+    const enhancedDispatch = event => {
+      if (
+        event.type === 'buildProgress' &&
+        event.phase === state.progress?.phase
+      ) {
+        throttledDispatch(event);
+      } else {
+        dispatch(event);
+      }
+    };
+    return events.addListener(enhancedDispatch).dispose;
+  }, [events, state.progress?.phase]);
 
   let {logs, progress, bundleGraph} = state;
   return (
@@ -62,10 +72,28 @@ export default function UI({events, options}: Props) {
   );
 }
 
+const getMessageIdentifier = (l: LogEvent) => {
+  // $FlowFixMe this is a sketchy null check...
+  if (l.message) {
+    return l.message;
+  } else if (l.diagnostics) {
+    return l.diagnostics.reduce(
+      (acc, d) =>
+        acc +
+        d.message +
+        (d.origin || '') +
+        (d.codeFrame ? d.codeFrame.code : ''),
+      '',
+    );
+  } else {
+    return '';
+  }
+};
+
 function reducer(
   state: State,
   event: ReporterEvent,
-  options: PluginOptions
+  options: PluginOptions,
 ): State {
   let logLevel = logLevels[options.logLevel];
 
@@ -78,7 +106,7 @@ function reducer(
       return {
         ...state,
         logs: [],
-        bundleGraph: null
+        bundleGraph: null,
       };
 
     case 'buildProgress': {
@@ -92,13 +120,14 @@ function reducer(
         progress = {
           type: 'log',
           level: 'progress',
-          message
+          phase: event.phase,
+          message,
         };
       }
 
       return {
         ...state,
-        progress
+        progress,
       };
     }
 
@@ -116,9 +145,9 @@ function reducer(
           {
             type: 'log',
             level: 'success',
-            message: `Built in ${prettifyTime(event.buildTime)}.`
-          }
-        ]
+            message: `Built in ${prettifyTime(event.buildTime)}.`,
+          },
+        ],
       };
 
     case 'buildFailure':
@@ -134,9 +163,9 @@ function reducer(
           {
             type: 'log',
             level: 'error',
-            message: event.error
-          }
-        ]
+            diagnostics: event.diagnostics,
+          },
+        ],
       };
 
     case 'log': {
@@ -147,19 +176,19 @@ function reducer(
       if (event.level === 'progress') {
         return {
           ...state,
-          progress: event
+          progress: event,
         };
       }
 
       // Skip duplicate logs
-      let messages = new Set(state.logs.map(l => l.message));
-      if (messages.has(event.message)) {
+      let messages = new Set(state.logs.map(getMessageIdentifier));
+      if (messages.has(getMessageIdentifier(event))) {
         break;
       }
 
       return {
         ...state,
-        logs: [...state.logs, event]
+        logs: [...state.logs, event],
       };
     }
   }

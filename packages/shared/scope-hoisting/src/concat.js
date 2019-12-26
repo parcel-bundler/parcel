@@ -9,6 +9,7 @@ import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
+import {needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
@@ -19,7 +20,7 @@ const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
 type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
   parent: ?AssetASTMap,
-  children: AssetASTMap
+  children: AssetASTMap,
 |};
 
 // eslint-disable-next-line no-unused-vars
@@ -44,14 +45,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
-
-  // If this is an entry bundle and it has non esmodule child bundles,
-  // we need to add the prelude code, which allows registering modules dynamically at runtime.
-  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
-  let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude =
-    isEntry && hasChildBundles && bundle.env.outputFormat === 'global';
-  if (needsPrelude) {
+  if (needsPrelude(bundle, bundleGraph)) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
@@ -65,7 +59,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
       return {
         parent: context && context.children,
-        children: new Map()
+        children: new Map(),
       };
     },
     exit(asset, context) {
@@ -101,7 +95,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       } else {
         result.push(...statements);
       }
-    }
+    },
   });
 
   return t.file(t.program(result));
@@ -126,7 +120,7 @@ function parse(code, filename) {
   let ast = babylon.parse(code, {
     sourceFilename: filename,
     allowReturnOutsideFunction: true,
-    plugins: ['dynamicImport']
+    plugins: ['dynamicImport'],
   });
 
   return ast.program.body;
@@ -138,13 +132,13 @@ function addComment(statement, comment) {
   }
   statement.leadingComments.push({
     type: 'CommentLine',
-    value: comment
+    value: comment,
   });
 }
 
 function getUsedExports(
   bundle: Bundle,
-  bundleGraph: BundleGraph
+  bundleGraph: BundleGraph,
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
 
@@ -197,10 +191,11 @@ function getUsedExports(
 
 function shouldExcludeAsset(
   asset: Asset,
-  usedExports: Map<string, Set<Symbol>>
+  usedExports: Map<string, Set<Symbol>>,
 ) {
   return (
     asset.sideEffects === false &&
+    !asset.meta.isCommonJS &&
     (!usedExports.has(asset.id) ||
       nullthrows(usedExports.get(asset.id)).size === 0)
   );
@@ -209,7 +204,7 @@ function shouldExcludeAsset(
 function findRequires(
   bundleGraph: BundleGraph,
   asset: Asset,
-  ast: mixed
+  ast: mixed,
 ): Array<Asset> {
   let result = [];
   walk.simple(ast, {
@@ -233,7 +228,7 @@ function findRequires(
           result.push(resolution);
         }
       }
-    }
+    },
   });
 
   return result;
@@ -255,8 +250,8 @@ function wrapModule(asset: Asset, statements) {
           if (decl.init) {
             body.push(
               t.expressionStatement(
-                t.assignmentExpression('=', decl.id, decl.init)
-              )
+                t.assignmentExpression('=', decl.id, decl.init),
+              ),
             );
           }
         } else {
@@ -267,9 +262,9 @@ function wrapModule(asset: Asset, statements) {
                 t.assignmentExpression(
                   '=',
                   t.identifier(decl.id.name),
-                  decl.init
-                )
-              )
+                  decl.init,
+                ),
+              ),
             );
           }
         }
@@ -286,9 +281,9 @@ function wrapModule(asset: Asset, statements) {
           t.assignmentExpression(
             '=',
             t.identifier(node.id.name),
-            t.toExpression(node)
-          )
-        )
+            t.toExpression(node),
+          ),
+        ),
       );
     } else {
       body.push(node);
@@ -297,7 +292,7 @@ function wrapModule(asset: Asset, statements) {
 
   let executed = getName(asset, 'executed');
   decls.push(
-    t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false))
+    t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false)),
   );
 
   let init = t.functionDeclaration(
@@ -309,11 +304,11 @@ function wrapModule(asset: Asset, statements) {
         t.assignmentExpression(
           '=',
           t.identifier(executed),
-          t.booleanLiteral(true)
-        )
+          t.booleanLiteral(true),
+        ),
       ),
-      ...body
-    ])
+      ...body,
+    ]),
   );
 
   return [t.variableDeclaration('var', decls), ...fns, init];

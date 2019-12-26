@@ -8,7 +8,7 @@ export default new Transformer({
     const config = await asset.getConfig([
       '.pugrc',
       '.pugrc.js',
-      'pug.config.js'
+      'pug.config.js',
     ]);
     return config || {};
   },
@@ -29,7 +29,7 @@ export default new Transformer({
       doctype: config.doctype,
       filters: config.filters,
       filterOptions: config.filterOptions,
-      filterAliases: config.filterAliases
+      filterAliases: config.filterAliases,
     });
 
     for (let filePath of render.dependencies) {
@@ -40,5 +40,5 @@ export default new Transformer({
     asset.setCode(render(config.locals));
 
     return [asset];
-  }
+  },
 });

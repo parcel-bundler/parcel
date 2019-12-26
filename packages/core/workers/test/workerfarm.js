@@ -9,7 +9,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/ping.js')
+      workerPath: require.resolve('./integration/workerfarm/ping.js'),
     });
 
     assert.equal(await workerfarm.run(), 'pong');
@@ -21,7 +21,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/echo.js')
+      workerPath: require.resolve('./integration/workerfarm/echo.js'),
     });
 
     let promises = [];
@@ -37,7 +37,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: true,
-      workerPath: require.resolve('./integration/workerfarm/echo.js')
+      workerPath: require.resolve('./integration/workerfarm/echo.js'),
     });
 
     for (let i = 0; i < 100; i++) {
@@ -49,7 +49,7 @@ describe('WorkerFarm', function() {
     assert(workerfarm.workers.size > 0, 'Should have spawned workers.');
     assert(
       workerfarm.warmWorkers >= workerfarm.workers.size,
-      'Should have warmed up workers.'
+      'Should have warmed up workers.',
     );
 
     await workerfarm.end();
@@ -59,7 +59,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: true,
-      workerPath: require.resolve('./integration/workerfarm/echo.js')
+      workerPath: require.resolve('./integration/workerfarm/echo.js'),
     });
 
     assert.equal(await workerfarm.run('hello world'), 'hello world');
@@ -72,7 +72,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/ipc.js')
+      workerPath: require.resolve('./integration/workerfarm/ipc.js'),
     });
 
     assert.equal(await workerfarm.run(1, 2), 3);
@@ -84,7 +84,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/ipc.js')
+      workerPath: require.resolve('./integration/workerfarm/ipc.js'),
     });
 
     for (let i = 0; i < 1000; i++) {
@@ -99,7 +99,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/ipc-pid.js')
+      workerPath: require.resolve('./integration/workerfarm/ipc-pid.js'),
     });
 
     let result = await workerfarm.run();
@@ -115,7 +115,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/echo.js')
+      workerPath: require.resolve('./integration/workerfarm/echo.js'),
     });
 
     let bigData = [];
@@ -140,7 +140,7 @@ describe('WorkerFarm', function() {
       warmWorkers: true,
       useLocalWorker: false,
       workerPath: require.resolve('./integration/workerfarm/console.js'),
-      patchConsole: true
+      patchConsole: true,
     });
 
     await workerfarm.run();
@@ -148,29 +148,59 @@ describe('WorkerFarm', function() {
     assert.deepEqual(events, [
       {
         level: 'info',
-        message: 'one',
-        type: 'log'
+        type: 'log',
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'one',
+            skipFormatting: true,
+          },
+        ],
       },
       {
         level: 'info',
-        message: 'two',
-        type: 'log'
+        type: 'log',
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'two',
+            skipFormatting: true,
+          },
+        ],
       },
       {
         level: 'warn',
-        message: 'three',
-        type: 'log'
+        type: 'log',
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'three',
+            skipFormatting: true,
+          },
+        ],
       },
       {
         level: 'error',
-        message: 'four',
-        type: 'log'
+        type: 'log',
+        diagnostics: [
+          {
+            origin: 'console',
+            message: 'four',
+            skipFormatting: true,
+          },
+        ],
       },
       {
         level: 'verbose',
-        message: 'five',
-        type: 'log'
-      }
+        type: 'log',
+        diagnostics: [
+          {
+            message: 'five',
+            origin: 'console',
+            skipFormatting: true,
+          },
+        ],
+      },
     ]);
 
     logDisposable.dispose();
@@ -184,7 +214,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/logging.js')
+      workerPath: require.resolve('./integration/workerfarm/logging.js'),
     });
 
     await workerfarm.run();
@@ -193,14 +223,24 @@ describe('WorkerFarm', function() {
     assert.deepEqual(events, [
       {
         level: 'info',
-        message: 'omg it works',
-        type: 'log'
+        diagnostics: [
+          {
+            origin: 'logging-worker',
+            message: 'omg it works',
+          },
+        ],
+        type: 'log',
       },
       {
         level: 'error',
-        message: 'errors objects dont work yet',
-        type: 'log'
-      }
+        diagnostics: [
+          {
+            origin: 'logging-worker',
+            message: 'errors objects dont work yet',
+          },
+        ],
+        type: 'log',
+      },
     ]);
 
     logDisposable.dispose();
@@ -211,7 +251,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js')
+      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js'),
     });
 
     let handle = workerfarm.createReverseHandle(() => 42);
@@ -224,7 +264,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js')
+      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js'),
     });
 
     workerfarm.createReverseHandle(() => 42);
@@ -238,8 +278,8 @@ describe('WorkerFarm', function() {
       warmWorkers: true,
       useLocalWorker: false,
       workerPath: require.resolve(
-        './integration/workerfarm/shared-reference.js'
-      )
+        './integration/workerfarm/shared-reference.js',
+      ),
     });
 
     let sharedValue = 'Something to be shared';
@@ -256,8 +296,8 @@ describe('WorkerFarm', function() {
       warmWorkers: true,
       useLocalWorker: true,
       workerPath: require.resolve(
-        './integration/workerfarm/shared-reference.js'
-      )
+        './integration/workerfarm/shared-reference.js',
+      ),
     });
 
     let sharedValue = 'Something to be shared';
@@ -273,7 +313,7 @@ describe('WorkerFarm', function() {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
       useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js')
+      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js'),
     });
 
     workerfarm.createSharedReference('Something to be shared');

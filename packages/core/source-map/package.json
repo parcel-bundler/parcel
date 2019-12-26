@@ -1,14 +1,22 @@
 {
   "name": "@parcel/source-map",
-  "version": "2.0.0-alpha.2.1",
-  "main": "./src/SourceMap.js",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/SourceMap.js",
+  "source": "src/SourceMap.js",
   "scripts": {},
   "engines": {
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/utils": "^2.0.0-alpha.2.1",
+    "@parcel/utils": "^2.0.0-alpha.3.1",
     "nullthrows": "^1.1.1",
     "source-map": "^0.7.3"
   },

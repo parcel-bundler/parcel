@@ -4,7 +4,7 @@ const Path = require('path');
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
-  node: '8'
+  node: '8',
 };
 
 /**
@@ -105,7 +105,7 @@ function getMinSemver(version) {
 async function loadBrowserslist(asset, path) {
   let config = await asset.getConfig(['browserslist', '.browserslistrc'], {
     path,
-    load: false
+    load: false,
   });
 
   if (config) {
@@ -119,7 +119,7 @@ async function loadBabelrc(asset, path) {
     let env = config.presets.find(
       plugin =>
         Array.isArray(plugin) &&
-        (plugin[0] === 'env' || plugin[0] === '@babel/env')
+        (plugin[0] === 'env' || plugin[0] === '@babel/env'),
     );
     if (env && env[1] && env[1].targets) {
       return env[1].targets;

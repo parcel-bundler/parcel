@@ -5,7 +5,7 @@ import type {
   Engines,
   OutputFormat,
   PackageName,
-  VersionMap
+  VersionMap,
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
@@ -16,11 +16,12 @@ const BROWSER_ENVS = new Set([
   'browser',
   'web-worker',
   'service-worker',
-  'electron-renderer'
+  'electron-renderer',
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
-const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
+const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
+const ISOLATED_ENVS = WORKER_ENVS;
 
 const ALL_BROWSERS = [
   'chrome',
@@ -40,7 +41,7 @@ const ALL_BROWSERS = [
   'and_uc',
   'and_qq',
   'baidu',
-  'kaios'
+  'kaios',
 ];
 
 const ESMODULE_BROWSERS = {
@@ -53,15 +54,15 @@ const ESMODULE_BROWSERS = {
   android: '76',
   and_chr: '76',
   and_ff: '68',
-  samsung: '8.2'
+  samsung: '8.2',
 };
 
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
-  InternalEnvironment
+  InternalEnvironment,
 > = new WeakMap();
 export function environmentToInternalEnvironment(
-  environment: IEnvironment
+  environment: IEnvironment,
 ): InternalEnvironment {
   return nullthrows(_environmentToInternalEnvironment.get(environment));
 }
@@ -108,6 +109,10 @@ export default class Environment implements IEnvironment {
 
   isIsolated() {
     return ISOLATED_ENVS.has(this.#environment.context);
+  }
+
+  isWorker() {
+    return WORKER_ENVS.has(this.#environment.context);
   }
 
   matchesEngines(minVersions: VersionMap) {

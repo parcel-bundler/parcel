@@ -1,24 +1,27 @@
 // @flow strict-local
 
+import type {FileSystem} from '@parcel/fs';
+import type {EnvMap} from '@parcel/types';
+
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
-import type {FileSystem} from '@parcel/fs';
 
 export default async function loadEnv(
+  env: EnvMap,
   fs: FileSystem,
-  filePath: string
-): Promise<{[string]: string, ...}> {
-  const NODE_ENV = process.env.NODE_ENV ?? 'development';
+  filePath: string,
+): Promise<EnvMap> {
+  const NODE_ENV = env.NODE_ENV ?? 'development';
 
   const dotenvFiles = [
-    `.env.${NODE_ENV}.local`,
-    `.env.${NODE_ENV}`,
+    '.env',
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
     // results for everyone
     NODE_ENV === 'test' ? null : '.env.local',
-    '.env'
+    `.env.${NODE_ENV}`,
+    `.env.${NODE_ENV}.local`,
   ].filter(Boolean);
 
   let envs = await Promise.all(
@@ -32,7 +35,7 @@ export default async function loadEnv(
       // https://github.com/motdotla/dotenv-expand/blob/ddb73d02322fe8522b4e05b73e1c1ad24ea7c14a/lib/main.js#L5
       let output = variableExpansion({
         parsed: dotenv.parse(await fs.readFile(envPath)),
-        ignoreProcessEnv: true
+        ignoreProcessEnv: true,
       });
 
       if (output.error != null) {
@@ -40,8 +43,9 @@ export default async function loadEnv(
       }
 
       return output.parsed;
-    })
+    }),
   );
 
+  // $FlowFixMe
   return Object.assign({}, ...envs);
 }

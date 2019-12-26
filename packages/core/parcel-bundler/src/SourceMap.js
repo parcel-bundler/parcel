@@ -13,16 +13,16 @@ class SourceMap {
       return mappings.filter(
         mapping =>
           mapping &&
-          (typeof mapping.original === 'object' &&
-            (mapping.original === null ||
-              (typeof mapping.original.line === 'number' &&
-                mapping.original.line > 0 &&
-                typeof mapping.original.column === 'number' &&
-                mapping.source))) &&
+          typeof mapping.original === 'object' &&
+          (mapping.original === null ||
+            (typeof mapping.original.line === 'number' &&
+              mapping.original.line > 0 &&
+              typeof mapping.original.column === 'number' &&
+              mapping.source)) &&
           mapping.generated &&
           typeof mapping.generated.line === 'number' &&
           mapping.generated.line > 0 &&
-          typeof mapping.generated.column === 'number'
+          typeof mapping.generated.column === 'number',
       );
     }
 
@@ -48,7 +48,7 @@ class SourceMap {
         if (!this.sources[mapping.source]) {
           this.sources[mapping.source] = consumer.sourceContentFor(
             mapping.source,
-            true
+            true,
           );
         }
       });
@@ -87,8 +87,8 @@ class SourceMap {
       original: mapping.original,
       generated: {
         line: mapping.generated.line + lineOffset,
-        column: mapping.generated.column + columnOffset
-      }
+        column: mapping.generated.column + columnOffset,
+      },
     });
   }
 
@@ -101,7 +101,7 @@ class SourceMap {
     ) {
       original = {
         line: mapping.originalLine,
-        column: mapping.originalColumn
+        column: mapping.originalColumn,
       };
     }
 
@@ -111,8 +111,8 @@ class SourceMap {
       original,
       generated: {
         line: mapping.generatedLine + lineOffset,
-        column: mapping.generatedColumn + columnOffset
-      }
+        column: mapping.generatedColumn + columnOffset,
+      },
     });
   }
 
@@ -129,12 +129,12 @@ class SourceMap {
         source: sourceName,
         original: {
           line: line,
-          column: 0
+          column: 0,
         },
         generated: {
           line: line,
-          column: 0
-        }
+          column: 0,
+        },
       });
     }
 
@@ -152,7 +152,7 @@ class SourceMap {
     extension.eachMapping(mapping => {
       let originalMapping = original.originalPositionFor({
         line: mapping.original.line,
-        column: mapping.original.column
+        column: mapping.original.column,
       });
 
       if (!originalMapping || !originalMapping.line) {
@@ -164,18 +164,18 @@ class SourceMap {
         name: originalMapping.name,
         original: {
           line: originalMapping.line,
-          column: originalMapping.column
+          column: originalMapping.column,
         },
         generated: {
           line: mapping.generated.line,
-          column: mapping.generated.column
-        }
+          column: mapping.generated.column,
+        },
       });
 
       if (!this.sources[originalMapping.source]) {
         this.sources[originalMapping.source] = original.sourceContentFor(
           originalMapping.source,
-          true
+          true,
         );
       }
     });
@@ -296,7 +296,7 @@ class SourceMap {
   originalPositionFor(generatedPosition) {
     let index = this.findClosestGenerated(
       generatedPosition.line,
-      generatedPosition.column
+      generatedPosition.column,
     );
 
     let mapping = this.mappings[index];
@@ -308,7 +308,7 @@ class SourceMap {
       source: mapping.source,
       name: mapping.name,
       line: mapping.original.line,
-      column: mapping.original.column
+      column: mapping.original.column,
     };
   }
 
@@ -316,7 +316,7 @@ class SourceMap {
     let index = this.findClosest(
       originalPosition.line,
       originalPosition.column,
-      'original'
+      'original',
     );
 
     let mapping = this.mappings[index];
@@ -324,7 +324,7 @@ class SourceMap {
       source: mapping.source,
       name: mapping.name,
       line: mapping.generated.line,
-      column: mapping.generated.column
+      column: mapping.generated.column,
     };
   }
 
@@ -348,7 +348,7 @@ class SourceMap {
     let generator = new SourceMapGenerator({file, sourceRoot});
     this.eachMapping(mapping => generator.addMapping(mapping));
     Object.keys(this.sources).forEach(sourceName =>
-      generator.setSourceContent(sourceName, this.sources[sourceName])
+      generator.setSourceContent(sourceName, this.sources[sourceName]),
     );
 
     return generator.toString();

@@ -8,74 +8,87 @@ import type {
   AssetGroupNode,
   Dependency,
   DependencyNode,
-  Target
+  NodeId,
+  Target,
 } from './types';
 
-import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
 import crypto from 'crypto';
-
+import {md5FromObject} from '@parcel/utils';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
+  onIncompleteNode?: (node: AssetGraphNode) => mixed,
   onNodeAdded?: (node: AssetGraphNode) => mixed,
-  onNodeRemoved?: (node: AssetGraphNode) => mixed
+  onNodeRemoved?: (node: AssetGraphNode) => mixed,
 |};
 
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetGroups?: Array<AssetGroup>
+  assetGroups?: Array<AssetGroup>,
 |};
 
 type SerializedAssetGraph = {|
   ...GraphOpts<AssetGraphNode>,
-  hash: ?string
+  hash: ?string,
 |};
-
-const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
-  new Map([...map].map(([key, val]) => [val, key]));
 
 const nodeFromDep = (dep: Dependency): DependencyNode => ({
   id: dep.id,
   type: 'dependency',
-  value: dep
+  value: dep,
 });
 
-export const nodeFromAssetGroup = (assetGroup: AssetGroup) => ({
+export const nodeFromAssetGroup = (
+  assetGroup: AssetGroup,
+  deferred: boolean = false,
+) => ({
   id: md5FromObject(assetGroup),
   type: 'asset_group',
-  value: assetGroup
+  value: assetGroup,
+  deferred,
 });
 
 const nodeFromAsset = (asset: Asset) => ({
   id: asset.id,
   type: 'asset',
-  value: asset
+  value: asset,
 });
 
 const nodeFromEntrySpecifier = (entry: string) => ({
   id: 'entry_specifier:' + entry,
   type: 'entry_specifier',
-  value: entry
+  value: entry,
 });
 
 const nodeFromEntryFile = (entry: string) => ({
   id: 'entry_file:' + entry,
   type: 'entry_file',
-  value: entry
+  value: entry,
 });
+
+// Types that are considered incomplete when they don't have a child node
+const INCOMPLETE_TYPES = [
+  'entry_specifier',
+  'entry_file',
+  'dependency',
+  'asset_group',
+];
 
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
+  onIncompleteNode: ?(node: AssetGraphNode) => mixed;
+  incompleteNodeIds: Set<NodeId> = new Set();
   hash: ?string;
 
   // $FlowFixMe
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
     let res = new AssetGraph(opts);
+    res.incompleteNodeIds = opts.incompleteNodeIds;
     res.hash = opts.hash;
     return res;
   }
@@ -84,13 +97,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   serialize(): SerializedAssetGraph {
     return {
       ...super.serialize(),
-      hash: this.hash
+      incompleteNodeIds: this.incompleteNodeIds,
+      hash: this.hash,
     };
   }
 
-  initOptions({onNodeAdded, onNodeRemoved}: AssetGraphOpts = {}) {
+  initOptions({
+    onNodeAdded,
+    onNodeRemoved,
+    onIncompleteNode,
+  }: AssetGraphOpts = {}) {
     this.onNodeAdded = onNodeAdded;
     this.onNodeRemoved = onNodeRemoved;
+    this.onIncompleteNode = onIncompleteNode;
   }
 
   initialize({entries, assetGroups}: InitOpts) {
@@ -105,28 +124,49 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       }
     } else if (assetGroups) {
       nodes.push(
-        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup))
+        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup)),
       );
     }
-
     this.replaceNodesConnectedTo(rootNode, nodes);
   }
 
   addNode(node: AssetGraphNode) {
     this.hash = null;
+    let existingNode = this.getNode(node.id);
+    if (
+      INCOMPLETE_TYPES.includes(node.type) &&
+      !node.deferred &&
+      (!existingNode || existingNode.deferred)
+    ) {
+      this.markIncomplete(node);
+    }
     this.onNodeAdded && this.onNodeAdded(node);
     return super.addNode(node);
   }
 
   removeNode(node: AssetGraphNode) {
     this.hash = null;
+    this.incompleteNodeIds.delete(node.id);
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
   }
 
+  markIncomplete(node: AssetGraphNode) {
+    this.incompleteNodeIds.add(node.id);
+    if (this.onIncompleteNode) {
+      this.onIncompleteNode(node);
+    }
+  }
+
+  hasIncompleteNodes() {
+    return this.incompleteNodeIds.size > 0;
+  }
+
   resolveEntry(entry: string, resolved: Array<FilePath>) {
+    let entrySpecifierNode = nodeFromEntrySpecifier(entry);
     let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
-    this.replaceNodesConnectedTo(nodeFromEntrySpecifier(entry), entryFileNodes);
+    this.replaceNodesConnectedTo(entrySpecifierNode, entryFileNodes);
+    this.incompleteNodeIds.delete(entrySpecifierNode.id);
   }
 
   resolveTargets(entryFile: FilePath, targets: Array<Target>) {
@@ -137,68 +177,39 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           pipeline: target.name,
           target: target,
           env: target.env,
-          isEntry: true
-        })
-      )
+          isEntry: true,
+        }),
+      ),
     );
 
     let entryNode = nodeFromEntryFile(entryFile);
     if (this.hasNode(entryNode.id)) {
       this.replaceNodesConnectedTo(entryNode, depNodes);
+      this.incompleteNodeIds.delete(entryNode.id);
     }
   }
 
-  resolveDependency(dependency: Dependency, assetGroup: AssetGroup | null) {
+  resolveDependency(
+    dependency: Dependency,
+    assetGroupNode: AssetGroupNode | null,
+  ) {
     let depNode = this.nodes.get(dependency.id);
-    if (!assetGroup || !depNode) return;
+    if (!depNode) return;
+    this.incompleteNodeIds.delete(depNode.id);
 
-    let assetGroupNode = nodeFromAssetGroup(assetGroup);
-
-    // Defer transforming this dependency if it is marked as weak, there are no side effects,
-    // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
-    // using a wildcard.
-    // This helps with performance building large libraries like `lodash-es`, which re-exports
-    // a huge number of functions since we can avoid even transforming the files that aren't used.
-    let defer = false;
-    if (
-      dependency.isWeak &&
-      assetGroup.sideEffects === false &&
-      !dependency.symbols.has('*')
-    ) {
-      let assets = this.getNodesConnectedTo(depNode);
-      let symbols = invertMap(dependency.symbols);
-      let firstAsset = assets[0];
-      invariant(firstAsset.type === 'asset');
-      let resolvedAsset = firstAsset.value;
-      let deps = this.getIncomingDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
-            let assetSymbol = resolvedAsset.symbols.get(symbol);
-            return assetSymbol != null && symbols.has(assetSymbol);
-          })
-      );
-    }
-
-    if (!defer) {
+    if (assetGroupNode) {
       this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
     }
   }
 
   resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
+    this.incompleteNodeIds.delete(assetGroupNode.id);
     if (!this.hasNode(assetGroupNode.id)) {
       return;
     }
 
     let assetNodes = assets.map(asset => nodeFromAsset(asset));
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
-
-    for (let asset of assets) {
-      let assetNode = nodeFromAsset(asset);
-      assetNodes.push(assetNode);
-    }
     this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
 
     for (let assetNode of assetNodes) {
@@ -222,18 +233,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       node => {
         invariant(node.type === 'dependency');
         return node.value;
-      }
+      },
     );
   }
 
   traverseAssets<TContext>(
     visit: GraphVisitor<Asset, TContext>,
-    startNode: ?AssetGraphNode
+    startNode: ?AssetGraphNode,
   ): ?TContext {
     return this.filteredTraverse(
       node => (node.type === 'asset' ? node.value : null),
       visit,
-      startNode
+      startNode,
     );
   }
 

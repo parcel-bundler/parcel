@@ -28,7 +28,7 @@ class Bundle {
       asset.type,
       Path.join(asset.options.outDir, asset.generateBundleName()),
       parentBundle,
-      options
+      options,
     );
 
     bundle.entryAsset = asset;
@@ -76,9 +76,9 @@ class Bundle {
           // .js.map instead of just .map
           type === 'map'
             ? Path.basename(this.name) + '.' + type
-            : Path.basename(this.name, Path.extname(this.name)) + '.' + type
+            : Path.basename(this.name, Path.extname(this.name)) + '.' + type,
         ),
-        this
+        this,
       );
 
       this.childBundles.add(bundle);
@@ -162,9 +162,9 @@ class Bundle {
       return Path.join(
         Path.relative(
           entryAsset.options.rootDir,
-          Path.dirname(entryAsset.name)
+          Path.dirname(entryAsset.name),
         ),
-        name + ext
+        name + ext,
       ).replace(/\.\.(\/|\\)/g, '__$1');
     }
 

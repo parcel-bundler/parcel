@@ -2,11 +2,30 @@
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
+import {NodePackageManager} from '@parcel/package-manager';
+import {NodeFS} from '@parcel/fs';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
+function logUncaughtError(e: mixed) {
+  if (e instanceof ThrowableDiagnostic) {
+    for (let diagnostic of e.diagnostics) {
+      let out = prettyDiagnostic(diagnostic);
+      console.error(out.message);
+      console.error(out.codeframe || out.stack);
+      for (let h of out.hints) {
+        console.error(h);
+      }
+    }
+  } else {
+    console.error(e);
+  }
+}
+
 process.on('unhandledRejection', (reason: mixed) => {
-  console.error(reason);
+  logUncaughtError(reason);
   process.exit(1);
 });
 
@@ -15,6 +34,16 @@ const program = require('commander');
 const path = require('path');
 const getPort = require('get-port');
 const version = require('../package.json').version;
+
+// Capture the NODE_ENV this process was launched with, so that it can be
+// used in Parcel (such as in process.env inlining).
+const initialNodeEnv = process.env.NODE_ENV;
+// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
+// so that dependencies of Parcel like React (which renders the cli through `ink`)
+// run in the appropriate mode.
+if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
+  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
+}
 
 program.version(version);
 
@@ -29,34 +58,34 @@ const commonOptions = {
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
-    []
+    [],
   ],
   '--log-level <level>': [
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
-    /^(none|error|warn|info|verbose)$/
+    /^(none|error|warn|info|verbose)$/,
   ],
   '--profile': 'enable build profiling',
-  '-V, --version': 'output the version number'
+  '-V, --version': 'output the version number',
 };
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '--hmr-port <port>': [
     'set the port to serve HMR websockets, defaults to random',
-    parseInt
+    parseInt,
   ],
   '--hmr-host <hostname>':
     'set the hostname of HMR websockets, defaults to location.hostname of current window',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
-  '--key <path>': 'path to private key to use with HTTPS'
+  '--key <path>': 'path to private key to use with HTTPS',
 };
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
     cmd.option(
       opt,
-      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]])
+      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]]),
     );
   }
 }
@@ -67,16 +96,16 @@ let serve = program
   .option(
     '-p, --port <port>',
     'set the port to serve on. defaults to 1234',
-    parseInt
+    parseInt,
   )
   .option('--public-url <url>', 'set the path prefix to use in serve mode')
   .option(
     '--host <host>',
-    'set the host to listen on, defaults to listening on all interfaces'
+    'set the host to listen on, defaults to listening on all interfaces',
   )
   .option(
     '--open [browser]',
-    'automatically open in specified browser, defaults to default browser'
+    'automatically open in specified browser, defaults to default browser',
   )
   .action(run);
 
@@ -113,7 +142,7 @@ program.on('--help', function() {
   console.log(
     '  Run `' +
       chalk.bold('parcel help <command>') +
-      '` for more information on specific commands'
+      '` for more information on specific commands',
   );
   console.log('');
 });
@@ -135,15 +164,22 @@ async function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let defaultConfig: ParcelConfigFile = require('@parcel/config-default');
+  let packageManager = new NodePackageManager(new NodeFS());
+  let defaultConfig: ParcelConfigFile = await packageManager.require(
+    '@parcel/config-default',
+    __filename,
+  );
   let parcel = new Parcel({
     entries,
+    packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: require.resolve('@parcel/config-default')
+      filePath: (
+        await packageManager.resolve('@parcel/config-default', __filename)
+      ).resolved,
     },
     patchConsole: true,
-    ...(await normalizeOptions(command))
+    ...(await normalizeOptions(command)),
   });
 
   if (command.name() === 'watch' || command.name() === 'serve') {
@@ -153,10 +189,26 @@ async function run(entries: Array<string>, command: any) {
       }
     });
 
+    let isExiting;
+    const exit = async () => {
+      if (isExiting) {
+        return;
+      }
+
+      isExiting = true;
+      await unsubscribe();
+      process.exit();
+    };
+
     // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
-    // We don't use the SIGINT event for this because when run inside yarn, it seems we aren't
-    // given an opportunity to cleanup before being forcefully exited.
-    // Handling events from stdin seems to prevent this.
+    // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
+    //
+    // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
+    // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
+    //
+    // We don't use the SIGINT event for this because when run inside yarn, the parent
+    // yarn process ends before Parcel and it appears that Parcel has ended while it may still
+    // be cleaning up. Handling events from stdin prevents this impression.
     if (process.stdin.isTTY) {
       // $FlowFixMe
       process.stdin.setRawMode(true);
@@ -164,35 +216,41 @@ async function run(entries: Array<string>, command: any) {
 
       process.stdin.on('keypress', async (char, key) => {
         if (key.ctrl && key.name === 'c') {
-          await unsubscribe();
-          process.exit();
+          await exit();
         }
       });
     }
+
+    // In non-tty cases, respond to SIGINT by cleaning up.
+    process.on('SIGINT', exit);
+    process.on('SIGTERM', exit);
   } else {
     try {
       await parcel.run();
     } catch (e) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) console.error(e);
+      if (!(e instanceof BuildError)) {
+        logUncaughtError(e);
+      }
       process.exit(1);
     }
   }
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
+  let nodeEnv;
   if (command.name() === 'build') {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+    nodeEnv = initialNodeEnv || 'production';
   } else {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+    nodeEnv = initialNodeEnv || 'development';
   }
 
   let https = !!command.https;
   if (command.cert && command.key) {
     https = {
       cert: command.cert,
-      key: command.key
+      key: command.key,
     };
   }
 
@@ -204,7 +262,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     if (command.port && port !== command.port) {
       // Parcel logger is not set up at this point, so just use native console.
       console.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`)
+        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
     }
 
@@ -212,7 +270,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
       https,
       port,
       host,
-      publicUrl
+      publicUrl,
     };
   }
 
@@ -228,7 +286,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     hmr = {
       https,
       port,
-      host
+      host,
     };
   }
 
@@ -245,6 +303,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile
+    profile: command.profile,
+    env: {
+      NODE_ENV: nodeEnv,
+    },
   };
 }

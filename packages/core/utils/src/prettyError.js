@@ -5,11 +5,10 @@ export type PrintableError =
   | (Error & {
       codeFrame?: string,
       highlightedCodeFrame?: string,
-      loc?: {
+      loc?: {|
         column: number,
         line: number,
-        ...
-      },
+      |},
       ...
     });
 
@@ -17,16 +16,16 @@ export type PrettyErrorOpts = {color?: boolean, ...};
 
 export type PrettyError = {|
   message: string,
-  stack?: string
+  stack?: string,
 |};
 
 export default function prettyError(
   err: PrintableError,
-  opts: PrettyErrorOpts = {}
+  opts: PrettyErrorOpts = {},
 ): PrettyError {
   if (typeof err === 'string') {
     return {
-      message: err
+      message: err,
     };
   }
 

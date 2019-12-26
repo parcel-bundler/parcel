@@ -2,7 +2,6 @@ import * as t from '@babel/types';
 import Path from 'path';
 import fs from 'fs';
 import template from '@babel/template';
-import logger from '@parcel/logger';
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
 
@@ -20,11 +19,11 @@ export default {
     }
   },
 
-  CallExpression(path, asset) {
+  CallExpression(path, {asset, logger}) {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.filePath),
-        __filename: Path.basename(asset.filePath)
+        __filename: Path.basename(asset.filePath),
       };
       let filename, args, res;
 
@@ -56,20 +55,20 @@ export default {
       if (Buffer.isBuffer(res)) {
         replacementNode = bufferTemplate({
           CONTENT: t.stringLiteral(res.toString('base64')),
-          ENC: t.stringLiteral('base64')
+          ENC: t.stringLiteral('base64'),
         });
       } else {
         replacementNode = t.stringLiteral(res);
       }
 
       asset.addIncludedFile({
-        filePath: filename
+        filePath: filename,
       });
 
       path.replaceWith(replacementNode);
       asset.ast.isDirty = true;
     }
-  }
+  },
 };
 
 function isRequire(node, name, method) {
@@ -185,7 +184,7 @@ function evaluate(path, vars) {
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));
       }
-    }
+    },
   });
 
   if (

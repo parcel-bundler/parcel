@@ -20,8 +20,8 @@ type YarnStdOutMessage =
       data: {|
         message: string,
         current: number,
-        total: number
-      |}
+        total: number,
+      |},
     |}
   | {|+type: 'success', data: string|}
   | {|+type: 'info', data: string|}
@@ -29,7 +29,7 @@ type YarnStdOutMessage =
 
 type YarnStdErrMessage = {|
   +type: 'error' | 'warning',
-  data: string
+  data: string,
 |};
 
 let hasYarn: ?boolean;
@@ -51,7 +51,7 @@ export class Yarn implements PackageInstaller {
   async install({
     modules,
     cwd,
-    saveDev = true
+    saveDev = true,
   }: InstallerOptions): Promise<void> {
     let args = ['add', '--json', ...modules];
     if (saveDev) {
@@ -64,22 +64,23 @@ export class Yarn implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.error(e);
+        logger.error(e, '@parcel/package-manager');
       })
       .on('data', (message: YarnStdOutMessage) => {
         switch (message.type) {
           case 'step':
             logger.progress(
               prefix(
-                `[${message.data.current}/${message.data.total}] ${
-                  message.data.message
-                }`
-              )
+                `[${message.data.current}/${message.data.total}] ${message.data.message}`,
+              ),
             );
             return;
           case 'success':
           case 'info':
-            logger.info(prefix(message.data));
+            logger.info({
+              origin: '@parcel/package-manager',
+              message: prefix(message.data),
+            });
             return;
           default:
           // ignore
@@ -90,15 +91,21 @@ export class Yarn implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.error(e);
+        logger.error(e, '@parcel/package-manager');
       })
       .on('data', (message: YarnStdErrMessage) => {
         switch (message.type) {
           case 'warning':
-            logger.warn(prefix(message.data));
+            logger.warn({
+              origin: '@parcel/package-manager',
+              message: prefix(message.data),
+            });
             return;
           case 'error':
-            logger.error(prefix(message.data));
+            logger.error({
+              origin: '@parcel/package-manager',
+              message: prefix(message.data),
+            });
             return;
           default:
           // ignore

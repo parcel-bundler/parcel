@@ -14,12 +14,12 @@ export default new Optimizer({
 
     if (typeof contents !== 'string') {
       throw new Error(
-        'CSSNanoOptimizer: Only string contents are currently supported'
+        'CSSNanoOptimizer: Only string contents are currently supported',
       );
     }
 
     return {
-      contents: (await postcss([cssnano]).process(contents)).css
+      contents: (await postcss([cssnano]).process(contents)).css,
     };
-  }
+  },
 });

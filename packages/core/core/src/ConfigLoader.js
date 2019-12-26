@@ -1,10 +1,12 @@
 // @flow
 
-import type {ConfigRequest, ParcelOptions} from './types';
+import type {ConfigRequestDesc, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {md5FromString, PromiseQueue} from '@parcel/utils';
+import {PluginLogger} from '@parcel/logger';
 
 import {createConfig} from './InternalConfig';
 import Config from './public/Config';
@@ -21,13 +23,13 @@ export default class ConfigLoader {
     this.queue = new PromiseQueue({maxConcurrent: 32});
   }
 
-  load(configRequest: ConfigRequest) {
+  load(configRequest: ConfigRequestDesc) {
     let promise = this.queue.add(() => this._load(configRequest));
     this.queue.run();
     return promise;
   }
 
-  _load(configRequest: ConfigRequest) {
+  _load(configRequest: ConfigRequestDesc) {
     if (!configRequest.plugin) {
       return this.loadParcelConfig(configRequest);
     }
@@ -35,17 +37,17 @@ export default class ConfigLoader {
     return this.loadPluginConfig(configRequest);
   }
 
-  async loadParcelConfig(configRequest: ConfigRequest) {
+  async loadParcelConfig(configRequest: ConfigRequestDesc) {
     let {filePath, isSource, env, pipeline} = configRequest;
     let config = createConfig({
       isSource,
       searchPath: filePath,
-      env
+      env,
     });
     let publicConfig = new Config(config, this.options);
 
     let {config: parcelConfig, extendedFiles} = nullthrows(
-      await loadParcelConfig(filePath, this.options)
+      await loadParcelConfig(filePath, this.options),
     );
 
     publicConfig.setResolvedPath(parcelConfig.filePath);
@@ -83,23 +85,24 @@ export default class ConfigLoader {
     env,
     isSource,
     filePath,
-    meta: {parcelConfigPath}
-  }: ConfigRequest) {
+    meta: {parcelConfigPath},
+  }: ConfigRequestDesc) {
     let config = createConfig({
       isSource,
       searchPath: filePath,
-      env
+      env,
     });
-
-    plugin = await loadPlugin(
+    invariant(typeof parcelConfigPath === 'string');
+    let pluginInstance = await loadPlugin(
       this.options.packageManager,
       nullthrows(plugin),
-      parcelConfigPath
+      parcelConfigPath,
     );
-    if (plugin.loadConfig != null) {
-      await plugin.loadConfig({
+    if (pluginInstance.loadConfig != null) {
+      await pluginInstance.loadConfig({
         config: new Config(config, this.options),
-        options: this.options
+        options: this.options,
+        logger: new PluginLogger({origin: nullthrows(plugin)}),
       });
     }
 

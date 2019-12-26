@@ -1,21 +1,24 @@
 {
   "name": "@parcel/transformer-sass",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/SassTransformer.js",
+  "main": "lib/SassTransformer.js",
+  "source": "src/SassTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0-alpha.2.1",
-    "@parcel/logger": "^2.0.0-alpha.2.1",
-    "@parcel/plugin": "^2.0.0-alpha.2.1",
-    "@parcel/utils": "^2.0.0-alpha.2.1"
+    "@parcel/fs": "^2.0.0-alpha.3.1",
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "@parcel/utils": "^2.0.0-alpha.3.1"
   },
   "devDependencies": {
     "sass": "^1.22.9"

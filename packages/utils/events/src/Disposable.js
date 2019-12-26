@@ -23,7 +23,7 @@ export default class Disposable implements IDisposable {
   add(...disposables: Array<DisposableLike>): void {
     if (this.disposed) {
       throw new AlreadyDisposedError(
-        'Cannot add new disposables after disposable has been disposed'
+        'Cannot add new disposables after disposable has been disposed',
       );
     }
 

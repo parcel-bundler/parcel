@@ -2,14 +2,20 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundle as _bundle,
+  bundler as _bundler,
   run,
   outputFS,
+  overlayFS,
   assertBundles,
-  distDir
+  distDir,
+  getNextBuild,
 } from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
+
+const bundler = (name, opts = {}) =>
+  _bundler(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -17,8 +23,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/default-export-expression/a.js'
-        )
+          '/integration/scope-hoisting/es6/default-export-expression/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -29,8 +35,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/default-export-declaration/a.js'
-        )
+          '/integration/scope-hoisting/es6/default-export-declaration/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -41,8 +47,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/default-export-anonymous/a.js'
-        )
+          '/integration/scope-hoisting/es6/default-export-anonymous/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -53,8 +59,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/default-export-variable/a.js'
-        )
+          '/integration/scope-hoisting/es6/default-export-variable/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -65,8 +71,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/named-export-declaration/a.js'
-        )
+          '/integration/scope-hoisting/es6/named-export-declaration/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -77,8 +83,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/named-export-variable/a.js'
-        )
+          '/integration/scope-hoisting/es6/named-export-variable/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -89,8 +95,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/rename-superclass/a.js'
-        )
+          '/integration/scope-hoisting/es6/rename-superclass/a.js',
+        ),
       );
       let output = await run(b);
       assert.equal(output, 2);
@@ -100,8 +106,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/renamed-import/a.js'
-        )
+          '/integration/scope-hoisting/es6/renamed-import/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -112,8 +118,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/renamed-export/a.js'
-        )
+          '/integration/scope-hoisting/es6/renamed-export/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -124,8 +130,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/import-namespace/a.js'
-        )
+          '/integration/scope-hoisting/es6/import-namespace/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -136,8 +142,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-all/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-all/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -148,8 +154,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-all-multiple/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-all-multiple/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -160,8 +166,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/import-multiple-wildcards/a.js'
-        )
+          '/integration/scope-hoisting/es6/import-multiple-wildcards/a.js',
+        ),
       );
 
       let {foo, bar, baz, a, b: bb} = await run(b);
@@ -172,8 +178,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-multiple/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-multiple/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -184,8 +190,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-named/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-named/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -196,8 +202,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-default/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-default/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -208,8 +214,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-namespace/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-namespace/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -222,12 +228,14 @@ describe('scope hoisting', function() {
         await bundle(
           path.join(
             __dirname,
-            '/integration/scope-hoisting/es6/re-export-exclude-default/a.js'
-          )
+            '/integration/scope-hoisting/es6/re-export-exclude-default/a.js',
+          ),
         );
       } catch (err) {
         threw = true;
-        assert(err.message.endsWith("b.js does not export 'default'"));
+        assert(
+          err.diagnostics[0].message.endsWith("b.js does not export 'default'"),
+        );
       }
 
       assert(threw);
@@ -237,8 +245,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/multi-export/a.js'
-        )
+          '/integration/scope-hoisting/es6/multi-export/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -249,8 +257,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/live-bindings/a.js'
-        )
+          '/integration/scope-hoisting/es6/live-bindings/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -261,8 +269,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/dynamic-import/a.js'
-        )
+          '/integration/scope-hoisting/es6/dynamic-import/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -273,8 +281,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/dynamic-import-dynamic/a.js'
-        )
+          '/integration/scope-hoisting/es6/dynamic-import-dynamic/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -285,8 +293,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/export-binding-identifiers/a.js'
-        )
+          '/integration/scope-hoisting/es6/export-binding-identifiers/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -299,12 +307,16 @@ describe('scope hoisting', function() {
         await bundle(
           path.join(
             __dirname,
-            '/integration/scope-hoisting/es6/export-undefined/a.js'
-          )
+            '/integration/scope-hoisting/es6/export-undefined/a.js',
+          ),
         );
       } catch (err) {
         threw = true;
-        assert(err.message.includes("Export 'Test' is not defined (1:8)"));
+        assert(
+          err.diagnostics[0].message.includes(
+            "Export 'Test' is not defined (1:8)",
+          ),
+        );
       }
 
       assert(threw);
@@ -314,20 +326,33 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/import-commonjs-default/a.js'
-        )
+          '/integration/scope-hoisting/es6/import-commonjs-default/a.js',
+        ),
       );
 
       let output = await run(b);
       assert.deepEqual(output, 'foobar');
     });
 
+    it('does not export reassigned CommonJS exports references', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/commonjs-exports-reassign/a.js',
+        ),
+      );
+
+      let [foo, bExports] = await run(b);
+      assert.equal(foo, 'foobar');
+      assert.equal(typeof bExports, 'object');
+    });
+
     it('supports import default CommonJS interop with dynamic imports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/dynamic-default-interop/a.js'
-        )
+          '/integration/scope-hoisting/es6/dynamic-default-interop/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -338,8 +363,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-var/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-var/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -350,8 +375,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-renamed/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-renamed/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -362,8 +387,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-import/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-import/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -374,8 +399,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-re-exports/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -386,27 +411,91 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-import/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-re-exports-import/a.js',
+        ),
       );
 
       let output = await run(b);
       assert.deepEqual(output, 123);
     });
 
+    it('correctly updates deferred assets that are reexported', async function() {
+      let testDir = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/side-effects-update-deferred-reexported',
+      );
+
+      let b = bundler(path.join(testDir, 'index.js'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS,
+      });
+
+      let subscription = await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      let output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '12345hello');
+
+      await overlayFS.mkdirp(path.join(testDir, 'node_modules', 'foo'));
+      await overlayFS.copyFile(
+        path.join(testDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(testDir, 'node_modules', 'foo', 'foo.js'),
+      );
+
+      bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '1234556789');
+
+      await subscription.unsubscribe();
+    });
+
+    it('correctly updates deferred assets that are reexported and imported directly', async function() {
+      let testDir = path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/side-effects-update-deferred-direct',
+      );
+
+      let b = bundler(path.join(testDir, 'index.js'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS,
+      });
+
+      let subscription = await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      let output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '12345hello');
+
+      await overlayFS.mkdirp(path.join(testDir, 'node_modules', 'foo'));
+      await overlayFS.copyFile(
+        path.join(testDir, 'node_modules', 'foo', 'foo_updated.js'),
+        path.join(testDir, 'node_modules', 'foo', 'foo.js'),
+      );
+
+      bundleEvent = await getNextBuild(b);
+      assert(bundleEvent.type === 'buildSuccess');
+      output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, '1234556789');
+
+      await subscription.unsubscribe();
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects/a.js',
+        ),
       );
 
       let called = false;
       let output = await run(b, {
         sideEffect: () => {
           called = true;
-        }
+        },
       });
 
       assert(called, 'side effect not called');
@@ -417,15 +506,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-false/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-false/a.js',
+        ),
       );
 
       let called = false;
       let output = await run(b, {
         sideEffect: () => {
           called = true;
-        }
+        },
       });
 
       assert(!called, 'side effect called');
@@ -436,14 +525,14 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-false-wildcards/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-false-wildcards/a.js',
+        ),
       );
       let called = false;
       let output = await run(b, {
         sideEffect: () => {
           called = true;
-        }
+        },
       });
 
       assert(!called, 'side effect called');
@@ -454,15 +543,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-array/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-array/a.js',
+        ),
       );
 
       let calls = [];
       let output = await run(b, {
         sideEffect: caller => {
           calls.push(caller);
-        }
+        },
       });
 
       assert(calls.toString() == 'foo', "side effect called for 'foo'");
@@ -473,15 +562,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/side-effects-false-duplicate/a.js'
-        )
+          '/integration/scope-hoisting/es6/side-effects-false-duplicate/a.js',
+        ),
       );
 
       let called = false;
       let output = await run(b, {
         sideEffect: () => {
           called = true;
-        }
+        },
       });
 
       assert(!called, 'side effect called');
@@ -492,8 +581,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/empty-module/a.js'
-        )
+          '/integration/scope-hoisting/es6/empty-module/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -504,8 +593,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/import-namespace-commonjs/a.js'
-        )
+          '/integration/scope-hoisting/es6/import-namespace-commonjs/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -516,8 +605,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking/a.js'
-        )
+          '/integration/scope-hoisting/es6/tree-shaking/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -525,7 +614,7 @@ describe('scope hoisting', function() {
 
       let contents = await outputFS.readFile(
         path.join(distDir, 'a.js'),
-        'utf8'
+        'utf8',
       );
       assert(contents.includes('foo'));
       assert(!contents.includes('bar'));
@@ -535,9 +624,9 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-functions/a.js'
+          '/integration/scope-hoisting/es6/tree-shaking-functions/a.js',
         ),
-        {minify: true}
+        {minify: true},
       );
 
       let output = await run(b);
@@ -545,7 +634,7 @@ describe('scope hoisting', function() {
 
       let contents = await outputFS.readFile(
         path.join(distDir, 'a.js'),
-        'utf8'
+        'utf8',
       );
       assert(/.\+./.test(contents));
       assert(!/.-./.test(contents));
@@ -555,9 +644,9 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-classes-babel/a.js'
+          '/integration/scope-hoisting/es6/tree-shaking-classes-babel/a.js',
         ),
-        {minify: true}
+        {minify: true},
       );
 
       let output = await run(b);
@@ -565,17 +654,33 @@ describe('scope hoisting', function() {
 
       let contents = await outputFS.readFile(
         path.join(distDir, 'a.js'),
-        'utf8'
+        'utf8',
       );
       assert(!contents.includes('method'));
+    });
+
+    it('keeps member expression with computed properties that are variables', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-export-computed-prop/a.js',
+        ),
+        {minify: true},
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output[0], true);
+      assert.strictEqual(typeof output[1], 'undefined');
+      assert.strictEqual(output[2], true);
+      assert.strictEqual(typeof output[3], 'undefined');
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/re-export-commonjs/a.js'
-        )
+          '/integration/scope-hoisting/es6/re-export-commonjs/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -586,8 +691,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/import-wrapped/a.js'
-        )
+          '/integration/scope-hoisting/es6/import-wrapped/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -596,20 +701,20 @@ describe('scope hoisting', function() {
 
     it('should support the jsx pragma', async function() {
       let b = await bundle(
-        path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js')
+        path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js'),
       );
 
       let output = await run(b);
       assert.deepEqual(output, {
         children: 'Test',
         props: null,
-        type: 'span'
+        type: 'span',
       });
     });
 
     it('should not nameclash with internal variables', async function() {
       let b = await bundle(
-        path.join(__dirname, '/integration/scope-hoisting/es6/name-clash/a.js')
+        path.join(__dirname, '/integration/scope-hoisting/es6/name-clash/a.js'),
       );
 
       let output = await run(b);
@@ -620,8 +725,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/pure-assignment/a.js'
-        )
+          '/integration/scope-hoisting/es6/pure-assignment/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -629,7 +734,7 @@ describe('scope hoisting', function() {
 
       let contents = await outputFS.readFile(
         path.join(distDir, 'a.js'),
-        'utf8'
+        'utf8',
       );
       assert(!/bar/.test(contents));
       assert(!/displayName/.test(contents));
@@ -639,8 +744,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/default-export-class-rename/a.js'
-        )
+          '/integration/scope-hoisting/es6/default-export-class-rename/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -651,8 +756,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/class-selfreference/a.js'
-        )
+          '/integration/scope-hoisting/es6/class-selfreference/a.js',
+        ),
       );
       let output = await run(b);
       assert.deepEqual(output.foo, 'bar');
@@ -664,8 +769,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -676,8 +781,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/default-import/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/default-import/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -688,8 +793,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/named-import/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/named-import/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -700,8 +805,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/import-namespace/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/import-namespace/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -712,8 +817,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-default-export-expression/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-default-export-expression/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -724,8 +829,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-default-export-declaration/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-default-export-declaration/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -736,8 +841,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-default-export-variable/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-default-export-variable/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -748,8 +853,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-named-export-declaration/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-named-export-declaration/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -760,8 +865,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-named-export-variable/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-named-export-variable/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -772,8 +877,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-renamed-export/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-renamed-export/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -784,8 +889,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-re-export-all/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-re-export-all/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -796,8 +901,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-re-export-multiple/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-re-export-multiple/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -808,8 +913,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-re-export-named/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-re-export-named/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -820,8 +925,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-re-export-default/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-re-export-default/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -832,8 +937,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-re-export-namespace/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-re-export-namespace/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -844,8 +949,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-re-export-exclude-default/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-re-export-exclude-default/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -856,8 +961,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/es6-commonjs-hybrid/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/es6-commonjs-hybrid/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -868,20 +973,44 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/export-order/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/export-order/a.js',
+        ),
       );
 
       let output = await run(b);
       assert.equal(output, 5);
     });
 
+    it('builds commonjs modules that assigns to exports before module.exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-before-module-exports/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 42);
+    });
+
+    it('builds commonjs modules that assigns to module.exports before exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/module-exports-before-exports/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 42);
+    });
+
     it("doesn't insert parcelRequire for missing non-js assets", async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/missing-non-js/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/missing-non-js/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -892,8 +1021,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/define-exports/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/define-exports/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -904,8 +1033,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/live-bindings/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/live-bindings/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -916,8 +1045,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-eval/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-eval/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -928,8 +1057,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-return/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-return/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -940,8 +1069,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-module/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-module/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -952,20 +1081,32 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-module-computed/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-module-computed/a.js',
+        ),
       );
 
       let output = await run(b);
       assert.deepEqual(output, {foo: 2});
     });
 
+    it('should not rename function local variables according to global replacements', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/keep-local-function-var/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
+    });
+
     it('supports assigning to this as exports object', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/this-reference/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/this-reference/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -976,8 +1117,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/this-reference-wrapped/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/this-reference-wrapped/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -988,8 +1129,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/module-object/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/module-object/a.js',
+        ),
       );
 
       let entryBundle;
@@ -1017,8 +1158,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-resolve/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-resolve/a.js',
+        ),
       );
 
       let entryBundle;
@@ -1045,8 +1186,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/re-export-var/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/re-export-var/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1057,8 +1198,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/object-pattern/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/object-pattern/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1069,8 +1210,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/eliminate-exports/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/eliminate-exports/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1081,8 +1222,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/multi-assign/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/multi-assign/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1093,8 +1234,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-circular/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-circular/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1105,15 +1246,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-execution-order/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-execution-order/a.js',
+        ),
       );
 
       let out = [];
       await run(b, {
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'b', 'c', 'd']);
@@ -1123,8 +1264,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-conditional/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-conditional/a.js',
+        ),
       );
 
       let out = [];
@@ -1132,7 +1273,7 @@ describe('scope hoisting', function() {
         b: false,
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'd']);
@@ -1142,7 +1283,7 @@ describe('scope hoisting', function() {
         b: true,
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'b', 'c', 'd']);
@@ -1152,15 +1293,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-in-function/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-in-function/a.js',
+        ),
       );
 
       let out = [];
       await run(b, {
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'c', 'b']);
@@ -1170,15 +1311,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-in-function-import/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-in-function-import/a.js',
+        ),
       );
 
       let out = [];
       await run(b, {
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'd', 'c', 'b']);
@@ -1188,15 +1329,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-in-function-import-hoist/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-in-function-import-hoist/a.js',
+        ),
       );
 
       let out = [];
       await run(b, {
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'd', 'c', 'b']);
@@ -1206,15 +1347,15 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-in-function-reexport/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/require-in-function-reexport/a.js',
+        ),
       );
 
       let out = [];
       await run(b, {
         output(o) {
           out.push(o);
-        }
+        },
       });
 
       assert.deepEqual(out, ['a', 'd', 'c', 'b']);
@@ -1224,8 +1365,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/stream-module/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/stream-module/a.js',
+        ),
       );
 
       let res = await run(b);
@@ -1238,8 +1379,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/empty-module/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/empty-module/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1250,8 +1391,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/tree-shaking/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/tree-shaking/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1259,7 +1400,7 @@ describe('scope hoisting', function() {
 
       let contents = await outputFS.readFile(
         path.join(distDir, 'a.js'),
-        'utf8'
+        'utf8',
       );
       assert(contents.includes('foo'));
       assert(!contents.includes('bar'));
@@ -1271,9 +1412,9 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/export-local/a.js'
+          '/integration/scope-hoisting/commonjs/export-local/a.js',
         ),
-        {minify: true}
+        {minify: true},
       );
 
       let output = await run(b);
@@ -1284,8 +1425,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/side-effects-false/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/side-effects-false/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1296,8 +1437,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-aliases/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-aliases/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1308,8 +1449,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-optional/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-optional/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1320,8 +1461,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/interop-require-es-module/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/interop-require-es-module/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1333,8 +1474,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/export-assign-scope/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/export-assign-scope/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1345,8 +1486,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/globals-polyfills/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/globals-polyfills/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1358,8 +1499,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-destructuring-array/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-destructuring-array/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1370,8 +1511,8 @@ describe('scope hoisting', function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/wrap-destructuring-object/a.js'
-        )
+          '/integration/scope-hoisting/commonjs/wrap-destructuring-object/a.js',
+        ),
       );
 
       let output = await run(b);
@@ -1381,49 +1522,123 @@ describe('scope hoisting', function() {
 
   it('should not throw with JS included from HTML', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/html-js/index.html')
+      path.join(__dirname, '/integration/html-js/index.html'),
     );
 
     assertBundles(b, [
       {
         name: 'index.html',
-        assets: ['index.html']
+        assets: ['index.html'],
       },
       {
         type: 'js',
-        assets: ['index.js']
-      }
+        assets: ['index.js'],
+      },
     ]);
 
     let value = null;
     await run(b, {
-      alert: v => (value = v)
+      alert: v => (value = v),
     });
     assert.equal(value, 'Hi');
   });
 
   it('should not throw with JS dynamic imports included from HTML', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/html-js-dynamic/index.html')
+      path.join(__dirname, '/integration/html-js-dynamic/index.html'),
     );
 
     assertBundles(b, [
       {
         name: 'index.html',
-        assets: ['index.html']
+        assets: ['index.html'],
       },
       {
         type: 'js',
-        assets: ['cacheLoader.js', 'index.js', 'js-loader.js', 'JSRuntime.js']
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
       {
         type: 'js',
-        assets: ['local.js']
-      }
+        assets: ['local.js'],
+      },
     ]);
 
     let output = (await run(b)).default;
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 'Imported: foobar');
+  });
+
+  it('should include the prelude in shared entry bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-shared/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'iframe.html',
+        assets: ['iframe.html'],
+      },
+      {
+        type: 'js',
+        assets: ['iframe.js'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+    ]);
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)[0];
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let mainBundle = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.name.startsWith('html-shared'));
+    contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+  });
+
+  it('does not include prelude if child bundles are isolated', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js'),
+    );
+
+    let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+    let contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
+    assert(!contents.includes(`parcelRequire =`));
+  });
+
+  it('should include prelude in shared worker bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-shared/index.js'),
+    );
+
+    let sharedBundle = b
+      .getBundles()
+      .sort((a, b) => b.stats.size - a.stats.size)
+      .find(b => b.name !== 'index.js');
+    let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
+    assert(contents.includes(`parcelRequire =`));
+
+    let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
+    contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
+    assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
   });
 });

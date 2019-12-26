@@ -14,7 +14,7 @@ class KotlinAsset extends Asset {
     // require kotlin
     const kotlinCompiler = await localRequire(
       '@jetbrains/kotlinc-js-api',
-      this.name
+      this.name,
     );
 
     let id = Math.random()
@@ -31,7 +31,7 @@ class KotlinAsset extends Asset {
       moduleKind: 'commonjs',
       noStdlib: false,
       metaInfo: true,
-      sourceMaps: this.options.sourceMaps
+      sourceMaps: this.options.sourceMaps,
     });
 
     let source = await fs.readFile(filename, 'utf8');
@@ -54,8 +54,8 @@ class KotlinAsset extends Asset {
       {
         type: 'js',
         value: source,
-        sourceMap
-      }
+        sourceMap,
+      },
     ];
   }
 }

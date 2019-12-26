@@ -2,7 +2,7 @@
   "extends": "../.eslintrc.json",
   "parser": "espree",
   "parserOptions": {
-    "ecmaVersion": 5
+    "ecmaVersion": 2015
   },
   "env": {
     "browser": true

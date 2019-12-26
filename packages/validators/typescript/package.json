@@ -1,20 +1,23 @@
 {
   "name": "@parcel/validator-typescript",
-  "version": "2.0.0-alpha.2.1",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/TypeScriptValidator.js",
+  "main": "lib/TypeScriptValidator.js",
+  "source": "src/TypeScriptValidator.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@babel/code-frame": "^7.0.0",
-    "@parcel/plugin": "^2.0.0-alpha.2.1",
-    "@parcel/utils": "^2.0.0-alpha.2.1",
-    "chalk": "^2.4.2"
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "@parcel/ts-utils": "^2.0.0-alpha.3.1",
+    "@parcel/utils": "^2.0.0-alpha.3.1"
   }
 }

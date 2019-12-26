@@ -22,7 +22,9 @@ export class TSModule {
 
   addImport(local: string, specifier: string, imported: string) {
     this.imports.set(local, {specifier, imported});
-    this.names.set(local, imported);
+    if (imported !== '*' && imported !== 'default') {
+      this.names.set(local, imported);
+    }
   }
 
   addExport(name: string, imported: string, specifier: ?string) {
@@ -38,5 +40,13 @@ export class TSModule {
     if (name !== 'default') {
       this.names.set(name, name);
     }
+  }
+
+  getName(name: string) {
+    return this.names.get(name) || name;
+  }
+
+  hasBinding(name: string) {
+    return this.bindings.has(name);
   }
 }

@@ -22,13 +22,13 @@ class PugAsset extends Asset {
       templateName: path.basename(this.basename, path.extname(this.basename)),
       filters: config.filters,
       filterOptions: config.filterOptions,
-      filterAliases: config.filterAliases
+      filterAliases: config.filterAliases,
     });
 
     if (compiled.dependencies) {
       for (let item of compiled.dependencies) {
         this.addDependency(item, {
-          includedInParent: true
+          includedInParent: true,
         });
       }
     }

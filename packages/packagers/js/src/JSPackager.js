@@ -5,7 +5,12 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {countLines, PromiseQueue} from '@parcel/utils';
+import {
+  countLines,
+  PromiseQueue,
+  relativeBundlePath,
+  replaceBundleReferences,
+} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
@@ -14,17 +19,40 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, getSourceMapReference, options}) {
+  async package({
+    bundle,
+    bundleGraph,
+    getInlineBundleContents,
+    getSourceMapReference,
+    options,
+  }) {
+    function replaceReferences({contents, map}) {
+      return replaceBundleReferences({
+        bundle,
+        bundleGraph,
+        contents,
+        getInlineReplacement: (dependency, inlineType, content) => ({
+          from: `"${dependency.id}"`,
+          to: inlineType === 'string' ? JSON.stringify(content) : content,
+        }),
+        getInlineBundleContents,
+        map,
+      });
+    }
+
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
-      return generate(bundleGraph, bundle, ast, options);
+      return replaceReferences({
+        contents: generate(bundleGraph, bundle, ast, options).contents,
+        map: null,
+      });
     }
 
     if (bundle.env.outputFormat === 'esmodule') {
       throw new Error(
-        `esmodule output is not supported without scope hoisting.`
+        `esmodule output is not supported without scope hoisting.`,
       );
     }
 
@@ -71,7 +99,7 @@ export default new Packager({
         let asset = node.value;
         invariant(
           asset.type === 'js',
-          'all assets in a js bundle must be js assets'
+          'all assets in a js bundle must be js assets',
         );
 
         let deps = {};
@@ -99,7 +127,7 @@ export default new Packager({
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
-              output
+              output,
             );
 
           map.addMap(assetMap, lineOffset);
@@ -115,7 +143,9 @@ export default new Packager({
     let entries = bundle.getEntryAssets();
     let interpreter: ?string = null;
 
-    let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
+    let isEntry =
+      !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+      bundle.env.isIsolated();
     if (isEntry) {
       let entryAsset = entries[entries.length - 1];
       // $FlowFixMe
@@ -128,12 +158,21 @@ export default new Packager({
       entries.pop();
     }
 
+    let importScripts = '';
+    if (bundle.env.isWorker()) {
+      let bundles = bundleGraph.getSiblingBundles(bundle);
+      for (let b of bundles) {
+        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+      }
+    }
+
     let sourceMapReference = await getSourceMapReference(map);
 
-    return {
+    return replaceReferences({
       contents:
         // If the entry asset included a hashbang, repeat it at the top of the bundle
         (interpreter != null ? `#!${interpreter}\n` : '') +
+        importScripts +
         (PRELUDE +
           '({' +
           assets +
@@ -145,7 +184,7 @@ export default new Packager({
           '//# sourceMappingURL=' +
           sourceMapReference +
           '\n'),
-      map
-    };
-  }
+      map,
+    });
+  },
 });

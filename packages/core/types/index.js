@@ -5,14 +5,18 @@ import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
+export type EnvMap = typeof process.env;
 
 export type JSONValue =
   | null
+  | void // ? Is this okay?
   | boolean
   | number
   | string
@@ -30,7 +34,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
-export type ParcelConfigFile = {
+export type ParcelConfigFile = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {[Glob]: Array<PackageName>, ...},
@@ -41,13 +45,13 @@ export type ParcelConfigFile = {
   optimizers?: {[Glob]: Array<PackageName>, ...},
   reporters?: Array<PackageName>,
   validators?: {[Glob]: Array<PackageName>, ...},
-  ...
-};
+|};
 
-export type ResolvedParcelConfigFile = ParcelConfigFile & {
+export type ResolvedParcelConfigFile = {|
+  ...ParcelConfigFile,
   filePath: FilePath,
-  ...
-};
+  resolveFrom?: FilePath,
+|};
 
 export type Engines = {
   browsers?: string | Array<string>,
@@ -57,12 +61,11 @@ export type Engines = {
   ...
 };
 
-export type TargetSourceMapOptions = {
+export type TargetSourceMapOptions = {|
   sourceRoot?: string,
   inline?: boolean,
   inlineSources?: boolean,
-  ...
-};
+|};
 
 export interface Target {
   +distEntry: ?FilePath;
@@ -71,6 +74,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: ?string;
+  +loc: ?SourceLocation;
 }
 
 export type EnvironmentContext =
@@ -89,26 +93,26 @@ export type PackageTargetDescriptor = {|
   outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
-  sourceMap?: TargetSourceMapOptions
+  sourceMap?: TargetSourceMapOptions,
+  isLibrary?: boolean,
 |};
 
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
-  distDir: FilePath
+  distDir: FilePath,
 |};
 
-export type EnvironmentOpts = {
+export type EnvironmentOpts = {|
   context?: EnvironmentContext,
   engines?: Engines,
   includeNodeModules?: boolean | Array<PackageName>,
   outputFormat?: OutputFormat,
   isLibrary?: boolean,
-  ...
-};
+|};
 
 export type VersionMap = {
   [string]: string,
-  ...
+  ...,
 };
 
 export interface Environment {
@@ -121,12 +125,13 @@ export interface Environment {
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
+  isWorker(): boolean;
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap): boolean;
 }
 
 type PackageDependencies = {|
-  [PackageName]: Semver
+  [PackageName]: Semver,
 |};
 
 export type PackageJSON = {
@@ -134,6 +139,7 @@ export type PackageJSON = {
   version: Semver,
   main?: FilePath,
   module?: FilePath,
+  types?: FilePath,
   browser?: FilePath | {[FilePath]: FilePath | boolean, ...},
   source?: FilePath | {[FilePath]: FilePath, ...},
   alias?: {[PackageName | FilePath | Glob]: PackageName | FilePath, ...},
@@ -155,7 +161,7 @@ export type InitialParcelOptions = {|
   rootDir?: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
-  env?: {[string]: string, ...},
+  env?: EnvMap,
   targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
   disableCache?: boolean,
@@ -176,7 +182,7 @@ export type InitialParcelOptions = {|
   outputFS?: FileSystem,
   workerFarm?: WorkerFarm,
   packageManager?: PackageManager,
-  defaultEngines?: Engines
+  defaultEngines?: Engines,
 
   // contentHash
   // throwErrors
@@ -189,7 +195,7 @@ export interface PluginOptions {
   +minify: boolean;
   +scopeHoist: boolean;
   +sourceMaps: boolean;
-  +env: {+[string]: string, ...};
+  +env: EnvMap;
   +hot: ServerOptions | false;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
@@ -206,26 +212,25 @@ export type ServerOptions = {|
   host?: string,
   port: number,
   https?: HTTPSOptions | boolean,
-  publicUrl?: string
+  publicUrl?: string,
 |};
 
 export type HTTPSOptions = {|
   cert: FilePath,
-  key: FilePath
+  key: FilePath,
 |};
 
+// Source locations are 1-based, meaning lines and columns start at 1
 export type SourceLocation = {|
   filePath: string,
-  start: {
+  start: {|
     line: number,
     column: number,
-    ...
-  },
-  end: {
+  |},
+  end: {|
     line: number,
     column: number,
-    ...
-  }
+  |},
 |};
 
 export type Meta = {
@@ -247,7 +252,7 @@ export type DependencyOptions = {|
   env?: EnvironmentOpts,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol>
+  symbols?: Map<Symbol, Symbol>,
 |};
 
 export interface Dependency {
@@ -268,13 +273,12 @@ export interface Dependency {
   +pipeline: ?string;
 }
 
-export type File = {
+export type File = {|
   filePath: FilePath,
   hash?: string,
-  ...
-};
+|};
 
-interface BaseAsset {
+export interface BaseAsset {
   +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
@@ -297,11 +301,10 @@ interface BaseAsset {
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
       parse?: boolean,
-      ...
-    }
+    |},
   ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
 }
@@ -332,6 +335,7 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
+  +resolvedPath: ?FilePath;
 
   setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix
@@ -342,21 +346,19 @@ export interface Config {
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
-      ...
-    }
+    |},
   ): Promise<ConfigResult | null>;
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{
+    options: ?{|
       packageKey?: string,
       parse?: boolean,
       exclude?: boolean,
-      ...
-    }
+    |},
   ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
@@ -366,12 +368,12 @@ export interface Config {
 
 export type Stats = {|
   time: number,
-  size: number
+  size: number,
 |};
 
 export type GenerateOutput = {|
   code: string,
-  map?: ?SourceMap
+  map?: ?SourceMap,
 |};
 
 export type Blob = string | Buffer | Readable;
@@ -389,87 +391,96 @@ export interface TransformerResult {
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
+  pipeline?: ?string;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
   uniqueKey?: ?string;
 }
 
-type Async<T> = T | Promise<T>;
+export type Async<T> = T | Promise<T>;
 
-type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
 type ResolveConfigFn = (
-  configNames: Array<FilePath>
+  configNames: Array<FilePath>,
 ) => Promise<FilePath | null>;
 
+export type ValidateResult = {|
+  warnings: Array<Diagnostic>,
+  errors: Array<Diagnostic>,
+|};
+
 export type Validator = {|
-  validate({
+  validate({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions,
-    ...
-  }): Async<void>,
-  getConfig?: ({
+    logger: PluginLogger,
+  |}): Async<ValidateResult | void>,
+  getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
     options: PluginOptions,
-    ...
-  }) => Async<ConfigResult | void>
+    logger: PluginLogger,
+  |}) => Async<ConfigResult | void>,
 |};
 
-export type Transformer = {
+export type Transformer = {|
   // TODO: deprecate getConfig
-  getConfig?: ({
+  getConfig?: ({|
     asset: MutableAsset,
     resolve: ResolveFn,
     options: PluginOptions,
-    ...
-  }) => Async<ConfigResult | void>,
-  loadConfig?: ({
+    logger: PluginLogger,
+  |}) => Async<ConfigResult | void>,
+  loadConfig?: ({|
     config: Config,
     options: PluginOptions,
-    ...
-  }) => Async<void>,
-  rehydrateConfig?: ({
+    logger: PluginLogger,
+  |}) => Async<void>,
+  preSerializeConfig?: ({|
     config: Config,
     options: PluginOptions,
-    ...
-  }) => Async<void>,
-  canReuseAST?: ({
+  |}) => Async<void>,
+  postDeserializeConfig?: ({|
+    config: Config,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<void>,
+  canReuseAST?: ({|
     ast: AST,
     options: PluginOptions,
-    ...
-  }) => boolean,
-  parse?: ({
+    logger: PluginLogger,
+  |}) => boolean,
+  parse?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
-    ...
-  }) => Async<?AST>,
-  transform({
+    logger: PluginLogger,
+  |}) => Async<?AST>,
+  transform({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
-    ...
-  }): Async<Array<TransformerResult | MutableAsset>>,
-  generate?: ({
+    logger: PluginLogger,
+  |}): Async<Array<TransformerResult | MutableAsset>>,
+  generate?: ({|
     asset: MutableAsset,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
-    ...
-  }) => Async<GenerateOutput>,
-  postProcess?: ({
+    logger: PluginLogger,
+  |}) => Async<GenerateOutput>,
+  postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
-    ...
-  }) => Async<Array<TransformerResult>>,
-  ...
-};
+    logger: PluginLogger,
+  |}) => Async<Array<TransformerResult>>,
+|};
 
 export interface TraversalActions {
   skipChildren(): void;
@@ -480,12 +491,12 @@ export type GraphVisitor<TNode, TContext> =
   | GraphTraversalCallback<TNode, TContext>
   | {|
       enter?: GraphTraversalCallback<TNode, TContext>,
-      exit?: GraphTraversalCallback<TNode, TContext>
+      exit?: GraphTraversalCallback<TNode, TContext>,
     |};
 export type GraphTraversalCallback<TNode, TContext> = (
   node: TNode,
   context: ?TContext,
-  actions: TraversalActions
+  actions: TraversalActions,
 ) => ?TContext;
 
 export type BundleTraversable =
@@ -506,7 +517,7 @@ export type CreateBundleOpts =
       isEntry?: ?boolean,
       isInline?: ?boolean,
       type?: ?string,
-      env?: ?Environment
+      env?: ?Environment,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -517,13 +528,13 @@ export type CreateBundleOpts =
       isEntry?: ?boolean,
       isInline?: ?boolean,
       type: string,
-      env: Environment
+      env: Environment,
     |};
 
 export type SymbolResolution = {|
   asset: Asset,
   exportSymbol: Symbol | string,
-  symbol: void | Symbol
+  symbol: void | Symbol,
 |};
 
 export interface Bundle {
@@ -539,11 +550,10 @@ export interface Bundle {
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
-  hasChildBundles(): boolean;
   getHash(): string;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
-    visit: GraphVisitor<BundleTraversable, TContext>
+    visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext;
 }
 
@@ -552,11 +562,10 @@ export interface NamedBundle extends Bundle {
   +name: string;
 }
 
-export type BundleGroup = {
+export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
-  ...
-};
+|};
 
 export interface MutableBundleGraph {
   addAssetGraphToBundle(Asset, Bundle): void;
@@ -573,11 +582,11 @@ export interface MutableBundleGraph {
   isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetGraphFromBundle(Asset, Bundle): void;
   traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
   traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
   traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
 }
 
@@ -585,13 +594,14 @@ export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundleGroupsReferencedByBundle(
-    bundle: Bundle
-  ): Array<{
+    bundle: Bundle,
+  ): Array<{|
     bundleGroup: BundleGroup,
     dependency: Dependency,
-    ...
-  }>;
+  |}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
+  getChildBundles(bundle: Bundle): Array<Bundle>;
+  getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
@@ -602,7 +612,7 @@ export interface BundleGraph {
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<Bundle, TContext>
+    visit: GraphTraversalCallback<Bundle, TContext>,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
 }
@@ -610,144 +620,147 @@ export interface BundleGraph {
 export type BundleResult = {|
   contents: Blob,
   ast?: AST,
-  map?: ?SourceMap
+  map?: ?SourceMap,
 |};
 
 export type ResolveResult = {|
   filePath?: FilePath,
   isExcluded?: boolean,
   sideEffects?: boolean,
-  code?: string
+  code?: string,
 |};
 
 export type Bundler = {|
-  bundle({
+  bundle({|
     bundleGraph: MutableBundleGraph,
     options: PluginOptions,
-    ...
-  }): Async<void>,
-  optimize({
+    logger: PluginLogger,
+  |}): Async<void>,
+  optimize({|
     bundleGraph: MutableBundleGraph,
     options: PluginOptions,
-    ...
-  }): Async<void>
+    logger: PluginLogger,
+  |}): Async<void>,
 |};
 
 export type Namer = {|
-  name({
+  name({|
     bundle: Bundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    ...
-  }): Async<?FilePath>
+    logger: PluginLogger,
+  |}): Async<?FilePath>,
 |};
 
 export type RuntimeAsset = {|
   filePath: FilePath,
   code: string,
   dependency?: Dependency,
-  isEntry?: boolean
+  isEntry?: boolean,
 |};
 
 export type Runtime = {|
-  apply({
+  apply({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    ...
-  }): Async<void | RuntimeAsset | Array<RuntimeAsset>>
+    logger: PluginLogger,
+  |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
 |};
 
 export type Packager = {|
-  package({
+  package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
     getSourceMapReference: (map: SourceMap) => Promise<string> | string,
+    logger: PluginLogger,
     getInlineBundleContents: (
       Bundle,
-      BundleGraph
+      BundleGraph,
     ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
-    ...
-  }): Async<BundleResult>
+  |}): Async<BundleResult>,
 |};
 
 export type Optimizer = {|
-  optimize({
+  optimize({|
     bundle: NamedBundle,
     contents: Blob,
     map: ?SourceMap,
     options: PluginOptions,
-    ...
-  }): Async<BundleResult>
+    logger: PluginLogger,
+  |}): Async<BundleResult>,
 |};
 
 export type Resolver = {|
-  resolve({
+  resolve({|
     dependency: Dependency,
     options: PluginOptions,
-    ...
-  }): Async<?ResolveResult>
+    logger: PluginLogger,
+    filePath: FilePath,
+  |}): Async<?ResolveResult>,
 |};
 
 export type ProgressLogEvent = {|
   +type: 'log',
   +level: 'progress',
-  +message: string
+  +phase?: string,
+  +message: string,
 |};
 
-export type LogEvent =
-  | ProgressLogEvent
-  | {|
-      +type: 'log',
-      +level: 'error' | 'warn',
-      +message: string | Error
-    |}
-  | {|
-      +type: 'log',
-      +level: 'info' | 'success' | 'verbose',
-      +message: string
-    |};
+export type DiagnosticLogEvent = {|
+  +type: 'log',
+  +level: 'error' | 'warn' | 'info' | 'verbose',
+  +diagnostics: Array<Diagnostic>,
+|};
+
+export type TextLogEvent = {|
+  +type: 'log',
+  +level: 'success',
+  +message: string,
+|};
+
+export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
 export type BuildStartEvent = {|
-  type: 'buildStart'
+  type: 'buildStart',
 |};
 
 type WatchStartEvent = {|
-  type: 'watchStart'
+  type: 'watchStart',
 |};
 
 type WatchEndEvent = {|
-  type: 'watchEnd'
+  type: 'watchEnd',
 |};
 
 type ResolvingProgressEvent = {|
   type: 'buildProgress',
   phase: 'resolving',
-  dependency: Dependency
+  dependency: Dependency,
 |};
 
 type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
-  filePath: FilePath
+  filePath: FilePath,
 |};
 
 type BundlingProgressEvent = {|
   type: 'buildProgress',
-  phase: 'bundling'
+  phase: 'bundling',
 |};
 
 type PackagingProgressEvent = {|
   type: 'buildProgress',
   phase: 'packaging',
-  bundle: NamedBundle
+  bundle: NamedBundle,
 |};
 
 type OptimizingProgressEvent = {|
   type: 'buildProgress',
   phase: 'optimizing',
-  bundle: NamedBundle
+  bundle: NamedBundle,
 |};
 
 export type BuildProgressEvent =
@@ -761,19 +774,19 @@ export type BuildSuccessEvent = {|
   type: 'buildSuccess',
   bundleGraph: BundleGraph,
   buildTime: number,
-  changedAssets: Map<string, Asset>
+  changedAssets: Map<string, Asset>,
 |};
 
 export type BuildFailureEvent = {|
   type: 'buildFailure',
-  error: Error
+  diagnostics: Array<Diagnostic>,
 |};
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
 export type ValidationEvent = {|
   type: 'validation',
-  filePath: FilePath
+  filePath: FilePath,
 |};
 
 export type ReporterEvent =
@@ -787,7 +800,11 @@ export type ReporterEvent =
   | ValidationEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: PluginOptions): Async<void>
+  report({|
+    event: ReporterEvent,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<void>,
 |};
 
 export interface ErrorWithCode extends Error {

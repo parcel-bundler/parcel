@@ -43,7 +43,7 @@ function shallowCopy(object: any) {
 
     return Object.create(
       Object.getPrototypeOf(object),
-      Object.getOwnPropertyDescriptors(object)
+      Object.getOwnPropertyDescriptors(object),
     );
   }
 
@@ -170,14 +170,14 @@ export function prepareForSerialization(object: any) {
           return {
             $$type: type,
             $$raw: raw,
-            value: {...serialized}
+            value: {...serialized},
           };
         }
       }
 
       return value;
     },
-    true
+    true,
   );
 }
 
@@ -188,9 +188,7 @@ export function restoreDeserializedObject(object: any) {
       let ctor = nameToCtor.get(value.$$type);
       if (ctor == null) {
         throw new Error(
-          `Expected constructor ${
-            value.$$type
-          } to be registered with serializer to deserialize`
+          `Expected constructor ${value.$$type} to be registered with serializer to deserialize`,
         );
       }
 

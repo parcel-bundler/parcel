@@ -17,7 +17,7 @@ export function hasBinding(node, name) {
     return (
       (node.id && node.id.name === name) ||
       node.params.some(
-        param => types.isIdentifier(param) && param.name === name
+        param => types.isIdentifier(param) && param.name === name,
       )
     );
   } else if (types.isVariableDeclaration(node)) {
@@ -25,4 +25,15 @@ export function hasBinding(node, name) {
   }
 
   return false;
+}
+
+// replace object properties
+export function morph(object, newProperties) {
+  for (let key in object) {
+    delete object[key];
+  }
+
+  for (let key in newProperties) {
+    object[key] = newProperties[key];
+  }
 }

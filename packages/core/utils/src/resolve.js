@@ -12,14 +12,28 @@ const resolveAsync = promisify(_resolve);
 
 export type ResolveResult = {|
   resolved: FilePath | ModuleSpecifier,
-  pkg?: ?PackageJSON
+  pkg?: ?PackageJSON,
 |};
 
 export async function resolve(
   fs: FileSystem,
   id: string,
-  opts?: ResolveOptions
+  opts?: ResolveOptions,
 ): Promise<ResolveResult> {
+  if (process.env.PARCEL_BUILD_ENV !== 'production') {
+    // $FlowFixMe
+    opts = opts || {};
+    // $FlowFixMe
+    opts.packageFilter = pkg => {
+      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+        if (pkg.source) {
+          pkg.main = pkg.source;
+        }
+      }
+      return pkg;
+    };
+  }
+
   let res = await resolveAsync(id, {
     ...opts,
     async readFile(filename, callback) {
@@ -45,26 +59,40 @@ export async function resolve(
       } catch (err) {
         callback(null, false);
       }
-    }
+    },
   });
 
   if (typeof res === 'string') {
     return {
-      resolved: res
+      resolved: res,
     };
   }
 
   return {
     resolved: res[0],
-    pkg: res[1]
+    pkg: res[1],
   };
 }
 
 export function resolveSync(
   fs: FileSystem,
   id: string,
-  opts?: ResolveOptions
+  opts?: ResolveOptions,
 ): ResolveResult {
+  if (process.env.PARCEL_BUILD_ENV !== 'production') {
+    // $FlowFixMe
+    opts = opts || {};
+    // $FlowFixMe
+    opts.packageFilter = pkg => {
+      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+        if (pkg.source) {
+          pkg.main = pkg.source;
+        }
+      }
+      return pkg;
+    };
+  }
+
   // $FlowFixMe
   let res = _resolve.sync(id, {
     ...opts,
@@ -86,10 +114,10 @@ export function resolveSync(
       } catch (err) {
         return false;
       }
-    }
+    },
   });
 
   return {
-    resolved: res
+    resolved: res,
   };
 }

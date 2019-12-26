@@ -7,16 +7,16 @@ export default new Transformer({
   async transform({asset, options}) {
     const sugarss = await options.packageManager.require(
       'sugarss',
-      asset.filePath
+      asset.filePath,
     );
     const code = await asset.getCode();
     const {css} = await postcss().process(code, {
       from: asset.filePath,
       to: asset.filePath,
-      parser: sugarss
+      parser: sugarss,
     });
     asset.type = 'css';
     asset.setCode(css);
     return [asset];
-  }
+  },
 });

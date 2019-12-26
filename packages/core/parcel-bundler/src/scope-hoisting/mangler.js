@@ -20,7 +20,7 @@ function mangleScope(scope) {
   let sortedBindings = Object.keys(scope.bindings).sort(
     (a, b) =>
       scope.bindings[b].referencePaths.length -
-      scope.bindings[a].referencePaths.length
+      scope.bindings[a].referencePaths.length,
   );
 
   for (let oldName of sortedBindings) {

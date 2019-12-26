@@ -1,20 +1,18 @@
 // @flow
 import {
   IncomingMessage as HTTPIncomingMessage,
-  ServerResponse as HTTPServerResponse,
-  Server as HTTPServer
+  ServerResponse as HTTPServerResponse
 } from 'http';
 import {
   IncomingMessage as HTTPSIncomingMessage,
-  ServerResponse as HTTPSServerResponse,
-  Server as HTTPSServer
+  ServerResponse as HTTPSServerResponse
 } from 'https';
 import type {ServerOptions} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {PluginLogger} from '@parcel/logger';
 
 export type Request = HTTPIncomingMessage | HTTPSIncomingMessage;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
-export type Server = HTTPServer | HTTPSServer;
 
 // TODO: Figure out if there is a node.js type that could be imported with a complete ServerError
 export type ServerError = Error & {|
@@ -25,5 +23,6 @@ export type HMRServerOptions = {|
   ...ServerOptions,
   cacheDir: string,
   inputFS: FileSystem,
-  outputFS: FileSystem
+  outputFS: FileSystem,
+  logger: PluginLogger
 |};

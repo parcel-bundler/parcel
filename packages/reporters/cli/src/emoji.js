@@ -8,3 +8,5 @@ export const progress = supportsEmoji ? '⏳' : '∞';
 export const success = supportsEmoji ? '✨' : '√';
 export const error = supportsEmoji ? '🚨' : '×';
 export const warning = supportsEmoji ? '⚠️' : '‼';
+export const info = supportsEmoji ? 'ℹ️' : 'ℹ';
+export const hint = supportsEmoji ? '💡' : 'ℹ';
