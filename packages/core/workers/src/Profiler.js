@@ -41,23 +41,29 @@ export default class Profiler {
   session: Session;
 
   startProfiling() {
+    let inspector;
     try {
-      const inspector: any = require('inspector');
-      this.session = new inspector.Session();
-      this.session.connect();
-
-      return Promise.all([
-        this.sendCommand('Profiler.setSamplingInterval', {
-          interval: 100
-        }),
-        this.sendCommand('Profiler.enable'),
-        this.sendCommand('Profiler.start')
-      ]);
+      inspector = require('inspector');
     } catch (err) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(err)
+        diagnostic: {
+          message: `The inspector module isn't available`,
+          origin: '@parcel/workers',
+          hints: ['Disable build profiling']
+        }
       });
     }
+
+    this.session = new inspector.Session();
+    this.session.connect();
+
+    return Promise.all([
+      this.sendCommand('Profiler.setSamplingInterval', {
+        interval: 100
+      }),
+      this.sendCommand('Profiler.enable'),
+      this.sendCommand('Profiler.start')
+    ]);
   }
 
   sendCommand(method: string, params: mixed): Promise<{profile: Profile, ...}> {
