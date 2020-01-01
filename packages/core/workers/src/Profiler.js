@@ -1,7 +1,7 @@
 // @flow
 import type {Session} from 'inspector';
 import invariant from 'assert';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-Profile
 export type Profile = {|
