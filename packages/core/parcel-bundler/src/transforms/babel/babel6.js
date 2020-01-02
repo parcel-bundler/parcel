@@ -15,7 +15,7 @@ async function babel6(asset, options) {
     ecmaVersion: Infinity,
     strictMode: false,
     sourceType: 'module',
-    locations: true
+    locations: true,
   });
 
   // Passing a list of plugins as part of parserOpts seems to override any custom
@@ -34,7 +34,7 @@ function dynamicImport() {
   return {
     manipulateOptions(opts, parserOpts) {
       parserOpts.plugins.push('dynamicImport');
-    }
+    },
   };
 }
 

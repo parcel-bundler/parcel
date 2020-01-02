@@ -9,7 +9,7 @@ export type Profile = {|
   startTime: number,
   endTime: number,
   samples?: Array<number>,
-  timeDeltas?: Array<number>
+  timeDeltas?: Array<number>,
 |};
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ProfileNode
@@ -19,7 +19,7 @@ type ProfileNode = {|
   hitCount?: number,
   children?: Array<number>,
   deoptReason?: string,
-  positionTicks?: PositionTickInfo
+  positionTicks?: PositionTickInfo,
 |};
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Runtime#type-CallFrame
@@ -28,13 +28,13 @@ type CallFrame = {|
   scriptId: string,
   url: string,
   lineNumber: string,
-  columnNumber: string
+  columnNumber: string,
 |};
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-PositionTickInfo
 type PositionTickInfo = {|
   line: number,
-  ticks: number
+  ticks: number,
 |};
 
 export default class Profiler {
@@ -59,10 +59,10 @@ export default class Profiler {
 
     return Promise.all([
       this.sendCommand('Profiler.setSamplingInterval', {
-        interval: 100
+        interval: 100,
       }),
       this.sendCommand('Profiler.enable'),
-      this.sendCommand('Profiler.start')
+      this.sendCommand('Profiler.start'),
     ]);
   }
 

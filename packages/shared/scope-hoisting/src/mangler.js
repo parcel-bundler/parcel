@@ -17,7 +17,7 @@ const CHARSET = (
  */
 export default function mangleScope(
   scope: any,
-  exportedIdentifiers: Set<Symbol>
+  exportedIdentifiers: Set<Symbol>,
 ) {
   let newNames = new Set();
 
@@ -25,7 +25,7 @@ export default function mangleScope(
   let sortedBindings = Object.keys(scope.bindings).sort(
     (a, b) =>
       scope.bindings[b].referencePaths.length -
-      scope.bindings[a].referencePaths.length
+      scope.bindings[a].referencePaths.length,
   );
 
   for (let oldName of sortedBindings) {

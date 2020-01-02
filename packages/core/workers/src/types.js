@@ -5,12 +5,12 @@ import type {FilePath} from '@parcel/types';
 export type LocationCallRequest = {|
   args: $ReadOnlyArray<mixed>,
   location: string,
-  method?: string
+  method?: string,
 |};
 
 export type HandleCallRequest = {|
   args: $ReadOnlyArray<mixed>,
-  handle: number
+  handle: number,
 |};
 
 export type CallRequest = LocationCallRequest | HandleCallRequest;
@@ -23,7 +23,7 @@ export type WorkerRequest = {|
   location?: FilePath,
   method?: ?string,
   type: 'request',
-  handle?: number
+  handle?: number,
 |};
 
 export type WorkerDataResponse = {|
@@ -31,7 +31,7 @@ export type WorkerDataResponse = {|
   child?: number,
   type: 'response',
   contentType: 'data',
-  content: string
+  content: string,
 |};
 
 export type WorkerErrorResponse = {|
@@ -39,7 +39,7 @@ export type WorkerErrorResponse = {|
   child?: number,
   type: 'response',
   contentType: 'error',
-  content: Diagnostic | Array<Diagnostic>
+  content: Diagnostic | Array<Diagnostic>,
 |};
 
 export type WorkerResponse = WorkerDataResponse | WorkerErrorResponse;
@@ -53,7 +53,7 @@ export interface WorkerImpl {
     execArgv: Object,
     onMessage: MessageHandler,
     onError: ErrorHandler,
-    onExit: ExitHandler
+    onExit: ExitHandler,
   ): void;
   start(): Promise<void>;
   stop(): Promise<void>;

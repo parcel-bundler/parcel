@@ -23,14 +23,14 @@ module.exports = function parcelBabelPresetEnv(api, opts) {
           {
             modules: false,
             targets: JSON.parse(targets),
-            ...opts
-          }
-        ]
-      ]
+            ...opts,
+          },
+        ],
+      ],
     };
   }
 
   return {
-    presets: [['@babel/preset-env', opts]]
+    presets: [['@babel/preset-env', opts]],
   };
 };

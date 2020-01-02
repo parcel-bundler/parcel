@@ -30,7 +30,10 @@ describe('AssetGraphBuilder', function() {
 
   beforeEach(async () => {
     config = nullthrows(
-      await resolveParcelConfig(path.join(CONFIG_DIR, 'index'), DEFAULT_OPTIONS)
+      await resolveParcelConfig(
+        path.join(CONFIG_DIR, 'index'),
+        DEFAULT_OPTIONS,
+      ),
     ).config;
 
     builder = new AssetGraphBuilder();
@@ -39,7 +42,7 @@ describe('AssetGraphBuilder', function() {
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],
-      workerFarm
+      workerFarm,
     });
   });
 

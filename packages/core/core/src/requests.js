@@ -7,7 +7,7 @@ import type {
   AssetRequestResult,
   Dependency,
   ParcelOptions,
-  TransformationOpts
+  TransformationOpts,
 } from './types';
 import type RequestTracker, {RequestRunnerAPI} from './RequestTracker';
 import type AssetGraph from './AssetGraph';
@@ -35,21 +35,21 @@ type EntryRequest = {|
   id: string,
   +type: 'entry_request',
   request: FilePath,
-  result?: EntryResult
+  result?: EntryResult,
 |};
 
 type TargetRequest = {|
   id: string,
   +type: 'target_request',
   request: FilePath,
-  result?: TargetResolveResult
+  result?: TargetResolveResult,
 |};
 
 type AssetRequest = {|
   id: string,
   +type: 'asset_request',
   request: AssetRequestDesc,
-  result?: AssetRequestResult
+  result?: AssetRequestResult,
 |};
 
 type DependencyResult = AssetRequestDesc | null | void;
@@ -57,7 +57,7 @@ type DepPathRequest = {|
   id: string,
   +type: 'dep_path_request',
   request: Dependency,
-  result?: DependencyResult
+  result?: DependencyResult,
 |};
 
 export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
@@ -67,7 +67,7 @@ export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
   constructor(opts: {|
     tracker: RequestTracker,
     options: ParcelOptions,
-    assetGraph: AssetGraph
+    assetGraph: AssetGraph,
   |}) {
     super(opts);
     this.type = 'entry_request';
@@ -98,7 +98,7 @@ export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
 
 export class TargetRequestRunner extends RequestRunner<
   FilePath,
-  TargetResolveResult
+  TargetResolveResult,
 > {
   targetResolver: TargetResolver;
   assetGraph: AssetGraph;
@@ -106,7 +106,7 @@ export class TargetRequestRunner extends RequestRunner<
   constructor(opts: {|
     tracker: RequestTracker,
     options: ParcelOptions,
-    assetGraph: AssetGraph
+    assetGraph: AssetGraph,
   |}) {
     super(opts);
     this.type = 'target_request';
@@ -121,7 +121,7 @@ export class TargetRequestRunner extends RequestRunner<
   onComplete(
     request: FilePath,
     result: TargetResolveResult,
-    api: RequestRunnerAPI
+    api: RequestRunnerAPI,
   ) {
     this.assetGraph.resolveTargets(request, result.targets);
 
@@ -135,7 +135,7 @@ export class TargetRequestRunner extends RequestRunner<
 
 export class AssetRequestRunner extends RequestRunner<
   AssetRequestDesc,
-  AssetRequestResult
+  AssetRequestResult,
 > {
   options: ParcelOptions;
   runTransform: TransformationOpts => Promise<AssetRequestResult>;
@@ -145,7 +145,7 @@ export class AssetRequestRunner extends RequestRunner<
     tracker: RequestTracker,
     options: ParcelOptions,
     workerFarm: WorkerFarm,
-    assetGraph: AssetGraph
+    assetGraph: AssetGraph,
   |}) {
     super(opts);
     this.type = 'asset_request';
@@ -159,7 +159,7 @@ export class AssetRequestRunner extends RequestRunner<
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,
-      options: this.options
+      options: this.options,
     });
 
     let time = Date.now() - start;
@@ -172,7 +172,7 @@ export class AssetRequestRunner extends RequestRunner<
   onComplete(
     request: AssetRequestDesc,
     result: AssetRequestResult,
-    api: RequestRunnerAPI
+    api: RequestRunnerAPI,
   ) {
     this.assetGraph.resolveAssetGroup(request, result.assets);
 
@@ -198,8 +198,8 @@ export class AssetRequestRunner extends RequestRunner<
           id,
           type: 'config_request',
           request,
-          result
-        })
+          result,
+        }),
       );
       invariant(subrequestNode.type === 'request');
 
@@ -226,7 +226,7 @@ export class AssetRequestRunner extends RequestRunner<
       for (let [moduleSpecifier, version] of result.devDeps) {
         let depVersionRequst = {
           moduleSpecifier,
-          resolveFrom: result.resolvedPath // TODO: resolveFrom should be nearest package boundary
+          resolveFrom: result.resolvedPath, // TODO: resolveFrom should be nearest package boundary
         };
         let id = generateRequestId('dep_version_request', depVersionRequst);
         let shouldSetupInvalidations =
@@ -236,15 +236,15 @@ export class AssetRequestRunner extends RequestRunner<
             id,
             type: 'dep_version_request',
             request: depVersionRequst,
-            result: version
-          })
+            result: version,
+          }),
         );
         invariant(subrequestNode.type === 'request');
         if (shouldSetupInvalidations) {
           if (this.options.lockFile != null) {
             graph.invalidateOnFileUpdate(
               subrequestNode.id,
-              this.options.lockFile
+              this.options.lockFile,
             );
           }
         }
@@ -263,7 +263,7 @@ const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
 
 export class DepPathRequestRunner extends RequestRunner<
   Dependency,
-  DependencyResult
+  DependencyResult,
 > {
   resolverRunner: ResolverRunner;
   assetGraph: AssetGraph;
@@ -272,14 +272,14 @@ export class DepPathRequestRunner extends RequestRunner<
     tracker: RequestTracker,
     options: ParcelOptions,
     config: ParcelConfig,
-    assetGraph: AssetGraph
+    assetGraph: AssetGraph,
   |}) {
     super(opts);
     this.type = 'dep_path_request';
     let {options, config, assetGraph} = opts;
     this.resolverRunner = new ResolverRunner({
       options,
-      config
+      config,
     });
     this.assetGraph = assetGraph;
   }
@@ -291,7 +291,7 @@ export class DepPathRequestRunner extends RequestRunner<
   onComplete(
     request: Dependency,
     result: DependencyResult,
-    api: RequestRunnerAPI
+    api: RequestRunnerAPI,
   ) {
     let dependency = request;
     let assetGroup = result;
@@ -370,7 +370,7 @@ export class DepPathRequestRunner extends RequestRunner<
           ![...d.symbols.keys()].some(symbol => {
             let assetSymbol = resolvedAsset.symbols.get(symbol);
             return assetSymbol != null && symbols.has(assetSymbol);
-          })
+          }),
       );
     }
     return defer;

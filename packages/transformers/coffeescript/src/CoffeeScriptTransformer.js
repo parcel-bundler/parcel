@@ -8,13 +8,13 @@ export default new Transformer({
   async transform({asset, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
-      asset.filePath
+      asset.filePath,
     );
 
     asset.type = 'js';
     let output = coffee.compile(await asset.getCode(), {
       filename: sourceFileName,
-      sourceMap: options.sourceMaps
+      sourceMap: options.sourceMaps,
     });
 
     // return from compile is based on sourceMaps option
@@ -26,5 +26,5 @@ export default new Transformer({
     }
 
     return [asset];
-  }
+  },
 });

@@ -8,7 +8,7 @@ export function collect(
   ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
-  sourceFile: any
+  sourceFile: any,
 ) {
   let currentModule: ?TSModule;
   let visit = (node: any): any => {
@@ -32,21 +32,21 @@ export function collect(
             currentModule.addImport(
               element.name.text,
               node.moduleSpecifier.text,
-              (element.propertyName ?? element.name).text
+              (element.propertyName ?? element.name).text,
             );
           }
         } else if (node.importClause.namedBindings.name) {
           currentModule.addImport(
             node.importClause.namedBindings.name.text,
             node.moduleSpecifier.text,
-            '*'
+            '*',
           );
         }
       } else if (node.importClause.name) {
         currentModule.addImport(
           node.importClause.name,
           node.moduleSpecifier.text,
-          'default'
+          'default',
         );
       }
     }
@@ -58,12 +58,12 @@ export function collect(
             currentModule.addExport(
               element.name.text,
               (element.propertyName ?? element.name).text,
-              node.moduleSpecifier.text
+              node.moduleSpecifier.text,
             );
           } else {
             currentModule.addExport(
               element.name.text,
-              (element.propertyName ?? element.name).text
+              (element.propertyName ?? element.name).text,
             );
           }
         }
@@ -86,7 +86,7 @@ export function collect(
 
     if (ts.isVariableStatement(node)) {
       let isExported = node.modifiers.some(
-        m => m.kind === ts.SyntaxKind.ExportKeyword
+        m => m.kind === ts.SyntaxKind.ExportKeyword,
       );
       for (let v of node.declarationList.declarations) {
         currentModule.addLocal(v.name.text, v);

@@ -10,28 +10,28 @@ import {hasBinding} from './utils';
 const VARS = {
   process: () => ({
     code: 'var process = require("process");',
-    deps: ['process']
+    deps: ['process'],
   }),
   global: () => ({
-    code: `var global = arguments[${/*asset.options.scopeHoist ? 0 : */ 3}];`
+    code: `var global = arguments[${/*asset.options.scopeHoist ? 0 : */ 3}];`,
   }),
   __dirname: asset => ({
-    code: `var __dirname = ${JSON.stringify(Path.dirname(asset.filePath))};`
+    code: `var __dirname = ${JSON.stringify(Path.dirname(asset.filePath))};`,
   }),
   __filename: asset => ({
-    code: `var __filename = ${JSON.stringify(asset.filePath)};`
+    code: `var __filename = ${JSON.stringify(asset.filePath)};`,
   }),
   Buffer: () => ({
     code: 'var Buffer = require("buffer").Buffer;',
-    deps: ['buffer']
+    deps: ['buffer'],
   }),
   // Prevent AMD defines from working when loading UMD bundles.
   // Ideally the CommonJS check would come before the AMD check, but many
   // existing modules do the checks the opposite way leading to modules
   // not exporting anything to Parcel.
   define: () => ({
-    code: 'var define;'
-  })
+    code: 'var define;',
+  }),
 };
 
 export default {
@@ -69,8 +69,8 @@ export default {
           }
         }
       }
-    }
-  }
+    },
+  },
 };
 
 function inScope(ancestors) {

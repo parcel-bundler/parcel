@@ -5,7 +5,7 @@ import type {
   Engines,
   OutputFormat,
   PackageName,
-  VersionMap
+  VersionMap,
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
@@ -16,7 +16,7 @@ const BROWSER_ENVS = new Set([
   'browser',
   'web-worker',
   'service-worker',
-  'electron-renderer'
+  'electron-renderer',
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
@@ -41,7 +41,7 @@ const ALL_BROWSERS = [
   'and_uc',
   'and_qq',
   'baidu',
-  'kaios'
+  'kaios',
 ];
 
 const ESMODULE_BROWSERS = {
@@ -54,15 +54,15 @@ const ESMODULE_BROWSERS = {
   android: '76',
   and_chr: '76',
   and_ff: '68',
-  samsung: '8.2'
+  samsung: '8.2',
 };
 
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
-  InternalEnvironment
+  InternalEnvironment,
 > = new WeakMap();
 export function environmentToInternalEnvironment(
-  environment: IEnvironment
+  environment: IEnvironment,
 ): InternalEnvironment {
   return nullthrows(_environmentToInternalEnvironment.get(environment));
 }

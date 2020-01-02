@@ -5,7 +5,7 @@ import type {
   LogEvent,
   DiagnosticLogEvent,
   TextLogEvent,
-  ProgressLogEvent
+  ProgressLogEvent,
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import {prettyDiagnostic} from '@parcel/utils';
@@ -36,7 +36,7 @@ type ProgressLogProps = {
 };
 
 type ServerInfoProps = {|
-  options: ServerOptions
+  options: ServerOptions,
 |};
 
 export function Log({event}: LogProps) {
@@ -71,7 +71,7 @@ function Hints({hints}: {hints: Array<string>, ...}) {
 function DiagnosticContainer({
   diagnostics,
   color,
-  emoji
+  emoji,
 }: {
   diagnostics: Array<Diagnostic>,
   color: string,

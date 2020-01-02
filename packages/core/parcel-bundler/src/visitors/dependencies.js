@@ -90,7 +90,7 @@ module.exports = {
       addURLDependency(asset, args[0], {isolated: true});
       return;
     }
-  }
+  },
 };
 
 function hasBinding(node, name) {
@@ -110,7 +110,7 @@ function hasBinding(node, name) {
     return (
       (node.id && node.id.name === name) ||
       node.params.some(
-        param => types.isIdentifier(param) && param.name === name
+        param => types.isIdentifier(param) && param.name === name,
       )
     );
   } else if (types.isVariableDeclaration(node)) {
@@ -145,7 +145,7 @@ function evaluateExpression(node) {
     Expression(path) {
       res = path.evaluate();
       path.stop();
-    }
+    },
   });
 
   return res;
@@ -163,7 +163,7 @@ function addDependency(asset, node, opts = {}) {
     asset.options.rendition && asset.options.rendition.inlineHTML;
   if (inlineHTML) {
     let err = new Error(
-      'Imports and requires are not supported inside inline <script> tags yet.'
+      'Imports and requires are not supported inside inline <script> tags yet.',
     );
     err.loc = node.loc && node.loc.start;
     throw err;

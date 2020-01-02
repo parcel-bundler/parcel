@@ -21,7 +21,7 @@ export function isGlobMatch(filePath: FilePath, glob: Glob) {
 
 export function globSync(
   p: FilePath,
-  options: FastGlobOptions<FilePath>
+  options: FastGlobOptions<FilePath>,
 ): Array<FilePath> {
   return fastGlob.sync(normalizePath(p), options);
 }
@@ -29,7 +29,7 @@ export function globSync(
 export function glob(
   p: FilePath,
   fs: FileSystem,
-  options: FastGlobOptions<FilePath>
+  options: FastGlobOptions<FilePath>,
 ): Promise<Array<FilePath>> {
   // $FlowFixMe
   options = {
@@ -62,8 +62,8 @@ export function glob(
         } catch (err) {
           cb(err);
         }
-      }
-    }
+      },
+    },
   };
 
   return fastGlob(normalizePath(p), options);

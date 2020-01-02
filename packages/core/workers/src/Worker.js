@@ -13,13 +13,13 @@ export type WorkerCall = {|
   args: $ReadOnlyArray<any>,
   retries: number,
   resolve: (result: Promise<any> | any) => void,
-  reject: (error: any) => void
+  reject: (error: any) => void,
 |};
 
 type WorkerOpts = {|
   forcedKillTime: number,
   backend: BackendType,
-  patchConsole?: boolean
+  patchConsole?: boolean,
 |};
 
 let WORKER_ID = 0;
@@ -43,7 +43,7 @@ export default class Worker extends EventEmitter {
 
   async fork(forkModule: FilePath) {
     let filteredArgs = process.execArgv.filter(
-      v => !/^--(debug|inspect)/.test(v)
+      v => !/^--(debug|inspect)/.test(v),
     );
 
     for (let i = 0; i < filteredArgs.length; i++) {
@@ -77,12 +77,12 @@ export default class Worker extends EventEmitter {
         args: [
           forkModule,
           {
-            patchConsole: !!this.options.patchConsole
-          }
+            patchConsole: !!this.options.patchConsole,
+          },
         ],
         retries: 0,
         resolve,
-        reject
+        reject,
       });
     });
 
@@ -108,7 +108,7 @@ export default class Worker extends EventEmitter {
       child: this.id,
       handle: call.handle,
       method: call.method,
-      args: call.args
+      args: call.args,
     });
   }
 

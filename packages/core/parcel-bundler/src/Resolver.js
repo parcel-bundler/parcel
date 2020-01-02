@@ -91,7 +91,7 @@ class Resolver {
     // Return just the file path if this is a file, not in node_modules
     if (path.isAbsolute(filename)) {
       return {
-        filePath: filename
+        filePath: filename,
       };
     }
 
@@ -108,7 +108,7 @@ class Resolver {
       let parts = getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
-        subPath: parts[1]
+        subPath: parts[1],
       };
     }
 
@@ -190,7 +190,7 @@ class Resolver {
             moduleName: parts[0],
             subPath: parts[1],
             moduleDir: moduleDir,
-            filePath: path.join(dir, 'node_modules', filename)
+            filePath: path.join(dir, 'node_modules', filename),
           };
         }
       } catch (err) {
@@ -337,7 +337,7 @@ class Resolver {
     // First resolve local package aliases, then project global ones.
     return this.resolvePackageAliases(
       this.resolvePackageAliases(filename, pkg),
-      this.rootPackage
+      this.rootPackage,
     );
   }
 

@@ -12,7 +12,7 @@ const metadataContent = new Set([
   'script',
   'style',
   'template',
-  'title'
+  'title',
 ]);
 
 class HTMLPackager extends Packager {
@@ -32,7 +32,7 @@ class HTMLPackager extends Packager {
 
     if (siblingBundles.length > 0) {
       html = posthtml(
-        this.insertSiblingBundles.bind(this, siblingBundles)
+        this.insertSiblingBundles.bind(this, siblingBundles),
       ).process(html, {sync: true}).html;
     }
 
@@ -63,15 +63,15 @@ class HTMLPackager extends Packager {
           tag: 'link',
           attrs: {
             rel: 'stylesheet',
-            href: urlJoin(this.options.publicURL, path.basename(bundle.name))
-          }
+            href: urlJoin(this.options.publicURL, path.basename(bundle.name)),
+          },
         });
       } else if (bundle.type === 'js') {
         bundles.push({
           tag: 'script',
           attrs: {
-            src: urlJoin(this.options.publicURL, path.basename(bundle.name))
-          }
+            src: urlJoin(this.options.publicURL, path.basename(bundle.name)),
+          },
         });
       }
     }

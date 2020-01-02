@@ -10,27 +10,27 @@ import TargetResolver from '../src/TargetResolver';
 
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
-  'fixtures/common-targets'
+  'fixtures/common-targets',
 );
 
 const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
-  'fixtures/custom-targets'
+  'fixtures/custom-targets',
 );
 
 const INVALID_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
-  'fixtures/invalid-targets'
+  'fixtures/invalid-targets',
 );
 
 const INVALID_ENGINES_FIXTURE_PATH = path.join(
   __dirname,
-  'fixtures/invalid-engines'
+  'fixtures/invalid-engines',
 );
 
 const INVALID_DISTPATH_FIXTURE_PATH = path.join(
   __dirname,
-  'fixtures/invalid-distpath'
+  'fixtures/invalid-distpath',
 );
 
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
@@ -51,15 +51,15 @@ describe('TargetResolver', () => {
       targets: {
         customA: {
           context: 'browser',
-          distDir: 'customA'
+          distDir: 'customA',
         },
         customB: {
           distDir: 'customB',
           engines: {
-            node: '>= 8.0.0'
-          }
-        }
-      }
+            node: '>= 8.0.0',
+          },
+        },
+      },
     });
 
     assert.deepEqual(
@@ -75,12 +75,12 @@ describe('TargetResolver', () => {
               context: 'browser',
               includeNodeModules: true,
               engines: {
-                browsers: ['> 0.25%']
+                browsers: ['> 0.25%'],
               },
               outputFormat: 'global',
-              isLibrary: false
+              isLibrary: false,
             },
-            sourceMap: undefined
+            sourceMap: undefined,
           },
           {
             name: 'customB',
@@ -90,15 +90,15 @@ describe('TargetResolver', () => {
               context: 'node',
               includeNodeModules: false,
               engines: {
-                node: '>= 8.0.0'
+                node: '>= 8.0.0',
               },
               outputFormat: 'commonjs',
-              isLibrary: false
+              isLibrary: false,
             },
-            sourceMap: undefined
-          }
-        ]
-      }
+            sourceMap: undefined,
+          },
+        ],
+      },
     );
   });
 
@@ -109,7 +109,7 @@ describe('TargetResolver', () => {
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       {
         files: [
-          {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')}
+          {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')},
         ],
         targets: [
           {
@@ -120,89 +120,89 @@ describe('TargetResolver', () => {
             env: {
               context: 'node',
               engines: {
-                node: '>= 8.0.0'
+                node: '>= 8.0.0',
               },
               includeNodeModules: false,
               outputFormat: 'commonjs',
-              isLibrary: true
+              isLibrary: true,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 11,
-                line: 2
+                line: 2,
               },
               end: {
                 column: 30,
-                line: 2
-              }
-            }
+                line: 2,
+              },
+            },
           },
           {
             name: 'module',
             distDir: path.join(
               __dirname,
-              'fixtures/common-targets/dist/module'
+              'fixtures/common-targets/dist/module',
             ),
             distEntry: 'index.js',
             publicUrl: '/',
             env: {
               context: 'browser',
               engines: {
-                browsers: ['last 1 version']
+                browsers: ['last 1 version'],
               },
               includeNodeModules: false,
               outputFormat: 'esmodule',
-              isLibrary: true
+              isLibrary: true,
             },
             sourceMap: {
-              inlineSources: true
+              inlineSources: true,
             },
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 13,
-                line: 3
+                line: 3,
               },
               end: {
                 column: 34,
-                line: 3
-              }
-            }
+                line: 3,
+              },
+            },
           },
           {
             name: 'browser',
             distDir: path.join(
               __dirname,
-              'fixtures/common-targets/dist/browser'
+              'fixtures/common-targets/dist/browser',
             ),
             distEntry: 'index.js',
             publicUrl: '/assets',
             env: {
               context: 'browser',
               engines: {
-                browsers: ['last 1 version']
+                browsers: ['last 1 version'],
               },
               includeNodeModules: false,
               outputFormat: 'commonjs',
-              isLibrary: true
+              isLibrary: true,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 14,
-                line: 4
+                line: 4,
               },
               end: {
                 column: 36,
-                line: 4
-              }
-            }
-          }
-        ]
-      }
+                line: 4,
+              },
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -212,7 +212,7 @@ describe('TargetResolver', () => {
       await targetResolver.resolve(CUSTOM_TARGETS_FIXTURE_PATH),
       {
         files: [
-          {filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json')}
+          {filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json')},
         ],
         targets: [
           {
@@ -223,87 +223,87 @@ describe('TargetResolver', () => {
             env: {
               context: 'node',
               engines: {
-                node: '>= 8.0.0'
+                node: '>= 8.0.0',
               },
               includeNodeModules: false,
               outputFormat: 'commonjs',
-              isLibrary: true
+              isLibrary: true,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 11,
-                line: 2
+                line: 2,
               },
               end: {
                 column: 30,
-                line: 2
-              }
-            }
+                line: 2,
+              },
+            },
           },
           {
             name: 'browserModern',
             distDir: path.join(
               __dirname,
-              'fixtures/custom-targets/dist/browserModern'
+              'fixtures/custom-targets/dist/browserModern',
             ),
             distEntry: 'index.js',
             publicUrl: '/',
             env: {
               context: 'browser',
               engines: {
-                browsers: ['last 1 version']
+                browsers: ['last 1 version'],
               },
               includeNodeModules: true,
               outputFormat: 'global',
-              isLibrary: false
+              isLibrary: false,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 20,
-                line: 3
+                line: 3,
               },
               end: {
                 column: 48,
-                line: 3
-              }
-            }
+                line: 3,
+              },
+            },
           },
           {
             name: 'browserLegacy',
             distDir: path.join(
               __dirname,
-              'fixtures/custom-targets/dist/browserLegacy'
+              'fixtures/custom-targets/dist/browserLegacy',
             ),
             distEntry: 'index.js',
             publicUrl: '/',
             env: {
               context: 'browser',
               engines: {
-                browsers: ['ie11']
+                browsers: ['ie11'],
               },
               includeNodeModules: true,
               outputFormat: 'global',
-              isLibrary: false
+              isLibrary: false,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 20,
-                line: 4
+                line: 4,
               },
               end: {
                 column: 48,
-                line: 4
-              }
-            }
-          }
-        ]
-      }
+                line: 4,
+              },
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -324,27 +324,27 @@ describe('TargetResolver', () => {
                 'last 1 Chrome version',
                 'last 1 Safari version',
                 'last 1 Firefox version',
-                'last 1 Edge version'
-              ]
+                'last 1 Edge version',
+              ],
             },
             includeNodeModules: false,
             isLibrary: true,
-            outputFormat: 'commonjs'
+            outputFormat: 'commonjs',
           },
           sourceMap: undefined,
           loc: {
             filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json'),
             start: {
               column: 11,
-              line: 2
+              line: 2,
             },
             end: {
               column: 30,
-              line: 2
-            }
-          }
-        }
-      ]
+              line: 2,
+            },
+          },
+        },
+      ],
     });
   });
 
@@ -366,41 +366,41 @@ describe('TargetResolver', () => {
                 'last 1 Chrome version',
                 'last 1 Safari version',
                 'last 1 Firefox version',
-                'last 1 Edge version'
-              ]
+                'last 1 Edge version',
+              ],
             },
             includeNodeModules: true,
             isLibrary: false,
-            outputFormat: 'global'
+            outputFormat: 'global',
           },
           sourceMap: undefined,
           loc: {
             filePath: path.join(fixture, 'package.json'),
             start: {
               column: 11,
-              line: 2
+              line: 2,
             },
             end: {
               column: 27,
-              line: 2
-            }
-          }
-        }
-      ]
+              line: 2,
+            },
+          },
+        },
+      ],
     });
   });
 
   it('resolves a subset of package.json targets when given a list of names', async () => {
     let targetResolver = new TargetResolver({
       ...DEFAULT_OPTIONS,
-      targets: ['main', 'browser']
+      targets: ['main', 'browser'],
     });
 
     assert.deepEqual(
       await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
       {
         files: [
-          {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')}
+          {filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json')},
         ],
         targets: [
           {
@@ -411,57 +411,57 @@ describe('TargetResolver', () => {
             env: {
               context: 'node',
               engines: {
-                node: '>= 8.0.0'
+                node: '>= 8.0.0',
               },
               includeNodeModules: false,
               outputFormat: 'commonjs',
-              isLibrary: true
+              isLibrary: true,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 11,
-                line: 2
+                line: 2,
               },
               end: {
                 column: 30,
-                line: 2
-              }
-            }
+                line: 2,
+              },
+            },
           },
           {
             name: 'browser',
             distDir: path.join(
               __dirname,
-              'fixtures/common-targets/dist/browser'
+              'fixtures/common-targets/dist/browser',
             ),
             distEntry: 'index.js',
             publicUrl: '/assets',
             env: {
               context: 'browser',
               engines: {
-                browsers: ['last 1 version']
+                browsers: ['last 1 version'],
               },
               includeNodeModules: false,
               outputFormat: 'commonjs',
-              isLibrary: true
+              isLibrary: true,
             },
             sourceMap: undefined,
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
                 column: 14,
-                line: 4
+                line: 4,
               },
               end: {
                 column: 36,
-                line: 4
-              }
-            }
-          }
-        ]
-      }
+                line: 4,
+              },
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -490,7 +490,7 @@ describe('TargetResolver', () => {
       '}';
     let targetResolver = new TargetResolver({
       ...DEFAULT_OPTIONS,
-      ...JSON.parse(code)
+      ...JSON.parse(code),
     });
 
     // $FlowFixMe assert.rejects is Node 10+
@@ -510,38 +510,38 @@ describe('TargetResolver', () => {
                 {
                   start: {line: 6, column: 5},
                   end: {line: 6, column: 8},
-                  message: 'Expected a wildcard or filepath'
+                  message: 'Expected a wildcard or filepath',
                 },
                 {
                   start: {line: 8, column: 15},
                   end: {line: 8, column: 21},
-                  message: 'Did you mean "node"?'
+                  message: 'Did you mean "node"?',
                 },
                 {
                   start: {line: 9, column: 20},
                   end: {line: 9, column: 27},
-                  message: 'Did you mean "esmodule"?'
+                  message: 'Did you mean "esmodule"?',
                 },
                 {
                   start: {line: 12, column: 15},
                   end: {line: 12, column: 21},
-                  message: 'Expected type boolean'
+                  message: 'Expected type boolean',
                 },
                 {
                   start: {line: 13, column: 5},
                   end: {line: 13, column: 13},
-                  message: 'Possible values: "inlineSources"'
+                  message: 'Possible values: "inlineSources"',
                 },
                 {
                   start: {line: 17, column: 5},
                   end: {line: 17, column: 13},
-                  message: 'Did you mean "browsers"?'
-                }
-              ]
-            }
-          }
-        ]
-      }
+                  message: 'Did you mean "browsers"?',
+                },
+              ],
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -549,7 +549,7 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     let code = await fs.readFileSync(
       path.join(INVALID_TARGETS_FIXTURE_PATH, 'package.json'),
-      'utf8'
+      'utf8',
     );
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
@@ -567,18 +567,18 @@ describe('TargetResolver', () => {
                 {
                   start: {line: 9, column: 29},
                   end: {line: 9, column: 35},
-                  message: 'Expected type boolean'
+                  message: 'Expected type boolean',
                 },
                 {
                   start: {line: 11, column: 7},
                   end: {line: 11, column: 17},
-                  message: 'Did you mean "publicUrl"?'
-                }
-              ]
-            }
-          }
-        ]
-      }
+                  message: 'Did you mean "publicUrl"?',
+                },
+              ],
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -586,7 +586,7 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     let code = await fs.readFileSync(
       path.join(INVALID_ENGINES_FIXTURE_PATH, 'package.json'),
-      'utf8'
+      'utf8',
     );
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
@@ -604,30 +604,30 @@ describe('TargetResolver', () => {
                 {
                   end: {
                     column: 13,
-                    line: 8
+                    line: 8,
                   },
                   message: 'Did you mean "browsers"?',
                   start: {
                     column: 5,
-                    line: 8
-                  }
+                    line: 8,
+                  },
                 },
                 {
                   end: {
                     column: 5,
-                    line: 7
+                    line: 7,
                   },
                   message: 'Expected type string',
                   start: {
                     column: 13,
-                    line: 5
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
+                    line: 5,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -635,7 +635,7 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     let code = await fs.readFileSync(
       path.join(INVALID_DISTPATH_FIXTURE_PATH, 'package.json'),
-      'utf8'
+      'utf8',
     );
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(
@@ -653,19 +653,19 @@ describe('TargetResolver', () => {
                 {
                   end: {
                     column: 13,
-                    line: 2
+                    line: 2,
                   },
                   message: 'Expected type string',
                   start: {
                     column: 13,
-                    line: 2
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
+                    line: 2,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
     );
   });
 
@@ -674,14 +674,14 @@ describe('TargetResolver', () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     let code = await fs.readFileSync(
       path.join(fixture, 'package.json'),
-      'utf8'
+      'utf8',
     );
     // $FlowFixMe assert.rejects is Node 10+
     await assert.rejects(() => targetResolver.resolve(fixture), {
       diagnostics: [
         {
           message: `Multiple targets have the same destination path "${path.normalize(
-            'dist/index.js'
+            'dist/index.js',
           )}"`,
           origin: '@parcel/core',
           filePath: path.join(fixture, 'package.json'),
@@ -692,32 +692,32 @@ describe('TargetResolver', () => {
               {
                 end: {
                   column: 25,
-                  line: 2
+                  line: 2,
                 },
                 message: undefined,
                 start: {
                   column: 11,
-                  line: 2
-                }
+                  line: 2,
+                },
               },
               {
                 end: {
                   column: 27,
-                  line: 3
+                  line: 3,
                 },
                 message: undefined,
                 start: {
                   column: 13,
-                  line: 3
-                }
-              }
-            ]
+                  line: 3,
+                },
+              },
+            ],
           },
           hints: [
-            'Try removing the duplicate targets, or changing the destination paths.'
-          ]
-        }
-      ]
+            'Try removing the duplicate targets, or changing the destination paths.',
+          ],
+        },
+      ],
     });
   });
 });

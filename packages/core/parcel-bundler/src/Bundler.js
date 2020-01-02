@@ -43,19 +43,19 @@ class Bundler extends EventEmitter {
 
     this.addBundleLoader('wasm', {
       browser: require.resolve('./builtins/loaders/browser/wasm-loader'),
-      node: require.resolve('./builtins/loaders/node/wasm-loader')
+      node: require.resolve('./builtins/loaders/node/wasm-loader'),
     });
     this.addBundleLoader('css', {
       browser: require.resolve('./builtins/loaders/browser/css-loader'),
-      node: require.resolve('./builtins/loaders/node/css-loader')
+      node: require.resolve('./builtins/loaders/node/css-loader'),
     });
     this.addBundleLoader('js', {
       browser: require.resolve('./builtins/loaders/browser/js-loader'),
-      node: require.resolve('./builtins/loaders/node/js-loader')
+      node: require.resolve('./builtins/loaders/node/js-loader'),
     });
     this.addBundleLoader('html', {
       browser: require.resolve('./builtins/loaders/browser/html-loader'),
-      node: require.resolve('./builtins/loaders/node/html-loader')
+      node: require.resolve('./builtins/loaders/node/html-loader'),
     });
 
     this.pending = false;
@@ -153,7 +153,7 @@ class Bundler extends EventEmitter {
           ? options.contentHash
           : isProduction,
       throwErrors:
-        typeof options.throwErrors === 'boolean' ? options.throwErrors : true
+        typeof options.throwErrors === 'boolean' ? options.throwErrors : true,
     };
   }
 
@@ -223,7 +223,7 @@ class Bundler extends EventEmitter {
       logger.warn(
         `Plugin ${lastDep} failed to initialize: ${err.stack ||
           err.message ||
-          err}`
+          err}`,
       );
     }
   }
@@ -266,7 +266,7 @@ class Bundler extends EventEmitter {
             this.entryAssets.add(asset);
           } catch (err) {
             throw new Error(
-              `Cannot resolve entry "${entry}" from "${this.options.rootDir}"`
+              `Cannot resolve entry "${entry}" from "${this.options.rootDir}"`,
             );
           }
         }
@@ -306,7 +306,7 @@ class Bundler extends EventEmitter {
       // Generate the final bundle names, and replace references in the built assets.
       let numBundles = this.bundleNameMap ? this.bundleNameMap.size : 0;
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
-        this.options.contentHash
+        this.options.contentHash,
       );
 
       for (let asset of changedAssets) {
@@ -324,7 +324,7 @@ class Bundler extends EventEmitter {
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
-        bundlesChanged ? null : this.bundleHashes
+        bundlesChanged ? null : this.bundleHashes,
       );
 
       // Unload any orphaned assets
@@ -402,7 +402,7 @@ class Bundler extends EventEmitter {
     }
 
     this.farm = await WorkerFarm.getShared(this.options, {
-      workerPath: require.resolve('./worker.js')
+      workerPath: require.resolve('./worker.js'),
     });
   }
 
@@ -491,7 +491,7 @@ class Bundler extends EventEmitter {
       if (err.code === 'MODULE_NOT_FOUND') {
         let isLocalFile = /^[/~.]/.test(dep.name);
         let fromNodeModules = asset.name.includes(
-          `${Path.sep}node_modules${Path.sep}`
+          `${Path.sep}node_modules${Path.sep}`,
         );
 
         if (
@@ -524,7 +524,7 @@ class Bundler extends EventEmitter {
     if (resolved.moduleName && !resolved.moduleDir) {
       try {
         await installPackage(resolved.moduleName, asset.name, {
-          saveDev: false
+          saveDev: false,
         });
       } catch (err) {
         await this.throwDepError(asset, dep, err);
@@ -612,7 +612,7 @@ class Bundler extends EventEmitter {
 
           return assetDep;
         }
-      })
+      }),
     );
 
     // If there was a processing error, re-throw now that we've set up
@@ -634,7 +634,7 @@ class Bundler extends EventEmitter {
 
     logger.verbose({
       origin: '',
-      message: `Built ${asset.relativeName}...`
+      message: `Built ${asset.relativeName}...`,
     });
 
     if (this.cache && cacheMiss) {

@@ -37,7 +37,7 @@ class Pipeline {
       sourceMaps: asset.sourceMaps,
       error: error,
       hash: asset.hash,
-      cacheData: asset.cacheData
+      cacheData: asset.cacheData,
     };
   }
 
@@ -61,7 +61,7 @@ class Pipeline {
       // If the asset is not already an instance of this asset type, process it.
       let AssetType = this.parser.findParser(
         asset.name.slice(0, -inputType.length) + type,
-        true
+        true,
       );
       if (!(asset instanceof AssetType)) {
         let opts = Object.assign({}, asset.options, {rendition});
@@ -119,7 +119,7 @@ class Pipeline {
     if (typeof asset.generated === 'string') {
       return yield {
         type: asset.type,
-        value: asset.generated
+        value: asset.generated,
       };
     }
 
@@ -130,7 +130,7 @@ class Pipeline {
         type,
         value: asset.generated[type],
         // for scope hoisting, we need to post process all JS
-        final: !(type === 'js' && this.options.scopeHoist)
+        final: !(type === 'js' && this.options.scopeHoist),
       };
     }
   }

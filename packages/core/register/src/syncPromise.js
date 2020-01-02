@@ -18,7 +18,7 @@ export default function syncPromise<T>(promise: Promise<T>): T {
     error => {
       err = error;
       isDone = true;
-    }
+    },
   );
 
   deasync.loopWhile(() => !isDone);

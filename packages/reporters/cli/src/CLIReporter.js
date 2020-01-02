@@ -20,5 +20,5 @@ export default new Reporter({
     }
 
     events.emit(event);
-  }
+  },
 });

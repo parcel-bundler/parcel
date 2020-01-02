@@ -47,7 +47,7 @@ async function install(modules, filepath, options = {}) {
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(filepath, m, options))
+      modules.map(m => installPeerDependencies(filepath, m, options)),
     );
   }
 }
@@ -67,7 +67,7 @@ async function installPeerDependencies(filepath, name, options) {
     await install(
       modules,
       filepath,
-      Object.assign({}, options, {installPeers: false})
+      Object.assign({}, options, {installPeers: false}),
     );
   }
 }
@@ -113,7 +113,7 @@ module.exports = async function(...args) {
   if (WorkerFarm.isWorker()) {
     await WorkerFarm.callMaster({
       location: __filename,
-      args
+      args,
     });
     return;
   }

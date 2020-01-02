@@ -16,7 +16,7 @@ const metadataContent = new Set([
   'script',
   'style',
   'template',
-  'title'
+  'title',
 ]);
 
 export default new Packager({
@@ -42,28 +42,32 @@ export default new Packager({
           bundle =>
             !bundle
               .getEntryAssets()
-              .some(asset => asset.id === bundleGroup.entryAssetId)
+              .some(asset => asset.id === bundleGroup.entryAssetId),
         );
       return p.concat(bundles);
     }, []);
 
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
-      replaceInlineAssetContent.bind(this, bundleGraph, getInlineBundleContents)
+      replaceInlineAssetContent.bind(
+        this,
+        bundleGraph,
+        getInlineBundleContents,
+      ),
     ]).process(code);
 
     return replaceURLReferences({
       bundle,
       bundleGraph,
-      contents: html
+      contents: html,
     });
-  }
+  },
 });
 
 async function getAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
-  assetId
+  assetId,
 ): Promise<?Blob> {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
@@ -77,7 +81,7 @@ async function getAssetContent(
   if (inlineBundle) {
     const bundleResult = await getInlineBundleContents(
       inlineBundle,
-      bundleGraph
+      bundleGraph,
     );
 
     return bundleResult.contents;
@@ -89,7 +93,7 @@ async function getAssetContent(
 async function replaceInlineAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
-  tree
+  tree,
 ) {
   const inlineNodes = [];
   tree.walk(node => {
@@ -103,7 +107,7 @@ async function replaceInlineAssetContent(
     let newContent = await getAssetContent(
       bundleGraph,
       getInlineBundleContents,
-      node.attrs['data-parcel-key']
+      node.attrs['data-parcel-key'],
     );
 
     if (newContent != null) {
@@ -128,9 +132,9 @@ function insertBundleReferences(siblingBundles, tree) {
           rel: 'stylesheet',
           href: urlJoin(
             nullthrows(bundle.target).publicUrl ?? '/',
-            nullthrows(bundle.name)
-          )
-        }
+            nullthrows(bundle.name),
+          ),
+        },
       });
     } else if (bundle.type === 'js') {
       bundles.push({
@@ -138,9 +142,9 @@ function insertBundleReferences(siblingBundles, tree) {
         attrs: {
           src: urlJoin(
             nullthrows(bundle.target).publicUrl ?? '/',
-            nullthrows(bundle.name)
-          )
-        }
+            nullthrows(bundle.name),
+          ),
+        },
       });
     }
   }

@@ -55,8 +55,8 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
   // A bundle is potentially referenced if there are any child or sibling JS bundles that are not isolated
   return [
     ...bundleGraph.getChildBundles(bundle),
-    ...bundleGraph.getSiblingBundles(bundle)
+    ...bundleGraph.getSiblingBundles(bundle),
   ].some(
-    b => b.type === 'js' && (!b.env.isIsolated() || bundle.env.isIsolated())
+    b => b.type === 'js' && (!b.env.isIsolated() || bundle.env.isIsolated()),
   );
 }

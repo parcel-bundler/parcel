@@ -5,7 +5,7 @@ import {
   bundle,
   run,
   assertBundleTree,
-  normaliseNewlines
+  normaliseNewlines,
 } from '@parcel/test-utils';
 
 describe.skip('glsl', function() {
@@ -17,14 +17,14 @@ describe.skip('glsl', function() {
       assets: ['index.js', 'local.glsl', 'local.vert', 'local.frag'],
       childBundles: [
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let shader = fs.readFileSync(
       path.join(__dirname, '/integration/glsl/compiled.glsl'),
-      'utf8'
+      'utf8',
     );
 
     let output = await run(b);
@@ -34,7 +34,7 @@ describe.skip('glsl', function() {
         return (
           acc && normaliseNewlines(shader) === normaliseNewlines(requiredShader)
         );
-      }, true)
+      }, true),
     );
   });
 });

@@ -3,7 +3,7 @@ import type {
   FilePath,
   Target as ITarget,
   TargetSourceMapOptions,
-  Environment as IEnvironment
+  Environment as IEnvironment,
 } from '@parcel/types';
 import type {Target as TargetValue} from '../types';
 import Environment from './Environment';

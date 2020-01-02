@@ -12,7 +12,7 @@ export default async function babel7(
   asset: MutableAsset,
   options: PluginOptions,
   babelOptions: any,
-  additionalPlugins: Array<any> = []
+  additionalPlugins: Array<any> = [],
 ): Promise<?AST> {
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
@@ -33,13 +33,13 @@ export default async function babel7(
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
-      plugins: ['dynamicImport']
+      plugins: ['dynamicImport'],
     },
     caller: {
       name: 'parcel',
       version: transformerVersion,
-      targets: JSON.stringify(babelOptions.targets)
-    }
+      targets: JSON.stringify(babelOptions.targets),
+    },
   };
 
   let code = await asset.getCode();
@@ -56,7 +56,7 @@ export default async function babel7(
       type: 'babel',
       version: '7.0.0',
       program: res.ast,
-      isDirty: true
+      isDirty: true,
     };
   }
 }

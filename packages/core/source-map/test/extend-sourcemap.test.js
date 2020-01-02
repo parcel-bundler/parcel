@@ -12,13 +12,13 @@ describe('SourceMap', () => {
         name: 'A',
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         generated: {
           line: 6,
-          column: 15
-        }
-      }
+          column: 15,
+        },
+      },
     ]);
 
     await map.extend(
@@ -28,14 +28,14 @@ describe('SourceMap', () => {
           name: '',
           original: {
             line: 6,
-            column: 15
+            column: 15,
           },
           generated: {
             line: 5,
-            column: 12
-          }
-        }
-      ])
+            column: 12,
+          },
+        },
+      ]),
     );
 
     assert.equal(map.mappings.length, 1);
@@ -44,21 +44,21 @@ describe('SourceMap', () => {
       name: 'A',
       original: {
         line: 1,
-        column: 0
+        column: 0,
       },
       generated: {
         line: 5,
-        column: 12
-      }
+        column: 12,
+      },
     });
 
     // Should be able to stringify the map without errors...
     assert.equal(
       await map.stringify({
         file: 'index.min.js',
-        rootDir: '/root'
+        rootDir: '/root',
       }),
-      '{"version":3,"sources":["index.js"],"names":["A"],"mappings":";;;;YAAAA","file":"index.min.js"}'
+      '{"version":3,"sources":["index.js"],"names":["A"],"mappings":";;;;YAAAA","file":"index.min.js"}',
     );
   });
 
@@ -69,19 +69,19 @@ describe('SourceMap', () => {
         name: '',
         original: {
           line: 6,
-          column: 15
+          column: 15,
         },
         generated: {
           line: 5,
-          column: 12
-        }
+          column: 12,
+        },
       },
       {
         generated: {
           line: 6,
-          column: 15
-        }
-      }
+          column: 15,
+        },
+      },
     ]);
 
     await map.extend(
@@ -91,14 +91,14 @@ describe('SourceMap', () => {
           name: '',
           original: {
             line: 6,
-            column: 15
+            column: 15,
           },
           generated: {
             line: 5,
-            column: 12
-          }
-        }
-      ])
+            column: 12,
+          },
+        },
+      ]),
     );
 
     assert.equal(map.mappings.length, 2);
@@ -107,27 +107,27 @@ describe('SourceMap', () => {
       name: '',
       original: {
         line: 6,
-        column: 15
+        column: 15,
       },
       generated: {
         line: 5,
-        column: 12
-      }
+        column: 12,
+      },
     });
     assert.deepEqual(map.mappings[1], {
       generated: {
         line: 5,
-        column: 12
-      }
+        column: 12,
+      },
     });
 
     // Should be able to stringify the map without errors...
     assert.equal(
       await map.stringify({
         file: 'index.min.js',
-        rootDir: '/root'
+        rootDir: '/root',
       }),
-      '{"version":3,"sources":["index.js"],"names":[""],"mappings":";;;;YAKeA,A","file":"index.min.js"}'
+      '{"version":3,"sources":["index.js"],"names":[""],"mappings":";;;;YAKeA,A","file":"index.min.js"}',
     );
   });
 });

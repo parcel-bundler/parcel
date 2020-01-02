@@ -1,5 +1,17 @@
 {
-  "singleQuote": true,
   "bracketSpacing": false,
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "singleQuote": true,
+  "trailingComma": "all",
+  "overrides": [
+    {
+      "files": [
+        "packages/packagers/js/src/prelude.js",
+        "packages/shared/scope-hoisting/src/helpers.js"
+      ],
+      "options": {
+        "trailingComma": "es5"
+      }
+    }
+  ]
 }

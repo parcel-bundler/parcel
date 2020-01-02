@@ -18,7 +18,7 @@ async function install(
   fs: FileSystem,
   modules: Array<string>,
   filepath: FilePath,
-  options: InstallOptions = {}
+  options: InstallOptions = {},
 ): Promise<void> {
   let {installPeers = true, saveDev = true, packageInstaller} = options;
 
@@ -39,7 +39,7 @@ async function install(
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(fs, filepath, m, options))
+      modules.map(m => installPeerDependencies(fs, filepath, m, options)),
     );
   }
 }
@@ -48,7 +48,7 @@ async function installPeerDependencies(
   fs: FileSystem,
   filepath: FilePath,
   name: string,
-  options
+  options,
 ) {
   let basedir = path.dirname(filepath);
   const {resolved} = await resolve(fs, name, {basedir});
@@ -66,18 +66,18 @@ async function installPeerDependencies(
       fs,
       modules,
       filepath,
-      Object.assign({}, options, {installPeers: false})
+      Object.assign({}, options, {installPeers: false}),
     );
   }
 }
 
 async function determinePackageInstaller(
   fs: FileSystem,
-  filepath: FilePath
+  filepath: FilePath,
 ): Promise<PackageInstaller> {
   let configFile = await resolveConfig(fs, filepath, [
     'yarn.lock',
-    'package-lock.json'
+    'package-lock.json',
   ]);
   let hasYarn = await Yarn.exists();
 
@@ -100,7 +100,7 @@ export function _addToInstallQueue(
   fs: FileSystem,
   modules: Array<string>,
   filePath: FilePath,
-  options?: InstallOptions
+  options?: InstallOptions,
 ): Promise<mixed> {
   modules = validateModuleSpecifiers(modules);
 
@@ -122,9 +122,12 @@ export function _addToInstallQueue(
           for (let m of modulesToInstall) {
             modulesInstalling.delete(m);
           }
-        })
+        }),
       )
-      .then(() => {}, () => {});
+      .then(
+        () => {},
+        () => {},
+      );
   }
 
   return queue.run();
@@ -134,14 +137,14 @@ export function installPackage(
   fs: FileSystem,
   modules: Array<string>,
   filePath: FilePath,
-  options?: InstallOptions
+  options?: InstallOptions,
 ): Promise<mixed> {
   if (WorkerFarm.isWorker()) {
     let workerApi = WorkerFarm.getWorkerApi();
     return workerApi.callMaster({
       location: __filename,
       args: [fs, modules, filePath, options],
-      method: '_addToInstallQueue'
+      method: '_addToInstallQueue',
     });
   }
 

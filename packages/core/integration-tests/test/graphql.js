@@ -22,13 +22,13 @@ describe('graphql', function() {
           firstName
           lastName
         }
-      `.definitions
+      `.definitions,
     );
   });
 
   it('should support importing other graphql files from a graphql file', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/graphql-import/index.js')
+      path.join(__dirname, '/integration/graphql-import/index.js'),
     );
 
     let output = await run(b);
@@ -52,7 +52,7 @@ describe('graphql', function() {
           address
           email
         }
-      `.definitions
+      `.definitions,
     );
   });
 });

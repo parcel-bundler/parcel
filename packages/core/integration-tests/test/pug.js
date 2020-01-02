@@ -10,24 +10,24 @@ describe('pug', function() {
       {
         type: 'html',
         name: 'index.html',
-        assets: ['index.pug']
+        assets: ['index.pug'],
       },
       {
         type: 'png',
-        assets: ['100x100.png']
+        assets: ['100x100.png'],
       },
       {
         type: 'svg',
-        assets: ['icons.svg']
+        assets: ['icons.svg'],
       },
       {
         type: 'css',
-        assets: ['index.css']
+        assets: ['index.css'],
       },
       {
         type: 'js',
-        assets: ['index.js']
-      }
+        assets: ['index.js'],
+      },
     ]);
 
     const files = await outputFS.readdir(distDir);
@@ -42,7 +42,7 @@ describe('pug', function() {
 
   it('should support include and extends files, connect files', async function() {
     const b = await bundle(
-      path.join(__dirname, '/integration/pug-include-extends/index.pug')
+      path.join(__dirname, '/integration/pug-include-extends/index.pug'),
     );
 
     await assertBundles(b, [
@@ -51,9 +51,9 @@ describe('pug', function() {
         name: 'index.html',
         assets: ['index.pug'],
         includedFiles: {
-          'index.pug': ['package.json', 'base.pug', 'other.pug', 'nested.pug']
-        }
-      }
+          'index.pug': ['package.json', 'base.pug', 'other.pug', 'nested.pug'],
+        },
+      },
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
@@ -65,19 +65,19 @@ describe('pug', function() {
 
   it('should support variables', async function() {
     const b = await bundle(
-      path.join(__dirname, '/integration/pug-var/index.pug')
+      path.join(__dirname, '/integration/pug-var/index.pug'),
     );
 
     await assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
-        assets: ['index.pug']
+        assets: ['index.pug'],
       },
       {
         type: 'png',
-        assets: ['100x100.png']
-      }
+        assets: ['100x100.png'],
+      },
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
@@ -86,15 +86,15 @@ describe('pug', function() {
 
   it('should support mixins', async function() {
     const b = await bundle(
-      path.join(__dirname, '/integration/pug-mixins/index.pug')
+      path.join(__dirname, '/integration/pug-mixins/index.pug'),
     );
 
     await assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
-        assets: ['index.pug']
-      }
+        assets: ['index.pug'],
+      },
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
@@ -103,15 +103,15 @@ describe('pug', function() {
 
   it('should support filters', async function() {
     const b = await bundle(
-      path.join(__dirname, '/integration/pug-filters/index.pug')
+      path.join(__dirname, '/integration/pug-filters/index.pug'),
     );
 
     await assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
-        assets: ['index.pug']
-      }
+        assets: ['index.pug'],
+      },
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
@@ -120,15 +120,15 @@ describe('pug', function() {
 
   it('should support locals with config file', async function() {
     const b = await bundle(
-      path.join(__dirname, '/integration/pug-locals/index.pug')
+      path.join(__dirname, '/integration/pug-locals/index.pug'),
     );
 
     await assertBundles(b, [
       {
         type: 'html',
         name: 'index.html',
-        assets: ['index.pug']
-      }
+        assets: ['index.pug'],
+      },
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
@@ -139,15 +139,15 @@ describe('pug', function() {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-minify/index.pug'),
       {
-        production: true
-      }
+        production: true,
+      },
     );
 
     await assertBundles(b, [
       {
         name: 'index.html',
-        assets: ['index.pug']
-      }
+        assets: ['index.pug'],
+      },
     ]);
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));

@@ -1,10 +1,11 @@
 // @flow
 import type {
   BuildMode,
+  EnvMap,
   FilePath,
   LogLevel,
   PluginOptions as IPluginOptions,
-  ServerOptions
+  ServerOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -33,7 +34,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.sourceMaps;
   }
 
-  get env(): {+[string]: string, ...} {
+  get env(): EnvMap {
     return this.#options.env;
   }
 

@@ -13,7 +13,7 @@ import {
   loadConfig,
   createHTTPServer,
   prettyDiagnostic,
-  ansiHtml
+  ansiHtml,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -27,23 +27,23 @@ function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
-    'GET, HEAD, PUT, PATCH, POST, DELETE'
+    'GET, HEAD, PUT, PATCH, POST, DELETE',
   );
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Content-Type'
+    'Origin, X-Requested-With, Content-Type, Accept, Content-Type',
   );
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
 const TEMPLATE_404 = fs.readFileSync(
   path.join(__dirname, 'templates/404.html'),
-  'utf8'
+  'utf8',
 );
 
 const TEMPLATE_500 = fs.readFileSync(
   path.join(__dirname, 'templates/500.html'),
-  'utf8'
+  'utf8',
 );
 type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
@@ -55,7 +55,7 @@ export default class Server extends EventEmitter {
   errors: Array<{|
     message: string,
     stack: string,
-    hints: Array<string>
+    hints: Array<string>,
   |}> | null;
   stopServer: ?() => Promise<void>;
 
@@ -90,7 +90,7 @@ export default class Server extends EventEmitter {
         stack: ansiDiagnostic.codeframe
           ? ansiHtml(ansiDiagnostic.codeframe)
           : ansiHtml(ansiDiagnostic.stack),
-        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint))
+        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
       };
     });
   }
@@ -102,8 +102,8 @@ export default class Server extends EventEmitter {
       return this.send500(req, res);
     } else if (
       !pathname ||
-      ((this.rootPath != null && !pathname.startsWith(this.rootPath)) ||
-        path.extname(pathname) === '')
+      (this.rootPath != null && !pathname.startsWith(this.rootPath)) ||
+      path.extname(pathname) === ''
     ) {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
@@ -115,7 +115,7 @@ export default class Server extends EventEmitter {
         this.options.projectRoot,
         req,
         res,
-        () => this.send404(req, res)
+        () => this.send404(req, res),
       );
     } else {
       // Otherwise, serve the file from the dist folder
@@ -163,7 +163,7 @@ export default class Server extends EventEmitter {
       this.options.distDir,
       req,
       res,
-      next
+      next,
     );
   }
 
@@ -172,7 +172,7 @@ export default class Server extends EventEmitter {
     root: FilePath,
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       // method not allowed
@@ -257,15 +257,15 @@ export default class Server extends EventEmitter {
     if (this.errors) {
       return res.end(
         ejs.render(TEMPLATE_500, {
-          errors: this.errors
-        })
+          errors: this.errors,
+        }),
       );
     }
   }
 
   logAccessIfVerbose(req: Request) {
     this.options.logger.verbose({
-      message: `Request: ${req.headers.host}${req.originalUrl || req.url}`
+      message: `Request: ${req.headers.host}${req.originalUrl || req.url}`,
     });
   }
 
@@ -278,7 +278,7 @@ export default class Server extends EventEmitter {
 
     const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
       '.proxyrc.js',
-      '.proxyrc'
+      '.proxyrc',
     ]);
 
     if (!pkg || !pkg.config || !pkg.files) {
@@ -292,7 +292,7 @@ export default class Server extends EventEmitter {
       if (typeof cfg !== 'function') {
         this.options.logger.warn({
           message:
-            "Proxy configuration file '.proxyrc.js' should export a function. Skipping..."
+            "Proxy configuration file '.proxyrc.js' should export a function. Skipping...",
         });
         return this;
       }
@@ -301,7 +301,7 @@ export default class Server extends EventEmitter {
       if (typeof cfg !== 'object') {
         this.options.logger.warn({
           message:
-            "Proxy table in '.proxyrc' should be of object type. Skipping..."
+            "Proxy table in '.proxyrc' should be of object type. Skipping...",
         });
         return this;
       }
@@ -337,7 +337,8 @@ export default class Server extends EventEmitter {
       https: this.options.https,
       inputFS: this.options.inputFS,
       listener: app,
-      outputFS: this.options.outputFS
+      outputFS: this.options.outputFS,
+      host: this.options.host,
     });
     this.stopServer = stop;
 
@@ -345,7 +346,7 @@ export default class Server extends EventEmitter {
     return new Promise((resolve, reject) => {
       server.once('error', err => {
         this.options.logger.error({
-          message: serverErrors(err, this.options.port)
+          message: serverErrors(err, this.options.port),
         });
         reject(err);
       });

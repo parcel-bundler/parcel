@@ -11,7 +11,7 @@ import {
   createHTTPServer,
   md5FromObject,
   prettyDiagnostic,
-  ansiHtml
+  ansiHtml,
 } from '@parcel/utils';
 
 type HMRAsset = {|
@@ -19,20 +19,20 @@ type HMRAsset = {|
   type: string,
   output: string,
   envHash: string,
-  deps: Object
+  deps: Object,
 |};
 
 type HMRMessage =
   | {|
       type: 'update',
-      assets: Array<HMRAsset>
+      assets: Array<HMRAsset>,
     |}
   | {|
       type: 'error',
       diagnostics: {|
         ansi: Array<AnsiDiagnosticResult>,
-        html: Array<AnsiDiagnosticResult>
-      |}
+        html: Array<AnsiDiagnosticResult>,
+      |},
     |};
 
 export default class HMRServer {
@@ -46,26 +46,28 @@ export default class HMRServer {
   }
 
   async start() {
-    await new Promise(async resolve => {
-      let {server, stop} = await createHTTPServer({
-        https: this.options.https,
-        inputFS: this.options.inputFS,
-        outputFS: this.options.outputFS,
-        cacheDir: this.options.cacheDir
-      });
-      this.stopServer = stop;
+    let {server, stop} = await createHTTPServer({
+      https: this.options.https,
+      inputFS: this.options.inputFS,
+      outputFS: this.options.outputFS,
+      cacheDir: this.options.cacheDir,
+      host: this.options.host,
+    });
+    this.stopServer = stop;
 
-      let websocketOptions = {
-        server
-        /*verifyClient: info => {
+    let websocketOptions = {
+      server,
+      /*verifyClient: info => {
           if (!this.options.host) return true;
 
           let originator = new URL(info.origin);
           return this.options.host === originator.hostname;
         }*/
-      };
+    };
 
-      this.wss = new WebSocket.Server(websocketOptions);
+    this.wss = new WebSocket.Server(websocketOptions);
+
+    await new Promise(resolve => {
       server.listen(this.options.port, this.options.host, resolve);
     });
 
@@ -105,10 +107,10 @@ export default class HMRServer {
             message: ansiHtml(d.message),
             stack: ansiHtml(d.stack),
             codeframe: ansiHtml(d.codeframe),
-            hints: d.hints.map(hint => ansiHtml(hint))
+            hints: d.hints.map(hint => ansiHtml(hint)),
           };
-        })
-      }
+        }),
+      },
     };
 
     this.broadcast(this.unresolvedError);
@@ -118,7 +120,7 @@ export default class HMRServer {
     this.unresolvedError = null;
 
     let changedAssets = Array.from(event.changedAssets.values()).filter(
-      asset => asset.env.context === 'browser'
+      asset => asset.env.context === 'browser',
     );
 
     if (changedAssets.length === 0) return;
@@ -139,14 +141,14 @@ export default class HMRServer {
           type: asset.type,
           output: await asset.getCode(),
           envHash: md5FromObject(asset.env),
-          deps
+          deps,
         };
-      })
+      }),
     );
 
     this.broadcast({
       type: 'update',
-      assets: assets
+      assets: assets,
     });
   }
 
@@ -159,7 +161,7 @@ export default class HMRServer {
     this.options.logger.warn({
       origin: '@parcel/reporter-hmr-server',
       message: `[${err.code}]: ${err.message}`,
-      stack: err.stack
+      stack: err.stack,
     });
   }
 

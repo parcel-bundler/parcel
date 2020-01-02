@@ -12,7 +12,7 @@ import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
 
 export default class ReporterRunner {
@@ -35,7 +35,11 @@ export default class ReporterRunner {
       } else {
         this.report({
           ...event,
-          bundle: new NamedBundle(event.bundle, event.bundleGraph, this.options)
+          bundle: new NamedBundle(
+            event.bundle,
+            event.bundleGraph,
+            this.options,
+          ),
         });
       }
     });
@@ -53,11 +57,11 @@ export default class ReporterRunner {
         await reporter.plugin.report({
           event,
           options: this.pluginOptions,
-          logger: new PluginLogger({origin: reporter.name})
+          logger: new PluginLogger({origin: reporter.name}),
         });
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, reporter.name)
+          diagnostic: errorToDiagnostic(e, reporter.name),
         });
       }
     }
@@ -72,7 +76,7 @@ export function report(event: ReporterEvent) {
     // easy serialization
     bus.emit('reporterEvent', {
       ...event,
-      bundle: bundleToInternalBundle(event.bundle)
+      bundle: bundleToInternalBundle(event.bundle),
     });
   }
 }

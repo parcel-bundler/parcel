@@ -11,7 +11,7 @@ import type {
   PackageJSON,
   Stats,
   Symbol,
-  TransformerResult
+  TransformerResult,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 
@@ -23,7 +23,7 @@ import {
   loadConfig,
   md5FromString,
   blobToStream,
-  TapStream
+  TapStream,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments, getEnvironmentHash} from './Environment';
@@ -49,7 +49,7 @@ type AssetOptions = {|
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean,
-  uniqueKey?: ?string
+  uniqueKey?: ?string,
 |};
 
 export function createAsset(options: AssetOptions): Asset {
@@ -60,7 +60,7 @@ export function createAsset(options: AssetOptions): Asset {
       options.id != null
         ? options.id
         : md5FromString(
-            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey
+            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey,
           ),
     hash: options.hash,
     filePath: options.filePath,
@@ -79,7 +79,7 @@ export function createAsset(options: AssetOptions): Asset {
     stats: options.stats,
     symbols: options.symbols || new Map(),
     sideEffects: options.sideEffects != null ? options.sideEffects : true,
-    uniqueKey: uniqueKey
+    uniqueKey: uniqueKey,
   };
 }
 
@@ -89,7 +89,7 @@ type InternalAssetOptions = {|
   content?: Blob,
   map?: ?SourceMap,
   ast?: ?AST,
-  idBase?: ?string
+  idBase?: ?string,
 |};
 
 export default class InternalAsset {
@@ -106,7 +106,7 @@ export default class InternalAsset {
     content,
     map,
     ast,
-    idBase
+    idBase,
   }: InternalAssetOptions) {
     this.value = value;
     this.options = options;
@@ -132,7 +132,7 @@ export default class InternalAsset {
       contentStream.bytesRead !== contentStream.readableLength
     ) {
       throw new Error(
-        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.'
+        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.',
       );
     }
 
@@ -148,15 +148,15 @@ export default class InternalAsset {
           new TapStream(buf => {
             size += buf.length;
             hash.update(buf);
-          })
-        )
+          }),
+        ),
       ),
       this.map == null
         ? Promise.resolve()
         : this.options.cache.set(
             this.getCacheKey('map' + pipelineKey),
-            this.map
-          )
+            this.map,
+          ),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
@@ -225,7 +225,7 @@ export default class InternalAsset {
 
   getCacheKey(key: string): string {
     return md5FromString(
-      PARCEL_VERSION + key + this.value.id + (this.value.hash || '')
+      PARCEL_VERSION + key + this.value.id + (this.value.hash || ''),
     );
   }
 
@@ -236,7 +236,7 @@ export default class InternalAsset {
       ...rest,
       env: mergeEnvironments(this.value.env, env),
       sourceAssetId: this.value.id,
-      sourcePath: this.value.filePath
+      sourcePath: this.value.filePath,
     });
     let existing = this.value.dependencies.get(dep.id);
     if (existing) {
@@ -293,24 +293,24 @@ export default class InternalAsset {
         meta: {
           ...this.value.meta,
           // $FlowFixMe
-          ...result.meta
+          ...result.meta,
         },
         pipeline:
           result.pipeline ??
           (this.value.type === result.type ? this.value.pipeline : null),
         stats: {
           time: 0,
-          size
+          size,
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
         sideEffects: result.sideEffects ?? this.value.sideEffects,
-        uniqueKey: result.uniqueKey
+        uniqueKey: result.uniqueKey,
       }),
       options: this.options,
       content,
       ast: result.ast,
       map: result.map,
-      idBase: this.idBase
+      idBase: this.idBase,
     });
 
     let dependencies = result.dependencies;
@@ -334,8 +334,8 @@ export default class InternalAsset {
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
-      parse?: boolean
-    |}
+      parse?: boolean,
+    |},
   ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;
@@ -351,7 +351,7 @@ export default class InternalAsset {
       this.options.inputFS,
       this.value.filePath,
       filePaths,
-      parse == null ? null : {parse}
+      parse == null ? null : {parse},
     );
     if (!conf) {
       return null;
