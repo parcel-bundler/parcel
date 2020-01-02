@@ -49,8 +49,8 @@ export default class Profiler {
         diagnostic: {
           message: `The inspector module isn't available`,
           origin: '@parcel/workers',
-          hints: ['Disable build profiling']
-        }
+          hints: ['Disable build profiling'],
+        },
       });
     }
 
