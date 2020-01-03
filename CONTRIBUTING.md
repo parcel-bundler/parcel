@@ -32,7 +32,7 @@ To get started with the project:
 You'll need [Git], [Node], and [Yarn] installed. Then clone the repository:
 
 ```sh
-git clone git@github.com:parcel-bundler/parcel.git && cd parcel
+git clone https://github.com/parcel-bundler/parcel.git && cd parcel
 ```
 
 Run Yarn:
