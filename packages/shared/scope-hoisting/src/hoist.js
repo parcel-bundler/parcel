@@ -109,6 +109,7 @@ const VISITOR = {
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
+      path.scope.setData('cjsExportsReassigned', false);
     },
 
     exit(path, asset: MutableAsset) {
@@ -208,7 +209,7 @@ const VISITOR = {
       !path.scope.hasBinding('exports') &&
       !path.scope.getData('shouldWrap')
     ) {
-      path.replaceWith(getExportsIdentifier(asset, path.scope));
+      path.replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
@@ -252,35 +253,39 @@ const VISITOR = {
 
     // Match module.exports = expression; assignments and replace with a variable declaration
     // if this is the first assignemnt. This avoids the extra empty object assignment in many cases.
-    if (
-      t.matchesPattern(left, 'module.exports') &&
-      !path.scope.hasBinding('module')
-    ) {
-      let exportsId = getExportsIdentifier(asset, path.scope);
-      asset.meta.isCommonJS = true;
-      asset.symbols.set('*', exportsId.name);
+    //
+    // TODO: Re-introduce this when it can handle both exports and module.exports concurrently
+    //
+    // if (
+    //   t.matchesPattern(left, 'module.exports') &&
+    //   !path.scope.hasBinding('module')
+    // ) {
+    //   let exportsId = getExportsIdentifier(asset, path.scope);
+    //   asset.meta.isCommonJS = true;
+    //   asset.symbols.set('*', exportsId.name);
 
-      if (
-        path.scope === path.scope.getProgramParent() &&
-        !path.scope.getBinding(exportsId.name) &&
-        path.parentPath.isStatement()
-      ) {
-        let [decl] = path.parentPath.replaceWith(
-          t.variableDeclaration('var', [
-            t.variableDeclarator(exportsId, right),
-          ]),
-        );
+    //   if (
+    //     path.scope === path.scope.getProgramParent() &&
+    //     !path.scope.getBinding(exportsId.name) &&
+    //     path.parentPath.isStatement()
+    //   ) {
+    //     let [decl] = path.parentPath.replaceWith(
+    //       t.variableDeclaration('var', [
+    //         t.variableDeclarator(exportsId, right),
+    //       ]),
+    //     );
 
-        path.scope.registerDeclaration(decl);
-      }
-    }
+    //     path.scope.registerDeclaration(decl);
+    //   }
+    // }
 
     if (path.scope.hasBinding('exports')) {
       return;
     }
 
     if (t.isIdentifier(left) && left.name === 'exports') {
-      path.get('left').replaceWith(getExportsIdentifier(asset, path.scope));
+      path.scope.getProgramParent().setData('cjsExportsReassigned', true);
+      path.get('left').replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
@@ -668,5 +673,20 @@ function getExportsIdentifier(asset: MutableAsset, scope) {
     }
 
     return id;
+  }
+}
+
+function getCJSExportsIdentifier(asset: MutableAsset, scope) {
+  if (scope.getProgramParent().getData('shouldWrap')) {
+    return t.identifier('exports');
+  } else if (scope.getProgramParent().getData('cjsExportsReassigned')) {
+    let id = getIdentifier(asset, 'cjs_exports');
+    if (!scope.hasBinding(id.name)) {
+      scope.getProgramParent().addGlobal(id);
+    }
+
+    return id;
+  } else {
+    return getExportsIdentifier(asset, scope);
   }
 }

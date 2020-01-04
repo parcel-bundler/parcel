@@ -1,6 +1,7 @@
 // @flow
-import {Session} from 'inspector';
+import type {Session} from 'inspector';
 import invariant from 'assert';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 // https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-Profile
 export type Profile = {|
@@ -40,7 +41,20 @@ export default class Profiler {
   session: Session;
 
   startProfiling() {
-    this.session = new Session();
+    let inspector;
+    try {
+      inspector = require('inspector');
+    } catch (err) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `The inspector module isn't available`,
+          origin: '@parcel/workers',
+          hints: ['Disable build profiling'],
+        },
+      });
+    }
+
+    this.session = new inspector.Session();
     this.session.connect();
 
     return Promise.all([

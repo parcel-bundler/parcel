@@ -70,9 +70,15 @@ export default async function resolveOptions(
     defaultConfig: initialOptions.defaultConfig,
     patchConsole:
       initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
-    env:
-      initialOptions.env ??
-      (await loadDotEnv(inputFS, path.join(projectRoot, 'index'))),
+    env: {
+      ...initialOptions.env,
+      // $FlowFixMe
+      ...(await loadDotEnv(
+        initialOptions.env ?? {},
+        inputFS,
+        path.join(projectRoot, 'index'),
+      )),
+    },
     mode,
     minify,
     autoinstall: initialOptions.autoinstall ?? true,

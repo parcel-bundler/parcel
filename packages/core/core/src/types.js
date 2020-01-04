@@ -5,6 +5,7 @@ import type {
   BundleGroup,
   Engines,
   EnvironmentContext,
+  EnvMap,
   File,
   FilePath,
   Glob,
@@ -93,7 +94,7 @@ export type ParcelOptions = {|
   rootDir: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
-  env: {+[string]: string, ...},
+  env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,
 

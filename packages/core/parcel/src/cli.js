@@ -35,6 +35,16 @@ const path = require('path');
 const getPort = require('get-port');
 const version = require('../package.json').version;
 
+// Capture the NODE_ENV this process was launched with, so that it can be
+// used in Parcel (such as in process.env inlining).
+const initialNodeEnv = process.env.NODE_ENV;
+// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
+// so that dependencies of Parcel like React (which renders the cli through `ink`)
+// run in the appropriate mode.
+if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
+  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
+}
+
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
@@ -223,10 +233,11 @@ async function run(entries: Array<string>, command: any) {
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
+  let nodeEnv;
   if (command.name() === 'build') {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+    nodeEnv = initialNodeEnv || 'production';
   } else {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+    nodeEnv = initialNodeEnv || 'development';
   }
 
   let https = !!command.https;
@@ -276,5 +287,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    env: {
+      NODE_ENV: nodeEnv,
+    },
   };
 }
