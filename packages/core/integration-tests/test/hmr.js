@@ -15,7 +15,7 @@ import getPort from 'get-port';
 
 const config = {
   ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server', '@parcel/reporter-hmr-server'],
+  reporters: ['@parcel/reporter-dev-server'],
 };
 
 async function closeSocket(ws: WebSocket) {

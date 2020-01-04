@@ -134,7 +134,7 @@ export default class HMRServer {
     }
 
     this.options.logger.warn({
-      origin: '@parcel/reporter-hmr-server',
+      origin: '@parcel/reporter-dev-server',
       message: `[${err.code}]: ${err.message}`,
       stack: err.stack,
     });

@@ -32,10 +32,7 @@ describe('react-refresh', function() {
       hot: true,
       defaultConfig: {
         ...defaultConfig,
-        reporters: [
-          '@parcel/reporter-dev-server',
-          '@parcel/reporter-hmr-server',
-        ],
+        reporters: ['@parcel/reporter-dev-server'],
       },
     });
 
