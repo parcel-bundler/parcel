@@ -83,7 +83,6 @@ describe('hmr', function() {
       );
 
       let message = await nextWSMessage(ws);
-      // console.log('message:', JSON.stringify(message, null, 2));
 
       assert.equal(message.type, 'update');
 
@@ -148,7 +147,6 @@ describe('hmr', function() {
       );
 
       let message = await nextWSMessage(ws);
-      // console.log('message:', JSON.stringify(message, null, 2));
 
       assert.equal(message.type, 'error');
 
