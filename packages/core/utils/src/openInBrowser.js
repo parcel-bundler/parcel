@@ -1,3 +1,4 @@
+// @flow
 // @flow strict-local
 
 import open from 'open';
@@ -29,7 +30,7 @@ function commandExistsUnixSync(commandName: string) {
   try {
     const stdout = execSync(
       `command -v ${commandName} 2>/dev/null` +
-        ` && { echo >&1 '${commandName} found'; exit 0; }`
+        ` && { echo >&1 '${commandName} found'; exit 0; }`,
     );
     return !!stdout;
   } catch (error) {
