@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.0.0-alpha.3.2",
+  "version": "2.0.0-frontbucket.0",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -31,8 +31,8 @@
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
     "nyc": "^11.1.0",
-    "parcel": "^2.0.0-alpha.3.2",
-    "parcel-bundler": "^2.0.0-alpha.3.1",
+    "parcel": "^2.0.0-frontbucket.0",
+    "parcel-bundler": "^2.0.0-frontbucket.0",
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
     "rimraf": "^2.6.1",
