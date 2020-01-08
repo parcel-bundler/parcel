@@ -1,6 +1,6 @@
 {
   "name": "@parcel/scope-hoisting",
-  "version": "2.0.0-frontbucket.2",
+  "version": "2.0.0-frontbucket.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,7 +21,7 @@
     "@babel/template": "^7.2.2",
     "@babel/traverse": "^7.2.3",
     "@babel/types": "^7.3.3",
-    "@parcel/utils": "^2.0.0-frontbucket.2",
+    "@parcel/utils": "^2.0.0-frontbucket.3",
     "babylon-walk": "^1.0.2",
     "nullthrows": "^1.1.1"
   }
