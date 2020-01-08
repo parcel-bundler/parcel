@@ -35,7 +35,6 @@ module.exports = () => ({
                   ? '@parcel/watcher'
                   : '@atlassian/parcel-' + x[1],
             },
-            // loglevel: 'silent',
           },
         ],
       ],
