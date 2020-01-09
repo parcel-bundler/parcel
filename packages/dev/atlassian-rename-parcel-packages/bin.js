@@ -6,6 +6,8 @@ const fs = require('fs');
 const glob = require('fast-glob');
 const path = require('path');
 
+const {shouldReplace, getReplacementName} = require('./utils');
+
 const jsFiles = glob.sync('packages/*/*/lib/**.js', {
   absolute: true,
   cwd: path.resolve(__dirname, '../../..'),
@@ -81,14 +83,4 @@ for (const filePath of configPackageJsons) {
     configPath,
     configContents.replace(/@parcel\//g, '@atlassian/parcel-'),
   );
-}
-
-function shouldReplace(packageName) {
-  return (
-    packageName !== '@parcel/watcher' && packageName.startsWith('@parcel/')
-  );
-}
-
-function getReplacementName(packageName) {
-  return packageName.replace(/^@parcel\//, '@atlassian/parcel-');
 }
