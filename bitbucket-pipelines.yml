@@ -5,6 +5,16 @@ clone:
 
 definitions:
   steps:
+    - step: &test-unit
+        name: Run unit tests
+        script:
+          - yarn install --frozen-lockfile
+          - yarn run test:unit
+    - step: &test-integration
+        name: Run integration tests
+        script:
+          - yarn install --frozen-lockfile
+          - yarn run test:integration-ci
     - step: &build-release-parcel
         name: Build and Release Parcel
         script:
@@ -48,9 +58,11 @@ definitions:
           - yarn build:parcel
 
 pipelines:
-  tags:
-    parcel@*:
-      - step: *build-release-parcel
+  default:
+    - parallel:
+        - step: *test-unit
+        - step: *test-integration
+    - step: *build-release-parcel
   custom:
     warm-build-perf:
       - step: *bitbucket-parcel-setup
