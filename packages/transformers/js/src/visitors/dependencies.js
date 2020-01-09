@@ -283,18 +283,6 @@ function addDependency(
   node,
   opts: ?{|isAsync?: boolean, isOptional?: boolean|},
 ) {
-  // If this came from an inline <script> tag, throw an error.
-  // TODO: run JSPackager on inline script tags.
-  // let inlineHTML =
-  //   asset.options.rendition && asset.options.rendition.inlineHTML;
-  // if (inlineHTML) {
-  //   let err = new Error(
-  //     'Imports and requires are not supported inside inline <script> tags yet.'
-  //   );
-  //   err.loc = node.loc && node.loc.start;
-  //   throw err;
-  // }
-
   asset.addDependency({
     moduleSpecifier: node.value,
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
