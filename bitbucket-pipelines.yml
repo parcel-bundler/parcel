@@ -62,7 +62,12 @@ pipelines:
     - parallel:
         - step: *test-unit
         - step: *test-integration
-    - step: *build-release-parcel
+  tags:
+    '*':
+      - parallel:
+          - step: *test-unit
+          - step: *test-integration
+      - step: *build-release-parcel
   custom:
     warm-build-perf:
       - step: *bitbucket-parcel-setup
