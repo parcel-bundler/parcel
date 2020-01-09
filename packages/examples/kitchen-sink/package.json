@@ -1,6 +1,6 @@
 {
   "name": "@parcel/kitchen-sink-example",
-  "version": "2.0.0-frontbucket.5",
+  "version": "2.0.0-frontbucket.6",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,8 +8,8 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.5",
-    "@parcel/config-default": "^2.0.0-frontbucket.5",
-    "parcel": "^2.0.0-frontbucket.5"
+    "@parcel/config-default": "^2.0.0-frontbucket.6",
+    "parcel": "^2.0.0-frontbucket.6"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

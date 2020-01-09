@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.5",
+  "version": "2.0.0-frontbucket.6",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,7 +13,7 @@
   "main": "lib/bin.js",
   "source": "src/bin.js",
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.5",
+    "@parcel/config-default": "^2.0.0-frontbucket.6",
     "@parcel/core": "^2.0.0-frontbucket.5",
     "@parcel/diagnostic": "^2.0.0-frontbucket.5",
     "@parcel/fs": "^2.0.0-frontbucket.5",
