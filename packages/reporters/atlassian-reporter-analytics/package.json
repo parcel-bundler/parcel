@@ -4,7 +4,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "src/AnalyticsReporter.js",
+  "main": "lib/AnalyticsReporter.js",
   "source": "src/AnalyticsReporter.js",
   "engines": {
     "node": ">= 10.0.0",
