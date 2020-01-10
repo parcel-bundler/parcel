@@ -14,6 +14,7 @@
     "test-ci": "mocha"
   },
   "dependencies": {
+    "@atlassian/parcel-reporter-analytics": "2.0.0-frontbucket.5",
     "@parcel/bundler-default": "^2.0.0-frontbucket.5",
     "@parcel/namer-default": "^2.0.0-frontbucket.5",
     "@parcel/optimizer-blob-url": "^2.0.0-frontbucket.5",

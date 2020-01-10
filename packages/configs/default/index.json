@@ -53,6 +53,7 @@
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
+    "@atlassian/parcel-reporter-analytics",
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
     "@parcel/reporter-hmr-server"

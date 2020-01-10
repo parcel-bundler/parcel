@@ -18,6 +18,10 @@ export default class PluginOptions implements IPluginOptions {
     this.#options = options;
   }
 
+  get disableCache(): boolean {
+    return this.#options.disableCache;
+  }
+
   get mode(): BuildMode {
     return this.#options.mode;
   }

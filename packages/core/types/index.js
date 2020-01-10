@@ -191,6 +191,7 @@ export type InitialParcelOptions = {|
 |};
 
 export interface PluginOptions {
+  +disableCache: boolean;
   +mode: BuildMode;
   +minify: boolean;
   +scopeHoist: boolean;

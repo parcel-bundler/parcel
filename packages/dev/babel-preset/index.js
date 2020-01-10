@@ -23,7 +23,7 @@ module.exports = () => ({
         // it can be removed through dead code elimination below
         [
           'babel-plugin-transform-inline-environment-variables',
-          {include: ['PARCEL_BUILD_ENV']},
+          {include: ['PARCEL_BUILD_ENV', 'AMPLITUDE_API_KEY']},
         ],
         'babel-plugin-minify-dead-code-elimination',
         [
