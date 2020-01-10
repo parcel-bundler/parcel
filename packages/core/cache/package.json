@@ -1,6 +1,6 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.0-frontbucket.6",
+  "version": "2.0.0-frontbucket.7",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,7 +15,7 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0-frontbucket.6",
-    "@parcel/utils": "^2.0.0-frontbucket.6"
+    "@parcel/logger": "^2.0.0-frontbucket.7",
+    "@parcel/utils": "^2.0.0-frontbucket.7"
   }
 }

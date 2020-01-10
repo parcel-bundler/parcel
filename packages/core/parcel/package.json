@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.8",
+  "version": "2.0.0-frontbucket.9",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -13,13 +13,13 @@
   "main": "lib/bin.js",
   "source": "src/bin.js",
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.8",
-    "@parcel/core": "^2.0.0-frontbucket.6",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.6",
-    "@parcel/fs": "^2.0.0-frontbucket.6",
-    "@parcel/logger": "^2.0.0-frontbucket.6",
-    "@parcel/package-manager": "^2.0.0-frontbucket.6",
-    "@parcel/utils": "^2.0.0-frontbucket.6",
+    "@parcel/config-default": "^2.0.0-frontbucket.9",
+    "@parcel/core": "^2.0.0-frontbucket.7",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.7",
+    "@parcel/fs": "^2.0.0-frontbucket.7",
+    "@parcel/logger": "^2.0.0-frontbucket.7",
+    "@parcel/package-manager": "^2.0.0-frontbucket.7",
+    "@parcel/utils": "^2.0.0-frontbucket.7",
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",
@@ -27,6 +27,6 @@
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.6"
+    "@parcel/babel-register": "^2.0.0-frontbucket.7"
   }
 }
