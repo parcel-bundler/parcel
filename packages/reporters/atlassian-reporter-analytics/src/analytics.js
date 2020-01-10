@@ -71,11 +71,16 @@ const analytics = {
 
   trackSampled: (
     eventType: string,
-    eventProperties: mixed,
+    eventProperties: {|[string]: mixed|} | (() => {[string]: mixed, ...}),
     sampleRate: number,
   ) => {
     if (Math.random() < 1 / sampleRate) {
-      return analytics.track(eventType, eventProperties);
+      return analytics.track(eventType, {
+        ...(typeof eventProperties === 'function'
+          ? eventProperties()
+          : eventProperties),
+        sampleRate,
+      });
     }
     return Promise.resolve();
   },

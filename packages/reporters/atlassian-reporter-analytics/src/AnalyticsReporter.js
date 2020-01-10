@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {PluginOptions, ReporterEvent} from '@parcel/types';
+
 import {Reporter} from '@parcel/plugin';
 import analytics from './analytics';
 import path from 'path';
@@ -34,24 +36,9 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
       }
     }
 
-    const additionalProperties = {
-      buildId,
-      cpuUsageSinceBuildStart:
-        event.type === 'buildStart'
-          ? null
-          : process.cpuUsage(buildStartCpuUsage),
-      disableCache: options.disableCache,
-      projectRoot: path.dirname(options.projectRoot),
-      mode: options.mode,
-      minify: options.minify,
-      scopeHoist: options.scopeHoist,
-      sourceMaps: options.sourceMaps,
-      serve: Boolean(options.serve),
-    };
-
     switch (event.type) {
       case 'buildStart':
-        analytics.track('buildStart', additionalProperties);
+        analytics.track('buildStart', getAdditionalProperties(event, options));
         break;
       case 'buildProgress': {
         let filePath;
@@ -76,16 +63,16 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
         // Don't await these.
         analytics.trackSampled(
           event.type,
-          {
+          () => ({
             phase: event.phase,
             filePath:
               filePath != null
                 ? path.relative(options.projectRoot, filePath)
                 : null,
             bundle,
-            ...additionalProperties,
-          },
-          400,
+            ...getAdditionalProperties(event, options),
+          }),
+          800,
         );
 
         break;
@@ -94,7 +81,7 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
         analytics.track(event.type, {
           buildTime: event.buildTime,
           numChangedAssets: Array.from(event.changedAssets).length,
-          ...additionalProperties,
+          ...getAdditionalProperties(event, options),
         });
         break;
       case 'buildFailure': {
@@ -105,21 +92,25 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
 
         analytics.track(event.type, {
           relevantDiagnostics,
-          ...additionalProperties,
+          ...getAdditionalProperties(event, options),
         });
-        break;
-      }
-      case 'log': {
-        analytics.trackSampled(
-          event.type,
-          {
-            ...event,
-            ...additionalProperties,
-          },
-          100,
-        );
         break;
       }
     }
   },
 });
+
+function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
+  return {
+    buildId,
+    cpuUsageSinceBuildStart:
+      event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
+    disableCache: options.disableCache,
+    projectRoot: path.dirname(options.projectRoot),
+    mode: options.mode,
+    minify: options.minify,
+    scopeHoist: options.scopeHoist,
+    sourceMaps: options.sourceMaps,
+    serve: Boolean(options.serve),
+  };
+}
