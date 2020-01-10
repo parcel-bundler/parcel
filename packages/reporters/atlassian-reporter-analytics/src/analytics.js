@@ -24,17 +24,6 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
   amplitude = new Amplitude(amplitudeApiKey, userProperties);
 }
 
-console.log(`This internal Atlassian build of Parcel includes telemetry recording important
-events that occur, such as as when builds start, progress, and end in either success or failure.
-
-This telemetry includes information such as your os username (staffid), memory and cpu usage,
-and when events occurred.
-
-Details about user-triggered errors such as syntax errors should not be included in these reports.
-
-Source code for our version of Parcel is available at https://staging.bb-inf.net/padmaia/parcel/src/master/
-`);
-
 const analytics = {
   identify: (data: mixed) => {
     if (process.env.PARCEL_BUILD_ENV === 'production') {
