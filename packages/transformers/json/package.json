@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-json",
-  "version": "2.0.0-frontbucket.5",
+  "version": "2.0.0-frontbucket.6",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,7 +15,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.5",
+    "@parcel/plugin": "^2.0.0-frontbucket.6",
     "json5": "^2.1.0"
   }
 }
