@@ -85,7 +85,7 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
             bundle,
             ...additionalProperties,
           },
-          2,
+          400,
         );
 
         break;
@@ -116,7 +116,7 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
             ...event,
             ...additionalProperties,
           },
-          10,
+          100,
         );
         break;
       }

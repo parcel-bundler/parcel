@@ -40,7 +40,7 @@ const analytics = {
 
     return Promise.resolve();
   },
-  track: (eventType: string, additionalEventProperties: mixed) => {
+  track: async (eventType: string, additionalEventProperties: mixed) => {
     const eventProperties = {
       ...additionalEventProperties,
       timestamp: performance.now(),
@@ -49,10 +49,14 @@ const analytics = {
     };
 
     if (process.env.PARCEL_BUILD_ENV === 'production') {
-      return amplitude.track({
-        event_type: eventType,
-        event_properties: eventProperties,
-      });
+      try {
+        return await amplitude.track({
+          event_type: eventType,
+          event_properties: eventProperties,
+        });
+      } catch {
+        // Don't let a failure to report analytics crash Parcel
+      }
     }
 
     if (process.env.ANALYTICS_DEBUG != null) {
@@ -63,8 +67,6 @@ const analytics = {
         userProperties,
       );
     }
-
-    return Promise.resolve();
   },
 
   trackSampled: (
