@@ -38,7 +38,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.env;
   }
 
-  get hot(): ServerOptions | false {
+  get hot(): boolean {
     return this.#options.hot;
   }
 
