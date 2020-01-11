@@ -5,14 +5,8 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
 
-import invariant from 'assert';
 import WebSocket from 'ws';
-import {
-  createHTTPServer,
-  md5FromObject,
-  prettyDiagnostic,
-  ansiHtml,
-} from '@parcel/utils';
+import {md5FromObject, prettyDiagnostic, ansiHtml} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,
@@ -36,7 +30,6 @@ type HMRMessage =
     |};
 
 export default class HMRServer {
-  stopServer: ?() => Promise<void>;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
@@ -45,18 +38,9 @@ export default class HMRServer {
     this.options = options;
   }
 
-  async start() {
-    let {server, stop} = await createHTTPServer({
-      https: this.options.https,
-      inputFS: this.options.inputFS,
-      outputFS: this.options.outputFS,
-      cacheDir: this.options.cacheDir,
-      host: this.options.host,
-    });
-    this.stopServer = stop;
-
+  start() {
     let websocketOptions = {
-      server,
+      server: this.options.devServer,
       /*verifyClient: info => {
           if (!this.options.host) return true;
 
@@ -66,10 +50,6 @@ export default class HMRServer {
     };
 
     this.wss = new WebSocket.Server(websocketOptions);
-
-    await new Promise(resolve => {
-      server.listen(this.options.port, this.options.host, resolve);
-    });
 
     this.wss.on('connection', ws => {
       ws.onerror = this.handleSocketError;
@@ -84,13 +64,8 @@ export default class HMRServer {
     return this.wss._server.address().port;
   }
 
-  async stop() {
+  stop() {
     this.wss.close();
-
-    invariant(this.stopServer != null);
-    await this.stopServer();
-
-    this.stopServer = null;
   }
 
   emitError(diagnostics: Array<Diagnostic>) {
@@ -159,7 +134,7 @@ export default class HMRServer {
     }
 
     this.options.logger.warn({
-      origin: '@parcel/reporter-hmr-server',
+      origin: '@parcel/reporter-dev-server',
       message: `[${err.code}]: ${err.message}`,
       stack: err.stack,
     });
