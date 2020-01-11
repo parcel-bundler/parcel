@@ -1,24 +1,27 @@
 // @flow strict-local
 
+import type {FileSystem} from '@parcel/fs';
+import type {EnvMap} from '@parcel/types';
+
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
-import type {FileSystem} from '@parcel/fs';
 
 export default async function loadEnv(
+  env: EnvMap,
   fs: FileSystem,
   filePath: string,
-): Promise<{[string]: string, ...}> {
-  const NODE_ENV = process.env.NODE_ENV ?? 'development';
+): Promise<EnvMap> {
+  const NODE_ENV = env.NODE_ENV ?? 'development';
 
   const dotenvFiles = [
-    `.env.${NODE_ENV}.local`,
-    `.env.${NODE_ENV}`,
+    '.env',
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
     // results for everyone
     NODE_ENV === 'test' ? null : '.env.local',
-    '.env',
+    `.env.${NODE_ENV}`,
+    `.env.${NODE_ENV}.local`,
   ].filter(Boolean);
 
   let envs = await Promise.all(
@@ -43,5 +46,6 @@ export default async function loadEnv(
     }),
   );
 
+  // $FlowFixMe
   return Object.assign({}, ...envs);
 }
