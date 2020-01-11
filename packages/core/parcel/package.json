@@ -12,6 +12,9 @@
   "bin": "src/bin.js",
   "main": "lib/bin.js",
   "source": "src/bin.js",
+  "engines": {
+    "node": ">= 10.0.0"
+  },
   "dependencies": {
     "@parcel/config-default": "^2.0.0-alpha.3.1",
     "@parcel/core": "^2.0.0-alpha.3.2",
