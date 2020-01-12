@@ -3,7 +3,9 @@ var bundle = require('./bundle-url');
 function updateLink(link) {
   var newLink = link.cloneNode();
   newLink.onload = function () {
-    link.remove();
+    if (link.parentNode !== null) {
+        link.parentNode.removeChild(link);
+    }
   };
   newLink.href = link.href.split('?')[0] + '?' + Date.now();
   link.parentNode.insertBefore(newLink, link.nextSibling);
