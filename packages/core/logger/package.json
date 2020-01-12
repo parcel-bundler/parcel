@@ -1,6 +1,6 @@
 {
   "name": "@parcel/logger",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -30,7 +30,7 @@
     "strip-ansi": "^4.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^1.11.0",
+    "@parcel/babel-register": "^1.11.1",
     "mocha": "^5.2.0",
     "sinon": "^5.0.1"
   }

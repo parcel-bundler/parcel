@@ -157,8 +157,9 @@ class RustAsset extends Asset {
       '-o',
       this.wasmPath
     ];
+    const minifyArgs = this.options.minify ? ['-Clink-arg=-s'] : [];
 
-    await exec('rustc', args);
+    await exec('rustc', [...args, ...minifyArgs]);
 
     // Run again to collect dependencies
     this.depsPath = path.join(this.options.cacheDir, name + '.d');
