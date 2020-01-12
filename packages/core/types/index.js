@@ -171,7 +171,7 @@ export type InitialParcelOptions = {|
   minify?: boolean,
   scopeHoist?: boolean,
   sourceMaps?: boolean,
-  hot?: ServerOptions | false,
+  hot?: boolean,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
   logLevel?: LogLevel,
@@ -196,7 +196,7 @@ export interface PluginOptions {
   +scopeHoist: boolean;
   +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: ServerOptions | false;
+  +hot: boolean;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;

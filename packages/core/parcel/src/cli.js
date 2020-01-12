@@ -70,12 +70,6 @@ const commonOptions = {
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
-  '--hmr-port <port>': [
-    'set the port to serve HMR websockets, defaults to random',
-    parseInt,
-  ],
-  '--hmr-host <hostname>':
-    'set the hostname of HMR websockets, defaults to location.hostname of current window',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
@@ -276,18 +270,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let port = command.hmrPort || 12345;
-    let host = command.hmrHost || command.host;
-    port = await getPort({port, host});
-
-    process.env.HMR_HOSTNAME = host || '';
-    process.env.HMR_PORT = port;
-
-    hmr = {
-      https,
-      port,
-      host,
-    };
+    hmr = true;
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
