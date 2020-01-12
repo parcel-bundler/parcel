@@ -53,7 +53,7 @@ export function link({
 |}) {
   let format = FORMATS[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, [Asset, Symbol]> = new Map();
+  let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
@@ -82,10 +82,8 @@ export function link({
 
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep);
-      if (resolved) {
-        for (let [imported, local] of dep.symbols) {
-          imports.set(local, [resolved, imported]);
-        }
+      for (let [imported, local] of dep.symbols) {
+        imports.set(local, resolved ? [resolved, imported] : null);
       }
     }
 
@@ -505,14 +503,20 @@ export function link({
       }
 
       if (imports.has(name)) {
-        let [asset, symbol] = nullthrows(imports.get(name));
-        let node = replaceExportNode(asset, symbol, path);
-
-        // If the export does not exist, replace with an empty object.
-        if (!node) {
+        let node;
+        let imported = imports.get(name);
+        if (!imported) {
+          // import was deferred
           node = t.objectExpression([]);
-        }
+        } else {
+          let [asset, symbol] = imported;
+          node = replaceExportNode(asset, symbol, path);
 
+          // If the export does not exist, replace with an empty object.
+          if (!node) {
+            node = t.objectExpression([]);
+          }
+        }
         path.replaceWith(node);
         return;
       }
