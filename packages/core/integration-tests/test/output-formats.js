@@ -695,7 +695,33 @@ describe('output formats', function() {
       );
     });
 
-    it('should generating ESM from CommonJS', async function() {
+    it.only('should create correct bundle import for reexports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-bundle-import-reexport/index.js',
+        ),
+      );
+
+      let dist1 = await outputFS.readFile(
+        b.getBundles().filter(b => b.type === 'js')[0].filePath,
+        'utf8',
+      );
+      let dist2 = await outputFS.readFile(
+        b.getBundles().filter(b => b.type === 'js')[1].filePath,
+        'utf8',
+      );
+
+      let exportName = dist1.match(/export var ([a-z0-9$]+) =/)[1];
+      assert(exportName);
+
+      assert.equal(
+        dist2.match(/import { ([a-z0-9$]+) } from "\.\/index\.js";/)[1],
+        exportName,
+      );
+    });
+
+    it('should support generating ESM from CommonJS', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs-esm/index.js'),
       );
