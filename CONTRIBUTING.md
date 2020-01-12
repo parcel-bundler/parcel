@@ -31,20 +31,26 @@ To get started with the project:
 
 You'll need [Git], [Node], and [Yarn] installed. Then clone the repository:
 
-```js
-git clone git@github.com:parcel-bundler/parcel.git && cd parcel
+```sh
+git clone https://github.com/parcel-bundler/parcel.git && cd parcel
 ```
 
 Run Yarn:
 
-```js
+```sh
 yarn install
 ```
 
 Run tests:
 
-```js
+```sh
 yarn test
+```
+
+Run the development version of Parcel:
+
+```sh
+./packages/core/parcel/src/bin.js build index.html
 ```
 
 [babel]: http://babeljs.io/
