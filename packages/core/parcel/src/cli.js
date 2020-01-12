@@ -101,6 +101,7 @@ let serve = program
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
   )
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(serve, hmrOptions);
@@ -109,6 +110,7 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(watch, hmrOptions);
@@ -193,6 +195,15 @@ async function run(entries: Array<string>, command: any) {
       await unsubscribe();
       process.exit();
     };
+
+    if (command.watchForStdin) {
+      process.stdin.on('end', async () => {
+        console.log('STDIN closed, ending');
+
+        await exit();
+      });
+      process.stdin.resume();
+    }
 
     // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
     // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
