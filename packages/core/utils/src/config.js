@@ -37,7 +37,7 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    if (await fs.exists(file)) {
+    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
       return file;
     }
   }

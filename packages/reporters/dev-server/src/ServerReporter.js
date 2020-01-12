@@ -3,15 +3,18 @@
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
 import Server from './Server';
+import HMRServer from './HMRServer';
 import path from 'path';
 
 let servers: Map<number, Server> = new Map();
+let hmrServers: Map<number, HMRServer> = new Map();
 export default new Reporter({
   async report({event, options, logger}) {
     let serve = options.serve;
     if (!serve) return;
 
     let server = servers.get(serve.port);
+    let hmrServer = hmrServers.get(serve.port);
     switch (event.type) {
       case 'watchStart': {
         // If there's already a server when watching has just started, something
@@ -32,23 +35,43 @@ export default new Reporter({
         };
 
         server = new Server(serverOptions);
-        servers.set(serverOptions.port, server);
-        await server.start();
+        servers.set(serve.port, server);
+        const devServer = await server.start();
+
+        if (options.hot) {
+          let hmrServerOptions = {
+            devServer,
+            logger,
+          };
+          const hmrServer = new HMRServer(hmrServerOptions);
+          hmrServers.set(serve.port, hmrServer);
+          hmrServer.start();
+        }
 
         break;
       }
       case 'watchEnd':
         invariant(server != null);
+        if (hmrServer) {
+          hmrServer.stop();
+        }
         await server.stop();
         servers.delete(serve.port);
+        hmrServers.delete(serve.port);
         break;
       case 'buildSuccess':
         invariant(server != null);
         server.buildSuccess(event.bundleGraph);
+        if (hmrServer) {
+          hmrServer.emitUpdate(event);
+        }
         break;
       case 'buildFailure':
         invariant(server != null);
         server.buildError(event.diagnostics);
+        if (hmrServer) {
+          hmrServer.emitError(event.diagnostics);
+        }
         break;
     }
   },
