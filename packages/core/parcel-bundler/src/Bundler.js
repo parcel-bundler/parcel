@@ -154,6 +154,7 @@ class Bundler extends EventEmitter {
           : isProduction,
       throwErrors:
         typeof options.throwErrors === 'boolean' ? options.throwErrors : true,
+      serveIndex: typeof options.serveIndex === 'boolean' ? options.serveIndex : false,
     };
   }
 
