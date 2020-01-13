@@ -7,7 +7,12 @@ import analytics from './analytics';
 import path from 'path';
 // $FlowFixMe
 import uuid from 'uuid/v4';
+// $FlowFixMe
+import {performance} from 'perf_hooks';
 
+const PROGRESS_SAMPLE_RATE = 800;
+
+let buildStartTime;
 let buildStartCpuUsage;
 let buildId;
 let userNotified;
@@ -16,12 +21,12 @@ export default new Reporter({
   report({event, logger, options}) {
     if (event.type === 'buildStart') {
       buildStartCpuUsage = process.cpuUsage();
+      buildStartTime = performance.now();
       buildId = uuid();
-
       if (!userNotified) {
         logger.info({
-          message: `This internal Atlassian build of Parcel includes telemetry recording important
-events that occur, such as as when builds start, progress, and end in either success or failure.
+          message: `This internal Atlassian build of Parcel includes telemetry recording
+important events that occur, such as as when builds start, progress, and end in either success or failure.
 
 This telemetry includes information such as your os username (staffid), memory and cpu usage,
 and when events occurred.
@@ -41,38 +46,40 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
         analytics.track('buildStart', getAdditionalProperties(event, options));
         break;
       case 'buildProgress': {
-        let filePath;
-        let bundle;
-        switch (event.phase) {
-          case 'transforming':
-            filePath = event.filePath;
-            break;
-          case 'packaging':
-          case 'optimizing':
-            filePath = event.bundle.filePath;
-            bundle = {
-              filePath: path.relative(
-                options.projectRoot,
-                event.bundle.filePath,
-              ),
-              name: event.bundle.name,
-              stats: event.bundle.stats,
-            };
-        }
-
         // Don't await these.
         analytics.trackSampled(
           event.type,
-          () => ({
-            phase: event.phase,
-            filePath:
-              filePath != null
-                ? path.relative(options.projectRoot, filePath)
-                : null,
-            bundle,
-            ...getAdditionalProperties(event, options),
-          }),
-          800,
+          () => {
+            let filePath = null;
+            let bundle = null;
+            switch (event.phase) {
+              case 'transforming':
+                filePath = event.filePath;
+                break;
+              case 'packaging':
+              case 'optimizing':
+                filePath = event.bundle.filePath;
+                bundle = {
+                  filePath: path.relative(
+                    options.projectRoot,
+                    event.bundle.filePath,
+                  ),
+                  name: event.bundle.name,
+                  stats: event.bundle.stats,
+                };
+            }
+
+            return {
+              phase: event.phase,
+              filePath:
+                filePath != null
+                  ? path.relative(options.projectRoot, filePath)
+                  : null,
+              bundle,
+              ...getAdditionalProperties(event, options),
+            };
+          },
+          PROGRESS_SAMPLE_RATE,
         );
 
         break;
@@ -103,6 +110,8 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
 function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
   return {
     buildId,
+    timeSinceBuildStart:
+      event.type === 'buildStart' ? 0 : performance.now() - buildStartTime,
     cpuUsageSinceBuildStart:
       event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
     disableCache: options.disableCache,

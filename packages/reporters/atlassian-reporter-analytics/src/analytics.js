@@ -2,8 +2,6 @@
 
 import Amplitude from 'amplitude';
 import os from 'os';
-// $FlowFixMe
-import {performance} from 'perf_hooks';
 
 const {username, shell} = os.userInfo();
 const userProperties = {
@@ -36,10 +34,13 @@ const analytics = {
 
     return Promise.resolve();
   },
-  track: async (eventType: string, additionalEventProperties: mixed) => {
+  track: async (
+    eventType: string,
+    additionalEventProperties: {[string]: mixed, ...},
+  ) => {
     const eventProperties = {
       ...additionalEventProperties,
-      timestamp: performance.now(),
+      timestamp: new Date().toISOString(),
       argv: process.argv,
       memoryUsage: process.memoryUsage(),
     };
