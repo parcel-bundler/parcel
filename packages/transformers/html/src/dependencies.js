@@ -42,6 +42,7 @@ const META = {
     'og:audio:secure_url',
     'og:video',
     'og:video:secure_url',
+    'vk:image',
   ],
   name: [
     'twitter:image',
