@@ -133,6 +133,12 @@ class NodeResolver {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
+    // Resolve the module directory or local file path
+    let module = await this.resolveModule({filename, parent, isURL, env});
+    if (!module) {
+      return {isExcluded: true};
+    }
+
     // Get file extensions to search
     let extensions = this.extensions.slice();
 
@@ -143,12 +149,6 @@ class NodeResolver {
     }
 
     extensions.unshift('');
-
-    // Resolve the module directory or local file path
-    let module = await this.resolveModule({filename, parent, isURL, env});
-    if (!module) {
-      return {isExcluded: true};
-    }
 
     if (module.moduleDir) {
       return this.loadNodeModules(module, extensions, env);
@@ -196,6 +196,31 @@ class NodeResolver {
       return builtin;
     }
 
+    // Resolve peer dependencies
+    // Finds the first package that does not specify filename as a peer dependency
+    // and resolve from there. If there was no package, or all packages specified
+    // filename as a peer dependency, the module is marked as external
+    let pkg = await this.findPackage(dir);
+    let parts = this.getModuleParts(filename);
+    let externalPeerDependency = false;
+    while (pkg) {
+      externalPeerDependency = false;
+      if (pkg.peerDependencies != undefined) {
+        externalPeerDependency = parts[0] in pkg.peerDependencies;
+      }
+
+      let insideNodeModules = dir.includes('node_modules');
+      if (!externalPeerDependency || !insideNodeModules) {
+        break;
+      }
+
+      dir = path.dirname(pkg.pkgdir);
+      dir = path.basename(dir) === 'node_modules' ? path.dirname(dir) : dir;
+      pkg = await this.findPackage(dir);
+    }
+
+    if (externalPeerDependency) return null;
+
     // Resolve the module in node_modules
     let resolved;
     try {
@@ -206,7 +231,6 @@ class NodeResolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
-      let parts = this.getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
         subPath: parts[1],
