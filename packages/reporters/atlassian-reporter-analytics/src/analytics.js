@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import Amplitude from 'amplitude';
 import os from 'os';
@@ -6,7 +6,7 @@ import os from 'os';
 import {performance} from 'perf_hooks';
 
 const {username, shell} = os.userInfo();
-let userProperties = {
+const userProperties = {
   session_id: Date.now(),
   user_id: username,
   user_properties: {
@@ -25,17 +25,13 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
 }
 
 const analytics = {
-  identify: (data: mixed) => {
-    if (process.env.PARCEL_BUILD_ENV === 'production') {
-      return amplitude.identify(data);
-    }
-
+  identify: (data: {|[string]: mixed|}) => {
     if (process.env.ANALYTICS_DEBUG != null) {
       console.log('analytics:identify', data);
-      userProperties = {
-        ...userProperties,
-        ...data,
-      };
+    }
+
+    if (amplitude != null) {
+      return amplitude.identify(data);
     }
 
     return Promise.resolve();
@@ -48,7 +44,11 @@ const analytics = {
       memoryUsage: process.memoryUsage(),
     };
 
-    if (process.env.PARCEL_BUILD_ENV === 'production') {
+    if (process.env.ANALYTICS_DEBUG != null) {
+      console.log('analytics:track', eventType, eventProperties);
+    }
+
+    if (amplitude != null) {
       try {
         return await amplitude.track({
           event_type: eventType,
@@ -57,15 +57,6 @@ const analytics = {
       } catch {
         // Don't let a failure to report analytics crash Parcel
       }
-    }
-
-    if (process.env.ANALYTICS_DEBUG != null) {
-      console.log(
-        'analytics:track',
-        eventType,
-        eventProperties,
-        userProperties,
-      );
     }
   },
 
