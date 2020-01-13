@@ -35,8 +35,8 @@ function enableCors(res) {
 
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {
-    index: false,
-    redirect: false,
+    index: bundler.options.serveIndex ? 'index.html' : false,
+    redirect: bundler.options.serveIndex,
     setHeaders: setHeaders
   });
 
@@ -59,6 +59,8 @@ function middleware(bundler) {
         // If the URL doesn't start with the public path, or the URL doesn't
         // have a file extension, send the main HTML bundle.
         return sendIndex();
+      } else if(bundler.options.serveIndex) {
+        return serve(req, res, send404);
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.publicURL.length);
