@@ -25,7 +25,7 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
-    "*.{mdx}": ["@parcel/transformer-mdx"],
+    "*.mdx": ["@parcel/transformer-mdx"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
