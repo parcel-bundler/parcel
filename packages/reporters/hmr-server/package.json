@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-hmr-server",
-  "version": "2.0.0-frontbucket.7",
+  "version": "2.0.0-frontbucket.8",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.7",
-    "@parcel/reporter-cli": "^2.0.0-frontbucket.7",
+    "@parcel/reporter-cli": "^2.0.0-frontbucket.8",
     "@parcel/utils": "^2.0.0-frontbucket.7",
     "ws": "^6.2.0"
   },
