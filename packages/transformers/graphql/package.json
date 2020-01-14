@@ -9,7 +9,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/GraphQLTransformer.js",
+  "main": "lib/GraphQLTransformer.js",
+  "source": "src/GraphQLTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
