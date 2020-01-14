@@ -1,0 +1,16 @@
+// @flow
+
+declare module 'amplitude' {
+  declare export default class Amplitude {
+    constructor(
+      apiKey: string,
+      userProperties: {[string]: mixed, ...},
+    ): Amplitude;
+    identify(userProperties: {[string]: mixed, ...}): Promise<mixed>;
+    track(properties: {
+      event_type: string,
+      [string]: mixed,
+      ...
+    }): Promise<mixed>;
+  }
+}

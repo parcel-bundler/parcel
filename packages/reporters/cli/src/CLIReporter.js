@@ -15,7 +15,7 @@ let events = new ValueEmitter<ReporterEvent>();
 export default new Reporter({
   report({event, options}) {
     if (!rendered) {
-      render(<UI options={options} events={events} />);
+      render(<UI options={options} events={events} />, {experimental: true});
       rendered = true;
     }
 

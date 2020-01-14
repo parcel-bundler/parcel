@@ -13,7 +13,8 @@ declare module 'ink' {
   declare type RenderOptions =
     | StdoutLike
     | {|
-        stdout?: StdoutLike
+        experimental?: boolean,
+        stdout?: StdoutLike,
       |};
 
   declare type ColorProps = {|
@@ -39,15 +40,15 @@ declare module 'ink' {
   |};
   declare export var Color: React$ComponentType<ColorProps>;
   // https://github.com/vadimdemedes/ink#static
-  declare export var Static: React$ComponentType<{ children: React$Node, ... }>;
+  declare export var Static: React$ComponentType<{children: React$Node, ...}>;
 
   declare type TextProps = {|
-    children: React$Node
+    children: React$Node,
   |};
   declare export var Text: React$ComponentType<TextProps>;
 
   declare type BoxProps = {|
-    children: React$Node
+    children: React$Node,
   |};
   declare export var Box: React$ComponentType<BoxProps>;
 
@@ -55,10 +56,10 @@ declare module 'ink' {
 
   declare export function render(
     node: React$Node,
-    options?: RenderOptions
+    options?: RenderOptions,
   ): {|
     rerender: RerenderFunc,
     unmount: () => void,
-    waitUntilExit: Promise<void>
+    waitUntilExit: Promise<void>,
   |};
 }
