@@ -34,8 +34,8 @@ function enableCors(res) {
 
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {
-    index: false,
-    redirect: false,
+    index: bundler.options.serveIndex ? 'index.html' : false,
+    redirect: bundler.options.serveIndex,
     setHeaders: setHeaders,
     dotfiles: 'allow'
   });
@@ -73,6 +73,8 @@ function middleware(bundler) {
       if (bundler.mainBundle.type === 'html') {
         req.url = `/${path.basename(bundler.mainBundle.name)}`;
         serve(req, res, send404);
+      } else if (bundler.options.serveIndex) {
+        return serve(req, res, send404);
       } else {
         send404();
       }
