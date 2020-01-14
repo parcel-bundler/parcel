@@ -5,6 +5,23 @@ clone:
 
 definitions:
   steps:
+    - step: &test-unit
+        name: Run unit tests
+        script:
+          - yarn install --frozen-lockfile
+          - yarn run test:unit
+    - step: &test-integration
+        name: Run integration tests
+        script:
+          - yarn install --frozen-lockfile
+          - yarn run test:integration-ci
+    - step: &build-release-parcel
+        name: Build and Release Parcel
+        script:
+          - curl -u $ARTIFACTORY_AUTH https://packages.atlassian.com/api/npm/atlassian-npm/auth/atlassian >> ~/.npmrc
+          - npm set unsafe-perm true
+          - yarn install --frozen-lockfile
+          - yarn lerna publish from-git --no-push --yes --registry https://packages.atlassian.com/api/npm/atlassian-npm/
     - step: &bitbucket-parcel-setup
         name: Build and link Parcel in Bitbucket
         artifacts:
@@ -41,6 +58,16 @@ definitions:
           - yarn build:parcel
 
 pipelines:
+  default:
+    - parallel:
+        - step: *test-unit
+        - step: *test-integration
+  tags:
+    '*':
+      - parallel:
+          - step: *test-unit
+          - step: *test-integration
+      - step: *build-release-parcel
   custom:
     warm-build-perf:
       - step: *bitbucket-parcel-setup

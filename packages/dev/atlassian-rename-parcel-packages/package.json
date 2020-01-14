@@ -1,0 +1,10 @@
+{
+  "name": "@atlassian/rename-parcel-packages",
+  "version": "0.0.2-frontbucket.6",
+  "bin": "bin.js",
+  "dependencies": {
+    "@babel/core": "^7.7.0",
+    "babel-plugin-module-resolver": "^3.2.0",
+    "fast-glob": "^3.0.4"
+  }
+}
