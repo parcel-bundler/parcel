@@ -52,9 +52,5 @@
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": [
-    "@parcel/reporter-cli",
-    "@parcel/reporter-dev-server",
-    "@parcel/reporter-hmr-server"
-  ]
+  "reporters": ["@parcel/reporter-cli", "@parcel/reporter-dev-server"]
 }

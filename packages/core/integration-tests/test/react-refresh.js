@@ -24,22 +24,21 @@ describe('react-refresh', function() {
     b = bundler(path.join(testDir, 'index.js'), {
       inputFS: fs,
       outputFS: fs,
-      hot: {
+      serve: {
+        https: false,
         port,
+        host: '127.0.0.1',
       },
-      env: {
-        HMR_HOSTNAME: '127.0.0.1',
-        HMR_PORT: port,
-      },
+      hot: true,
       defaultConfig: {
         ...defaultConfig,
-        reporters: ['@parcel/reporter-hmr-server'],
+        reporters: ['@parcel/reporter-dev-server'],
       },
     });
 
     window = new JSDom.JSDOM(`<div id="root"></div>`, {
       runScripts: 'outside-only',
-      url: 'http://127.0.0.1/index.html',
+      url: 'http://127.0.0.1:' + port + '/index.html',
     }).window;
     window.console.clear = () => {};
     let {document} = window;
