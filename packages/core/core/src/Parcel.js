@@ -124,6 +124,7 @@ export default class Parcel {
     this.#reporterRunner = new ReporterRunner({
       config,
       options: resolvedOptions,
+      farm: this.#farm,
     });
 
     this.#packagerRunner = new PackagerRunner({
@@ -386,6 +387,7 @@ export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
     ...options,
     workerPaths: {
       main: require.resolve('./worker'),
+      'reporter-queue': require.resolve('./worker-report'),
     },
   });
 }

@@ -181,7 +181,7 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  startChild(workerPath: string, queueName: string = 'main') {
+  startChild(workerPath: string, queueName: string) {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
@@ -230,14 +230,18 @@ export default class WorkerFarm extends EventEmitter {
   processQueue(queueName: string): void {
     if (this.ending) return;
 
-    let maxWorkerCount =
-      queueName === 'main' ? this.options.maxConcurrentWorkers : 1;
     let workerCount = Array.from(this.workers.values()).filter(
       w => w.options.queue === queueName,
     ).length;
 
-    if (workerCount < maxWorkerCount) {
-      this.startChild(nullthrows(this.options.workerPaths[queueName]));
+    if (
+      workerCount <
+      (queueName === 'main' ? this.options.maxConcurrentWorkers : 1)
+    ) {
+      this.startChild(
+        nullthrows(this.options.workerPaths[queueName]),
+        queueName,
+      );
     }
 
     let queue = this.callQueues.get(queueName);
@@ -368,7 +372,7 @@ export default class WorkerFarm extends EventEmitter {
     if (this.workers.size < this.options.maxConcurrentWorkers) {
       let toStart = this.options.maxConcurrentWorkers - this.workers.size;
       while (toStart--) {
-        this.startChild(nullthrows(this.options.workerPaths.main));
+        this.startChild(nullthrows(this.options.workerPaths.main), 'main');
       }
     }
   }

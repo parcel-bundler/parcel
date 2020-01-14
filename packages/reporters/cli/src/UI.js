@@ -15,7 +15,7 @@ import {Log, Progress, ServerInfo} from './Log';
 import BundleReport from './BundleReport';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
-import {prettifyTime, throttle} from '@parcel/utils';
+import {prettifyTime} from '@parcel/utils';
 
 type Props = {|
   events: ValueEmitter<ReporterEvent>,
@@ -27,8 +27,6 @@ type State = {|
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph,
 |};
-
-const THROTTLE_DELAY = 100; // ms
 
 const defaultState: State = {
   progress: null,
@@ -43,23 +41,7 @@ export default function UI({events, options}: Props) {
   );
 
   useLayoutEffect(() => {
-    const throttledDispatch = throttle(dispatch, THROTTLE_DELAY);
-    const enhancedDispatch = event => {
-      if (
-        event.type === 'buildProgress' &&
-        event.phase === state.progress?.phase
-      ) {
-        throttledDispatch(event);
-      } else if (
-        event.type === 'buildSuccess' ||
-        event.type === 'buildFailure'
-      ) {
-        setTimeout(() => dispatch(event), THROTTLE_DELAY);
-      } else {
-        dispatch(event);
-      }
-    };
-    return events.addListener(enhancedDispatch).dispose;
+    return events.addListener(dispatch).dispose;
   }, [events, state.progress?.phase]);
 
   let {logs, progress, bundleGraph} = state;

@@ -2,28 +2,35 @@
 
 import type {ReporterEvent} from '@parcel/types';
 import type {ParcelOptions} from './types';
+import type WorkerFarm from '@parcel/workers';
 
 import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
-import logger, {patchConsole, PluginLogger} from '@parcel/logger';
+import logger, {patchConsole} from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
+  farm: WorkerFarm,
 |};
 
 export default class ReporterRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
+  reportHandle: ({|
+    config: ParcelConfig,
+    opts: PluginOptions,
+    event: ReporterEvent,
+  |}) => Promise<void>;
 
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
     this.pluginOptions = new PluginOptions(this.options);
+    this.reportHandle = opts.farm.createHandle('runReport', 'reporter-queue');
 
     logger.onLog(event => this.report(event));
 
@@ -49,22 +56,12 @@ export default class ReporterRunner {
     }
   }
 
-  async report(event: ReporterEvent) {
-    let reporters = await this.config.getReporters();
-
-    for (let reporter of reporters) {
-      try {
-        await reporter.plugin.report({
-          event,
-          options: this.pluginOptions,
-          logger: new PluginLogger({origin: reporter.name}),
-        });
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, reporter.name),
-        });
-      }
-    }
+  report(event: ReporterEvent) {
+    return this.reportHandle({
+      config: this.config,
+      opts: this.pluginOptions,
+      event,
+    });
   }
 }
 
