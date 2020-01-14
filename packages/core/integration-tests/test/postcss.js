@@ -280,4 +280,24 @@ describe('postcss', () => {
     // on the main Mocha docs.
     // https://stackoverflow.com/questions/15971167/how-to-increase-timeout-for-a-single-test-case-in-mocha
   });
+
+  it('should support using postcss for importing', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-import/style.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.css'],
+        includedFiles: {
+          'style.css': ['.postcssrc', 'config.css', 'package.json'],
+        },
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
+
+    assert.equal(css.split('red').length - 1, 2);
+  });
 });
