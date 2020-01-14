@@ -33,6 +33,8 @@
     "nyc": "^11.1.0",
     "parcel": "^2.0.0-frontbucket.6",
     "parcel-bundler": "^2.0.0-frontbucket.5",
+    "postcss-custom-properties": "^8.0.9",
+    "postcss-import": "^12.0.1",
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
     "rimraf": "^2.6.1",
