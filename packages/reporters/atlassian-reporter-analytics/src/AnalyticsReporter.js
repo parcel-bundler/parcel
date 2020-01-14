@@ -10,7 +10,7 @@ import uuid from 'uuid/v4';
 // $FlowFixMe
 import {performance} from 'perf_hooks';
 
-const PROGRESS_SAMPLE_RATE = 800;
+const PROGRESS_SAMPLE_RATE = 3000;
 
 let buildStartTime;
 let buildStartCpuUsage;
