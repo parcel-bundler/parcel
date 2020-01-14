@@ -19,6 +19,7 @@ export type WorkerCall = {|
 type WorkerOpts = {|
   forcedKillTime: number,
   backend: BackendType,
+  queue: string,
   patchConsole?: boolean,
 |};
 

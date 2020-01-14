@@ -40,7 +40,10 @@ export type FarmOptions = {|
   forcedKillTime: number,
   useLocalWorker: boolean,
   warmWorkers: boolean,
-  workerPath?: FilePath,
+  workerPaths: {
+    [key: string]: FilePath,
+    ...,
+  },
   backend: BackendType,
   patchConsole?: boolean,
 |};
@@ -63,7 +66,7 @@ export {Handle};
  */
 
 export default class WorkerFarm extends EventEmitter {
-  callQueue: Array<WorkerCall> = [];
+  callQueues: Map<string, Array<WorkerCall>> = new Map();
   ending: boolean = false;
   localWorker: WorkerModule;
   options: FarmOptions;
@@ -86,12 +89,12 @@ export default class WorkerFarm extends EventEmitter {
       ...farmOptions,
     };
 
-    if (!this.options.workerPath) {
-      throw new Error('Please provide a worker path!');
+    if (!this.options.workerPaths) {
+      throw new Error('Please provide worker paths!');
     }
 
     // $FlowFixMe this must be dynamic
-    this.localWorker = require(this.options.workerPath);
+    this.localWorker = require(nullthrows(this.options.workerPaths.main));
     this.run = this.createHandle('run');
 
     this.startMaxWorkers();
@@ -132,7 +135,7 @@ export default class WorkerFarm extends EventEmitter {
     // Workers are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
-    let promise = this.addCall(method, [...args, true]);
+    let promise = this.addCall(method, 'main', [...args, true]);
     if (promise) {
       promise
         .then(() => {
@@ -151,13 +154,13 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createHandle(method: string): HandleFunction {
+  createHandle(method: string, queueName: string = 'main'): HandleFunction {
     return (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
-      if (this.shouldUseRemoteWorkers()) {
-        return this.addCall(method, [...args, false]);
+      if (this.shouldUseRemoteWorkers() || queueName !== 'main') {
+        return this.addCall(method, queueName, [...args, false]);
       } else {
         if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
           this.warmupWorker(method, args);
@@ -178,19 +181,20 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  startChild() {
+  startChild(workerPath: string, queueName: string = 'main') {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
       patchConsole: this.options.patchConsole,
+      queue: queueName,
     });
 
-    worker.fork(nullthrows(this.options.workerPath));
+    worker.fork(workerPath);
 
     worker.on('request', data => this.processRequest(data, worker));
 
-    worker.on('ready', () => this.processQueue());
-    worker.on('response', () => this.processQueue());
+    worker.on('ready', () => this.processQueue(queueName));
+    worker.on('response', () => this.processQueue(queueName));
 
     worker.on('error', err => this.onError(err, worker));
     worker.once('exit', () => this.stopWorker(worker));
@@ -207,7 +211,10 @@ export default class WorkerFarm extends EventEmitter {
       if (worker.calls.size) {
         for (let call of worker.calls.values()) {
           call.retries++;
-          this.callQueue.unshift(call);
+          let callQueue = this.callQueues.get(worker.options.queue);
+          if (callQueue) {
+            callQueue.unshift(call);
+          }
         }
       }
 
@@ -216,28 +223,38 @@ export default class WorkerFarm extends EventEmitter {
       await worker.stop();
 
       // Process any requests that failed and start a new worker
-      this.processQueue();
+      this.processQueue(worker.options.queue);
     }
   }
 
-  processQueue(): void {
-    if (this.ending || !this.callQueue.length) return;
+  processQueue(queueName: string): void {
+    if (this.ending) return;
 
-    if (this.workers.size < this.options.maxConcurrentWorkers) {
-      this.startChild();
+    let maxWorkerCount =
+      queueName === 'main' ? this.options.maxConcurrentWorkers : 1;
+    let workerCount = Array.from(this.workers.values()).filter(
+      w => w.options.queue === queueName,
+    ).length;
+
+    if (workerCount < maxWorkerCount) {
+      this.startChild(nullthrows(this.options.workerPaths[queueName]));
     }
 
+    let queue = this.callQueues.get(queueName);
+    if (!queue) return;
     for (let worker of this.workers.values()) {
-      if (!this.callQueue.length) {
-        break;
-      }
-
-      if (!worker.ready || worker.stopped || worker.isStopping) {
+      if (!queue.length) break;
+      if (
+        worker.options.queue !== queueName ||
+        !worker.ready ||
+        worker.stopped ||
+        worker.isStopping
+      ) {
         continue;
       }
 
       if (worker.calls.size < this.options.maxConcurrentCallsPerWorker) {
-        worker.call(this.callQueue.shift());
+        worker.call(queue.shift());
       }
     }
   }
@@ -307,20 +324,27 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(method: string, args: Array<any>): Promise<any> {
+  addCall(method: string, queueName: string, args: Array<any>): Promise<any> {
     if (this.ending) {
       throw new Error('Cannot add a worker call if workerfarm is ending.');
     }
 
     return new Promise((resolve, reject) => {
-      this.callQueue.push({
+      let queue = this.callQueues.get(queueName);
+      if (!queue) {
+        queue = [];
+        this.callQueues.set(queueName, queue);
+      }
+
+      queue.push({
         method,
         args: args,
         retries: 0,
         resolve,
         reject,
       });
-      this.processQueue();
+
+      this.processQueue(queueName);
     });
   }
 
@@ -339,12 +363,12 @@ export default class WorkerFarm extends EventEmitter {
     this.ending = false;
   }
 
+  // Start the maximum amount of workers for the main queue
   startMaxWorkers(): void {
-    // Starts workers until the maximum is reached
     if (this.workers.size < this.options.maxConcurrentWorkers) {
       let toStart = this.options.maxConcurrentWorkers - this.workers.size;
       while (toStart--) {
-        this.startChild();
+        this.startChild(nullthrows(this.options.workerPaths.main));
       }
     }
   }
