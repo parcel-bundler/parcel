@@ -22,6 +22,8 @@ if (process.env.PARCEL_BUILD_ENV === 'production') {
   amplitude = new Amplitude(amplitudeApiKey, userProperties);
 }
 
+const COMMIT = process.env.BITBUCKET_COMMIT;
+
 const analytics = {
   identify: (data: {|[string]: mixed|}) => {
     if (process.env.ANALYTICS_DEBUG != null) {
@@ -43,6 +45,7 @@ const analytics = {
       timestamp: new Date().toISOString(),
       argv: process.argv,
       memoryUsage: process.memoryUsage(),
+      commit: COMMIT ?? null,
     };
 
     if (process.env.ANALYTICS_DEBUG != null) {
