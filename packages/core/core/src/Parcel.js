@@ -150,7 +150,10 @@ export default class Parcel {
     ]);
 
     // Sleep a bit to allow reporters to print to the terminal
-    await sleep(500);
+    // Is not required in the tests as there is no cli reporter there...
+    if (process.env.NODE_ENV !== 'test') {
+      await sleep(500);
+    }
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
