@@ -87,7 +87,7 @@ export default class ResolverRunner {
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw new Error('Received URL without a pathname.');
+        throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
     }

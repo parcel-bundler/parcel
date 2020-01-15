@@ -1,6 +1,7 @@
 // @flow
 import type {
   BuildMode,
+  EnvMap,
   FilePath,
   LogLevel,
   PluginOptions as IPluginOptions,
@@ -33,11 +34,11 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.sourceMaps;
   }
 
-  get env(): {+[string]: string, ...} {
+  get env(): EnvMap {
     return this.#options.env;
   }
 
-  get hot(): ServerOptions | false {
+  get hot(): boolean {
     return this.#options.hot;
   }
 

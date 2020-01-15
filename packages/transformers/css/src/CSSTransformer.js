@@ -140,7 +140,9 @@ export default new Transformer({
       code = await asset.getCode();
     } else {
       code = '';
-      postcss.stringify(asset.ast.program, c => (code += c));
+      postcss.stringify(asset.ast.program, c => {
+        code += c;
+      });
     }
 
     return {

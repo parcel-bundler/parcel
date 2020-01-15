@@ -35,6 +35,16 @@ const path = require('path');
 const getPort = require('get-port');
 const version = require('../package.json').version;
 
+// Capture the NODE_ENV this process was launched with, so that it can be
+// used in Parcel (such as in process.env inlining).
+const initialNodeEnv = process.env.NODE_ENV;
+// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
+// so that dependencies of Parcel like React (which renders the cli through `ink`)
+// run in the appropriate mode.
+if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
+  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
+}
+
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
@@ -60,12 +70,6 @@ const commonOptions = {
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
-  '--hmr-port <port>': [
-    'set the port to serve HMR websockets, defaults to random',
-    parseInt,
-  ],
-  '--hmr-host <hostname>':
-    'set the hostname of HMR websockets, defaults to location.hostname of current window',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
@@ -97,6 +101,7 @@ let serve = program
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
   )
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(serve, hmrOptions);
@@ -105,6 +110,7 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(watch, hmrOptions);
@@ -190,6 +196,15 @@ async function run(entries: Array<string>, command: any) {
       process.exit();
     };
 
+    if (command.watchForStdin) {
+      process.stdin.on('end', async () => {
+        console.log('STDIN closed, ending');
+
+        await exit();
+      });
+      process.stdin.resume();
+    }
+
     // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
     // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
     //
@@ -229,10 +244,11 @@ async function run(entries: Array<string>, command: any) {
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
+  let nodeEnv;
   if (command.name() === 'build') {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+    nodeEnv = initialNodeEnv || 'production';
   } else {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+    nodeEnv = initialNodeEnv || 'development';
   }
 
   let https = !!command.https;
@@ -265,18 +281,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let port = command.hmrPort || 12345;
-    let host = command.hmrHost || command.host;
-    port = await getPort({port, host});
-
-    process.env.HMR_HOSTNAME = host || '';
-    process.env.HMR_PORT = port;
-
-    hmr = {
-      https,
-      port,
-      host,
-    };
+    hmr = true;
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
@@ -293,5 +298,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    env: {
+      NODE_ENV: nodeEnv,
+    },
   };
 }
