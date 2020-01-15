@@ -3,12 +3,14 @@
 import type {PluginOptions, ReporterEvent} from '@parcel/types';
 
 import {Reporter} from '@parcel/plugin';
-import analytics from './analytics';
 import path from 'path';
 // $FlowFixMe
 import uuid from 'uuid/v4';
 // $FlowFixMe
 import {performance} from 'perf_hooks';
+import {getSentry} from '@atlassian/internal-parcel-utils';
+
+import analytics from './analytics';
 
 const PROGRESS_SAMPLE_RATE = 3000;
 
@@ -101,6 +103,16 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
           relevantDiagnostics,
           ...getAdditionalProperties(event, options),
         });
+
+        if (process.env.PARCEL_BUILD_ENV === 'production') {
+          for (const diagnostic of relevantDiagnostics) {
+            if (diagnostic.stack != null) {
+              let err = new Error(diagnostic.message);
+              err.stack = diagnostic.stack;
+              getSentry().captureException(err);
+            }
+          }
+        }
         break;
       }
     }

@@ -28,6 +28,7 @@ module.exports = () => ({
               'PARCEL_BUILD_ENV',
               'AMPLITUDE_API_KEY',
               'BITBUCKET_COMMIT',
+              'SENTRY_DSN',
             ],
           },
         ],

@@ -11,6 +11,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
+    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.11",
     "@parcel/plugin": "^2.0.0-frontbucket.8",
     "amplitude": "^4.0.0",
     "uuid": "^3.3.3"
