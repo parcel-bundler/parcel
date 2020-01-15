@@ -8,7 +8,7 @@ const serverErrorList = {
   EADDRINUSE: 'There is already a process listening on port {port}.',
 };
 
-export default function serverErrors(err: ServerError, port: number) {
+export default function serverErrors(err: ServerError, port: number): string {
   let desc = `Error: ${
     err.code
   } occurred while setting up server on port ${port.toString()}.`;

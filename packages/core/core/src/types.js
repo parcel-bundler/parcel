@@ -105,7 +105,7 @@ export type ParcelOptions = {|
   minify: boolean,
   scopeHoist: boolean,
   sourceMaps: boolean,
-  hot: ServerOptions | false,
+  hot: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,

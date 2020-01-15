@@ -4,16 +4,12 @@ export default function throttle<TArgs: Iterable<mixed>>(
   fn: (...args: TArgs) => mixed,
   delay: number,
 ): (...args: TArgs) => void {
-  let timeout;
+  let lastCalled: ?number;
 
-  return function(...args: TArgs) {
-    if (timeout) {
-      return;
+  return function throttled(...args: TArgs) {
+    if (lastCalled == null || lastCalled + delay <= Date.now()) {
+      fn.call(this, ...args);
+      lastCalled = Date.now();
     }
-
-    timeout = setTimeout(() => {
-      timeout = null;
-      fn(...args);
-    }, delay);
   };
 }
