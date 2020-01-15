@@ -2,7 +2,7 @@ import Logger from '@parcel/logger';
 import assert from 'assert';
 import WorkerFarm from '../';
 
-describe('WorkerFarm', function() {
+describe.only('WorkerFarm', function() {
   this.timeout(20000);
 
   it('Should start up workers', async () => {
@@ -14,7 +14,8 @@ describe('WorkerFarm', function() {
       },
     });
 
-    assert.equal(await workerfarm.run(), 'pong');
+    let runHandle = workerfarm.createHandle('run');
+    assert.equal(await runHandle(), 'pong');
 
     await workerfarm.end();
   });
@@ -28,9 +29,10 @@ describe('WorkerFarm', function() {
       },
     });
 
+    let runHandle = workerfarm.createHandle('run');
     let promises = [];
     for (let i = 0; i < 1000; i++) {
-      promises.push(workerfarm.run(i));
+      promises.push(runHandle(i));
     }
     await Promise.all(promises);
 
@@ -46,8 +48,9 @@ describe('WorkerFarm', function() {
       },
     });
 
+    let runHandle = workerfarm.createHandle('run');
     for (let i = 0; i < 100; i++) {
-      assert.equal(await workerfarm.run(i), i);
+      assert.equal(await runHandle(i), i);
     }
 
     await new Promise(resolve => workerfarm.once('warmedup', resolve));
@@ -70,8 +73,30 @@ describe('WorkerFarm', function() {
       },
     });
 
-    assert.equal(await workerfarm.run('hello world'), 'hello world');
+    let runHandle = workerfarm.createHandle('run');
+    assert.equal(await runHandle('hello world'), 'hello world');
     assert.equal(workerfarm.shouldUseRemoteWorkers(), false);
+
+    await workerfarm.end();
+  });
+
+  it('Use local worker and a dedicated single-worker', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: true,
+      workerPaths: {
+        main: require.resolve('./integration/workerfarm/echo.js'),
+        test: require.resolve('./integration/workerfarm/ipc.js'),
+      },
+    });
+
+    let runHandle = workerfarm.createHandle('run');
+    assert.equal(await runHandle('hello world'), 'hello world');
+    assert.equal(workerfarm.shouldUseRemoteWorkers(), false);
+
+    let testWorkerHandle = workerfarm.createHandle('run', 'test');
+    assert.equal(await testWorkerHandle(1, 2), 3);
+    assert.equal(await testWorkerHandle(3, 1), 4);
 
     await workerfarm.end();
   });
@@ -85,7 +110,8 @@ describe('WorkerFarm', function() {
       },
     });
 
-    assert.equal(await workerfarm.run(1, 2), 3);
+    let runHandle = workerfarm.createHandle('run');
+    assert.equal(await runHandle(1, 2), 3);
 
     await workerfarm.end();
   });
@@ -99,8 +125,9 @@ describe('WorkerFarm', function() {
       },
     });
 
+    let runHandle = workerfarm.createHandle('run');
     for (let i = 0; i < 1000; i++) {
-      assert.equal(await workerfarm.run(1 + i, 2), 3 + i);
+      assert.equal(await runHandle(1 + i, 2), 3 + i);
     }
 
     await workerfarm.end();
@@ -116,7 +143,8 @@ describe('WorkerFarm', function() {
       },
     });
 
-    let result = await workerfarm.run();
+    let runHandle = workerfarm.createHandle('run');
+    let result = await runHandle();
     assert.equal(result.length, 2);
     assert.equal(result[1], process.pid);
     assert.notEqual(result[0], process.pid);
@@ -134,6 +162,7 @@ describe('WorkerFarm', function() {
       },
     });
 
+    let runHandle = workerfarm.createHandle('run');
     let bigData = [];
     for (let i = 0; i < 10000; i++) {
       bigData.push('This is some big data');
@@ -141,7 +170,7 @@ describe('WorkerFarm', function() {
 
     let promises = [];
     for (let i = 0; i < 10; i++) {
-      promises.push(workerfarm.run(bigData));
+      promises.push(runHandle(bigData));
     }
     await Promise.all(promises);
 
@@ -161,7 +190,8 @@ describe('WorkerFarm', function() {
       patchConsole: true,
     });
 
-    await workerfarm.run();
+    let runHandle = workerfarm.createHandle('run');
+    await runHandle();
 
     assert.deepEqual(events, [
       {
@@ -237,7 +267,8 @@ describe('WorkerFarm', function() {
       },
     });
 
-    await workerfarm.run();
+    let runHandle = workerfarm.createHandle('run');
+    await runHandle();
 
     // assert.equal(events.length, 2);
     assert.deepEqual(events, [
@@ -277,7 +308,8 @@ describe('WorkerFarm', function() {
     });
 
     let handle = workerfarm.createReverseHandle(() => 42);
-    let result = await workerfarm.run(handle);
+    let runHandle = workerfarm.createHandle('run');
+    let result = await runHandle(handle);
     assert.equal(result, 42);
     await workerfarm.end();
   });
@@ -306,12 +338,13 @@ describe('WorkerFarm', function() {
       },
     });
 
+    let runHandle = workerfarm.createHandle('run');
     let sharedValue = 'Something to be shared';
     let {ref, dispose} = await workerfarm.createSharedReference(sharedValue);
-    let result = await workerfarm.run(ref);
+    let result = await runHandle(ref);
     assert.equal(result, 'Something to be shared');
     await dispose();
-    result = await workerfarm.run(ref);
+    result = await runHandle(ref);
     assert.equal(result, 'Shared reference does not exist');
   });
 
@@ -324,12 +357,13 @@ describe('WorkerFarm', function() {
       },
     });
 
+    let runHandle = workerfarm.createHandle('run');
     let sharedValue = 'Something to be shared';
     let {ref, dispose} = await workerfarm.createSharedReference(sharedValue);
-    let result = await workerfarm.run(ref);
+    let result = await runHandle(ref);
     assert.equal(result, 'Something to be shared');
     await dispose();
-    result = await workerfarm.run(ref);
+    result = await runHandle(ref);
     assert.equal(result, 'Shared reference does not exist');
   });
 

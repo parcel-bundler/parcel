@@ -70,7 +70,6 @@ export default class WorkerFarm extends EventEmitter {
   ending: boolean = false;
   localWorker: WorkerModule;
   options: FarmOptions;
-  run: HandleFunction;
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
@@ -95,7 +94,6 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(nullthrows(this.options.workerPaths.main));
-    this.run = this.createHandle('run');
 
     this.startMaxWorkers();
   }
