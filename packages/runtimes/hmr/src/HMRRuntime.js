@@ -16,12 +16,6 @@ export default new Runtime({
       return;
     }
 
-    if (typeof options.hot !== 'object') {
-      throw new Error(
-        'options.hot should be an object, otherwise the HMR Runtime has no clue what port to use',
-      );
-    }
-
     return {
       filePath: __filename,
       code:

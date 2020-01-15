@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Server as HTTPServer} from 'http';
+import type {Server as HTTPOnlyServer} from 'http';
 import type {Server as HTTPSServer} from 'https';
 import type {Socket} from 'net';
 import type {FilePath, HTTPSOptions} from '@parcel/types';
@@ -20,13 +20,15 @@ type CreateHTTPServerOpts = {|
   host?: string,
 |};
 
+export type HTTPServer = HTTPOnlyServer | HTTPSServer;
+
 // Creates either an http or https server with an awaitable dispose
 // that closes any connections
 export async function createHTTPServer(
   options: CreateHTTPServerOpts,
 ): Promise<{|
   stop: () => Promise<void>,
-  server: HTTPServer | HTTPSServer,
+  server: HTTPServer,
 |}> {
   let server;
   if (!options.https) {
