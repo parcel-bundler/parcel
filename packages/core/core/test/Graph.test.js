@@ -16,8 +16,11 @@ describe('Graph', () => {
     let node1 = {id: 'a', value: 'a'};
     let node2 = {id: 'b', value: 'b'};
     let graph = new Graph({
-      nodes: new Map([[node1.id, node1], [node2.id, node2]]),
-      edges: [{from: node1.id, to: node2.id}]
+      nodes: new Map([
+        [node1.id, node1],
+        [node2.id, node2],
+      ]),
+      edges: [{from: node1.id, to: node2.id, type: null}],
     });
     assert(graph.hasEdge(node1.id, node2.id));
     assert(!graph.hasEdge(node2.id, node1.id));
@@ -103,11 +106,14 @@ describe('Graph', () => {
     graph.addEdge(node1.id, node2.id);
     let serialized = graph.serialize();
     assert.deepEqual(serialized.edges, [
-      {from: node1.id, to: node2.id, type: null}
+      {from: node1.id, to: node2.id, type: null},
     ]);
     assert.deepEqual(
       serialized.nodes,
-      new Map([[node1.id, node1], [node2.id, node2]])
+      new Map([
+        [node1.id, node1],
+        [node2.id, node2],
+      ]),
     );
   });
 
