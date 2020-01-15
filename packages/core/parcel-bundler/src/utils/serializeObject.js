@@ -1,5 +1,5 @@
 const {minify} = require('terser');
-const {serialize} = require('serialize-to-js');
+const serialize = require('serialize-to-js');
 
 function serializeObject(obj, shouldMinify = false) {
   let code = `module.exports = ${serialize(obj)};`;
