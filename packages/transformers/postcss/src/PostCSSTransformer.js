@@ -95,10 +95,29 @@ export default new Transformer({
         }
       });
     }
-
-    let {root} = await postcss(plugins).process(ast.program, config.hydrated);
+    
+    let {messages, root} = await postcss(config.hydrated).process(
+      ast.program,
+      config,
+    );
+    
     ast.program = root;
     ast.isDirty = true;
+    for (let msg of messages) {
+      if (msg.type === 'dependency') {
+        // $FlowFixMe merely a convention
+        msg = (msg: {|
+          type: 'dependency',
+          plugin: string,
+          file: string,
+          parent: string,
+        |});
+
+        asset.addIncludedFile({
+          filePath: msg.file,
+        });
+      }
+    }
 
     let assets = [asset];
     if (asset.meta.cssModules) {
@@ -127,7 +146,9 @@ export default new Transformer({
     let ast = nullthrows(asset.ast);
 
     let code = '';
-    postcss.stringify(ast.program, c => (code += c));
+    postcss.stringify(ast.program, c => {
+      code += c;
+    });
 
     return {
       code,
