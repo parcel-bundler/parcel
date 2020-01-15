@@ -50,11 +50,6 @@ export default function UI({events, options}: Props) {
         event.phase === state.progress?.phase
       ) {
         throttledDispatch(event);
-      } else if (
-        event.type === 'buildSuccess' ||
-        event.type === 'buildFailure'
-      ) {
-        setTimeout(() => dispatch(event), THROTTLE_DELAY);
       } else {
         dispatch(event);
       }
