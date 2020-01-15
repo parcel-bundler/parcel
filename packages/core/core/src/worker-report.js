@@ -34,12 +34,12 @@ export async function runReport(
   if (event.bundle != null) {
     // $FlowFixMe
     event.bundle = new NamedBundle(
-        // $FlowFixMe
-        event.bundle,
-        // $FlowFixMe
-        event.bundleGraph,
-        this.options,
-      );
+      // $FlowFixMe
+      event.bundle,
+      // $FlowFixMe
+      event.bundleGraph,
+      this.options,
+    );
   }
 
   if (event.bundleGraph != null) {
