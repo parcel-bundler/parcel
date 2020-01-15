@@ -8,6 +8,7 @@ import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger, {patchConsole} from '@parcel/logger';
+import {serialize} from '@parcel/utils';
 
 type Opts = {|
   config: ParcelConfig,
@@ -18,11 +19,7 @@ type Opts = {|
 export default class ReporterRunner {
   config: ParcelConfig;
   options: ParcelOptions;
-  reportHandle: ({|
-    config: ParcelConfig,
-    opts: ParcelOptions,
-    event: ReporterEvent,
-  |}) => Promise<void>;
+  reportHandle: (data: Buffer) => Promise<void>;
 
   constructor(opts: Opts) {
     this.config = opts.config;
@@ -54,11 +51,13 @@ export default class ReporterRunner {
   }
 
   report(event: ReporterEvent) {
-    return this.reportHandle({
-      config: this.config,
-      opts: this.options,
-      event,
-    });
+    return this.reportHandle(
+      serialize({
+        config: this.config,
+        opts: this.options,
+        event,
+      }),
+    );
   }
 }
 

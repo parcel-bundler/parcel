@@ -35,7 +35,7 @@ import {ValueEmitter} from '@parcel/events';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import {PromiseQueue} from '@parcel/utils';
+import {PromiseQueue, sleep} from '@parcel/utils';
 
 registerCoreWithSerializer();
 
@@ -148,6 +148,9 @@ export default class Parcel {
       this.#assetGraphBuilder.writeToCache(),
       this.#runtimesAssetGraphBuilder.writeToCache(),
     ]);
+
+    // Sleep a bit to allow reporters to print to the terminal
+    await sleep(500);
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
