@@ -33,9 +33,12 @@ function enableCors(res) {
 }
 
 function middleware(bundler) {
+  const hasMultipleEntries = bundler.entryFiles.length > 1;
+  const enableServeIndex = hasMultipleEntries;
+
   const serve = serveStatic(bundler.options.outDir, {
-    index: bundler.options.serveIndex ? 'index.html' : false,
-    redirect: bundler.options.serveIndex,
+    index: enableServeIndex ? 'index.html' : false,
+    redirect: enableServeIndex,
     setHeaders: setHeaders,
     dotfiles: 'allow',
   });
@@ -73,7 +76,7 @@ function middleware(bundler) {
       if (bundler.mainBundle.type === 'html') {
         req.url = `/${path.basename(bundler.mainBundle.name)}`;
         serve(req, res, send404);
-      } else if (bundler.options.serveIndex) {
+      } else if (enableServeIndex) {
         serve(req, res, send404);
       } else {
         send404();
