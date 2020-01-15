@@ -48,7 +48,7 @@ export default class ProcessChild implements ChildImpl {
 
   stop() {
     this.onExit(0);
-    process.exit();
+    process.exitCode = 0;
   }
 }
 

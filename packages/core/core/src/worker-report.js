@@ -1,5 +1,6 @@
 // @flow strict-local
 import type {ReporterEvent} from '@parcel/types';
+import type {ParcelOptions} from './types';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import type {WorkerApi} from '@parcel/workers';
@@ -21,17 +22,18 @@ export async function runReport(
     event,
   }: {|
     config: ParcelConfig,
-    opts: PluginOptions,
+    opts: ParcelOptions,
     event: ReporterEvent,
   |},
 ) {
   let reporters = await config.getReporters();
+  let pluginOptions = new PluginOptions(opts);
 
   for (let reporter of reporters) {
     try {
       await reporter.plugin.report({
         event,
-        options: opts,
+        options: pluginOptions,
         logger: new PluginLogger({origin: reporter.name}),
       });
     } catch (e) {

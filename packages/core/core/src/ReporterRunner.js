@@ -8,7 +8,6 @@ import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger, {patchConsole} from '@parcel/logger';
-import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
@@ -19,17 +18,15 @@ type Opts = {|
 export default class ReporterRunner {
   config: ParcelConfig;
   options: ParcelOptions;
-  pluginOptions: PluginOptions;
   reportHandle: ({|
     config: ParcelConfig,
-    opts: PluginOptions,
+    opts: ParcelOptions,
     event: ReporterEvent,
   |}) => Promise<void>;
 
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
-    this.pluginOptions = new PluginOptions(this.options);
     this.reportHandle = opts.farm.createHandle('runReport', 'reporter-queue');
 
     logger.onLog(event => this.report(event));
@@ -59,7 +56,7 @@ export default class ReporterRunner {
   report(event: ReporterEvent) {
     return this.reportHandle({
       config: this.config,
-      opts: this.pluginOptions,
+      opts: this.options,
       event,
     });
   }
