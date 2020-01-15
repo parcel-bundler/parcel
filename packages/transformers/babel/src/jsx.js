@@ -4,26 +4,26 @@ import path from 'path';
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
-  '.tsx': true
+  '.tsx': true,
 };
 
 const JSX_PRAGMA = {
   react: {
     pragma: 'React.createElement',
-    pragmaFrag: 'React.Fragment'
+    pragmaFrag: 'React.Fragment',
   },
   preact: {
     pragma: 'h',
-    pragmaFrag: 'Fragment'
+    pragmaFrag: 'Fragment',
   },
   nervjs: {
     pragma: 'Nerv.createElement',
-    pragmaFrag: undefined
+    pragmaFrag: undefined,
   },
   hyperapp: {
     pragma: 'h',
-    pragmaFrag: undefined
-  }
+    pragmaFrag: undefined,
+  },
 };
 
 /**
@@ -41,7 +41,7 @@ export default async function getJSXOptions(config: Config) {
     libName =>
       pkg &&
       ((pkg.dependencies && pkg.dependencies[libName]) ||
-        (pkg.devDependencies && pkg.devDependencies[libName]))
+        (pkg.devDependencies && pkg.devDependencies[libName])),
   );
 
   const pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
@@ -49,7 +49,7 @@ export default async function getJSXOptions(config: Config) {
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
-      plugins: [['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}]]
+      plugins: [['@babel/plugin-transform-react-jsx', {pragma, pragmaFrag}]],
     };
   }
 }

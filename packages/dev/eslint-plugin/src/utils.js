@@ -73,7 +73,7 @@ function relativePathForRequire({origin, request, pkgName, pkgPath}) {
   let relative = path
     .relative(
       path.dirname(origin),
-      request.replace(new RegExp('^' + pkgName), pkgRoot)
+      request.replace(new RegExp('^' + pkgName), pkgRoot),
     )
     // `require` expects unix-style '/' separators, but `path.relative` will respect
     // `path.sep`.
@@ -99,5 +99,5 @@ module.exports = {
   isStaticRequire,
   isStaticRequireOrResolve,
   isStaticResolve,
-  relativePathForRequire
+  relativePathForRequire,
 };

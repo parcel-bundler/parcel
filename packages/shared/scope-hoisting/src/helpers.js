@@ -16,7 +16,7 @@ function $parcel$exportWildcard(dest, source) {
       enumerable: true,
       get: function get() {
         return source[key];
-      }
+      },
     });
   });
 

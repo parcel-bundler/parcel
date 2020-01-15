@@ -19,23 +19,23 @@ registerCoreWithSerializer();
 // https://github.com/facebook/flow/issues/2835
 type TransformationOptsWithoutWorkerApi = $Diff<
   TransformationOpts,
-  {|workerApi: mixed|}
+  {|workerApi: mixed|},
 >;
 type ValidationOptsWithoutWorkerApi = $Diff<
   ValidationOpts,
-  {|workerApi: mixed|}
+  {|workerApi: mixed|},
 >;
 
 export function runTransform(
   workerApi: WorkerApi,
-  opts: TransformationOptsWithoutWorkerApi
+  opts: TransformationOptsWithoutWorkerApi,
 ) {
   return new Transformation({workerApi, ...opts}).run();
 }
 
 export function runValidate(
   workerApi: WorkerApi,
-  opts: ValidationOptsWithoutWorkerApi
+  opts: ValidationOptsWithoutWorkerApi,
 ) {
   return new Validation({workerApi, ...opts}).run();
 }
@@ -47,19 +47,19 @@ export function runPackage(
     bundleGraphReference,
     config,
     cacheKey,
-    options
+    options,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
-    options: ParcelOptions
-  |}
+    options: ParcelOptions,
+  |},
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   return new PackagerRunner({
     config,
-    options
+    options,
   }).packageAndWriteBundle(bundle, bundleGraph, cacheKey);
 }

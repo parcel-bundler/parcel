@@ -17,7 +17,7 @@ import logLevels from './logLevels';
 export default new Reporter({
   report({event, options}) {
     _report(event, options);
-  }
+  },
 });
 
 let stdout = process.stdout;
@@ -40,7 +40,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         writeOut(
           `Server running at ${
             options.serve.https ? 'https' : 'http'
-          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`
+          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
         );
         wroteServerInfo = true;
       }

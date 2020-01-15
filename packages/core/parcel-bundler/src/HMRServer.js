@@ -17,7 +17,7 @@ class HMRServer {
       }
 
       let websocketOptions = {
-        server: this.server
+        server: this.server,
       };
 
       if (options.hmrHostname) {
@@ -56,8 +56,8 @@ class HMRServer {
       type: 'error',
       error: {
         message,
-        stack
-      }
+        stack,
+      },
     };
 
     this.broadcast(this.unresolvedError);
@@ -67,14 +67,14 @@ class HMRServer {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
-        type: 'error-resolved'
+        type: 'error-resolved',
       });
     }
 
     const shouldReload = reload || assets.some(asset => asset.hmrPageReload);
     if (shouldReload) {
       this.broadcast({
-        type: 'reload'
+        type: 'reload',
       });
     } else {
       this.broadcast({
@@ -89,9 +89,9 @@ class HMRServer {
             id: asset.id,
             type: asset.type,
             generated: asset.generated,
-            deps: deps
+            deps: deps,
           };
-        })
+        }),
       });
     }
   }

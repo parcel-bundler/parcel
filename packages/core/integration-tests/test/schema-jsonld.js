@@ -4,7 +4,7 @@ describe.skip('schema ld+json', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
     let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
       production: true,
-      publicURL: 'https://place.holder/'
+      publicURL: 'https://place.holder/',
     });
 
     await assertBundleTree(b, {
@@ -12,15 +12,15 @@ describe.skip('schema ld+json', function() {
       assets: ['index.html'],
       childBundles: [
         {
-          type: 'jpeg'
+          type: 'jpeg',
         },
         {
-          type: 'png'
+          type: 'png',
         },
         {
-          type: 'css'
-        }
-      ]
+          type: 'css',
+        },
+      ],
     });
   });
 });

@@ -16,10 +16,10 @@ describe('ParcelConfig', () => {
         filePath: '.parcelrc',
         packagers: {
           '*.css': 'parcel-packager-css',
-          '*.js': 'parcel-packager-js'
-        }
+          '*.js': 'parcel-packager-js',
+        },
       },
-      packageManager
+      packageManager,
     );
 
     it('should return null array if no glob matches', () => {
@@ -39,10 +39,10 @@ describe('ParcelConfig', () => {
         filePath: '.parcelrc',
         transforms: {
           '*.jsx': ['parcel-transform-jsx', '...'],
-          '*.{js,jsx}': ['parcel-transform-js']
-        }
+          '*.{js,jsx}': ['parcel-transform-js'],
+        },
       },
-      packageManager
+      packageManager,
     );
 
     it('should return an empty array if no pipeline matches', () => {
@@ -59,7 +59,7 @@ describe('ParcelConfig', () => {
       let pipeline = config.matchGlobMapPipelines('foo.jsx', config.transforms);
       assert.deepEqual(pipeline, [
         'parcel-transform-jsx',
-        'parcel-transform-js'
+        'parcel-transform-js',
       ]);
     });
   });
@@ -70,10 +70,10 @@ describe('ParcelConfig', () => {
         {
           filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
           transforms: {
-            '*.js': ['parcel-transformer-no-engines']
-          }
+            '*.js': ['parcel-transformer-no-engines'],
+          },
         },
-        packageManager
+        packageManager,
       );
 
       sinon.stub(logger, 'warn');
@@ -84,7 +84,7 @@ describe('ParcelConfig', () => {
       assert.deepEqual(logger.warn.getCall(0).args[0], {
         origin: '@parcel/core',
         message:
-          'The plugin "parcel-transformer-no-engines" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.'
+          'The plugin "parcel-transformer-no-engines" needs to specify a `package.json#engines.parcel` field with the supported Parcel version range.',
       });
       logger.warn.restore();
     });
@@ -94,10 +94,10 @@ describe('ParcelConfig', () => {
         {
           filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
           transforms: {
-            '*.js': ['parcel-transformer-bad-engines']
-          }
+            '*.js': ['parcel-transformer-bad-engines'],
+          },
         },
-        packageManager
+        packageManager,
       );
 
       let errored = false;
@@ -108,7 +108,7 @@ describe('ParcelConfig', () => {
         let parcelVersion = require('../package.json').version;
         assert.equal(
           err.message,
-          `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`
+          `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`,
         );
       }
 

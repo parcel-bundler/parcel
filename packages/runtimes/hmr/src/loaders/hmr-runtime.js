@@ -13,7 +13,7 @@ function Module(moduleName) {
     },
     dispose: function(fn) {
       this._disposeCallbacks.push(fn);
-    }
+    },
   };
 
   module.bundle.hotData = null;
@@ -22,13 +22,13 @@ function Module(moduleName) {
 module.bundle.Module = Module;
 var checkedAssets, assetsToAccept, acceptedAssets;
 
+// eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = process.env.HMR_HOSTNAME || location.hostname;
+  var hostname = location.hostname;
+  var port = location.port ? ':' + location.port : '';
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(
-    protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/'
-  );
+  var ws = new WebSocket(protocol + '://' + hostname + port + '/');
   ws.onmessage = function(event) {
     checkedAssets = {};
     assetsToAccept = [];
@@ -42,7 +42,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
       let assets = data.assets.filter(
         // eslint-disable-next-line no-undef
-        asset => asset.envHash === __PARCEL_HMR_ENV_HASH
+        asset => asset.envHash === __PARCEL_HMR_ENV_HASH,
       );
 
       // Handle HMR Update
@@ -85,7 +85,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
             '\n' +
             stack +
             '\n\n' +
-            ansiDiagnostic.hints.join('\n')
+            ansiDiagnostic.hints.join('\n'),
         );
       }
 

@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {SchemaEntity} from '@parcel/utils';
 
-export const engines: SchemaEntity = {
+export const ENGINES_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
     browsers: {
@@ -9,35 +9,19 @@ export const engines: SchemaEntity = {
         {
           type: 'array',
           items: {
-            type: 'string'
-          }
+            type: 'string',
+          },
         },
         {
-          type: 'string'
-        }
-      ]
-    },
-    node: {
-      oneOf: [
-        {
-          type: 'array'
+          type: 'string',
         },
-        {
-          type: 'string'
-        }
-      ]
+      ],
     },
-    electron: {
-      type: 'string'
-    },
-    parcel: {
-      type: 'string'
-    },
-    npm: {
-      type: 'string'
-    }
   },
-  additionalProperties: false
+  __forbiddenProperties: ['browser'],
+  additionalProperties: {
+    type: 'string',
+  },
 };
 
 export default ({
@@ -50,59 +34,59 @@ export default ({
         'browser',
         'web-worker',
         'electron-main',
-        'electron-renderer'
-      ]
+        'electron-renderer',
+      ],
     },
     includeNodeModules: {
       oneOf: [
         {
-          type: 'boolean'
+          type: 'boolean',
         },
         {
           type: 'array',
           items: {
             type: 'string',
-            __pattern: 'a wildcard or filepath'
-          }
-        }
-      ]
+            __type: 'a wildcard or filepath',
+          },
+        },
+      ],
     },
     outputFormat: {
       type: 'string',
-      enum: ['global', 'esmodule', 'commonjs']
+      enum: ['global', 'esmodule', 'commonjs'],
     },
     distDir: {
-      type: 'string'
+      type: 'string',
     },
     publicUrl: {
-      type: 'string'
+      type: 'string',
     },
     isLibrary: {
-      type: 'boolean'
+      type: 'boolean',
     },
     sourceMap: {
       oneOf: [
         {
-          type: 'boolean'
+          type: 'boolean',
         },
         {
           type: 'object',
           properties: {
             inlineSources: {
-              type: 'boolean'
+              type: 'boolean',
             },
             sourceRoot: {
-              type: 'string'
+              type: 'string',
             },
             inline: {
-              type: 'boolean'
-            }
+              type: 'boolean',
+            },
           },
-          additionalProperties: false
-        }
-      ]
+          additionalProperties: false,
+        },
+      ],
     },
-    engines
+    engines: ENGINES_SCHEMA,
   },
-  additionalProperties: false
+  additionalProperties: false,
 }: SchemaEntity);

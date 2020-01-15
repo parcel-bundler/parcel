@@ -3,7 +3,7 @@ import {
   serialize,
   deserialize,
   registerSerializableClass,
-  unregisterSerializableClass
+  unregisterSerializableClass,
 } from '../src/serializer';
 import assert from 'assert';
 
@@ -76,7 +76,7 @@ describe('serializer', () => {
       serialize() {
         return {
           x: this.x,
-          serialized: true
+          serialized: true,
         };
       }
     }
@@ -102,7 +102,7 @@ describe('serializer', () => {
       static deserialize(x: any) {
         return {
           deserialized: true,
-          value: x
+          value: x,
         };
       }
     }

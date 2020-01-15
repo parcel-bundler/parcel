@@ -15,7 +15,7 @@ class GlobAsset extends Asset {
       regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
 
     let files = await glob(regularExpressionSafeName, {
-      onlyFiles: true
+      onlyFiles: true,
     });
     let re = micromatch.makeRe(regularExpressionSafeName, {capture: true});
     let matches = {};
@@ -39,8 +39,8 @@ class GlobAsset extends Asset {
     return [
       {
         type: 'js',
-        value: 'module.exports = ' + generate(this.contents) + ';'
-      }
+        value: 'module.exports = ' + generate(this.contents) + ';',
+      },
     ];
   }
 }
@@ -60,7 +60,7 @@ function generate(matches, indent = '') {
 
     res += `\n${indent}  ${JSON.stringify(key)}: ${generate(
       matches[key],
-      indent + '  '
+      indent + '  ',
     )}`;
     first = false;
   }

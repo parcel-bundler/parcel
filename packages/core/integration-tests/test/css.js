@@ -6,7 +6,7 @@ import {
   assertBundles,
   distDir,
   removeDistDirectory,
-  outputFS
+  outputFS,
 } from '@parcel/test-utils';
 
 describe('css', () => {
@@ -20,12 +20,12 @@ describe('css', () => {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'local.js']
+        assets: ['index.js', 'local.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.css', 'local.css']
-      }
+        assets: ['index.css', 'local.css'],
+      },
     ]);
 
     let output = await run(b);
@@ -50,8 +50,8 @@ describe('css', () => {
     assertBundles(b, [
       {
         name: 'a.css',
-        assets: ['a.css', 'b.css', 'c.css', 'd.css', 'e.css']
-      }
+        assets: ['a.css', 'b.css', 'c.css', 'd.css', 'e.css'],
+      },
     ]);
 
     let css = await outputFS.readFile(path.join(distDir, 'a.css'), 'utf8');
@@ -59,29 +59,30 @@ describe('css', () => {
       css.indexOf('.c {') < css.indexOf('.d {') &&
         css.indexOf('.d {') < css.indexOf('.b {') &&
         css.indexOf('.b {') < css.indexOf('.e {') &&
-        css.indexOf('.e {') < css.indexOf('.a {')
+        css.indexOf('.e {') < css.indexOf('.a {'),
     );
   });
 
   it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/dynamic-css/index.js')
+      path.join(__dirname, '/integration/dynamic-css/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
         assets: [
+          'bundle-url.js',
           'cacheLoader.js',
           'css-loader.js',
           'index.js',
           'js-loader.js',
-          'JSRuntime.js'
-        ]
+          'JSRuntime.js',
+        ],
       },
       {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
       {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
-      {name: 'index.css', assets: ['index.css']}
+      {name: 'index.css', assets: ['index.css']},
     ]);
 
     let output = await run(b);
@@ -91,18 +92,18 @@ describe('css', () => {
 
   it('should support importing CSS from a CSS file', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/css-import/index.js')
+      path.join(__dirname, '/integration/css-import/index.js'),
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.css', 'other.css', 'local.css']
-      }
+        assets: ['index.css', 'other.css', 'local.css'],
+      },
     ]);
 
     let output = await run(b);
@@ -122,16 +123,16 @@ describe('css', () => {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.css']
+        assets: ['index.css'],
       },
       {
         type: 'woff2',
-        assets: ['test.woff2']
-      }
+        assets: ['test.woff2'],
+      },
     ]);
 
     let output = await run(b);
@@ -149,8 +150,8 @@ describe('css', () => {
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1])
-      )
+        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]),
+      ),
     );
   });
 
@@ -158,23 +159,23 @@ describe('css', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
-        minify: true
-      }
+        minify: true,
+      },
     );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js']
+        assets: ['index.js'],
       },
       {
         name: 'index.css',
-        assets: ['index.css']
+        assets: ['index.css'],
       },
       {
         type: 'woff2',
-        assets: ['test.woff2']
-      }
+        assets: ['test.woff2'],
+      },
     ]);
 
     let output = await run(b);
@@ -184,7 +185,7 @@ describe('css', () => {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(
       /url\(\/test\.[0-9a-f]+\.woff2\)/.test(css),
-      'woff ext found in css'
+      'woff ext found in css',
     );
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
@@ -195,8 +196,8 @@ describe('css', () => {
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1])
-      )
+        path.join(distDir, css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1]),
+      ),
     );
   });
 
@@ -204,32 +205,32 @@ describe('css', () => {
     let b = await bundle(
       [
         path.join(__dirname, '/integration/css-url-relative/src/a/style1.css'),
-        path.join(__dirname, '/integration/css-url-relative/src/b/style2.css')
+        path.join(__dirname, '/integration/css-url-relative/src/b/style2.css'),
       ],
       {
         minify: true,
-        sourceMaps: false
-      }
+        sourceMaps: false,
+      },
     );
 
     assertBundles(b, [
       {
         type: 'css',
-        assets: ['style1.css']
+        assets: ['style1.css'],
       },
       {
         type: 'css',
-        assets: ['style2.css']
+        assets: ['style2.css'],
       },
       {
         type: 'png',
-        assets: ['foo.png']
-      }
+        assets: ['foo.png'],
+      },
     ]);
 
     let css = await outputFS.readFile(
       path.join(distDir, 'a', 'style1.css'),
-      'utf8'
+      'utf8',
     );
 
     assert(css.includes('background-image'), 'includes `background-image`');
@@ -237,16 +238,33 @@ describe('css', () => {
 
     assert(
       await outputFS.exists(path.join(distDir, css.match(/url\(([^)]*)\)/)[1])),
-      'path specified in url() exists'
+      'path specified in url() exists',
     );
+  });
+
+  it('should ignore url() with IE behavior specifiers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/css-url-behavior/index.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url(#default#VML)'));
   });
 
   it('should minify CSS when minify is set', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
-        minify: true
-      }
+        minify: true,
+      },
     );
 
     let output = await run(b);
@@ -269,7 +287,7 @@ describe('css', () => {
       `.svg-img {
   background-image: url('data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A');
 }
-`
+`,
     );
   });
 
@@ -278,7 +296,7 @@ describe('css', () => {
     let css = await outputFS.readFile(path.join(distDir, 'binary.css'), 'utf8');
     assert(
       css.startsWith(`.webp-img {
-  background-image: url('data:image/webp;base64,UklGR`)
+  background-image: url('data:image/webp;base64,UklGR`),
     );
   });
 });

@@ -9,7 +9,7 @@ describe('Asset', () => {
     const a = new Asset(__filename, {rootDir: '/root/dir'});
     Object.assign(a, {
       type: 'type',
-      contents: 'contents'
+      contents: 'contents',
     });
 
     const err = new Error();
@@ -17,7 +17,7 @@ describe('Asset', () => {
     assert(a.shouldInvalidate() === false);
     assert(a.mightHaveDependencies());
     assert.deepEqual(await a.generate(), {
-      type: 'contents'
+      type: 'contents',
     });
     assert.equal(a.generateErrorMessage(err), err);
   });
@@ -25,7 +25,7 @@ describe('Asset', () => {
   it.skip('should support overriding the filename of the root bundle', async function() {
     const outFile = 'custom-out-file.html';
     await bundle(path.join(__dirname, '/integration/html/index.html'), {
-      outFile
+      outFile,
     });
 
     assert(await fs.exists(__dirname, `/dist/${outFile}`));
@@ -43,10 +43,10 @@ describe('Asset', () => {
       parser: {
         getAsset: () => {
           return {
-            generateBundleName: () => bundleName
+            generateBundleName: () => bundleName,
           };
-        }
-      }
+        },
+      },
     };
     const asset = new Asset('test', options);
 
@@ -66,15 +66,15 @@ describe('Asset', () => {
     it('should preserve query and hash', () => {
       assert.strictEqual(
         asset.addURLDependency('foo#bar'),
-        `${bundleName}#bar`
+        `${bundleName}#bar`,
       );
       assert.strictEqual(
         asset.addURLDependency('foo?bar'),
-        `${bundleName}?bar`
+        `${bundleName}?bar`,
       );
       assert.strictEqual(
         asset.addURLDependency('foo?bar#baz'),
-        `${bundleName}?bar#baz`
+        `${bundleName}?bar#baz`,
       );
     });
 

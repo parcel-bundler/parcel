@@ -1,16 +1,15 @@
 // @flow strict-local
 
 import type {IDisposable, LogEvent} from '@parcel/types';
-import type {Diagnostic, Diagnostifiable} from '@parcel/diagnostic';
+import type {
+  Diagnostic,
+  Diagnostifiable,
+  DiagnosticWithoutOrigin,
+} from '@parcel/diagnostic';
 
 import {ValueEmitter} from '@parcel/events';
 import {inspect} from 'util';
 import {errorToDiagnostic, anyToDiagnostic} from '@parcel/diagnostic';
-
-export type PluginInputDiagnostic = {|
-  ...Diagnostic,
-  origin?: string
-|};
 
 class Logger {
   #logEmitter = new ValueEmitter<LogEvent>();
@@ -23,7 +22,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'verbose',
-      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
     });
   }
 
@@ -35,7 +34,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'info',
-      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
     });
   }
 
@@ -43,7 +42,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'warn',
-      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
     });
   }
 
@@ -57,14 +56,14 @@ class Logger {
           })
         : {
             ...diagnostic,
-            origin: realOrigin
+            origin: realOrigin,
           };
     }
 
     this.#logEmitter.emit({
       type: 'log',
       level: 'error',
-      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic]
+      diagnostics: Array.isArray(diagnostic) ? diagnostic : [diagnostic],
     });
   }
 
@@ -72,7 +71,7 @@ class Logger {
     this.#logEmitter.emit({
       type: 'log',
       level: 'progress',
-      message
+      message,
     });
   }
 }
@@ -81,7 +80,7 @@ const logger = new Logger();
 export default logger;
 
 export type PluginLoggerOpts = {|
-  origin: string
+  origin: string,
 |};
 
 export class PluginLogger {
@@ -92,7 +91,7 @@ export class PluginLogger {
   }
 
   updateOrigin(
-    diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
   ): Diagnostic | Array<Diagnostic> {
     return Array.isArray(diagnostic)
       ? diagnostic.map(d => {
@@ -102,28 +101,34 @@ export class PluginLogger {
   }
 
   verbose(
-    diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
   ): void {
     logger.verbose(this.updateOrigin(diagnostic));
   }
 
-  info(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+  info(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void {
     logger.info(this.updateOrigin(diagnostic));
   }
 
-  log(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+  log(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void {
     logger.log(this.updateOrigin(diagnostic));
   }
 
-  warn(diagnostic: PluginInputDiagnostic | Array<PluginInputDiagnostic>): void {
+  warn(
+    diagnostic: DiagnosticWithoutOrigin | Array<DiagnosticWithoutOrigin>,
+  ): void {
     logger.warn(this.updateOrigin(diagnostic));
   }
 
   error(
     input:
       | Diagnostifiable
-      | PluginInputDiagnostic
-      | Array<PluginInputDiagnostic>
+      | DiagnosticWithoutOrigin
+      | Array<DiagnosticWithoutOrigin>,
   ): void {
     // $FlowFixMe it should work, don't really wanna mess with the types of logger.error though...
     logger.error(input, this.origin);
@@ -172,16 +177,30 @@ export function patchConsole() {
 }
 
 function messagesToDiagnostic(
-  messages: Array<mixed>
+  messages: Array<mixed>,
 ): Diagnostic | Array<Diagnostic> {
   if (messages.length === 1 && messages[0] instanceof Error) {
     let error: Error = messages[0];
+    let diagnostic = errorToDiagnostic(error);
 
-    return errorToDiagnostic(error);
+    if (Array.isArray(diagnostic)) {
+      return diagnostic.map(d => {
+        return {
+          ...d,
+          skipFormatting: true,
+        };
+      });
+    } else {
+      return {
+        ...diagnostic,
+        skipFormatting: true,
+      };
+    }
   } else {
     return {
       message: joinLogMessages(messages),
-      origin: 'console'
+      origin: 'console',
+      skipFormatting: true,
     };
   }
 }

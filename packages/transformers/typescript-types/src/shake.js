@@ -9,7 +9,7 @@ export function shake(
   ts: TypeScriptModule,
   moduleGraph: TSModuleGraph,
   context: any,
-  sourceFile: any
+  sourceFile: any,
 ) {
   // We traverse things out of order which messes with typescript's internal state.
   // We don't rely on the lexical environment, so just overwrite with noops to avoid errors.
@@ -53,6 +53,30 @@ export function shake(
         !node.moduleSpecifier ||
         moduleGraph.getModule(node.moduleSpecifier.text)
       ) {
+        if (!node.moduleSpecifier && node.exportClause) {
+          // Filter exported elements to only external re-exports
+          let exported = [];
+          for (let element of node.exportClause.elements) {
+            let name = (element.propertyName ?? element.name).text;
+            if (
+              exportedNames.get(name) === currentModule &&
+              !currentModule.hasBinding(name)
+            ) {
+              exported.push(element);
+            }
+          }
+
+          if (exported.length > 0) {
+            return ts.updateExportDeclaration(
+              node,
+              undefined, // decorators
+              undefined, // modifiers
+              ts.updateNamedExports(node.exportClause, exported),
+              undefined, // moduleSpecifier
+            );
+          }
+        }
+
         return null;
       }
     }
@@ -70,7 +94,7 @@ export function shake(
       node.modifiers = (node.modifiers || []).filter(
         m =>
           m.kind !== ts.SyntaxKind.ExportKeyword &&
-          m.kind !== ts.SyntaxKind.DefaultKeyword
+          m.kind !== ts.SyntaxKind.DefaultKeyword,
       );
 
       // Rename declarations
@@ -83,7 +107,7 @@ export function shake(
       if (exportedNames.get(newName) === currentModule) {
         if (newName === 'default') {
           node.modifiers.unshift(
-            ts.createModifier(ts.SyntaxKind.DefaultKeyword)
+            ts.createModifier(ts.SyntaxKind.DefaultKeyword),
           );
         }
 
@@ -106,12 +130,12 @@ export function shake(
 
       // Remove original export modifiers
       node.modifiers = (node.modifiers || []).filter(
-        m => m.kind !== ts.SyntaxKind.ExportKeyword
+        m => m.kind !== ts.SyntaxKind.ExportKeyword,
       );
 
       // Add export modifier if all declarations are exported.
       let isExported = node.declarationList.declarations.every(
-        d => exportedNames.get(d.name.text) === currentModule
+        d => exportedNames.get(d.name.text) === currentModule,
       );
       if (isExported) {
         node.modifiers.unshift(ts.createModifier(ts.SyntaxKind.ExportKeyword));
@@ -137,16 +161,26 @@ export function shake(
       let resolved = moduleGraph.resolveImport(
         currentModule,
         node.left.text,
-        node.right.text
+        node.right.text,
       );
-      if (resolved) {
+      if (resolved && resolved.module.hasBinding(resolved.name)) {
         return ts.createIdentifier(resolved.name);
       } else {
         return ts.updateQualifiedName(
           node,
           ts.createIdentifier(currentModule.getName(node.left.text)),
-          node.right
+          node.right,
         );
+      }
+    }
+
+    // Remove private properties
+    if (ts.isPropertyDeclaration(node)) {
+      let isPrivate =
+        node.modifiers &&
+        node.modifiers.some(m => m.kind === ts.SyntaxKind.PrivateKeyword);
+      if (isPrivate) {
+        return null;
       }
     }
 
@@ -167,14 +201,14 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
         defaultSpecifier = ts.createIdentifier(name);
       } else if (imported === '*') {
         namespaceSpecifier = ts.createNamespaceImport(
-          ts.createIdentifier(name)
+          ts.createIdentifier(name),
         );
       } else {
         namedSpecifiers.push(
           ts.createImportSpecifier(
             name === imported ? undefined : ts.createIdentifier(name),
-            ts.createIdentifier(imported)
-          )
+            ts.createIdentifier(imported),
+          ),
         );
       }
     }
@@ -182,7 +216,7 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
     if (namespaceSpecifier) {
       let importClause = ts.createImportClause(
         defaultSpecifier,
-        namespaceSpecifier
+        namespaceSpecifier,
       );
       importStatements.push(
         ts.createImportDeclaration(
@@ -190,8 +224,8 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
           undefined,
           importClause,
           // $FlowFixMe
-          ts.createLiteral(specifier)
-        )
+          ts.createLiteral(specifier),
+        ),
       );
       defaultSpecifier = undefined;
     }
@@ -199,7 +233,7 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
     if (defaultSpecifier || namedSpecifiers.length > 0) {
       let importClause = ts.createImportClause(
         defaultSpecifier,
-        ts.createNamedImports(namedSpecifiers)
+        ts.createNamedImports(namedSpecifiers),
       );
       importStatements.push(
         ts.createImportDeclaration(
@@ -207,8 +241,8 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
           undefined,
           importClause,
           // $FlowFixMe
-          ts.createLiteral(specifier)
-        )
+          ts.createLiteral(specifier),
+        ),
       );
     }
   }

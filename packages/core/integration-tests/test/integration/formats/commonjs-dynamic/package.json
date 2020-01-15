@@ -1,0 +1,6 @@
+{
+  "name": "commonjs-dynamic",
+  "private": true,
+  "main": "dist/index.js",
+  "sideEffects": false
+}

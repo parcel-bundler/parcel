@@ -130,7 +130,7 @@ class Asset {
 
   get package() {
     logger.warn(
-      '`asset.package` is deprecated. Please use `await asset.getPackage()` instead.'
+      '`asset.package` is deprecated. Please use `await asset.getPackage()` instead.',
     );
     return syncPromise(this.getPackage());
   }
@@ -193,7 +193,7 @@ class Asset {
 
   async generate() {
     return {
-      [this.type]: this.contents
+      [this.type]: this.contents,
     };
   }
 

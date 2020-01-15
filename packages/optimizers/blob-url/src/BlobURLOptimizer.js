@@ -14,8 +14,8 @@ export default new Optimizer({
     // https://developer.mozilla.org/en-US/docs/Web/API/Blob
     return {
       contents: `URL.createObjectURL(new Blob([${JSON.stringify(
-        await blobToString(contents)
-      )}]))`
+        await blobToString(contents),
+      )}]))`,
     };
-  }
+  },
 });

@@ -4,7 +4,7 @@ import type {
   BuildEvent,
   BundleGraph,
   FilePath,
-  InitialParcelOptions
+  InitialParcelOptions,
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -17,7 +17,7 @@ import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 
-import {makeDeferredWithPromise, syncPromise} from '@parcel/utils';
+import {makeDeferredWithPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -49,7 +49,7 @@ export async function ncp(source: FilePath, destination: FilePath) {
 export const defaultConfig = {
   ...defaultConfigContents,
   filePath: require.resolve('@parcel/config-default'),
-  reporters: []
+  reporters: [],
 };
 
 const chalk = new _chalk.constructor({enabled: true});
@@ -76,7 +76,7 @@ export const distDir = path.resolve(
   '..',
   '..',
   'integration-tests',
-  'dist'
+  'dist',
 );
 
 export async function removeDistDirectory() {
@@ -90,13 +90,13 @@ export function symlinkPrivilegeWarning() {
 Skipping symbolic link test(s) because you don't have the privilege.
 Run tests with Administrator privilege.
 If you don't know how, check here: https://bit.ly/2UmWsbD
------------------------------------`
+-----------------------------------`,
   );
 }
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts?: InitialParcelOptions
+  opts?: InitialParcelOptions,
 ) {
   return new Parcel({
     entries,
@@ -109,16 +109,16 @@ export function bundler(
     packageManager: new NodePackageManager(inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
-      node: '8'
+      node: '8',
     },
     // $FlowFixMe
-    ...opts
+    ...opts,
   });
 }
 
 export async function bundle(
   entries: FilePath | Array<FilePath>,
-  opts?: InitialParcelOptions
+  opts?: InitialParcelOptions,
 ): Promise<BundleGraph> {
   return nullthrows(await bundler(entries, opts).run());
 }
@@ -152,7 +152,7 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 export async function run(
   bundleGraph: BundleGraph,
   globals: mixed,
-  opts: {require?: boolean, ...} = {}
+  opts: {require?: boolean, ...} = {},
 ): Promise<mixed> {
   let bundles = [];
   bundleGraph.traverseBundles(bundle => {
@@ -168,7 +168,7 @@ export async function run(
     case 'browser': {
       let prepared = prepareBrowserContext(
         nullthrows(bundle.filePath),
-        globals
+        globals,
       );
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -181,7 +181,7 @@ export async function run(
       let browser = prepareBrowserContext(nullthrows(bundle.filePath), globals);
       ctx = {
         ...browser.ctx,
-        ...prepareNodeContext(nullthrows(bundle.filePath), globals)
+        ...prepareNodeContext(nullthrows(bundle.filePath), globals),
       };
       promises = browser.promises;
       break;
@@ -193,7 +193,7 @@ export async function run(
   vm.createContext(ctx);
   vm.runInContext(
     await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8'),
-    ctx
+    ctx,
   );
 
   if (promises) {
@@ -225,9 +225,9 @@ export function assertBundles(
     assets: Array<string>,
     includedFiles?: {
       [key: string]: Array<string>,
-      ...
-    }
-  |}>
+      ...,
+    },
+  |}>,
 ) {
   let actualBundles = [];
   const byAlphabet = (a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1);
@@ -250,14 +250,14 @@ export function assertBundles(
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
       assets,
-      includedFiles
+      includedFiles,
     });
   });
 
   for (let bundle of expectedBundles) {
     if (!Array.isArray(bundle.assets)) {
       throw new Error(
-        'Expected bundle must include an array of expected assets'
+        'Expected bundle must include an array of expected assets',
       );
     }
     bundle.assets.sort(byAlphabet);
@@ -277,7 +277,7 @@ export function assertBundles(
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
-    'expected number of bundles mismatched'
+    'expected number of bundles mismatched',
   );
 
   let i = 0;
@@ -290,7 +290,7 @@ export function assertBundles(
       } else if (name instanceof RegExp) {
         assert(
           actualBundle.name.match(name),
-          `${actualBundle.name} does not match regexp ${name.toString()}`
+          `${actualBundle.name} does not match regexp ${name.toString()}`,
         );
       } else {
         // $FlowFixMe
@@ -314,7 +314,7 @@ export function assertBundles(
         }
         assert.deepEqual(
           actualBundle.includedFiles[asset],
-          files.sort(byAlphabet)
+          files.sort(byAlphabet),
         );
       }
     }
@@ -327,11 +327,11 @@ export function normaliseNewlines(text: string): string {
 
 function prepareBrowserContext(
   filePath: FilePath,
-  globals: mixed
+  globals: mixed,
 ): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
   // for testing dynamic imports
   const fakeElement = {
-    remove() {}
+    remove() {},
   };
 
   let promises = [];
@@ -350,21 +350,19 @@ function prepareBrowserContext(
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
-                  syncPromise(
-                    overlayFS.readFile(
-                      path.join(path.dirname(filePath), el.src),
-                      'utf8'
-                    )
+                  overlayFS.readFileSync(
+                    path.join(path.dirname(filePath), el.src),
+                    'utf8',
                   ),
-                  ctx
+                  ctx,
                 );
               }
 
               el.onload();
               deferred.resolve();
             }, 0);
-          }
-        }
+          },
+        },
       ];
     },
 
@@ -375,8 +373,8 @@ function prepareBrowserContext(
     body: {
       appendChild() {
         return null;
-      }
-    }
+      },
+    },
   };
 
   var exports = {};
@@ -392,7 +390,7 @@ function prepareBrowserContext(
         return Promise.resolve({
           async arrayBuffer() {
             let readFilePromise = overlayFS.readFile(
-              path.join(path.dirname(filePath), url)
+              path.join(path.dirname(filePath), url),
             );
             promises.push(readFilePromise);
             return new Uint8Array(await readFilePromise).buffer;
@@ -400,15 +398,15 @@ function prepareBrowserContext(
           text() {
             let readFilePromise = overlayFS.readFile(
               path.join(path.dirname(filePath), url),
-              'utf8'
+              'utf8',
             );
             promises.push(readFilePromise);
             return readFilePromise;
-          }
+          },
         });
-      }
+      },
     },
-    globals
+    globals,
   );
 
   ctx.window = ctx;
@@ -425,11 +423,11 @@ function prepareNodeContext(filePath, globals) {
       preserveSymlinks: true,
       extensions: ['.js', '.json'],
       readFileSync: (...args) => {
-        return syncPromise(overlayFS.readFile(...args));
+        return overlayFS.readFileSync(...args);
       },
       isFile: file => {
         try {
-          var stat = syncPromise(overlayFS.stat(file));
+          var stat = overlayFS.statSync(file);
         } catch (err) {
           return false;
         }
@@ -437,12 +435,12 @@ function prepareNodeContext(filePath, globals) {
       },
       isDirectory: file => {
         try {
-          var stat = syncPromise(overlayFS.stat(file));
+          var stat = overlayFS.statSync(file);
         } catch (err) {
           return false;
         }
         return stat.isDirectory();
-      }
+      },
     });
 
     // Shim FS module using overlayFS
@@ -453,8 +451,8 @@ function prepareNodeContext(filePath, globals) {
           cb(null, res);
         },
         readFileSync: (file, encoding) => {
-          return syncPromise(overlayFS.readFile(file, encoding));
-        }
+          return overlayFS.readFileSync(file, encoding);
+        },
       };
     }
 
@@ -470,7 +468,7 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(syncPromise(overlayFS.readFile(res, 'utf8')), ctx);
+    vm.runInContext(overlayFS.readFileSync(res, 'utf8'), ctx);
     return ctx.module.exports;
   };
 
@@ -484,9 +482,9 @@ function prepareNodeContext(filePath, globals) {
       console,
       process: process,
       setTimeout: setTimeout,
-      setImmediate: setImmediate
+      setImmediate: setImmediate,
     },
-    globals
+    globals,
   );
 
   ctx.global = ctx;

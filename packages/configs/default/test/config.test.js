@@ -11,7 +11,7 @@ describe('@parcel/config-default', () => {
 
   before(() => {
     packageJsonDependencyNames = new Set(
-      Object.keys(packageJson.dependencies || {})
+      Object.keys(packageJson.dependencies || {}),
     );
     configPackageReferences = collectConfigPackageReferences(config);
   });
@@ -45,7 +45,7 @@ describe('@parcel/config-default', () => {
 
 function collectConfigPackageReferences(
   configSection: mixed,
-  references: Set<string> = new Set()
+  references: Set<string> = new Set(),
 ): Set<string> {
   if (configSection == null || typeof configSection !== 'object') {
     throw new TypeError('Expected config section to be an object or an array');
@@ -62,7 +62,7 @@ function collectConfigPackageReferences(
       collectConfigPackageReferences(value, references);
     } else {
       throw new Error(
-        'Parcel configs must contain only strings, arrays, or objects in value positions'
+        'Parcel configs must contain only strings, arrays, or objects in value positions',
       );
     }
   }

@@ -86,7 +86,7 @@ export class FSHost {
     extensions: $ReadOnlyArray<string>,
     excludes: ?$ReadOnlyArray<string>,
     includes: $ReadOnlyArray<string>,
-    depth?: number
+    depth?: number,
   ) {
     // $FlowFixMe
     return this.ts.matchFiles(
@@ -98,7 +98,7 @@ export class FSHost {
       this.getCurrentDirectory(),
       depth,
       this.getAccessibleFileSystemEntries.bind(this),
-      this.realpath.bind(this)
+      this.realpath.bind(this),
     );
   }
 }

@@ -13,10 +13,10 @@ export default function markdownParser(input: string): string {
   input = input.replace(BOLD_REGEX, (...args) => chalk.bold(args[1]));
   input = input.replace(UNDERLINE_REGEX, (...args) => chalk.underline(args[1]));
   input = input.replace(STRIKETHROUGH_REGEX, (...args) =>
-    chalk.strikethrough(args[1])
+    chalk.strikethrough(args[1]),
   );
   input = input.replace(ITALIC_REGEX, (...args) =>
-    chalk.italic(args[1] || args[2])
+    chalk.italic(args[1] || args[2]),
   );
 
   return input;

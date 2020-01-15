@@ -36,7 +36,7 @@ async function loadSourceMap(asset) {
       }
 
       let missingSources = sourceMap.sources.slice(
-        sourceMap.sourcesContent.length
+        sourceMap.sourcesContent.length,
       );
       if (missingSources.length) {
         let contents = await Promise.all(
@@ -45,26 +45,24 @@ async function loadSourceMap(asset) {
               let sourceFile = path.join(
                 path.dirname(filename),
                 sourceMap.sourceRoot || '',
-                source
+                source,
               );
               let result = await fs.readFile(sourceFile, 'utf8');
               asset.addDependency(sourceFile, {includedInParent: true});
               return result;
             } catch (err) {
               logger.warn(
-                `Could not load source file "${source}" in source map of "${
-                  asset.relativeName
-                }".`
+                `Could not load source file "${source}" in source map of "${asset.relativeName}".`,
               );
             }
-          })
+          }),
         );
 
         sourceMap.sourcesContent = sourceMap.sourcesContent.concat(contents);
       }
     } catch (e) {
       logger.warn(
-        `Could not load existing sourcemap of "${asset.relativeName}".`
+        `Could not load existing sourcemap of "${asset.relativeName}".`,
       );
       sourceMap = undefined;
     }

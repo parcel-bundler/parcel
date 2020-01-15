@@ -7,5 +7,5 @@ render(
     <h1>Toplevel has {Math.random()}</h1>
     <App />
   </>,
-  document.getElementById('root')
+  document.getElementById('root'),
 );

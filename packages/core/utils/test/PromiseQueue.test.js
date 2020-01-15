@@ -12,7 +12,7 @@ describe('PromiseQueue', () => {
     queue.add(() =>
       Promise.resolve().then(() => {
         someBooleanToBeChanged = true;
-      })
+      }),
     );
     await queue.run();
     assert(someBooleanToBeChanged);
@@ -25,7 +25,7 @@ describe('PromiseQueue', () => {
       queue
         .add(() => Promise.reject(error))
         .catch(
-          /* catch this to prevent an unhandled promise rejection*/ () => {}
+          /* catch this to prevent an unhandled promise rejection*/ () => {},
         );
       await queue.run();
     } catch (e) {
@@ -67,7 +67,7 @@ describe('PromiseQueue', () => {
         assert(running <= maxConcurrent);
         await Promise.resolve(randomInt(1, 10)); //sleep(randomInt(1, 10));
         running--;
-      })
+      }),
     );
 
     await queue.run();

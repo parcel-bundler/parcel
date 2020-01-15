@@ -4,7 +4,7 @@ import type {
   ChildImpl,
   MessageHandler,
   ExitHandler,
-  WorkerMessage
+  WorkerMessage,
 } from '../types';
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';

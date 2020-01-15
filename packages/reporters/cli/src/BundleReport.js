@@ -13,11 +13,11 @@ import {Table, Row, Cell} from './Table';
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
 
 type ReportProps = {|
-  bundleGraph: BundleGraph
+  bundleGraph: BundleGraph,
 |};
 
 export default function BundleReport(
-  props: ReportProps
+  props: ReportProps,
 ): React.Element<typeof Table> {
   let {bundles} = generateBundleReport(props.bundleGraph);
 
@@ -38,7 +38,7 @@ export default function BundleReport(
             {prettifyTime(bundle.time)}
           </Color>
         </Cell>
-      </Row>
+      </Row>,
     );
 
     for (let asset of bundle.largestAssets) {
@@ -59,7 +59,7 @@ export default function BundleReport(
               {prettifyTime(asset.time)}
             </Color>
           </Cell>
-        </Row>
+        </Row>,
       );
     }
 
@@ -73,7 +73,7 @@ export default function BundleReport(
               + {bundle.totalAssets - bundle.largestAssets.length} more assets
             </Color>
           </Cell>
-        </Row>
+        </Row>,
       );
     }
 

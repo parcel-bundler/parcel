@@ -6,5 +6,5 @@ export default new Transformer({
   transform({asset}) {
     asset.isInline = true;
     return [asset];
-  }
+  },
 });

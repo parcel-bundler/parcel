@@ -10,7 +10,7 @@ type StringHashEncoding = 'hex' | 'latin1' | 'binary' | 'base64';
 
 export function md5FromString(
   string: string | Buffer,
-  encoding: StringHashEncoding = 'hex'
+  encoding: StringHashEncoding = 'hex',
 ): string {
   return crypto
     .createHash('md5')
@@ -31,14 +31,14 @@ export function md5FromReadableStream(stream: Readable): Promise<string> {
 
 export function md5FromObject(
   obj: {+[string]: mixed, ...},
-  encoding: StringHashEncoding = 'hex'
+  encoding: StringHashEncoding = 'hex',
 ): string {
   return md5FromString(JSON.stringify(objectSortedEntriesDeep(obj)), encoding);
 }
 
 export function md5FromFilePath(
   fs: FileSystem,
-  filePath: string
+  filePath: string,
 ): Promise<string> {
   return md5FromReadableStream(fs.createReadStream(filePath));
 }
