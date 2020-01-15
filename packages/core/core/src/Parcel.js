@@ -19,7 +19,6 @@ import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
-import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
@@ -275,9 +274,10 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, options),
+        bundleGraph: bundleGraph,
         buildTime: Date.now() - startTime,
       };
+      // $FlowFixMe
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
