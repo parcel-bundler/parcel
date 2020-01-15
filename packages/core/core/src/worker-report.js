@@ -33,16 +33,13 @@ export async function runReport(
 
   if (event.bundle != null) {
     // $FlowFixMe
-    event = {
-      ...event,
-      bundle: new NamedBundle(
+    event.bundle = new NamedBundle(
         // $FlowFixMe
         event.bundle,
         // $FlowFixMe
         event.bundleGraph,
         this.options,
-      ),
-    };
+      );
   }
 
   if (event.bundleGraph != null) {
