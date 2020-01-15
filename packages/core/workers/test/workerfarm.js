@@ -2,7 +2,7 @@ import Logger from '@parcel/logger';
 import assert from 'assert';
 import WorkerFarm from '../';
 
-describe.only('WorkerFarm', function() {
+describe('WorkerFarm', function() {
   this.timeout(20000);
 
   it('Should start up workers', async () => {
