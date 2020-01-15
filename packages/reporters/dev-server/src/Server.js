@@ -345,9 +345,11 @@ export default class Server extends EventEmitter {
     server.listen(this.options.port, this.options.host);
     return new Promise((resolve, reject) => {
       server.once('error', err => {
-        this.options.logger.error({
-          message: serverErrors(err, this.options.port),
-        });
+        this.options.logger.error(
+          ({
+            message: serverErrors(err, this.options.port),
+          }: Diagnostic),
+        );
         reject(err);
       });
 

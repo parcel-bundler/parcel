@@ -28,6 +28,8 @@ type State = {|
   bundleGraph: ?BundleGraph,
 |};
 
+const THROTTLE_DELAY = 100; // ms
+
 const defaultState: State = {
   progress: null,
   logs: [],
@@ -41,7 +43,7 @@ export default function UI({events, options}: Props) {
   );
 
   useLayoutEffect(() => {
-    const throttledDispatch = throttle(dispatch, 100);
+    const throttledDispatch = throttle(dispatch, THROTTLE_DELAY);
     const enhancedDispatch = event => {
       if (
         event.type === 'buildProgress' &&
