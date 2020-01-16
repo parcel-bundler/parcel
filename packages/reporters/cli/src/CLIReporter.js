@@ -21,12 +21,6 @@ import * as emoji from './emoji';
 
 const THROTTLE_DELAY = 100;
 
-export default new Reporter({
-  report({event, options}) {
-    _report(event, options);
-  },
-});
-
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
 }, THROTTLE_DELAY);
@@ -37,6 +31,9 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
   switch (event.type) {
     case 'buildStart': {
+      // Clear any previous output...
+      resetWindow();
+
       if (options.serve) {
         persistMessage(
           chalk.blue.bold(
@@ -46,6 +43,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
           ),
         );
       }
+
       break;
     }
     case 'buildProgress': {
@@ -144,3 +142,9 @@ function writeDiagnostic(
     }
   }
 }
+
+export default new Reporter({
+  report({event, options}) {
+    _report(event, options);
+  },
+});

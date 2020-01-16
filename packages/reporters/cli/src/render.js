@@ -21,6 +21,7 @@ let stderr = process.stderr;
 
 let lineCount = 0;
 let errorLineCount = 0;
+let statusPersisted = false;
 
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
   stdout = stdoutLike;
@@ -82,6 +83,11 @@ function clearStream(s: any, l: number) {
 export function resetWindow() {
   if (!isTTY) return;
 
+  if (statusPersisted) {
+    lineCount++;
+    statusPersisted = false;
+  }
+
   clearStream(stderr, errorLineCount);
   errorLineCount = 0;
 
@@ -102,6 +108,8 @@ export function persistSpinner(
     symbol: emoji[status],
     text: message,
   });
+
+  statusPersisted = true;
 }
 
 export function table(columns: Array<ColumnType>, table: Array<Array<string>>) {

@@ -2,10 +2,10 @@
 import type {BuildProgressEvent} from '@parcel/types';
 
 import path from 'path';
-import stripAnsi from 'strip-ansi';
 import chalk from 'chalk';
 import stringWidth from 'string-width';
 import termSize from 'term-size';
+import stripAnsi from 'strip-ansi';
 
 export type PadAlign = 'left' | 'right';
 
@@ -52,5 +52,5 @@ export function countLines(message: string) {
 
   return stripAnsi(message)
     .split('\n')
-    .reduce((p, line) => p + Math.ceil((line.length || 1) / columns), 0);
+    .reduce((p, line) => p + Math.ceil((stringWidth(line) || 1) / columns), 0);
 }
