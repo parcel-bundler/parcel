@@ -9,8 +9,10 @@ daysUntilClose: 30
 # Issues or Pull Requests with these labels will never be considered stale. Set to `[]` to disable
 exemptLabels:
   - pinned
-  - security
   - stale-ignore
+  - :fire: Security
+  - :heavy_check_mark: Confirmed Bug
+  - :raising_hand_woman: Feature
 
 # Label to use when marking as stale
 staleLabel: stale
