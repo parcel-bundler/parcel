@@ -54,7 +54,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       let message = getProgressMessage(event);
       if (message != null) {
         if (isTTY) {
-          statusThrottle(chalk.yellow.bold(message));
+          statusThrottle(chalk.gray.bold(message));
         } else {
           updateSpinner(message);
         }
@@ -83,23 +83,27 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
       resetWindow();
 
-      persistSpinner('buildProgress', 'error', 'Build failed.');
+      persistSpinner('buildProgress', 'error', chalk.red.bold('Build failed.'));
 
-      writeDiagnostic(event.diagnostics, true);
+      writeDiagnostic(event.diagnostics, 'red', true);
       break;
     case 'log': {
       switch (event.level) {
         case 'success':
+          writeOut(chalk.green(event.message));
+          break;
         case 'progress':
           writeOut(event.message);
           break;
         case 'verbose':
         case 'info':
-          writeDiagnostic(event.diagnostics);
+          writeDiagnostic(event.diagnostics, 'blue');
           break;
         case 'warn':
+          writeDiagnostic(event.diagnostics, 'yellow', true);
+          break;
         case 'error':
-          writeDiagnostic(event.diagnostics, true);
+          writeDiagnostic(event.diagnostics, 'red', true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -110,21 +114,19 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
 function writeDiagnostic(
   diagnostics: Array<Diagnostic>,
+  color: string,
   isError: boolean = false,
 ) {
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
-
-    if (isError) {
-      message = chalk.red(message);
-    }
+    message = chalk[color](message);
 
     if (message) {
       writeOut(message, isError);
     }
 
     if (stack) {
-      writeOut(stack, isError);
+      writeOut(chalk.gray(stack), isError);
     }
 
     if (codeframe) {
