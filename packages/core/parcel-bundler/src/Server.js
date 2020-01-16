@@ -33,8 +33,7 @@ function enableCors(res) {
 }
 
 function middleware(bundler) {
-  const hasMultipleEntries = bundler.entryFiles.length > 1;
-  const enableServeIndex = hasMultipleEntries;
+  const enableServeIndex = bundler.entryFiles.length > 1;
 
   const serve = serveStatic(bundler.options.outDir, {
     index: enableServeIndex ? 'index.html' : false,
