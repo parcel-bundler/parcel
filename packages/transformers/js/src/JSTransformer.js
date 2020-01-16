@@ -71,8 +71,6 @@ export default new Transformer({
       return [asset];
     }
 
-    console.log('babba');
-
     let ast = asset.ast;
     let code = await asset.getCode();
 

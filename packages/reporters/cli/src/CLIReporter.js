@@ -89,7 +89,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
       persistSpinner('buildProgress', 'error', 'Build failed.');
 
-      writeDiagnostic(event.diagnostics);
+      writeDiagnostic(event.diagnostics, true);
       break;
     case 'log': {
       switch (event.level) {
@@ -103,7 +103,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
           break;
         case 'warn':
         case 'error':
-          writeDiagnostic(event.diagnostics);
+          writeDiagnostic(event.diagnostics, true);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -112,24 +112,35 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   }
 }
 
-function writeDiagnostic(diagnostics: Array<Diagnostic>) {
+function writeDiagnostic(
+  diagnostics: Array<Diagnostic>,
+  isError: boolean = false,
+) {
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
+    if (isError) {
+      message = chalk.red(message);
+    }
+
     if (message) {
-      writeOut(message);
+      writeOut(message, isError);
     }
 
     if (stack) {
-      writeOut(stack);
+      writeOut(stack, isError);
     }
 
     if (codeframe) {
-      writeOut(codeframe);
+      writeOut(codeframe, isError);
+    }
+
+    if (hints.length) {
+      writeOut(chalk.blue.bold(`${emoji.info} Hints:`));
     }
 
     for (let hint of hints) {
-      writeOut(hint);
+      writeOut(chalk.blue.bold(`- ${hint}`));
     }
   }
 }
