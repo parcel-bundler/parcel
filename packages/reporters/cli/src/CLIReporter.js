@@ -4,7 +4,6 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import {Reporter} from '@parcel/plugin';
 import {prettifyTime, prettyDiagnostic} from '@parcel/utils';
-import chalk from 'chalk';
 
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
@@ -18,6 +17,7 @@ export default new Reporter({
 });
 
 let wroteServerInfo = false;
+let persistedServerInfo = false;
 
 // Exported only for test
 export function _report(event: ReporterEvent, options: PluginOptions): void {
@@ -26,18 +26,22 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   switch (event.type) {
     case 'buildStart': {
       if (options.serve && !wroteServerInfo) {
-        writeOut(
-          chalk.blue.bold(
-            `Server running at ${
-              options.serve.https ? 'https' : 'http'
-            }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
-          ),
+        updateSpinner(
+          'serverStart',
+          `Server running at ${
+            options.serve.https ? 'https' : 'http'
+          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
         );
         wroteServerInfo = true;
       }
       break;
     }
     case 'buildProgress': {
+      if (!persistedServerInfo) {
+        persistSpinner('serverStart', 'info');
+        persistedServerInfo = true;
+      }
+
       if (logLevelFilter < logLevels.info) {
         break;
       }

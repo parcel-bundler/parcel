@@ -62,6 +62,8 @@ export function persistSpinner(
 ) {
   let s = spinners.get(name);
   if (s) {
+    message = message || s.text;
+
     switch (status) {
       case 'success':
         s.succeed(chalk.green.bold(message));
