@@ -3,12 +3,14 @@ import type {ReporterEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import {Reporter} from '@parcel/plugin';
-import {prettifyTime, prettyDiagnostic} from '@parcel/utils';
+import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
 
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
 import {writeOut, updateSpinner, persistSpinner} from './render';
+
+const THROTTLE_DELAY = 100;
 
 export default new Reporter({
   report({event, options}) {
@@ -18,6 +20,9 @@ export default new Reporter({
 
 let wroteServerInfo = false;
 let persistedServerInfo = false;
+let statusThrottle = throttle((message: string) => {
+  updateSpinner('buildProgress', message);
+}, THROTTLE_DELAY);
 
 // Exported only for test
 export function _report(event: ReporterEvent, options: PluginOptions): void {
@@ -48,7 +53,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
       let message = getProgressMessage(event);
       if (message != null) {
-        updateSpinner('buildProgress', message);
+        statusThrottle(message);
       }
       break;
     }
