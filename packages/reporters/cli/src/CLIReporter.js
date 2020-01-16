@@ -8,7 +8,7 @@ import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
-import {writeOut, updateSpinner, persistSpinner} from './render';
+import {writeOut, updateSpinner, persistSpinner, isTTY} from './render';
 
 const THROTTLE_DELAY = 100;
 
@@ -53,7 +53,11 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
       let message = getProgressMessage(event);
       if (message != null) {
-        statusThrottle(message);
+        if (isTTY) {
+          statusThrottle(message);
+        } else {
+          updateSpinner('buildProgress', message);
+        }
       }
       break;
     }

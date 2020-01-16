@@ -17,6 +17,12 @@ let stderr = process.stderr;
 
 let spinners = new Map();
 
+export function checkTTY() {
+  return process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
+}
+
+export const isTTY = checkTTY();
+
 // Exported only for test
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
   stdout = stdoutLike;
@@ -32,15 +38,13 @@ export function writeOut(message: string, isError?: boolean) {
 }
 
 export function updateSpinner(name: string, message: string) {
-  let isEnabled = process.env.NODE_ENV !== 'test' && !!process.stdout.isTTY;
-
   let s = spinners.get(name);
   if (!s) {
     s = ora({
       text: message,
       color: 'green',
       stream: stdout,
-      isEnabled,
+      isEnabled: isTTY,
     }).start();
     spinners.set(name, s);
   } else {
