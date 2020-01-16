@@ -1,14 +1,15 @@
-// @flow strict-local
+// @flow
 import type {ReporterEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import {Reporter} from '@parcel/plugin';
 import {prettifyTime, prettyDiagnostic} from '@parcel/utils';
+import chalk from 'chalk';
 
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
-import {writeOut} from './render';
+import {writeOut, updateSpinner, persistSpinner} from './render';
 
 export default new Reporter({
   report({event, options}) {
@@ -26,9 +27,11 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
     case 'buildStart': {
       if (options.serve && !wroteServerInfo) {
         writeOut(
-          `Server running at ${
-            options.serve.https ? 'https' : 'http'
-          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
+          chalk.blue.bold(
+            `Server running at ${
+              options.serve.https ? 'https' : 'http'
+            }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
+          ),
         );
         wroteServerInfo = true;
       }
@@ -41,7 +44,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
       let message = getProgressMessage(event);
       if (message != null) {
-        writeOut(message);
+        updateSpinner('buildProgress', message);
       }
       break;
     }
@@ -50,7 +53,12 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
-      writeOut(`Built in ${prettifyTime(event.buildTime)}`);
+      persistSpinner(
+        'buildProgress',
+        'success',
+        `Built in ${prettifyTime(event.buildTime)}`,
+      );
+
       if (options.mode === 'production') {
         bundleReport(event.bundleGraph);
       }
@@ -59,6 +67,8 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       if (logLevelFilter < logLevels.error) {
         break;
       }
+
+      persistSpinner('buildProgress', 'error', 'Build failed.');
 
       writeDiagnostic(event.diagnostics, true);
       break;

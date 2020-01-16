@@ -4,6 +4,8 @@ import type {Writable} from 'stream';
 import * as process from 'process';
 import {countBreaks} from 'grapheme-breaker';
 import stripAnsi from 'strip-ansi';
+import ora from 'ora';
+import chalk from 'chalk';
 
 type ColumnType = {|
   align: 'left' | 'right',
@@ -12,6 +14,8 @@ type ColumnType = {|
 // For test purposes
 let stdout = process.stdout;
 let stderr = process.stderr;
+
+let spinners = new Map();
 
 // Exported only for test
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
@@ -24,6 +28,54 @@ export function writeOut(message: string, isError?: boolean) {
     stderr.write(message + '\n');
   } else {
     stdout.write(message + '\n');
+  }
+}
+
+export function updateSpinner(name: string, message: string) {
+  let isEnabled = process.env.NODE_ENV !== 'test' && !!process.stdout.isTTY;
+
+  let s = spinners.get(name);
+  if (!s) {
+    s = ora({
+      text: message,
+      color: 'green',
+      stream: stdout,
+      isEnabled,
+    }).start();
+    spinners.set(name, s);
+  } else {
+    s.text = message;
+  }
+}
+
+export function clearSpinner(name: string) {
+  let s = spinners.get(name);
+  if (s) {
+    s.stop();
+  }
+}
+
+export function persistSpinner(
+  name: string,
+  status: 'success' | 'error' | 'warn' | 'info',
+  message?: string,
+) {
+  let s = spinners.get(name);
+  if (s) {
+    switch (status) {
+      case 'success':
+        s.succeed(chalk.green.bold(message));
+        break;
+      case 'error':
+        s.fail(chalk.red.bold(message));
+        break;
+      case 'warn':
+        s.warn(chalk.orange.bold(message));
+        break;
+      case 'info':
+        s.info(chalk.blue.bold(message));
+        break;
+    }
   }
 }
 

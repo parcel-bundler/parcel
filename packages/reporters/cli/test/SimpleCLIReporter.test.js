@@ -29,7 +29,7 @@ const EMPTY_OPTIONS = {
   packageManager: new NodePackageManager(inputFS),
 };
 
-describe('SimpleCLIReporter', () => {
+describe.skip('SimpleCLIReporter', () => {
   // $FlowFixMe only run in CI
   if (process.stdout.isTTY) {
     return;
