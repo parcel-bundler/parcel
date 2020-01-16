@@ -26,6 +26,8 @@
     "nullthrows": "^1.1.1",
     "ora": "^4.0.3",
     "react": "^16.7.0",
-    "strip-ansi": "^6.0.0"
+    "string-width": "^4.2.0",
+    "strip-ansi": "^6.0.0",
+    "term-size": "^2.1.1"
   }
 }

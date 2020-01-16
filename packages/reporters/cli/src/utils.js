@@ -1,11 +1,11 @@
-// @flow strict-local
+// @flow
 import type {BuildProgressEvent} from '@parcel/types';
 
 import path from 'path';
-import {countBreaks} from 'grapheme-breaker';
 import stripAnsi from 'strip-ansi';
-// $FlowFixMe
 import chalk from 'chalk';
+import stringWidth from 'string-width';
+import termSize from 'term-size';
 
 export type PadAlign = 'left' | 'right';
 
@@ -25,11 +25,6 @@ export function getProgressMessage(event: BuildProgressEvent): ?string {
   }
 
   return null;
-}
-
-// Count visible characters in a string
-export function stringWidth(s: string) {
-  return countBreaks(stripAnsi('' + s));
 }
 
 // Pad a string with spaces on either side
@@ -53,14 +48,9 @@ export function formatFilename(
 }
 
 export function countLines(message: string) {
+  let {columns} = termSize();
+
   return stripAnsi(message)
     .split('\n')
-    .reduce((p, line) => {
-      // $FlowFixMe Sketchy null checks are FUN
-      if (process.stdout.columns) {
-        return p + Math.ceil((line.length || 1) / process.stdout.columns);
-      }
-
-      return p + 1;
-    }, 0);
+    .reduce((p, line) => p + Math.ceil((line.length || 1) / columns), 0);
 }

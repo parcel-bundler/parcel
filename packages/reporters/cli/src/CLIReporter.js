@@ -28,7 +28,7 @@ export default new Reporter({
 });
 
 let statusThrottle = throttle((message: string) => {
-  updateSpinner('buildProgress', message);
+  updateSpinner(message);
 }, THROTTLE_DELAY);
 
 // Exported only for test
@@ -53,14 +53,12 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
-      resetWindow();
-
       let message = getProgressMessage(event);
       if (message != null) {
         if (isTTY) {
           statusThrottle(message);
         } else {
-          updateSpinner('buildProgress', message);
+          updateSpinner(message);
         }
       }
       break;
@@ -69,6 +67,8 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       if (logLevelFilter < logLevels.info) {
         break;
       }
+
+      resetWindow();
 
       persistSpinner(
         'buildProgress',
@@ -85,9 +85,11 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
         break;
       }
 
+      resetWindow();
+
       persistSpinner('buildProgress', 'error', 'Build failed.');
 
-      writeDiagnostic(event.diagnostics, true);
+      writeDiagnostic(event.diagnostics);
       break;
     case 'log': {
       switch (event.level) {
@@ -101,7 +103,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
           break;
         case 'warn':
         case 'error':
-          writeDiagnostic(event.diagnostics, true);
+          writeDiagnostic(event.diagnostics);
           break;
         default:
           throw new Error('Unknown log level ' + event.level);
@@ -110,24 +112,24 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   }
 }
 
-function writeDiagnostic(diagnostics: Array<Diagnostic>, isError?: boolean) {
+function writeDiagnostic(diagnostics: Array<Diagnostic>) {
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
 
     if (message) {
-      writeOut(message, isError);
+      writeOut(message);
     }
 
     if (stack) {
-      writeOut(stack, isError);
+      writeOut(stack);
     }
 
     if (codeframe) {
-      writeOut(codeframe, isError);
+      writeOut(codeframe);
     }
 
     for (let hint of hints) {
-      writeOut(hint, isError);
+      writeOut(hint);
     }
   }
 }
