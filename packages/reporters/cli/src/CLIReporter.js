@@ -1,24 +1,106 @@
 // @flow strict-local
+import type {ReporterEvent, PluginOptions} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
-import type {ReporterEvent} from '@parcel/types';
-
-import {render} from 'ink';
 import {Reporter} from '@parcel/plugin';
-import React from 'react';
-import {ValueEmitter} from '@parcel/events';
+import {prettifyTime, prettyDiagnostic} from '@parcel/utils';
 
-import UI from './UI';
-
-let rendered = false;
-let events = new ValueEmitter<ReporterEvent>();
+import {getProgressMessage} from './utils';
+import logLevels from './logLevels';
+import bundleReport from './bundleReport';
+import {writeOut} from './render';
 
 export default new Reporter({
   report({event, options}) {
-    if (!rendered) {
-      render(<UI options={options} events={events} />);
-      rendered = true;
-    }
-
-    events.emit(event);
+    _report(event, options);
   },
 });
+
+let wroteServerInfo = false;
+
+// Exported only for test
+export function _report(event: ReporterEvent, options: PluginOptions): void {
+  let logLevelFilter = logLevels[options.logLevel || 'info'];
+
+  switch (event.type) {
+    case 'buildStart': {
+      if (options.serve && !wroteServerInfo) {
+        writeOut(
+          `Server running at ${
+            options.serve.https ? 'https' : 'http'
+          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
+        );
+        wroteServerInfo = true;
+      }
+      break;
+    }
+    case 'buildProgress': {
+      if (logLevelFilter < logLevels.info) {
+        break;
+      }
+
+      let message = getProgressMessage(event);
+      if (message != null) {
+        writeOut(message);
+      }
+      break;
+    }
+    case 'buildSuccess':
+      if (logLevelFilter < logLevels.info) {
+        break;
+      }
+
+      writeOut(`Built in ${prettifyTime(event.buildTime)}`);
+      if (options.mode === 'production') {
+        bundleReport(event.bundleGraph);
+      }
+      break;
+    case 'buildFailure':
+      if (logLevelFilter < logLevels.error) {
+        break;
+      }
+
+      writeDiagnostic(event.diagnostics, true);
+      break;
+    case 'log': {
+      switch (event.level) {
+        case 'success':
+        case 'progress':
+          writeOut(event.message);
+          break;
+        case 'verbose':
+        case 'info':
+          writeDiagnostic(event.diagnostics);
+          break;
+        case 'warn':
+        case 'error':
+          writeDiagnostic(event.diagnostics, true);
+          break;
+        default:
+          throw new Error('Unknown log level ' + event.level);
+      }
+    }
+  }
+}
+
+function writeDiagnostic(diagnostics: Array<Diagnostic>, isError?: boolean) {
+  for (let diagnostic of diagnostics) {
+    let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
+
+    if (message) {
+      writeOut(message, isError);
+    }
+
+    if (stack) {
+      writeOut(stack, isError);
+    }
+
+    if (codeframe) {
+      writeOut(codeframe, isError);
+    }
+
+    for (let hint of hints) {
+      writeOut(hint, isError);
+    }
+  }
+}

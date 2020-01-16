@@ -1,106 +1,76 @@
-// @flow strict-local
+// @flow
+import type {BundleGraph} from '@parcel/types';
 
-import type {BundleGraph, FilePath} from '@parcel/types';
-
-import * as React from 'react';
-import filesize from 'filesize';
-import {Box, Color} from 'ink';
 import {generateBundleReport, prettifyTime} from '@parcel/utils';
 import path from 'path';
+import filesize from 'filesize';
+import chalk from 'chalk';
+
 import * as emoji from './emoji';
-import {Table, Row, Cell} from './Table';
+import {writeOut, table} from './render';
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
+const COLUMNS = [
+  {align: 'left'}, // name
+  {align: 'right'}, // size
+  {align: 'right'}, // time
+];
 
-type ReportProps = {|
-  bundleGraph: BundleGraph,
-|};
+export default function bundleReport(bundleGraph: BundleGraph) {
+  // Get a list of bundles sorted by size
+  let {bundles} = generateBundleReport(bundleGraph);
+  let rows = [];
 
-export default function BundleReport(
-  props: ReportProps,
-): React.Element<typeof Table> {
-  let {bundles} = generateBundleReport(props.bundleGraph);
-
-  let rows: Array<React.Element<typeof Row>> = [<Row key="first" />];
   for (let bundle of bundles) {
-    rows.push(
-      <Row key={`bundle:${bundle.filePath}`}>
-        <Cell>
-          {formatFilename(bundle.filePath || '', {cyan: true, bold: true})}
-        </Cell>
-        <Cell align="right">
-          <Color bold>
-            {prettifySize(bundle.size, bundle.size > LARGE_BUNDLE_SIZE)}
-          </Color>
-        </Cell>
-        <Cell align="right">
-          <Color green bold>
-            {prettifyTime(bundle.time)}
-          </Color>
-        </Cell>
-      </Row>,
-    );
+    // Add a row for the bundle
+    rows.push([
+      formatFilename(bundle.filePath || '', chalk.cyan.bold),
+      chalk.bold(prettifySize(bundle.size, bundle.size > LARGE_BUNDLE_SIZE)),
+      chalk.green.bold(prettifyTime(bundle.time)),
+    ]);
 
     for (let asset of bundle.largestAssets) {
       // Add a row for the asset.
-      rows.push(
-        <Row key={`bundle:${bundle.filePath}:asset:${asset.filePath}`}>
-          <Cell>
-            {asset == bundle.largestAssets[bundle.largestAssets.length - 1]
-              ? '└── '
-              : '├── '}
-            {formatFilename(asset.filePath, {})}
-          </Cell>
-          <Cell align="right">
-            <Color dim>{prettifySize(asset.size)}</Color>
-          </Cell>
-          <Cell align="right">
-            <Color green dim>
-              {prettifyTime(asset.time)}
-            </Color>
-          </Cell>
-        </Row>,
-      );
+      rows.push([
+        asset == bundle.largestAssets[bundle.largestAssets.length - 1]
+          ? '└── '
+          : '├── ' + formatFilename(asset.filePath, chalk.reset),
+        chalk.dim(prettifySize(asset.size)),
+        chalk.dim(chalk.green(prettifyTime(asset.time))),
+      ]);
     }
 
-    // Show how many more assets there are
     if (bundle.totalAssets > bundle.largestAssets.length) {
-      rows.push(
-        <Row key={`bundleAssetCount:${bundle.filePath}`}>
-          <Cell>
-            └──{' '}
-            <Color dim>
-              + {bundle.totalAssets - bundle.largestAssets.length} more assets
-            </Color>
-          </Cell>
-        </Row>,
-      );
+      rows.push([
+        '└── ' +
+          chalk.dim(
+            `+ ${bundle.totalAssets - bundle.largestAssets.length} more assets`,
+          ),
+      ]);
     }
 
     // If this isn't the last bundle, add an empty row before the next one
     if (bundle !== bundles[bundles.length - 1]) {
-      rows.push(<Row key={`spacer:${bundle.filePath}`} />);
+      rows.push([]);
     }
   }
 
-  return <Table>{rows.map(r => React.cloneElement(r, {key: r.key}))}</Table>;
+  // Render table
+  writeOut('');
+  table(COLUMNS, rows);
 }
 
-function formatFilename(filename: FilePath, color = {}) {
-  let dir = path.relative(process.cwd(), path.dirname(filename));
-
-  return (
-    <Box>
-      <Color dim>{dir + (dir ? path.sep : '')}</Color>
-      <Color {...color}>{path.basename(filename)}</Color>
-    </Box>
-  );
-}
-
-function prettifySize(size: number, isLarge?: boolean) {
+function prettifySize(size, isLarge) {
   let res = filesize(size);
   if (isLarge) {
-    return <Color yellow>{emoji.warning + '  ' + res}</Color>;
+    return chalk.yellow(emoji.warning + '  ' + res);
   }
-  return <Color magenta>{res}</Color>;
+  return chalk.magenta(res);
+}
+
+function formatFilename(filename, color = chalk.reset) {
+  let dir = path.relative(process.cwd(), path.dirname(filename));
+  return (
+    chalk.dim(dir + (dir ? path.sep : '')) + color(path.basename(filename))
+  );
 }

@@ -2,7 +2,8 @@
 
 import assert from 'assert';
 import {PassThrough} from 'stream';
-import {_report, _setStdio} from '../src/SimpleCLIReporter';
+import {_report} from '../src/CLIReporter';
+import {_setStdio} from '../src/render';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
 

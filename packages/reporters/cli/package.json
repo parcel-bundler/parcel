@@ -9,8 +9,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/index.js",
-  "source": "src/index.js",
+  "main": "lib/CLIReporter.js",
+  "source": "src/CLIReporter.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
@@ -20,15 +20,12 @@
     "@parcel/plugin": "^2.0.0-alpha.3.1",
     "@parcel/types": "^2.0.0-alpha.3.1",
     "@parcel/utils": "^2.0.0-alpha.3.1",
-    "cli-spinners": "^2.0.0",
+    "chalk": "^3.0.0",
     "filesize": "^3.6.0",
     "grapheme-breaker": "^0.3.2",
-    "ink": "^2.1.1",
-    "ink-spinner": "^3.0.1",
     "nullthrows": "^1.1.1",
-    "react": "^16.7.0"
-  },
-  "devDependencies": {
-    "eslint-plugin-react": "^7.12.0"
+    "ora": "^4.0.3",
+    "react": "^16.7.0",
+    "strip-ansi": "^6.0.0"
   }
 }
