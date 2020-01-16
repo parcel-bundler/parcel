@@ -6,6 +6,7 @@ import type {
   AssetGraphNode,
   AssetGroup,
   AssetGroupNode,
+  AssetNode,
   Dependency,
   DependencyNode,
   NodeId,
@@ -135,6 +136,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let existingNode = this.getNode(node.id);
     if (
       INCOMPLETE_TYPES.includes(node.type) &&
+      !node.complete &&
       !node.deferred &&
       (!existingNode || existingNode.deferred)
     ) {
@@ -209,17 +211,53 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return;
     }
 
-    let assetNodes = assets.map(asset => nodeFromAsset(asset));
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+    let dependentAssetKeys = [];
+    let assetTuples: Array<[AssetNode, Array<Asset>, boolean]> = [];
+    for (let asset of assets) {
+      let isDirect = dependentAssetKeys.includes(asset.uniqueKey)
+        ? false
+        : true;
 
-    for (let assetNode of assetNodes) {
-      let depNodes = [];
-      invariant(assetNode.type === 'asset');
-      for (let dep of assetNode.value.dependencies.values()) {
-        let depNode = nodeFromDep(dep);
-        depNodes.push(this.nodes.get(depNode.id) || depNode);
+      let dependentAssets = [];
+      for (let dep of asset.dependencies.values()) {
+        let dependentAsset = assets.find(
+          a => a.uniqueKey === dep.moduleSpecifier,
+        );
+        if (dependentAsset) {
+          dependentAssetKeys.push(dependentAsset.uniqueKey);
+          dependentAssets.push(dependentAsset);
+        }
       }
-      this.replaceNodesConnectedTo(assetNode, depNodes);
+      assetTuples.push([nodeFromAsset(asset), dependentAssets, isDirect]);
+    }
+
+    this.replaceNodesConnectedTo(
+      assetGroupNode,
+      assetTuples.filter(a => a[2]).map(a => a[0]),
+    );
+    for (let [assetNode, dependentAssets] of assetTuples) {
+      this.resolveAsset(assetNode, dependentAssets);
+    }
+  }
+
+  resolveAsset(assetNode: AssetNode, dependentAssets: Array<Asset>) {
+    let depNodes = [];
+    let depNodesWithAssets = [];
+    for (let dep of assetNode.value.dependencies.values()) {
+      let depNode = nodeFromDep(dep);
+      depNodes.push(this.nodes.get(depNode.id) || depNode);
+      let dependentAsset = dependentAssets.find(
+        a => a.uniqueKey === dep.moduleSpecifier,
+      );
+      if (dependentAsset) {
+        depNode.complete = true;
+        depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
+      }
+    }
+    this.replaceNodesConnectedTo(assetNode, depNodes);
+
+    for (let [depNode, dependentAssetNode] of depNodesWithAssets) {
+      this.replaceNodesConnectedTo(depNode, [dependentAssetNode]);
     }
   }
 

@@ -44,7 +44,9 @@ export default function BundleReport(
     for (let asset of bundle.largestAssets) {
       // Add a row for the asset.
       rows.push(
-        <Row key={`bundle:${bundle.filePath}:asset:${asset.filePath}`}>
+        <Row
+          key={`bundle:${bundle.filePath}:asset:${asset.filePath}:uniqueKey:${asset.uniqueKey}`}
+        >
           <Cell>
             {asset == bundle.largestAssets[bundle.largestAssets.length - 1]
               ? '└── '
