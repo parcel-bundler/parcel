@@ -1,40 +1,50 @@
-// @flow
+// @flow strict-local
 import type {Writable} from 'stream';
 
-import * as process from 'process';
-import {countBreaks} from 'grapheme-breaker';
-import stripAnsi from 'strip-ansi';
 import ora from 'ora';
-import chalk from 'chalk';
+
+import type {PadAlign} from './utils';
+import {stringWidth, pad, countLines} from './utils';
+import * as emoji from './emoji';
 
 type ColumnType = {|
-  align: 'left' | 'right',
+  align: PadAlign,
 |};
 
-// For test purposes
+// $FlowFixMe
+export const isTTY = process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
+
 let stdout = process.stdout;
 let stderr = process.stderr;
 
-let spinners = new Map();
-
-export function checkTTY() {
-  return process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
-}
-
-export const isTTY = checkTTY();
-
-// Exported only for test
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
   stdout = stdoutLike;
   stderr = stderrLike;
 }
 
+let spinners = new Map();
+let persistedMessages = [];
+let stdoutLines = 0;
+let stderrLines = 0;
+
 export function writeOut(message: string, isError?: boolean) {
+  let processedMessage = message + '\n';
+  let lineCount = countLines(processedMessage);
+
   if (isError) {
-    stderr.write(message + '\n');
+    stderr.write(processedMessage);
+    stderrLines += lineCount;
   } else {
-    stdout.write(message + '\n');
+    stdout.write(processedMessage);
+    stdoutLines += lineCount;
   }
+}
+
+export function persistMessage(message: string) {
+  if (persistedMessages.includes(message)) return;
+
+  persistedMessages.push(message);
+  resetWindow();
 }
 
 export function updateSpinner(name: string, message: string) {
@@ -52,52 +62,57 @@ export function updateSpinner(name: string, message: string) {
   }
 }
 
-export function clearSpinner(name: string) {
-  let s = spinners.get(name);
-  if (s) {
-    s.stop();
+export function tickSpinners() {
+  for (let v of spinners.values()) {
+    v.frame();
   }
+}
+
+function renderPersistedMessages() {
+  for (let m of persistedMessages) {
+    writeOut(m);
+  }
+}
+
+// $FlowFixMe
+function clearLines(s: any, lines: number) {
+  for (let i = 0; i < lines; i++) {
+    if (i > 0) {
+      s.moveCursor(0, -1);
+    }
+
+    s.clearLine();
+    s.cursorTo(0);
+  }
+}
+
+// Reset the window's state
+export function resetWindow() {
+  if (!isTTY) return;
+
+  clearLines(stderr, stderrLines);
+  stderrLines = 0;
+
+  clearLines(stdout, stdoutLines);
+  stdoutLines = 0;
+
+  renderPersistedMessages();
+  tickSpinners();
 }
 
 export function persistSpinner(
   name: string,
-  status: 'success' | 'error' | 'warn' | 'info',
+  status: 'success' | 'error',
   message?: string,
 ) {
   let s = spinners.get(name);
   if (s) {
-    message = message || s.text;
-
-    switch (status) {
-      case 'success':
-        s.succeed(chalk.green.bold(message));
-        break;
-      case 'error':
-        s.fail(chalk.red.bold(message));
-        break;
-      case 'warn':
-        s.warn(chalk.orange.bold(message));
-        break;
-      case 'info':
-        s.info(chalk.blue.bold(message));
-        break;
-    }
+    s.stopAndPersist({
+      symbol: emoji[status],
+      // $FlowFixMe
+      text: message || s.text || '',
+    });
   }
-}
-
-// Count visible characters in a string
-function stringWidth(string) {
-  return countBreaks(stripAnsi('' + string));
-}
-
-// Pad a string with spaces on either side
-function pad(text, length, align = 'left') {
-  let pad = ' '.repeat(length - stringWidth(text));
-  if (align === 'right') {
-    return pad + text;
-  }
-
-  return text + pad;
 }
 
 export function table(columns: Array<ColumnType>, table: Array<Array<string>>) {

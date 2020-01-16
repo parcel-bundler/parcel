@@ -4,11 +4,20 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import {Reporter} from '@parcel/plugin';
 import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
+import chalk from 'chalk';
 
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
-import {writeOut, updateSpinner, persistSpinner, isTTY} from './render';
+import {
+  writeOut,
+  updateSpinner,
+  persistSpinner,
+  isTTY,
+  resetWindow,
+  persistMessage,
+} from './render';
+import * as emoji from './emoji';
 
 const THROTTLE_DELAY = 100;
 
@@ -18,8 +27,6 @@ export default new Reporter({
   },
 });
 
-let wroteServerInfo = false;
-let persistedServerInfo = false;
 let statusThrottle = throttle((message: string) => {
   updateSpinner('buildProgress', message);
 }, THROTTLE_DELAY);
@@ -30,26 +37,23 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
   switch (event.type) {
     case 'buildStart': {
-      if (options.serve && !wroteServerInfo) {
-        updateSpinner(
-          'serverStart',
-          `Server running at ${
-            options.serve.https ? 'https' : 'http'
-          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
+      if (options.serve) {
+        persistMessage(
+          chalk.blue.bold(
+            `${emoji.info} Server running at ${
+              options.serve.https ? 'https' : 'http'
+            }://${options.serve.host ?? 'localhost'}:${options.serve.port}`,
+          ),
         );
-        wroteServerInfo = true;
       }
       break;
     }
     case 'buildProgress': {
-      if (!persistedServerInfo) {
-        persistSpinner('serverStart', 'info');
-        persistedServerInfo = true;
-      }
-
       if (logLevelFilter < logLevels.info) {
         break;
       }
+
+      resetWindow();
 
       let message = getProgressMessage(event);
       if (message != null) {

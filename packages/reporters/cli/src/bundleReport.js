@@ -2,12 +2,12 @@
 import type {BundleGraph} from '@parcel/types';
 
 import {generateBundleReport, prettifyTime} from '@parcel/utils';
-import path from 'path';
 import filesize from 'filesize';
 import chalk from 'chalk';
 
 import * as emoji from './emoji';
 import {writeOut, table} from './render';
+import {formatFilename} from './utils';
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
 const COLUMNS = [
@@ -66,11 +66,4 @@ function prettifySize(size, isLarge) {
     return chalk.yellow(emoji.warning + '  ' + res);
   }
   return chalk.magenta(res);
-}
-
-function formatFilename(filename, color = chalk.reset) {
-  let dir = path.relative(process.cwd(), path.dirname(filename));
-  return (
-    chalk.dim(dir + (dir ? path.sep : '')) + color(path.basename(filename))
-  );
 }
