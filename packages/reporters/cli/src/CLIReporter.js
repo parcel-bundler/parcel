@@ -31,7 +31,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
   switch (event.type) {
     case 'buildStart': {
-      // Clear any previous output...
+      // Clear any previous output
       resetWindow();
 
       if (options.serve) {
@@ -65,8 +65,6 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       if (logLevelFilter < logLevels.info) {
         break;
       }
-
-      resetWindow();
 
       persistSpinner(
         'buildProgress',

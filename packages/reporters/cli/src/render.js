@@ -19,6 +19,7 @@ export const isTTY = process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
 let stdout = process.stdout;
 let stderr = process.stderr;
 
+// Some state so we clear the output properly
 let lineCount = 0;
 let errorLineCount = 0;
 let statusPersisted = false;
@@ -39,6 +40,7 @@ export function writeOut(message: string, isError: boolean = false) {
   let processedMessage = message + '\n';
   let hasSpinner = spinner.isSpinning;
 
+  // Stop spinner so we don't duplicate it
   if (hasSpinner) {
     spinner.stop();
   }
@@ -52,6 +54,7 @@ export function writeOut(message: string, isError: boolean = false) {
     lineCount += lines;
   }
 
+  // Restart the spinner
   if (hasSpinner) {
     spinner.start();
   }
@@ -71,18 +74,32 @@ export function updateSpinner(message: string) {
   }
 }
 
-// $FlowFixMe
-function clearStream(s: any, l: number) {
+export function persistSpinner(
+  name: string,
+  status: 'success' | 'error',
+  message: string,
+) {
+  spinner.stopAndPersist({
+    symbol: emoji[status],
+    text: message,
+  });
+
+  statusPersisted = true;
+}
+
+function clearStream(stream: Writable, lines: number) {
   if (!isTTY) return;
 
-  readline.moveCursor(s, 0, -l);
-  readline.clearScreenDown(s);
+  readline.moveCursor(stream, 0, -lines);
+  readline.clearScreenDown(stream);
 }
 
 // Reset the window's state
 export function resetWindow() {
   if (!isTTY) return;
 
+  // If status has been persisted we add a line
+  // Otherwise final states would remain in the terminal for rebuilds
   if (statusPersisted) {
     lineCount++;
     statusPersisted = false;
@@ -97,19 +114,6 @@ export function resetWindow() {
   for (let m of persistedMessages) {
     writeOut(m);
   }
-}
-
-export function persistSpinner(
-  name: string,
-  status: 'success' | 'error',
-  message: string,
-) {
-  spinner.stopAndPersist({
-    symbol: emoji[status],
-    text: message,
-  });
-
-  statusPersisted = true;
 }
 
 export function table(columns: Array<ColumnType>, table: Array<Array<string>>) {
