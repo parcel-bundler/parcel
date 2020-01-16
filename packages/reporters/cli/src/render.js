@@ -1,6 +1,7 @@
 // @flow
 import type {Writable} from 'stream';
 
+import readline from 'readline';
 import ora from 'ora';
 import stringWidth from 'string-width';
 
@@ -16,10 +17,14 @@ type ColumnType = {|
 export const isTTY = process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
 
 let stdout = process.stdout;
-let lineCount = 0;
+let stderr = process.stderr;
 
-export function _setStdio(stdoutLike: Writable) {
+let lineCount = 0;
+let errorLineCount = 0;
+
+export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
   stdout = stdoutLike;
+  stderr = stderrLike;
 }
 
 let spinner = ora({
@@ -29,7 +34,7 @@ let spinner = ora({
 });
 let persistedMessages = [];
 
-export function writeOut(message: string) {
+export function writeOut(message: string, isError: boolean = false) {
   let processedMessage = message + '\n';
   let hasSpinner = spinner.isSpinning;
 
@@ -37,8 +42,14 @@ export function writeOut(message: string) {
     spinner.stop();
   }
 
-  stdout.write(processedMessage);
-  lineCount += countLines(message);
+  let lines = countLines(message);
+  if (isError) {
+    stderr.write(processedMessage);
+    errorLineCount += lines;
+  } else {
+    stdout.write(processedMessage);
+    lineCount += lines;
+  }
 
   if (hasSpinner) {
     spinner.start();
@@ -61,13 +72,18 @@ export function updateSpinner(message: string) {
 
 // $FlowFixMe
 function clearStream(s: any, l: number) {
-  s.moveCursor(0, -l);
-  s.clearScreenDown();
+  if (!isTTY) return;
+
+  readline.moveCursor(s, 0, -l);
+  readline.clearScreenDown(s);
 }
 
 // Reset the window's state
 export function resetWindow() {
   if (!isTTY) return;
+
+  clearStream(stderr, errorLineCount);
+  errorLineCount = 0;
 
   clearStream(stdout, lineCount);
   lineCount = 0;

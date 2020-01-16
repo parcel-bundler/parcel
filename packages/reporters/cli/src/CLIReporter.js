@@ -56,7 +56,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       let message = getProgressMessage(event);
       if (message != null) {
         if (isTTY) {
-          statusThrottle(message);
+          statusThrottle(chalk.yellow.bold(message));
         } else {
           updateSpinner(message);
         }
@@ -73,7 +73,7 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       persistSpinner(
         'buildProgress',
         'success',
-        `Built in ${prettifyTime(event.buildTime)}`,
+        chalk.green.bold(`Built in ${prettifyTime(event.buildTime)}`),
       );
 
       if (options.mode === 'production') {
