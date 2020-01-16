@@ -32,7 +32,6 @@ export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
 let spinner = ora({
   color: 'green',
   stream: stdout,
-  isEnabled: isTTY,
 });
 let persistedMessages = [];
 
@@ -68,6 +67,12 @@ export function persistMessage(message: string) {
 }
 
 export function updateSpinner(message: string) {
+  // This helps the spinner play well with the tests
+  if (!isTTY) {
+    writeOut(message);
+    return;
+  }
+
   spinner.text = message + '\n';
   if (!spinner.isSpinning) {
     spinner.start();
