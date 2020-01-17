@@ -6,6 +6,7 @@ on:
     branches:
       - v2
       - stale-action # For testing purposes
+      - test
 
 jobs:
   stale:
