@@ -5,8 +5,7 @@ on:
   push:
     branches:
       - v2
-      - stale-action # For testing purposes
-      - test
+      - stale-action
 
 jobs:
   stale:
