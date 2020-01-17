@@ -1,7 +1,7 @@
 // @flow
 
 import assert from 'assert';
-import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
+import AssetGraph, {nodeFromAssetGroup, nodeFromDep} from '../src/AssetGraph';
 import {createDependency} from '../src/Dependency';
 import {createAsset} from '../src/InternalAsset';
 import {createEnvironment} from '../src/Environment';
@@ -298,7 +298,7 @@ describe('AssetGraph', () => {
     assert(!graph.hasEdge('2', [...assets[1].dependencies.values()][0].id));
   });
 
-  it('resolveAssetRequest should add connected file nodes', () => {
+  it('resolveAssetGroup should add connected file nodes', () => {
     let graph = new AssetGraph();
     graph.initialize({
       targets: TARGETS,
@@ -351,5 +351,82 @@ describe('AssetGraph', () => {
     graph.resolveAssetGroup(req, assets);
     assert(graph.nodes.has('1'));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
+  });
+
+  // Assets can define dependent assets in the same asset group by declaring a dependency with a module
+  // specifer that matches the dependent asset's unique key. These dependent assets are then connected
+  // to the asset's dependency instead of the asset group.
+  it('resolveAssetGroup should handle dependent assets in asset groups', () => {
+    let graph = new AssetGraph();
+    graph.initialize({targets: TARGETS, entries: ['./index']});
+
+    graph.resolveEntry('./index', ['/path/to/index/src/main.js']);
+    graph.resolveTargets('/path/to/index/src/main.js', TARGETS);
+
+    let dep = createDependency({
+      moduleSpecifier: '/path/to/index/src/main.js',
+      pipeline: 'test',
+      env: DEFAULT_ENV,
+      target: TARGETS[0],
+    });
+    let filePath = '/index.js';
+    let req = {filePath, env: DEFAULT_ENV};
+    graph.resolveDependency(dep, nodeFromAssetGroup(req));
+    let sourcePath = filePath;
+    let dep1 = createDependency({
+      moduleSpecifier: 'dependent-asset-1',
+      env: DEFAULT_ENV,
+      sourcePath,
+    });
+    let dep2 = createDependency({
+      moduleSpecifier: 'dependent-asset-2',
+      env: DEFAULT_ENV,
+      sourcePath,
+    });
+    let assets = [
+      createAsset({
+        id: '1',
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#1',
+        stats,
+        dependencies: new Map([['dep1', dep1]]),
+        env: DEFAULT_ENV,
+      }),
+      createAsset({
+        id: '2',
+        uniqueKey: 'dependent-asset-1',
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#1',
+        stats,
+        dependencies: new Map([['dep2', dep2]]),
+        env: DEFAULT_ENV,
+      }),
+      createAsset({
+        id: '3',
+        uniqueKey: 'dependent-asset-2',
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#1',
+        stats,
+        env: DEFAULT_ENV,
+      }),
+    ];
+
+    graph.resolveAssetGroup(req, assets);
+    assert(graph.nodes.has('1'));
+    assert(graph.nodes.has('2'));
+    assert(graph.nodes.has('3'));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
+    assert(!graph.hasEdge(nodeFromAssetGroup(req).id, '2'));
+    assert(!graph.hasEdge(nodeFromAssetGroup(req).id, '3'));
+    assert(graph.hasEdge('1', nodeFromDep(dep1).id));
+    assert(graph.hasEdge(nodeFromDep(dep1).id, '2'));
+    assert(graph.hasEdge('2', nodeFromDep(dep2).id));
+    assert(graph.hasEdge(nodeFromDep(dep2).id, '3'));
   });
 });
