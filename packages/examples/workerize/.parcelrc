@@ -1,0 +1,9 @@
+{
+  "extends": "@parcel/config-default",
+  "transforms": {
+    "*.worker.js": [
+      "@parcel/transformer-workerize",
+      "..."
+    ]
+  }
+}

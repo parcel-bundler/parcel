@@ -10,6 +10,7 @@ export type BundleReport = {|
     time: number,
     largestAssets: Array<{|
       filePath: string,
+      uniqueKey: ?string,
       size: number,
       time: number,
     |}>,
@@ -41,6 +42,7 @@ export default function generateBundleReport(
         time: bundle.stats.time,
         largestAssets: assets.slice(0, largestAssetCount).map(asset => ({
           filePath: asset.filePath,
+          uniqueKey: asset.uniqueKey,
           size: asset.stats.size,
           time: asset.stats.time,
         })),

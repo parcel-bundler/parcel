@@ -1,0 +1,21 @@
+{
+  "name": "@parcel/workerize-example",
+  "version": "2.0.0-alpha.3.2",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "parcel src/index.js",
+    "build": "parcel build src/index.js",
+    "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0-alpha.3.1",
+    "@parcel/core": "^2.0.0-alpha.3.2"
+  },
+  "main": "dist/index.js",
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}
