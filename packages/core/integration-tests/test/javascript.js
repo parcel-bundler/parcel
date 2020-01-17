@@ -655,7 +655,7 @@ describe('javascript', function() {
         ],
       },
       {
-        assets: ['local.js', 'test.txt.js'],
+        assets: ['local.js', 'JSRuntime.js'],
       },
       {
         assets: ['test.txt'],
@@ -888,7 +888,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'test.txt.js'],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         type: 'txt',
@@ -922,7 +922,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'test.txt.js'],
+        assets: ['index.js', 'JSRuntime.js', 'bundle-url.js'],
       },
       {
         type: 'txt',
