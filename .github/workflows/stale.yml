@@ -21,4 +21,4 @@ jobs:
           days-before-stale: 180
           days-before-close: 14
           exempt-labels: 'pinned, Stale Ignore, security, Confirmed Bug, Feature, parcel 2'
-          dry-run: 'true'
+          dry-run: 'false'
