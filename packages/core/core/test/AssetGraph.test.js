@@ -298,61 +298,6 @@ describe('AssetGraph', () => {
     assert(!graph.hasEdge('2', [...assets[1].dependencies.values()][0].id));
   });
 
-  it('resolveAssetGroup should add connected file nodes', () => {
-    let graph = new AssetGraph();
-    graph.initialize({
-      targets: TARGETS,
-      entries: ['./index'],
-    });
-
-    graph.resolveEntry('./index', ['/path/to/index/src/main.js']);
-    graph.resolveTargets('/path/to/index/src/main.js', TARGETS);
-
-    let dep = createDependency({
-      moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
-      env: DEFAULT_ENV,
-      target: TARGETS[0],
-    });
-    let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
-    graph.resolveDependency(dep, nodeFromAssetGroup(req));
-    let sourcePath = filePath;
-    let assets = [
-      createAsset({
-        id: '1',
-        filePath,
-        type: 'js',
-        isSource: true,
-        hash: '#1',
-        stats,
-        dependencies: new Map([
-          [
-            'utils',
-            createDependency({
-              moduleSpecifier: './utils',
-              env: DEFAULT_ENV,
-              sourcePath,
-            }),
-          ],
-        ]),
-        env: DEFAULT_ENV,
-        includedFiles: new Map([
-          [
-            '/foo/bar',
-            {
-              filePath: '/foo/bar',
-            },
-          ],
-        ]),
-      }),
-    ];
-
-    graph.resolveAssetGroup(req, assets);
-    assert(graph.nodes.has('1'));
-    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
-  });
-
   // Assets can define dependent assets in the same asset group by declaring a dependency with a module
   // specifer that matches the dependent asset's unique key. These dependent assets are then connected
   // to the asset's dependency instead of the asset group.
