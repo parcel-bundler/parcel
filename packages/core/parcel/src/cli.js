@@ -308,7 +308,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 async function exitWithFailure() {
   // Allow Sentry to flush sending any pending errors before exiting the process
   // https://docs.sentry.io/error-reporting/configuration/draining/?platform=node
-  let sentryClient = getSentry()
+  const sentryClient = getSentry()
     .getCurrentHub()
     .getClient();
 

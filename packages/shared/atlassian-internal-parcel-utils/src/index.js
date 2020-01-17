@@ -1,10 +1,38 @@
 // @flow strict-local
 
 import assert from 'assert';
-import os from 'os';
+
+interface ISentry {
+  captureException(mixed): void;
+  getCurrentHub(): {
+    getClient(): ?{
+      close(): Promise<mixed>,
+      ...
+    },
+    ...
+  };
+}
+
+const NullSentry = {
+  captureException() {},
+  getCurrentHub() {
+    return {
+      getClient() {
+        return null;
+      },
+    };
+  },
+};
 
 let Sentry;
-export function getSentry() {
+export function getSentry(): ISentry {
+  if (
+    process.env.PARCEL_BUILD_ENV !== 'production' ||
+    process.env.PARCEL_ANALYTICS_DISABLE != null
+  ) {
+    return NullSentry;
+  }
+
   if (Sentry == null) {
     // $FlowFixMe Sentry is untyped
     Sentry = require('@sentry/node');
@@ -13,11 +41,6 @@ export function getSentry() {
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: process.env.BITBUCKET_COMMIT,
-    });
-    Sentry.configureScope(scope => {
-      scope.setUser({
-        username: os.userInfo().username,
-      });
     });
   }
 

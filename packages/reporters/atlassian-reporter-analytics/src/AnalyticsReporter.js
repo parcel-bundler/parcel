@@ -3,6 +3,7 @@
 import type {PluginOptions, ReporterEvent} from '@parcel/types';
 
 import {Reporter} from '@parcel/plugin';
+import os from 'os';
 import path from 'path';
 // $FlowFixMe
 import uuid from 'uuid/v4';
@@ -30,11 +31,8 @@ export default new Reporter({
           message: `This internal Atlassian build of Parcel includes telemetry recording
 important events that occur, such as as when builds start, progress, and end in either success or failure.
 
-This telemetry includes information such as your os username (staffid), memory and cpu usage,
-and when events occurred.
-
-Details about user-triggered errors such as syntax errors should not be included in these reports.
-Other errors are captured automatically.
+This telemetry includes information such memory and cpu usage. Details about user-triggered
+errors such as syntax errors should not be included in these reports. Other errors are captured automatically.
 
 Source code for our version of Parcel is available at https://staging.bb-inf.net/padmaia/parcel/src/master/
 `,
@@ -100,17 +98,27 @@ Source code for our version of Parcel is available at https://staging.bb-inf.net
         );
 
         analytics.track(event.type, {
-          relevantDiagnostics,
+          relevantDiagnostics: relevantDiagnostics.map(diagnostic => ({
+            filePath:
+              diagnostic.filePath != null
+                ? sanitizePaths(diagnostic.filePath, options)
+                : null,
+            stack:
+              diagnostic.stack != null
+                ? sanitizePaths(diagnostic.stack, options)
+                : null,
+            message: sanitizePaths(diagnostic.message, options),
+          })),
           ...getAdditionalProperties(event, options),
         });
 
-        if (process.env.PARCEL_BUILD_ENV === 'production') {
-          for (const diagnostic of relevantDiagnostics) {
-            if (diagnostic.stack != null) {
-              let err = new Error(diagnostic.message);
-              err.stack = diagnostic.stack;
-              getSentry().captureException(err);
-            }
+        for (const diagnostic of relevantDiagnostics) {
+          const stack = diagnostic.stack;
+          const message = sanitizePaths(diagnostic.message, options);
+          if (stack != null) {
+            let err = new Error(message);
+            err.stack = sanitizePaths(stack, options);
+            getSentry().captureException(err);
           }
         }
         break;
@@ -127,11 +135,17 @@ function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
     cpuUsageSinceBuildStart:
       event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
     disableCache: options.disableCache,
-    projectRoot: path.dirname(options.projectRoot),
     mode: options.mode,
     minify: options.minify,
     scopeHoist: options.scopeHoist,
     sourceMaps: options.sourceMaps,
     serve: Boolean(options.serve),
   };
+}
+
+const homedir = os.userInfo().homedir;
+function sanitizePaths(str: string, options: PluginOptions): string {
+  return str
+    .replace(new RegExp(options.projectRoot, 'g'), '[PROJECT_ROOT]')
+    .replace(new RegExp(homedir, 'g'), '[HOMEDIR]');
 }
