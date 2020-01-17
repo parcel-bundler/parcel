@@ -4,7 +4,6 @@ on:
     - cron: '0 */1 * * *'
   push:
     branches:
-      - v2
       - stale-action
 
 jobs:
