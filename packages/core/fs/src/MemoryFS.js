@@ -9,7 +9,7 @@ import type {
 } from '@parcel/watcher';
 import path from 'path';
 import {Readable, Writable} from 'stream';
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
