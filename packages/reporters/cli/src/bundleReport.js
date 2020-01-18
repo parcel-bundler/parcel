@@ -32,9 +32,9 @@ export default function bundleReport(bundleGraph: BundleGraph) {
     for (let asset of bundle.largestAssets) {
       // Add a row for the asset.
       rows.push([
-        asset == bundle.largestAssets[bundle.largestAssets.length - 1]
+        (asset == bundle.largestAssets[bundle.largestAssets.length - 1]
           ? '└── '
-          : '├── ' + formatFilename(asset.filePath, chalk.reset),
+          : '├── ') + formatFilename(asset.filePath, chalk.reset),
         chalk.dim(prettifySize(asset.size)),
         chalk.dim(chalk.green(prettifyTime(asset.time))),
       ]);
