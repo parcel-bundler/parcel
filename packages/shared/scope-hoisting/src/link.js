@@ -82,8 +82,13 @@ export function link({
 
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep);
-      for (let [imported, local] of dep.symbols) {
-        imports.set(local, resolved ? [resolved, imported] : null);
+
+      // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
+      // If the dependency was excluded, it will be replaced by the output format at the very end.
+      if (resolved || dep.isDeferred) {
+        for (let [imported, local] of dep.symbols) {
+          imports.set(local, resolved ? [resolved, imported] : null);
+        }
       }
     }
 

@@ -638,6 +638,11 @@ export function removeAssetGroups(
   for (let [, node] of assetGraph.nodes) {
     if (node.type === 'asset_group') {
       assetGroupIds.add(node.id);
+
+      let [depNode] = assetGraph.getNodesConnectedTo(node);
+      if (depNode && depNode.type === 'dependency') {
+        depNode.value.isDeferred = node.deferred;
+      }
     } else {
       graph.addNode(node);
     }
