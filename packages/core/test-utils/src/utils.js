@@ -175,9 +175,10 @@ export async function run(
       break;
     }
     case 'node':
+    case 'electron-main':
       ctx = prepareNodeContext(nullthrows(bundle.filePath), globals);
       break;
-    case 'electron': {
+    case 'electron-renderer': {
       let browser = prepareBrowserContext(nullthrows(bundle.filePath), globals);
       ctx = {
         ...browser.ctx,
