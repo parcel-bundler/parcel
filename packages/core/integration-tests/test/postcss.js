@@ -316,4 +316,20 @@ describe('postcss', () => {
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
     assert(css.includes('background-color: red;'));
   });
+
+  it.skip('Should support package.json config field', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-package-config/style.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
+    assert(css.includes('background-color: red;'));
+  });
 });
