@@ -95,12 +95,12 @@ export default new Transformer({
         }
       });
     }
-    
-    let {messages, root} = await postcss(config.hydrated).process(
+
+    let {messages, root} = await postcss(plugins).process(
       ast.program,
-      config,
+      config.hydrated,
     );
-    
+
     ast.program = root;
     ast.isDirty = true;
     for (let msg of messages) {
