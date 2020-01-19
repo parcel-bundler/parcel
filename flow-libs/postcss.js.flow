@@ -1,0 +1,77 @@
+// @flow
+
+// (Only covers the API that Parcel uses)
+// Derived from the PostCSS docs available at
+// http://api.postcss.org/postcss.html.
+
+import type {SourceMapGenerator} from 'source-map';
+
+declare module 'postcss' {
+  declare class Processor {
+    process(css: string | Result, opts?: processOptions): Promise<Result>;
+  }
+
+  declare type processOptions = {|
+    from?: string,
+    to?: string,
+    map?: MapOptions,
+    parser?: parser,
+    stringifier?: stringifier,
+    syntax?: {|
+      parser: parser,
+      stringifier: stringifier,
+    |},
+  |};
+
+  declare type MapOptions = {|
+    inline?: boolean,
+    prev?: string | any | false | function,
+    sourcesContent?: boolean,
+    annotation?: false | string,
+    from?: string,
+  |};
+
+  declare type parser = (
+    css: string,
+    optsopt: {|from?: string, map?: MapOptions|},
+  ) => Root;
+
+  declare type Plugin = {|
+    postcss(...args: Array<any>): void,
+  |};
+
+  declare type pluginFunction = (root: Root, result: Result) => void;
+
+  declare type Root = any;
+  declare type Result = {
+    content: string,
+    css: string,
+    map: SourceMapGenerator,
+    messages: Array<Message>,
+    opts: processOptions,
+    processor: Processor,
+    root: Root,
+    toString(): string,
+    ...
+  };
+
+  declare type Message = {|
+    type: string,
+    plugin: string,
+  |};
+
+  declare type builder = (
+    part: string,
+    node: Root,
+    typeopt?: 'start' | 'end',
+  ) => void;
+
+  declare type stringifier = (root: Root, builder: builder) => void;
+
+  declare module.exports: {
+    (plugins?: Array<Plugin | pluginFunction> | Processor): Processor,
+    parse: parser,
+    stringify: stringifier,
+    ...
+  };
+}
