@@ -695,7 +695,7 @@ describe('output formats', function() {
       );
     });
 
-    it.only('should create correct bundle import for reexports', async function() {
+    it('should create correct bundle import for reexports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
