@@ -300,4 +300,20 @@ describe('postcss', () => {
 
     assert.equal(css.split('red').length - 1, 2);
   });
+
+  it('Should support postcss.config.js config file', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-js-config/style.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.css'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
+    assert(css.includes('background-color: red;'));
+  });
 });

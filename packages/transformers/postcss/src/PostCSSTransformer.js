@@ -17,8 +17,8 @@ const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
 
 export default new Transformer({
-  loadConfig({config, options}) {
-    return load(config, options);
+  loadConfig({config, options, logger}) {
+    return load({config, options, logger});
   },
 
   preSerializeConfig({config}) {

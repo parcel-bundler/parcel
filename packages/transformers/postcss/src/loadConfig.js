@@ -1,5 +1,7 @@
 // @flow
 import type {Config, PluginOptions} from '@parcel/types';
+import type {PluginLogger} from '@parcel/logger';
+import path from 'path';
 
 import loadExternalPlugins from './loadPlugins';
 
@@ -58,34 +60,70 @@ async function configHydrator(
   });
 }
 
-export async function load(config: Config, options: PluginOptions) {
+export async function load({
+  config,
+  options,
+  logger,
+}: {|
+  config: Config,
+  options: PluginOptions,
+  logger: PluginLogger,
+|}) {
   let configFile: any = await config.getConfig(
-    ['.postcssrc', '.postcssrc.json'],
+    ['.postcssrc', '.postcssrc.json', 'postcss.config.js', '.postcssrc.js'],
     {packageKey: 'postcss'},
   );
 
-  if (configFile) {
-    if (typeof configFile !== 'object') {
-      throw new Error('PostCSS config should be an object.');
+  let configPath = config.resolvedPath;
+  if (configPath) {
+    if (path.extname(configPath) === '.js') {
+      logger.warn({
+        message:
+          'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
+      });
+
+      config.shouldInvalidateOnStartup();
     }
 
-    if (
-      configFile.plugins == null ||
-      typeof configFile.plugins !== 'object' ||
-      Object.keys(configFile.plugins) === 0
-    ) {
-      throw new Error('PostCSS config must have plugins');
-    }
-
-    let configFilePlugins = Object.keys(configFile.plugins);
-    for (let p of configFilePlugins) {
-      if (p.startsWith('.')) {
-        throw new Error(
-          'Relative plugins are not yet supported as these are not cacheable!',
-        );
+    if (configFile) {
+      if (typeof configFile !== 'object') {
+        throw new Error('PostCSS config should be an object.');
       }
 
-      config.addDevDependency(p);
+      if (
+        configFile.plugins == null ||
+        typeof configFile.plugins !== 'object' ||
+        Object.keys(configFile.plugins) === 0
+      ) {
+        throw new Error('PostCSS config must have plugins');
+      }
+
+      let configFilePlugins = Array.isArray(configFile.plugins)
+        ? configFile.plugins
+        : Object.keys(configFile.plugins);
+      for (let p of configFilePlugins) {
+        // JavaScript configs can use an array of functions... ugh
+        if (typeof p === 'function') {
+          configFile.__contains_functions = true;
+
+          // Just do all the things, tbh have no clue what this does...
+          config.shouldInvalidateOnStartup();
+          config.shouldReload();
+        }
+
+        if (typeof p === 'string') {
+          if (p.startsWith('.')) {
+            logger.warn({
+              message:
+                'WARNING: Using relative PostCSS plugins means losing out on caching features of Parcel. Bundle this plugin up in a package or use a monorepo to resolve this issue.',
+            });
+
+            config.shouldInvalidateOnStartup();
+          }
+
+          config.addDevDependency(p);
+        }
+      }
     }
   }
 
@@ -95,15 +133,15 @@ export async function load(config: Config, options: PluginOptions) {
 export function preSerialize(config: Config) {
   if (!config.result) return;
 
-  // This is a very weird bug
-  /*config.setResult({
-    raw: config.result.raw,
-  });*/
-
-  // $FlowFixMe
-  config.result = {
-    raw: config.result.raw,
-  };
+  if (config.result.raw.__contains_functions) {
+    // $FlowFixMe
+    config.result = {};
+  } else {
+    // $FlowFixMe
+    config.result = {
+      raw: config.result.raw,
+    };
+  }
 }
 
 export function postDeserialize(config: Config, options: PluginOptions) {
