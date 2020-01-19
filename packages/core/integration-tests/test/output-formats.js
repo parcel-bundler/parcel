@@ -590,7 +590,7 @@ describe('output formats', function() {
         'utf8',
       );
       assert(entry.includes('function importModule'));
-      assert(/'async.[0-9a-f]*.js'\)/.test(entry));
+      assert(/"async.[0-9a-f]*.js"\)/.test(entry));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -620,7 +620,7 @@ describe('output formats', function() {
         'utf8',
       );
       assert(entry.includes('Promise.all'));
-      assert(/'async.[0-9a-f]*.css'\)/.test(entry));
+      assert(/"async.[0-9a-f]*.css"\)/.test(entry));
       assert(/import\('' \+ '\.\/async\..+?\.js'\)/.test(entry));
 
       let async = await outputFS.readFile(

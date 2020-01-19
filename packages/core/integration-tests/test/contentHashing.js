@@ -59,7 +59,7 @@ describe('content hashing', function() {
     await bundleJs();
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    let filename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
+    let filename = js.match(/(test\.[0-9a-f]+\.txt)/)[1];
     assert(await outputFS.exists(path.join(distDir, filename)));
 
     await outputFS.writeFile(
@@ -69,7 +69,7 @@ describe('content hashing', function() {
     await bundleJs();
 
     js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    let newFilename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
+    let newFilename = js.match(/(test\.[0-9a-f]+\.txt)/)[1];
     assert(await outputFS.exists(path.join(distDir, newFilename)));
 
     assert.notEqual(filename, newFilename);

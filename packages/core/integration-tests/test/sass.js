@@ -204,6 +204,24 @@ describe('sass', function() {
     assert(css.includes('.b'));
   });
 
+  it('should merge global data property from .sassrc.js', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/scss-global-data/index.scss'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.scss'],
+      },
+    ]);
+
+    let css = (
+      await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8')
+    ).replace(/\s+/g, ' ');
+    assert(css.includes('.a { color: red;'));
+  });
+
   it('should throw an exception when using webpack syntax', async function() {
     let didThrow = false;
     try {
