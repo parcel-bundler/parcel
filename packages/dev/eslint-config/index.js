@@ -9,7 +9,7 @@ module.exports = {
     'prettier/react',
   ],
   parser: 'babel-eslint',
-  plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react'],
+  plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react', 'mocha'],
   parserOptions: {
     ecmaVersion: 2018,
     ecmaFeatures: {
@@ -37,6 +37,7 @@ module.exports = {
         'import/no-extraneous-dependencies': 'off',
         'monorepo/no-internal-import': 'off',
         'monorepo/no-relative-import': 'off',
+        'mocha/no-exclusive-tests': 'error',
       },
     },
   ],
