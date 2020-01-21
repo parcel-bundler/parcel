@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.13",
+  "version": "2.0.0-frontbucket.14",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,14 +16,14 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.12",
-    "@parcel/config-default": "^2.0.0-frontbucket.13",
-    "@parcel/core": "^2.0.0-frontbucket.9",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.8",
-    "@parcel/fs": "^2.0.0-frontbucket.9",
-    "@parcel/logger": "^2.0.0-frontbucket.8",
-    "@parcel/package-manager": "^2.0.0-frontbucket.9",
-    "@parcel/utils": "^2.0.0-frontbucket.9",
+    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.13",
+    "@parcel/config-default": "^2.0.0-frontbucket.14",
+    "@parcel/core": "^2.0.0-frontbucket.10",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.9",
+    "@parcel/fs": "^2.0.0-frontbucket.10",
+    "@parcel/logger": "^2.0.0-frontbucket.9",
+    "@parcel/package-manager": "^2.0.0-frontbucket.10",
+    "@parcel/utils": "^2.0.0-frontbucket.10",
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",
@@ -31,6 +31,6 @@
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.9"
+    "@parcel/babel-register": "^2.0.0-frontbucket.10"
   }
 }

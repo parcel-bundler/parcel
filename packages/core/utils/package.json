@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.0.0-frontbucket.9",
+  "version": "2.0.0-frontbucket.10",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
-    "@parcel/codeframe": "^2.0.0-frontbucket.8",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.8",
-    "@parcel/logger": "^2.0.0-frontbucket.8",
-    "@parcel/markdown-ansi": "^2.0.0-frontbucket.8",
+    "@parcel/codeframe": "^2.0.0-frontbucket.9",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.9",
+    "@parcel/logger": "^2.0.0-frontbucket.9",
+    "@parcel/markdown-ansi": "^2.0.0-frontbucket.9",
     "ansi-html": "^0.0.7",
     "chalk": "^2.4.2",
     "clone": "^2.1.1",
