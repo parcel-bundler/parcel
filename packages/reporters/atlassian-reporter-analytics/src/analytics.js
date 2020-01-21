@@ -1,19 +1,16 @@
 // @flow strict-local
 
 import Amplitude from 'amplitude';
-import os from 'os';
 
-const {username, shell} = os.userInfo();
 const userProperties = {
   session_id: Date.now(),
-  user_id: username,
-  user_properties: {
-    shell,
-  },
 };
 
 let amplitude;
-if (process.env.PARCEL_BUILD_ENV === 'production') {
+if (
+  process.env.PARCEL_BUILD_ENV === 'production' &&
+  process.env.PARCEL_ANALYTICS_DISABLE == null
+) {
   const amplitudeApiKey = process.env.AMPLITUDE_API_KEY;
   if (typeof amplitudeApiKey !== 'string') {
     throw new Error('Expected amplitude api key');
@@ -43,7 +40,6 @@ const analytics = {
     const eventProperties = {
       ...additionalEventProperties,
       timestamp: new Date().toISOString(),
-      argv: process.argv,
       memoryUsage: process.memoryUsage(),
       commit: COMMIT ?? null,
     };

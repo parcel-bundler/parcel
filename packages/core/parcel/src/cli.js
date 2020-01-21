@@ -6,6 +6,7 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic} from '@parcel/utils';
+import {getSentry} from '@atlassian/internal-parcel-utils';
 
 require('v8-compile-cache');
 
@@ -26,7 +27,7 @@ function logUncaughtError(e: mixed) {
 
 process.on('unhandledRejection', (reason: mixed) => {
   logUncaughtError(reason);
-  process.exit(1);
+  exitWithFailure();
 });
 
 const chalk = require('chalk');
@@ -193,7 +194,7 @@ async function run(entries: Array<string>, command: any) {
 
       isExiting = true;
       await unsubscribe();
-      process.exit();
+      exitWithFailure();
     };
 
     if (command.watchForStdin) {
@@ -238,7 +239,7 @@ async function run(entries: Array<string>, command: any) {
       if (!(e instanceof BuildError)) {
         logUncaughtError(e);
       }
-      process.exit(1);
+      exitWithFailure();
     }
   }
 }
@@ -302,4 +303,17 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
       NODE_ENV: nodeEnv,
     },
   };
+}
+
+async function exitWithFailure() {
+  // Allow Sentry to flush sending any pending errors before exiting the process
+  // https://docs.sentry.io/error-reporting/configuration/draining/?platform=node
+  const sentryClient = getSentry()
+    .getCurrentHub()
+    .getClient();
+
+  if (sentryClient != null) {
+    await sentryClient.close();
+  }
+  process.exit(1);
 }
