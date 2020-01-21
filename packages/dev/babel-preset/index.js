@@ -32,18 +32,6 @@ module.exports = () => ({
             ],
           },
         ],
-        'babel-plugin-minify-dead-code-elimination',
-        [
-          require('babel-plugin-module-resolver'),
-          {
-            alias: {
-              '^@parcel/(.*)': x =>
-                x[1] === 'watcher'
-                  ? '@parcel/watcher'
-                  : '@atlassian/parcel-' + x[1],
-            },
-          },
-        ],
       ],
     },
   },
