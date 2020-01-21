@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-babel",
-  "version": "2.0.0-frontbucket.8",
+  "version": "2.0.0-frontbucket.9",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -23,16 +23,16 @@
     "@babel/plugin-transform-typescript": "^7.4.5",
     "@babel/preset-env": "^7.0.0",
     "@babel/traverse": "^7.0.0",
-    "@parcel/babel-preset-env": "^2.0.0-frontbucket.7",
-    "@parcel/plugin": "^2.0.0-frontbucket.8",
-    "@parcel/source-map": "^2.0.0-frontbucket.8",
-    "@parcel/utils": "^2.0.0-frontbucket.8",
+    "@parcel/babel-preset-env": "^2.0.0-frontbucket.8",
+    "@parcel/plugin": "^2.0.0-frontbucket.9",
+    "@parcel/source-map": "^2.0.0-frontbucket.9",
+    "@parcel/utils": "^2.0.0-frontbucket.9",
     "browserslist": "^4.6.6",
     "core-js": "^3.2.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.7.0"
   },
   "devDependencies": {
-    "@parcel/types": "^2.0.0-frontbucket.8"
+    "@parcel/types": "^2.0.0-frontbucket.9"
   }
 }
