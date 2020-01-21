@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
-    "removeComments": true
+    "removeComments": true,
+    "types": ["node"]
   }
 }
