@@ -2,9 +2,11 @@
 
 import assert from 'assert';
 import {PassThrough} from 'stream';
-import {_report, _setStdio} from '../src/SimpleCLIReporter';
+import {_report} from '../src/CLIReporter';
+import {_setStdio} from '../src/render';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
+import stripAnsi from 'strip-ansi';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
@@ -28,12 +30,7 @@ const EMPTY_OPTIONS = {
   packageManager: new NodePackageManager(inputFS),
 };
 
-describe('SimpleCLIReporter', () => {
-  // $FlowFixMe only run in CI
-  if (process.stdout.isTTY) {
-    return;
-  }
-
+describe('CLIReporter', () => {
   let originalStdout;
   let originalStderr;
   let stdoutOutput;
@@ -49,9 +46,9 @@ describe('SimpleCLIReporter', () => {
     stderrOutput = '';
 
     let mockStdout = new PassThrough();
-    mockStdout.on('data', d => (stdoutOutput += d.toString()));
+    mockStdout.on('data', d => (stdoutOutput += stripAnsi(d.toString())));
     let mockStderr = new PassThrough();
-    mockStderr.on('data', d => (stderrOutput += d.toString()));
+    mockStderr.on('data', d => (stderrOutput += stripAnsi(d.toString())));
     _setStdio(mockStdout, mockStderr);
   });
 
