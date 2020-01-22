@@ -30,8 +30,6 @@ export function detectRealCores(): number {
   } else if (platform === 'windows') {
     let output = exec('WMIC CPU Get NumberOfCores');
 
-    console.log(output);
-
     amount = output
       .split(os.EOL)
       .map(line => parseInt(line))
