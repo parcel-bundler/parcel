@@ -27,7 +27,7 @@ export function detectRealCores(): number {
     amount = parseInt(output, 10);
   } else if (platform === 'darwin') {
     amount = parseInt(exec('sysctl -n hw.physicalcpu_max'), 10);
-  } else if (platform === 'windows') {
+  } else if (platform === 'win32') {
     let output = exec('WMIC CPU Get NumberOfCores');
 
     amount = output
