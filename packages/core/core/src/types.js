@@ -57,7 +57,7 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
-  isDeferred: boolean, // TODO, only meaningful in bundlegraph
+  isDeferred: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,

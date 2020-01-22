@@ -497,8 +497,10 @@ describe('scope hoisting', function() {
       );
 
       assert(!contents.includes('$import$'));
+      assert(contents.includes('= 1234;'));
+      assert(!contents.includes('= 5678;'));
 
-      // can't run dynamic imports in node
+      // can't test dynamic imports in node
       // let output = await run(b);
       // assert.deepEqual(output, [1234, 1234]);
     });
