@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-dev-server",
-  "version": "2.0.0-frontbucket.10",
+  "version": "2.0.0-frontbucket.11",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -26,7 +26,7 @@
     "ws": "^6.2.0"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "^2.0.0-frontbucket.10",
+    "@parcel/babel-preset": "^2.0.0-frontbucket.11",
     "@parcel/types": "^2.0.0-frontbucket.10"
   }
 }
