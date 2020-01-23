@@ -6,7 +6,7 @@ export function generateMainCode(originalSpecifier, methods) {
     export default function createWorker() {
       let counter = 0;
       let callbacks = {};
-      let worker = new Worker('${originalSpecifier}');
+      let worker = new Worker('blob-url:${originalSpecifier}');
       let term = worker.terminate;
       worker.kill = signal => {
         worker.postMessage({ type: 'KILL', signal });
@@ -40,7 +40,7 @@ export function generateMainCode(originalSpecifier, methods) {
 
 export function generateWorkerCode() {
   return `
-    import * as worker from 'original-worker';
+    import * as worker from 'workerize-original-worker';
 
     export const messageHandler = ({ data }) => {
       const { id, method, params } = data;

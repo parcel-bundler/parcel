@@ -5,6 +5,10 @@ import {generateMainCode, generateWorkerCode} from './generate';
 
 export default new Transformer({
   async transform({asset}) {
+    if (!asset.isSource) {
+      return [asset];
+    }
+
     let code = await asset.getCode();
 
     let exports = getExports(code);
@@ -12,15 +16,21 @@ export default new Transformer({
     let generatedCode;
     if (asset.env.context === 'browser') {
       generatedCode = generateMainCode(originalSpecifier, exports);
-      asset.setCode(generatedCode);
-      return [asset];
+      return [
+        {
+          type: 'js',
+          code: generatedCode,
+          uniqueKey: 'workerize-main-stub',
+        },
+      ];
     } else if (asset.env.context === 'web-worker') {
       generatedCode = generateWorkerCode(originalSpecifier);
       asset.setCode(generatedCode);
       let secondAsset = {
         type: 'js',
         code,
-        uniqueKey: 'original-worker',
+        uniqueKey: 'workerize-original-worker',
+        isInline: false,
       };
       return [asset, secondAsset];
     }

@@ -5,6 +5,10 @@
     "blob-url:*": ["@parcel/transformer-inline", "..."],
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
+    "*.worker.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-workerize",
+      "..."
+    ],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
