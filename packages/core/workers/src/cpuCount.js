@@ -20,7 +20,10 @@ export function detectRealCores(): number {
   let amount = 0;
 
   if (platform === 'linux') {
-    amount = parseInt(exec('lscpu -p | egrep -v "^#" | sort -u -t, -k 2,4 | wc -l'), 10);
+    amount = parseInt(
+      exec('lscpu -p | egrep -v "^#" | sort -u -t, -k 2,4 | wc -l'),
+      10,
+    );
   } else if (platform === 'darwin') {
     amount = parseInt(exec('sysctl -n hw.physicalcpu_max'), 10);
   } else if (platform === 'win32') {
