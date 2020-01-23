@@ -1005,9 +1005,29 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
-  it.skip('should not insert environment variables in electron environment', async function() {
+  it('should not insert environment variables in electron-main environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
-      target: 'electron',
+      targets: {
+        main: {
+          context: 'electron-main',
+          distDir: path.join(__dirname, '/integration/env/dist.js'),
+        },
+      },
+    });
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.equal(output(), 'test:test');
+  });
+
+  it('should not insert environment variables in electron-renderer environment', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
+      targets: {
+        main: {
+          context: 'electron-renderer',
+          distDir: path.join(__dirname, '/integration/env/dist.js'),
+        },
+      },
     });
 
     let output = await run(b);
@@ -1055,6 +1075,78 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(output, 'productiontest');
+  });
+
+  it('should replace process.browser for target browser', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        targets: {
+          main: {
+            context: 'browser',
+            distDir: path.join(__dirname, '/integration/process/dist.js'),
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') === -1);
+    assert.equal(output(), true);
+  });
+
+  it('should not touch process.browser for target node', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        targets: {
+          main: {
+            context: 'node',
+            distDir: path.join(__dirname, '/integration/process/dist.js'),
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') !== -1);
+    assert.equal(output(), false);
+  });
+
+  it('should not touch process.browser for target electron-main', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        targets: {
+          main: {
+            context: 'electron-main',
+            distDir: path.join(__dirname, '/integration/process/dist.js'),
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') !== -1);
+    assert.equal(output(), false);
+  });
+
+  it('should replace process.browser for target electron-renderer', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        targets: {
+          main: {
+            context: 'electron-renderer',
+            distDir: path.join(__dirname, '/integration/process/dist.js'),
+          },
+        },
+      },
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') === -1);
+    assert.equal(output(), true);
   });
 
   it.skip('should support adding implicit dependencies', async function() {
