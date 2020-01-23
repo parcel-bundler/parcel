@@ -19,7 +19,7 @@ import {
   prepareForSerialization,
   restoreDeserializedObject,
   serialize,
-} from '@parcel/utils';
+} from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';

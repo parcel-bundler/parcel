@@ -36,7 +36,6 @@ export * from './schema';
 export * from './http-server';
 export * from './path';
 export * from './replaceBundleReferences';
-export * from './serializer';
 export * from './stream';
 export * from './resolve';
 export * from './relativeBundlePath';
