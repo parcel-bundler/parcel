@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {Bundle, Dependency, RuntimeAsset} from '@parcel/types';
+
 import {Runtime} from '@parcel/plugin';
 import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
@@ -63,11 +65,6 @@ export default new Runtime({
       bundleGroup,
       dependency,
     } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
-      // Ignore deps with native loaders, e.g. workers.
-      if (dependency.isURL) {
-        continue;
-      }
-
       // Sort so the bundles containing the entry asset appear last
       let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
 
@@ -99,6 +96,12 @@ export default new Runtime({
       // and the imports for sibling bundles will be in the target bundle.
       if (bundle.env.outputFormat === 'commonjs' || bundle.env.isLibrary) {
         externalBundles = externalBundles.slice(-1);
+      }
+
+      // URL dependencies should always resolve to a runtime that exports a url
+      if (dependency.isURL) {
+        assets.push(...getURLRuntimes(dependency, bundle, externalBundles));
+        continue;
       }
 
       let loaderModules = externalBundles
@@ -156,21 +159,26 @@ export default new Runtime({
           dependency,
         });
       } else {
-        for (let externalBundle of externalBundles) {
-          let relativePath = relativeBundlePath(bundle, externalBundle, {
-            leadingDotSlash: false,
-          });
-          assets.push({
-            filePath: __filename,
-            code: `module.exports = require('./bundle-url').getBundleURL() + ${JSON.stringify(
-              relativePath,
-            )}`,
-            dependency,
-          });
-        }
+        assets.push(...getURLRuntimes(dependency, bundle, externalBundles));
       }
     }
 
     return assets;
   },
 });
+
+function getURLRuntimes(
+  dependency: Dependency,
+  bundle: Bundle,
+  externalBundles: Array<Bundle>,
+): Array<RuntimeAsset> {
+  return externalBundles.map(externalBundle => ({
+    filePath: __filename,
+    code: `module.exports = require('./bundle-url').getBundleURL() + ${JSON.stringify(
+      relativeBundlePath(bundle, externalBundle, {
+        leadingDotSlash: false,
+      }),
+    )}`,
+    dependency,
+  }));
+}
