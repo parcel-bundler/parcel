@@ -4,6 +4,7 @@ import type {PluginLogger} from '@parcel/logger';
 import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
 import {dirname} from 'path';
+import {EOL} from 'os';
 import {NodeFS} from '@parcel/fs';
 
 // E.g: ~library/file.sass
@@ -45,11 +46,9 @@ export default new Transformer({
       config = {};
     }
 
-    if (asset.isInline) {
-      config.data = await asset.getCode();
-    } else {
-      config.file = asset.filePath;
-    }
+    const code = await asset.getCode();
+    config.data = config.data ? config.data + EOL + code : code;
+    config.file = asset.filePath;
 
     if (config.importer === undefined) {
       config.importer = [];

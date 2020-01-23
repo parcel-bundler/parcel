@@ -7,7 +7,7 @@ import type {
   AsyncSubscription,
 } from '@parcel/watcher';
 
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
 
 function read(method) {

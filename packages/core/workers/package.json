@@ -22,5 +22,8 @@
     "chrome-trace-event": "^1.0.2",
     "nullthrows": "^1.1.1",
     "physical-cpu-count": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }
