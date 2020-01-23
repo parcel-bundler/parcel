@@ -11,7 +11,8 @@ import fs from 'fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
-import {registerSerializableClass, promisify} from '@parcel/utils';
+import {promisify} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 

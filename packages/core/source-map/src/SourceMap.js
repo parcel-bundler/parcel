@@ -2,7 +2,8 @@
 import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 import type {FileSystem} from '@parcel/fs';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
-import {countLines, registerSerializableClass} from '@parcel/utils';
+import {countLines} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import path from 'path';
 import nullthrows from 'nullthrows';
 // $FlowFixMe

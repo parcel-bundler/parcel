@@ -7,7 +7,7 @@ import type {FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import logger from '@parcel/logger';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
+import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
 
