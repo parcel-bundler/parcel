@@ -33,6 +33,7 @@ const ATTRS = {
 // - http://ogp.me
 // - https://developer.twitter.com/en/docs/tweets/optimize-with-cards/overview/markup
 // - https://msdn.microsoft.com/en-us/library/dn255024.aspx
+// - https://vk.com/dev/publications
 const META = {
   property: [
     'og:image',
