@@ -8,7 +8,7 @@ import Transformation, {type TransformationOpts} from './Transformation';
 import PackagerRunner from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
-import registerCoreWithSerializer from './registerCoreWithSerializer';
+import {registerCoreWithSerializer} from './utils';
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
 import '@parcel/fs';
