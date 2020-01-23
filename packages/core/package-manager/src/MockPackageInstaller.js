@@ -5,7 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 import path from 'path';
 import {ncp} from '@parcel/fs';
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import pkg from '../package.json';
 
 type Package = {|

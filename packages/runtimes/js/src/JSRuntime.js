@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin, relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
-import nullthrows from 'nullthrows';
 
 // List of browsers that support dynamic import natively
 // https://caniuse.com/#feat=es6-module-dynamic-import
@@ -123,10 +122,14 @@ export default new Runtime({
             )}'))`;
           }
 
-          let url = relativeBundlePath(bundle, b, {leadingDotSlash: false});
+          let relativePath = relativeBundlePath(bundle, b, {
+            leadingDotSlash: false,
+          });
           return `require(${JSON.stringify(
             loader,
-          )})(require('./bundle-url').getBundleURL() + '${url}')`;
+          )})(require('./bundle-url').getBundleURL() + ${JSON.stringify(
+            relativePath,
+          )})`;
         })
         .filter(Boolean);
 
@@ -153,24 +156,15 @@ export default new Runtime({
           dependency,
         });
       } else {
-        for (let bundle of externalBundles) {
-          let filePath = nullthrows(bundle.getMainEntry()).filePath;
-          if (bundle.target == null) {
-            throw new Error('JSRuntime: Bundle did not have a target');
-          }
-
-          if (bundle.target.publicUrl == null) {
-            throw new Error(
-              'JSRuntime: Bundle target did not have a publicUrl',
-            );
-          }
-
+        for (let externalBundle of externalBundles) {
+          let relativePath = relativeBundlePath(bundle, externalBundle, {
+            leadingDotSlash: false,
+          });
           assets.push({
-            filePath: filePath + '.js',
-            code: `module.exports = '${urlJoin(
-              bundle.target.publicUrl,
-              nullthrows(bundle.name),
-            )}'`,
+            filePath: __filename,
+            code: `module.exports = require('./bundle-url').getBundleURL() + ${JSON.stringify(
+              relativePath,
+            )}`,
             dependency,
           });
         }
