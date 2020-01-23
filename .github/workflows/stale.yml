@@ -1,7 +1,7 @@
 name: 'Close stale issues'
 on:
   schedule:
-    - cron: '0 */1 * * *'
+    - cron: '0 */12 * * *'
   issue_comment:
     types: [created]
 

@@ -6,7 +6,8 @@ import type {ResolveResult} from '@parcel/utils';
 
 import {installPackage} from './installPackage';
 import {dirname} from 'path';
-import {registerSerializableClass, resolve, resolveSync} from '@parcel/utils';
+import {resolve, resolveSync} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import pkg from '../package.json';
 // $FlowFixMe
 import Module from 'module';

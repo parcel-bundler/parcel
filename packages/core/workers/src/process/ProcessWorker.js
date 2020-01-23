@@ -9,7 +9,7 @@ import type {
 } from '../types';
 import childProcess, {type ChildProcess} from 'child_process';
 import path from 'path';
-import {serialize, deserialize} from '@parcel/utils';
+import {serialize, deserialize} from '@parcel/core';
 
 const WORKER_PATH = path.join(__dirname, 'ProcessChild.js');
 
