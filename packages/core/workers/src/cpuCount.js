@@ -26,14 +26,6 @@ export function detectRealCores(): number {
     );
   } else if (platform === 'darwin') {
     amount = parseInt(exec('sysctl -n hw.physicalcpu_max'), 10);
-  } else if (platform === 'win32') {
-    let output = exec('WMIC CPU Get NumberOfCores');
-
-    amount = output
-      .split(os.EOL)
-      .map(line => parseInt(line))
-      .filter(value => !isNaN(value))
-      .reduce((sum, number) => sum + number, 0);
   }
 
   if (!amount || amount <= 0) {
