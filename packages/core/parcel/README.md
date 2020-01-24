@@ -87,8 +87,29 @@ h1 {
 </html>
 ```
 
-As we make the change you should see the website update with your changes
-without even refreshing the page.
+If we want parcel to update our changes in the browser without refreshing the page,
+we need to add at least a dummy javascript file e.g. `app.js` next to our `index.html`.
+This file allows parcel to inject all the necessary code to show your changes.
+This file will later contain your javascript application.
+
+```javascript
+console.log("Hello World");
+```
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>My First Parcel App</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js"></script>
+  </head>
+  <body>
+    <h1>Hello, World!</h1>
+  </body>
+</html>
+```
 
 ## Documentation
 

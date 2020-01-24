@@ -10,10 +10,7 @@ import {isMainThread, parentPort} from 'worker_threads';
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';
 import {Child} from '../child';
-import {
-  prepareForSerialization,
-  restoreDeserializedObject,
-} from '@parcel/utils';
+import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
 
 export default class ThreadsChild implements ChildImpl {
   onMessage: MessageHandler;
