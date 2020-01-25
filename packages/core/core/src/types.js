@@ -142,6 +142,7 @@ export type DependencyNode = {|
   id: string,
   type: 'dependency',
   value: Dependency,
+  complete?: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
