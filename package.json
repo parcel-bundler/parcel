@@ -23,7 +23,8 @@
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
-    "update-readme-toc": "doctoc README.md"
+    "update-readme-toc": "doctoc README.md",
+    "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --force-publish=*"
   },
   "devDependencies": {
     "doctoc": "^1.4.0",
