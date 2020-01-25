@@ -24,7 +24,7 @@ export const ENGINES_SCHEMA: SchemaEntity = {
   },
 };
 
-export default ({
+export const DESCRIPTOR_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
     context: {
@@ -89,4 +89,13 @@ export default ({
     engines: ENGINES_SCHEMA,
   },
   additionalProperties: false,
-}: SchemaEntity);
+};
+
+export const COMMON_TARGET_DESCRIPTOR_SCHEMA: SchemaEntity = {
+  oneOf: [
+    DESCRIPTOR_SCHEMA,
+    {
+      enum: [false],
+    },
+  ],
+};
