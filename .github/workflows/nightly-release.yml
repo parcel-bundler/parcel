@@ -1,5 +1,7 @@
 name: release-nightly
-on: [push]
+on:
+  schedule:
+    - cron: '0 0 * * *'
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
