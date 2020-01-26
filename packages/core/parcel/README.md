@@ -437,7 +437,7 @@ considered a valid `package.json`.
 
 #### `package.json#main`
 
-**(Required)** This is the "main" target's entry point for the package.
+This is the "main" target's entry point for the package, by default in library mode (doesn't bundle dependencies).
 
 ```json
 {
@@ -449,7 +449,7 @@ See [Targets](#targets)
 
 #### `package.json#module`
 
-This is the "module" target's entry point for the package.
+This is the "module" target's entry point for the package, by default in library mode (doesn't bundle dependencies).
 
 ```json
 {
@@ -461,7 +461,7 @@ See [Targets](#targets)
 
 #### `package.json#browser`
 
-This is the "browser" target's entry point for the package.
+This is the "browser" target's entry point for the package, by default in library mode (doesn't bundle dependencies).
 
 ```json
 {
@@ -761,6 +761,7 @@ At a high level Parcel runs through several phases:
 - Bundling
 - Packaging
 - Optimizing
+- (Validating)
 
 The **resolving** and **transforming** phases work together in parallel to
 build a graph of all your assets.
@@ -847,11 +848,11 @@ In the most explicit form, targets are configured via the
 
 ```js
 {
-  "browser": "dist/browser/index.js",
-  "browserModern": "dist/browserModern/index.js",
+  "app": "dist/browser/index.js",
+  "appModern": "dist/browserModern/index.js",
   "targets": {
-    "browser": { /* target env */ },
-    "browserModern": { /* target env */ }
+    "app": { /* target env */ },
+    "appModern": { /* target env */ }
   }
 }
 ```
@@ -860,7 +861,18 @@ Each target has a name which corresponds to a top-level `package.json` field
 such as `package.json#main` or `package.json#browser` which specify the primary
 entry point for that target.
 
-Inside each of those targets contains the target's environment configuration.
+Inside each of those targets contains the target's environment configuration:
+
+| Option               | Possible values | Description |
+| -------------------- | --------------- | ----------- |
+| `context`            | `'node' \| 'browser' \| 'web-worker' \| 'electron-main' \| 'electron-renderer'` | Where the bundle should run |
+| `includeNodeModules` | `boolean \| [String]` | Whether to bundle all/none/some `node_module` dependency  |
+| `outputFormat`       | `'global' \| 'esmodule' \| 'commonjs'` | Which type of imports/exports should be emitted|
+| `publicUrl`          | `string` | The public url of the bundle at runtime |
+| `isLibrary`          | `boolean` | Library as in 'npm library' |
+| `sourceMap`          | `boolean \| {inlineSources?: boolean, sourceRoot?: string, inline?: boolean}` | Enable/disable sourcemap and set options
+| `engines`            | Engines | Same as `package.json#engines` |
+
 
 However, a lot of the normal configuration you might want will already have
 defaults provided for you:
@@ -868,15 +880,24 @@ defaults provided for you:
 ```cs
 targets = {
   main: {
-    node: value("package.json#engines.node"),
-    browsers: unless exists("package.json#browser") then value("package.json#browserlist"),
+    engines: {
+      node: value("package.json#engines.node"),
+      browsers: unless exists("package.json#browser") then value("package.json#browserlist")
+    },
+    isLibrary: true
   },
   module: {
-    node: value("package.json#engines.node"),
-    browsers: unless exists("package.json#browser") then value("package.json#browserlist"),
+    engines: {
+      node: value("package.json#engines.node"),
+      browsers: unless exists("package.json#browser") then value("package.json#browserlist")
+    },
+    isLibrary: true
   },
   browser: {
-    browsers: value("package.json#browserslist"),
+      engines: {
+      browsers: value("package.json#browserslist")
+    },
+    isLibrary: true
   },
   ...value("package.json#targets"),
 }
@@ -898,9 +919,11 @@ You can configure environments through your targets.
 {
   "targets": {
     "main": {
-      "node": ">=4.x",
-      "electron": ">=2.x",
-      "browsers": ["> 1%", "not dead"]
+      "engines": {
+        "node": ">=4.x",
+        "electron": ">=2.x",
+        "browsers": ["> 1%", "not dead"]
+      }
     }
   }
 }
