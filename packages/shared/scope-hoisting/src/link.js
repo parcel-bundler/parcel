@@ -19,21 +19,13 @@ import traverse from '@babel/traverse';
 import treeShake from './shake';
 import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
-import * as esmodule from './formats/esmodule';
-import * as global from './formats/global';
-import * as commonjs from './formats/commonjs';
+import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)',
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
-
-const FORMATS = {
-  esmodule,
-  global,
-  commonjs,
-};
 
 function assertString(v): string {
   invariant(typeof v === 'string');
@@ -51,7 +43,7 @@ export function link({
   ast: AST,
   options: PluginOptions,
 |}) {
-  let format = FORMATS[bundle.env.outputFormat];
+  let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
@@ -562,6 +554,7 @@ export function link({
           referencedAssets,
           path,
           replacements,
+          options,
         );
 
         treeShake(path.scope, exported);

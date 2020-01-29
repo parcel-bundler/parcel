@@ -1,6 +1,7 @@
+// @flow
 import * as t from '@babel/types';
 
-export default function rename(scope, oldName, newName) {
+export default function rename(scope: any, oldName: string, newName: string) {
   if (oldName === newName) {
     return;
   }
