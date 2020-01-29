@@ -74,7 +74,14 @@ export default new Transformer({
       }
 
       if (isURL(moduleSpecifier)) {
-        name.value = asset.addURLDependency(moduleSpecifier);
+        name.value = asset.addURLDependency(moduleSpecifier, {
+          loc: createDependencyLocation(
+            rule.source.start,
+            moduleSpecifier,
+            0,
+            8,
+          ),
+        });
       } else {
         // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
         // TODO: run CSSPackager on inline style tags.
