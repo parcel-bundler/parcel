@@ -90,6 +90,9 @@ export default class ResolverRunner {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
+      if (!pipeline) {
+        pipeline = 'url';
+      }
     }
 
     for (let resolver of resolvers) {
