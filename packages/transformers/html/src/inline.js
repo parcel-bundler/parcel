@@ -1,6 +1,10 @@
 // @flow strict-local
 
-import type {MutableAsset, TransformerResult} from '@parcel/types';
+import type {
+  MutableAsset,
+  PluginOptions,
+  TransformerResult,
+} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 import type {PostHTMLNode} from 'posthtml';
 

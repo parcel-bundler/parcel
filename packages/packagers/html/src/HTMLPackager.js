@@ -74,7 +74,7 @@ async function getAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
   assetId,
-): Promise<?Blob> {
+) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
