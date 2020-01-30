@@ -13,10 +13,12 @@ const SCRIPT_TYPES = {
   'application/json': false,
   'application/ld+json': 'jsonld',
   'text/html': false,
+  module: 'js',
 };
 
 export default function extractInlineAssets(
   asset: MutableAsset,
+  options: PluginOptions,
 ): Array<TransformerResult> {
   let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
@@ -29,7 +31,7 @@ export default function extractInlineAssets(
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {
-        let type;
+        let type, env;
 
         if (node.tag === 'style') {
           if (node.attrs && node.attrs.type) {
@@ -47,6 +49,12 @@ export default function extractInlineAssets(
             type = SCRIPT_TYPES[node.attrs.type];
           } else {
             type = node.attrs.type.split('/')[1];
+          }
+
+          if (node.attrs.type === 'module' && options.scopeHoist) {
+            env = {
+              outputFormat: 'esmodule',
+            };
           }
         } else {
           type = 'js';
@@ -80,6 +88,7 @@ export default function extractInlineAssets(
           uniqueKey: parcelKey,
           isIsolated: true,
           isInline: true,
+          env,
           meta: {
             type: 'tag',
             node,

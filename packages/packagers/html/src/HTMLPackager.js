@@ -47,6 +47,12 @@ export default new Packager({
       return p.concat(bundles);
     }, []);
 
+    // Add bundles in the same bundle group that are not inline. For example, if two inline
+    // bundles refer to the same library that is extracted into a shared bundle.
+    bundles = bundles.concat(
+      bundleGraph.getSiblingBundles(bundle).filter(b => !b.isInline),
+    );
+
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
       replaceInlineAssetContent.bind(
@@ -84,7 +90,7 @@ async function getAssetContent(
       bundleGraph,
     );
 
-    return bundleResult.contents;
+    return {bundle: inlineBundle, contents: bundleResult.contents};
   }
 
   return null;
@@ -111,7 +117,13 @@ async function replaceInlineAssetContent(
     );
 
     if (newContent != null) {
-      node.content = newContent;
+      let {contents, bundle} = newContent;
+      node.content = contents;
+
+      console.log(bundle.env.outputFormat);
+      if (bundle.env.outputFormat === 'esmodule') {
+        node.attrs.type = 'module';
+      }
 
       // remove attr from output
       delete node.attrs['data-parcel-key'];
@@ -140,6 +152,7 @@ function insertBundleReferences(siblingBundles, tree) {
       bundles.push({
         tag: 'script',
         attrs: {
+          type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
           src: urlJoin(
             nullthrows(bundle.target).publicUrl ?? '/',
             nullthrows(bundle.name),

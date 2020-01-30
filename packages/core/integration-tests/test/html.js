@@ -799,4 +799,64 @@ describe('html', function() {
     );
     assert(html.includes('console.log("test")'));
   });
+
+  it('should support inline <script type="module">', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-module/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(html.includes('<script type="module">'));
+    assert(html.includes('document.write("Hello world")'));
+  });
+
+  it('should support shared bundles between multiple inline scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(html.includes('<script type="module" src="'));
+    assert(html.includes('<script type="module">'));
+    assert(html.includes('.add(1, 2)'));
+    assert(html.includes('.add(2, 3)'));
+  });
 });

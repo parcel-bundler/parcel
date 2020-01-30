@@ -27,7 +27,7 @@ export default new Transformer({
     // Handle .htm
     asset.type = 'html';
     collectDependencies(asset, options);
-    return [asset, ...extractInlineAssets(asset)];
+    return [asset, ...extractInlineAssets(asset, options)];
   },
 
   generate({asset}) {
