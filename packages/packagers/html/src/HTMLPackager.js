@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Blob, Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
