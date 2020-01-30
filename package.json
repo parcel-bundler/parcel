@@ -25,7 +25,7 @@
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=*",
-    "alpha:release": "lerna publish --preid alpha --dist-tag=next --exact --force-publish=*"
+    "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
   },
   "devDependencies": {
     "doctoc": "^1.4.0",
