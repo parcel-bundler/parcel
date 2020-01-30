@@ -69,6 +69,7 @@ export default new Packager({
       bundle,
       bundleGraph,
       contents: html,
+      relative: false,
     });
   },
 });

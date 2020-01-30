@@ -13,7 +13,7 @@ import type {
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import URL from 'url';
-import {bufferStream, urlJoin} from '../';
+import {bufferStream, relativeBundlePath, urlJoin} from '../';
 
 type ReplacementMap = Map<
   string /* dependency id */,
@@ -34,10 +34,12 @@ export async function replaceBundleReferences({
   map,
   getInlineReplacement,
   getInlineBundleContents,
+  relative = true,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   contents: string,
+  relative?: boolean,
   getInlineReplacement: (
     Dependency,
     ?'string',
@@ -84,7 +86,12 @@ export async function replaceBundleReferences({
       // url references
       replacements.set(
         dependency.id,
-        getURLReplacement(dependency, entryBundle),
+        getURLReplacement({
+          dependency,
+          fromBundle: bundle,
+          toBundle: entryBundle,
+          relative,
+        }),
       );
     }
   }
@@ -97,11 +104,13 @@ export function replaceURLReferences({
   bundleGraph,
   contents,
   map,
+  relative = true,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   contents: string,
   map?: ?SourceMap,
+  relative?: boolean,
 |}): BundleResult {
   let replacements: ReplacementMap = new Map();
 
@@ -120,7 +129,12 @@ export function replaceURLReferences({
       // url references
       replacements.set(
         dependency.id,
-        getURLReplacement(dependency, entryBundle),
+        getURLReplacement({
+          dependency,
+          fromBundle: bundle,
+          toBundle: entryBundle,
+          relative,
+        }),
       );
     }
   }
@@ -128,12 +142,32 @@ export function replaceURLReferences({
   return performReplacement(replacements, contents, map);
 }
 
-function getURLReplacement(dependency: Dependency, bundle: Bundle) {
+function getURLReplacement({
+  dependency,
+  fromBundle,
+  toBundle,
+  relative,
+}: {|
+  dependency: Dependency,
+  fromBundle: Bundle,
+  toBundle: Bundle,
+  relative: boolean,
+|}) {
   let url = URL.parse(dependency.moduleSpecifier);
-  url.pathname = nullthrows(bundle.name);
+  let to;
+  if (relative) {
+    url.pathname = relativeBundlePath(fromBundle, toBundle, {
+      leadingDotSlash: false,
+    });
+    to = URL.format(url);
+  } else {
+    url.pathname = nullthrows(toBundle.name);
+    to = urlJoin(nullthrows(toBundle.target.publicUrl), URL.format(url));
+  }
+
   return {
     from: dependency.id,
-    to: urlJoin(bundle.target.publicUrl ?? '/', URL.format(url)),
+    to,
   };
 }
 
