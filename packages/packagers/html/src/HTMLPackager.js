@@ -34,8 +34,11 @@ export default new Packager({
     // Insert references to sibling bundles. For example, a <script> tag in the original HTML
     // may import CSS files. This will result in a sibling bundle in the same bundle group as the
     // JS. This will be inserted as a <link> element into the HTML here.
-    let bundleGroups = bundleGraph.getBundleGroupsReferencedByBundle(bundle);
-    let bundles = bundleGroups.reduce((p, {bundleGroup}) => {
+    let bundleGroups = bundleGraph
+      .getExternalDependencies(bundle)
+      .map(dependency => bundleGraph.resolveExternalDependency(dependency))
+      .filter(Boolean);
+    let bundles = bundleGroups.reduce((p, bundleGroup) => {
       let bundles = bundleGraph
         .getBundlesInBundleGroup(bundleGroup)
         .filter(

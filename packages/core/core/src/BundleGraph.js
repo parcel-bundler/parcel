@@ -12,7 +12,6 @@ import type {
   AssetNode,
   Bundle,
   BundleGraphNode,
-  BundleGroupNode,
   Dependency,
   DependencyNode,
 } from './types';
@@ -442,51 +441,6 @@ export default class BundleGraph {
     }
 
     return siblings;
-  }
-
-  getBundleGroupsReferencedByBundle(
-    bundle: Bundle,
-  ): Array<{
-    bundleGroup: BundleGroup,
-    dependency: Dependency,
-    ...
-  }> {
-    let node = nullthrows(
-      this._graph.getNode(bundle.id),
-      'Bundle graph must contain bundle',
-    );
-
-    let groupNodes: Array<BundleGroupNode> = [];
-    this._graph.traverse(
-      (node, context, actions) => {
-        if (node.type === 'bundle_group') {
-          groupNodes.push(node);
-          actions.skipChildren();
-        }
-      },
-      node,
-      'bundle',
-    );
-
-    return flatMap(groupNodes, groupNode => {
-      return this._graph
-        .getNodesConnectedTo(groupNode)
-        .filter(
-          node =>
-            node.type === 'dependency' &&
-            this._graph.hasEdge(bundle.id, node.id, 'contains'),
-        )
-        .map(dependencyNode => {
-          // TODO: Enforce non-null when bundle groups have the correct bundles
-          // pointing to them
-          invariant(dependencyNode.type === 'dependency');
-
-          return {
-            bundleGroup: groupNode.value,
-            dependency: dependencyNode.value,
-          };
-        });
-    });
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {

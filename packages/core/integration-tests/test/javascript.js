@@ -462,11 +462,13 @@ describe('javascript', function() {
 
       assertBundles(b, [
         {
-          name: `index-${workerType}.js`,
-          assets: [`index-${workerType}.js`, 'bundle-url.js', 'JSRuntime.js'],
+          assets: ['importScripts.js', 'JSRuntime.js', 'JSRuntime.js'].concat(
+            workerType === 'serviceworker' ? ['bundle-url.js'] : [],
+          ),
         },
         {
-          assets: ['importScripts.js'],
+          name: `index-${workerType}.js`,
+          assets: [`index-${workerType}.js`, 'bundle-url.js', 'JSRuntime.js'],
         },
         {
           assets: ['imported.js'],
@@ -513,7 +515,7 @@ describe('javascript', function() {
         name: 'index-external.js',
         assets: ['index-external.js', 'bundle-url.js', 'JSRuntime.js'],
       },
-      {assets: ['external.js']},
+      {assets: ['external.js', 'JSRuntime.js']},
     ]);
 
     let workerBundleFile = path.join(
@@ -529,7 +531,12 @@ describe('javascript', function() {
 
     assert(
       workerBundleContents.includes(
-        'importScripts("https://unpkg.com/parcel");',
+        'importScripts(require("https://unpkg.com/parcel"));',
+      ),
+    );
+    assert(
+      workerBundleContents.includes(
+        'module.exports = "https://unpkg.com/parcel";',
       ),
     );
   });
@@ -618,16 +625,10 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'lodash.js',
-          'bundle-url.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-        ],
+        assets: ['index.js', 'lodash.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
-        assets: ['worker-a.js'],
+        assets: ['worker-a.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker-b.js'],
@@ -657,7 +658,7 @@ describe('javascript', function() {
         assets: ['index.html'],
       },
       {
-        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js', 'JSRuntime.js'],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker.js'],

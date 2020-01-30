@@ -51,10 +51,16 @@ export async function replaceBundleReferences({
 |}): Promise<BundleResult> {
   let replacements = new Map();
 
-  for (let {
-    dependency,
-    bundleGroup,
-  } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
+  for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
+    let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
+    if (bundleGroup == null) {
+      replacements.set(dependency.id, {
+        from: dependency.id,
+        to: dependency.moduleSpecifier,
+      });
+      continue;
+    }
+
     let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
     if (entryBundle.isInline) {
       // inline bundles
@@ -83,7 +89,6 @@ export async function replaceBundleReferences({
     }
   }
 
-  collectExternalReferences(bundle, replacements);
   return performReplacement(replacements, contents, map);
 }
 
@@ -100,10 +105,16 @@ export function replaceURLReferences({
 |}): BundleResult {
   let replacements: ReplacementMap = new Map();
 
-  for (let {
-    dependency,
-    bundleGroup,
-  } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
+  for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
+    let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
+    if (bundleGroup == null) {
+      replacements.set(dependency.id, {
+        from: dependency.id,
+        to: dependency.moduleSpecifier,
+      });
+      continue;
+    }
+
     let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
     if (dependency.isURL && !entryBundle.isInline) {
       // url references
@@ -114,27 +125,7 @@ export function replaceURLReferences({
     }
   }
 
-  collectExternalReferences(bundle, replacements);
   return performReplacement(replacements, contents, map);
-}
-
-function collectExternalReferences(
-  bundle: Bundle,
-  replacements: Map<string, {|from: string, to: string|}>,
-): void {
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    if (dependency.isURL && !replacements.has(dependency.id)) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
-        to: dependency.moduleSpecifier,
-      });
-    }
-  });
 }
 
 function getURLReplacement(dependency: Dependency, bundle: Bundle) {
