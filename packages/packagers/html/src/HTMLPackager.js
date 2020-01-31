@@ -120,7 +120,6 @@ async function replaceInlineAssetContent(
       let {contents, bundle} = newContent;
       node.content = contents;
 
-      console.log(bundle.env.outputFormat);
       if (bundle.env.outputFormat === 'esmodule') {
         node.attrs.type = 'module';
       }
