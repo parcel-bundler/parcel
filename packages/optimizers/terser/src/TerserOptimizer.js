@@ -28,6 +28,12 @@ export default new Optimizer({
     let config = {
       warnings: true,
       ...userConfig?.config,
+      compress: {
+        ...userConfig?.config?.compress,
+        toplevel:
+          bundle.env.outputFormat === 'esmodule' ||
+          bundle.env.outputFormat === 'commonjs',
+      },
       sourceMap: {
         filename: path.relative(options.projectRoot, bundle.filePath),
       },
