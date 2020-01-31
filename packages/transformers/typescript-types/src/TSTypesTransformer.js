@@ -124,12 +124,6 @@ export default new Transformer({
           filePath: filename,
           codeFrame: codeframe ? codeframe : undefined,
         });
-
-        console.log({
-          message: diagnosticMessage,
-          filePath: filename,
-          codeFrame: codeframe ? codeframe : undefined,
-        });
       }
     }
 
