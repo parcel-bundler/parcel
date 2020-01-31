@@ -15,8 +15,8 @@ export class CompilerHost extends FSHost {
       : undefined;
   }
 
-  getDefaultLibFileName() {
-    return 'lib.d.ts';
+  getDefaultLibFileName(options: any) {
+    return this.ts.getDefaultLibFilePath(options);
   }
 
   writeFile(filePath: FilePath, content: string) {
