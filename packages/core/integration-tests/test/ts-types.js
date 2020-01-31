@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles, outputFS, inputFS} from '@parcel/test-utils';
 
-describe.only('typescript types', function() {
+describe('typescript types', function() {
   it('should generate a typescript declaration file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/ts-types/main/index.ts'),
@@ -146,7 +146,7 @@ describe.only('typescript types', function() {
     assert.equal(dist, expected);
   });
 
-  it.only('should not throw errors on typing of a callback which returns a promise or value', async function() {
+  it('should not throw errors on typing of a callback which returns a promise or value', async function() {
     await bundle(
       path.join(__dirname, '/integration/ts-types/promise-or-value/index.ts'),
     );
@@ -161,12 +161,13 @@ describe.only('typescript types', function() {
       )
     ).replace(/\r\n/g, '\n');
 
-    console.log(dist);
-
-    /*let expected = await inputFS.readFile(
-      path.join(__dirname, '/integration/ts-types/private/expected.d.ts'),
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/promise-or-value/expected.d.ts',
+      ),
       'utf8',
     );
-    assert.equal(dist, expected);*/
+    assert.equal(dist, expected);
   });
 });
