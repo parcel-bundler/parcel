@@ -607,8 +607,20 @@ function normalizeAssets(
 }
 
 function getImpactfulConfigInfo(configs: ConfigMap) {
-  return [...configs].map(([, {resultHash, devDeps}]) => ({
-    resultHash,
-    devDeps: [...devDeps],
-  }));
+  let impactfulConfigInfo = {};
+
+  for (let [configType, {devDeps, resultHash}] of configs) {
+    let devDepsObject = {};
+
+    for (let [moduleName, version] of devDeps) {
+      devDepsObject[moduleName] = version;
+    }
+
+    impactfulConfigInfo[configType] = {
+      devDeps: devDepsObject,
+      resultHash,
+    };
+  }
+
+  return impactfulConfigInfo;
 }

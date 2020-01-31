@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/runtime-js",
+  "name": "@parcel/transformer-mdx",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
@@ -9,14 +9,14 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/JSRuntime.js",
-  "source": "src/JSRuntime.js",
+  "main": "lib/MDXTransformer.js",
+  "source": "src/MDXTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/utils": "^2.0.0-alpha.3.1"
+    "@mdx-js/mdx": "^1.5.3",
+    "@parcel/plugin": "^2.0.0-alpha.3.1"
   }
 }
