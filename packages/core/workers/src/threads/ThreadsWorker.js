@@ -9,10 +9,7 @@ import type {
 } from '../types';
 import {Worker} from 'worker_threads';
 import path from 'path';
-import {
-  prepareForSerialization,
-  restoreDeserializedObject,
-} from '@parcel/utils';
+import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
 
 const WORKER_PATH = path.join(__dirname, 'ThreadsChild.js');
 

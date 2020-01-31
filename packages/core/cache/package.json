@@ -17,5 +17,8 @@
   "dependencies": {
     "@parcel/logger": "^2.0.0-frontbucket.9",
     "@parcel/utils": "^2.0.0-frontbucket.10"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-frontbucket.10"
   }
 }

@@ -1,7 +1,7 @@
 // @flow
 
 import {minify} from 'terser';
-import {serialize} from 'serialize-to-js';
+import serialize from 'serialize-to-js';
 
 export default function serializeObject(
   obj: mixed,

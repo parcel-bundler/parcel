@@ -22,7 +22,6 @@
     "@parcel/logger": "^2.0.0-frontbucket.9",
     "@parcel/markdown-ansi": "^2.0.0-frontbucket.9",
     "ansi-html": "^0.0.7",
-    "chalk": "^2.4.2",
     "clone": "^2.1.1",
     "fast-glob": "^3.0.4",
     "is-glob": "^4.0.0",
@@ -33,8 +32,9 @@
     "node-forge": "^0.8.1",
     "nullthrows": "^1.1.1",
     "resolve": "^1.12.0",
-    "serialize-to-js": "^2.0.0",
-    "terser": "^3.7.3"
+    "serialize-to-js": "^3.0.1",
+    "terser": "^3.7.3",
+    "chalk": "^2.4.2"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",
