@@ -46,7 +46,16 @@ describe('typescript types', function() {
         type: 'ts',
         assets: ['index.ts'],
         includedFiles: {
-          'index.ts': ['other.ts', 'file.ts', 'namespace.ts'],
+          'index.ts': [
+            'other.ts',
+            'file.ts',
+            'namespace.ts',
+            'lib.d.ts',
+            'lib.dom.d.ts',
+            'lib.es5.d.ts',
+            'lib.scripthost.d.ts',
+            'lib.webworker.importscripts.d.ts',
+          ],
         },
       },
     ]);
@@ -78,7 +87,16 @@ describe('typescript types', function() {
         type: 'ts',
         assets: ['index.ts'],
         includedFiles: {
-          'index.ts': ['message.ts', 'other.ts', 'test.ts'],
+          'index.ts': [
+            'message.ts',
+            'other.ts',
+            'test.ts',
+            'lib.d.ts',
+            'lib.dom.d.ts',
+            'lib.es5.d.ts',
+            'lib.scripthost.d.ts',
+            'lib.webworker.importscripts.d.ts',
+          ],
         },
       },
     ]);
