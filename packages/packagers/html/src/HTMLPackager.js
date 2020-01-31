@@ -4,7 +4,7 @@ import type {Bundle, BundleGraph} from '@parcel/types';
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
-import {replaceURLReferences, urlJoin} from '@parcel/utils';
+import {replaceBundleReferences, urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -65,7 +65,7 @@ export default new Packager({
       ),
     ]).process(code);
 
-    return replaceURLReferences({
+    return replaceBundleReferences({
       bundle,
       bundleGraph,
       contents: html,

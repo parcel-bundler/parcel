@@ -32,23 +32,26 @@ export async function replaceBundleReferences({
   bundleGraph,
   contents,
   map,
-  getInlineReplacement,
-  getInlineBundleContents,
+  replaceInline,
+  replaceUrls = true,
   relative = true,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   contents: string,
   relative?: boolean,
-  getInlineReplacement: (
-    Dependency,
-    ?'string',
-    string,
-  ) => {|from: string, to: string|},
-  getInlineBundleContents: (
-    Bundle,
-    BundleGraph,
-  ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+  replaceInline?: {|
+    getInlineReplacement: (
+      Dependency,
+      ?'string',
+      string,
+    ) => {|from: string, to: string|},
+    getInlineBundleContents: (
+      Bundle,
+      BundleGraph,
+    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+  |},
+  replaceUrls?: boolean,
   map?: ?SourceMap,
 |}): Promise<BundleResult> {
   let replacements = new Map();
@@ -56,76 +59,41 @@ export async function replaceBundleReferences({
   for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
     let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
     if (bundleGroup == null) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
-        to: dependency.moduleSpecifier,
-      });
+      if (replaceUrls) {
+        replacements.set(dependency.id, {
+          from: dependency.id,
+          to: dependency.moduleSpecifier,
+        });
+      }
       continue;
     }
 
     let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
     if (entryBundle.isInline) {
-      // inline bundles
-      let packagedBundle = await getInlineBundleContents(
-        entryBundle,
-        bundleGraph,
-      );
-      let packagedContents = (packagedBundle.contents instanceof Readable
-        ? await bufferStream(packagedBundle.contents)
-        : packagedBundle.contents
-      ).toString();
-
-      let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
-      if (inlineType == null || inlineType === 'string') {
-        replacements.set(
-          dependency.id,
-          getInlineReplacement(dependency, inlineType, packagedContents),
+      if (replaceInline != null) {
+        // inline bundles
+        let packagedBundle = await replaceInline.getInlineBundleContents(
+          entryBundle,
+          bundleGraph,
         );
+        let packagedContents = (packagedBundle.contents instanceof Readable
+          ? await bufferStream(packagedBundle.contents)
+          : packagedBundle.contents
+        ).toString();
+
+        let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
+        if (inlineType == null || inlineType === 'string') {
+          replacements.set(
+            dependency.id,
+            replaceInline.getInlineReplacement(
+              dependency,
+              inlineType,
+              packagedContents,
+            ),
+          );
+        }
       }
-    } else if (dependency.isURL) {
-      // url references
-      replacements.set(
-        dependency.id,
-        getURLReplacement({
-          dependency,
-          fromBundle: bundle,
-          toBundle: entryBundle,
-          relative,
-        }),
-      );
-    }
-  }
-
-  return performReplacement(replacements, contents, map);
-}
-
-export function replaceURLReferences({
-  bundle,
-  bundleGraph,
-  contents,
-  map,
-  relative = true,
-}: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
-  contents: string,
-  map?: ?SourceMap,
-  relative?: boolean,
-|}): BundleResult {
-  let replacements: ReplacementMap = new Map();
-
-  for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
-    let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
-    if (bundleGroup == null) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
-        to: dependency.moduleSpecifier,
-      });
-      continue;
-    }
-
-    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-    if (dependency.isURL && !entryBundle.isInline) {
+    } else if (dependency.isURL && replaceUrls) {
       // url references
       replacements.set(
         dependency.id,

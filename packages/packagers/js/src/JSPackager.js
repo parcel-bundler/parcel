@@ -31,11 +31,15 @@ export default new Packager({
         bundle,
         bundleGraph,
         contents,
-        getInlineReplacement: (dependency, inlineType, content) => ({
-          from: `"${dependency.id}"`,
-          to: inlineType === 'string' ? JSON.stringify(content) : content,
-        }),
-        getInlineBundleContents,
+        replaceInline: {
+          getInlineReplacement: (dependency, inlineType, content) => ({
+            from: `"${dependency.id}"`,
+            to: inlineType === 'string' ? JSON.stringify(content) : content,
+          }),
+          getInlineBundleContents,
+        },
+        // JSRuntime handles exporting URLs
+        replaceUrls: false,
         map,
       });
     }
