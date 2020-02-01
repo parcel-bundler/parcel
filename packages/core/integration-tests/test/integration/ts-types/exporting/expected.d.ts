@@ -10,6 +10,6 @@ export interface Params {
     bar: number;
 }
 export var a: number, b: number;
-export function toUpperCase(foo: string): any;
+export function toUpperCase(foo: string): string;
 
 //# sourceMappingURL=types.d.ts.map
