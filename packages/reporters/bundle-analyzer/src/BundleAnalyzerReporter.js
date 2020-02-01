@@ -19,7 +19,7 @@ export default new Reporter({
 
     let bundlesByTarget: DefaultMap<
       string /* target name */,
-      Array<Bundle>
+      Array<Bundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
       bundlesByTarget.get(bundle.target.name).push(bundle);
@@ -68,9 +68,9 @@ export default new Reporter({
                 ${await options.inputFS.readFile(
                   path.resolve(
                     __dirname,
-                    '../client/vendor/foamtree/carrotsearch.foamtree.js'
+                    '../client/vendor/foamtree/carrotsearch.foamtree.js',
                   ),
-                  'utf8'
+                  'utf8',
                 )}
               </script>
               <script id="bundle-data" type="application/json">
@@ -81,34 +81,34 @@ export default new Reporter({
               <script>
                 ${await options.inputFS.readFile(
                   path.resolve(__dirname, '../client/index.js'),
-                  'utf8'
+                  'utf8',
                 )}
               </script>
             </body>
           </html>
-        `
+        `,
         );
-      })
+      }),
     );
-  }
+  },
 });
 
 type BundleData = {|
-  groups: Array<Group>
+  groups: Array<Group>,
 |};
 
 function getBundleData(
   bundles: Array<Bundle>,
-  options: PluginOptions
+  options: PluginOptions,
 ): BundleData {
   return {
-    groups: bundles.map(bundle => getBundleNode(bundle, options))
+    groups: bundles.map(bundle => getBundleNode(bundle, options)),
   };
 }
 
 type File = {|
   basename: string,
-  stats: Stats
+  stats: Stats,
 |};
 type DirMapValue = File | DirMap;
 type DirMap = DefaultMap<FilePath, DirMapValue>;
@@ -136,21 +136,21 @@ function getBundleNode(bundle: Bundle, options: PluginOptions) {
     invariant(map instanceof DefaultMap);
     map.set(basename, {
       basename: path.basename(asset.filePath),
-      stats: asset.stats
+      stats: asset.stats,
     });
   }
 
   return {
     label: nullthrows(bundle.name),
     weight: bundle.stats.size,
-    groups: generateGroups(dirMap)
+    groups: generateGroups(dirMap),
   };
 }
 
 type Group = {|
   label: string,
   weight: number,
-  groups?: Array<Group>
+  groups?: Array<Group>,
 |};
 
 function generateGroups(dirMap: DirMap): Array<Group> {
@@ -163,23 +163,23 @@ function generateGroups(dirMap: DirMap): Array<Group> {
         let firstChild = childrenGroups[0];
         groups.push({
           ...firstChild,
-          label: path.join(directoryName, firstChild.label)
+          label: path.join(directoryName, firstChild.label),
         });
       } else {
         groups.push({
           label: directoryName,
           weight: childrenGroups.reduce(
             (acc, g) => acc + nullthrows(g.weight),
-            0
+            0,
           ),
-          groups: childrenGroups
+          groups: childrenGroups,
         });
       }
     } else {
       // file
       groups.push({
         label: contents.basename,
-        weight: contents.stats.size
+        weight: contents.stats.size,
       });
     }
   }
