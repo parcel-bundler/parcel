@@ -28,7 +28,7 @@ export async function resolveConfig(
   opts: ?ConfigOptions,
   root: FilePath = path.parse(filepath).root,
 ): Promise<FilePath | null> {
-  filepath = path.dirname(filepath);
+  filepath = await fs.realpath(path.dirname(filepath));
 
   // Don't traverse above the module root
   if (filepath === root || path.basename(filepath) === 'node_modules') {
@@ -51,7 +51,6 @@ export async function loadConfig(
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
-  filepath = await fs.realpath(filepath);
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
     try {

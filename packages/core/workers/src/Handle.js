@@ -2,7 +2,7 @@
 
 import type {WorkerApi} from './';
 
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 
 import {child} from './childState';
 import packageJson from '../package.json';

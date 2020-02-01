@@ -7,7 +7,7 @@ import path from 'path';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
 import promiseFromProcess from './promiseFromProcess';
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 // $FlowFixMe
 import pkg from '../package.json';
 
