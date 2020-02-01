@@ -974,6 +974,21 @@ describe('javascript', function() {
     });
   });
 
+  it('should not insert global variables when used in a module specifier', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-module-specifier/a.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['a.js', 'b.js', 'c.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, 1234);
+  });
+
   it('should handle re-declaration of the global constant', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-redeclare/index.js'),
