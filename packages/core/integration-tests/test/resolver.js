@@ -7,8 +7,8 @@ describe('resolver', function() {
     let b = await bundle(
       path.join(
         __dirname,
-        '/integration/resolve-tilde-monorepo/client/src/index.js'
-      )
+        '/integration/resolve-tilde-monorepo/client/src/index.js',
+      ),
     );
 
     let output = await run(b);
@@ -17,7 +17,7 @@ describe('resolver', function() {
 
   it('should correctly resolve tilde in node_modules', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/resolve-tilde-nodemodules/index.js')
+      path.join(__dirname, '/integration/resolve-tilde-nodemodules/index.js'),
     );
 
     let output = await run(b);
@@ -30,14 +30,14 @@ describe('resolver', function() {
       await bundle(
         path.join(
           __dirname,
-          '/integration/webpack-import-syntax-error/index.js'
-        )
+          '/integration/webpack-import-syntax-error/index.js',
+        ),
       );
     } catch (e) {
       didThrow = true;
       assert.equal(
         e.diagnostics[0].message,
-        `The import path: node-loader!./index.js is using webpack specific loader import syntax, which isn't supported by Parcel.`
+        `The import path: node-loader!./index.js is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
 
@@ -48,20 +48,20 @@ describe('resolver', function() {
     let didThrow = false;
     try {
       await bundle(
-        path.join(__dirname, '/integration/js-invalid-import/index.js')
+        path.join(__dirname, '/integration/js-invalid-import/index.js'),
       );
     } catch (e) {
       didThrow = true;
 
       assert(
         e.diagnostics[0].message.startsWith(
-          `Cannot find module './doesnotexisstt' from `
-        )
+          `Cannot find module './doesnotexisstt' from `,
+        ),
       );
 
       assert.deepEqual(e.diagnostics[0].codeFrame.codeHighlights[0], {
         start: {line: 1, column: 8},
-        end: {line: 1, column: 25}
+        end: {line: 1, column: 25},
       });
     }
 
@@ -72,20 +72,20 @@ describe('resolver', function() {
     let didThrow = false;
     try {
       await bundle(
-        path.join(__dirname, '/integration/css-invalid-import/index.css')
+        path.join(__dirname, '/integration/css-invalid-import/index.css'),
       );
     } catch (e) {
       didThrow = true;
 
       assert(
         e.diagnostics[0].message.startsWith(
-          `Cannot find module './thisdoesnotexist.css' from `
-        )
+          `Cannot find module './thisdoesnotexist.css' from `,
+        ),
       );
 
       assert.deepEqual(e.diagnostics[0].codeFrame.codeHighlights[0], {
         start: {line: 1, column: 9},
-        end: {line: 1, column: 32}
+        end: {line: 1, column: 32},
       });
     }
 

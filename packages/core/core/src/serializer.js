@@ -1,0 +1,217 @@
+// @flow
+import v8 from 'v8';
+
+const nameToCtor: Map<string, Class<*>> = new Map();
+const ctorToName: Map<Class<*>, string> = new Map();
+
+export function registerSerializableClass(name: string, ctor: Class<*>) {
+  if (nameToCtor.has(name)) {
+    throw new Error('Name already registered with serializer');
+  }
+
+  if (ctorToName.has(ctor)) {
+    throw new Error('Class already registered with serializer');
+  }
+
+  nameToCtor.set(name, ctor);
+  ctorToName.set(ctor, name);
+}
+
+export function unregisterSerializableClass(name: string, ctor: Class<*>) {
+  if (nameToCtor.get(name) === ctor) {
+    nameToCtor.delete(name);
+  }
+
+  if (ctorToName.get(ctor) === name) {
+    ctorToName.delete(ctor);
+  }
+}
+
+function shallowCopy(object: any) {
+  if (object && typeof object === 'object') {
+    if (Array.isArray(object)) {
+      return [...object];
+    }
+
+    if (object instanceof Map) {
+      return new Map(object);
+    }
+
+    if (object instanceof Set) {
+      return new Set(object);
+    }
+
+    return Object.create(
+      Object.getPrototypeOf(object),
+      Object.getOwnPropertyDescriptors(object),
+    );
+  }
+
+  return object;
+}
+
+function isBuffer(object) {
+  return (
+    object.buffer instanceof ArrayBuffer ||
+    object.buffer instanceof SharedArrayBuffer
+  );
+}
+
+function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
+  let cache = new Map();
+  let memo = new Map();
+
+  // Memoize the passed function to ensure it always returns the exact same
+  // output by reference for the same input. This is important to maintain
+  // reference integrity when deserializing rather than cloning.
+  let memoizedFn = (val: any) => {
+    let res = memo.get(val);
+    if (res == null) {
+      res = fn(val);
+      memo.set(val, res);
+    }
+
+    return res;
+  };
+
+  let walk = (object: any, shouldCopy = false) => {
+    // Check the cache first, both for performance and cycle detection.
+    if (cache.has(object)) {
+      return cache.get(object);
+    }
+
+    let result = object;
+    cache.set(object, result);
+
+    let processKey = (key: any, value: any) => {
+      let newValue = value;
+      if (preOrder && value && typeof value === 'object') {
+        newValue = memoizedFn(value);
+      }
+
+      // Recursively walk the children
+      if (newValue && typeof newValue === 'object' && newValue.$$raw !== true) {
+        newValue = walk(newValue, newValue === value);
+      }
+
+      if (!preOrder && newValue && typeof newValue === 'object') {
+        newValue = memoizedFn(newValue);
+      }
+
+      if (newValue !== value) {
+        // Copy on write. We only need to do this when serializing, not deserializing.
+        if (object === result && preOrder && shouldCopy) {
+          result = shallowCopy(object);
+          cache.set(object, result);
+        }
+
+        // Replace the key with the new value
+        if (result instanceof Map) {
+          result.set(key, newValue);
+        } else if (result instanceof Set) {
+          // TODO: do we care about iteration order??
+          result.delete(value);
+          result.add(newValue);
+        } else {
+          result[key] = newValue;
+        }
+      }
+    };
+
+    // Iterate in various ways depending on type.
+    if (Array.isArray(object)) {
+      for (let i = 0; i < object.length; i++) {
+        processKey(i, object[i]);
+      }
+    } else if (object instanceof Map || object instanceof Set) {
+      for (let [key, val] of object.entries()) {
+        processKey(key, val);
+      }
+    } else if (!isBuffer(object)) {
+      for (let key in object) {
+        processKey(key, object[key]);
+      }
+    }
+
+    return result;
+  };
+
+  let mapped = memoizedFn(object);
+  if (mapped && typeof mapped === 'object' && mapped.$$raw !== true) {
+    return walk(mapped, mapped === object);
+  }
+
+  return mapped;
+}
+
+export function prepareForSerialization(object: any) {
+  return mapObject(
+    object,
+    value => {
+      // Add a $$type property with the name of this class, if any is registered.
+      if (
+        value &&
+        typeof value === 'object' &&
+        typeof value.constructor === 'function'
+      ) {
+        let type = ctorToName.get(value.constructor);
+        if (type != null) {
+          let serialized = value;
+          let raw = false;
+          if (value && typeof value.serialize === 'function') {
+            // If the object has a serialize method, call it
+            serialized = value.serialize();
+            raw = (serialized && serialized.$$raw) ?? true;
+            if (serialized) {
+              delete serialized.$$raw;
+            }
+          }
+
+          return {
+            $$type: type,
+            $$raw: raw,
+            value: {...serialized},
+          };
+        }
+      }
+
+      return value;
+    },
+    true,
+  );
+}
+
+export function restoreDeserializedObject(object: any) {
+  return mapObject(object, value => {
+    // If the value has a $$type property, use it to restore the object type
+    if (value && value.$$type) {
+      let ctor = nameToCtor.get(value.$$type);
+      if (ctor == null) {
+        throw new Error(
+          `Expected constructor ${value.$$type} to be registered with serializer to deserialize`,
+        );
+      }
+
+      if (typeof ctor.deserialize === 'function') {
+        return ctor.deserialize(value.value);
+      }
+
+      value = value.value;
+      Object.setPrototypeOf(value, ctor.prototype);
+    }
+
+    return value;
+  });
+}
+
+export function serialize(object: any): Buffer {
+  let mapped = prepareForSerialization(object);
+  // $FlowFixMe - flow doesn't know about this method yet
+  return v8.serialize(mapped);
+}
+
+export function deserialize(buffer: Buffer): any {
+  // $FlowFixMe - flow doesn't know about this method yet
+  let obj = v8.deserialize(buffer);
+  return restoreDeserializedObject(obj);
+}

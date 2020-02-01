@@ -19,15 +19,15 @@ const ESMODULE_TEMPLATE = template(`exports.__esModule = true;`);
 
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const EXPORT_ALL_TEMPLATE = template(
-  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
+  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))',
 );
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
 const REQUIRE_RESOLVE_CALL_TEMPLATE = template(
-  '$parcel$require$resolve(ID, SOURCE)'
+  '$parcel$require$resolve(ID, SOURCE)',
 );
 const TYPEOF = {
   module: 'object',
-  require: 'function'
+  require: 'function',
 };
 
 function hasSideEffects(asset, {sideEffects} = asset._package) {
@@ -40,11 +40,11 @@ function hasSideEffects(asset, {sideEffects} = asset._package) {
       return mm.isMatch(
         path.relative(asset._package.pkgdir, asset.name),
         sideEffects,
-        {matchBase: true}
+        {matchBase: true},
       );
     case 'object':
       return sideEffects.some(sideEffects =>
-        hasSideEffects(asset, {sideEffects})
+        hasSideEffects(asset, {sideEffects}),
       );
   }
 }
@@ -86,9 +86,9 @@ module.exports = {
               t.returnStatement(
                 t.memberExpression(
                   t.identifier('module'),
-                  t.identifier('exports')
-                )
-              )
+                  t.identifier('exports'),
+                ),
+              ),
             );
             path.stop();
           }
@@ -111,7 +111,7 @@ module.exports = {
             shouldWrap = true;
             path.stop();
           }
-        }
+        },
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
@@ -129,9 +129,9 @@ module.exports = {
           t.program([
             WRAPPER_TEMPLATE({
               NAME: getExportsIdentifier(asset),
-              BODY: path.node.body
-            })
-          ])
+              BODY: path.node.body,
+            }),
+          ]),
         );
 
         asset.cacheData.exports = {};
@@ -162,7 +162,7 @@ module.exports = {
 
       path.stop();
       asset.isAstDirty = true;
-    }
+    },
   },
 
   DirectiveLiteral(path) {
@@ -274,20 +274,20 @@ module.exports = {
         if (path.scope === scope) {
           let [decl] = path.insertBefore(
             t.variableDeclaration('var', [
-              t.variableDeclarator(t.clone(identifier), right)
-            ])
+              t.variableDeclarator(t.clone(identifier), right),
+            ]),
           );
 
           scope.registerDeclaration(decl);
         } else {
           scope.push({id: t.clone(identifier)});
           path.insertBefore(
-            t.assignmentExpression('=', t.clone(identifier), right)
+            t.assignmentExpression('=', t.clone(identifier), right),
           );
         }
       } else {
         path.insertBefore(
-          t.assignmentExpression('=', t.clone(identifier), right)
+          t.assignmentExpression('=', t.clone(identifier), right),
         );
       }
 
@@ -334,7 +334,7 @@ module.exports = {
         p =>
           p.isConditionalExpression() ||
           p.isLogicalExpression() ||
-          p.isSequenceExpression()
+          p.isSequenceExpression(),
       );
       if (!parent.isProgram() || bail) {
         asset.dependencies.get(source).shouldWrap = true;
@@ -347,8 +347,8 @@ module.exports = {
       path.replaceWith(
         REQUIRE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
-          SOURCE: t.stringLiteral(args[0].value)
-        })
+          SOURCE: t.stringLiteral(args[0].value),
+        }),
       );
     }
 
@@ -356,8 +356,8 @@ module.exports = {
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
-          SOURCE: args[0]
-        })
+          SOURCE: args[0],
+        }),
       );
     }
   },
@@ -374,7 +374,7 @@ module.exports = {
       } else if (t.isImportSpecifier(specifier)) {
         asset.cacheData.imports[id.name] = [
           path.node.source.value,
-          specifier.imported.name
+          specifier.imported.name,
         ];
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         asset.cacheData.imports[id.name] = [path.node.source.value, '*'];
@@ -405,8 +405,8 @@ module.exports = {
       EXPORT_ASSIGN_TEMPLATE({
         EXPORTS: getExportsIdentifier(asset, path.scope),
         NAME: t.identifier('default'),
-        LOCAL: t.clone(identifier)
-      })
+        LOCAL: t.clone(identifier),
+      }),
     );
 
     if (t.isIdentifier(declaration)) {
@@ -417,8 +417,8 @@ module.exports = {
       // Declare a variable to hold the exported value.
       path.replaceWith(
         t.variableDeclaration('var', [
-          t.variableDeclarator(identifier, t.toExpression(declaration))
-        ])
+          t.variableDeclarator(identifier, t.toExpression(declaration)),
+        ]),
       );
 
       path.scope.registerDeclaration(path);
@@ -450,7 +450,7 @@ module.exports = {
         } else if (t.isExportSpecifier(specifier)) {
           asset.cacheData.exports[exported.name] = [
             source.value,
-            specifier.local.name
+            specifier.local.name,
           ];
         }
 
@@ -462,8 +462,8 @@ module.exports = {
           EXPORT_ASSIGN_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
             NAME: exported,
-            LOCAL: id
-          })
+            LOCAL: id,
+          }),
         );
       }
 
@@ -499,17 +499,17 @@ module.exports = {
       EXPORT_ALL_TEMPLATE({
         OLD_NAME: getExportsIdentifier(asset),
         SOURCE: t.stringLiteral(path.node.source.value),
-        ID: t.stringLiteral(asset.id)
-      })
+        ID: t.stringLiteral(asset.id),
+      }),
     );
-  }
+  },
 };
 
 function addImport(asset, path) {
   // Replace with a $parcel$require call so we know where to insert side effects.
   let requireCall = REQUIRE_CALL_TEMPLATE({
     ID: t.stringLiteral(asset.id),
-    SOURCE: t.stringLiteral(path.node.source.value)
+    SOURCE: t.stringLiteral(path.node.source.value),
   });
 
   // Hoist the call to the top of the file.
@@ -540,7 +540,7 @@ function addExport(asset, path, local, exported) {
   let assignNode = EXPORT_ASSIGN_TEMPLATE({
     EXPORTS: getExportsIdentifier(asset, scope),
     NAME: t.identifier(exported.name),
-    LOCAL: identifier
+    LOCAL: identifier,
   });
 
   let binding = scope.getBinding(local.name);
@@ -579,8 +579,8 @@ function safeRename(path, asset, from, to) {
   } else {
     let [decl] = path.insertAfter(
       t.variableDeclaration('var', [
-        t.variableDeclarator(t.identifier(to), t.identifier(from))
-      ])
+        t.variableDeclarator(t.identifier(to), t.identifier(from)),
+      ]),
     );
 
     path.scope.getBinding(from).reference(decl.get('declarations.0.init'));

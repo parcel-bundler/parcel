@@ -13,19 +13,19 @@ const COLORS = {
   dependency: 'orange',
   transformer_request: 'cyan',
   file: 'gray',
-  default: 'white'
+  default: 'white',
 };
 
 const TYPE_COLORS = {
   bundle: 'blue',
   contains: 'grey',
-  references: 'red'
+  references: 'red',
 };
 
 export default async function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
-  name: string
+  name: string,
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||

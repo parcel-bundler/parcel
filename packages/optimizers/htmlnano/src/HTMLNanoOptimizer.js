@@ -15,24 +15,24 @@ export default new Optimizer({
 
     if (typeof contents !== 'string') {
       throw new Error(
-        'HTMLNanoOptimizer: Only string contents are currently supported'
+        'HTMLNanoOptimizer: Only string contents are currently supported',
       );
     }
 
     let userConfig = await loadConfig(
       options.inputFS,
       path.join(options.rootDir, 'index.html'),
-      ['.htmlnanorc', '.htmlnanorc.js']
+      ['.htmlnanorc', '.htmlnanorc.js'],
     );
 
     const htmlNanoConfig = {
       minifyJs: false,
-      ...userConfig?.config
+      ...userConfig?.config,
     };
 
     return {
       contents: (await posthtml([htmlnano(htmlNanoConfig)]).process(contents))
-        .html
+        .html,
     };
-  }
+  },
 });

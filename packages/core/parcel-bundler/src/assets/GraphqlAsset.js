@@ -14,8 +14,8 @@ class GraphqlAsset extends Asset {
     this.gqlMap = new Map();
     this.gqlResolver = new Resolver(
       Object.assign({}, this.options, {
-        extensions: ['.gql', '.graphql']
-      })
+        extensions: ['.gql', '.graphql'],
+      }),
     );
   }
 
@@ -30,7 +30,7 @@ class GraphqlAsset extends Asset {
         .map(async ([, importName]) => {
           let {path: resolved} = await this.gqlResolver.resolve(
             importName,
-            name
+            name,
           );
 
           if (this.gqlMap.has(resolved)) {
@@ -39,7 +39,7 @@ class GraphqlAsset extends Asset {
 
           let code = await fs.readFile(resolved, 'utf8');
           await this.traverseImports(resolved, code);
-        })
+        }),
     );
   }
 

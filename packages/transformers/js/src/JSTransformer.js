@@ -4,7 +4,7 @@ import semver from 'semver';
 import generate from '@babel/generator';
 import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
-import envVisitor from './visitors/env';
+import processVisitor from './visitors/process';
 import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import {parse} from '@babel/parser';
@@ -17,6 +17,7 @@ import SourceMap from '@parcel/source-map';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
+const BROWSER_RE = /\b(?:process\.browser)\b/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
@@ -46,6 +47,7 @@ export default new Transformer({
       !options.scopeHoist &&
       !canHaveDependencies(code) &&
       !ENV_RE.test(code) &&
+      !BROWSER_RE.test(code) &&
       !FS_RE.test(code)
     ) {
       return null;
@@ -60,8 +62,8 @@ export default new Transformer({
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
-      })
+        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+      }),
     };
   },
 
@@ -74,9 +76,17 @@ export default new Transformer({
     let ast = asset.ast;
     let code = await asset.getCode();
 
-    // Inline environment variables
-    if (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) {
-      walk.simple(ast.program, envVisitor, {asset, env: options.env});
+    // Inline process/ environment variables
+    if (
+      (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) ||
+      (asset.env.isBrowser() && (ast.isDirty || BROWSER_RE.test(code)))
+    ) {
+      walk.ancestor(ast.program, processVisitor, {
+        asset,
+        env: options.env,
+        isNode: asset.env.isNode(),
+        isBrowser: asset.env.isBrowser(),
+      });
     }
 
     // Collect dependencies
@@ -129,7 +139,7 @@ export default new Transformer({
         filename: asset.filePath,
         babelrc: false,
         configFile: false,
-        plugins: [require('@babel/plugin-transform-modules-commonjs')]
+        plugins: [require('@babel/plugin-transform-modules-commonjs')],
       });
 
       ast.program = res.ast;
@@ -142,29 +152,29 @@ export default new Transformer({
   async generate({asset, options}) {
     let code = await asset.getCode();
     let res = {
-      code
+      code,
     };
 
     let ast = asset.ast;
     if (ast && ast.isDirty !== false) {
       let sourceFileName: string = relativeUrl(
         options.projectRoot,
-        asset.filePath
+        asset.filePath,
       );
 
       let generated = generate(
         ast.program,
         {
           sourceMaps: options.sourceMaps,
-          sourceFileName: sourceFileName
+          sourceFileName: sourceFileName,
         },
-        code
+        code,
       );
 
       res.code = generated.code;
       // $FlowFixMe...
       res.map = new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null
+        [sourceFileName]: null,
       });
     }
 
@@ -179,5 +189,5 @@ export default new Transformer({
     delete asset.meta.globals;
 
     return res;
-  }
+  },
 });

@@ -15,7 +15,7 @@ export default new Validator({
 
     let validatorResult = {
       warnings: [],
-      errors: []
+      errors: [],
     };
 
     if (report.results.length > 0) {
@@ -28,24 +28,22 @@ export default new Validator({
             return {
               start: {
                 line: message.line,
-                column: message.column
+                column: message.column,
               },
               end: {
                 line: message.endLine,
-                column: message.endColumn
+                column: message.endColumn,
               },
-              message: message.message
+              message: message.message,
             };
-          })
+          }),
         };
 
         let diagnostic = {
           origin: '@parcel/validator-eslint',
-          message: `ESLint found **${result.errorCount}** __errors__ and **${
-            result.warningCount
-          }** __warnings__.`,
+          message: `ESLint found **${result.errorCount}** __errors__ and **${result.warningCount}** __warnings__.`,
           filePath: asset.filePath,
-          codeFrame: codeframe
+          codeFrame: codeframe,
         };
 
         if (result.errorCount > 0) {
@@ -57,5 +55,5 @@ export default new Validator({
     }
 
     return validatorResult;
-  }
+  },
 });

@@ -19,7 +19,7 @@ describe('Logger', () => {
   it('emits log diagnostics with info level', () => {
     let diagnostic = {
       message: 'hello',
-      origin: 'logger'
+      origin: 'logger',
     };
 
     Logger.log(diagnostic);
@@ -28,41 +28,45 @@ describe('Logger', () => {
       onLog.calledWith({
         level: 'info',
         diagnostics: [diagnostic],
-        type: 'log'
-      })
+        type: 'log',
+      }),
     );
   });
 
   it('emits warn diagnostic with warn level', () => {
     let diagnostic = {
       message: 'zomg',
-      origin: 'logger'
+      origin: 'logger',
     };
 
     Logger.warn(diagnostic);
 
     assert(
-      onLog.calledWith({level: 'warn', diagnostics: [diagnostic], type: 'log'})
+      onLog.calledWith({level: 'warn', diagnostics: [diagnostic], type: 'log'}),
     );
   });
 
   it('emits error messages with error level', () => {
     let diagnostic = {
       message: 'oh noes',
-      origin: 'logger'
+      origin: 'logger',
     };
 
     Logger.error(diagnostic);
 
     assert(
-      onLog.calledWith({level: 'error', diagnostics: [diagnostic], type: 'log'})
+      onLog.calledWith({
+        level: 'error',
+        diagnostics: [diagnostic],
+        type: 'log',
+      }),
     );
   });
 
   it('emits progress messages with progress level', () => {
     Logger.progress('update');
     assert(
-      onLog.calledWith({level: 'progress', message: 'update', type: 'log'})
+      onLog.calledWith({level: 'progress', message: 'update', type: 'log'}),
     );
   });
 });

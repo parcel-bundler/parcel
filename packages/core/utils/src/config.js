@@ -7,16 +7,16 @@ import clone from 'clone';
 
 type ConfigOutput = {|
   config: ConfigResult,
-  files: Array<File>
+  files: Array<File>,
 |};
 
 type ConfigOptions = {|
-  parse?: boolean
+  parse?: boolean,
 |};
 
 const PARSERS = {
   json: require('json5').parse,
-  toml: require('@iarna/toml').parse
+  toml: require('@iarna/toml').parse,
 };
 
 const existsCache = new Map();
@@ -26,9 +26,9 @@ export async function resolveConfig(
   filepath: FilePath,
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
-  root: FilePath = path.parse(filepath).root
+  root: FilePath = path.parse(filepath).root,
 ): Promise<FilePath | null> {
-  filepath = path.dirname(filepath);
+  filepath = await fs.realpath(path.dirname(filepath));
 
   // Don't traverse above the module root
   if (filepath === root || path.basename(filepath) === 'node_modules') {
@@ -37,7 +37,7 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    if (await fs.exists(file)) {
+    if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
       return file;
     }
   }
@@ -49,9 +49,8 @@ export async function loadConfig(
   fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
-  opts: ?ConfigOptions
+  opts: ?ConfigOptions,
 ): Promise<ConfigOutput | null> {
-  filepath = await fs.realpath(filepath);
   let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
     try {
@@ -60,7 +59,7 @@ export async function loadConfig(
         return {
           // $FlowFixMe
           config: clone(require(configFile)),
-          files: [{filePath: configFile}]
+          files: [{filePath: configFile}],
         };
       }
 
@@ -79,7 +78,7 @@ export async function loadConfig(
 
       return {
         config: config,
-        files: [{filePath: configFile}]
+        files: [{filePath: configFile}],
       };
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {

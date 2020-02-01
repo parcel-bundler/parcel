@@ -12,11 +12,11 @@ const BUFFER_LIMIT = 5000000; // 5mb
 
 export default async function summarizeRequest(
   fs: FileSystem,
-  req: AssetRequestDesc
+  req: AssetRequestDesc,
 ): Promise<{|content: Blob, hash: string, size: number, isSource: boolean|}> {
   let [{content, hash, size}, isSource] = await Promise.all([
     summarizeDiskRequest(fs, req),
-    isFilePathSource(fs, req.filePath)
+    isFilePathSource(fs, req.filePath),
   ]);
   return {content, hash, size, isSource};
 }
@@ -30,7 +30,7 @@ async function isFilePathSource(fs: FileSystem, filePath: FilePath) {
 
 async function summarizeDiskRequest(
   fs: FileSystem,
-  req: AssetRequestDesc
+  req: AssetRequestDesc,
 ): Promise<{|content: Blob, hash: string, size: number|}> {
   let code = req.code;
   let content: Blob;
@@ -57,8 +57,8 @@ async function summarizeDiskRequest(
               content = Buffer.concat([content, buf]);
             }
           }
-        })
-      )
+        }),
+      ),
     );
   } else {
     content = code;

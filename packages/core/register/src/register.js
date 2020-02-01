@@ -21,13 +21,13 @@ let packageManager = new NodePackageManager(new NodeFS());
 let defaultConfig = {
   ...defaultConfigContents,
   filePath: packageManager.resolveSync('@parcel/config-default', __filename)
-    .resolved
+    .resolved,
 };
 
 function register(inputOpts?: InitialParcelOptions): IDisposable {
   let opts: InitialParcelOptions = {
     ...defaultConfig,
-    ...(inputOpts || {})
+    ...(inputOpts || {}),
   };
 
   // Replace old hook, as this one likely contains options.
@@ -37,14 +37,14 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
 
   let parcel = new Parcel({
     logLevel: 'error',
-    ...opts
+    ...opts,
   });
 
   let env = {
     context: 'node',
     engines: {
-      node: process.versions.node
-    }
+      node: process.versions.node,
+    },
   };
 
   syncPromise(parcel.init());
@@ -62,7 +62,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       // $FlowFixMe
       let result = await parcel[INTERNAL_TRANSFORM]({
         filePath,
-        env
+        env,
       });
 
       if (result.assets && result.assets.length >= 1) {
@@ -96,15 +96,15 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
         parcel[INTERNAL_RESOLVE]({
           moduleSpecifier: targetFile,
           sourcePath: currFile,
-          env
-        })
+          env,
+        }),
       );
 
       let targetFileExtension = path.extname(resolved);
       if (!hooks[targetFileExtension]) {
         hooks[targetFileExtension] = addHook(hookFunction, {
           exts: [targetFileExtension],
-          ignoreNodeModules: false
+          ignoreNodeModules: false,
         });
       }
 
@@ -116,7 +116,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
 
   hooks.js = addHook(hookFunction, {
     exts: ['.js'],
-    ignoreNodeModules: false
+    ignoreNodeModules: false,
   });
 
   let disposed;
@@ -142,7 +142,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
       }
 
       disposed = true;
-    }
+    },
   });
 
   return disposable;

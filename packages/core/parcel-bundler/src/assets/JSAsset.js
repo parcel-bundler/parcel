@@ -60,7 +60,7 @@ class JSAsset extends Asset {
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
-      plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
+      plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
     });
   }
 
@@ -128,8 +128,8 @@ class JSAsset extends Asset {
         await babel7(this, {
           internal: true,
           config: {
-            plugins: [require('@babel/plugin-transform-modules-commonjs')]
-          }
+            plugins: [require('@babel/plugin-transform-modules-commonjs')],
+          },
         });
       }
     }
@@ -144,14 +144,14 @@ class JSAsset extends Asset {
     if (this.isAstDirty) {
       let opts = {
         sourceMaps: this.options.sourceMaps,
-        sourceFileName: this.relativeName
+        sourceFileName: this.relativeName,
       };
 
       let generated = generate(this.ast, opts, this.contents);
 
       if (this.options.sourceMaps && generated.rawMappings) {
         let rawMap = new SourceMap(generated.rawMappings, {
-          [this.relativeName]: this.contents
+          [this.relativeName]: this.contents,
         });
 
         // Check if we already have a source map (e.g. from TypeScript or CoffeeScript)
@@ -159,7 +159,7 @@ class JSAsset extends Asset {
         if (this.sourceMap) {
           this.sourceMap = await new SourceMap().extendSourceMap(
             this.sourceMap,
-            rawMap
+            rawMap,
           );
         } else {
           this.sourceMap = rawMap;
@@ -174,7 +174,7 @@ class JSAsset extends Asset {
     if (this.options.sourceMaps && !this.sourceMap) {
       this.sourceMap = new SourceMap().generateEmptyMap(
         this.relativeName,
-        this.contents
+        this.contents,
       );
     }
 
@@ -193,8 +193,8 @@ class JSAsset extends Asset {
       {
         type: 'js',
         value: code,
-        map: this.sourceMap
-      }
+        map: this.sourceMap,
+      },
     ];
   }
 
@@ -213,7 +213,7 @@ class JSAsset extends Asset {
       err.highlightedCodeFrame = codeFrame(
         this.contents,
         {start: loc},
-        {highlightCode: true}
+        {highlightCode: true},
       );
     }
 

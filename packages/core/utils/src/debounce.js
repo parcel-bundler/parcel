@@ -2,7 +2,7 @@
 
 export default function debounce<TArgs: Array<mixed>>(
   fn: (...args: TArgs) => mixed,
-  delay: number
+  delay: number,
 ): (...args: TArgs) => void {
   let timeout;
 

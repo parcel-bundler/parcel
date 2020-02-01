@@ -8,19 +8,19 @@ import Footer from './Footer';
 const tooltipIcons = {
   passing: '\u2705',
   failingInDev: '\uD83D\uDEA7',
-  failing: '\u274C'
+  failing: '\u274C',
 };
 
 const tooltipStatus = {
   passing: 'passing',
   failingInDev: 'passing, except dev-only behavior',
-  failing: 'failing'
+  failing: 'failing',
 };
 
 function Tooltip(props) {
   let contentStyle = {
     right: props.flip ? -15 : 'auto',
-    left: props.flip ? 'auto' : -15
+    left: props.flip ? 'auto' : -15,
   };
 
   var statusRow = null;

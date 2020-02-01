@@ -6,10 +6,11 @@ import type {
   AssetGraphNode,
   AssetGroup,
   AssetGroupNode,
+  AssetNode,
   Dependency,
   DependencyNode,
   NodeId,
-  Target
+  Target,
 } from './types';
 
 import invariant from 'assert';
@@ -22,60 +23,70 @@ type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
   onIncompleteNode?: (node: AssetGraphNode) => mixed,
   onNodeAdded?: (node: AssetGraphNode) => mixed,
-  onNodeRemoved?: (node: AssetGraphNode) => mixed
+  onNodeRemoved?: (node: AssetGraphNode) => mixed,
 |};
 
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetGroups?: Array<AssetGroup>
+  assetGroups?: Array<AssetGroup>,
 |};
 
 type SerializedAssetGraph = {|
   ...GraphOpts<AssetGraphNode>,
-  hash: ?string
+  hash: ?string,
 |};
 
-const nodeFromDep = (dep: Dependency): DependencyNode => ({
-  id: dep.id,
-  type: 'dependency',
-  value: dep
-});
+export function nodeFromDep(dep: Dependency): DependencyNode {
+  return {
+    id: dep.id,
+    type: 'dependency',
+    value: dep,
+  };
+}
 
-export const nodeFromAssetGroup = (
+export function nodeFromAssetGroup(
   assetGroup: AssetGroup,
-  deferred: boolean = false
-) => ({
-  id: md5FromObject(assetGroup),
-  type: 'asset_group',
-  value: assetGroup,
-  deferred
-});
+  deferred: boolean = false,
+) {
+  return {
+    id: md5FromObject(assetGroup),
+    type: 'asset_group',
+    value: assetGroup,
+    deferred,
+  };
+}
 
-const nodeFromAsset = (asset: Asset) => ({
-  id: asset.id,
-  type: 'asset',
-  value: asset
-});
+export function nodeFromAsset(asset: Asset) {
+  return {
+    id: asset.id,
+    type: 'asset',
+    value: asset,
+  };
+}
 
-const nodeFromEntrySpecifier = (entry: string) => ({
-  id: 'entry_specifier:' + entry,
-  type: 'entry_specifier',
-  value: entry
-});
+export function nodeFromEntrySpecifier(entry: string) {
+  return {
+    id: 'entry_specifier:' + entry,
+    type: 'entry_specifier',
+    value: entry,
+  };
+}
 
-const nodeFromEntryFile = (entry: string) => ({
-  id: 'entry_file:' + entry,
-  type: 'entry_file',
-  value: entry
-});
+export function nodeFromEntryFile(entry: string) {
+  return {
+    id: 'entry_file:' + entry,
+    type: 'entry_file',
+    value: entry,
+  };
+}
 
 // Types that are considered incomplete when they don't have a child node
 const INCOMPLETE_TYPES = [
   'entry_specifier',
   'entry_file',
   'dependency',
-  'asset_group'
+  'asset_group',
 ];
 
 export default class AssetGraph extends Graph<AssetGraphNode> {
@@ -98,14 +109,14 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return {
       ...super.serialize(),
       incompleteNodeIds: this.incompleteNodeIds,
-      hash: this.hash
+      hash: this.hash,
     };
   }
 
   initOptions({
     onNodeAdded,
     onNodeRemoved,
-    onIncompleteNode
+    onIncompleteNode,
   }: AssetGraphOpts = {}) {
     this.onNodeAdded = onNodeAdded;
     this.onNodeRemoved = onNodeRemoved;
@@ -124,7 +135,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       }
     } else if (assetGroups) {
       nodes.push(
-        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup))
+        ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup)),
       );
     }
     this.replaceNodesConnectedTo(rootNode, nodes);
@@ -135,6 +146,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let existingNode = this.getNode(node.id);
     if (
       INCOMPLETE_TYPES.includes(node.type) &&
+      !node.complete &&
       !node.deferred &&
       (!existingNode || existingNode.deferred)
     ) {
@@ -177,9 +189,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           pipeline: target.name,
           target: target,
           env: target.env,
-          isEntry: true
-        })
-      )
+          isEntry: true,
+        }),
+      ),
     );
 
     let entryNode = nodeFromEntryFile(entryFile);
@@ -191,7 +203,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveDependency(
     dependency: Dependency,
-    assetGroupNode: AssetGroupNode | null
+    assetGroupNode: AssetGroupNode | null,
   ) {
     let depNode = this.nodes.get(dependency.id);
     if (!depNode) return;
@@ -209,17 +221,59 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return;
     }
 
-    let assetNodes = assets.map(asset => nodeFromAsset(asset));
-    this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+    let dependentAssetKeys = [];
+    let assetObjects: Array<{|
+      assetNode: AssetNode,
+      dependentAssets: Array<Asset>,
+      isDirect: boolean,
+    |}> = [];
+    for (let asset of assets) {
+      let isDirect = !dependentAssetKeys.includes(asset.uniqueKey);
 
-    for (let assetNode of assetNodes) {
-      let depNodes = [];
-      invariant(assetNode.type === 'asset');
-      for (let dep of assetNode.value.dependencies.values()) {
-        let depNode = nodeFromDep(dep);
-        depNodes.push(this.nodes.get(depNode.id) || depNode);
+      let dependentAssets = [];
+      for (let dep of asset.dependencies.values()) {
+        let dependentAsset = assets.find(
+          a => a.uniqueKey === dep.moduleSpecifier,
+        );
+        if (dependentAsset) {
+          dependentAssetKeys.push(dependentAsset.uniqueKey);
+          dependentAssets.push(dependentAsset);
+        }
       }
-      this.replaceNodesConnectedTo(assetNode, depNodes);
+      assetObjects.push({
+        assetNode: nodeFromAsset(asset),
+        dependentAssets,
+        isDirect,
+      });
+    }
+
+    this.replaceNodesConnectedTo(
+      assetGroupNode,
+      assetObjects.filter(a => a.isDirect).map(a => a.assetNode),
+    );
+    for (let {assetNode, dependentAssets} of assetObjects) {
+      this.resolveAsset(assetNode, dependentAssets);
+    }
+  }
+
+  resolveAsset(assetNode: AssetNode, dependentAssets: Array<Asset>) {
+    let depNodes = [];
+    let depNodesWithAssets = [];
+    for (let dep of assetNode.value.dependencies.values()) {
+      let depNode = nodeFromDep(dep);
+      depNodes.push(this.nodes.get(depNode.id) ?? depNode);
+      let dependentAsset = dependentAssets.find(
+        a => a.uniqueKey === dep.moduleSpecifier,
+      );
+      if (dependentAsset) {
+        depNode.complete = true;
+        depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
+      }
+    }
+    this.replaceNodesConnectedTo(assetNode, depNodes);
+
+    for (let [depNode, dependentAssetNode] of depNodesWithAssets) {
+      this.replaceNodesConnectedTo(depNode, [dependentAssetNode]);
     }
   }
 
@@ -233,18 +287,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       node => {
         invariant(node.type === 'dependency');
         return node.value;
-      }
+      },
     );
   }
 
   traverseAssets<TContext>(
     visit: GraphVisitor<Asset, TContext>,
-    startNode: ?AssetGraphNode
+    startNode: ?AssetGraphNode,
   ): ?TContext {
     return this.filteredTraverse(
       node => (node.type === 'asset' ? node.value : null),
       visit,
-      startNode
+      startNode,
     );
   }
 

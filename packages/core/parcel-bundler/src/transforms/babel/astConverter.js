@@ -36,7 +36,7 @@ function babel7toBabel6(ast) {
       ) {
         node.type = 'RestProperty';
       }
-    }
+    },
   };
 
   traverse(ast, {
@@ -49,7 +49,7 @@ function babel7toBabel6(ast) {
       if (visitorFunc) {
         visitorFunc(path.node, path);
       }
-    }
+    },
   });
 
   return ast;
@@ -79,7 +79,7 @@ function babel6toBabel7(ast) {
     },
     RestProperty: node => {
       node.type = 'RestElement';
-    }
+    },
   };
 
   traverse(ast, {
@@ -87,7 +87,7 @@ function babel6toBabel7(ast) {
       if (path.node.variance && typeof path.node.variance === 'string') {
         path.node.variance = {
           type: 'VarianceNode',
-          kind: path.node.variance
+          kind: path.node.variance,
         };
       }
 
@@ -95,7 +95,7 @@ function babel6toBabel7(ast) {
       if (visitorFunc) {
         visitorFunc(path.node);
       }
-    }
+    },
   });
 
   return ast;

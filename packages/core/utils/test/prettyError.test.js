@@ -32,7 +32,7 @@ describe('prettyError', () => {
   it('should prepend fileName', () => {
     const err = prettyError({
       message,
-      fileName
+      fileName,
     });
 
     assert(err.message.startsWith(fileName));
@@ -45,8 +45,8 @@ describe('prettyError', () => {
       fileName,
       loc: {
         line: 1,
-        column: 10
-      }
+        column: 10,
+      },
     });
 
     assert(err.message.startsWith(`${fileName}:1:10`));
@@ -57,7 +57,7 @@ describe('prettyError', () => {
     const err = prettyError({
       message,
       stack,
-      codeFrame: codeFrame
+      codeFrame: codeFrame,
     });
 
     assert.equal(err.message, message);
@@ -70,9 +70,9 @@ describe('prettyError', () => {
         message,
         stack,
         codeFrame: '<not>a code frame</not>',
-        highlightedCodeFrame: codeFrame
+        highlightedCodeFrame: codeFrame,
       },
-      {color: true}
+      {color: true},
     );
 
     assert.equal(err.message, message);
@@ -83,9 +83,9 @@ describe('prettyError', () => {
         message,
         stack,
         codeFrame: codeFrame,
-        highlightedCodeFrame: '<not>a code frame</not>'
+        highlightedCodeFrame: '<not>a code frame</not>',
       },
-      {color: false}
+      {color: false},
     );
 
     assert.equal(err.message, message);
@@ -95,7 +95,7 @@ describe('prettyError', () => {
   it('should support stack', () => {
     const err = prettyError({
       message,
-      stack
+      stack,
     });
 
     assert.equal(err.message, message);

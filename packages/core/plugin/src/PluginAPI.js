@@ -9,7 +9,7 @@ import type {
   Packager as PackagerOpts,
   Optimizer as OptimizerOpts,
   Reporter as ReporterOpts,
-  Validator as ValidatorOpts
+  Validator as ValidatorOpts,
 } from '@parcel/types';
 
 export const CONFIG = Symbol.for('parcel-plugin-config');

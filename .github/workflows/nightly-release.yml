@@ -1,0 +1,15 @@
+name: release-nightly
+on:
+  schedule:
+    - cron: '0 0 * * *'
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    name: Build and release nightly
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: yarn nightly:release

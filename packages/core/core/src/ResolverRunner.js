@@ -15,7 +15,7 @@ import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
 
 export default class ResolverRunner {
@@ -32,7 +32,7 @@ export default class ResolverRunner {
   async getThrowableDiagnostic(dependency: Dependency, message: string) {
     let diagnostic: Diagnostic = {
       message,
-      origin: '@parcel/resolver-default'
+      origin: '@parcel/resolver-default',
     };
 
     if (dependency.loc && dependency.sourcePath) {
@@ -40,11 +40,11 @@ export default class ResolverRunner {
       diagnostic.codeFrame = {
         code: await this.options.inputFS.readFile(
           dependency.sourcePath,
-          'utf8'
+          'utf8',
         ),
         codeHighlights: dependency.loc
           ? [{start: dependency.loc.start, end: dependency.loc.end}]
-          : []
+          : [],
       };
     }
 
@@ -56,7 +56,7 @@ export default class ResolverRunner {
     report({
       type: 'buildProgress',
       phase: 'resolving',
-      dependency: dep
+      dependency: dep,
     });
 
     let resolvers = await this.config.getResolvers();
@@ -81,13 +81,17 @@ export default class ResolverRunner {
         }
       }
     } else {
+      if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
+        // A protocol-relative URL, e.g `url('//example.com/foo.png')`
+        return null;
+      }
       filePath = dependency.moduleSpecifier;
     }
 
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
-        throw new Error('Received URL without a pathname.');
+        throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
     }
@@ -98,7 +102,7 @@ export default class ResolverRunner {
           filePath,
           dependency: dep,
           options: this.pluginOptions,
-          logger: new PluginLogger({origin: resolver.name})
+          logger: new PluginLogger({origin: resolver.name}),
         });
 
         if (result && result.isExcluded) {
@@ -111,12 +115,12 @@ export default class ResolverRunner {
             sideEffects: result.sideEffects,
             code: result.code,
             env: dependency.env,
-            pipeline: pipeline ?? dependency.pipeline
+            pipeline: pipeline ?? dependency.pipeline,
           };
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, resolver.name)
+          diagnostic: errorToDiagnostic(e, resolver.name),
         });
       }
     }
@@ -131,7 +135,7 @@ export default class ResolverRunner {
 
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`
+      `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`,
     );
 
     err.code = 'MODULE_NOT_FOUND';

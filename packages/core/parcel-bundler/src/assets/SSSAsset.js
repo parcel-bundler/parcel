@@ -16,14 +16,14 @@ class SSSAsset extends Asset {
     let {css} = await postcss().process(this.contents, {
       from: this.name,
       to: this.name,
-      parser: sugarss
+      parser: sugarss,
     });
 
     return [
       {
         type: 'css',
-        value: css
-      }
+        value: css,
+      },
     ];
   }
 }

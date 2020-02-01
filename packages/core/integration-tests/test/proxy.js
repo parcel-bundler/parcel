@@ -4,14 +4,14 @@ import {
   bundler,
   getNextBuild,
   inputFS,
-  defaultConfig
+  defaultConfig,
 } from '@parcel/test-utils';
 import http from 'http';
 import getPort from 'get-port';
 
 const config = {
   ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server']
+  reporters: ['@parcel/reporter-dev-server'],
 };
 
 function apiServer() {
@@ -33,7 +33,7 @@ function get(file, port, client = http) {
         hostname: 'localhost',
         port: port,
         path: file,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
       },
       res => {
         res.setEncoding('utf8');
@@ -46,7 +46,7 @@ function get(file, port, client = http) {
 
           resolve(data);
         });
-      }
+      },
     );
   });
 }
@@ -81,8 +81,8 @@ describe('proxy', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();
@@ -107,8 +107,8 @@ describe('proxy', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
-      }
+        host: 'localhost',
+      },
     });
 
     subscription = await b.watch();

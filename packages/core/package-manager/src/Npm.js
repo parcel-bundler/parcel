@@ -7,7 +7,7 @@ import path from 'path';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
 import promiseFromProcess from './promiseFromProcess';
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 // $FlowFixMe
 import pkg from '../package.json';
 
@@ -18,7 +18,7 @@ export class Npm implements PackageInstaller {
     modules,
     cwd,
     packagePath,
-    saveDev = true
+    saveDev = true,
   }: InstallerOptions): Promise<void> {
     // npm doesn't auto-create a package.json when installing,
     // so create an empty one if needed.
@@ -30,7 +30,7 @@ export class Npm implements PackageInstaller {
       'install',
       '--json',
       ...modules,
-      saveDev ? '--save-dev' : '--save'
+      saveDev ? '--save-dev' : '--save',
     ];
 
     let installProcess = spawn(NPM_CMD, args, {cwd});
@@ -52,7 +52,7 @@ export class Npm implements PackageInstaller {
       if (addedCount > 0) {
         logger.log({
           origin: '@parcel/package-manager',
-          message: `Added ${addedCount} packages via npm`
+          message: `Added ${addedCount} packages via npm`,
         });
       }
 
@@ -62,7 +62,7 @@ export class Npm implements PackageInstaller {
       for (let message of stderr) {
         logger.log({
           origin: '@parcel/package-manager',
-          message
+          message,
         });
       }
     } catch (e) {
@@ -72,7 +72,7 @@ export class Npm implements PackageInstaller {
 }
 
 type NPMResults = {|
-  added: Array<{name: string, ...}>
+  added: Array<{name: string, ...}>,
 |};
 
 registerSerializableClass(`${pkg.version}:Npm`, Npm);

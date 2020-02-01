@@ -13,13 +13,13 @@ export default new Reporter({
         buildTime: event.buildTime,
         bundles: event.bundleGraph
           ? generateBundleReport(event.bundleGraph).bundles
-          : undefined
+          : undefined,
       };
 
       await options.outputFS.writeFile(
         metricsFilePath,
-        JSON.stringify(metrics)
+        JSON.stringify(metrics),
       );
     }
-  }
+  },
 });

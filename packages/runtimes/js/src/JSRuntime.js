@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
-import {urlJoin, relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
-import nullthrows from 'nullthrows';
 
 // List of browsers that support dynamic import natively
 // https://caniuse.com/#feat=es6-module-dynamic-import
@@ -12,7 +11,7 @@ const DYNAMIC_IMPORT_BROWSERS = {
   firefox: '67',
   chrome: '63',
   safari: '11.1',
-  opera: '50'
+  opera: '50',
 };
 
 const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
@@ -21,14 +20,14 @@ const LOADERS = {
     css: './loaders/browser/css-loader',
     html: './loaders/browser/html-loader',
     js: './loaders/browser/js-loader',
-    wasm: './loaders/browser/wasm-loader'
+    wasm: './loaders/browser/wasm-loader',
   },
   node: {
     css: './loaders/node/css-loader',
     html: './loaders/node/html-loader',
     js: './loaders/node/js-loader',
-    wasm: './loaders/node/wasm-loader'
-  }
+    wasm: './loaders/node/wasm-loader',
+  },
 };
 
 export default new Runtime({
@@ -56,13 +55,13 @@ export default new Runtime({
     let needsDynamicImportPolyfill = false;
     if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
       needsDynamicImportPolyfill = !bundle.env.matchesEngines(
-        DYNAMIC_IMPORT_BROWSERS
+        DYNAMIC_IMPORT_BROWSERS,
       );
     }
 
     for (let {
       bundleGroup,
-      dependency
+      dependency,
     } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
       // Ignore deps with native loaders, e.g. workers.
       if (dependency.isURL) {
@@ -77,7 +76,7 @@ export default new Runtime({
         assets.push({
           filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
           code: `module.exports = "${dependency.id}";`,
-          dependency
+          dependency,
         });
 
         continue;
@@ -91,7 +90,7 @@ export default new Runtime({
             .map(asset => asset.id)
             .includes(bundleGroup.entryAssetId)
             ? 1
-            : -1
+            : -1,
         );
 
       // CommonJS is a synchronous module system, so there is no need to load bundles in parallel.
@@ -119,13 +118,18 @@ export default new Runtime({
           } else if (b.type === 'js' && b.env.outputFormat === 'commonjs') {
             return `Promise.resolve(require('' + '${relativeBundlePath(
               bundle,
-              b
+              b,
             )}'))`;
           }
 
-          let url = urlJoin(nullthrows(b.target.publicUrl), nullthrows(b.name));
-
-          return `require(${JSON.stringify(loader)})('${url}')`;
+          let relativePath = relativeBundlePath(bundle, b, {
+            leadingDotSlash: false,
+          });
+          return `require(${JSON.stringify(
+            loader,
+          )})(require('./bundle-url').getBundleURL() + ${JSON.stringify(
+            relativePath,
+          )})`;
         })
         .filter(Boolean);
 
@@ -143,41 +147,30 @@ export default new Runtime({
         }
 
         if (bundle.env.outputFormat === 'global') {
-          loaders += `.then(() => parcelRequire('${
-            bundleGroup.entryAssetId
-          }'))`;
+          loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}'))`;
         }
 
         assets.push({
           filePath: __filename,
           code: `module.exports = ${loaders};`,
-          dependency
+          dependency,
         });
       } else {
-        for (let bundle of externalBundles) {
-          let filePath = nullthrows(bundle.getMainEntry()).filePath;
-          if (bundle.target == null) {
-            throw new Error('JSRuntime: Bundle did not have a target');
-          }
-
-          if (bundle.target.publicUrl == null) {
-            throw new Error(
-              'JSRuntime: Bundle target did not have a publicUrl'
-            );
-          }
-
+        for (let externalBundle of externalBundles) {
+          let relativePath = relativeBundlePath(bundle, externalBundle, {
+            leadingDotSlash: false,
+          });
           assets.push({
-            filePath: filePath + '.js',
-            code: `module.exports = '${urlJoin(
-              bundle.target.publicUrl,
-              nullthrows(bundle.name)
-            )}'`,
-            dependency
+            filePath: __filename,
+            code: `module.exports = require('./bundle-url').getBundleURL() + ${JSON.stringify(
+              relativePath,
+            )}`,
+            dependency,
           });
         }
       }
     }
 
     return assets;
-  }
+  },
 });

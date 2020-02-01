@@ -55,7 +55,7 @@ export class TSModuleGraph {
         let resolved = this.resolveImport(
           module,
           node.left.text,
-          node.right.text
+          node.right.text,
         );
         if (resolved) {
           this.markUsed(resolved.module, resolved.imported, context);
@@ -106,7 +106,7 @@ export class TSModuleGraph {
     return {
       module: m,
       name: m.getName(exportName),
-      imported: e.imported || exportName
+      imported: e.imported || exportName,
     };
   }
 
@@ -132,7 +132,7 @@ export class TSModuleGraph {
       } else if (e.specifier) {
         return this.resolveExport(
           nullthrows(this.getModule(e.specifier)),
-          name
+          name,
         );
       }
     }
@@ -140,7 +140,7 @@ export class TSModuleGraph {
 
   getAllExports(
     module: TSModule = nullthrows(this.mainModule),
-    excludeDefault: boolean = false
+    excludeDefault: boolean = false,
   ) {
     let res = [];
     for (let e of module.exports) {

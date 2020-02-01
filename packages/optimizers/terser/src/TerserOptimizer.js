@@ -15,23 +15,29 @@ export default new Optimizer({
 
     if (typeof contents !== 'string') {
       throw new Error(
-        'TerserOptimizer: Only string contents are currently supported'
+        'TerserOptimizer: Only string contents are currently supported',
       );
     }
 
     let userConfig = await loadConfig(
       options.inputFS,
       path.join(options.projectRoot, 'index'),
-      ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js']
+      ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
     );
 
     let config = {
       warnings: true,
       ...userConfig?.config,
-      sourceMap: {
-        filename: path.relative(options.projectRoot, bundle.filePath)
+      compress: {
+        ...userConfig?.config?.compress,
+        toplevel:
+          bundle.env.outputFormat === 'esmodule' ||
+          bundle.env.outputFormat === 'commonjs',
       },
-      module: bundle.env.outputFormat === 'esmodule'
+      sourceMap: {
+        filename: path.relative(options.projectRoot, bundle.filePath),
+      },
+      module: bundle.env.outputFormat === 'esmodule',
     };
 
     let sourceMap = null;
@@ -47,15 +53,15 @@ export default new Optimizer({
               name,
               original: {
                 line: orig_line,
-                column: orig_col
+                column: orig_col,
               },
               generated: {
                 line: gen_line,
-                column: gen_col
-              }
+                column: gen_col,
+              },
             });
-          }
-        }
+          },
+        },
       };
     }
 
@@ -70,5 +76,5 @@ export default new Optimizer({
     }
 
     return {contents: nullthrows(result.code), map: sourceMap};
-  }
+  },
 });

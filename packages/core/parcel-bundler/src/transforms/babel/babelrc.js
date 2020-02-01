@@ -25,7 +25,7 @@ async function getBabelConfig(asset, isSource) {
 
   return {
     babelVersion,
-    config
+    config,
   };
 }
 
@@ -44,7 +44,7 @@ async function getBabelRc(asset, isSource) {
   if (browserify && Array.isArray(browserify.transform)) {
     // Look for babelify in the browserify transform list
     let babelify = browserify.transform.find(
-      t => (Array.isArray(t) ? t[0] : t) === 'babelify'
+      t => (Array.isArray(t) ? t[0] : t) === 'babelify',
     );
 
     // If specified as an array, override the config with the one specified
@@ -71,7 +71,7 @@ async function findBabelRc(asset) {
   // This is not currently possible because babel tries to actually load plugins and presets
   // while resolving the config, but those plugins might not be installed yet.
   let config = await asset.getConfig(['.babelrc', '.babelrc.js'], {
-    packageKey: 'babel'
+    packageKey: 'babel',
   });
 
   if (!config) {
@@ -82,14 +82,14 @@ async function findBabelRc(asset) {
     // We cannot support function configs since there is no exposed method in babel
     // to create the API that is passed to them...
     throw new Error(
-      'Parcel does not support function configs in .babelrc.js yet.'
+      'Parcel does not support function configs in .babelrc.js yet.',
     );
   }
 
   for (let key of ['extends', 'overrides', 'test', 'include', 'exclude']) {
     if (config[key]) {
       throw new Error(
-        `Parcel does not support babel 7 advanced configuration option "${key}" yet.`
+        `Parcel does not support babel 7 advanced configuration option "${key}" yet.`,
       );
     }
   }
@@ -110,7 +110,7 @@ async function findBabelRc(asset) {
 
 async function getIgnoreConfig(asset) {
   let ignoreFile = await asset.getConfig(['.babelignore'], {
-    load: false
+    load: false,
   });
 
   if (!ignoreFile) {
@@ -203,7 +203,7 @@ const CORE_DEPS = new Set([
   'babylon',
   'babel-cli',
   'babel-register',
-  'babel-generator'
+  'babel-generator',
 ]);
 
 async function inferBabelVersion(asset, plugins) {
@@ -222,7 +222,7 @@ async function inferBabelVersion(asset, plugins) {
         let range = new semver.Range(dep.replace(/-.*(\s|\|\||$)?/, ''));
         if (version && !version.intersects(range)) {
           throw new Error(
-            'Conflicting babel versions found in .babelrc. Make sure all of your plugins and presets depend on the same major version of babel.'
+            'Conflicting babel versions found in .babelrc. Make sure all of your plugins and presets depend on the same major version of babel.',
           );
         }
 
@@ -237,7 +237,7 @@ async function inferBabelVersion(asset, plugins) {
   version = getMaxMajor(version);
   if (!version) {
     logger.warn(
-      `Could not infer babel version. Defaulting to babel 7. Please add either babel-core or @babel/core as a dependency.`
+      `Could not infer babel version. Defaulting to babel 7. Please add either babel-core or @babel/core as a dependency.`,
     );
     version = 7;
   }
@@ -261,10 +261,10 @@ function getMaxMajor(version) {
 
 async function installPlugins(asset, babelrc) {
   let presets = (babelrc.presets || []).map(p =>
-    resolveModule('preset', getPluginName(p), asset.name)
+    resolveModule('preset', getPluginName(p), asset.name),
   );
   let plugins = (babelrc.plugins || []).map(p =>
-    resolveModule('plugin', getPluginName(p), asset.name)
+    resolveModule('plugin', getPluginName(p), asset.name),
   );
   return Promise.all([...presets, ...plugins]);
 }
@@ -301,17 +301,17 @@ function standardizeName(type, name) {
       // foo -> babel-preset-foo
       .replace(
         isPreset ? BABEL_PRESET_PREFIX_RE : BABEL_PLUGIN_PREFIX_RE,
-        `babel-${type}-`
+        `babel-${type}-`,
       )
       // @babel/es2015 -> @babel/preset-es2015
       .replace(
         isPreset ? BABEL_PRESET_ORG_RE : BABEL_PLUGIN_ORG_RE,
-        `$1${type}-`
+        `$1${type}-`,
       )
       // @foo/mypreset -> @foo/babel-preset-mypreset
       .replace(
         isPreset ? OTHER_PRESET_ORG_RE : OTHER_PLUGIN_ORG_RE,
-        `$1babel-${type}-`
+        `$1babel-${type}-`,
       )
       // @foo -> @foo/babel-preset
       .replace(OTHER_ORG_DEFAULT_RE, `$1/babel-${type}`)

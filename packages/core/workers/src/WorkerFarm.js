@@ -7,7 +7,7 @@ import type {
   WorkerRequest,
   WorkerDataResponse,
   WorkerErrorResponse,
-  BackendType
+  BackendType,
 } from './types';
 import type {HandleFunction} from './Handle';
 
@@ -18,8 +18,8 @@ import {
   deserialize,
   prepareForSerialization,
   restoreDeserializedObject,
-  serialize
-} from '@parcel/utils';
+  serialize,
+} from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
@@ -42,18 +42,18 @@ export type FarmOptions = {|
   warmWorkers: boolean,
   workerPath?: FilePath,
   backend: BackendType,
-  patchConsole?: boolean
+  patchConsole?: boolean,
 |};
 
 type WorkerModule = {|
-  +[string]: (...args: Array<mixed>) => Promise<mixed>
+  +[string]: (...args: Array<mixed>) => Promise<mixed>,
 |};
 
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
   createReverseHandle(fn: HandleFunction): Handle,
   getSharedReference(ref: number): mixed,
-  callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>
+  callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>,
 |};
 
 export {Handle};
@@ -83,7 +83,7 @@ export default class WorkerFarm extends EventEmitter {
       warmWorkers: false,
       useLocalWorker: true, // TODO: setting this to false makes some tests fail, figure out why
       backend: detectBackend(),
-      ...farmOptions
+      ...farmOptions,
     };
 
     if (!this.options.workerPath) {
@@ -100,12 +100,12 @@ export default class WorkerFarm extends EventEmitter {
   workerApi = {
     callMaster: async (
       request: CallRequest,
-      awaitResponse: ?boolean = true
+      awaitResponse: ?boolean = true,
     ): Promise<mixed> => {
       // $FlowFixMe
       let result = await this.processRequest({
         ...request,
-        awaitResponse
+        awaitResponse,
       });
       return deserialize(serialize(result));
     },
@@ -117,10 +117,10 @@ export default class WorkerFarm extends EventEmitter {
           ...request,
           resolve,
           reject,
-          retries: 0
+          retries: 0,
         });
       }),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref)
+    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
   };
 
   warmupWorker(method: string, args: Array<any>): void {
@@ -164,7 +164,7 @@ export default class WorkerFarm extends EventEmitter {
         }
 
         let processedArgs = restoreDeserializedObject(
-          prepareForSerialization([...args, false])
+          prepareForSerialization([...args, false]),
         );
         return this.localWorker[method](this.workerApi, ...processedArgs);
       }
@@ -182,7 +182,7 @@ export default class WorkerFarm extends EventEmitter {
     let worker = new Worker({
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
-      patchConsole: this.options.patchConsole
+      patchConsole: this.options.patchConsole,
     });
 
     worker.fork(nullthrows(this.options.workerPath));
@@ -244,9 +244,9 @@ export default class WorkerFarm extends EventEmitter {
 
   async processRequest(
     data: {|
-      location: FilePath
+      location: FilePath,
     |} & $Shape<WorkerRequest>,
-    worker?: Worker
+    worker?: Worker,
   ): Promise<?string> {
     let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
@@ -263,14 +263,14 @@ export default class WorkerFarm extends EventEmitter {
       idx,
       type: 'response',
       contentType: 'data',
-      content
+      content,
     });
 
     const errorResponseFromError = (e: Error): WorkerErrorResponse => ({
       idx,
       type: 'response',
       contentType: 'error',
-      content: anyToDiagnostic(e)
+      content: anyToDiagnostic(e),
     });
 
     let result;
@@ -318,7 +318,7 @@ export default class WorkerFarm extends EventEmitter {
         args: args,
         retries: 0,
         resolve,
-        reject
+        reject,
       });
       this.processQueue();
     });
@@ -334,7 +334,7 @@ export default class WorkerFarm extends EventEmitter {
     this.sharedReferences = new Map();
 
     await Promise.all(
-      Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
+      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
     );
     this.ending = false;
   }
@@ -375,9 +375,9 @@ export default class WorkerFarm extends EventEmitter {
             args: [ref, value],
             resolve,
             reject,
-            retries: 0
+            retries: 0,
           });
-        })
+        }),
       );
     }
 
@@ -396,13 +396,13 @@ export default class WorkerFarm extends EventEmitter {
                 args: [ref],
                 resolve,
                 reject,
-                retries: 0
+                retries: 0,
               });
-            })
+            }),
           );
         }
         return Promise.all(promises);
-      }
+      },
     };
   }
 
@@ -416,9 +416,9 @@ export default class WorkerFarm extends EventEmitter {
             args: [],
             resolve,
             reject,
-            retries: 0
+            retries: 0,
           });
-        })
+        }),
       );
     }
 
@@ -445,9 +445,9 @@ export default class WorkerFarm extends EventEmitter {
             args: [],
             resolve,
             reject,
-            retries: 0
+            retries: 0,
           });
-        })
+        }),
       );
     }
 
@@ -467,7 +467,7 @@ export default class WorkerFarm extends EventEmitter {
 
     logger.info({
       origin: '@parcel/workers',
-      message: `Wrote profile to ${filename}`
+      message: `Wrote profile to ${filename}`,
     });
   }
 
@@ -484,7 +484,7 @@ export default class WorkerFarm extends EventEmitter {
   static getWorkerApi() {
     invariant(
       child != null,
-      'WorkerFarm.getWorkerApi can only be called within workers'
+      'WorkerFarm.getWorkerApi can only be called within workers',
     );
     return child.workerApi;
   }

@@ -5,13 +5,13 @@ import {
   assertBundleTree,
   bundle,
   bundler,
-  nextBundle
+  nextBundle,
 } from '@parcel/test-utils';
 
 describe.skip('bundler', function() {
   it('should bundle once before exporting middleware', async function() {
     let b = bundler(
-      path.join(__dirname, '/integration/bundler-middleware/index.js')
+      path.join(__dirname, '/integration/bundler-middleware/index.js'),
     );
     b.middleware();
 
@@ -61,7 +61,7 @@ describe.skip('bundler', function() {
   it('should support multiple entry points', async function() {
     let b = await bundle([
       path.join(__dirname, '/integration/multi-entry/one.html'),
-      path.join(__dirname, '/integration/multi-entry/two.html')
+      path.join(__dirname, '/integration/multi-entry/two.html'),
     ]);
 
     await assertBundleTree(b, [
@@ -71,21 +71,21 @@ describe.skip('bundler', function() {
         childBundles: [
           {
             type: 'js',
-            assets: ['shared.js']
-          }
-        ]
+            assets: ['shared.js'],
+          },
+        ],
       },
       {
         type: 'html',
         assets: ['two.html'],
-        childBundles: []
-      }
+        childBundles: [],
+      },
     ]);
   });
 
   it('should support multiple entry points as a glob', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/multi-entry/*.html')
+      path.join(__dirname, '/integration/multi-entry/*.html'),
     );
 
     await assertBundleTree(b, [
@@ -95,15 +95,15 @@ describe.skip('bundler', function() {
         childBundles: [
           {
             type: 'js',
-            assets: ['shared.js']
-          }
-        ]
+            assets: ['shared.js'],
+          },
+        ],
       },
       {
         type: 'html',
         assets: ['two.html'],
-        childBundles: []
-      }
+        childBundles: [],
+      },
     ]);
   });
 });

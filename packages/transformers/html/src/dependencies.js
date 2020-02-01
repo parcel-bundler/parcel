@@ -16,7 +16,7 @@ const ATTRS = {
     'source',
     'track',
     'iframe',
-    'embed'
+    'embed',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
@@ -24,7 +24,7 @@ const ATTRS = {
   poster: ['video'],
   'xlink:href': ['use', 'image', 'script'],
   content: ['meta'],
-  data: ['object']
+  data: ['object'],
 };
 
 // A list of metadata that should produce a dependency
@@ -33,6 +33,7 @@ const ATTRS = {
 // - http://ogp.me
 // - https://developer.twitter.com/en/docs/tweets/optimize-with-cards/overview/markup
 // - https://msdn.microsoft.com/en-us/library/dn255024.aspx
+// - https://vk.com/dev/publications
 const META = {
   property: [
     'og:image',
@@ -41,7 +42,8 @@ const META = {
     'og:audio',
     'og:audio:secure_url',
     'og:video',
-    'og:video:secure_url'
+    'og:video:secure_url',
+    'vk:image',
   ],
   name: [
     'twitter:image',
@@ -50,7 +52,7 @@ const META = {
     'msapplication-square70x70logo',
     'msapplication-wide310x150logo',
     'msapplication-TileImage',
-    'msapplication-config'
+    'msapplication-config',
   ],
   itemprop: [
     'image',
@@ -58,26 +60,28 @@ const META = {
     'screenshot',
     'thumbnailUrl',
     'contentUrl',
-    'downloadUrl'
-  ]
+    'downloadUrl',
+  ],
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
-    href: {isEntry: true}
+    href: {isEntry: true},
   },
   iframe: {
-    src: {isEntry: true}
+    src: {isEntry: true},
   },
   script(attrs, options: PluginOptions) {
     return {
       env: {
         outputFormat:
-          attrs.type === 'module' && options.scopeHoist ? 'esmodule' : undefined
-      }
+          attrs.type === 'module' && options.scopeHoist
+            ? 'esmodule'
+            : undefined,
+      },
     };
-  }
+  },
 };
 
 function collectSrcSetDependencies(asset, srcset, opts) {
@@ -105,7 +109,7 @@ function getAttrDepHandler(attr) {
 
 export default function collectDependencies(
   asset: MutableAsset,
-  options: PluginOptions
+  options: PluginOptions,
 ) {
   let ast = nullthrows(asset.ast);
 
@@ -129,7 +133,7 @@ export default function collectDependencies(
 
     if (tag === 'link' && attrs.rel === 'manifest' && attrs.href) {
       attrs.href = asset.addURLDependency(attrs.href, {
-        isEntry: true
+        isEntry: true,
       });
       ast.isDirty = true;
       return node;

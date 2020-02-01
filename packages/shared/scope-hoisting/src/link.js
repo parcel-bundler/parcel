@@ -6,7 +6,7 @@ import type {
   Bundle,
   BundleGraph,
   PluginOptions,
-  Symbol
+  Symbol,
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 
@@ -25,14 +25,14 @@ import * as commonjs from './formats/commonjs';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
-  'var NAME = $parcel$interopDefault(MODULE)'
+  'var NAME = $parcel$interopDefault(MODULE)',
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 
 const FORMATS = {
   esmodule,
   global,
-  commonjs
+  commonjs,
 };
 
 function assertString(v): string {
@@ -44,12 +44,12 @@ export function link({
   bundle,
   bundleGraph,
   ast,
-  options
+  options,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   ast: AST,
-  options: PluginOptions
+  options: PluginOptions,
 |}) {
   let format = FORMATS[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
@@ -70,7 +70,7 @@ export function link({
     for (let b of bundles) {
       importedFiles.set(nullthrows(b.filePath), {
         bundle: b,
-        assets: new Set()
+        assets: new Set(),
       });
     }
   }
@@ -97,7 +97,7 @@ export function link({
   function resolveSymbol(inputAsset, inputSymbol) {
     let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
-      inputSymbol
+      inputSymbol,
     );
     let identifier = symbol;
 
@@ -169,7 +169,7 @@ export function link({
         let parent;
         if (binding) {
           parent = path.findParent(
-            p => p.scope === binding.scope && p.isStatement()
+            p => p.scope === binding.scope && p.isStatement(),
           );
         }
 
@@ -180,8 +180,8 @@ export function link({
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
-            MODULE: node
-          })
+            MODULE: node,
+          }),
         );
 
         if (binding) {
@@ -218,7 +218,7 @@ export function link({
       importedFile = {
         source: dep.moduleSpecifier,
         specifiers: new Map(),
-        isCommonJS: !!dep.meta.isCommonJS
+        isCommonJS: !!dep.meta.isCommonJS,
       };
 
       importedFiles.set(dep.moduleSpecifier, importedFile);
@@ -275,7 +275,7 @@ export function link({
     if (!imported) {
       imported = {
         bundle: importedBundle,
-        assets: new Set()
+        assets: new Set(),
       };
       importedFiles.set(filePath, imported);
     }
@@ -304,7 +304,7 @@ export function link({
           !t.isStringLiteral(source)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require(number, string)'
+            'invariant: invalid signature, expected : $parcel$require(number, string)',
           );
         }
 
@@ -312,7 +312,7 @@ export function link({
         let dep = nullthrows(
           bundleGraph
             .getDependencies(asset)
-            .find(dep => dep.moduleSpecifier === source.value)
+            .find(dep => dep.moduleSpecifier === source.value),
         );
 
         let mod = bundleGraph.getDependencyResolution(dep);
@@ -321,7 +321,7 @@ export function link({
         if (!mod) {
           if (dep.isOptional) {
             path.replaceWith(
-              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
+              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
           } else if (dep.isWeak && !bundle.env.isLibrary) {
             path.remove();
@@ -389,7 +389,7 @@ export function link({
           !t.isStringLiteral(source)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require$resolve(number, string)'
+            'invariant: invalid signature, expected : $parcel$require$resolve(number, string)',
           );
         }
 
@@ -397,7 +397,7 @@ export function link({
         let dep = nullthrows(
           bundleGraph
             .getDependencies(mapped)
-            .find(dep => dep.moduleSpecifier === source.value)
+            .find(dep => dep.moduleSpecifier === source.value),
         );
         let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
         path.replaceWith(t.valueToNode(mod.id));
@@ -460,7 +460,7 @@ export function link({
 
           path.remove();
         }
-      }
+      },
     },
     MemberExpression: {
       exit(path) {
@@ -492,7 +492,7 @@ export function link({
         if (identifier) {
           path.replaceWith(t.identifier(identifier));
         }
-      }
+      },
     },
     ReferencedIdentifier(path) {
       let {name} = path.node;
@@ -537,13 +537,13 @@ export function link({
                 bundle,
                 file.bundle,
                 file.assets,
-                path.scope
-              )
+                path.scope,
+              ),
             );
           } else {
             imports.push(
               // $FlowFixMe
-              ...format.generateExternalImport(bundle, file, path.scope)
+              ...format.generateExternalImport(bundle, file, path.scope),
             );
           }
         }
@@ -561,15 +561,15 @@ export function link({
           bundle,
           referencedAssets,
           path,
-          replacements
+          replacements,
         );
 
         treeShake(path.scope, exported);
         if (options.minify) {
           mangleScope(path.scope, exported);
         }
-      }
-    }
+      },
+    },
   });
 
   return ast;

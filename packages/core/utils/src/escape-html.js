@@ -8,7 +8,7 @@ const htmlEscapes = {
   '<': '&lt;',
   '>': '&gt;',
   '"': '&quot;',
-  "'": '&#39;'
+  "'": '&#39;',
 };
 
 export function escapeHTML(s: string): string {

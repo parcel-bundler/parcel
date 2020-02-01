@@ -13,7 +13,7 @@ import {
   sleep,
   symlinkPrivilegeWarning,
   outputFS,
-  overlayFS
+  overlayFS,
 } from '@parcel/test-utils';
 import {symlinkSync} from 'fs';
 
@@ -34,7 +34,7 @@ describe('watcher', function() {
     await outputFS.writeFile(
       path.join(inputDir, '/index.js'),
       'module.exports = "hello"',
-      'utf8'
+      'utf8',
     );
     let b = bundler(path.join(inputDir, '/index.js'), {inputFS: overlayFS});
     subscription = await b.watch();
@@ -45,7 +45,7 @@ describe('watcher', function() {
     await outputFS.writeFile(
       path.join(inputDir, '/index.js'),
       'module.exports = "something else"',
-      'utf8'
+      'utf8',
     );
     buildEvent = await getNextBuild(b);
     output = await run(buildEvent.bundleGraph);
@@ -57,7 +57,7 @@ describe('watcher', function() {
     await outputFS.writeFile(
       path.join(inputDir, '/index.js'),
       'syntax\\error',
-      'utf8'
+      'utf8',
     );
     let b = bundler(path.join(inputDir, '/index.js'), {inputFS: overlayFS});
     subscription = await b.watch();
@@ -66,7 +66,7 @@ describe('watcher', function() {
     await outputFS.writeFile(
       path.join(inputDir, '/index.js'),
       'module.exports = "hello"',
-      'utf8'
+      'utf8',
     );
     buildEvent = await getNextBuild(b);
     let output = await run(buildEvent.bundleGraph);
@@ -78,7 +78,7 @@ describe('watcher', function() {
     await ncp(path.join(__dirname, 'integration/custom-config'), inputDir);
     await ncp(
       path.dirname(require.resolve('@parcel/config-default')),
-      path.join(inputDir, 'node_modules', '@parcel', 'config-default')
+      path.join(inputDir, 'node_modules', '@parcel', 'config-default'),
     );
     let copyPath = path.join(inputDir, 'configCopy');
     let configPath = path.join(inputDir, '.parcelrc');
@@ -88,18 +88,18 @@ describe('watcher', function() {
       targets: {
         main: {
           engines: {
-            node: '^4.0.0'
+            node: '^4.0.0',
           },
-          distDir
-        }
-      }
+          distDir,
+        },
+      },
     });
 
     subscription = await b.watch();
     await getNextBuild(b);
     let distFile = await outputFS.readFile(
       path.join(distDir, 'index.js'),
-      'utf8'
+      'utf8',
     );
     assert(!distFile.includes('() => null'));
     await outputFS.copyFile(copyPath, configPath);
@@ -116,23 +116,23 @@ describe('watcher', function() {
       targets: {
         main: {
           engines: {
-            node: '^8.0.0'
+            node: '^8.0.0',
           },
-          distDir
-        }
-      }
+          distDir,
+        },
+      },
     });
 
     subscription = await b.watch();
     await getNextBuild(b);
     let distFile = await outputFS.readFile(
       path.join(distDir, 'index.js'),
-      'utf8'
+      'utf8',
     );
     assert(distFile.includes('Foo'));
     await outputFS.writeFile(
       path.join(inputDir, 'index.js'),
-      'console.log("no more dependencies")'
+      'console.log("no more dependencies")',
     );
     await getNextBuild(b);
     distFile = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -153,29 +153,29 @@ describe('watcher', function() {
         'common-dep.js',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js'
+        'js-loader.js',
       ],
       childBundles: [
         {
           assets: ['a.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
           assets: ['b.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(bundle);
@@ -195,22 +195,22 @@ describe('watcher', function() {
           assets: ['a.js', 'common.js', 'common-dep.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
           assets: ['b.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     output = await run(bundle);
@@ -226,13 +226,13 @@ describe('watcher', function() {
       f =>
         (nodeFS.statSync(path.join(__dirname, '/dist/', f)).mtime.getTime() /
           1000) |
-        0
+        0,
     );
 
     await sleep(1100); // mtime only has second level precision
     fs.writeFile(
       path.join(inputDir, '/b.js'),
-      'module.exports = require("./common")'
+      'module.exports = require("./common")',
     );
 
     await nextBundle(b);
@@ -240,7 +240,7 @@ describe('watcher', function() {
       f =>
         (nodeFS.statSync(path.join(__dirname, '/dist/', f)).mtime.getTime() /
           1000) |
-        0
+        0,
     );
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
@@ -259,29 +259,29 @@ describe('watcher', function() {
         'common-dep.js',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js'
+        'js-loader.js',
       ],
       childBundles: [
         {
           assets: ['a.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
           assets: ['b.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(bundle);
@@ -301,29 +301,29 @@ describe('watcher', function() {
         'common.js',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js'
+        'js-loader.js',
       ],
       childBundles: [
         {
           assets: ['a.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
           assets: ['b.js'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     output = await run(bundle);
@@ -339,14 +339,14 @@ describe('watcher', function() {
     await b.bundle();
     let file = await fs.readFile(
       path.join(__dirname, '/dist/index.js'),
-      'utf8'
+      'utf8',
     );
     assert(!file.includes('function Foo'));
     assert(!file.includes('function Bar'));
 
     // Change babelrc, should recompile both files
     let babelrc = JSON.parse(
-      await fs.readFile(path.join(inputDir, '/.babelrc'), 'utf8')
+      await fs.readFile(path.join(inputDir, '/.babelrc'), 'utf8'),
     );
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
 
@@ -362,18 +362,18 @@ describe('watcher', function() {
   it.skip('should rebuild if the file behind a symlink changes', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs-with-symlinks/'),
-      inputDir
+      inputDir,
     );
 
     try {
       // Create the symlink here to prevent cross platform and git issues
       symlinkSync(
         path.join(inputDir, 'local.js'),
-        path.join(inputDir, 'src/symlinked_local.js')
+        path.join(inputDir, 'src/symlinked_local.js'),
       );
 
       let b = bundler(path.join(inputDir, '/src/index.js'), {
-        watch: true
+        watch: true,
       });
 
       let bundle = await b.bundle();
@@ -384,7 +384,7 @@ describe('watcher', function() {
       await sleep(100);
       fs.writeFile(
         path.join(inputDir, '/local.js'),
-        'exports.a = 5; exports.b = 5;'
+        'exports.a = 5; exports.b = 5;',
       );
 
       bundle = await nextBundle(b);
@@ -413,15 +413,22 @@ describe('watcher', function() {
     assertBundles(bundleGraph, [
       {
         name: 'index.js',
-        assets: ['index.js', 'cacheLoader.js', 'js-loader.js', 'JSRuntime.js']
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+        ],
       },
-      {assets: ['local.js']}
+      {assets: ['local.js']},
     ]);
 
     await outputFS.writeFile(path.join(inputDir, 'other.js'), '');
     await outputFS.writeFile(
       indexPath,
-      (await outputFS.readFile(indexPath, 'utf8')) + "\nimport('./other.js');\n"
+      (await outputFS.readFile(indexPath, 'utf8')) +
+        "\nimport('./other.js');\n",
     );
 
     await getNextBuild(b);
@@ -430,14 +437,15 @@ describe('watcher', function() {
         name: 'index.js',
         assets: [
           'index.js',
+          'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',
           'JSRuntime.js',
-          'JSRuntime.js'
-        ]
+          'JSRuntime.js',
+        ],
       },
       {assets: ['local.js']},
-      {assets: ['other.js']}
+      {assets: ['other.js']},
     ]);
 
     await outputFS.writeFile(indexPath, '');
@@ -446,8 +454,8 @@ describe('watcher', function() {
     assertBundles(bundleGraph, [
       {
         name: 'index.js',
-        assets: ['index.js']
-      }
+        assets: ['index.js'],
+      },
     ]);
   });
 });

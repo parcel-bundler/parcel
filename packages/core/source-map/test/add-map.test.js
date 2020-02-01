@@ -14,25 +14,25 @@ describe('Add Map', () => {
         name: 'A',
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         generated: {
           line: 6,
-          column: 15
-        }
+          column: 15,
+        },
       },
       {
         source: 'index.js',
         name: 'B',
         original: {
           line: 3,
-          column: 0
+          column: 0,
         },
         generated: {
           line: 12,
-          column: 6
-        }
-      }
+          column: 6,
+        },
+      },
     ]);
 
     let secondMap = new SourceMap([
@@ -41,31 +41,31 @@ describe('Add Map', () => {
         name: 'T',
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         generated: {
           line: 12,
-          column: 6
-        }
+          column: 6,
+        },
       },
       {
         source: 'local.js',
         name: 'Q',
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         generated: {
           line: 111,
-          column: 65
-        }
+          column: 65,
+        },
       },
       {
         generated: {
           line: 152,
-          column: 23
-        }
-      }
+          column: 23,
+        },
+      },
     ]);
 
     await map.addMap(secondMap, MAP_OFFSET);
@@ -78,24 +78,24 @@ describe('Add Map', () => {
       name: 'A',
       original: {
         line: 1,
-        column: 0
+        column: 0,
       },
       generated: {
         line: 6,
-        column: 15
-      }
+        column: 15,
+      },
     });
     assert.deepEqual(map.mappings[1], {
       source: 'index.js',
       name: 'B',
       original: {
         line: 3,
-        column: 0
+        column: 0,
       },
       generated: {
         line: 12,
-        column: 6
-      }
+        column: 6,
+      },
     });
 
     // Map Two
@@ -104,39 +104,39 @@ describe('Add Map', () => {
       name: 'T',
       original: {
         line: 1,
-        column: 0
+        column: 0,
       },
       generated: {
         line: 12 + MAP_OFFSET,
-        column: 6
-      }
+        column: 6,
+      },
     });
     assert.deepEqual(map.mappings[3], {
       source: 'local.js',
       name: 'Q',
       original: {
         line: 1,
-        column: 0
+        column: 0,
       },
       generated: {
         line: 111 + MAP_OFFSET,
-        column: 65
-      }
+        column: 65,
+      },
     });
     assert.deepEqual(map.mappings[4], {
       generated: {
         line: 152 + MAP_OFFSET,
-        column: 23
-      }
+        column: 23,
+      },
     });
 
     // Should be able to stringify the map without errors...
     assert.equal(
       await map.stringify({
         file: 'index.min.js',
-        rootDir: '/root'
+        rootDir: '/root',
       }),
-      '{"version":3,"sources":["index.js","local.js"],"names":["A","B","T","Q"],"mappings":";;;;;eAAAA;;;;;;MAEAC;;;;;;;;;;;;;;;;;;;;;;;;MCFAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;iEAAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;uB","file":"index.min.js"}'
+      '{"version":3,"sources":["index.js","local.js"],"names":["A","B","T","Q"],"mappings":";;;;;eAAAA;;;;;;MAEAC;;;;;;;;;;;;;;;;;;;;;;;;MCFAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;iEAAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;uB","file":"index.min.js"}',
     );
   });
 });

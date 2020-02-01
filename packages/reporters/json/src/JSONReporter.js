@@ -17,7 +17,7 @@ const LOG_LEVELS = {
   info: 3,
   progress: 3,
   success: 3,
-  verbose: 4
+  verbose: 4,
 };
 
 export default new Reporter({
@@ -34,7 +34,7 @@ export default new Reporter({
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.error) {
           writeToStderr(
             {type: 'buildFailure', message: event.diagnostics[0].message},
-            logLevelFilter
+            logLevelFilter,
           );
         }
         break;
@@ -54,24 +54,24 @@ export default new Reporter({
               buildTime: event.buildTime,
               bundles: event.bundleGraph
                 ? generateBundleReport(event.bundleGraph).bundles
-                : undefined
+                : undefined,
             },
-            logLevelFilter
+            logLevelFilter,
           );
         }
         break;
       case 'log':
         writeLogEvent(event, logLevelFilter);
     }
-  }
+  },
 });
 
 function makeWriter(
-  write: string => mixed
+  write: string => mixed,
 ): (JSONReportEvent, $Keys<typeof LOG_LEVELS>) => void {
   return (
     event: JSONReportEvent,
-    logLevelFilter: $Keys<typeof LOG_LEVELS>
+    logLevelFilter: $Keys<typeof LOG_LEVELS>,
   ): void => {
     let stringified;
     try {
@@ -87,11 +87,11 @@ function makeWriter(
               {
                 origin: '@parcel/reporter-json',
                 message: err.message,
-                stack: err.stack
-              }
-            ]
+                stack: err.stack,
+              },
+            ],
           },
-          logLevelFilter
+          logLevelFilter,
         );
       }
       return;
@@ -103,7 +103,7 @@ function makeWriter(
 
 function writeLogEvent(
   event: LogEvent,
-  logLevelFilter: $Keys<typeof LOG_LEVELS>
+  logLevelFilter: $Keys<typeof LOG_LEVELS>,
 ): void {
   if (LOG_LEVELS[logLevelFilter] < LOG_LEVELS[event.level]) {
     return;
@@ -123,26 +123,26 @@ function writeLogEvent(
 }
 
 function progressEventToJSONEvent(
-  progressEvent: BuildProgressEvent
+  progressEvent: BuildProgressEvent,
 ): ?JSONProgressEvent {
   switch (progressEvent.phase) {
     case 'transforming':
       return {
         type: 'buildProgress',
         phase: 'transforming',
-        filePath: progressEvent.filePath
+        filePath: progressEvent.filePath,
       };
     case 'bundling':
       return {
         type: 'buildProgress',
-        phase: 'bundling'
+        phase: 'bundling',
       };
     case 'optimizing':
     case 'packaging':
       return {
         type: 'buildProgress',
         phase: progressEvent.phase,
-        bundleFilePath: progressEvent.bundle.filePath
+        bundleFilePath: progressEvent.bundle.filePath,
       };
   }
 }
@@ -154,7 +154,7 @@ type JSONReportEvent =
   | {|
       +type: 'buildSuccess',
       buildTime: number,
-      bundles?: $PropertyType<BundleReport, 'bundles'>
+      bundles?: $PropertyType<BundleReport, 'bundles'>,
     |}
   | JSONProgressEvent;
 
@@ -162,11 +162,11 @@ type JSONProgressEvent =
   | {|
       +type: 'buildProgress',
       phase: 'transforming',
-      filePath: string
+      filePath: string,
     |}
   | {|+type: 'buildProgress', phase: 'bundling'|}
   | {|
       +type: 'buildProgress',
       +phase: 'packaging' | 'optimizing',
-      bundleFilePath?: string
+      bundleFilePath?: string,
     |};

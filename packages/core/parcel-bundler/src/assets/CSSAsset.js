@@ -35,7 +35,7 @@ class CSSAsset extends Asset {
 
   parse(code) {
     let root = postcss.parse(code, {
-      from: this.name
+      from: this.name,
     });
     return new CSSAst(code, root);
   }
@@ -91,7 +91,7 @@ class CSSAsset extends Asset {
             node.nodes.length
           ) {
             let url = this.addURLDependency(node.nodes[0].value, {
-              loc: decl.source.start
+              loc: decl.source.start,
             });
             if (!isURL(url)) {
               url = urlJoin(this.options.publicURL, url);
@@ -115,7 +115,7 @@ class CSSAsset extends Asset {
             const [, importPath] = FROM_IMPORT_RE.exec(decl.value);
             this.addURLDependency(importPath, {
               dynamic: false,
-              loc: decl.source.start
+              loc: decl.source.start,
             });
           }
         });
@@ -138,7 +138,7 @@ class CSSAsset extends Asset {
     if (!(this.ast instanceof CSSAst)) {
       this.ast = CSSAsset.prototype.parse.call(
         this,
-        this.ast.render(this.name)
+        this.ast.render(this.name),
       );
     }
 
@@ -181,13 +181,13 @@ class CSSAsset extends Asset {
           path.join(
             path.dirname(this.relativeName),
             this.previousSourceMap.sourceRoot || '',
-            v
-          )
+            v,
+          ),
         );
         if (this.sourceMap) {
           this.sourceMap = await new SourceMap().extendSourceMap(
             this.previousSourceMap,
-            this.sourceMap
+            this.sourceMap,
           );
         } else {
           this.sourceMap = await new SourceMap().addMap(this.previousSourceMap);
@@ -195,7 +195,7 @@ class CSSAsset extends Asset {
       } else if (!this.sourceMap) {
         this.sourceMap = new SourceMap().generateEmptyMap(
           this.relativeName,
-          css
+          css,
         );
       }
     }
@@ -205,13 +205,13 @@ class CSSAsset extends Asset {
         type: 'css',
         value: css,
         cssModules: this.cssModules,
-        map: this.sourceMap
+        map: this.sourceMap,
       },
       {
         type: 'js',
         value: js,
-        hasDependencies: false
-      }
+        hasDependencies: false,
+      },
     ];
   }
 
@@ -222,14 +222,14 @@ class CSSAsset extends Asset {
         err.message,
         err.loc.line,
         err.loc.column,
-        this.contents
+        this.contents,
       );
     }
 
     err.message = err.reason || err.message;
     err.loc = {
       line: err.line,
-      column: err.column
+      column: err.column,
     };
 
     if (err.showSourceCode) {
@@ -252,19 +252,19 @@ class CSSAst {
     if (this.dirty) {
       let {css, map} = this.root.toResult({
         to: name,
-        map: {inline: false, annotation: false, sourcesContent: true}
+        map: {inline: false, annotation: false, sourcesContent: true},
       });
 
       this.css = css;
 
       return {
         css: this.css,
-        map: map ? map.toJSON() : null
+        map: map ? map.toJSON() : null,
       };
     }
 
     return {
-      css: this.css
+      css: this.css,
     };
   }
 }

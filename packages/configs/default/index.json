@@ -25,6 +25,7 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
+    "*.mdx": ["@parcel/transformer-mdx"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
@@ -53,7 +54,6 @@
   "reporters": [
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
-    "@parcel/reporter-hmr-server",
     "@parcel/reporter-bundle-analyzer"
   ]
 }

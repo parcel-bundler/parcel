@@ -21,15 +21,15 @@ const ESMODULE_TEMPLATE = template(`exports.__esModule = true;`);
 
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const EXPORT_ALL_TEMPLATE = template(
-  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
+  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))',
 );
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
 const REQUIRE_RESOLVE_CALL_TEMPLATE = template(
-  '$parcel$require$resolve(ID, SOURCE)'
+  '$parcel$require$resolve(ID, SOURCE)',
 );
 const TYPEOF = {
   module: 'object',
-  require: 'function'
+  require: 'function',
 };
 
 export function hoist(asset: MutableAsset) {
@@ -80,9 +80,9 @@ const VISITOR = {
               t.returnStatement(
                 t.memberExpression(
                   t.identifier('module'),
-                  t.identifier('exports')
-                )
-              )
+                  t.identifier('exports'),
+                ),
+              ),
             );
             path.stop();
           }
@@ -105,10 +105,11 @@ const VISITOR = {
             shouldWrap = true;
             path.stop();
           }
-        }
+        },
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
+      path.scope.setData('cjsExportsReassigned', false);
     },
 
     exit(path, asset: MutableAsset) {
@@ -123,9 +124,9 @@ const VISITOR = {
           t.program([
             WRAPPER_TEMPLATE({
               NAME: getIdentifier(asset, 'exports'),
-              BODY: path.node.body
-            })
-          ])
+              BODY: path.node.body,
+            }),
+          ]),
         );
 
         asset.symbols.clear();
@@ -156,7 +157,7 @@ const VISITOR = {
       }
 
       path.stop();
-    }
+    },
   },
 
   DirectiveLiteral(path) {
@@ -208,7 +209,7 @@ const VISITOR = {
       !path.scope.hasBinding('exports') &&
       !path.scope.getData('shouldWrap')
     ) {
-      path.replaceWith(getExportsIdentifier(asset, path.scope));
+      path.replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
@@ -252,33 +253,39 @@ const VISITOR = {
 
     // Match module.exports = expression; assignments and replace with a variable declaration
     // if this is the first assignemnt. This avoids the extra empty object assignment in many cases.
-    if (
-      t.matchesPattern(left, 'module.exports') &&
-      !path.scope.hasBinding('module')
-    ) {
-      let exportsId = getExportsIdentifier(asset, path.scope);
-      asset.meta.isCommonJS = true;
-      asset.symbols.set('*', exportsId.name);
+    //
+    // TODO: Re-introduce this when it can handle both exports and module.exports concurrently
+    //
+    // if (
+    //   t.matchesPattern(left, 'module.exports') &&
+    //   !path.scope.hasBinding('module')
+    // ) {
+    //   let exportsId = getExportsIdentifier(asset, path.scope);
+    //   asset.meta.isCommonJS = true;
+    //   asset.symbols.set('*', exportsId.name);
 
-      if (
-        path.scope === path.scope.getProgramParent() &&
-        !path.scope.getBinding(exportsId.name) &&
-        path.parentPath.isStatement()
-      ) {
-        let [decl] = path.parentPath.replaceWith(
-          t.variableDeclaration('var', [t.variableDeclarator(exportsId, right)])
-        );
+    //   if (
+    //     path.scope === path.scope.getProgramParent() &&
+    //     !path.scope.getBinding(exportsId.name) &&
+    //     path.parentPath.isStatement()
+    //   ) {
+    //     let [decl] = path.parentPath.replaceWith(
+    //       t.variableDeclaration('var', [
+    //         t.variableDeclarator(exportsId, right),
+    //       ]),
+    //     );
 
-        path.scope.registerDeclaration(decl);
-      }
-    }
+    //     path.scope.registerDeclaration(decl);
+    //   }
+    // }
 
     if (path.scope.hasBinding('exports')) {
       return;
     }
 
     if (t.isIdentifier(left) && left.name === 'exports') {
-      path.get('left').replaceWith(getExportsIdentifier(asset, path.scope));
+      path.scope.getProgramParent().setData('cjsExportsReassigned', true);
+      path.get('left').replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
@@ -312,20 +319,20 @@ const VISITOR = {
         if (path.scope === scope) {
           let [decl] = path.insertBefore(
             t.variableDeclaration('var', [
-              t.variableDeclarator(t.clone(identifier), right)
-            ])
+              t.variableDeclarator(t.clone(identifier), right),
+            ]),
           );
 
           scope.registerDeclaration(decl);
         } else {
           scope.push({id: t.clone(identifier)});
           path.insertBefore(
-            t.assignmentExpression('=', t.clone(identifier), right)
+            t.assignmentExpression('=', t.clone(identifier), right),
           );
         }
       } else {
         path.insertBefore(
-          t.assignmentExpression('=', t.clone(identifier), right)
+          t.assignmentExpression('=', t.clone(identifier), right),
         );
       }
 
@@ -375,7 +382,7 @@ const VISITOR = {
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
       let bail = path.findParent(
-        p => p.isConditionalExpression() || p.isLogicalExpression()
+        p => p.isConditionalExpression() || p.isLogicalExpression(),
       );
       if (!parent.isProgram() || bail) {
         dep.meta.shouldWrap = true;
@@ -389,8 +396,8 @@ const VISITOR = {
       path.replaceWith(
         REQUIRE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
-          SOURCE: t.stringLiteral(args[0].value)
-        })
+          SOURCE: t.stringLiteral(args[0].value),
+        }),
       );
     }
 
@@ -398,8 +405,8 @@ const VISITOR = {
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
-          SOURCE: args[0]
-        })
+          SOURCE: args[0],
+        }),
       );
     }
   },
@@ -454,8 +461,8 @@ const VISITOR = {
       EXPORT_ASSIGN_TEMPLATE({
         EXPORTS: getExportsIdentifier(asset, path.scope),
         NAME: t.identifier('default'),
-        LOCAL: t.clone(identifier)
-      })
+        LOCAL: t.clone(identifier),
+      }),
     );
 
     if (t.isIdentifier(declaration)) {
@@ -466,8 +473,8 @@ const VISITOR = {
       // Declare a variable to hold the exported value.
       path.replaceWith(
         t.variableDeclaration('var', [
-          t.variableDeclarator(identifier, t.toExpression(declaration))
-        ])
+          t.variableDeclarator(identifier, t.toExpression(declaration)),
+        ]),
       );
 
       path.scope.registerDeclaration(path);
@@ -514,7 +521,7 @@ const VISITOR = {
             asset.addDependency({
               moduleSpecifier: dep.moduleSpecifier,
               symbols: new Map([[imported, id.name]]),
-              isWeak: true
+              isWeak: true,
             });
           }
         }
@@ -525,8 +532,8 @@ const VISITOR = {
           EXPORT_ASSIGN_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
             NAME: exported,
-            LOCAL: id
-          })
+            LOCAL: id,
+          }),
         );
       }
 
@@ -564,17 +571,17 @@ const VISITOR = {
       EXPORT_ALL_TEMPLATE({
         OLD_NAME: getExportsIdentifier(asset, path.scope),
         SOURCE: t.stringLiteral(path.node.source.value),
-        ID: t.stringLiteral(asset.id)
-      })
+        ID: t.stringLiteral(asset.id),
+      }),
     );
-  }
+  },
 };
 
 function addImport(asset: MutableAsset, path) {
   // Replace with a $parcel$require call so we know where to insert side effects.
   let requireCall = REQUIRE_CALL_TEMPLATE({
     ID: t.stringLiteral(asset.id),
-    SOURCE: t.stringLiteral(path.node.source.value)
+    SOURCE: t.stringLiteral(path.node.source.value),
   });
 
   // Hoist the call to the top of the file.
@@ -603,7 +610,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
   let assignNode = EXPORT_ASSIGN_TEMPLATE({
     EXPORTS: getExportsIdentifier(asset, scope),
     NAME: t.identifier(exported.name),
-    LOCAL: identifier
+    LOCAL: identifier,
   });
 
   let binding = scope.getBinding(local.name);
@@ -647,8 +654,8 @@ function safeRename(path, asset: MutableAsset, from, to) {
   } else {
     let [decl] = path.insertAfter(
       t.variableDeclaration('var', [
-        t.variableDeclarator(t.identifier(to), t.identifier(from))
-      ])
+        t.variableDeclarator(t.identifier(to), t.identifier(from)),
+      ]),
     );
 
     path.scope.getBinding(from).reference(decl.get('declarations.0.init'));
@@ -666,5 +673,20 @@ function getExportsIdentifier(asset: MutableAsset, scope) {
     }
 
     return id;
+  }
+}
+
+function getCJSExportsIdentifier(asset: MutableAsset, scope) {
+  if (scope.getProgramParent().getData('shouldWrap')) {
+    return t.identifier('exports');
+  } else if (scope.getProgramParent().getData('cjsExportsReassigned')) {
+    let id = getIdentifier(asset, 'cjs_exports');
+    if (!scope.hasBinding(id.name)) {
+      scope.getProgramParent().addGlobal(id);
+    }
+
+    return id;
+  } else {
+    return getExportsIdentifier(asset, scope);
   }
 }

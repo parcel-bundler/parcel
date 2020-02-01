@@ -7,7 +7,7 @@ describe.skip('elm', function() {
 
     await assertBundleTree(b, {
       type: 'js',
-      assets: ['Main.elm', 'index.js']
+      assets: ['Main.elm', 'index.js'],
     });
 
     let output = await run(b);
@@ -23,12 +23,12 @@ describe.skip('elm', function() {
 
   it('should apply elm-hot if HMR is enabled', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js', {
-      hmr: true
+      hmr: true,
     });
 
     await assertBundleTree(b, {
       type: 'js',
-      assets: ['Main.elm', 'hmr-runtime.js', 'index.js']
+      assets: ['Main.elm', 'hmr-runtime.js', 'index.js'],
     });
 
     let js = await outputFS.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -37,7 +37,7 @@ describe.skip('elm', function() {
 
   it('should remove debugger in production', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js', {
-      production: true
+      production: true,
     });
 
     await run(b);
@@ -47,7 +47,7 @@ describe.skip('elm', function() {
 
   it('should minify Elm in production mode', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js', {
-      production: true
+      production: true,
     });
 
     let output = await run(b);
