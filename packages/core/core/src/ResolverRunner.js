@@ -81,6 +81,10 @@ export default class ResolverRunner {
         }
       }
     } else {
+      if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
+        // A protocol-relative URL, e.g `url('//example.com/foo.png')`
+        return null;
+      }
       filePath = dependency.moduleSpecifier;
     }
 
