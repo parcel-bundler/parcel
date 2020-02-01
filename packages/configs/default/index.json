@@ -26,6 +26,7 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.webmanifest": ["@parcel/transformer-pwa-manifest"],
+    "*.mdx": ["@parcel/transformer-mdx"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
@@ -52,5 +53,9 @@
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": ["@parcel/reporter-cli", "@parcel/reporter-dev-server"]
+  "reporters": [
+    "@parcel/reporter-cli",
+    "@parcel/reporter-dev-server",
+    "@parcel/reporter-bundle-analyzer"
+  ]
 }
