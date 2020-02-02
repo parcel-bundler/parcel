@@ -285,7 +285,6 @@ export default class ParcelConfig {
   }
 
   getReporters() {
-    console.log(this.reporters);
     return this.loadPlugins<Reporter>(this.reporters);
   }
 

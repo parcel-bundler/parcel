@@ -6,7 +6,6 @@ import type {
   PreProcessedParcelConfig,
   PackageName,
   ExtendableParcelConfigPipeline,
-  PureParcelConfigPipeline,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
@@ -81,10 +80,10 @@ export async function readAndProcess(
   return processConfig(config, configPath, options);
 }
 
-function relatifyPipeline<T>(
+function relatifyPipeline(
   pipeline: ?Array<PackageName>,
   filePath: FilePath,
-): T {
+): any {
   if (pipeline) {
     // $FlowFixMe
     return pipeline.map(pkg => {
@@ -96,9 +95,6 @@ function relatifyPipeline<T>(
       };
     });
   }
-
-  // $FlowFixMe
-  return [];
 }
 
 function relatifyMap<T>(
@@ -134,10 +130,7 @@ function preprocessConfig(
     extends: configFile.extends,
     filePath: configFile.filePath,
     resolveFrom: configFile.resolveFrom,
-    resolvers: relatifyPipeline<PureParcelConfigPipeline>(
-      configFile.resolvers,
-      configFile.filePath,
-    ),
+    resolvers: relatifyPipeline(configFile.resolvers, configFile.filePath),
     transforms: relatifyMap(configFile.transforms, configFile.filePath),
     bundler: configFile.bundler
       ? {
@@ -145,17 +138,11 @@ function preprocessConfig(
           resolveFrom: configFile.filePath,
         }
       : undefined,
-    namers: relatifyPipeline<PureParcelConfigPipeline>(
-      configFile.namers,
-      configFile.filePath,
-    ),
+    namers: relatifyPipeline(configFile.namers, configFile.filePath),
     runtimes: relatifyMap(configFile.runtimes, configFile.filePath),
     packagers: relatifyMap(configFile.packagers, configFile.filePath),
     optimizers: relatifyMap(configFile.optimizers, configFile.filePath),
-    reporters: relatifyPipeline<PureParcelConfigPipeline>(
-      configFile.reporters,
-      configFile.filePath,
-    ),
+    reporters: relatifyPipeline(configFile.reporters, configFile.filePath),
     validators: relatifyMap(configFile.validators, configFile.filePath),
   };
 }
