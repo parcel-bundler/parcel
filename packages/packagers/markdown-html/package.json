@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/transformer-markdown-html",
+  "name": "@parcel/packager-markdown-html",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
@@ -9,17 +9,16 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/MarkedTransformer.js",
-  "source": "src/MarkedTransformer.js",
+  "main": "lib/MarkdownHtmlTransformer.js",
+  "source": "src/MarkdownHtmlTransformer.js",
   "engines": {
+    "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "@parcel/types": "^2.0.0-alpha.3.1",
     "@parcel/utils": "^2.0.0-alpha.3.1",
-    "marked": "^0.8.0",
-    "highlight.js": "^9.17.1",
-    "front-matter": "^3.0.2",
     "mustache": "^3.2.0"
   }
 }

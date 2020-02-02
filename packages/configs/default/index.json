@@ -49,6 +49,7 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
+    "*.md": "@parcel/packager-markdown-html",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
