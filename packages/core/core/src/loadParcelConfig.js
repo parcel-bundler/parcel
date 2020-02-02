@@ -86,7 +86,8 @@ function relatifyPipeline<T>(
   filePath: FilePath,
 ): T {
   if (pipeline) {
-    pipeline.map(pkg => {
+    // $FlowFixMe
+    return pipeline.map(pkg => {
       if (pkg === '...') return pkg;
 
       return {
