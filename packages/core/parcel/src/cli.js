@@ -174,7 +174,7 @@ async function run(entries: Array<string>, command: any) {
         await packageManager.resolve('@parcel/config-default', __filename)
       ).resolved,
     },
-    patchConsole: true,
+    patchConsole: false,
     ...(await normalizeOptions(command)),
   });
 

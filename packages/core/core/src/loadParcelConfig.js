@@ -3,7 +3,10 @@ import type {
   FilePath,
   ParcelConfigFile,
   ResolvedParcelConfigFile,
+  PreProcessedParcelConfig,
   PackageName,
+  ExtendableParcelConfigPipeline,
+  PureParcelConfigPipeline,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
@@ -14,7 +17,6 @@ import assert from 'assert';
 import ParcelConfig from './ParcelConfig';
 import ParcelConfigSchema from './ParcelConfig.schema';
 
-type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V, ...};
 
 export default async function loadParcelConfig(
@@ -79,18 +81,101 @@ export async function readAndProcess(
   return processConfig(config, configPath, options);
 }
 
+function relatifyPipeline<T>(
+  pipeline: ?Array<PackageName>,
+  filePath: FilePath,
+): T {
+  if (pipeline) {
+    pipeline.map(pkg => {
+      if (pkg === '...') return pkg;
+
+      return {
+        packageName: pkg,
+        resolveFrom: filePath,
+      };
+    });
+  }
+
+  // $FlowFixMe
+  return [];
+}
+
+function relatifyMap<T>(
+  map: ?ConfigMap<any, any>,
+  filePath: FilePath,
+): ConfigMap<any, any> | typeof undefined {
+  if (!map) return undefined;
+
+  let res: ConfigMap<any, T> = {};
+  for (let k in map) {
+    if (typeof map[k] === 'string') {
+      // $FlowFixMe I'm sure this is fine...
+      res[k] = {
+        packageName: map[k],
+        resolveFrom: filePath,
+      };
+    } else {
+      // $FlowFixMe I'm sure this is fine...
+      res[k] = relatifyPipeline<ExtendableParcelConfigPipeline>(
+        map[k],
+        filePath,
+      );
+    }
+  }
+
+  return res;
+}
+
+function preprocessConfig(
+  configFile: ResolvedParcelConfigFile,
+): PreProcessedParcelConfig {
+  return {
+    extends: configFile.extends,
+    filePath: configFile.filePath,
+    resolveFrom: configFile.resolveFrom,
+    resolvers: relatifyPipeline<PureParcelConfigPipeline>(
+      configFile.resolvers,
+      configFile.filePath,
+    ),
+    transforms: relatifyMap(configFile.transforms, configFile.filePath),
+    bundler: configFile.bundler
+      ? {
+          packageName: configFile.bundler,
+          resolveFrom: configFile.filePath,
+        }
+      : undefined,
+    namers: relatifyPipeline<PureParcelConfigPipeline>(
+      configFile.namers,
+      configFile.filePath,
+    ),
+    runtimes: relatifyMap(configFile.runtimes, configFile.filePath),
+    packagers: relatifyMap(configFile.packagers, configFile.filePath),
+    optimizers: relatifyMap(configFile.optimizers, configFile.filePath),
+    reporters: relatifyPipeline<PureParcelConfigPipeline>(
+      configFile.reporters,
+      configFile.filePath,
+    ),
+    validators: relatifyMap(configFile.validators, configFile.filePath),
+  };
+}
+
 export async function processConfig(
   configFile: ParcelConfigFile | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
 ) {
-  let resolvedFile: ResolvedParcelConfigFile = {filePath, ...configFile};
-  let config = new ParcelConfig(resolvedFile, options.packageManager);
+  // Validate config...
   let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
 
-  let extendedFiles: Array<FilePath> = [];
+  // Process config...
+  let resolvedFile: PreProcessedParcelConfig = preprocessConfig({
+    filePath,
+    ...configFile,
+  });
+  let config = new ParcelConfig(resolvedFile, options.packageManager);
 
+  let extendedFiles: Array<FilePath> = [];
   if (configFile.extends) {
     let exts = Array.isArray(configFile.extends)
       ? configFile.extends
@@ -152,26 +237,32 @@ export function validateNotEmpty(
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: ResolvedParcelConfigFile,
+  ext: PreProcessedParcelConfig,
 ): ParcelConfig {
   return new ParcelConfig(
     {
-      filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
+      filePath: ext.filePath,
+      // $FlowFixMe
       resolvers: mergePipelines(base.resolvers, ext.resolvers),
       transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
+      // $FlowFixMe
       namers: mergePipelines(base.namers, ext.namers),
       runtimes: mergeMaps(base.runtimes, ext.runtimes),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+      // $FlowFixMe
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,
   );
 }
 
-export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
+export function mergePipelines(
+  base: ?ExtendableParcelConfigPipeline,
+  ext: ?ExtendableParcelConfigPipeline,
+): any {
   if (!ext) {
     return base || [];
   }
