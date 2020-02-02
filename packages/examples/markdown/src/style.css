@@ -1,0 +1,6 @@
+@import 'highlight.js/styles/github.css';
+
+main,
+html {
+  margin: 0;
+}
