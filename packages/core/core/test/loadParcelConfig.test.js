@@ -19,35 +19,39 @@ describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
     it('should error on an invalid official package', () => {
       assert.throws(() => {
-        validatePackageName('@parcel/foo-bar', 'transform', 'transforms');
+        validatePackageName('@parcel/foo-bar', 'transform', 'transformers');
       }, /Official parcel transform packages must be named according to "@parcel\/transform-{name}"/);
     });
 
     it('should succeed on a valid official package', () => {
-      validatePackageName('@parcel/transform-bar', 'transform', 'transforms');
+      validatePackageName('@parcel/transform-bar', 'transform', 'transformers');
     });
 
     it('should error on an invalid community package', () => {
       assert.throws(() => {
-        validatePackageName('foo-bar', 'transform', 'transforms');
+        validatePackageName('foo-bar', 'transform', 'transformers');
       }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
 
       assert.throws(() => {
-        validatePackageName('parcel-foo-bar', 'transform', 'transforms');
+        validatePackageName('parcel-foo-bar', 'transform', 'transformers');
       }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
     });
 
     it('should succeed on a valid community package', () => {
-      validatePackageName('parcel-transform-bar', 'transform', 'transforms');
+      validatePackageName('parcel-transform-bar', 'transform', 'transformers');
     });
 
     it('should error on an invalid scoped package', () => {
       assert.throws(() => {
-        validatePackageName('@test/foo-bar', 'transform', 'transforms');
+        validatePackageName('@test/foo-bar', 'transform', 'transformers');
       }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
 
       assert.throws(() => {
-        validatePackageName('@test/parcel-foo-bar', 'transform', 'transforms');
+        validatePackageName(
+          '@test/parcel-foo-bar',
+          'transform',
+          'transformers',
+        );
       }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
     });
 
@@ -55,7 +59,7 @@ describe('loadParcelConfig', () => {
       validatePackageName(
         '@test/parcel-transform-bar',
         'transform',
-        'transforms',
+        'transformers',
       );
     });
   });
@@ -67,7 +71,7 @@ describe('loadParcelConfig', () => {
           {
             filePath: '.parcelrc',
             extends: 'parcel-config-foo',
-            transforms: {
+            transformers: {
               '*.js': ['parcel-invalid-plugin'],
             },
           },
@@ -143,7 +147,7 @@ describe('loadParcelConfig', () => {
           {
             filePath: '.parcelrc',
             // $FlowFixMe
-            transforms: ['parcel-transformer-test', '...'],
+            transformers: ['parcel-transformer-test', '...'],
           },
           '.parcelrc',
         );
@@ -155,7 +159,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            transforms: {
+            transformers: {
               'types:*.{ts,tsx}': ['@parcel/transformer-typescript-types'],
               'bundle-text:*': ['-inline-string', '...'],
             },
@@ -250,7 +254,7 @@ describe('loadParcelConfig', () => {
         {
           filePath: '.parcelrc',
           extends: 'parcel-config-foo',
-          transforms: {
+          transformers: {
             '*.js': ['parcel-transformer-foo'],
           },
         },
@@ -451,7 +455,7 @@ describe('loadParcelConfig', () => {
               resolveFrom: '.parcelrc',
             },
           ],
-          transforms: {
+          transformers: {
             '*.js': [
               {
                 packageName: 'parcel-transform-base',
@@ -482,7 +486,7 @@ describe('loadParcelConfig', () => {
           },
           '...',
         ],
-        transforms: {
+        transformers: {
           '*.js': [
             {
               packageName: 'parcel-transform-ext',
@@ -506,7 +510,7 @@ describe('loadParcelConfig', () => {
               resolveFrom: '.parcelrc',
             },
           ],
-          transforms: {
+          transformers: {
             '*.js': [
               {
                 packageName: 'parcel-transform-ext',
@@ -587,7 +591,7 @@ describe('loadParcelConfig', () => {
       );
       let {config} = await readAndProcess(subConfigFilePath, DEFAULT_OPTIONS);
 
-      assert.deepEqual(config.transforms['*.js'], [
+      assert.deepEqual(config.transformers['*.js'], [
         {
           packageName: 'parcel-transformer-sub',
           resolveFrom: subConfigFilePath,
@@ -598,7 +602,7 @@ describe('loadParcelConfig', () => {
         },
         '...',
       ]);
-      assert(Object.keys(config.transforms).length > 1);
+      assert(Object.keys(config.transformers).length > 1);
       assert.deepEqual(config.resolvers, defaultConfig.resolvers);
       assert.deepEqual(config.bundler, defaultConfig.bundler);
       assert.deepEqual(config.namers, defaultConfig.namers || []);

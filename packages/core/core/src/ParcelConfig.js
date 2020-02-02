@@ -34,7 +34,7 @@ export default class ParcelConfig {
   packageManager: PackageManager;
   filePath: FilePath;
   resolvers: PureParcelConfigPipeline;
-  transforms: GlobMap<ExtendableParcelConfigPipeline>;
+  transformers: GlobMap<ExtendableParcelConfigPipeline>;
   bundler: ParcelPluginNode | typeof undefined;
   namers: PureParcelConfigPipeline;
   runtimes: {[EnvironmentContext]: PureParcelConfigPipeline, ...};
@@ -51,7 +51,7 @@ export default class ParcelConfig {
     this.packageManager = packageManager;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
-    this.transforms = config.transforms || {};
+    this.transformers = config.transformers || {};
     this.runtimes = config.runtimes || {};
     this.bundler = config.bundler;
     this.namers = config.namers || [];
@@ -70,7 +70,7 @@ export default class ParcelConfig {
     return {
       filePath: this.filePath,
       resolvers: this.resolvers,
-      transforms: this.transforms,
+      transformers: this.transformers,
       validators: this.validators,
       runtimes: this.runtimes,
       bundler: this.bundler,
@@ -158,7 +158,7 @@ export default class ParcelConfig {
   }
 
   getNamedPipelines(): $ReadOnlyArray<string> {
-    return Object.keys(this.transforms)
+    return Object.keys(this.transformers)
       .filter(glob => glob.includes(':'))
       .map(glob => glob.split(':')[0]);
   }
@@ -169,7 +169,7 @@ export default class ParcelConfig {
   ): Array<ParcelPluginNode> {
     let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
       filePath,
-      this.transforms,
+      this.transformers,
       pipeline,
     );
     if (!transformers || transformers.length === 0) {

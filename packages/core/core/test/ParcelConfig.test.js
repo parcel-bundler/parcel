@@ -46,7 +46,7 @@ describe('ParcelConfig', () => {
     let config = new ParcelConfig(
       {
         filePath: '.parcelrc',
-        transforms: {
+        transformers: {
           '*.jsx': [
             {
               packageName: 'parcel-transform-jsx',
@@ -66,12 +66,18 @@ describe('ParcelConfig', () => {
     );
 
     it('should return an empty array if no pipeline matches', () => {
-      let pipeline = config.matchGlobMapPipelines('foo.css', config.transforms);
+      let pipeline = config.matchGlobMapPipelines(
+        'foo.css',
+        config.transformers,
+      );
       assert.deepEqual(pipeline, []);
     });
 
     it('should return a matching pipeline', () => {
-      let pipeline = config.matchGlobMapPipelines('foo.js', config.transforms);
+      let pipeline = config.matchGlobMapPipelines(
+        'foo.js',
+        config.transformers,
+      );
       assert.deepEqual(pipeline, [
         {
           packageName: 'parcel-transform-js',
@@ -81,7 +87,10 @@ describe('ParcelConfig', () => {
     });
 
     it('should merge pipelines with spread elements', () => {
-      let pipeline = config.matchGlobMapPipelines('foo.jsx', config.transforms);
+      let pipeline = config.matchGlobMapPipelines(
+        'foo.jsx',
+        config.transformers,
+      );
       assert.deepEqual(pipeline, [
         {
           packageName: 'parcel-transform-jsx',
@@ -106,7 +115,7 @@ describe('ParcelConfig', () => {
       let config = new ParcelConfig(
         {
           filePath: configFilePath,
-          transforms: {
+          transformers: {
             '*.js': [
               {
                 packageName: 'parcel-transformer-no-engines',
@@ -144,7 +153,7 @@ describe('ParcelConfig', () => {
       let config = new ParcelConfig(
         {
           filePath: configFilePath,
-          transforms: {
+          transformers: {
             '*.js': [
               {
                 packageName: 'parcel-transformer-bad-engines',

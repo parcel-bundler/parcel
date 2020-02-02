@@ -131,7 +131,7 @@ export function preprocessConfig(
     filePath: configFile.filePath,
     resolveFrom: configFile.resolveFrom,
     resolvers: relatifyPipeline(configFile.resolvers, configFile.filePath),
-    transforms: relatifyMap(configFile.transforms, configFile.filePath),
+    transformers: relatifyMap(configFile.transformers, configFile.filePath),
     bundler: configFile.bundler
       ? {
           packageName: configFile.bundler,
@@ -232,7 +232,11 @@ export function mergeConfigs(
       filePath: ext.filePath,
       // $FlowFixMe
       resolvers: mergePipelines(base.resolvers, ext.resolvers),
-      transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
+      transformers: mergeMaps(
+        base.transformers,
+        ext.transformers,
+        mergePipelines,
+      ),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
       // $FlowFixMe
