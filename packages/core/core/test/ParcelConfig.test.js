@@ -15,8 +15,14 @@ describe('ParcelConfig', () => {
       {
         filePath: '.parcelrc',
         packagers: {
-          '*.css': 'parcel-packager-css',
-          '*.js': 'parcel-packager-js',
+          '*.css': {
+            packageName: 'parcel-packager-css',
+            resolveFrom: '.parcelrc',
+          },
+          '*.js': {
+            packageName: 'parcel-packager-js',
+            resolveFrom: '.parcelrc',
+          },
         },
       },
       packageManager,
@@ -29,7 +35,10 @@ describe('ParcelConfig', () => {
 
     it('should return a matching pipeline', () => {
       let result = config.matchGlobMap('foo.js', config.packagers);
-      assert.deepEqual(result, 'parcel-packager-js');
+      assert.deepEqual(result, {
+        packageName: 'parcel-packager-js',
+        resolveFrom: '.parcelrc',
+      });
     });
   });
 
@@ -38,8 +47,19 @@ describe('ParcelConfig', () => {
       {
         filePath: '.parcelrc',
         transforms: {
-          '*.jsx': ['parcel-transform-jsx', '...'],
-          '*.{js,jsx}': ['parcel-transform-js'],
+          '*.jsx': [
+            {
+              packageName: 'parcel-transform-jsx',
+              resolveFrom: '.parcelrc',
+            },
+            '...',
+          ],
+          '*.{js,jsx}': [
+            {
+              packageName: 'parcel-transform-js',
+              resolveFrom: '.parcelrc',
+            },
+          ],
         },
       },
       packageManager,
@@ -52,32 +72,57 @@ describe('ParcelConfig', () => {
 
     it('should return a matching pipeline', () => {
       let pipeline = config.matchGlobMapPipelines('foo.js', config.transforms);
-      assert.deepEqual(pipeline, ['parcel-transform-js']);
+      assert.deepEqual(pipeline, [
+        {
+          packageName: 'parcel-transform-js',
+          resolveFrom: '.parcelrc',
+        },
+      ]);
     });
 
     it('should merge pipelines with spread elements', () => {
       let pipeline = config.matchGlobMapPipelines('foo.jsx', config.transforms);
       assert.deepEqual(pipeline, [
-        'parcel-transform-jsx',
-        'parcel-transform-js',
+        {
+          packageName: 'parcel-transform-jsx',
+          resolveFrom: '.parcelrc',
+        },
+        {
+          packageName: 'parcel-transform-js',
+          resolveFrom: '.parcelrc',
+        },
       ]);
     });
   });
 
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'plugins',
+        '.parcelrc',
+      );
       let config = new ParcelConfig(
         {
-          filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+          filePath: configFilePath,
           transforms: {
-            '*.js': ['parcel-transformer-no-engines'],
+            '*.js': [
+              {
+                packageName: 'parcel-transformer-no-engines',
+                resolveFrom: configFilePath,
+              },
+            ],
           },
         },
         packageManager,
       );
 
       sinon.stub(logger, 'warn');
-      let plugin = await config.loadPlugin('parcel-transformer-no-engines');
+      let plugin = await config.loadPlugin({
+        packageName: 'parcel-transformer-no-engines',
+        resolveFrom: configFilePath,
+      });
       assert(plugin);
       assert.equal(typeof plugin.transform, 'function');
       assert(logger.warn.calledOnce);
@@ -90,11 +135,22 @@ describe('ParcelConfig', () => {
     });
 
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'plugins',
+        '.parcelrc',
+      );
       let config = new ParcelConfig(
         {
-          filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+          filePath: configFilePath,
           transforms: {
-            '*.js': ['parcel-transformer-bad-engines'],
+            '*.js': [
+              {
+                packageName: 'parcel-transformer-bad-engines',
+                resolveFrom: configFilePath,
+              },
+            ],
           },
         },
         packageManager,
@@ -102,7 +158,10 @@ describe('ParcelConfig', () => {
 
       let errored = false;
       try {
-        await config.loadPlugin('parcel-transformer-bad-engines');
+        await config.loadPlugin({
+          packageName: 'parcel-transformer-bad-engines',
+          resolveFrom: configFilePath,
+        });
       } catch (err) {
         errored = true;
         let parcelVersion = require('../package.json').version;

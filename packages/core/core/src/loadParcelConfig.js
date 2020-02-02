@@ -123,7 +123,7 @@ function relatifyMap<T>(
   return res;
 }
 
-function preprocessConfig(
+export function preprocessConfig(
   configFile: ResolvedParcelConfigFile,
 ): PreProcessedParcelConfig {
   return {
