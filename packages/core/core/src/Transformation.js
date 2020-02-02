@@ -102,10 +102,10 @@ export default class Transformation {
     for (let {request, result} of this.configRequests) {
       let plugin =
         request.plugin != null &&
-        (await this.parcelConfig.loadPlugin(
-          request.plugin,
-          this.parcelConfig.filePath,
-        ));
+        (await this.parcelConfig.loadPlugin({
+          packageName: request.plugin,
+          resolveFrom: this.parcelConfig.filePath,
+        }));
       if (plugin && plugin.preSerializeConfig) {
         plugin.preSerializeConfig({config: result});
       }
@@ -342,10 +342,11 @@ export default class Transformation {
     configs.set('parcel', config);
 
     for (let [moduleName] of config.devDeps) {
-      let plugin = await parcelConfig.loadPlugin(
-        moduleName,
-        parcelConfig.filePath,
-      );
+      let plugin = await parcelConfig.loadPlugin({
+        packageName: moduleName,
+        resolveFrom: parcelConfig.filePath,
+      });
+
       // TODO: implement loadPlugin in existing plugins that require config
       if (plugin.loadConfig) {
         let thirdPartyConfig = await this.loadTransformerConfig({

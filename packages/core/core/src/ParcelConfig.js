@@ -67,19 +67,6 @@ export default class ParcelConfig {
   }
 
   getConfig() {
-    console.log({
-      filePath: this.filePath,
-      resolvers: this.resolvers,
-      transforms: this.transforms,
-      validators: this.validators,
-      runtimes: this.runtimes,
-      bundler: this.bundler,
-      namers: this.namers,
-      packagers: this.packagers,
-      optimizers: this.optimizers,
-      reporters: this.reporters,
-    });
-
     return {
       filePath: this.filePath,
       resolvers: this.resolvers,
@@ -102,14 +89,18 @@ export default class ParcelConfig {
     };
   }
 
-  loadPlugin(pluginName: PackageName, filePath: FilePath) {
-    let plugin = this.pluginCache.get(pluginName);
+  loadPlugin(node: ParcelPluginNode) {
+    let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
     }
 
-    plugin = loadPlugin(this.packageManager, pluginName, filePath);
-    this.pluginCache.set(pluginName, plugin);
+    plugin = loadPlugin(
+      this.packageManager,
+      node.packageName,
+      node.resolveFrom,
+    );
+    this.pluginCache.set(node.packageName, plugin);
     return plugin;
   }
 
@@ -125,7 +116,7 @@ export default class ParcelConfig {
       plugins.map(async p => {
         return {
           name: p.packageName,
-          plugin: await this.loadPlugin(p.packageName, p.resolveFrom),
+          plugin: await this.loadPlugin(p),
         };
       }),
     );
@@ -212,7 +203,7 @@ export default class ParcelConfig {
       throw new Error('No bundler specified in .parcelrc config');
     }
 
-    return this.loadPlugin(this.bundler.packageName, this.bundler.resolveFrom);
+    return this.loadPlugin(this.bundler);
   }
 
   getNamers() {
@@ -257,14 +248,11 @@ export default class ParcelConfig {
     name: string,
     plugin: Packager,
   |}> {
-    let packagerName = this._getPackagerNode(filePath);
+    let packager = this._getPackagerNode(filePath);
 
     return {
-      name: packagerName.packageName,
-      plugin: await this.loadPlugin(
-        packagerName.packageName,
-        packagerName.resolveFrom,
-      ),
+      name: packager.packageName,
+      plugin: await this.loadPlugin(packager),
     };
   }
 
