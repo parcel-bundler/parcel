@@ -22,7 +22,9 @@ export default new Resolver({
   async resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
       throw new Error(
-        `The import path: ${dependency.moduleSpecifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
+        `The import path: ${
+          dependency.moduleSpecifier
+        } is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
 
@@ -224,6 +226,14 @@ class NodeResolver {
     if (Array.isArray(includeNodeModules)) {
       let parts = this.getModuleParts(name);
       return includeNodeModules.includes(parts[0]);
+    }
+
+    if (includeNodeModules && typeof includeNodeModules === 'object') {
+      let parts = this.getModuleParts(name);
+      let include = includeNodeModules[parts[0]];
+      if (include != null) {
+        return !!include;
+      }
     }
 
     return true;
