@@ -13,10 +13,5 @@ declare module 'serialize-to-js' {
     comment?: string
   |};
 
-  declare module.exports: {
-    deserialize(str: string, context?: boolean | Object): any,
-    serialize(source: mixed, opts?: SerializeOptions): string,
-    serializeToModule(source: mixed, opts?: SerializeToModuleOptions): string,
-    ...
-  };
+  declare module.exports: (source: mixed, opts?: SerializeOptions) => string;
 }

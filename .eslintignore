@@ -5,6 +5,7 @@
 
 flow-typed
 
+vendor
 packages/*/*/test/integration/**
 packages/*/*/test/mochareporters.json
 packages/core/integration-tests/test/input/**

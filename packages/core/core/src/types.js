@@ -34,7 +34,10 @@ import type {PackageManager} from '@parcel/package-manager';
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules: boolean | Array<PackageName>,
+  includeNodeModules:
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
 |};
@@ -141,6 +144,7 @@ export type DependencyNode = {|
   id: string,
   type: 'dependency',
   value: Dependency,
+  complete?: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
