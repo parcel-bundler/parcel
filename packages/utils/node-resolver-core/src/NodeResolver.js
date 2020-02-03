@@ -179,6 +179,14 @@ export default class NodeResolver {
       return includeNodeModules.includes(parts[0]);
     }
 
+    if (includeNodeModules && typeof includeNodeModules === 'object') {
+      let parts = this.getModuleParts(name);
+      let include = includeNodeModules[parts[0]];
+      if (include != null) {
+        return !!include;
+      }
+    }
+
     return true;
   }
 
