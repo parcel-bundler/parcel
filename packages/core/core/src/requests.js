@@ -155,7 +155,9 @@ export class AssetRequestRunner extends RequestRunner<
   }
 
   async run(request: AssetRequestDesc, api: RequestRunnerAPI) {
-    api.invalidateOnFileUpdate(request.filePath);
+    api.invalidateOnFileUpdate(
+      await this.options.inputFS.realpath(request.filePath),
+    );
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,

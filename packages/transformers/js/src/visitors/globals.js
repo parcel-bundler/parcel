@@ -41,6 +41,7 @@ export default {
       VARS.hasOwnProperty(node.name) &&
       !nullthrows(asset.meta.globals).has(node.name) &&
       types.isReferenced(node, parent) &&
+      !types.isModuleSpecifier(parent) &&
       !hasBinding(ancestors, node.name)
     ) {
       nullthrows(asset.meta.globals).set(node.name, VARS[node.name](asset));
