@@ -821,7 +821,7 @@ describe('html', function() {
       assert(contents.includes('//unpkg.com/xyz'));
     }
   });
-  
+
   it('should support inline <script type="module">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
