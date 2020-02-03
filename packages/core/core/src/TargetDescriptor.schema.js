@@ -49,6 +49,13 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
             __type: 'a wildcard or filepath',
           },
         },
+        {
+          type: 'object',
+          properties: {},
+          additionalProperties: {
+            type: 'boolean',
+          },
+        },
       ],
     },
     outputFormat: {
