@@ -24,7 +24,7 @@ export default new Bundler({
 
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
-    let bundlesByAsset: Map<string, Array<Bundle>> = new Map();
+    let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
@@ -66,7 +66,7 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
-            bundlesByAsset.set(asset.id, siblingBundles);
+            siblingBundlesByAsset.set(asset.id, siblingBundles);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
 
@@ -87,21 +87,21 @@ export default new Bundler({
         let siblingBundles = nullthrows(context.siblingBundles);
 
         for (let asset of assets) {
-          // If any sibling bundles were created for this asset or it's subtree previously,
+          // If any sibling bundles were created for this asset or its subtree previously,
           // add them all to the current bundle group as well. This fixes cases where two entries
           // depend on a shared asset which has siblings. Due to DFS, the subtree of the shared
           // asset is only processed once, meaning any sibling bundles created due to type changes
           // would only be connected to the first bundle group. To work around this, we store a list
           // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
           // connect them all to the current bundle group as well.
-          let siblings = bundlesByAsset.get(asset.id);
+          let siblings = siblingBundlesByAsset.get(asset.id);
           if (siblings) {
             for (let bundle of siblings) {
               bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
             }
           }
 
-          bundlesByAsset.set(asset.id, siblingBundles);
+          siblingBundlesByAsset.set(asset.id, siblingBundles);
 
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
