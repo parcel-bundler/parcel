@@ -672,7 +672,7 @@ describe('html', function() {
       {minify: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'css',
         assets: ['index.html'],
@@ -710,7 +710,7 @@ describe('html', function() {
       {minify: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'css',
         assets: ['index.html'],
@@ -734,7 +734,7 @@ describe('html', function() {
       {minify: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html'],
@@ -758,7 +758,7 @@ describe('html', function() {
       {production: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'css',
         assets: ['index.html', 'test.css'],
@@ -782,7 +782,7 @@ describe('html', function() {
       {minify: true},
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'js',
         assets: ['index.html', 'test.js'],
@@ -800,6 +800,28 @@ describe('html', function() {
     assert(html.includes('console.log("test")'));
   });
 
+  it('should support protocol-relative urls', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-protocol-relative/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    for (let bundle of b.getBundles()) {
+      let contents = await outputFS.readFile(bundle.filePath, 'utf8');
+      assert(contents.includes('//unpkg.com/xyz'));
+    }
+  });
+  
   it('should support inline <script type="module">', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-module/index.html'),
