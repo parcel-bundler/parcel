@@ -1,0 +1,23 @@
+{
+  "name": "@parcel/node-resolver-core",
+  "version": "2.0.0-alpha.3.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/NodeResolver.js",
+  "source": "src/NodeResolver.js",
+  "engines": {
+    "node": ">= 10.0.0"
+  },
+  "dependencies": {
+    "@parcel/utils": "^2.0.0-alpha.3.1",
+    "micromatch": "^3.0.4",
+    "node-libs-browser": "^2.1.0",
+    "nullthrows": "^1.1.1"
+  }
+}

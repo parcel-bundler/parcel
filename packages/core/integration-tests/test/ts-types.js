@@ -46,7 +46,16 @@ describe('typescript types', function() {
         type: 'ts',
         assets: ['index.ts'],
         includedFiles: {
-          'index.ts': ['other.ts', 'file.ts', 'namespace.ts'],
+          'index.ts': [
+            'other.ts',
+            'file.ts',
+            'namespace.ts',
+            'lib.d.ts',
+            'lib.dom.d.ts',
+            'lib.es5.d.ts',
+            'lib.scripthost.d.ts',
+            'lib.webworker.importscripts.d.ts',
+          ],
         },
       },
     ]);
@@ -78,7 +87,16 @@ describe('typescript types', function() {
         type: 'ts',
         assets: ['index.ts'],
         includedFiles: {
-          'index.ts': ['message.ts', 'other.ts', 'test.ts'],
+          'index.ts': [
+            'message.ts',
+            'other.ts',
+            'test.ts',
+            'lib.d.ts',
+            'lib.dom.d.ts',
+            'lib.es5.d.ts',
+            'lib.scripthost.d.ts',
+            'lib.webworker.importscripts.d.ts',
+          ],
         },
       },
     ]);
@@ -141,6 +159,31 @@ describe('typescript types', function() {
     ).replace(/\r\n/g, '\n');
     let expected = await inputFS.readFile(
       path.join(__dirname, '/integration/ts-types/private/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
+
+  it('should not throw errors on typing of a callback which returns a promise or value', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/ts-types/promise-or-value/index.ts'),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/ts-types/promise-or-value/dist/types.d.ts',
+        ),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+
+    let expected = await inputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/ts-types/promise-or-value/expected.d.ts',
+      ),
       'utf8',
     );
     assert.equal(dist, expected);
