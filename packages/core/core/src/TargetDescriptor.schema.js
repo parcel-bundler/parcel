@@ -49,6 +49,13 @@ export default ({
             __type: 'a wildcard or filepath',
           },
         },
+        {
+          type: 'object',
+          properties: {},
+          additionalProperties: {
+            type: 'boolean',
+          },
+        },
       ],
     },
     outputFormat: {
