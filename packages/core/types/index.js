@@ -113,7 +113,10 @@ export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean | Array<PackageName>,
+  includeNodeModules?:
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...},
   outputFormat?: OutputFormat,
   publicUrl?: string,
   distDir?: FilePath,
@@ -129,7 +132,10 @@ export type TargetDescriptor = {|
 export type EnvironmentOpts = {|
   context?: EnvironmentContext,
   engines?: Engines,
-  includeNodeModules?: boolean | Array<PackageName>,
+  includeNodeModules?:
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...},
   outputFormat?: OutputFormat,
   isLibrary?: boolean,
 |};
@@ -142,7 +148,10 @@ export type VersionMap = {
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
-  +includeNodeModules: boolean | Array<PackageName>;
+  +includeNodeModules:
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...};
   +outputFormat: OutputFormat;
   +isLibrary: boolean;
 
