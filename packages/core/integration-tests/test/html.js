@@ -883,7 +883,7 @@ describe('html', function() {
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {
-    let b = await bundle(
+    await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
       {production: true, scopeHoist: true},
     );
