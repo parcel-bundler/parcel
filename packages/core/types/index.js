@@ -623,9 +623,9 @@ export interface BundleGraph {
 }
 
 export type BundleResult = {|
-  contents: Blob,
-  ast?: AST,
-  map?: ?SourceMap,
+  +contents: Blob,
+  +ast?: AST,
+  +map?: ?SourceMap,
 |};
 
 export type ResolveResult = {|

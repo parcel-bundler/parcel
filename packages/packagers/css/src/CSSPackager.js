@@ -1,7 +1,11 @@
 // @flow
 
 import {Packager} from '@parcel/plugin';
-import {PromiseQueue, replaceBundleReferences} from '@parcel/utils';
+import {
+  PromiseQueue,
+  replaceInlineReferences,
+  replaceURLReferences,
+} from '@parcel/utils';
 
 export default new Packager({
   async package({bundle, bundleGraph, getInlineBundleContents}) {
@@ -33,17 +37,20 @@ export default new Packager({
     });
 
     let outputs = await queue.run();
-    return replaceBundleReferences({
+    return replaceInlineReferences({
       bundle,
       bundleGraph,
-      contents: await outputs.map(output => output).join('\n'),
-      replaceInline: {
-        getInlineBundleContents,
-        getInlineReplacement: (dep, inlineType, contents) => ({
-          from: dep.id,
-          to: contents,
-        }),
-      },
+      // $FlowFixMe
+      contents: replaceURLReferences({
+        bundle,
+        bundleGraph,
+        contents: outputs.map(output => output).join('\n'),
+      }).contents,
+      getInlineBundleContents,
+      getInlineReplacement: (dep, inlineType, contents) => ({
+        from: dep.id,
+        to: contents,
+      }),
     });
   },
 });

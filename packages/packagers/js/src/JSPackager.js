@@ -9,7 +9,7 @@ import {
   countLines,
   PromiseQueue,
   relativeBundlePath,
-  replaceBundleReferences,
+  replaceInlineReferences,
 } from '@parcel/utils';
 import path from 'path';
 
@@ -27,19 +27,15 @@ export default new Packager({
     options,
   }) {
     function replaceReferences({contents, map}) {
-      return replaceBundleReferences({
+      return replaceInlineReferences({
         bundle,
         bundleGraph,
         contents,
-        replaceInline: {
-          getInlineReplacement: (dependency, inlineType, content) => ({
-            from: `"${dependency.id}"`,
-            to: inlineType === 'string' ? JSON.stringify(content) : content,
-          }),
-          getInlineBundleContents,
-        },
-        // JSRuntime handles exporting URLs
-        replaceUrls: false,
+        getInlineReplacement: (dependency, inlineType, content) => ({
+          from: `"${dependency.id}"`,
+          to: inlineType === 'string' ? JSON.stringify(content) : content,
+        }),
+        getInlineBundleContents,
         map,
       });
     }
