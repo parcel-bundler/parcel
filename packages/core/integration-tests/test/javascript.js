@@ -462,9 +462,12 @@ describe('javascript', function() {
 
       assertBundles(b, [
         {
-          assets: ['importScripts.js', 'JSRuntime.js', 'JSRuntime.js'].concat(
-            workerType === 'serviceworker' ? ['bundle-url.js'] : [],
-          ),
+          assets: [
+            'importScripts.js',
+            'bundle-url.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+          ],
         },
         {
           name: `index-${workerType}.js`,
@@ -628,7 +631,7 @@ describe('javascript', function() {
         assets: ['index.js', 'lodash.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
-        assets: ['worker-a.js', 'JSRuntime.js'],
+        assets: ['worker-a.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker-b.js'],

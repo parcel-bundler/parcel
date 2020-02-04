@@ -310,6 +310,12 @@ export default class BundleGraph {
             return;
           }
 
+          // Don't deduplicate when context changes
+          if (node.value.env.context !== bundle.env.context) {
+            actions.skipChildren();
+            return;
+          }
+
           if (this._graph.hasEdge(node.value.id, asset.id, 'contains')) {
             inBundle = true;
             actions.stop();
