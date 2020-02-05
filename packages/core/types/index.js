@@ -66,7 +66,7 @@ export type PreProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: PureParcelConfigPipeline,
   transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
-  bundler?: ParcelPluginNode,
+  bundler: ?ParcelPluginNode,
   namers?: PureParcelConfigPipeline,
   runtimes?: {[EnvironmentContext]: PureParcelConfigPipeline, ...},
   packagers?: {[Glob]: ParcelPluginNode, ...},

@@ -35,7 +35,7 @@ export default class ParcelConfig {
   filePath: FilePath;
   resolvers: PureParcelConfigPipeline;
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
-  bundler: ParcelPluginNode | typeof undefined;
+  bundler: ?ParcelPluginNode;
   namers: PureParcelConfigPipeline;
   runtimes: {[EnvironmentContext]: PureParcelConfigPipeline, ...};
   packagers: GlobMap<ParcelPluginNode>;
