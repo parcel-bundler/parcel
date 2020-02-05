@@ -5,6 +5,6 @@ interface OtherProps {
   children: ReactNode
 }
 
-export function OtherComponent(props: Props) {
+export function OtherComponent(props: OtherProps) {
   return <div>{props.children}</div>;
 }
