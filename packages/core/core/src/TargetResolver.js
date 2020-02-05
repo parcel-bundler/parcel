@@ -22,7 +22,11 @@ import path from 'path';
 import browserslist from 'browserslist';
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
-import DESCRIPTOR_SCHEMA, {ENGINES_SCHEMA} from './TargetDescriptor.schema';
+import {
+  COMMON_TARGET_DESCRIPTOR_SCHEMA,
+  DESCRIPTOR_SCHEMA,
+  ENGINES_SCHEMA,
+} from './TargetDescriptor.schema';
 
 export type TargetResolveResult = {|
   targets: Array<Target>,
@@ -283,7 +287,7 @@ export default class TargetResolver {
         invariant(typeof pkgFilePath === 'string');
         invariant(pkgMap != null);
 
-        let _descriptor: mixed = pkgTargets[targetName] || {};
+        let _descriptor: mixed = pkgTargets[targetName] ?? {};
         if (typeof targetDist === 'string') {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
@@ -295,12 +299,14 @@ export default class TargetResolver {
           distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
-        let descriptor = parseDescriptor(
+        let descriptor = parseCommonTargetDescriptor(
           targetName,
           _descriptor,
           pkgFilePath,
           pkgContents,
         );
+        if (!descriptor) continue;
+
         let isLibrary =
           typeof distEntry === 'string'
             ? path.extname(distEntry) === '.js'
@@ -341,7 +347,6 @@ export default class TargetResolver {
         continue;
       }
 
-      let _descriptor: mixed = pkgTargets[targetName];
       let distPath: mixed = pkg[targetName];
       let distDir;
       let distEntry;
@@ -385,10 +390,10 @@ export default class TargetResolver {
         };
       }
 
-      if (_descriptor) {
+      if (targetName in pkgTargets) {
         let descriptor = parseDescriptor(
           targetName,
-          _descriptor,
+          pkgTargets[targetName],
           pkgFilePath,
           pkgContents,
         );
@@ -465,6 +470,26 @@ function parseDescriptor(
 ): TargetDescriptor | PackageTargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
+    descriptor,
+    pkgPath,
+    pkgContents,
+    '@parcel/core',
+    `/targets/${targetName}`,
+    `Invalid target descriptor for target "${targetName}"`,
+  );
+
+  // $FlowFixMe we just verified this
+  return descriptor;
+}
+
+function parseCommonTargetDescriptor(
+  targetName: string,
+  descriptor: mixed,
+  pkgPath: ?FilePath,
+  pkgContents: string | mixed,
+): TargetDescriptor | PackageTargetDescriptor | false {
+  validateSchema.diagnostic(
+    COMMON_TARGET_DESCRIPTOR_SCHEMA,
     descriptor,
     pkgPath,
     pkgContents,
