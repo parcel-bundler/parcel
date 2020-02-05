@@ -997,9 +997,10 @@ describe('sourcemaps', function() {
     ]);
     assert.equal(map.sourcesContent[0], sourceContent);
   });
-    it('should create correct sourceMappingURL', async function() {
+
+  it('should create correct sourceMappingURL', async function() {
     const b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-css/style.css')
+      path.join(__dirname, '/integration/sourcemap-css/style.css'),
     );
 
     const cssOutput = await fs.readFile(b.name, 'utf8');
@@ -1015,7 +1016,7 @@ describe('sourcemaps', function() {
       path.join(
         __dirname,
         '/integration/sourcemap-css-multiple-entrypoints/b/style.css'
-      )
+      ),
     ]);
 
     const bundle1 = [...b.childBundles][0];
@@ -1026,8 +1027,6 @@ describe('sourcemaps', function() {
     assert(cssOutput1.includes('/*# sourceMappingURL=/a/style.css.map */'));
     assert(cssOutput2.includes('/*# sourceMappingURL=/b/style.css.map */'));
   });
-
-
 
   it('Should be able to create inline sourcemaps', async function() {
     let sourceFilename = path.join(
