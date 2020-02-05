@@ -158,7 +158,7 @@ console.log("Hello World");
     - [Glob maps in `.parcelrc`](#glob-maps-in-parcelrc)
     - [`.parcelrc#extends`](#parcelrcextends)
     - [`.parcelrc#resolvers`](#parcelrcresolvers)
-    - [`.parcelrc#transformersrs`](#parcelrctransformers)
+    - [`.parcelrc#transformers`](#parcelrctransformers)
     - [`.parcelrc#bundler`](#parcelrcbundler)
     - [`.parcelrc#namers`](#parcelrcnamers)
     - [`.parcelrc#runtimes`](#parcelrcruntimes)
