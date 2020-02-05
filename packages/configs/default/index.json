@@ -26,7 +26,7 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
-    "*": ["@parcel/transformer-raw"]
+    "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
@@ -51,5 +51,9 @@
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": ["@parcel/reporter-cli", "@parcel/reporter-dev-server"]
+  "reporters": [
+    "@parcel/reporter-cli",
+    "@parcel/reporter-dev-server",
+    "@parcel/reporter-bundle-analyzer"
+  ]
 }

@@ -155,7 +155,9 @@ export class AssetRequestRunner extends RequestRunner<
   }
 
   async run(request: AssetRequestDesc, api: RequestRunnerAPI) {
-    api.invalidateOnFileUpdate(request.filePath);
+    api.invalidateOnFileUpdate(
+      await this.options.inputFS.realpath(request.filePath),
+    );
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,
@@ -301,6 +303,7 @@ export class DepPathRequestRunner extends RequestRunner<
     }
 
     let defer = this.shouldDeferDependency(dependency, assetGroup.sideEffects);
+    dependency.isDeferred = defer;
 
     let assetGroupNode = nodeFromAssetGroup(assetGroup, defer);
     let existingAssetGroupNode = this.assetGraph.getNode(assetGroupNode.id);
@@ -310,11 +313,17 @@ export class DepPathRequestRunner extends RequestRunner<
       assetGroupNode.deferred = existingAssetGroupNode.deferred && defer;
     }
     this.assetGraph.resolveDependency(dependency, assetGroupNode);
+
     if (existingAssetGroupNode) {
       // Node already existed, that asset might have deferred dependencies,
       // recheck all dependencies of all assets of this asset group
       this.assetGraph.traverse((node, parent, actions) => {
         if (node == assetGroupNode) {
+          return;
+        }
+
+        if (node.type === 'dependency' && !node.value.isDeferred) {
+          actions.skipChildren();
           return;
         }
 
@@ -324,6 +333,7 @@ export class DepPathRequestRunner extends RequestRunner<
             node.deferred &&
             !this.shouldDeferDependency(parent.value, node.value.sideEffects)
           ) {
+            parent.value.isDeferred = false;
             node.deferred = false;
             this.assetGraph.markIncomplete(node);
           }

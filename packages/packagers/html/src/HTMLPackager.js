@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Blob, Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
@@ -47,6 +47,12 @@ export default new Packager({
       return p.concat(bundles);
     }, []);
 
+    // Add bundles in the same bundle group that are not inline. For example, if two inline
+    // bundles refer to the same library that is extracted into a shared bundle.
+    bundles = bundles.concat(
+      bundleGraph.getSiblingBundles(bundle).filter(b => !b.isInline),
+    );
+
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
       replaceInlineAssetContent.bind(
@@ -68,7 +74,7 @@ async function getAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
   assetId,
-): Promise<?Blob> {
+) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
@@ -84,7 +90,7 @@ async function getAssetContent(
       bundleGraph,
     );
 
-    return bundleResult.contents;
+    return {bundle: inlineBundle, contents: bundleResult.contents};
   }
 
   return null;
@@ -111,7 +117,12 @@ async function replaceInlineAssetContent(
     );
 
     if (newContent != null) {
-      node.content = newContent;
+      let {contents, bundle} = newContent;
+      node.content = contents;
+
+      if (bundle.env.outputFormat === 'esmodule') {
+        node.attrs.type = 'module';
+      }
 
       // remove attr from output
       delete node.attrs['data-parcel-key'];
@@ -140,6 +151,7 @@ function insertBundleReferences(siblingBundles, tree) {
       bundles.push({
         tag: 'script',
         attrs: {
+          type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
           src: urlJoin(
             nullthrows(bundle.target).publicUrl ?? '/',
             nullthrows(bundle.name),

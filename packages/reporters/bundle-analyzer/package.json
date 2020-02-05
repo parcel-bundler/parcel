@@ -1,0 +1,26 @@
+{
+  "name": "@parcel/reporter-bundle-analyzer",
+  "version": "2.0.0-alpha.3.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/BundleAnalyzerReporter.js",
+  "source": "src/BundleAnalyzerReporter.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.3.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "@parcel/utils": "^2.0.0-alpha.3.1",
+    "nullthrows": "^1.1.1"
+  },
+  "devDependencies": {
+    "@parcel/types": "^2.0.0-alpha.3.1"
+  }
+}
