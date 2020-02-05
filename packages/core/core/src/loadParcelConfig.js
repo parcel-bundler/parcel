@@ -1,9 +1,9 @@
 // @flow
 import type {
   FilePath,
-  ParcelConfigFile,
+  RawParcelConfig,
   ResolvedParcelConfigFile,
-  PreProcessedParcelConfig,
+  ProcessedParcelConfig,
   PackageName,
   ExtendableParcelConfigPipeline,
 } from '@parcel/types';
@@ -60,27 +60,27 @@ export async function resolveParcelConfig(
     return null;
   }
 
-  return readAndProcess(configPath, options);
+  return readAndProcessConfigChain(configPath, options);
 }
 
 export function create(
   config: ResolvedParcelConfigFile,
   options: ParcelOptions,
 ) {
-  return processConfig(config, config.filePath, options);
+  return processConfigChain(config, config.filePath, options);
 }
 
-export async function readAndProcess(
+export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
 ) {
-  let config: ParcelConfigFile = parse(
+  let config: RawParcelConfig = parse(
     await options.inputFS.readFile(configPath),
   );
-  return processConfig(config, configPath, options);
+  return processConfigChain(config, configPath, options);
 }
 
-function relatifyPipeline(
+function processPipeline(
   pipeline: ?Array<PackageName>,
   filePath: FilePath,
 ): any {
@@ -97,7 +97,7 @@ function relatifyPipeline(
   }
 }
 
-function relatifyMap<T>(
+function processMap<T>(
   map: ?ConfigMap<any, any>,
   filePath: FilePath,
 ): ConfigMap<any, any> | typeof undefined {
@@ -113,7 +113,7 @@ function relatifyMap<T>(
       };
     } else {
       // $FlowFixMe I'm sure this is fine...
-      res[k] = relatifyPipeline<ExtendableParcelConfigPipeline>(
+      res[k] = processPipeline<ExtendableParcelConfigPipeline>(
         map[k],
         filePath,
       );
@@ -123,32 +123,32 @@ function relatifyMap<T>(
   return res;
 }
 
-export function preprocessConfig(
+export function processConfig(
   configFile: ResolvedParcelConfigFile,
-): PreProcessedParcelConfig {
+): ProcessedParcelConfig {
   return {
     extends: configFile.extends,
     filePath: configFile.filePath,
     resolveFrom: configFile.resolveFrom,
-    resolvers: relatifyPipeline(configFile.resolvers, configFile.filePath),
-    transformers: relatifyMap(configFile.transformers, configFile.filePath),
+    resolvers: processPipeline(configFile.resolvers, configFile.filePath),
+    transformers: processMap(configFile.transformers, configFile.filePath),
     bundler: configFile.bundler
       ? {
           packageName: configFile.bundler,
           resolveFrom: configFile.filePath,
         }
       : undefined,
-    namers: relatifyPipeline(configFile.namers, configFile.filePath),
-    runtimes: relatifyMap(configFile.runtimes, configFile.filePath),
-    packagers: relatifyMap(configFile.packagers, configFile.filePath),
-    optimizers: relatifyMap(configFile.optimizers, configFile.filePath),
-    reporters: relatifyPipeline(configFile.reporters, configFile.filePath),
-    validators: relatifyMap(configFile.validators, configFile.filePath),
+    namers: processPipeline(configFile.namers, configFile.filePath),
+    runtimes: processMap(configFile.runtimes, configFile.filePath),
+    packagers: processMap(configFile.packagers, configFile.filePath),
+    optimizers: processMap(configFile.optimizers, configFile.filePath),
+    reporters: processPipeline(configFile.reporters, configFile.filePath),
+    validators: processMap(configFile.validators, configFile.filePath),
   };
 }
 
-export async function processConfig(
-  configFile: ParcelConfigFile | ResolvedParcelConfigFile,
+export async function processConfigChain(
+  configFile: RawParcelConfig | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
 ) {
@@ -157,7 +157,7 @@ export async function processConfig(
   validateConfigFile(configFile, relativePath);
 
   // Process config...
-  let resolvedFile: PreProcessedParcelConfig = preprocessConfig({
+  let resolvedFile: ProcessedParcelConfig = processConfig({
     filePath,
     ...configFile,
   });
@@ -174,7 +174,7 @@ export async function processConfig(
       let {
         extendedFiles: moreExtendedFiles,
         config: baseConfig,
-      } = await readAndProcess(resolved, options);
+      } = await readAndProcessConfigChain(resolved, options);
       extendedFiles = extendedFiles.concat(moreExtendedFiles);
       config = mergeConfigs(baseConfig, resolvedFile);
     }
@@ -200,7 +200,7 @@ export async function resolveExtends(
 }
 
 export function validateConfigFile(
-  config: ParcelConfigFile | ResolvedParcelConfigFile,
+  config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
   validateNotEmpty(config, relativePath);
@@ -217,7 +217,7 @@ export function validateConfigFile(
 }
 
 export function validateNotEmpty(
-  config: ParcelConfigFile | ResolvedParcelConfigFile,
+  config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
@@ -225,7 +225,7 @@ export function validateNotEmpty(
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: PreProcessedParcelConfig,
+  ext: ProcessedParcelConfig,
 ): ParcelConfig {
   return new ParcelConfig(
     {

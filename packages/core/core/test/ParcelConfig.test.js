@@ -14,6 +14,7 @@ describe('ParcelConfig', () => {
     let config = new ParcelConfig(
       {
         filePath: '.parcelrc',
+        bundler: undefined,
         packagers: {
           '*.css': {
             packageName: 'parcel-packager-css',
@@ -46,6 +47,7 @@ describe('ParcelConfig', () => {
     let config = new ParcelConfig(
       {
         filePath: '.parcelrc',
+        bundler: undefined,
         transformers: {
           '*.jsx': [
             {
@@ -115,6 +117,7 @@ describe('ParcelConfig', () => {
       let config = new ParcelConfig(
         {
           filePath: configFilePath,
+          bundler: undefined,
           transformers: {
             '*.js': [
               {
@@ -153,6 +156,7 @@ describe('ParcelConfig', () => {
       let config = new ParcelConfig(
         {
           filePath: configFilePath,
+          bundler: undefined,
           transformers: {
             '*.js': [
               {

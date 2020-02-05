@@ -8,9 +8,9 @@ import {
   mergeMaps,
   mergeConfigs,
   resolveExtends,
-  readAndProcess,
+  readAndProcessConfigChain,
   resolveParcelConfig,
-  preprocessConfig,
+  processConfig,
 } from '../src/loadParcelConfig';
 import {validatePackageName} from '../src/ParcelConfig.schema';
 import {DEFAULT_OPTIONS} from './utils';
@@ -569,10 +569,10 @@ describe('loadParcelConfig', () => {
     });
   });
 
-  describe('readAndProcess', () => {
+  describe('readAndProcessConfigChain', () => {
     it('should load and merge configs', async () => {
       let defaultConfigPath = require.resolve('@parcel/config-default');
-      let defaultConfig = preprocessConfig({
+      let defaultConfig = processConfig({
         ...require('@parcel/config-default'),
         filePath: defaultConfigPath,
       });
@@ -589,7 +589,10 @@ describe('loadParcelConfig', () => {
         'subfolder',
         '.parcelrc',
       );
-      let {config} = await readAndProcess(subConfigFilePath, DEFAULT_OPTIONS);
+      let {config} = await readAndProcessConfigChain(
+        subConfigFilePath,
+        DEFAULT_OPTIONS,
+      );
 
       assert.deepEqual(config.transformers['*.js'], [
         {

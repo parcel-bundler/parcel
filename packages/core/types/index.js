@@ -43,7 +43,7 @@ export type RawParcelConfigPipeline = Array<PackageName>;
 export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
 export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
 
-export type ParcelConfigFile = {|
+export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: RawParcelConfigPipeline,
   transformers?: {[Glob]: RawParcelConfigPipeline, ...},
@@ -57,12 +57,12 @@ export type ParcelConfigFile = {|
 |};
 
 export type ResolvedParcelConfigFile = {|
-  ...ParcelConfigFile,
+  ...RawParcelConfig,
   filePath: FilePath,
   resolveFrom?: FilePath,
 |};
 
-export type PreProcessedParcelConfig = {|
+export type ProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: PureParcelConfigPipeline,
   transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},

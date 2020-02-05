@@ -13,7 +13,7 @@ import type {
   Optimizer,
   Reporter,
   Validator,
-  PreProcessedParcelConfig,
+  ProcessedParcelConfig,
   ParcelPluginNode,
   PureParcelConfigPipeline,
   ExtendableParcelConfigPipeline,
@@ -26,7 +26,7 @@ import loadPlugin from './loadParcelPlugin';
 type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
   $$raw: boolean,
-  config: PreProcessedParcelConfig,
+  config: ProcessedParcelConfig,
   packageManager: PackageManager,
 |};
 
@@ -44,10 +44,7 @@ export default class ParcelConfig {
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(
-    config: PreProcessedParcelConfig,
-    packageManager: PackageManager,
-  ) {
+  constructor(config: ProcessedParcelConfig, packageManager: PackageManager) {
     this.packageManager = packageManager;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
