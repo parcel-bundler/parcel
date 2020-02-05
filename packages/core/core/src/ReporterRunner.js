@@ -5,9 +5,13 @@ import type {ParcelOptions} from './types';
 
 import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
-import logger, {patchConsole, PluginLogger} from '@parcel/logger';
+import logger, {
+  patchConsole,
+  unpatchConsole,
+  PluginLogger,
+  INTERNAL_ORIGINAL_CONSOLE,
+} from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -46,6 +50,8 @@ export default class ReporterRunner {
 
     if (this.options.patchConsole) {
       patchConsole();
+    } else {
+      unpatchConsole();
     }
   }
 
@@ -60,9 +66,8 @@ export default class ReporterRunner {
           logger: new PluginLogger({origin: reporter.name}),
         });
       } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, reporter.name),
-        });
+        // We shouldn't emit a report event here as we will cause infinite loops...
+        INTERNAL_ORIGINAL_CONSOLE.error(e);
       }
     }
   }

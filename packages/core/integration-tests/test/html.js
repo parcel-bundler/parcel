@@ -821,4 +821,78 @@ describe('html', function() {
       assert(contents.includes('//unpkg.com/xyz'));
     }
   });
+
+  it('should support inline <script type="module">', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-module/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(html.includes('<script type="module">'));
+    assert(html.includes('document.write("Hello world")'));
+  });
+
+  it('should support shared bundles between multiple inline scripts', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(html.includes('<script type="module" src="'));
+    assert(html.includes('<script type="module">'));
+    assert(html.includes('.add(1, 2)'));
+    assert(html.includes('.add(2, 3)'));
+  });
+
+  it('should support multiple entries with shared sibling bundles', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    // Both HTML files should point to the sibling CSS file
+    let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+
+    html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+  });
 });
