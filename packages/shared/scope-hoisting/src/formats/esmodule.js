@@ -13,6 +13,7 @@ import {relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {relative} from 'path';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 export function generateBundleImports(
@@ -92,7 +93,13 @@ export function generateExports(
     )) {
       if (!symbol) {
         let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-        throw new Error(`${relativePath} does not export '${exportSymbol}'`);
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `${relativePath} does not export '${exportSymbol}'`,
+            filePath: entry.filePath,
+            // TODO: add codeFrame when AST from transformers is reused
+          },
+        });
       }
 
       symbol = replacements.get(symbol) || symbol;

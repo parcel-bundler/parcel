@@ -13,6 +13,7 @@ import template from '@babel/template';
 import invariant from 'assert';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
@@ -289,7 +290,13 @@ export function generateExports(
       )) {
         if (!symbol) {
           let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-          throw new Error(`${relativePath} does not export '${exportSymbol}'`);
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `${relativePath} does not export '${exportSymbol}'`,
+              filePath: entry.filePath,
+              // TODO: add codeFrames (actual and reexporting asset) when AST from transformers is reused
+            },
+          });
         }
 
         symbol = replacements.get(symbol) || symbol;
