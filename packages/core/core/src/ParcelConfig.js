@@ -13,12 +13,14 @@ import type {
   Optimizer,
   Reporter,
   Validator,
+} from '@parcel/types';
+import type {PackageManager} from '@parcel/package-manager';
+import type {
   ProcessedParcelConfig,
   ParcelPluginNode,
   PureParcelConfigPipeline,
   ExtendableParcelConfigPipeline,
-} from '@parcel/types';
-import type {PackageManager} from '@parcel/package-manager';
+} from './types';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';

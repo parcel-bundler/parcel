@@ -34,14 +34,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
-export type ParcelPluginNode = {|
-  packageName: PackageName,
-  resolveFrom: FilePath,
-|};
-
 export type RawParcelConfigPipeline = Array<PackageName>;
-export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
 
 export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
@@ -58,21 +51,6 @@ export type RawParcelConfig = {|
 
 export type ResolvedParcelConfigFile = {|
   ...RawParcelConfig,
-  filePath: FilePath,
-  resolveFrom?: FilePath,
-|};
-
-export type ProcessedParcelConfig = {|
-  extends?: PackageName | FilePath | Array<PackageName | FilePath>,
-  resolvers?: PureParcelConfigPipeline,
-  transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
-  bundler: ?ParcelPluginNode,
-  namers?: PureParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: PureParcelConfigPipeline, ...},
-  packagers?: {[Glob]: ParcelPluginNode, ...},
-  optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
-  reporters?: PureParcelConfigPipeline,
-  validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   filePath: FilePath,
   resolveFrom?: FilePath,
 |};

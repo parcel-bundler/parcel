@@ -3,11 +3,13 @@ import type {
   FilePath,
   RawParcelConfig,
   ResolvedParcelConfigFile,
-  ProcessedParcelConfig,
   PackageName,
-  ExtendableParcelConfigPipeline,
 } from '@parcel/types';
-import type {ParcelOptions} from './types';
+import type {
+  ParcelOptions,
+  ProcessedParcelConfig,
+  ExtendableParcelConfigPipeline,
+} from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import {parse} from 'json5';
 import path from 'path';
