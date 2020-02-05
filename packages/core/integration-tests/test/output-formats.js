@@ -325,8 +325,9 @@ describe('output formats', function() {
           ),
         {
           name: 'BuildError',
-          message:
+          message: path.normalize(
             "test/integration/formats/commonjs-sideeffects/other.js does not export 'a'",
+          ),
         },
       );
     });
@@ -532,8 +533,9 @@ describe('output formats', function() {
           ),
         {
           name: 'BuildError',
-          message:
+          message: path.normalize(
             "test/integration/formats/esm-sideeffects/b.js does not export 'a'",
+          ),
         },
       );
     });
