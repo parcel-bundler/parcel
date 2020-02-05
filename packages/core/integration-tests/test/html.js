@@ -881,4 +881,18 @@ describe('html', function() {
     assert(html.includes('.add(1, 2)'));
     assert(html.includes('.add(2, 3)'));
   });
+
+  it('should support multiple entries with shared sibling bundles', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    // Both HTML files should point to the sibling CSS file
+    let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+
+    html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+  });
 });
