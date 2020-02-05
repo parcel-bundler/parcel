@@ -1,7 +1,12 @@
 // @flow
-import type {FilePath, ModuleSpecifier} from '@parcel/types';
+import type {FilePath, ModuleSpecifier, SemverRange} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
-import type {PackageManager, PackageInstaller, InstallOptions} from './types';
+import type {
+  ModuleRequest,
+  PackageManager,
+  PackageInstaller,
+  InstallOptions,
+} from './types';
 import type {ResolveResult} from '@parcel/utils';
 
 import {installPackage} from './installPackage';
@@ -41,8 +46,12 @@ export class NodePackageManager implements PackageManager {
     };
   }
 
-  async require(name: ModuleSpecifier, from: FilePath) {
-    let {resolved} = await this.resolve(name, from);
+  async require(
+    name: ModuleSpecifier,
+    from: FilePath,
+    opts: ?{|range?: SemverRange|},
+  ) {
+    let {resolved} = await this.resolve(name, from, opts);
     return this.load(resolved, from);
   }
 
@@ -94,6 +103,7 @@ export class NodePackageManager implements PackageManager {
   async resolve(
     name: ModuleSpecifier,
     from: FilePath,
+    options?: ?{|range?: string|},
     triedInstall: boolean = false,
   ) {
     let basedir = dirname(from);
@@ -107,8 +117,8 @@ export class NodePackageManager implements PackageManager {
         });
       } catch (e) {
         if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-          await this.install([name], from);
-          return this.resolve(name, from, true);
+          await this.install([{name, range: options?.range}], from);
+          return this.resolve(name, from, options, true);
         }
         throw e;
       }
@@ -127,7 +137,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   async install(
-    modules: Array<ModuleSpecifier>,
+    modules: Array<ModuleRequest>,
     from: FilePath,
     opts?: InstallOptions,
   ) {
