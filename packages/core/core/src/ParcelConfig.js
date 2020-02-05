@@ -109,6 +109,7 @@ export default class ParcelConfig {
     Array<{|
       name: string,
       plugin: T,
+      resolveFrom: FilePath,
     |}>,
   > {
     return Promise.all(
@@ -116,6 +117,7 @@ export default class ParcelConfig {
         return {
           name: p.packageName,
           plugin: await this.loadPlugin(p),
+          resolveFrom: p.resolveFrom,
         };
       }),
     );
@@ -219,6 +221,7 @@ export default class ParcelConfig {
     Array<{|
       name: string,
       plugin: Runtime,
+      resolveFrom: FilePath,
     |}>,
   > {
     let runtimes = this.runtimes[context];
@@ -273,6 +276,7 @@ export default class ParcelConfig {
     Array<{|
       name: string,
       plugin: Optimizer,
+      resolveFrom: FilePath,
     |}>,
   > {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);

@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Namer} from '@parcel/types';
+import type {Namer, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
@@ -160,7 +160,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|name: string, plugin: Namer|}>,
+    namers: Array<{|name: string, plugin: Namer, resolveFrom: FilePath|}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
