@@ -113,8 +113,12 @@ export function link({
     return {asset: asset, symbol: exportSymbol, identifier};
   }
 
-  function replaceExportNode(module, originalName, path) {
-    let {asset: mod, symbol, identifier} = resolveSymbol(module, originalName);
+  // path is an Identifier that directly imports originalName from originalModule
+  function replaceExportNode(originalModule, originalName, path) {
+    let {asset: mod, symbol, identifier} = resolveSymbol(
+      originalModule,
+      originalName,
+    );
     let node;
 
     if (identifier) {
@@ -123,8 +127,8 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
-      node = addBundleImport(mod, path);
-      return node ? interop(module, symbol, path, node) : null;
+      node = addBundleImport(originalModule, path);
+      return node ? interop(originalModule, symbol, path, node) : null;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
