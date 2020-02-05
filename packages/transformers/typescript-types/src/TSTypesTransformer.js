@@ -25,6 +25,9 @@ export default new Transformer({
     );
 
     let opts: CompilerOptions = {
+      // React is the default. Users can override this by supplying their own tsconfig,
+      // which many TypeScript users will already have for typechecking, etc.
+      jsx: ts.JsxEmit.React,
       ...config,
       // Always emit output
       noEmit: false,
