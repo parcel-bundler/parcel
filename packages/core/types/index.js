@@ -272,6 +272,7 @@ export interface Dependency {
   +isOptional: boolean;
   +isURL: boolean;
   +isWeak: ?boolean;
+  +isDeferred: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
@@ -602,12 +603,6 @@ export interface MutableBundleGraph {
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(
-    bundle: Bundle,
-  ): Array<{|
-    bundleGroup: BundleGroup,
-    dependency: Dependency,
-  |}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   getChildBundles(bundle: Bundle): Array<Bundle>;
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
@@ -624,12 +619,14 @@ export interface BundleGraph {
     visit: GraphTraversalCallback<Bundle, TContext>,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
+  getExternalDependencies(bundle: Bundle): Array<Dependency>;
+  resolveExternalDependency(dependency: Dependency): ?BundleGroup;
 }
 
 export type BundleResult = {|
-  contents: Blob,
-  ast?: AST,
-  map?: ?SourceMap,
+  +contents: Blob,
+  +ast?: AST,
+  +map?: ?SourceMap,
 |};
 
 export type ResolveResult = {|

@@ -10,6 +10,7 @@ export type SchemaEntity =
   | SchemaArray
   | SchemaBoolean
   | SchemaString
+  | SchemaEnum
   | SchemaOneOf
   | SchemaAllOf
   | SchemaNot
@@ -38,6 +39,9 @@ export type SchemaString = {|
   enum?: Array<string>,
   __validate?: (val: string) => ?string,
   __type?: string,
+|};
+export type SchemaEnum = {|
+  enum: Array<mixed>,
 |};
 export type SchemaObject = {|
   type: 'object',
@@ -107,6 +111,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
     dataPath,
   ): ?SchemaError | Array<SchemaError> {
     let [schemaNode] = schemaAncestors;
+
     if (schemaNode.type) {
       let type = Array.isArray(dataNode) ? 'array' : typeof dataNode;
       if (schemaNode.type !== type) {
@@ -269,53 +274,61 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
             throw new Error(`Unimplemented schema type ${type}?`);
         }
       }
-    } else if (schemaNode.oneOf || schemaNode.allOf) {
-      let list = schemaNode.oneOf || schemaNode.allOf;
-      let results: Array<SchemaError | Array<SchemaError>> = [];
-      for (let f of list) {
-        let result = walk([f].concat(schemaAncestors), dataNode, dataPath);
-        if (result) results.push(result);
-      }
-      if (
-        schemaNode.oneOf
-          ? results.length == schemaNode.oneOf.length
-          : results.length > 0
-      ) {
-        // return the result with more values / longer key
-        results.sort((a, b) =>
-          Array.isArray(a) || Array.isArray(b)
-            ? Array.isArray(a) && !Array.isArray(b)
-              ? -1
-              : !Array.isArray(a) && Array.isArray(b)
-              ? 1
-              : Array.isArray(a) && Array.isArray(b)
-              ? b.length - a.length
-              : 0
-            : b.dataPath.length - a.dataPath.length,
-        );
-        return results[0];
-      }
-    } else if (schemaNode.not) {
-      let result = walk(
-        [schemaNode.not].concat(schemaAncestors),
-        dataNode,
-        dataPath,
-      );
-      if (!result || result.length == 0) {
+    } else {
+      if (schemaNode.enum && !schemaNode.enum.includes(dataNode)) {
         return {
-          type: 'other',
-          dataPath,
-          dataType: null,
-          message: schemaNode.__message,
-          actualValue: dataNode,
+          type: 'enum',
+          dataType: 'value',
+          dataPath: dataPath,
+          expectedValues: schemaNode.enum,
+          actualValue: schemaNode,
           ancestors: schemaAncestors,
         };
       }
-    } else if (Object.keys(schemaNode).length == 0) {
-      // "any"
-      return undefined;
-    } else {
-      throw new Error(`Unimplemented schema?`);
+
+      if (schemaNode.oneOf || schemaNode.allOf) {
+        let list = schemaNode.oneOf || schemaNode.allOf;
+        let results: Array<SchemaError | Array<SchemaError>> = [];
+        for (let f of list) {
+          let result = walk([f].concat(schemaAncestors), dataNode, dataPath);
+          if (result) results.push(result);
+        }
+        if (
+          schemaNode.oneOf
+            ? results.length == schemaNode.oneOf.length
+            : results.length > 0
+        ) {
+          // return the result with more values / longer key
+          results.sort((a, b) =>
+            Array.isArray(a) || Array.isArray(b)
+              ? Array.isArray(a) && !Array.isArray(b)
+                ? -1
+                : !Array.isArray(a) && Array.isArray(b)
+                ? 1
+                : Array.isArray(a) && Array.isArray(b)
+                ? b.length - a.length
+                : 0
+              : b.dataPath.length - a.dataPath.length,
+          );
+          return results[0];
+        }
+      } else if (schemaNode.not) {
+        let result = walk(
+          [schemaNode.not].concat(schemaAncestors),
+          dataNode,
+          dataPath,
+        );
+        if (!result || result.length == 0) {
+          return {
+            type: 'other',
+            dataPath,
+            dataType: null,
+            message: schemaNode.__message,
+            actualValue: dataNode,
+            ancestors: schemaAncestors,
+          };
+        }
+      }
     }
 
     return undefined;

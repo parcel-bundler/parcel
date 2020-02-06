@@ -31,6 +31,10 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
 
   switch (event.type) {
     case 'buildStart': {
+      if (logLevelFilter < logLevels.info) {
+        break;
+      }
+
       // Clear any previous output
       resetWindow();
 
@@ -88,6 +92,10 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       writeDiagnostic(event.diagnostics, 'red', true);
       break;
     case 'log': {
+      if (logLevelFilter < logLevels[event.level]) {
+        break;
+      }
+
       switch (event.level) {
         case 'success':
           writeOut(chalk.green(event.message));

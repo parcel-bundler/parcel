@@ -13,6 +13,11 @@ const COMMON_TARGETS_FIXTURE_PATH = path.join(
   'fixtures/common-targets',
 );
 
+const COMMON_TARGETS_IGNORE_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/common-targets-ignore',
+);
+
 const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
   'fixtures/custom-targets',
@@ -198,6 +203,56 @@ describe('TargetResolver', () => {
               end: {
                 column: 36,
                 line: 4,
+              },
+            },
+          },
+        ],
+      },
+    );
+  });
+
+  it('allows ignoring common targets from package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_IGNORE_FIXTURE_PATH),
+      {
+        files: [
+          {
+            filePath: path.join(
+              COMMON_TARGETS_IGNORE_FIXTURE_PATH,
+              'package.json',
+            ),
+          },
+        ],
+        targets: [
+          {
+            name: 'app',
+            distDir: path.join(COMMON_TARGETS_IGNORE_FIXTURE_PATH, 'dist'),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'node',
+              engines: {
+                node: '>= 8.0.0',
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: false,
+            },
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(
+                COMMON_TARGETS_IGNORE_FIXTURE_PATH,
+                'package.json',
+              ),
+              start: {
+                column: 10,
+                line: 3,
+              },
+              end: {
+                column: 24,
+                line: 3,
               },
             },
           },

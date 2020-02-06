@@ -1,1 +1,1 @@
-module.exports = 'worker';
+console.log('logged from worker.js');
