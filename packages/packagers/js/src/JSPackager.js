@@ -9,7 +9,7 @@ import {
   countLines,
   PromiseQueue,
   relativeBundlePath,
-  replaceBundleReferences,
+  replaceInlineReferences,
 } from '@parcel/utils';
 import path from 'path';
 
@@ -27,7 +27,7 @@ export default new Packager({
     options,
   }) {
     function replaceReferences({contents, map}) {
-      return replaceBundleReferences({
+      return replaceInlineReferences({
         bundle,
         bundleGraph,
         contents,
