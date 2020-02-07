@@ -99,9 +99,9 @@ export default new Bundler({
             for (let bundle of siblings) {
               bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
             }
+          } else {
+            siblingBundlesByAsset.set(asset.id, siblingBundles);
           }
-
-          siblingBundlesByAsset.set(asset.id, siblingBundles);
 
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
