@@ -894,5 +894,8 @@ describe('html', function() {
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
     assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+
+    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
   });
 });
