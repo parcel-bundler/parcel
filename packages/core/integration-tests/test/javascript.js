@@ -347,12 +347,26 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers/index.js'),
+      {
+        outputFS: inputFS,
+      },
+    );
 
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'common.js', 'worker-client.js', 'feature.js'],
+        assets: [
+          'index.js',
+          'common.js',
+          'worker-client.js',
+          'feature.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['service-worker.js'],
@@ -378,7 +392,7 @@ describe('javascript', function() {
       },
       {
         name: 'index.js',
-        assets: ['index.js'],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js', 'JSRuntime.js'],
       },
       {
         assets: ['shared-worker.js'],
@@ -419,6 +433,10 @@ describe('javascript', function() {
           'common.js',
           'worker-client.js',
           'feature.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
         ],
       },
       {
@@ -444,11 +462,16 @@ describe('javascript', function() {
 
       assertBundles(b, [
         {
-          name: `index-${workerType}.js`,
-          assets: [`index-${workerType}.js`],
+          assets: [
+            'importScripts.js',
+            'bundle-url.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+          ],
         },
         {
-          assets: ['importScripts.js'],
+          name: `index-${workerType}.js`,
+          assets: [`index-${workerType}.js`, 'bundle-url.js', 'JSRuntime.js'],
         },
         {
           assets: ['imported.js'],
@@ -470,8 +493,13 @@ describe('javascript', function() {
       );
 
       assert(
-        workerBundleContents.match(
-          /importScripts\("\/imported\.[0-9a-f]*\.js"\);\nimportScripts\("\/imported\.[0-9a-f]*\.js", "\/imported2\.[0-9a-f]*\.js"\);/,
+        workerBundleContents.includes(
+          'importScripts(require("imported.js"));\n',
+        ),
+      );
+      assert(
+        workerBundleContents.includes(
+          'importScripts(require("imported.js"), require("imported2.js"));\n',
         ),
       );
     });
@@ -486,8 +514,11 @@ describe('javascript', function() {
     );
 
     assertBundles(b, [
-      {name: 'index-external.js', assets: ['index-external.js']},
-      {assets: ['external.js']},
+      {
+        name: 'index-external.js',
+        assets: ['index-external.js', 'bundle-url.js', 'JSRuntime.js'],
+      },
+      {assets: ['external.js', 'JSRuntime.js']},
     ]);
 
     let workerBundleFile = path.join(
@@ -503,7 +534,12 @@ describe('javascript', function() {
 
     assert(
       workerBundleContents.includes(
-        'importScripts("https://unpkg.com/parcel");',
+        'importScripts(require("https://unpkg.com/parcel"));',
+      ),
+    );
+    assert(
+      workerBundleContents.includes(
+        'module.exports = "https://unpkg.com/parcel";',
       ),
     );
   });
@@ -516,7 +552,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'index.js'],
+        assets: [
+          'index.js',
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+        ],
       },
       {
         assets: ['worker-nested.js'],
@@ -535,7 +577,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js'],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker.js', 'worker-dep.js'],
@@ -586,10 +628,10 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'lodash.js'],
+        assets: ['index.js', 'lodash.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
-        assets: ['worker-a.js'],
+        assets: ['worker-a.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker-b.js'],
@@ -619,7 +661,7 @@ describe('javascript', function() {
         assets: ['index.html'],
       },
       {
-        assets: ['index.js'],
+        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
       },
       {
         assets: ['worker.js'],
@@ -972,6 +1014,21 @@ describe('javascript', function() {
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
+  });
+
+  it('should not insert global variables when used in a module specifier', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-module-specifier/a.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['a.js', 'b.js', 'c.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, 1234);
   });
 
   it('should handle re-declaration of the global constant', async function() {

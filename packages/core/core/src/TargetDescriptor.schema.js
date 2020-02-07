@@ -24,7 +24,7 @@ export const ENGINES_SCHEMA: SchemaEntity = {
   },
 };
 
-export default ({
+export const DESCRIPTOR_SCHEMA: SchemaEntity = {
   type: 'object',
   properties: {
     context: {
@@ -47,6 +47,13 @@ export default ({
           items: {
             type: 'string',
             __type: 'a wildcard or filepath',
+          },
+        },
+        {
+          type: 'object',
+          properties: {},
+          additionalProperties: {
+            type: 'boolean',
           },
         },
       ],
@@ -89,4 +96,13 @@ export default ({
     engines: ENGINES_SCHEMA,
   },
   additionalProperties: false,
-}: SchemaEntity);
+};
+
+export const COMMON_TARGET_DESCRIPTOR_SCHEMA: SchemaEntity = {
+  oneOf: [
+    DESCRIPTOR_SCHEMA,
+    {
+      enum: [false],
+    },
+  ],
+};

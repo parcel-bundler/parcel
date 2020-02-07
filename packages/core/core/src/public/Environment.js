@@ -83,7 +83,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.engines;
   }
 
-  get includeNodeModules(): boolean | Array<PackageName> {
+  get includeNodeModules():
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...} {
     return this.#environment.includeNodeModules;
   }
 

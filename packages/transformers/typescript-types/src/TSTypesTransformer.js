@@ -3,6 +3,7 @@
 import {Transformer} from '@parcel/plugin';
 import path from 'path';
 import SourceMap from '@parcel/source-map';
+import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions} from 'typescript';
@@ -17,13 +18,16 @@ export default new Transformer({
     await loadTSConfig(config, options);
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, config, options, logger}) {
     let ts: TypeScriptModule = await options.packageManager.require(
       'typescript',
       asset.filePath,
     );
 
     let opts: CompilerOptions = {
+      // React is the default. Users can override this by supplying their own tsconfig,
+      // which many TypeScript users will already have for typechecking, etc.
+      jsx: ts.JsxEmit.React,
       ...config,
       // Always emit output
       noEmit: false,
@@ -50,7 +54,7 @@ export default new Transformer({
       .slice(0, -path.extname(asset.filePath).length);
     let moduleGraph = new TSModuleGraph(ts, mainModuleName);
 
-    program.emit(undefined, undefined, undefined, true, {
+    let emitResult = program.emit(undefined, undefined, undefined, true, {
       afterDeclarations: [
         // 1. Build module graph
         context => sourceFile => {
@@ -62,6 +66,69 @@ export default new Transformer({
         },
       ],
     });
+
+    let diagnostics = ts
+      .getPreEmitDiagnostics(program)
+      .concat(emitResult.diagnostics);
+
+    if (diagnostics.length > 0) {
+      for (let diagnostic of diagnostics) {
+        let filename = asset.filePath;
+        let {file} = diagnostic;
+
+        let diagnosticMessage =
+          typeof diagnostic.messageText === 'string'
+            ? diagnostic.messageText
+            : diagnostic.messageText.messageText;
+
+        let codeframe: ?DiagnosticCodeFrame;
+        if (file != null && diagnostic.start != null) {
+          let source = file.text || diagnostic.source;
+          if (file.fileName) {
+            filename = file.fileName;
+          }
+
+          // $FlowFixMe
+          if (source) {
+            let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
+            let start = {
+              line: lineChar.line + 1,
+              column: lineChar.character + 1,
+            };
+            let end = {
+              line: start.line,
+              column: start.column + 1,
+            };
+
+            if (typeof diagnostic.length === 'number') {
+              let endCharPosition = file.getLineAndCharacterOfPosition(
+                diagnostic.start + diagnostic.length,
+              );
+
+              end = {
+                line: endCharPosition.line + 1,
+                column: endCharPosition.character + 1,
+              };
+            }
+
+            codeframe = {
+              code: source,
+              codeHighlights: {
+                start,
+                end,
+                message: diagnosticMessage,
+              },
+            };
+          }
+        }
+
+        logger.warn({
+          message: diagnosticMessage,
+          filePath: filename,
+          codeFrame: codeframe ? codeframe : undefined,
+        });
+      }
+    }
 
     let code = nullthrows(host.outputCode);
     code = code.substring(0, code.lastIndexOf('//# sourceMappingURL'));

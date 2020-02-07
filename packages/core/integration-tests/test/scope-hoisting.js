@@ -483,6 +483,28 @@ describe('scope hoisting', function() {
       await subscription.unsubscribe();
     });
 
+    it('removes deferred reexports when imported from multiple asssets', async function() {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-multiple/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        path.join(distDir, 'a.js'),
+        'utf8',
+      );
+
+      assert(!contents.includes('$import$'));
+      assert(contents.includes('= 1234;'));
+      assert(!contents.includes('= 5678;'));
+
+      // can't test dynamic imports in node
+      // let output = await run(b);
+      // assert.deepEqual(output, [1234, 1234]);
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(

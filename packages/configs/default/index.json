@@ -31,7 +31,10 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
-    "*": ["@parcel/transformer-raw"]
+    "*.{eot,gif,jpg,jpeg,ico,mp4,png,svg,ttf,woff}": [
+      "@parcel/transformer-raw"
+    ],
+    "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
@@ -40,6 +43,8 @@
       "@parcel/runtime-browser-hmr",
       "@parcel/runtime-react-refresh"
     ],
+    "service-worker": ["@parcel/runtime-js"],
+    "web-worker": ["@parcel/runtime-js"],
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
@@ -60,6 +65,7 @@
   "reporters": [
     "@atlassian/parcel-reporter-analytics",
     "@parcel/reporter-cli",
-    "@parcel/reporter-dev-server"
+    "@parcel/reporter-dev-server",
+    "@parcel/reporter-bundle-analyzer"
   ]
 }

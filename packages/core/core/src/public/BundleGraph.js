@@ -70,18 +70,35 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  getBundleGroupsReferencedByBundle(
-    bundle: IBundle,
-  ): Array<{|
-    bundleGroup: BundleGroup,
-    dependency: IDependency,
-  |}> {
-    return this.#graph
-      .getBundleGroupsReferencedByBundle(bundleToInternalBundle(bundle))
-      .map(({bundleGroup, dependency}) => ({
-        bundleGroup,
-        dependency: new Dependency(dependency),
-      }));
+  getExternalDependencies(bundle: IBundle): Array<IDependency> {
+    let externalDependencies = [];
+    this.#graph.traverseBundle(bundleToInternalBundle(bundle), node => {
+      if (
+        node.type === 'dependency' &&
+        (this.#graph.getDependencyResolution(node.value) == null ||
+          this.#graph._graph
+            .getNodesConnectedFrom(node)
+            .find(node => node.type === 'bundle_group'))
+      ) {
+        externalDependencies.push(new Dependency(node.value));
+      }
+    });
+    return externalDependencies;
+  }
+
+  resolveExternalDependency(dependency: IDependency): ?BundleGroup {
+    let node = this.#graph._graph
+      .getNodesConnectedFrom(
+        nullthrows(this.#graph._graph.getNode(dependency.id)),
+      )
+      .find(node => node.type === 'bundle_group');
+
+    if (node == null) {
+      return;
+    }
+
+    invariant(node.type === 'bundle_group');
+    return node.value;
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {

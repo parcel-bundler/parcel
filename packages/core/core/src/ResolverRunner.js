@@ -81,6 +81,10 @@ export default class ResolverRunner {
         }
       }
     } else {
+      if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
+        // A protocol-relative URL, e.g `url('//example.com/foo.png')`
+        return null;
+      }
       filePath = dependency.moduleSpecifier;
     }
 
@@ -90,6 +94,9 @@ export default class ResolverRunner {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
+      if (!pipeline) {
+        pipeline = 'url';
+      }
     }
 
     for (let resolver of resolvers) {
