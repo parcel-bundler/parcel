@@ -1,7 +1,11 @@
 // @flow
 
 import assert from 'assert';
-import AssetGraph, {nodeFromAssetGroup, nodeFromDep} from '../src/AssetGraph';
+import AssetGraph, {
+  nodeFromAssetGroup,
+  nodeFromDep,
+  nodeFromEntryFile,
+} from '../src/AssetGraph';
 import {createDependency} from '../src/Dependency';
 import {createAsset} from '../src/InternalAsset';
 import {createEnvironment} from '../src/Environment';
@@ -47,11 +51,15 @@ describe('AssetGraph', () => {
       {filePath: '/path/to/index1/src/main.js'},
     ]);
 
-    assert(graph.nodes.has('entry_file:/path/to/index1/src/main.js'));
+    assert(
+      graph.nodes.has(
+        nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+      ),
+    );
     assert(
       graph.hasEdge(
         'entry_specifier:/path/to/index1',
-        'entry_file:/path/to/index1/src/main.js',
+        nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
       ),
     );
   });
@@ -105,16 +113,16 @@ describe('AssetGraph', () => {
       },
       {
         from: 'entry_specifier:/path/to/index1',
-        to: 'entry_file:/path/to/index1/src/main.js',
+        to: nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
         type: null,
       },
       {
         from: 'entry_specifier:/path/to/index2',
-        to: 'entry_file:/path/to/index2/src/main.js',
+        to: nodeFromEntryFile({filePath: '/path/to/index2/src/main.js'}).id,
         type: null,
       },
       {
-        from: 'entry_file:/path/to/index1/src/main.js',
+        from: nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index1/src/main.js',
           pipeline: 'test',
@@ -124,7 +132,7 @@ describe('AssetGraph', () => {
         type: null,
       },
       {
-        from: 'entry_file:/path/to/index2/src/main.js',
+        from: nodeFromEntryFile({filePath: '/path/to/index2/src/main.js'}).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index2/src/main.js',
           pipeline: 'test',
