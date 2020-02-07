@@ -1,12 +1,12 @@
 // @flow
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath, File} from '@parcel/types';
-import type {ParcelOptions} from './types';
+import type {Entry, ParcelOptions} from './types';
 import path from 'path';
 import {isGlob, glob} from '@parcel/utils';
 
 export type EntryResult = {|
-  entries: Array<FilePath>,
+  entries: Array<Entry>,
   files: Array<File>,
 |};
 
@@ -65,7 +65,7 @@ export class EntryResolver {
         }
 
         return {
-          entries: [source],
+          entries: [{filePath: source, packagePath: entry}],
           files: [{filePath: pkg.filePath}],
         };
       }
@@ -73,7 +73,7 @@ export class EntryResolver {
       throw new Error(`Could not find entry: ${entry}`);
     } else if (stat.isFile()) {
       return {
-        entries: [entry],
+        entries: [{filePath: entry}],
         files: [],
       };
     }

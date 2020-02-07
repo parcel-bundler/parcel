@@ -43,7 +43,9 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
-    graph.resolveEntry('/path/to/index1', ['/path/to/index1/src/main.js']);
+    graph.resolveEntry('/path/to/index1', [
+      {filePath: '/path/to/index1/src/main.js'},
+    ]);
 
     assert(graph.nodes.has('entry_file:/path/to/index1/src/main.js'));
     assert(
@@ -60,11 +62,15 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index1', '/path/to/index2'],
     });
 
-    graph.resolveEntry('/path/to/index1', ['/path/to/index1/src/main.js']);
-    graph.resolveEntry('/path/to/index2', ['/path/to/index2/src/main.js']);
+    graph.resolveEntry('/path/to/index1', [
+      {filePath: '/path/to/index1/src/main.js'},
+    ]);
+    graph.resolveEntry('/path/to/index2', [
+      {filePath: '/path/to/index2/src/main.js'},
+    ]);
 
-    graph.resolveTargets('/path/to/index1/src/main.js', TARGETS);
-    graph.resolveTargets('/path/to/index2/src/main.js', TARGETS);
+    graph.resolveTargets({filePath: '/path/to/index1/src/main.js'}, TARGETS);
+    graph.resolveTargets({filePath: '/path/to/index2/src/main.js'}, TARGETS);
 
     assert(
       graph.nodes.has(
@@ -137,8 +143,10 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index'],
     });
 
-    graph.resolveEntry('/path/to/index', ['/path/to/index/src/main.js']);
-    graph.resolveTargets('/path/to/index/src/main.js', TARGETS);
+    graph.resolveEntry('/path/to/index', [
+      {filePath: '/path/to/index/src/main.js'},
+    ]);
+    graph.resolveTargets({filePath: '/path/to/index/src/main.js'}, TARGETS);
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
@@ -171,8 +179,10 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index'],
     });
 
-    graph.resolveEntry('/path/to/index', ['/path/to/index/src/main.js']);
-    graph.resolveTargets('/path/to/index/src/main.js', TARGETS);
+    graph.resolveEntry('/path/to/index', [
+      {filePath: '/path/to/index/src/main.js'},
+    ]);
+    graph.resolveTargets({filePath: '/path/to/index/src/main.js'}, TARGETS);
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
@@ -305,8 +315,8 @@ describe('AssetGraph', () => {
     let graph = new AssetGraph();
     graph.initialize({targets: TARGETS, entries: ['./index']});
 
-    graph.resolveEntry('./index', ['/path/to/index/src/main.js']);
-    graph.resolveTargets('/path/to/index/src/main.js', TARGETS);
+    graph.resolveEntry('./index', [{filePath: '/path/to/index/src/main.js'}]);
+    graph.resolveTargets({filePath: '/path/to/index/src/main.js'}, TARGETS);
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
