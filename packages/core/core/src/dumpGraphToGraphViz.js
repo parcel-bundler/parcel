@@ -71,8 +71,6 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isInline) parts.push('inline');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-    } else if (node.type === 'request') {
-      label = node.value.type + ':' + node.id;
     }
     n.set('label', label);
   }

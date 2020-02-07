@@ -152,7 +152,7 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
   });
 }
 
-type RunOpts = {require?: boolean, ...};
+type RunOpts = {require?: boolean, port?: number, ...};
 
 export async function runBundles(
   parent: Bundle,
@@ -172,6 +172,7 @@ export async function runBundles(
       let prepared = prepareBrowserContext(
         nullthrows(parent.filePath),
         globals,
+        opts.port,
       );
       ctx = prepared.ctx;
       promises = prepared.promises;
@@ -182,7 +183,11 @@ export async function runBundles(
       ctx = prepareNodeContext(nullthrows(parent.filePath), globals);
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(nullthrows(parent.filePath), globals);
+      let browser = prepareBrowserContext(
+        nullthrows(parent.filePath),
+        globals,
+        opts.port,
+      );
       ctx = {
         ...browser.ctx,
         ...prepareNodeContext(nullthrows(parent.filePath), globals),
@@ -385,6 +390,7 @@ export function normaliseNewlines(text: string): string {
 function prepareBrowserContext(
   filePath: FilePath,
   globals: mixed,
+  port: number = 80,
 ): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
   // for testing dynamic imports
   const fakeElement = {
@@ -442,7 +448,7 @@ function prepareBrowserContext(
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'},
+      location: {hostname: 'localhost', port},
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
