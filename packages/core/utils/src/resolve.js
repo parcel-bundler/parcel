@@ -33,7 +33,11 @@ export async function resolve(
     opts = opts || {};
     // $FlowFixMe
     opts.packageFilter = pkg => {
-      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+      if (
+        typeof pkg.name === 'string' &&
+        pkg.name.startsWith('@parcel/') &&
+        pkg.name !== '@parcel/watcher'
+      ) {
         if (pkg.source) {
           pkg.main = pkg.source;
         }

@@ -140,7 +140,7 @@ export class NodePackageManager implements PackageManager {
 
         throw new ThrowableDiagnostic({
           diagnostic: conflicts.fields.map(field => ({
-            message: `Could not find module ${name}. Run yarn or npm.`,
+            message: `Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
             language: 'json',
@@ -177,7 +177,7 @@ export class NodePackageManager implements PackageManager {
           } else if (conflicts != null) {
             throw new ThrowableDiagnostic({
               diagnostic: {
-                message: `Could not find module ${name} satisfying ${range}.`,
+                message: `Could not find module "${name}" satisfying ${range}.`,
                 filePath: conflicts.filePath,
                 origin: '@parcel/package-manager',
                 language: 'json',
@@ -197,7 +197,7 @@ export class NodePackageManager implements PackageManager {
           }
 
           let version = pkg?.version;
-          let message = `Could not resolve package ${name} that satisfies ${range}.`;
+          let message = `Could not resolve package "${name}" that satisfies ${range}.`;
           if (version != null) {
             message += ` Found ${version}.`;
           }
