@@ -10,7 +10,7 @@ import {
   getNextBuild,
 } from '@parcel/test-utils';
 
-describe.only('monorepos', function() {
+describe('monorepos', function() {
   beforeEach(async () => {
     await outputFS.rimraf(path.join(__dirname, '/monorepo'));
   });
