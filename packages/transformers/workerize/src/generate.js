@@ -6,7 +6,7 @@ export function generateMainCode(originalSpecifier, methods) {
     export default function createWorker() {
       let counter = 0;
       let callbacks = {};
-      let worker = new Worker('blob-url:${originalSpecifier}');
+      let worker = new Worker(${JSON.stringify(originalSpecifier)});
       let term = worker.terminate;
       worker.kill = signal => {
         worker.postMessage({ type: 'KILL', signal });
