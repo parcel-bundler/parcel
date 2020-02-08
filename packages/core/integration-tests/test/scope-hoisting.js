@@ -1647,7 +1647,7 @@ describe('scope hoisting', function() {
     assert(!contents.includes(`parcelRequire =`));
   });
 
-  it('should include prelude in shared worker bundles', async function() {
+  it.skip('should include prelude in shared worker bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
     );

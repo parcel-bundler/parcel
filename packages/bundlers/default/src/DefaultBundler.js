@@ -173,7 +173,13 @@ export default new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
-        .filter(b => !b.isEntry && (b.type === 'js' || b.type === 'css'));
+        .filter(
+          b =>
+            !b.isEntry &&
+            (b.type === 'js' || b.type === 'css') &&
+            // Don't share across workers for now as worker-specific code is added
+            !b.env.isIsolated(),
+        );
 
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles

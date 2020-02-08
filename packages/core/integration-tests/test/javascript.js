@@ -642,7 +642,7 @@ describe('javascript', function() {
     });
   });
 
-  it('should create a shared bundle to deduplicate assets in workers', async () => {
+  it.skip('should create a shared bundle to deduplicate assets in workers', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
     );
@@ -683,7 +683,7 @@ describe('javascript', function() {
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
   });
 
-  it('should create a shared bundle between browser and worker contexts', async () => {
+  it.skip('should create a shared bundle between browser and worker contexts', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared-worker/index.html'),
     );
