@@ -1,6 +1,10 @@
 // @flow
 
-import type {MutableAsset, PluginOptions} from '@parcel/types';
+import type {
+  DependencyOptions,
+  MutableAsset,
+  PluginOptions,
+} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
@@ -145,6 +149,9 @@ export default ({
             context: 'web-worker',
             outputFormat:
               isModule && options.scopeHoist ? 'esmodule' : undefined,
+          },
+          meta: {
+            webworker: true,
           },
         });
         return;
@@ -306,12 +313,17 @@ function addDependency(
   });
 }
 
-function addURLDependency(asset, node, opts = {}) {
+function addURLDependency(
+  asset: MutableAsset,
+  node,
+  opts: $Shape<DependencyOptions> = {},
+) {
   let url = node.value;
   asset.addURLDependency(url, {
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     ...opts,
   });
+
   morph(
     node,
     types.callExpression(types.identifier('require'), [
