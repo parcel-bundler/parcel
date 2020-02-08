@@ -19,6 +19,7 @@
     "@parcel/utils": "^2.0.0-alpha.3.1",
     "marked": "^0.8.0",
     "highlight.js": "^9.17.1",
-    "front-matter": "^3.0.2"
+    "front-matter": "^3.0.2",
+    "mustache": "^3.2.0"
   }
 }

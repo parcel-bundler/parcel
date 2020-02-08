@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/*.md --no-cache"
+    "demo": "parcel src/*.md --no-cache"
   },
   "devDependencies": {
     "parcel": "^2.0.0-alpha.3.2"
