@@ -37,14 +37,11 @@ export default function getRootDir(files: Array<FilePath>): FilePath {
 // Transforms a path like `packages/*/src/index.js` to the root of the glob, `packages/`
 function findGlobRoot(dir: FilePath) {
   let parts = dir.split(path.sep);
-  let i = parts.length - 1;
   let last = parts.length;
-  while (i >= 0) {
+  for (let i = parts.length - 1; i >= 0; i--) {
     if (isGlob(parts[i])) {
       last = i;
     }
-
-    i--;
   }
 
   return parts.slice(0, last).join(path.sep);
