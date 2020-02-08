@@ -14,7 +14,7 @@ import type {WorkerApi} from './WorkerFarm';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import Logger, {patchConsole} from '@parcel/logger';
+import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import bus from './bus';
 import Profiler from './Profiler';
@@ -113,6 +113,8 @@ export class Child {
         let [moduleName, childOptions] = args;
         if (childOptions.patchConsole) {
           patchConsole();
+        } else {
+          unpatchConsole();
         }
 
         result = responseFromContent(this.childInit(moduleName, child));

@@ -57,6 +57,10 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isWeak;
   }
 
+  get isDeferred(): boolean {
+    return this.#dep.isDeferred;
+  }
+
   get loc(): ?SourceLocation {
     return this.#dep.loc;
   }
