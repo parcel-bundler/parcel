@@ -333,6 +333,7 @@ export interface MutableAsset extends BaseAsset {
   addIncludedFile(file: File): void;
   addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  setEnvironment(opts: EnvironmentOpts): void;
 }
 
 export interface Asset extends BaseAsset {

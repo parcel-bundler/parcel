@@ -53,10 +53,6 @@ describe('monorepos', function() {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
-      {
-        name: 'pkg-b.module.css',
-        assets: ['index.module.css'],
-      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -87,13 +83,7 @@ describe('monorepos', function() {
       path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.js'),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.module.css"'));
-
-    contents = await outputFS.readFile(
-      path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.css'),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
   it('should build multiple packages in a monorepo at once, pointing at directories with "source" field in package.json', async function() {
@@ -126,10 +116,6 @@ describe('monorepos', function() {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
-      {
-        name: 'pkg-b.module.css',
-        assets: ['index.module.css'],
-      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -160,13 +146,7 @@ describe('monorepos', function() {
       path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.js'),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.module.css"'));
-
-    contents = await outputFS.readFile(
-      path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.css'),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
   it('should build multiple packages in a monorepo at once, pointing at a glob of files', async function() {
@@ -196,10 +176,6 @@ describe('monorepos', function() {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
-      {
-        name: 'pkg-b.module.css',
-        assets: ['index.module.css'],
-      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -230,13 +206,7 @@ describe('monorepos', function() {
       path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.js'),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.module.css"'));
-
-    contents = await outputFS.readFile(
-      path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.css'),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
   it('should build multiple packages in a monorepo at once, pointing at a glob of directories', async function() {
@@ -265,10 +235,6 @@ describe('monorepos', function() {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
-      {
-        name: 'pkg-b.module.css',
-        assets: ['index.module.css'],
-      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -299,13 +265,7 @@ describe('monorepos', function() {
       path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.js'),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.module.css"'));
-
-    contents = await outputFS.readFile(
-      path.join(__dirname, '/integration/monorepo/pkg-b/dist/pkg-b.module.css'),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
   it('should watch glob entries and build new packages that are added', async function() {
@@ -359,10 +319,6 @@ describe('monorepos', function() {
       },
       {
         name: 'pkg-b.cjs.css',
-        assets: ['index.module.css'],
-      },
-      {
-        name: 'pkg-b.module.css',
         assets: ['index.module.css'],
       },
     ]);

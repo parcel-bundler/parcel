@@ -47,6 +47,15 @@ export default new Transformer({
   },
 
   transform({asset}) {
+    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
+    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
+    asset.setEnvironment({
+      context: 'browser',
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+    });
+
     let ast = asset.ast;
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
