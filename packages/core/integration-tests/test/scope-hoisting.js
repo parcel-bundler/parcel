@@ -422,6 +422,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 123);
     });
 
+    it('should handle sideEffects: false with namespace imports and re-exports correctly', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-all/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 16);
+    });
+
     it('correctly updates deferred assets that are reexported', async function() {
       let testDir = path.join(
         __dirname,
