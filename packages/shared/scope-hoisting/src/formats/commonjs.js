@@ -296,7 +296,7 @@ export function generateExports(
 
         let binding = path.scope.getBinding(symbol);
         let id =
-          exportSymbol === 'default'
+          !t.isValidIdentifier(exportSymbol)
             ? path.scope.generateUid(exportSymbol)
             : exportSymbol;
         rename(path.scope, symbol, id);
