@@ -191,10 +191,15 @@ export type EntrySpecifierNode = {|
   value: ModuleSpecifier,
 |};
 
+export type Entry = {|
+  filePath: FilePath,
+  packagePath?: FilePath,
+|};
+
 export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
-  value: ModuleSpecifier,
+  value: Entry,
 |};
 
 export type AssetGraphNode =

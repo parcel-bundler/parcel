@@ -397,6 +397,7 @@ describe('babel', function() {
     });
 
     it('should rebuild when .babelrc changes', async function() {
+      let inputDir = tempy.directory();
       let differentPath = path.join(inputDir, 'differentConfig');
       let configPath = path.join(inputDir, '.babelrc');
 
