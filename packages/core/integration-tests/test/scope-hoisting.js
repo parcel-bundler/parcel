@@ -342,6 +342,9 @@ describe('scope hoisting', function() {
         ),
       );
 
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(/var \$[a-z0-9]+\$cjs_exports/.test(dist));
+
       let [foo, bExports] = await run(b);
       assert.equal(foo, 'foobar');
       assert.equal(typeof bExports, 'object');
