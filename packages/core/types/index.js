@@ -297,6 +297,7 @@ export interface BaseAsset {
   +meta: Meta;
   +isIsolated: boolean;
   +isInline: boolean;
+  +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
@@ -323,6 +324,7 @@ export interface MutableAsset extends BaseAsset {
   ast: ?AST;
   isIsolated: boolean;
   isInline: boolean;
+  isSplittable: ?boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
@@ -398,6 +400,7 @@ export interface TransformerResult {
   includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
   isInline?: boolean;
+  isSplittable?: boolean;
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
@@ -526,6 +529,7 @@ export type CreateBundleOpts =
       target: Target,
       isEntry?: ?boolean,
       isInline?: ?boolean,
+      isSplittable?: ?boolean,
       type?: ?string,
       env?: ?Environment,
     |}
@@ -537,6 +541,7 @@ export type CreateBundleOpts =
       target: Target,
       isEntry?: ?boolean,
       isInline?: ?boolean,
+      isSplittable?: ?boolean,
       type: string,
       env: Environment,
     |};
@@ -553,6 +558,7 @@ export interface Bundle {
   +env: Environment;
   +isEntry: ?boolean;
   +isInline: ?boolean;
+  +isSplittable: ?boolean;
   +target: Target;
   +filePath: ?FilePath;
   +name: ?string;

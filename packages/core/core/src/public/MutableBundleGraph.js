@@ -117,6 +117,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         filePath: null,
         isEntry: opts.isEntry,
         isInline: opts.isInline,
+        isSplittable: opts.isSplittable ?? entryAsset?.value.isSplittable,
         target: targetToInternalTarget(opts.target),
         name: null,
         stats: {size: 0, time: 0},

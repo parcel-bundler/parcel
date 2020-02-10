@@ -91,6 +91,10 @@ class BaseAsset {
     return this.#asset.value.isInline;
   }
 
+  get isSplittable(): ?boolean {
+    return this.#asset.value.isSplittable;
+  }
+
   get isSource(): boolean {
     return this.#asset.value.isSource;
   }
@@ -205,6 +209,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set isInline(isInline: boolean): void {
     this.#asset.value.isInline = isInline;
+  }
+
+  get isSplittable(): ?boolean {
+    return this.#asset.value.isSplittable;
+  }
+
+  set isSplittable(isSplittable: ?boolean): void {
+    this.#asset.value.isSplittable = isSplittable;
   }
 
   addDependency(dep: DependencyOptions): string {
