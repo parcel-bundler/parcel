@@ -295,10 +295,9 @@ export function generateExports(
         }
 
         let binding = path.scope.getBinding(symbol);
-        let id =
-          !t.isValidIdentifier(exportSymbol)
-            ? path.scope.generateUid(exportSymbol)
-            : exportSymbol;
+        let id = !t.isValidIdentifier(exportSymbol)
+          ? path.scope.generateUid(exportSymbol)
+          : exportSymbol;
         rename(path.scope, symbol, id);
 
         binding.path.getStatementParent().insertAfter(
