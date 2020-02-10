@@ -330,8 +330,14 @@ describe('scope hoisting', function() {
         ),
       );
 
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.equal(
+        dist.match(/var \$[a-z0-9]+\$\$interop\$default =/g).length,
+        2,
+      );
+
       let output = await run(b);
-      assert.deepEqual(output, 'foobar');
+      assert.deepEqual(output, 'foobar:foo:bar');
     });
 
     it('does not export reassigned CommonJS exports references', async function() {
