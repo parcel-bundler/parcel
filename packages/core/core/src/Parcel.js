@@ -28,7 +28,7 @@ import AssetGraphBuilder from './AssetGraphBuilder';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
 import loadParcelConfig from './loadParcelConfig';
-import ReporterRunner from './ReporterRunner';
+import ReporterRunner, {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -124,12 +124,14 @@ export default class Parcel {
     this.#reporterRunner = new ReporterRunner({
       config,
       options: resolvedOptions,
+      workerFarm: this.#farm,
     });
 
     this.#packagerRunner = new PackagerRunner({
       config,
-      options: resolvedOptions,
       farm: this.#farm,
+      options: resolvedOptions,
+      report,
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');

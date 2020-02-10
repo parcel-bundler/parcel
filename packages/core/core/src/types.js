@@ -15,6 +15,7 @@ import type {
   ModuleSpecifier,
   PackageName,
   PackageJSON,
+  ReporterEvent,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
@@ -324,3 +325,5 @@ export type ValidationOpts = {|
   request: AssetRequestDesc,
   options: ParcelOptions,
 |};
+
+export type ReportFn = (event: ReporterEvent) => void;
