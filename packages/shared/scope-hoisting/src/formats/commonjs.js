@@ -1,11 +1,19 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  PluginOptions,
+  Symbol,
+} from '@parcel/types';
 import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
+import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
@@ -230,6 +238,7 @@ export function generateExports(
   referencedAssets: Set<Asset>,
   path: any,
   replacements: Map<Symbol, Symbol>,
+  options: PluginOptions,
 ) {
   let exported = new Set<Symbol>();
   let statements = [];
@@ -277,12 +286,21 @@ export function generateExports(
         }
       }
     } else {
-      for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(
+      for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
         entry,
       )) {
-        if (symbol) {
-          symbol = replacements.get(symbol) || symbol;
+        if (!symbol) {
+          let relativePath = relative(options.inputFS.cwd(), asset.filePath);
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `${relativePath} does not export '${exportSymbol}'`,
+              filePath: entry.filePath,
+              // TODO: add codeFrames (actual and reexporting asset) when AST from transformers is reused
+            },
+          });
         }
+
+        symbol = replacements.get(symbol) || symbol;
 
         // If there is an existing binding with the exported name (e.g. an import),
         // rename it so we can use the name for the export instead.
