@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {FilePath} from '@parcel/types';
+import {isGlob} from './glob';
 
 const path = require('path');
 
@@ -9,6 +10,7 @@ export default function getRootDir(files: Array<FilePath>): FilePath {
 
   for (let file of files) {
     let parsed = path.parse(file);
+    parsed.dir = findGlobRoot(parsed.dir);
     if (!cur) {
       cur = parsed;
     } else if (parsed.root !== cur.root) {
@@ -30,4 +32,17 @@ export default function getRootDir(files: Array<FilePath>): FilePath {
   }
 
   return cur ? cur.dir : process.cwd();
+}
+
+// Transforms a path like `packages/*/src/index.js` to the root of the glob, `packages/`
+function findGlobRoot(dir: FilePath) {
+  let parts = dir.split(path.sep);
+  let last = parts.length;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (isGlob(parts[i])) {
+      last = i;
+    }
+  }
+
+  return parts.slice(0, last).join(path.sep);
 }

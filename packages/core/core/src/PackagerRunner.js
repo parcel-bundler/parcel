@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
-import type {Bundle as InternalBundle, ParcelOptions} from './types';
+import type {Bundle as InternalBundle, ParcelOptions, ReportFn} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
@@ -24,7 +24,6 @@ import path from 'path';
 import url from 'url';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
-import {report} from './ReporterRunner';
 import BundleGraph, {
   bundleGraphToInternalBundleGraph,
 } from './public/BundleGraph';
@@ -35,6 +34,7 @@ type Opts = {|
   config: ParcelConfig,
   farm?: WorkerFarm,
   options: ParcelOptions,
+  report: ReportFn,
 |};
 
 export default class PackagerRunner {
@@ -44,6 +44,7 @@ export default class PackagerRunner {
   pluginOptions: PluginOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
+  report: ReportFn;
   writeBundleFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: number,
@@ -52,12 +53,13 @@ export default class PackagerRunner {
     options: ParcelOptions,
   |}) => Promise<Stats>;
 
-  constructor({config, farm, options}: Opts) {
+  constructor({config, farm, options, report}: Opts) {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
 
     this.farm = farm;
+    this.report = report;
     this.writeBundleFromWorker = farm
       ? farm.createHandle('runPackage')
       : () => {
@@ -219,7 +221,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
-    report({
+    this.report({
       type: 'buildProgress',
       phase: 'packaging',
       bundle,
@@ -276,7 +278,7 @@ export default class PackagerRunner {
       return {contents, map};
     }
 
-    report({
+    this.report({
       type: 'buildProgress',
       phase: 'optimizing',
       bundle,

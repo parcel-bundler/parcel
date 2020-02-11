@@ -185,12 +185,24 @@ function getURLRuntime(
   bundle: Bundle,
   externalBundle: Bundle,
 ): RuntimeAsset {
+  let relativePath = relativeBundlePath(bundle, externalBundle, {
+    leadingDotSlash: false,
+  });
+
+  if (dependency.meta.webworker === true) {
+    return {
+      filePath: __filename,
+      code: `module.exports = require('./get-worker-url')(${JSON.stringify(
+        relativePath,
+      )});`,
+      dependency,
+    };
+  }
+
   return {
     filePath: __filename,
     code: `module.exports = require('./bundle-url').getBundleURL() + ${JSON.stringify(
-      relativeBundlePath(bundle, externalBundle, {
-        leadingDotSlash: false,
-      }),
+      relativePath,
     )}`,
     dependency,
   };

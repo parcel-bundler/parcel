@@ -682,7 +682,7 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
   } else if (scope.getProgramParent().getData('cjsExportsReassigned')) {
     let id = getIdentifier(asset, 'cjs_exports');
     if (!scope.hasBinding(id.name)) {
-      scope.getProgramParent().addGlobal(id);
+      scope.getProgramParent().push({id});
     }
 
     return id;
