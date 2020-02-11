@@ -4,7 +4,6 @@ export type * from './prettyError';
 export type * from './prettyDiagnostic';
 
 export {default as countLines} from './countLines';
-export {default as DefaultMap} from './DefaultMap';
 export {default as generateBundleReport} from './generateBundleReport';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
@@ -29,6 +28,7 @@ export {default as throttle} from './throttle';
 export * from './blob';
 export * from './collection';
 export * from './config';
+export * from './DefaultMap';
 export * from './Deferred';
 export * from './glob';
 export * from './md5';

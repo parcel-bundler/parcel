@@ -15,6 +15,7 @@ import type {
   ModuleSpecifier,
   PackageName,
   PackageJSON,
+  ReporterEvent,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
@@ -80,6 +81,7 @@ export type Asset = {|
   includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
+  isSplittable: ?boolean,
   isSource: boolean,
   outputHash: string,
   env: Environment,
@@ -190,10 +192,15 @@ export type EntrySpecifierNode = {|
   value: ModuleSpecifier,
 |};
 
+export type Entry = {|
+  filePath: FilePath,
+  packagePath?: FilePath,
+|};
+
 export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
-  value: ModuleSpecifier,
+  value: Entry,
 |};
 
 export type AssetGraphNode =
@@ -289,6 +296,7 @@ export type Bundle = {|
   entryAssetIds: Array<string>,
   isEntry: ?boolean,
   isInline: ?boolean,
+  isSplittable: ?boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,
@@ -317,3 +325,5 @@ export type ValidationOpts = {|
   request: AssetRequestDesc,
   options: ParcelOptions,
 |};
+
+export type ReportFn = (event: ReporterEvent) => void;

@@ -86,6 +86,10 @@ export default function extractInlineAssets(
         // insert parcelId to allow us to retrieve node during packaging
         node.attrs['data-parcel-key'] = parcelKey;
 
+        asset.addDependency({
+          moduleSpecifier: parcelKey,
+        });
+
         parts.push({
           type,
           code: value,
@@ -103,6 +107,10 @@ export default function extractInlineAssets(
 
     // Process inline style attributes.
     if (node.attrs && node.attrs.style) {
+      asset.addDependency({
+        moduleSpecifier: parcelKey,
+      });
+
       parts.push({
         type: 'css',
         code: node.attrs.style,

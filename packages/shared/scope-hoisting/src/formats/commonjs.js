@@ -1,15 +1,23 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  PluginOptions,
+  Symbol,
+} from '@parcel/types';
 import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
+import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
-const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
+const EXPORT_TEMPLATE = template('exports.NAME = IDENTIFIER');
 const MODULE_EXPORTS_TEMPLATE = template('module.exports = IDENTIFIER');
 const INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 const ASSIGN_TEMPLATE = template('var SPECIFIERS = MODULE');
@@ -230,6 +238,7 @@ export function generateExports(
   referencedAssets: Set<Asset>,
   path: any,
   replacements: Map<Symbol, Symbol>,
+  options: PluginOptions,
 ) {
   let exported = new Set<Symbol>();
   let statements = [];
@@ -241,6 +250,7 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
+        NAME: t.identifier(exportsId),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
@@ -276,12 +286,21 @@ export function generateExports(
         }
       }
     } else {
-      for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(
+      for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
         entry,
       )) {
-        if (symbol) {
-          symbol = replacements.get(symbol) || symbol;
+        if (!symbol) {
+          let relativePath = relative(options.inputFS.cwd(), asset.filePath);
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `${relativePath} does not export '${exportSymbol}'`,
+              filePath: entry.filePath,
+              // TODO: add codeFrames (actual and reexporting asset) when AST from transformers is reused
+            },
+          });
         }
+
+        symbol = replacements.get(symbol) || symbol;
 
         // If there is an existing binding with the exported name (e.g. an import),
         // rename it so we can use the name for the export instead.
@@ -294,11 +313,15 @@ export function generateExports(
         }
 
         let binding = path.scope.getBinding(symbol);
-        rename(path.scope, symbol, exportSymbol);
+        let id = !t.isValidIdentifier(exportSymbol)
+          ? path.scope.generateUid(exportSymbol)
+          : exportSymbol;
+        rename(path.scope, symbol, id);
 
         binding.path.getStatementParent().insertAfter(
           EXPORT_TEMPLATE({
-            IDENTIFIER: t.identifier(exportSymbol),
+            NAME: t.identifier(exportSymbol),
+            IDENTIFIER: t.identifier(id),
           }),
         );
 
@@ -308,7 +331,8 @@ export function generateExports(
           for (let path of binding.constantViolations) {
             path.insertAfter(
               EXPORT_TEMPLATE({
-                IDENTIFIER: t.identifier(exportSymbol),
+                NAME: t.identifier(exportSymbol),
+                IDENTIFIER: t.identifier(id),
               }),
             );
           }
