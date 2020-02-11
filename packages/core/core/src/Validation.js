@@ -1,7 +1,12 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {AssetRequestDesc, ConfigRequestDesc, ParcelOptions} from './types';
+import type {
+  AssetRequestDesc,
+  ConfigRequestDesc,
+  ParcelOptions,
+  ReportFn,
+} from './types';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -10,15 +15,15 @@ import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
-import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
-  request: AssetRequestDesc,
   options: ParcelOptions,
+  request: AssetRequestDesc,
+  report: ReportFn,
   workerApi: WorkerApi,
 |};
 
@@ -28,17 +33,19 @@ export default class Validation {
   configLoader: ConfigLoader;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
+  report: ReportFn;
   workerApi: WorkerApi;
 
-  constructor({request, options, workerApi}: ValidationOpts) {
-    this.request = request;
-    this.options = options;
-    this.workerApi = workerApi;
+  constructor({request, report, options, workerApi}: ValidationOpts) {
     this.configLoader = new ConfigLoader(options);
+    this.options = options;
+    this.report = report;
+    this.request = request;
+    this.workerApi = workerApi;
   }
 
   async run(): Promise<void> {
-    report({
+    this.report({
       type: 'validation',
       filePath: this.request.filePath,
     });
