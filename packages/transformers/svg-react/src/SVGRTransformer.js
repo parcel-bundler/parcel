@@ -24,8 +24,11 @@ function getComponentName(filePath) {
 }
 
 const [parcelPluginSymbol] = Object.getOwnPropertySymbols(JSTransformer);
+const getJsConfig = JSTransformer[parcelPluginSymbol].getConfig;
 
-JSTransformer[parcelPluginSymbol].getConfig = async function({asset}) {
+JSTransformer[parcelPluginSymbol].getConfig = async function(opts) {
+  let {asset} = opts;
+  let config = getJsConfig(opts);
   let svgoConfig = await asset.getConfig(
     [
       '.svgorc',
@@ -45,7 +48,10 @@ JSTransformer[parcelPluginSymbol].getConfig = async function({asset}) {
 
   this.svgo = new SVGO(svgoConfig);
 
-  return svgoConfig;
+  return {
+    ...config,
+    svgo: svgoConfig,
+  };
 };
 
 JSTransformer[parcelPluginSymbol].parse = async function({asset}) {
@@ -55,14 +61,10 @@ JSTransformer[parcelPluginSymbol].parse = async function({asset}) {
   let jsx = await svgToJsx(data);
   let code = `import React from 'react';
   export default function ${componentName}(props) {
-    return ${jsx};
+    return ${jsx.replace(/<svg (.*)>/, '<svg $1 {...props}>')};
   }
   `;
 
-  // Spread props directly onto the `svg` JSX element, so the
-  // resulting react component is just like a native `svg` tag,
-  // with all `svg` props supported.
-  code = code.replace(/<svg (.*)>/, '<svg $1 {...props}>');
   asset.setCode(code);
 
   return {
