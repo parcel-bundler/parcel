@@ -54,6 +54,7 @@ export default new Transformer({
       engines: {
         browsers: asset.env.engines.browsers,
       },
+      minify: asset.env.minify,
     });
 
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
