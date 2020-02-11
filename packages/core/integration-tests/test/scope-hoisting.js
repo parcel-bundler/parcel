@@ -620,6 +620,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 6);
     });
 
+    it('supports the package.json sideEffects: false flag with shared dependencies', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-split/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(await output, 579);
+    });
+
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
         path.join(
