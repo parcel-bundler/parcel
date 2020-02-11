@@ -362,6 +362,7 @@ describe('javascript', function() {
           'common.js',
           'worker-client.js',
           'feature.js',
+          'get-worker-url.js',
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
@@ -392,7 +393,13 @@ describe('javascript', function() {
       },
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'get-worker-url.js',
+        ],
       },
       {
         assets: ['shared-worker.js'],
@@ -434,6 +441,7 @@ describe('javascript', function() {
           'worker-client.js',
           'feature.js',
           'bundle-url.js',
+          'get-worker-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
           'JSRuntime.js',
@@ -471,7 +479,11 @@ describe('javascript', function() {
         },
         {
           name: `index-${workerType}.js`,
-          assets: [`index-${workerType}.js`, 'bundle-url.js', 'JSRuntime.js'],
+          assets: [
+            `index-${workerType}.js`,
+            'bundle-url.js',
+            'JSRuntime.js',
+          ].concat(workerType === 'webworker' ? ['get-worker-url.js'] : []),
         },
         {
           assets: ['imported.js'],
@@ -516,7 +528,12 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index-external.js',
-        assets: ['index-external.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: [
+          'index-external.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'JSRuntime.js',
+        ],
       },
       {assets: ['external.js', 'JSRuntime.js']},
     ]);
@@ -577,7 +594,12 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'get-worker-url.js',
+        ],
       },
       {
         assets: ['worker.js', 'worker-dep.js'],
@@ -628,10 +650,21 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js', 'lodash.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'lodash.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'JSRuntime.js',
+        ],
       },
       {
-        assets: ['worker-a.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: [
+          'worker-a.js',
+          'JSRuntime.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+        ],
       },
       {
         assets: ['worker-b.js'],
@@ -661,7 +694,12 @@ describe('javascript', function() {
         assets: ['index.html'],
       },
       {
-        assets: ['index.js', 'bundle-url.js', 'JSRuntime.js'],
+        assets: [
+          'index.js',
+          'bundle-url.js',
+          'JSRuntime.js',
+          'get-worker-url.js',
+        ],
       },
       {
         assets: ['worker.js'],

@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import assert from 'assert';
-import DefaultMap from '../src/DefaultMap';
+import {DefaultMap} from '../src/DefaultMap';
 
 describe('DefaultMap', () => {
   it('constructs with entries just like Map', () => {

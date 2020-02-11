@@ -314,6 +314,24 @@ describe('output formats', function() {
       assert(dist.includes('exports.test = test;'));
     });
 
+    it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/formats/commonjs-sideeffects/missing-export.js',
+            ),
+          ),
+        {
+          name: 'BuildError',
+          message: path.normalize(
+            "test/integration/formats/commonjs-sideeffects/other.js does not export 'a'",
+          ),
+        },
+      );
+    });
+
     it('should support commonjs input', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs-dynamic/index.js'),
@@ -502,6 +520,24 @@ describe('output formats', function() {
         'utf8',
       );
       assert(async.includes('export const foo'));
+    });
+
+    it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/formats/esm-sideeffects/missing-export.js',
+            ),
+          ),
+        {
+          name: 'BuildError',
+          message: path.normalize(
+            "test/integration/formats/esm-sideeffects/b.js does not export 'a'",
+          ),
+        },
+      );
     });
 
     it('should support async split bundles', async function() {

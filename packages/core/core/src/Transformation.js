@@ -15,6 +15,7 @@ import type {
   Config,
   ConfigRequestDesc,
   ParcelOptions,
+  ReportFn,
 } from './types';
 
 import invariant from 'assert';
@@ -28,7 +29,6 @@ import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
-import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
 import summarizeRequest from './summarizeRequest';
@@ -42,8 +42,9 @@ type PostProcessFunc = (
 ) => Promise<Array<InternalAsset> | null>;
 
 export type TransformationOpts = {|
-  request: AssetRequestDesc,
   options: ParcelOptions,
+  report: ReportFn,
+  request: AssetRequestDesc,
   workerApi: WorkerApi,
 |};
 
@@ -61,12 +62,14 @@ export default class Transformation {
   impactfulOptions: $Shape<ParcelOptions>;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
+  report: ReportFn;
 
-  constructor({request, options, workerApi}: TransformationOpts) {
-    this.request = request;
+  constructor({report, request, options, workerApi}: TransformationOpts) {
     this.configRequests = [];
     this.configLoader = new ConfigLoader(options);
     this.options = options;
+    this.report = report;
+    this.request = request;
     this.workerApi = workerApi;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
@@ -84,7 +87,7 @@ export default class Transformation {
     assets: Array<AssetValue>,
     configRequests: Array<ConfigRequestAndResult>,
   |}> {
-    report({
+    this.report({
       type: 'buildProgress',
       phase: 'transforming',
       filePath: this.request.filePath,

@@ -1,11 +1,19 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  PluginOptions,
+  Symbol,
+} from '@parcel/types';
 import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
 import {relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {relative} from 'path';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 export function generateBundleImports(
@@ -75,14 +83,26 @@ export function generateExports(
   referencedAssets: Set<Asset>,
   path: any,
   replacements: Map<Symbol, Symbol>,
+  options: PluginOptions,
 ) {
   let exportedIdentifiers = new Map();
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
-      if (symbol) {
-        symbol = replacements.get(symbol) || symbol;
+    for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
+      entry,
+    )) {
+      if (!symbol) {
+        let relativePath = relative(options.inputFS.cwd(), asset.filePath);
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `${relativePath} does not export '${exportSymbol}'`,
+            filePath: entry.filePath,
+            // TODO: add codeFrame when AST from transformers is reused
+          },
+        });
       }
+
+      symbol = replacements.get(symbol) || symbol;
 
       // Map CommonJS module.exports assignments to default ESM exports for interop
       if (exportSymbol === '*') {
