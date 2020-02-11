@@ -582,7 +582,7 @@ export function link({
         );
 
         treeShake(path.scope, exported);
-        if (options.minify) {
+        if (bundle.env.minify) {
           mangleScope(path.scope, exported);
         }
       },

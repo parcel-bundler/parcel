@@ -40,6 +40,8 @@ export type Environment = {|
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
+  minify: boolean,
+  scopeHoist: boolean,
 |};
 
 export type Target = {|

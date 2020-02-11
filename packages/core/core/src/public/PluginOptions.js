@@ -22,14 +22,6 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.mode;
   }
 
-  get minify(): boolean {
-    return this.#options.minify;
-  }
-
-  get scopeHoist(): boolean {
-    return this.#options.scopeHoist;
-  }
-
   get sourceMaps(): boolean {
     return this.#options.sourceMaps;
   }

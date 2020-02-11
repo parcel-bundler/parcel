@@ -371,11 +371,11 @@ export default class PackagerRunner {
     );
 
     // TODO: add third party configs to the cache key
-    let {minify, scopeHoist, sourceMaps} = this.options;
+    let {sourceMaps} = this.options;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
       deps,
-      opts: {minify, scopeHoist, sourceMaps},
+      opts: {sourceMaps},
       hash: bundleGraph.getHash(bundle),
     });
   }

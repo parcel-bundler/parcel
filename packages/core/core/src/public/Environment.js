@@ -98,6 +98,14 @@ export default class Environment implements IEnvironment {
     return this.#environment.isLibrary;
   }
 
+  get minify(): boolean {
+    return this.#environment.minify;
+  }
+
+  get scopeHoist(): boolean {
+    return this.#environment.scopeHoist;
+  }
+
   isBrowser() {
     return BROWSER_ENVS.has(this.#environment.context);
   }

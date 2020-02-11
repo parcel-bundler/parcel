@@ -1,18 +1,13 @@
 // @flow
 
-import type {AST, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {AST, Bundle, BundleGraph} from '@parcel/types';
 import babelGenerate from '@babel/generator';
 import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
 
-export function generate(
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
-  ast: AST,
-  options: PluginOptions,
-) {
+export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: AST) {
   let {code} = babelGenerate(ast, {
-    minified: options.minify,
+    minified: bundle.env.minify,
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
@@ -24,7 +19,7 @@ export function generate(
 
   let entry = bundle.getMainEntry();
   let isAsync = entry && !isEntry(bundle, bundleGraph);
-  if (!options.minify && (isAsync || bundle.env.outputFormat === 'global')) {
+  if (!bundle.env.minify && (isAsync || bundle.env.outputFormat === 'global')) {
     code = `\n${code}`;
   }
 
