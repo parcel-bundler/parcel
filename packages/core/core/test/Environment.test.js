@@ -13,6 +13,8 @@ describe('Environment', () => {
       includeNodeModules: true,
       outputFormat: 'global',
       isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 
@@ -25,6 +27,8 @@ describe('Environment', () => {
       includeNodeModules: false,
       outputFormat: 'commonjs',
       isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 
@@ -39,6 +43,8 @@ describe('Environment', () => {
         includeNodeModules: true,
         outputFormat: 'global',
         isLibrary: false,
+        minify: false,
+        scopeHoist: false,
       },
     );
   });
@@ -52,6 +58,8 @@ describe('Environment', () => {
       includeNodeModules: false,
       outputFormat: 'commonjs',
       isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 
@@ -64,6 +72,8 @@ describe('Environment', () => {
       includeNodeModules: true,
       outputFormat: 'global',
       isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 });
