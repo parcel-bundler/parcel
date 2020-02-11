@@ -24,11 +24,8 @@ function getComponentName(filePath) {
 }
 
 const [parcelPluginSymbol] = Object.getOwnPropertySymbols(JSTransformer);
-const getJsConfig = JSTransformer[parcelPluginSymbol].getConfig;
 
-JSTransformer[parcelPluginSymbol].getConfig = async function(opts) {
-  let {asset} = opts;
-  let config = getJsConfig(opts);
+JSTransformer[parcelPluginSymbol].getConfig = async function({asset}) {
   let svgoConfig = await asset.getConfig(
     [
       '.svgorc',
@@ -48,10 +45,7 @@ JSTransformer[parcelPluginSymbol].getConfig = async function(opts) {
 
   this.svgo = new SVGO(svgoConfig);
 
-  return {
-    ...config,
-    svgo: svgoConfig,
-  };
+  return svgoConfig;
 };
 
 JSTransformer[parcelPluginSymbol].parse = async function({asset}) {
