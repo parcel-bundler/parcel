@@ -17,7 +17,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 const REQUIRE_TEMPLATE = template('require(BUNDLE)');
-const EXPORT_TEMPLATE = template('exports.IDENTIFIER = IDENTIFIER');
+const EXPORT_TEMPLATE = template('exports.NAME = IDENTIFIER');
 const MODULE_EXPORTS_TEMPLATE = template('module.exports = IDENTIFIER');
 const INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 const ASSIGN_TEMPLATE = template('var SPECIFIERS = MODULE');
@@ -250,6 +250,7 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
+        NAME: t.identifier(exportsId),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
@@ -312,11 +313,15 @@ export function generateExports(
         }
 
         let binding = path.scope.getBinding(symbol);
-        rename(path.scope, symbol, exportSymbol);
+        let id = !t.isValidIdentifier(exportSymbol)
+          ? path.scope.generateUid(exportSymbol)
+          : exportSymbol;
+        rename(path.scope, symbol, id);
 
         binding.path.getStatementParent().insertAfter(
           EXPORT_TEMPLATE({
-            IDENTIFIER: t.identifier(exportSymbol),
+            NAME: t.identifier(exportSymbol),
+            IDENTIFIER: t.identifier(id),
           }),
         );
 
@@ -326,7 +331,8 @@ export function generateExports(
           for (let path of binding.constantViolations) {
             path.insertAfter(
               EXPORT_TEMPLATE({
-                IDENTIFIER: t.identifier(exportSymbol),
+                NAME: t.identifier(exportSymbol),
+                IDENTIFIER: t.identifier(id),
               }),
             );
           }

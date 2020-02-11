@@ -21,9 +21,10 @@ describe('blob urls', () => {
       path.join(distDir, 'index.js'),
       'utf8',
     );
+    assert(bundleContent.includes('new Worker(require("blob-url:./worker"))'));
     assert(
       bundleContent.includes(
-        'new Worker(URL.createObjectURL(new Blob(["// modules are defined as an array\\n',
+        'module.exports = URL.createObjectURL(new Blob(["// modules are defined as an array\\n',
       ),
     );
     assert(
@@ -43,9 +44,10 @@ describe('blob urls', () => {
       path.join(distDir, 'index.js'),
       'utf8',
     );
+    assert(bundleContent.match(/new Worker\([^(]*\("blob-url:.\/worker"\)\)/));
     assert(
       bundleContent.includes(
-        "new Worker(URL.createObjectURL(new Blob(['!function(",
+        ".exports=URL.createObjectURL(new Blob(['!function(",
       ),
     );
     assert(

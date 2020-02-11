@@ -297,6 +297,7 @@ export interface BaseAsset {
   +meta: Meta;
   +isIsolated: boolean;
   +isInline: boolean;
+  +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
@@ -323,6 +324,7 @@ export interface MutableAsset extends BaseAsset {
   ast: ?AST;
   isIsolated: boolean;
   isInline: boolean;
+  isSplittable: ?boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
@@ -398,6 +400,7 @@ export interface TransformerResult {
   includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
   isInline?: boolean;
+  isSplittable?: boolean;
   isSource?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
@@ -526,6 +529,7 @@ export type CreateBundleOpts =
       target: Target,
       isEntry?: ?boolean,
       isInline?: ?boolean,
+      isSplittable?: ?boolean,
       type?: ?string,
       env?: ?Environment,
     |}
@@ -537,6 +541,7 @@ export type CreateBundleOpts =
       target: Target,
       isEntry?: ?boolean,
       isInline?: ?boolean,
+      isSplittable?: ?boolean,
       type: string,
       env: Environment,
     |};
@@ -553,6 +558,7 @@ export interface Bundle {
   +env: Environment;
   +isEntry: ?boolean;
   +isInline: ?boolean;
+  +isSplittable: ?boolean;
   +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
@@ -603,12 +609,6 @@ export interface MutableBundleGraph {
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(
-    bundle: Bundle,
-  ): Array<{|
-    bundleGroup: BundleGroup,
-    dependency: Dependency,
-  |}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   getChildBundles(bundle: Bundle): Array<Bundle>;
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
@@ -625,12 +625,14 @@ export interface BundleGraph {
     visit: GraphTraversalCallback<Bundle, TContext>,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
+  getExternalDependencies(bundle: Bundle): Array<Dependency>;
+  resolveExternalDependency(dependency: Dependency): ?BundleGroup;
 }
 
 export type BundleResult = {|
-  contents: Blob,
-  ast?: AST,
-  map?: ?SourceMap,
+  +contents: Blob,
+  +ast?: AST,
+  +map?: ?SourceMap,
 |};
 
 export type ResolveResult = {|

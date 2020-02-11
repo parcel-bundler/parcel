@@ -99,9 +99,9 @@ export default new Bundler({
             for (let bundle of siblings) {
               bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
             }
+          } else {
+            siblingBundlesByAsset.set(asset.id, siblingBundles);
           }
-
-          siblingBundlesByAsset.set(asset.id, siblingBundles);
 
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
@@ -173,7 +173,7 @@ export default new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
-        .filter(b => !b.isEntry);
+        .filter(b => !b.isEntry && b.isSplittable);
 
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
@@ -260,7 +260,7 @@ export default new Bundler({
 });
 
 function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
-  if (bundle.env.isIsolated()) {
+  if (bundle.env.isIsolated() || !bundle.isSplittable) {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't deduplicate any assets.
     return;

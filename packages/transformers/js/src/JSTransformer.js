@@ -68,6 +68,12 @@ export default new Transformer({
   },
 
   async transform({asset, options, logger}) {
+    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
+    // Only set here if it is null to allow previous transformers to override this behavior.
+    if (asset.isSplittable == null) {
+      asset.isSplittable = true;
+    }
+
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
