@@ -60,7 +60,9 @@ export default class TargetResolver {
     this.options = options;
   }
 
-  async resolve(rootDir: FilePath): Promise<TargetResolveResult> {
+  async resolve(
+    rootDir?: FilePath = this.options.projectRoot,
+  ): Promise<TargetResolveResult> {
     let optionTargets = this.options.targets;
 
     let targets: Array<Target>;

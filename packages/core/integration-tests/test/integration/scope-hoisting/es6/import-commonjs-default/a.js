@@ -1,4 +1,8 @@
 import foo from './wrapped'
 import bar from './notwrapped'
 
-output = foo() + bar()
+function calc() {
+  return foo() + bar();
+}
+
+output = calc() + ':' + foo() + ':' + bar();
