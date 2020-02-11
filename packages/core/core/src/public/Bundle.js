@@ -77,6 +77,10 @@ export class Bundle implements IBundle {
     return this.#bundle.id;
   }
 
+  get hashReference(): string {
+    return this.#bundle.hashReference;
+  }
+
   get type(): string {
     return this.#bundle.type;
   }

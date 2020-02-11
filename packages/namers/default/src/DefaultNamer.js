@@ -91,7 +91,7 @@ export default new Namer({
     //      `index.css`.
     let name = nameFromContent(mainBundle, options.rootDir);
     if (!bundle.isEntry) {
-      name += '.' + bundle.getHash().slice(-8);
+      name += '.' + bundle.hashReference;
     }
     return name + '.' + bundle.type;
   },

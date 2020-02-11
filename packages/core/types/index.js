@@ -559,6 +559,7 @@ export type SymbolResolution = {|
 
 export interface Bundle {
   +id: string;
+  +hashReference: string;
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;

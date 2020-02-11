@@ -72,5 +72,5 @@ export function runPackage(
     config,
     options,
     report: reportWorker.bind(null, workerApi),
-  }).packageAndWriteBundle(bundle, bundleGraph, cacheKey);
+  }).getBundleInfo(bundle, bundleGraph, cacheKey);
 }

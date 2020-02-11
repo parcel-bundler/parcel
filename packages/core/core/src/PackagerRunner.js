@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {
   Blob,
@@ -6,7 +6,6 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
-  Stats,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
@@ -15,13 +14,19 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {md5FromObject, md5FromString, blobToStream} from '@parcel/utils';
+import {
+  md5FromObject,
+  md5FromString,
+  blobToStream,
+  TapStream,
+} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
+import crypto from 'crypto';
 
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
@@ -37,6 +42,12 @@ type Opts = {|
   report: ReportFn,
 |};
 
+type BundleInfo = {|
+  hash: string,
+  hashReferences: Array<string>,
+  time: number,
+|};
+
 export default class PackagerRunner {
   config: ParcelConfig;
   options: ParcelOptions;
@@ -45,13 +56,13 @@ export default class PackagerRunner {
   distDir: FilePath;
   distExists: Set<FilePath>;
   report: ReportFn;
-  writeBundleFromWorker: ({|
+  getBundleInfoFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKey: string,
     options: ParcelOptions,
-  |}) => Promise<Stats>;
+  |}) => Promise<BundleInfo>;
 
   constructor({config, farm, options, report}: Opts) {
     this.config = config;
@@ -60,7 +71,7 @@ export default class PackagerRunner {
 
     this.farm = farm;
     this.report = report;
-    this.writeBundleFromWorker = farm
+    this.getBundleInfoFromWorker = farm
       ? farm.createHandle('runPackage')
       : () => {
           throw new Error(
@@ -73,121 +84,84 @@ export default class PackagerRunner {
     let farm = nullthrows(this.farm);
     let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
-    let promises = [];
-    for (let bundle of bundleGraph.getBundles()) {
-      // skip inline bundles, they will be processed via the parent bundle
-      if (bundle.isInline) {
-        continue;
-      }
-
-      promises.push(
-        this.writeBundle(bundle, bundleGraph, ref).then(stats => {
-          bundle.stats = stats;
+    let bundleInfoMap = {};
+    // ? hashRef should maybe just be first 8 digits of id, but that would require that id is an md5 hash already
+    //  - only reason I'm not doing that right now is that it feels like we're doing a bunch of hashes of hashes
+    //  - not sure if that's a bad thing or not
+    let hashRefToId = {};
+    // skip inline bundles, they will be processed via the parent bundle
+    let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
+    await Promise.all(
+      bundles.map(async bundle => {
+        let info = await this.processBundle(bundle, bundleGraph, ref);
+        hashRefToId[bundle.hashReference] = bundle.id;
+        bundleInfoMap[bundle.id] = info;
+      }),
+    );
+    let hashRefToNameHash = generateHashRefToNameHashMap(
+      bundles,
+      bundleInfoMap,
+      hashRefToId,
+    );
+    await Promise.all(
+      bundles.map(bundle =>
+        this.writeToDist({
+          bundle,
+          info: bundleInfoMap[bundle.id],
+          hashRefToNameHash,
+          bundleGraph,
         }),
-      );
-    }
-
-    await Promise.all(promises);
+      ),
+    );
     await dispose();
   }
 
-  async writeBundle(
+  async processBundle(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     bundleGraphReference: number,
-  ) {
+  ): Promise<{|...BundleInfo, cacheKey: string|}> {
     let start = Date.now();
 
     let cacheKey = await this.getCacheKey(bundle, bundleGraph);
-    let {size} =
-      (await this.writeBundleFromCache({bundle, bundleGraph, cacheKey})) ||
-      (await this.writeBundleFromWorker({
+    let {hash, hashReferences} =
+      (await this.getBundleInfoFromCache()) ??
+      (await this.getBundleInfoFromWorker({
         bundle,
-        cacheKey,
         bundleGraphReference,
+        cacheKey,
         options: this.options,
         config: this.config,
       }));
 
-    return {
-      time: Date.now() - start,
-      size,
-    };
+    return {time: Date.now() - start, hash, hashReferences, cacheKey};
   }
 
-  async writeBundleFromCache({
-    bundle,
-    bundleGraph,
-    cacheKey,
-  }: {|
-    bundle: InternalBundle,
-    bundleGraph: InternalBundleGraph,
-    cacheKey: string,
-  |}) {
-    if (this.options.disableCache) {
-      return;
-    }
-
-    let cacheResult = await this.readFromCache(cacheKey);
-    if (cacheResult == null) {
-      return;
-    }
-
-    let {contents, map} = cacheResult;
-    let {size} = await this.writeToDist({
-      bundle,
-      bundleGraph,
-      contents,
-      map,
-    });
-
-    return {size};
+  getBundleInfoFromCache() {
+    // TODO: implement
+    return null;
   }
 
-  async packageAndWriteBundle(
+  async getBundleInfo(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: string,
+    cacheKey: ?string,
   ) {
-    let start = Date.now();
+    let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
 
-    let {contents, map} = await this.getBundleResult(
-      bundle,
-      bundleGraph,
-      cacheKey,
-    );
-    let {size} = await this.writeToDist({
-      bundle,
-      bundleGraph,
-      contents,
-      map,
-    });
+    let info = {};
+    // ? Why would cacheKey be null
+    if (cacheKey != null) {
+      info = await this.writeToCache(cacheKey, contents, map);
+    }
 
-    return {
-      time: Date.now() - start,
-      size,
-    };
+    return info;
   }
 
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: ?string,
   ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
-    let result;
-    if (!cacheKey && !this.options.disableCache) {
-      cacheKey = await this.getCacheKey(bundle, bundleGraph);
-      let cacheResult = await this.readFromCache(cacheKey);
-
-      if (cacheResult) {
-        // NOTE: Returning a new object for flow
-        return {
-          contents: cacheResult.contents,
-          map: cacheResult.map,
-        };
-      }
-    }
-
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
       bundle,
@@ -197,23 +171,10 @@ export default class PackagerRunner {
     );
 
     let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
-    result = {
+    return {
       contents: res.contents,
       map,
     };
-
-    if (cacheKey != null) {
-      await this.writeToCache(cacheKey, result.contents, map);
-
-      if (result.contents instanceof Readable) {
-        return {
-          contents: this.options.cache.getStream(getContentKey(cacheKey)),
-          map: result.map,
-        };
-      }
-    }
-
-    return result;
   }
 
   async package(
@@ -221,6 +182,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    // ? How should we print progress for names with hash references?
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -378,7 +340,7 @@ export default class PackagerRunner {
       parcelVersion: PARCEL_VERSION,
       deps,
       opts: {sourceMaps},
-      hash: bundleGraph.getHash(bundle),
+      hash: bundleGraph.getContentHash(bundle), // TODO: this should consider inline bundles (and their loaded configs)
     });
   }
 
@@ -407,16 +369,29 @@ export default class PackagerRunner {
   async writeToDist({
     bundle,
     bundleGraph,
-    contents,
-    map,
+    info,
+    hashRefToNameHash,
   }: {|
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    contents: Blob,
-    map: ?(Readable | string),
+    info: {|...BundleInfo, cacheKey: string|},
+    hashRefToNameHash: Map<string, string>,
   |}) {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
+    let thisHashReference = bundle.hashReference;
+    if (filePath.includes(thisHashReference)) {
+      filePath = filePath.replace(
+        thisHashReference,
+        nullthrows(hashRefToNameHash.get(thisHashReference)),
+      );
+      bundle.filePath = filePath;
+      bundle.name = nullthrows(bundle.name).replace(
+        thisHashReference,
+        nullthrows(hashRefToNameHash.get(thisHashReference)),
+      );
+    }
+
     let dir = path.dirname(filePath);
     await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
 
@@ -430,52 +405,108 @@ export default class PackagerRunner {
             await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
           ).mode,
         };
+    let cacheKey = info.cacheKey;
+    let contentKey = getContentKey(cacheKey);
+    let contentStream = this.options.cache.getStream(contentKey);
+    let size = await writeFileStream(
+      outputFS,
+      filePath,
+      contentStream,
+      info.hashReferences,
+      hashRefToNameHash,
+      writeOptions,
+    );
+    bundle.stats = {
+      size,
+      time: info.time,
+    };
 
-    let size;
-    if (contents instanceof Readable) {
-      size = await writeFileStream(outputFS, filePath, contents, writeOptions);
-    } else {
-      await outputFS.writeFile(filePath, contents, writeOptions);
-      size = contents.length;
+    let mapKey = getMapKey(cacheKey);
+    if (await this.options.cache.blobExists(mapKey)) {
+      let mapStream = this.options.cache.getStream(mapKey);
+      await writeFileStream(
+        outputFS,
+        filePath + '.map',
+        mapStream,
+        info.hashReferences,
+        hashRefToNameHash,
+      );
     }
-
-    if (map != null) {
-      if (map instanceof Readable) {
-        await writeFileStream(outputFS, filePath + '.map', map);
-      } else {
-        await outputFS.writeFile(filePath + '.map', map);
-      }
-    }
-
-    return {size};
   }
 
   async writeToCache(cacheKey: string, contents: Blob, map: ?Blob) {
     let contentKey = getContentKey(cacheKey);
 
-    await this.options.cache.setStream(contentKey, blobToStream(contents));
+    let size = 0;
+    let hash = crypto.createHash('md5');
+    let prevBuf = '';
+    let hashReferences = [];
+    await this.options.cache.setStream(
+      contentKey,
+      blobToStream(contents).pipe(
+        new TapStream(buf => {
+          let str = prevBuf.toString() + buf.toString();
+          hashReferences = hashReferences.concat(
+            [...str.matchAll(/@@HASH_REFERENCE_\w{8}/g)].map(match => match[0]),
+          );
+          size += buf.length;
+          hash.update(buf);
+          prevBuf = buf;
+        }),
+      ),
+    );
 
     if (map != null) {
       let mapKey = getMapKey(cacheKey);
       await this.options.cache.setStream(mapKey, blobToStream(map));
     }
+
+    let info = {size, hash: hash.digest('hex'), hashReferences};
+    await this.options.cache.set(getInfoKey(cacheKey), JSON.stringify(info));
+    return info;
   }
 }
 
-function writeFileStream(
+async function writeFileStream(
   fs: FileSystem,
   filePath: FilePath,
   stream: Readable,
+  hashReferences: Array<string>,
+  hashRefToNameHash: Map<string, string>,
   options: ?FileOptions,
 ): Promise<number> {
-  return new Promise((resolve, reject) => {
-    let fsStream = fs.createWriteStream(filePath, options);
-    stream
-      .pipe(fsStream)
-      // $FlowFixMe
-      .on('finish', () => resolve(fsStream.bytesWritten))
-      .on('error', reject);
+  // TODO: stream directly to filesystem instead of to string first
+  //  - need to figure out how to replace hash references in a stream
+  let bundleStr = '';
+  await new Promise(resolve => {
+    stream.on('data', buf => {
+      bundleStr += buf.toString();
+    });
+    stream.on('end', () => {
+      resolve();
+    });
   });
+
+  for (let hashRef of hashReferences) {
+    let re = new RegExp(hashRef, 'g');
+    bundleStr = bundleStr.replace(
+      re,
+      nullthrows(hashRefToNameHash.get(hashRef)),
+    );
+  }
+
+  await fs.writeFile(filePath, bundleStr, options);
+
+  return bundleStr.length;
+
+  // return new Promise((resolve, reject) => {
+  //   let fsStream = fs.createWriteStream(filePath, options);
+  //   stream
+  //     .pipe(fsStream)
+  //     // $FlowFixMe
+  //     .on('finish', () => resolve(fsStream.bytesWritten))
+  //     .on('error', reject);
+  // });
 }
 
 function getContentKey(cacheKey: string) {
@@ -484,4 +515,59 @@ function getContentKey(cacheKey: string) {
 
 function getMapKey(cacheKey: string) {
   return md5FromString(`${cacheKey}:map`);
+}
+
+function getInfoKey(cacheKey: string) {
+  return md5FromString(`${cacheKey}:info`);
+}
+
+function generateHashRefToNameHashMap(
+  bundles,
+  bundleInfoMap,
+  hashRefToId,
+): Map<string, string> {
+  let refHashToNameHashMap = new Map();
+
+  for (let bundle of bundles) {
+    let includedBundles = getBundlesIncludedInHash(
+      bundle.id,
+      bundleInfoMap,
+      hashRefToId,
+    );
+    // TODO: probably don't need to hash if only one bundle is included, just use that hash?
+    refHashToNameHashMap.set(
+      bundle.hashReference,
+      md5FromString(
+        [...includedBundles]
+          .map(bundleId => bundleInfoMap[bundleId].hash)
+          .join(':'),
+      ).slice(-8),
+    );
+  }
+
+  return refHashToNameHashMap;
+}
+
+function getBundlesIncludedInHash(
+  bundleId,
+  bundleInfoMap,
+  hashRefToId,
+  included = new Set(),
+) {
+  included.add(bundleId);
+  for (let hashRef of bundleInfoMap[bundleId].hashReferences) {
+    let referencedId = hashRefToId[hashRef];
+    if (!included.has(referencedId)) {
+      for (let ref in getBundlesIncludedInHash(
+        referencedId,
+        bundleInfoMap,
+        hashRefToId,
+        included,
+      )) {
+        included.add(ref);
+      }
+    }
+  }
+
+  return included;
 }

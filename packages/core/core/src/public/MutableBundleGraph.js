@@ -15,8 +15,7 @@ import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap} from '@parcel/utils';
-
+import {DefaultWeakMap, md5FromString} from '@parcel/utils';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
@@ -124,6 +123,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       id: bundleId,
       value: {
         id: bundleId,
+        hashReference: `@@HASH_REFERENCE_${md5FromString(bundleId).slice(-8)}`,
         type: opts.type ?? nullthrows(entryAsset).value.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)

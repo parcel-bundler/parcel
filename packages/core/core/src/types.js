@@ -293,6 +293,7 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
