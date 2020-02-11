@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {GraphVisitor, FilePath} from '@parcel/types';
+import type {GraphVisitor} from '@parcel/types';
 import type {
   Asset,
   AssetGraphNode,
@@ -9,6 +9,7 @@ import type {
   AssetNode,
   Dependency,
   DependencyNode,
+  Entry,
   NodeId,
   Target,
 } from './types';
@@ -73,9 +74,9 @@ export function nodeFromEntrySpecifier(entry: string) {
   };
 }
 
-export function nodeFromEntryFile(entry: string) {
+export function nodeFromEntryFile(entry: Entry) {
   return {
-    id: 'entry_file:' + entry,
+    id: 'entry_file:' + md5FromObject(entry),
     type: 'entry_file',
     value: entry,
   };
@@ -174,18 +175,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return this.incompleteNodeIds.size > 0;
   }
 
-  resolveEntry(entry: string, resolved: Array<FilePath>) {
+  resolveEntry(entry: string, resolved: Array<Entry>) {
     let entrySpecifierNode = nodeFromEntrySpecifier(entry);
     let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
     this.replaceNodesConnectedTo(entrySpecifierNode, entryFileNodes);
     this.incompleteNodeIds.delete(entrySpecifierNode.id);
   }
 
-  resolveTargets(entryFile: FilePath, targets: Array<Target>) {
+  resolveTargets(entry: Entry, targets: Array<Target>) {
     let depNodes = targets.map(target =>
       nodeFromDep(
         createDependency({
-          moduleSpecifier: entryFile,
+          moduleSpecifier: entry.filePath,
           pipeline: target.name,
           target: target,
           env: target.env,
@@ -194,7 +195,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       ),
     );
 
-    let entryNode = nodeFromEntryFile(entryFile);
+    let entryNode = nodeFromEntryFile(entry);
     if (this.hasNode(entryNode.id)) {
       this.replaceNodesConnectedTo(entryNode, depNodes);
       this.incompleteNodeIds.delete(entryNode.id);

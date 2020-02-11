@@ -28,16 +28,13 @@ export default function prettyDiagnostic(
   } = diagnostic;
 
   let result = {
-    message: '',
-    stack: '',
+    message:
+      mdAnsi(`**${origin ?? 'unknown'}**: `) +
+      (skipFormatting ? message : mdAnsi(message)),
+    stack: stack ?? filePath ?? '',
     codeframe: '',
     hints: [],
   };
-
-  result.message =
-    mdAnsi(`**${origin ?? 'unknown'}**: `) +
-    (skipFormatting ? message : mdAnsi(message));
-  result.stack = stack || '';
 
   if (codeFrame !== undefined) {
     let highlights = Array.isArray(codeFrame.codeHighlights)
