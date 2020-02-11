@@ -47,6 +47,15 @@ export default new Transformer({
   },
 
   transform({asset}) {
+    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
+    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
+    asset.setEnvironment({
+      context: 'browser',
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+    });
+
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
     // Only set here if it is null to allow previous transformers to override this behavior.
     if (asset.isSplittable == null) {
