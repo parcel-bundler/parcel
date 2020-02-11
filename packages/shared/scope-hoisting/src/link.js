@@ -17,7 +17,6 @@ import template from '@babel/template';
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
 import * as esmodule from './formats/esmodule';
 import * as global from './formats/global';
@@ -582,9 +581,6 @@ export function link({
         );
 
         treeShake(path.scope, exported);
-        if (options.minify) {
-          mangleScope(path.scope, exported);
-        }
       },
     },
   });

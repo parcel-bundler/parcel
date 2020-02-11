@@ -679,7 +679,7 @@ describe('scope hoisting', function() {
         path.join(distDir, 'a.js'),
         'utf8',
       );
-      assert(/.\+./.test(contents));
+      assert(/output=9/.test(contents));
       assert(!/.-./.test(contents));
     });
 
