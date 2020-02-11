@@ -6,6 +6,7 @@ import type {
   AssetRequestDesc,
   AssetRequestResult,
   Dependency,
+  Entry,
   ParcelOptions,
   TransformationOpts,
 } from './types';
@@ -17,7 +18,6 @@ import type {EntryResult} from './EntryResolver'; // ? Is this right
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import {isGlob} from '@parcel/utils';
 import {nodeFromAssetGroup} from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
@@ -41,7 +41,7 @@ type EntryRequest = {|
 type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  request: FilePath,
+  request: Entry,
   result?: TargetResolveResult,
 |};
 
@@ -97,7 +97,7 @@ export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
 }
 
 export class TargetRequestRunner extends RequestRunner<
-  FilePath,
+  Entry,
   TargetResolveResult,
 > {
   targetResolver: TargetResolver;
@@ -114,12 +114,12 @@ export class TargetRequestRunner extends RequestRunner<
     this.assetGraph = opts.assetGraph;
   }
 
-  run(request: FilePath) {
-    return this.targetResolver.resolve(path.dirname(request));
+  run(request: Entry) {
+    return this.targetResolver.resolve(request.packagePath);
   }
 
   onComplete(
-    request: FilePath,
+    request: Entry,
     result: TargetResolveResult,
     api: RequestRunnerAPI,
   ) {

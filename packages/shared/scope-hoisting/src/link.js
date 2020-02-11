@@ -176,7 +176,7 @@ export function link({
         let parent;
         if (binding) {
           parent = path.findParent(
-            p => p.scope === binding.scope && p.isStatement(),
+            p => getScopeBefore(p) === binding.scope && p.isStatement(),
           );
         }
 
@@ -195,7 +195,7 @@ export function link({
           binding.reference(decl.get('declarations.0.init'));
         }
 
-        parent.scope.registerDeclaration(decl);
+        getScopeBefore(parent).registerDeclaration(decl);
       }
 
       return t.identifier(name);
@@ -207,6 +207,10 @@ export function link({
     }
 
     return node;
+  }
+
+  function getScopeBefore(path) {
+    return path.isScope() ? path.parentPath.scope : path.scope;
   }
 
   function isUnusedValue(path) {

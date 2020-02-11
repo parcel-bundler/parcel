@@ -67,6 +67,10 @@ export class Bundle implements IBundle {
     return this.#bundle.isInline;
   }
 
+  get isSplittable(): ?boolean {
+    return this.#bundle.isSplittable;
+  }
+
   get target(): ITarget {
     return new Target(this.#bundle.target);
   }

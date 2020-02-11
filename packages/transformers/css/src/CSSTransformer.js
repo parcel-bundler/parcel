@@ -56,6 +56,12 @@ export default new Transformer({
       },
     });
 
+    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
+    // Only set here if it is null to allow previous transformers to override this behavior.
+    if (asset.isSplittable == null) {
+      asset.isSplittable = true;
+    }
+
     let ast = asset.ast;
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an

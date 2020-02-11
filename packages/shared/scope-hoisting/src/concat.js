@@ -164,8 +164,12 @@ function getUsedExports(
         }
 
         if (symbol === '*') {
-          for (let symbol of resolvedAsset.symbols.keys()) {
-            markUsed(resolvedAsset, symbol);
+          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
+            resolvedAsset,
+          )) {
+            if (symbol) {
+              markUsed(asset, symbol);
+            }
           }
         }
 
