@@ -12,6 +12,7 @@ import type {
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
+  EnvironmentOpts,
   File,
   FilePath,
   Meta,
@@ -26,6 +27,7 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
 import InternalAsset from '../InternalAsset';
+import {createEnvironment} from '../Environment';
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -246,5 +248,9 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       isAsync: true, // The browser has native loaders for url dependencies
       ...opts,
     });
+  }
+
+  setEnvironment(env: EnvironmentOpts): void {
+    this.#asset.value.env = createEnvironment(env);
   }
 }
