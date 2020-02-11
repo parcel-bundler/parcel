@@ -29,6 +29,12 @@ import Dependency from './Dependency';
 import InternalAsset from '../InternalAsset';
 import {createEnvironment} from '../Environment';
 
+const internalAssetToAsset: WeakMap<InternalAsset, Asset> = new WeakMap();
+const internalAssetToMutableAsset: WeakMap<
+  InternalAsset,
+  MutableAsset,
+> = new WeakMap();
+
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
   InternalAsset,
@@ -156,8 +162,14 @@ export class Asset extends BaseAsset implements IAsset {
   #asset; // InternalAsset
 
   constructor(asset: InternalAsset) {
+    let existing = internalAssetToAsset.get(asset);
+    if (existing != null) {
+      return existing;
+    }
+
     super(asset);
     this.#asset = asset;
+    internalAssetToAsset.set(asset, this);
   }
 
   get outputHash(): string {
@@ -173,8 +185,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset; // InternalAsset
 
   constructor(asset: InternalAsset) {
+    let existing = internalAssetToMutableAsset.get(asset);
+    if (existing != null) {
+      return existing;
+    }
+
     super(asset);
     this.#asset = asset;
+    internalAssetToMutableAsset.set(asset, this);
   }
 
   get ast(): ?AST {

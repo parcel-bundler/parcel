@@ -10,17 +10,28 @@ import type {
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
-import {loadConfig} from '@parcel/utils';
+import {DefaultWeakMap, loadConfig} from '@parcel/utils';
 
 import Environment from './Environment';
+
+const internalConfigToConfig: DefaultWeakMap<
+  ParcelOptions,
+  WeakMap<Config, PublicConfig>,
+> = new DefaultWeakMap(() => new WeakMap());
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
   #options; // ParcelOptions
 
   constructor(config: Config, options: ParcelOptions) {
+    let existing = internalConfigToConfig.get(options).get(config);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#config = config;
     this.#options = options;
+    internalConfigToConfig.get(options).set(config, this);
   }
 
   get env() {

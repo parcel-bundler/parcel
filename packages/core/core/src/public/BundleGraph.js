@@ -15,12 +15,17 @@ import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetFromValue, assetToInternalAsset, Asset} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
 
+const internalBundleGraphToBundleGraph: DefaultWeakMap<
+  ParcelOptions,
+  WeakMap<InternalBundleGraph, BundleGraph>,
+> = new DefaultWeakMap(() => new WeakMap());
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
 const _bundleGraphToInternalBundleGraph: WeakMap<
@@ -38,9 +43,15 @@ export default class BundleGraph implements IBundleGraph {
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
+    let existing = internalBundleGraphToBundleGraph.get(options).get(graph);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#graph = graph;
     this.#options = options;
     _bundleGraphToInternalBundleGraph.set(this, graph);
+    internalBundleGraphToBundleGraph.get(options).set(graph, this);
   }
 
   getDependencyResolution(dep: IDependency): ?Asset {
