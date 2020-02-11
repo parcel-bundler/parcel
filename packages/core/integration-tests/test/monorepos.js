@@ -111,10 +111,6 @@ describe('monorepos', function() {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
-      {
-        name: 'pkg-b.module.css',
-        assets: ['index.module.css'],
-      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -160,16 +156,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.module.css"'));
-
-    contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/packages/pkg-b/dist/pkg-b.module.css',
-      ),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
   it('should build using root targets with a glob pointing at files inside packages', async function() {
@@ -250,10 +237,6 @@ describe('monorepos', function() {
         name: 'pkg-b.cjs.css',
         assets: ['index.module.css'],
       },
-      {
-        name: 'pkg-b.module.css',
-        assets: ['index.module.css'],
-      },
     ]);
 
     let contents = await outputFS.readFile(
@@ -299,16 +282,7 @@ describe('monorepos', function() {
       ),
       'utf8',
     );
-    assert(contents.includes('import "./pkg-b.module.css"'));
-
-    contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/packages/pkg-b/dist/pkg-b.module.css',
-      ),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
   it('should watch glob entries and build new packages that are added', async function() {
@@ -362,10 +336,6 @@ describe('monorepos', function() {
       },
       {
         name: 'pkg-b.cjs.css',
-        assets: ['index.module.css'],
-      },
-      {
-        name: 'pkg-b.module.css',
         assets: ['index.module.css'],
       },
     ]);
