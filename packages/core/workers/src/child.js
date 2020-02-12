@@ -38,6 +38,7 @@ export class Child {
   workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
   sharedReferences: Map<number, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, number> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -60,6 +61,8 @@ export class Child {
     createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
       this.createReverseHandle(fn),
     getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    resolveSharedReference: (value: mixed) =>
+      this.sharedReferencesByValue.get(value),
   };
 
   messageListener(message: WorkerMessage): void | Promise<void> {
@@ -136,7 +139,9 @@ export class Child {
         result = errorResponseFromError(e);
       }
     } else if (method === 'createSharedReference') {
-      this.sharedReferences.set(args[0], args[1]);
+      let [ref, value] = args;
+      this.sharedReferences.set(ref, value);
+      this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
     } else if (method === 'deleteSharedReference') {
       this.sharedReferences.delete(args[0]);

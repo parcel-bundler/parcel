@@ -819,6 +819,7 @@ describe('javascript', function() {
         name: 'index.js',
         assets: [
           'index.js',
+          'c.js',
           'bundle-url.js',
           'cacheLoader.js',
           'js-loader.js',

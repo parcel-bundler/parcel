@@ -176,7 +176,7 @@ export default new Bundler({
         .filter(
           b =>
             !b.isEntry &&
-            (b.type === 'js' || b.type === 'css') &&
+            b.isSplittable &&
             // Don't share across workers for now as worker-specific code is added
             !b.env.isIsolated(),
         );
@@ -242,6 +242,9 @@ export default new Bundler({
       let [firstBundle] = [...sourceBundles];
       let sharedBundle = bundleGraph.createBundle({
         id: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        // Allow this bundle to be deduplicated. It shouldn't be further split.
+        // TODO: Reconsider bundle/asset flags.
+        isSplittable: true,
         env: firstBundle.env,
         target: firstBundle.target,
         type: firstBundle.type,
@@ -266,7 +269,7 @@ export default new Bundler({
 });
 
 function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
-  if (bundle.env.isIsolated()) {
+  if (bundle.env.isIsolated() || !bundle.isSplittable) {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't deduplicate any assets.
     return;

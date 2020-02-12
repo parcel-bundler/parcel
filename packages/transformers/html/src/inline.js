@@ -1,10 +1,6 @@
 // @flow strict-local
 
-import type {
-  MutableAsset,
-  PluginOptions,
-  TransformerResult,
-} from '@parcel/types';
+import type {MutableAsset, TransformerResult} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 import type {PostHTMLNode} from 'posthtml';
 
@@ -22,7 +18,6 @@ const SCRIPT_TYPES = {
 
 export default function extractInlineAssets(
   asset: MutableAsset,
-  options: PluginOptions,
 ): Array<TransformerResult> {
   let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
@@ -55,7 +50,7 @@ export default function extractInlineAssets(
             type = node.attrs.type.split('/')[1];
           }
 
-          if (node.attrs.type === 'module' && options.scopeHoist) {
+          if (node.attrs.type === 'module' && asset.env.scopeHoist) {
             env = {
               outputFormat: 'esmodule',
             };
@@ -86,6 +81,10 @@ export default function extractInlineAssets(
         // insert parcelId to allow us to retrieve node during packaging
         node.attrs['data-parcel-key'] = parcelKey;
 
+        asset.addDependency({
+          moduleSpecifier: parcelKey,
+        });
+
         parts.push({
           type,
           code: value,
@@ -103,6 +102,10 @@ export default function extractInlineAssets(
 
     // Process inline style attributes.
     if (node.attrs && node.attrs.style) {
+      asset.addDependency({
+        moduleSpecifier: parcelKey,
+      });
+
       parts.push({
         type: 'css',
         code: node.attrs.style,

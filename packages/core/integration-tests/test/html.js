@@ -1,19 +1,31 @@
 import assert from 'assert';
 import {
   bundle,
+  bundler,
   assertBundles,
   assertBundleTree,
   removeDistDirectory,
   distDir,
+  getNextBuild,
   run,
   inputFS,
   outputFS,
+  overlayFS,
+  ncp,
 } from '@parcel/test-utils';
 import path from 'path';
 
 describe('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
+  });
+
+  let subscription;
+  afterEach(async () => {
+    if (subscription) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
   });
 
   it('should support bundling HTML', async () => {
@@ -890,12 +902,43 @@ describe('html', function() {
 
     // Both HTML files should point to the sibling CSS file
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+    assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
-    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+    assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
-    assert(html.includes('<link rel="stylesheet" href="/a.css">'));
+    assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
+  });
+
+  it('should invalidate parent bundle when inline bundles change', async function() {
+    // copy into memory fs
+    await ncp(
+      path.join(__dirname, '/integration/html-inline-js-require'),
+      path.join(__dirname, '/html-inline-js-require'),
+    );
+
+    let b = await bundler(
+      path.join(__dirname, '/html-inline-js-require/index.html'),
+      {
+        inputFS: overlayFS,
+        disableCache: false,
+      },
+    );
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(html.includes("console.log('test')"));
+
+    await overlayFS.writeFile(
+      path.join(__dirname, '/html-inline-js-require/test.js'),
+      'console.log("foo")',
+    );
+    await getNextBuild(b);
+
+    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(html.includes('console.log("foo")'));
   });
 });

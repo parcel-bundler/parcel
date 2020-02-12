@@ -7,8 +7,8 @@ import postcss from 'postcss';
 import cssnano from 'cssnano';
 
 export default new Optimizer({
-  async optimize({contents, map, options}) {
-    if (!options.minify) {
+  async optimize({bundle, contents, map}) {
+    if (!bundle.env.minify) {
       return {contents, map};
     }
 

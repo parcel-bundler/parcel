@@ -330,8 +330,14 @@ describe('scope hoisting', function() {
         ),
       );
 
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.equal(
+        dist.match(/var \$[a-z0-9]+\$\$interop\$default =/g).length,
+        2,
+      );
+
       let output = await run(b);
-      assert.deepEqual(output, 'foobar');
+      assert.deepEqual(output, 'foobar:foo:bar');
     });
 
     it('does not export reassigned CommonJS exports references', async function() {
@@ -341,6 +347,9 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/commonjs-exports-reassign/a.js',
         ),
       );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(/var \$[a-z0-9]+\$cjs_exports/.test(dist));
 
       let [foo, bExports] = await run(b);
       assert.equal(foo, 'foobar');
@@ -417,6 +426,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 123);
+    });
+
+    it('should handle sideEffects: false with namespace imports and re-exports correctly', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-all/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 16);
     });
 
     it('correctly updates deferred assets that are reexported', async function() {
@@ -599,6 +620,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 6);
     });
 
+    it('supports the package.json sideEffects: false flag with shared dependencies', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-split/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(await output, 579);
+    });
+
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
         path.join(
@@ -658,7 +691,7 @@ describe('scope hoisting', function() {
         path.join(distDir, 'a.js'),
         'utf8',
       );
-      assert(/.\+./.test(contents));
+      assert(/output=9/.test(contents));
       assert(!/.-./.test(contents));
     });
 
