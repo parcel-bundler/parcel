@@ -84,6 +84,8 @@ describe('TargetResolver', () => {
               },
               outputFormat: 'global',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
           },
@@ -99,6 +101,8 @@ describe('TargetResolver', () => {
               },
               outputFormat: 'commonjs',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
           },
@@ -130,6 +134,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -160,6 +166,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'esmodule',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: {
               inlineSources: true,
@@ -192,6 +200,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -239,6 +249,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -283,6 +295,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -313,6 +327,8 @@ describe('TargetResolver', () => {
               includeNodeModules: true,
               outputFormat: 'global',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -343,6 +359,8 @@ describe('TargetResolver', () => {
               includeNodeModules: true,
               outputFormat: 'global',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -385,6 +403,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             isLibrary: true,
             outputFormat: 'commonjs',
+            minify: false,
+            scopeHoist: false,
           },
           sourceMap: undefined,
           loc: {
@@ -427,6 +447,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             isLibrary: false,
             outputFormat: 'global',
+            minify: false,
+            scopeHoist: false,
           },
           sourceMap: undefined,
           loc: {
@@ -471,6 +493,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -501,6 +525,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {

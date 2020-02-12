@@ -79,11 +79,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.options = options;
     this.assetRequests = [];
 
-    let {minify, hot, scopeHoist} = options;
+    let {hot} = options;
     this.cacheKey = md5FromObject({
       parcelVersion: PARCEL_VERSION,
       name,
-      options: {minify, hot, scopeHoist},
+      options: {hot},
       entries,
     });
 

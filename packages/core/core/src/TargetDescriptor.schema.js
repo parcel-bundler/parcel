@@ -94,6 +94,9 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
       ],
     },
     engines: ENGINES_SCHEMA,
+    minify: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };
