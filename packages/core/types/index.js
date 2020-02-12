@@ -98,6 +98,8 @@ export type PackageTargetDescriptor = {|
   distDir?: FilePath,
   sourceMap?: TargetSourceMapOptions,
   isLibrary?: boolean,
+  minify?: boolean,
+  scopeHoist?: boolean,
 |};
 
 export type TargetDescriptor = {|
@@ -114,6 +116,8 @@ export type EnvironmentOpts = {|
     | {[PackageName]: boolean, ...},
   outputFormat?: OutputFormat,
   isLibrary?: boolean,
+  minify?: boolean,
+  scopeHoist?: boolean,
 |};
 
 export type VersionMap = {
@@ -130,6 +134,8 @@ export interface Environment {
     | {[PackageName]: boolean, ...};
   +outputFormat: OutputFormat;
   +isLibrary: boolean;
+  +minify: boolean;
+  +scopeHoist: boolean;
 
   isBrowser(): boolean;
   isNode(): boolean;
@@ -201,8 +207,6 @@ export type InitialParcelOptions = {|
 
 export interface PluginOptions {
   +mode: BuildMode;
-  +minify: boolean;
-  +scopeHoist: boolean;
   +sourceMaps: boolean;
   +env: EnvMap;
   +hot: boolean;
