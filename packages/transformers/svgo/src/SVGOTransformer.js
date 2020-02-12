@@ -10,7 +10,7 @@ const defaultConfig = {
 
 export default new Transformer({
   async getConfig({asset}) {
-    let svgoConfig = await asset.getConfig(
+    let config = await asset.getConfig(
       [
         '.svgorc',
         '.svgorc.json',
@@ -24,22 +24,18 @@ export default new Transformer({
       },
     );
 
-    svgoConfig = svgoConfig || {};
-    svgoConfig = {...defaultConfig, ...svgoConfig};
+    config = {...defaultConfig, ...config};
 
-    this.svgo = new SVGO(svgoConfig);
-
-    return svgoConfig;
+    return config;
   },
 
-  transform({asset}) {
-    return [asset];
-  },
-
-  async generate({asset}) {
+  async transform({asset, config}) {
     let code = await asset.getCode();
-    let res = await this.svgo.optimize(code);
+    let svgo = new SVGO(config);
+    let res = await svgo.optimize(code);
 
-    return {code: res.data};
+    asset.setCode(res.data);
+
+    return [asset];
   },
 });
