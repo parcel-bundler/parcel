@@ -128,7 +128,7 @@ export default class TargetResolver {
           return {
             name,
             distDir: path.resolve(this.fs.cwd(), distDir),
-            publicUrl: descriptor.publicUrl,
+            publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
             env: createEnvironment({
               engines: descriptor.engines,
               context: descriptor.context,
@@ -170,7 +170,6 @@ export default class TargetResolver {
       if (this.options.serve) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
-        let serveOptions = this.options.serve;
         targets = [
           {
             name: 'default',
@@ -178,7 +177,7 @@ export default class TargetResolver {
             // temporary, likely in a .gitignore or similar, but still readily
             // available for introspection by the user if necessary.
             distDir: path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
-            publicUrl: serveOptions.publicUrl ?? '/',
+            publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
               engines: {
@@ -303,7 +302,9 @@ export default class TargetResolver {
             ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value'),
           };
         } else {
-          distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+          distDir =
+            this.options.distDir ??
+            path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
         let descriptor = parseCommonTargetDescriptor(
@@ -322,7 +323,7 @@ export default class TargetResolver {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: descriptor.publicUrl ?? '/',
+          publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
@@ -362,7 +363,9 @@ export default class TargetResolver {
       let distEntry;
       let loc;
       if (distPath == null) {
-        distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+        distDir =
+          this.options.distDir ??
+          path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
       } else {
         if (typeof distPath !== 'string') {
           let contents: string =
@@ -411,7 +414,7 @@ export default class TargetResolver {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: descriptor.publicUrl ?? '/',
+          publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
@@ -432,8 +435,10 @@ export default class TargetResolver {
     if (targets.size === 0) {
       targets.set('default', {
         name: 'default',
-        distDir: path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
-        publicUrl: '/',
+        distDir:
+          this.options.distDir ??
+          path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
+        publicUrl: this.options.publicUrl,
         env: createEnvironment({
           engines: pkgEngines,
           context,
