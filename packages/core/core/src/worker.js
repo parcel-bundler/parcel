@@ -56,13 +56,17 @@ export function runPackage(
     bundle,
     bundleGraphReference,
     config,
-    cacheKey,
+    cacheKeys,
     options,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
     config: ParcelConfig,
-    cacheKey: string,
+    cacheKeys: {|
+      content: string,
+      map: string,
+      info: string,
+    |},
     options: ParcelOptions,
   |},
 ) {
@@ -72,5 +76,5 @@ export function runPackage(
     config,
     options,
     report: reportWorker.bind(null, workerApi),
-  }).getBundleInfo(bundle, bundleGraph, cacheKey);
+  }).getBundleInfo(bundle, bundleGraph, cacheKeys);
 }

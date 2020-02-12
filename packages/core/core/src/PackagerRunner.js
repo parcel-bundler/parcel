@@ -48,6 +48,12 @@ type BundleInfo = {|
   time: number,
 |};
 
+type CacheKeyMap = {|
+  content: string,
+  map: string,
+  info: string,
+|};
+
 export default class PackagerRunner {
   config: ParcelConfig;
   options: ParcelOptions;
@@ -60,7 +66,7 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraphReference: number,
     config: ParcelConfig,
-    cacheKey: string,
+    cacheKeys: CacheKeyMap,
     options: ParcelOptions,
   |}) => Promise<BundleInfo>;
 
@@ -120,42 +126,40 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     bundleGraphReference: number,
-  ): Promise<{|...BundleInfo, cacheKey: string|}> {
+  ): Promise<{|...BundleInfo, cacheKeys: CacheKeyMap|}> {
     let start = Date.now();
 
     let cacheKey = await this.getCacheKey(bundle, bundleGraph);
+    let cacheKeys = {
+      content: getContentKey(cacheKey),
+      map: getMapKey(cacheKey),
+      info: getInfoKey(cacheKey),
+    };
     let {hash, hashReferences} =
-      (await this.getBundleInfoFromCache()) ??
+      (await this.getBundleInfoFromCache(cacheKeys.info)) ??
       (await this.getBundleInfoFromWorker({
         bundle,
         bundleGraphReference,
-        cacheKey,
+        cacheKeys,
         options: this.options,
         config: this.config,
       }));
 
-    return {time: Date.now() - start, hash, hashReferences, cacheKey};
+    return {time: Date.now() - start, hash, hashReferences, cacheKeys};
   }
 
-  getBundleInfoFromCache() {
-    // TODO: implement
-    return null;
+  getBundleInfoFromCache(infoKey: string) {
+    return this.options.cache.get(infoKey);
   }
 
   async getBundleInfo(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    cacheKey: ?string,
+    cacheKeys: CacheKeyMap,
   ) {
     let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
 
-    let info = {};
-    // ? Why would cacheKey be null
-    if (cacheKey != null) {
-      info = await this.writeToCache(cacheKey, contents, map);
-    }
-
-    return info;
+    return this.writeToCache(cacheKeys, contents, map);
   }
 
   async getBundleResult(
@@ -374,7 +378,7 @@ export default class PackagerRunner {
   }: {|
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    info: {|...BundleInfo, cacheKey: string|},
+    info: {|...BundleInfo, cacheKeys: CacheKeyMap|},
     hashRefToNameHash: Map<string, string>,
   |}) {
     let {inputFS, outputFS} = this.options;
@@ -405,9 +409,8 @@ export default class PackagerRunner {
             await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
           ).mode,
         };
-    let cacheKey = info.cacheKey;
-    let contentKey = getContentKey(cacheKey);
-    let contentStream = this.options.cache.getStream(contentKey);
+    let cacheKeys = info.cacheKeys;
+    let contentStream = this.options.cache.getStream(cacheKeys.content);
     let size = await writeFileStream(
       outputFS,
       filePath,
@@ -421,7 +424,7 @@ export default class PackagerRunner {
       time: info.time,
     };
 
-    let mapKey = getMapKey(cacheKey);
+    let mapKey = cacheKeys.map;
     if (await this.options.cache.blobExists(mapKey)) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
@@ -434,15 +437,13 @@ export default class PackagerRunner {
     }
   }
 
-  async writeToCache(cacheKey: string, contents: Blob, map: ?Blob) {
-    let contentKey = getContentKey(cacheKey);
-
+  async writeToCache(cacheKeys: CacheKeyMap, contents: Blob, map: ?Blob) {
     let size = 0;
     let hash = crypto.createHash('md5');
     let prevBuf = '';
     let hashReferences = [];
     await this.options.cache.setStream(
-      contentKey,
+      cacheKeys.content,
       blobToStream(contents).pipe(
         new TapStream(buf => {
           let str = prevBuf.toString() + buf.toString();
@@ -457,12 +458,11 @@ export default class PackagerRunner {
     );
 
     if (map != null) {
-      let mapKey = getMapKey(cacheKey);
-      await this.options.cache.setStream(mapKey, blobToStream(map));
+      await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
     }
 
     let info = {size, hash: hash.digest('hex'), hashReferences};
-    await this.options.cache.set(getInfoKey(cacheKey), JSON.stringify(info));
+    await this.options.cache.set(cacheKeys.info, info);
     return info;
   }
 }
