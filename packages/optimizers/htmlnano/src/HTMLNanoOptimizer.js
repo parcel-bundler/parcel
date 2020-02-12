@@ -8,8 +8,8 @@ import posthtml from 'posthtml';
 import path from 'path';
 
 export default new Optimizer({
-  async optimize({contents, map, options}) {
-    if (!options.minify) {
+  async optimize({bundle, contents, map, options}) {
+    if (!bundle.env.minify) {
       return {contents, map};
     }
 

@@ -73,8 +73,8 @@ export default class Transformation {
     this.workerApi = workerApi;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
-    let {minify, hot, scopeHoist} = this.options;
-    this.impactfulOptions = {minify, hot, scopeHoist};
+    let {hot} = this.options;
+    this.impactfulOptions = {hot};
   }
 
   async loadConfig(configRequest: ConfigRequestDesc) {
