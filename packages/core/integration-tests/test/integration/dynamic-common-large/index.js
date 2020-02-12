@@ -1,3 +1,4 @@
+var c = require('./c');
 var a = import('./a');
 var b = import('./b');
 
