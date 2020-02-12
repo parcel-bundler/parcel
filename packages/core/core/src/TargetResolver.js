@@ -135,6 +135,9 @@ export default class TargetResolver {
               isLibrary: descriptor.isLibrary,
               includeNodeModules: descriptor.includeNodeModules,
               outputFormat: descriptor.outputFormat,
+              minify: this.options.minify && descriptor.minify !== false,
+              scopeHoist:
+                this.options.scopeHoist && descriptor.scopeHoist !== false,
             }),
             sourceMap: descriptor.sourceMap,
           };
@@ -181,6 +184,8 @@ export default class TargetResolver {
               engines: {
                 browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers,
               },
+              minify: this.options.minify,
+              scopeHoist: this.options.scopeHoist,
             }),
           },
         ];
@@ -336,6 +341,9 @@ export default class TargetResolver {
                   : 'commonjs'
                 : 'global'),
             isLibrary: isLibrary,
+            minify: this.options.minify && descriptor.minify !== false,
+            scopeHoist:
+              this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
           sourceMap: descriptor.sourceMap,
           loc,
@@ -410,6 +418,9 @@ export default class TargetResolver {
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat: descriptor.outputFormat,
             isLibrary: descriptor.isLibrary,
+            minify: this.options.minify && descriptor.minify !== false,
+            scopeHoist:
+              this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
           sourceMap: descriptor.sourceMap,
           loc,
@@ -426,6 +437,8 @@ export default class TargetResolver {
         env: createEnvironment({
           engines: pkgEngines,
           context,
+          minify: this.options.minify,
+          scopeHoist: this.options.scopeHoist,
         }),
       });
     }

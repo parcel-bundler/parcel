@@ -19,7 +19,7 @@ export default new Resolver({
 
     // If scope hoisting is enabled, we can get smaller builds using esmodule input, so choose `module` over `main`.
     // Otherwise, we'd be wasting time transforming esmodules to commonjs, so choose `main` over `module`.
-    if (options.scopeHoist) {
+    if (dependency.env.scopeHoist) {
       mainFields.push('module', 'main');
     } else {
       mainFields.push('main', 'module');
