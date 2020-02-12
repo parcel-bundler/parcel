@@ -14,6 +14,7 @@ describe('Public Bundle', () => {
     let env = createEnvironment({});
     internalBundle = {
       id: '123',
+      hashReference: '@@HASH_REFERENCE_123',
       entryAssetIds: [],
       type: 'js',
       env,
