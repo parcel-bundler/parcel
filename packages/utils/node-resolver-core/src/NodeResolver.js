@@ -7,7 +7,8 @@ import type {
   Environment,
 } from '@parcel/types';
 import path from 'path';
-import {isGlob} from '@parcel/utils';
+import {isGlob, fuzzySearch} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 import nullthrows from 'nullthrows';
@@ -246,11 +247,45 @@ export default class NodeResolver {
     let pkg = await this.findPackage(path.dirname(filename));
 
     // First try as a file, then as a directory.
-    return (
-      (await this.loadAsFile({file: filename, extensions, env, pkg})) ||
-      (await this.loadDirectory({dir: filename, extensions, env, pkg})) // eslint-disable-line no-return-await
-    );
+    let resolvedFile = await this.loadAsFile({
+      file: filename,
+      extensions,
+      env,
+      pkg,
+    });
+
+    if (!resolvedFile) {
+      let resolvedDir = await this.loadDirectory({
+        dir: filename,
+        extensions,
+        env,
+        pkg,
+      });
+
+      if (resolvedDir) {
+        return resolvedDir;
+      }
+
+      // If we can't load the file do a fuzzySearch for potential hints
+      let dir = path.dirname(filename);
+      let basename = path.basename(filename);
+      let dirContent = await this.options.inputFS.readdir(dir);
+      let closest = fuzzySearch(dirContent, basename);
+      if (closest.length) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Cannot load file __${basename}__ in ${dir}`,
+            hints: closest.map(r => {
+              return `Did you mean __${r}__?`;
+            }),
+          },
+        });
+      }
+    }
+
+    return resolvedFile;
   }
+
   findBuiltin(filename: string, env: Environment) {
     if (builtins[filename]) {
       if (env.isNode()) {
