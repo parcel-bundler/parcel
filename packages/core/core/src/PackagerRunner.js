@@ -22,7 +22,7 @@ import {
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {Readable} from 'stream';
+import {Readable, Transform, PassThrough} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
@@ -467,7 +467,7 @@ export default class PackagerRunner {
   }
 }
 
-async function writeFileStream(
+function writeFileStream(
   fs: FileSystem,
   filePath: FilePath,
   stream: Readable,
@@ -475,38 +475,39 @@ async function writeFileStream(
   hashRefToNameHash: Map<string, string>,
   options: ?FileOptions,
 ): Promise<number> {
-  // TODO: stream directly to filesystem instead of to string first
-  //  - need to figure out how to replace hash references in a stream
-  let bundleStr = '';
-  await new Promise(resolve => {
-    stream.on('data', buf => {
-      bundleStr += buf.toString();
-    });
-    stream.on('end', () => {
-      resolve();
-    });
+  return new Promise((resolve, reject) => {
+    let initialStream =
+      hashReferences.length > 0
+        ? stream.pipe(replaceStream(hashRefToNameHash))
+        : stream;
+    let fsStream = fs.createWriteStream(filePath, options);
+    initialStream
+      .pipe(fsStream)
+      // $FlowFixMe
+      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('error', reject);
   });
+}
 
-  for (let hashRef of hashReferences) {
-    let re = new RegExp(hashRef, 'g');
-    bundleStr = bundleStr.replace(
-      re,
-      nullthrows(hashRefToNameHash.get(hashRef)),
-    );
-  }
+const REF_LENGTH = 25; // TODO: this probably shouldn't be defined here
 
-  await fs.writeFile(filePath, bundleStr, options);
+function replaceStream(hashRefToNameHash) {
+  let boundaryStr = '';
+  return new Transform({
+    transform(chunk, encoding, cb) {
+      let str = boundaryStr + chunk.toString();
+      let replaced = str.replace(/@@HASH_REFERENCE_\w{8}/g, match => {
+        return hashRefToNameHash.get(match) || match;
+      });
+      boundaryStr = replaced.slice(replaced.length - REF_LENGTH - 1);
+      let strUpToBoundary = replaced.slice(0, replaced.length - REF_LENGTH - 1);
+      cb(null, strUpToBoundary);
+    },
 
-  return bundleStr.length;
-
-  // return new Promise((resolve, reject) => {
-  //   let fsStream = fs.createWriteStream(filePath, options);
-  //   stream
-  //     .pipe(fsStream)
-  //     // $FlowFixMe
-  //     .on('finish', () => resolve(fsStream.bytesWritten))
-  //     .on('error', reject);
-  // });
+    flush(cb) {
+      cb(null, boundaryStr);
+    },
+  });
 }
 
 function getContentKey(cacheKey: string) {
@@ -526,7 +527,7 @@ function generateHashRefToNameHashMap(
   bundleInfoMap,
   hashRefToId,
 ): Map<string, string> {
-  let refHashToNameHashMap = new Map();
+  let hashRefToNameHashMap = new Map();
 
   for (let bundle of bundles) {
     let includedBundles = getBundlesIncludedInHash(
@@ -535,7 +536,7 @@ function generateHashRefToNameHashMap(
       hashRefToId,
     );
     // TODO: probably don't need to hash if only one bundle is included, just use that hash?
-    refHashToNameHashMap.set(
+    hashRefToNameHashMap.set(
       bundle.hashReference,
       md5FromString(
         [...includedBundles]
@@ -545,7 +546,7 @@ function generateHashRefToNameHashMap(
     );
   }
 
-  return refHashToNameHashMap;
+  return hashRefToNameHashMap;
 }
 
 function getBundlesIncludedInHash(
