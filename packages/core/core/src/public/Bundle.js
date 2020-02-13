@@ -161,10 +161,6 @@ export class Bundle implements IBundle {
       mapVisitor(asset => assetFromValue(asset, this.#options), visit),
     );
   }
-
-  getHash() {
-    return this.#bundleGraph.getHash(this.#bundle);
-  }
 }
 
 export class NamedBundle extends Bundle implements INamedBundle {
