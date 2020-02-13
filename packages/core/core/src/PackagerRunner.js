@@ -22,7 +22,7 @@ import {
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {Readable, Transform, PassThrough} from 'stream';
+import {Readable, Transform} from 'stream';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
@@ -93,6 +93,8 @@ export default class PackagerRunner {
     let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
     let bundleInfoMap = {};
+    let writeEarlyPromises = {};
+    let hashRefToNameHash = new Map();
     // ? hashRef should maybe just be first 8 digits of id, but that would require that id is an md5 hash already
     //  - only reason I'm not doing that right now is that it feels like we're doing a bunch of hashes of hashes
     //  - not sure if that's a bad thing or not
@@ -104,21 +106,33 @@ export default class PackagerRunner {
         let info = await this.processBundle(bundle, bundleGraph, ref);
         hashRefToId[bundle.hashReference] = bundle.id;
         bundleInfoMap[bundle.id] = info;
+        if (!info.hashReferences.length) {
+          hashRefToNameHash.set(bundle.hashReference, info.hash.slice(-8));
+          writeEarlyPromises[bundle.id] = this.writeToDist({
+            bundle,
+            info,
+            hashRefToNameHash,
+            bundleGraph,
+          });
+        }
       }),
     );
-    let hashRefToNameHash = generateHashRefToNameHashMap(
+    assignComplexNameHashes(
+      hashRefToNameHash,
       bundles,
       bundleInfoMap,
       hashRefToId,
     );
     await Promise.all(
-      bundles.map(bundle =>
-        this.writeToDist({
-          bundle,
-          info: bundleInfoMap[bundle.id],
-          hashRefToNameHash,
-          bundleGraph,
-        }),
+      bundles.map(
+        bundle =>
+          writeEarlyPromises[bundle.id] ??
+          this.writeToDist({
+            bundle,
+            info: bundleInfoMap[bundle.id],
+            hashRefToNameHash,
+            bundleGraph,
+          }),
       ),
     );
     await dispose();
@@ -387,14 +401,12 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     let thisHashReference = bundle.hashReference;
     if (filePath.includes(thisHashReference)) {
-      filePath = filePath.replace(
-        thisHashReference,
-        nullthrows(hashRefToNameHash.get(thisHashReference)),
-      );
+      let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
+      filePath = filePath.replace(thisHashReference, thisNameHash);
       bundle.filePath = filePath;
       bundle.name = nullthrows(bundle.name).replace(
         thisHashReference,
-        nullthrows(hashRefToNameHash.get(thisHashReference)),
+        thisNameHash,
       );
     }
 
@@ -478,10 +490,9 @@ function writeFileStream(
   options: ?FileOptions,
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    let initialStream =
-      hashReferences.length > 0
-        ? stream.pipe(replaceStream(hashRefToNameHash))
-        : stream;
+    let initialStream = hashReferences.length
+      ? stream.pipe(replaceStream(hashRefToNameHash))
+      : stream;
     let fsStream = fs.createWriteStream(filePath, options);
     initialStream
       .pipe(fsStream)
@@ -522,21 +533,24 @@ function getInfoKey(cacheKey: string) {
   return md5FromString(`${cacheKey}:info`);
 }
 
-function generateHashRefToNameHashMap(
+function assignComplexNameHashes(
+  hashRefToNameHash,
   bundles,
   bundleInfoMap,
   hashRefToId,
-): Map<string, string> {
-  let hashRefToNameHashMap = new Map();
-
+) {
   for (let bundle of bundles) {
+    if (hashRefToNameHash.get(bundle.hashReference) != null) {
+      continue;
+    }
+
     let includedBundles = getBundlesIncludedInHash(
       bundle.id,
       bundleInfoMap,
       hashRefToId,
     );
-    // TODO: probably don't need to hash if only one bundle is included, just use that hash?
-    hashRefToNameHashMap.set(
+
+    hashRefToNameHash.set(
       bundle.hashReference,
       md5FromString(
         [...includedBundles]
@@ -545,8 +559,6 @@ function generateHashRefToNameHashMap(
       ).slice(-8),
     );
   }
-
-  return hashRefToNameHashMap;
 }
 
 function getBundlesIncludedInHash(
