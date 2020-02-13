@@ -629,7 +629,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(await output, 579);
+      assert.deepEqual(await output, 581);
     });
 
     it('missing exports should be replaced with an empty object', async function() {
