@@ -54,6 +54,8 @@ type CacheKeyMap = {|
   info: string,
 |};
 
+const REF_LENGTH = 25; // TODO: this probably shouldn't be defined here
+
 export default class PackagerRunner {
   config: ParcelConfig;
   options: ParcelOptions;
@@ -440,19 +442,19 @@ export default class PackagerRunner {
   async writeToCache(cacheKeys: CacheKeyMap, contents: Blob, map: ?Blob) {
     let size = 0;
     let hash = crypto.createHash('md5');
-    let prevBuf = '';
+    let boundaryStr = '';
     let hashReferences = [];
     await this.options.cache.setStream(
       cacheKeys.content,
       blobToStream(contents).pipe(
         new TapStream(buf => {
-          let str = prevBuf.toString() + buf.toString();
+          let str = boundaryStr + buf.toString();
           hashReferences = hashReferences.concat(
             [...str.matchAll(/@@HASH_REFERENCE_\w{8}/g)].map(match => match[0]),
           );
           size += buf.length;
           hash.update(buf);
-          prevBuf = buf;
+          boundaryStr = str.slice(str.length - REF_LENGTH - 1);
         }),
       ),
     );
@@ -488,8 +490,6 @@ function writeFileStream(
       .on('error', reject);
   });
 }
-
-const REF_LENGTH = 25; // TODO: this probably shouldn't be defined here
 
 function replaceStream(hashRefToNameHash) {
   let boundaryStr = '';
