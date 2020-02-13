@@ -574,12 +574,14 @@ export default class BundleGraph {
     return hashHex;
   }
 
-  // ? Should this be removed? Or at least renamed to signify that it incorporates content of child bundles,
-  //  - even though that may not affect the content of the output bundle
   getHash(bundle: Bundle): string {
     let hash = crypto.createHash('md5');
-    this.traverseBundles(childBundle => {
-      hash.update(this.getContentHash(childBundle));
+    this.traverseBundles((childBundle, ctx, traversal) => {
+      if (childBundle.id === bundle.id || childBundle.isInline) {
+        hash.update(this.getContentHash(childBundle));
+      } else {
+        traversal.skipChildren();
+      }
     }, bundle);
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));

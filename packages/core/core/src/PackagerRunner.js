@@ -360,7 +360,7 @@ export default class PackagerRunner {
       parcelVersion: PARCEL_VERSION,
       deps,
       opts: {sourceMaps},
-      hash: bundleGraph.getContentHash(bundle), // TODO: this should consider inline bundles (and their loaded configs)
+      hash: bundleGraph.getHash(bundle),
     });
   }
 
