@@ -197,3 +197,7 @@ export function getJSONSourceLocation(pos: any, type?: ?'key' | 'value') {
     };
   }
 }
+
+export function encodeJSONKeyComponent(component: string): string {
+  return component.replace(/\//g, '~1');
+}

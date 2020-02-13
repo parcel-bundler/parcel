@@ -1,7 +1,6 @@
 // @flow
 
 import {Reporter} from '@parcel/plugin';
-import invariant from 'assert';
 import Server from './Server';
 import HMRServer from './HMRServer';
 import path from 'path';
@@ -19,7 +18,11 @@ export default new Reporter({
       case 'watchStart': {
         // If there's already a server when watching has just started, something
         // is wrong.
-        invariant(server == null);
+        if (server) {
+          return logger.warn({
+            message: 'Trying to create the devserver but it already exists.',
+          });
+        }
 
         let serverOptions = {
           ...serve,
@@ -51,7 +54,12 @@ export default new Reporter({
         break;
       }
       case 'watchEnd':
-        invariant(server != null);
+        if (!server) {
+          return logger.warn({
+            message: 'Could not shutdown devserver because it does not exist.',
+          });
+        }
+
         if (hmrServer) {
           hmrServer.stop();
         }
@@ -60,14 +68,23 @@ export default new Reporter({
         hmrServers.delete(serve.port);
         break;
       case 'buildSuccess':
-        invariant(server != null);
+        if (!server) {
+          return logger.warn({
+            message:
+              'Could not send success event to devserver because it does not exist.',
+          });
+        }
+
         server.buildSuccess(event.bundleGraph);
         if (hmrServer) {
           hmrServer.emitUpdate(event);
         }
         break;
       case 'buildFailure':
-        invariant(server != null);
+        // On buildFailure watchStart sometimes has not been called yet
+        // do not throw an additional warning here
+        if (!server) return;
+
         server.buildError(event.diagnostics);
         if (hmrServer) {
           hmrServer.emitError(event.diagnostics);

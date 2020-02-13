@@ -74,7 +74,7 @@ describe('TargetResolver', () => {
         targets: [
           {
             name: 'customA',
-            publicUrl: undefined,
+            publicUrl: '/',
             distDir: path.resolve('customA'),
             env: {
               context: 'browser',
@@ -91,7 +91,7 @@ describe('TargetResolver', () => {
           },
           {
             name: 'customB',
-            publicUrl: undefined,
+            publicUrl: '/',
             distDir: path.resolve('customB'),
             env: {
               context: 'node',

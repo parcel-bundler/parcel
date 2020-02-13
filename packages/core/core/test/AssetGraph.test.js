@@ -23,7 +23,7 @@ const TARGETS = [
     distDir: 'dist',
     distEntry: 'out.js',
     env: DEFAULT_ENV,
-    publicUrl: null,
+    publicUrl: '/',
   },
 ];
 
