@@ -12,20 +12,6 @@ describe('Graph', () => {
     assert.deepEqual(graph.getAllEdges(), []);
   });
 
-  it('constructor should add directed edges between nodes', () => {
-    let node1 = {id: 'a', value: 'a'};
-    let node2 = {id: 'b', value: 'b'};
-    let graph = new Graph({
-      nodes: new Map([
-        [node1.id, node1],
-        [node2.id, node2],
-      ]),
-      edges: [{from: node1.id, to: node2.id, type: null}],
-    });
-    assert(graph.hasEdge(node1.id, node2.id));
-    assert(!graph.hasEdge(node2.id, node1.id));
-  });
-
   it('addNode should add a node to the graph', () => {
     let graph = new Graph();
     let node = {id: 'a', value: 'a'};
