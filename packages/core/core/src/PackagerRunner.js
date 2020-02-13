@@ -33,7 +33,7 @@ import BundleGraph, {
   bundleGraphToInternalBundleGraph,
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
-import {PARCEL_VERSION} from './constants';
+import {PARCEL_VERSION, HASH_REF_PREFIX} from './constants';
 
 type Opts = {|
   config: ParcelConfig,
@@ -54,7 +54,8 @@ type CacheKeyMap = {|
   info: string,
 |};
 
-const REF_LENGTH = 25; // TODO: this probably shouldn't be defined here
+const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
+const HASH_REF_REGEX = new RegExp(`${HASH_REF_PREFIX}\\w{32}`, 'g');
 
 export default class PackagerRunner {
   config: ParcelConfig;
@@ -95,16 +96,11 @@ export default class PackagerRunner {
     let bundleInfoMap = {};
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
-    // ? hashRef should maybe just be first 8 digits of id, but that would require that id is an md5 hash already
-    //  - only reason I'm not doing that right now is that it feels like we're doing a bunch of hashes of hashes
-    //  - not sure if that's a bad thing or not
-    let hashRefToId = {};
     // skip inline bundles, they will be processed via the parent bundle
     let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
     await Promise.all(
       bundles.map(async bundle => {
         let info = await this.processBundle(bundle, bundleGraph, ref);
-        hashRefToId[bundle.hashReference] = bundle.id;
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {
           hashRefToNameHash.set(bundle.hashReference, info.hash.slice(-8));
@@ -117,12 +113,7 @@ export default class PackagerRunner {
         }
       }),
     );
-    assignComplexNameHashes(
-      hashRefToNameHash,
-      bundles,
-      bundleInfoMap,
-      hashRefToId,
-    );
+    assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap);
     await Promise.all(
       bundles.map(
         bundle =>
@@ -165,6 +156,10 @@ export default class PackagerRunner {
   }
 
   getBundleInfoFromCache(infoKey: string) {
+    if (this.options.disableCache) {
+      return;
+    }
+
     return this.options.cache.get(infoKey);
   }
 
@@ -462,11 +457,11 @@ export default class PackagerRunner {
         new TapStream(buf => {
           let str = boundaryStr + buf.toString();
           hashReferences = hashReferences.concat(
-            str.match(/@@HASH_REFERENCE_\w{8}/g) ?? [],
+            str.match(HASH_REF_REGEX) ?? [],
           );
           size += buf.length;
           hash.update(buf);
-          boundaryStr = str.slice(str.length - REF_LENGTH - 1);
+          boundaryStr = str.slice(str.length - BOUNDARY_LENGTH);
         }),
       ),
     );
@@ -474,7 +469,6 @@ export default class PackagerRunner {
     if (map != null) {
       await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
     }
-
     let info = {size, hash: hash.digest('hex'), hashReferences};
     await this.options.cache.set(cacheKeys.info, info);
     return info;
@@ -507,11 +501,14 @@ function replaceStream(hashRefToNameHash) {
   return new Transform({
     transform(chunk, encoding, cb) {
       let str = boundaryStr + chunk.toString();
-      let replaced = str.replace(/@@HASH_REFERENCE_\w{8}/g, match => {
+      let replaced = str.replace(HASH_REF_REGEX, match => {
         return hashRefToNameHash.get(match) || match;
       });
-      boundaryStr = replaced.slice(replaced.length - REF_LENGTH - 1);
-      let strUpToBoundary = replaced.slice(0, replaced.length - REF_LENGTH - 1);
+      boundaryStr = replaced.slice(replaced.length - BOUNDARY_LENGTH);
+      let strUpToBoundary = replaced.slice(
+        0,
+        replaced.length - BOUNDARY_LENGTH,
+      );
       cb(null, strUpToBoundary);
     },
 
@@ -533,22 +530,13 @@ function getInfoKey(cacheKey: string) {
   return md5FromString(`${cacheKey}:info`);
 }
 
-function assignComplexNameHashes(
-  hashRefToNameHash,
-  bundles,
-  bundleInfoMap,
-  hashRefToId,
-) {
+function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
   for (let bundle of bundles) {
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
     }
 
-    let includedBundles = getBundlesIncludedInHash(
-      bundle.id,
-      bundleInfoMap,
-      hashRefToId,
-    );
+    let includedBundles = getBundlesIncludedInHash(bundle.id, bundleInfoMap);
 
     hashRefToNameHash.set(
       bundle.hashReference,
@@ -564,17 +552,15 @@ function assignComplexNameHashes(
 function getBundlesIncludedInHash(
   bundleId,
   bundleInfoMap,
-  hashRefToId,
   included = new Set(),
 ) {
   included.add(bundleId);
   for (let hashRef of bundleInfoMap[bundleId].hashReferences) {
-    let referencedId = hashRefToId[hashRef];
+    let referencedId = getIdFromHashRef(hashRef);
     if (!included.has(referencedId)) {
       for (let ref in getBundlesIncludedInHash(
         referencedId,
         bundleInfoMap,
-        hashRefToId,
         included,
       )) {
         included.add(ref);
@@ -583,4 +569,8 @@ function getBundlesIncludedInHash(
   }
 
   return included;
+}
+
+function getIdFromHashRef(hashRef: string) {
+  return hashRef.slice(HASH_REF_PREFIX.length);
 }

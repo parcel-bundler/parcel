@@ -235,7 +235,7 @@ export default new Bundler({
 
       let [firstBundle] = [...sourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        id: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        uniqueKey: md5FromString([...sourceBundles].map(b => b.id).join(':')),
         // Allow this bundle to be deduplicated. It shouldn't be further split.
         // TODO: Reconsider bundle/asset flags.
         isSplittable: true,
