@@ -247,25 +247,21 @@ export default class NodeResolver {
     let pkg = await this.findPackage(path.dirname(filename));
 
     // First try as a file, then as a directory.
-    let resolvedFile = await this.loadAsFile({
-      file: filename,
-      extensions,
-      env,
-      pkg,
-    });
-
-    if (!resolvedFile) {
-      let resolvedDir = await this.loadDirectory({
+    let resolvedFile =
+      (await this.loadAsFile({
+        file: filename,
+        extensions,
+        env,
+        pkg,
+      })) ||
+      (await this.loadDirectory({
         dir: filename,
         extensions,
         env,
         pkg,
-      });
+      }));
 
-      if (resolvedDir) {
-        return resolvedDir;
-      }
-
+    if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
       let dir = path.dirname(filename);
       let basename = path.basename(filename);
