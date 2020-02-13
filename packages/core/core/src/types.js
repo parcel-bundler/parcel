@@ -15,6 +15,7 @@ import type {
   ModuleSpecifier,
   PackageName,
   PackageJSON,
+  ReporterEvent,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
@@ -40,6 +41,8 @@ export type Environment = {|
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
+  minify: boolean,
+  scopeHoist: boolean,
 |};
 
 export type Target = {|
@@ -48,7 +51,7 @@ export type Target = {|
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
   name: string,
-  publicUrl: ?string,
+  publicUrl: string,
   loc?: ?SourceLocation,
 |};
 
@@ -110,6 +113,8 @@ export type ParcelOptions = {|
   minify: boolean,
   scopeHoist: boolean,
   sourceMaps: boolean,
+  publicUrl: string,
+  distDir: ?FilePath,
   hot: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
@@ -324,3 +329,5 @@ export type ValidationOpts = {|
   request: AssetRequestDesc,
   options: ParcelOptions,
 |};
+
+export type ReportFn = (event: ReporterEvent) => void;

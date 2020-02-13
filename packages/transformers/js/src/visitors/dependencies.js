@@ -123,7 +123,7 @@ export default ({
   },
 
   NewExpression: {
-    exit(node, {asset, options}, ancestors) {
+    exit(node, {asset}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isWebWorker =
@@ -148,7 +148,7 @@ export default ({
           env: {
             context: 'web-worker',
             outputFormat:
-              isModule && options.scopeHoist ? 'esmodule' : undefined,
+              isModule && asset.env.scopeHoist ? 'esmodule' : undefined,
           },
           meta: {
             webworker: true,

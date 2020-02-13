@@ -15,6 +15,7 @@ import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {DefaultWeakMap} from '@parcel/utils';
 
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
@@ -25,13 +26,28 @@ import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 
+const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
+  ParcelOptions,
+  WeakMap<InternalBundleGraph, MutableBundleGraph>,
+> = new DefaultWeakMap(() => new WeakMap());
+
 export default class MutableBundleGraph implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
+    let existing = internalMutableBundleGraphToMutableBundleGraph
+      .get(options)
+      .get(graph);
+    if (existing != null) {
+      return existing;
+    }
     this.#graph = graph;
     this.#options = options;
+
+    internalMutableBundleGraphToMutableBundleGraph
+      .get(options)
+      .set(graph, this);
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {

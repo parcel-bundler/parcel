@@ -9,6 +9,7 @@ import type {Target as TargetValue} from '../types';
 import Environment from './Environment';
 import nullthrows from 'nullthrows';
 
+const internalTargetToTarget: WeakMap<TargetValue, Target> = new WeakMap();
 const _targetToInternalTarget: WeakMap<ITarget, TargetValue> = new WeakMap();
 export function targetToInternalTarget(target: ITarget): TargetValue {
   return nullthrows(_targetToInternalTarget.get(target));
@@ -18,8 +19,14 @@ export default class Target implements ITarget {
   #target; // TargetValue
 
   constructor(target: TargetValue) {
+    let existing = internalTargetToTarget.get(target);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#target = target;
     _targetToInternalTarget.set(this, target);
+    internalTargetToTarget.set(target, this);
   }
 
   get distEntry(): ?FilePath {
@@ -42,7 +49,7 @@ export default class Target implements ITarget {
     return this.#target.name;
   }
 
-  get publicUrl(): ?string {
+  get publicUrl(): string {
     return this.#target.publicUrl;
   }
 

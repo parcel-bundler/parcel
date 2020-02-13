@@ -3,7 +3,7 @@ import assert from 'assert';
 import WorkerFarm from '../';
 
 describe('WorkerFarm', function() {
-  this.timeout(20000);
+  this.timeout(30000);
 
   it('Should start up workers', async () => {
     let workerfarm = new WorkerFarm({
@@ -291,6 +291,25 @@ describe('WorkerFarm', function() {
     assert.equal(result, 'Shared reference does not exist');
   });
 
+  it('should resolve shared references in workers', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: false,
+      workerPath: require.resolve(
+        './integration/workerfarm/resolve-shared-reference.js',
+      ),
+    });
+
+    let sharedValue = 'Something to be shared';
+    let {ref, dispose} = await workerfarm.createSharedReference(sharedValue);
+
+    assert.equal(workerfarm.workerApi.resolveSharedReference(sharedValue), ref);
+    assert.ok(await workerfarm.run(ref));
+
+    await dispose();
+    assert(workerfarm.workerApi.resolveSharedReference(sharedValue) == null);
+  });
+
   it('Should support shared references in local worker', async () => {
     let workerfarm = new WorkerFarm({
       warmWorkers: true,
@@ -307,6 +326,25 @@ describe('WorkerFarm', function() {
     await dispose();
     result = await workerfarm.run(ref);
     assert.equal(result, 'Shared reference does not exist');
+  });
+
+  it('should resolve shared references in local worker', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: true,
+      workerPath: require.resolve(
+        './integration/workerfarm/resolve-shared-reference.js',
+      ),
+    });
+
+    let sharedValue = 'Something to be shared';
+    let {ref, dispose} = await workerfarm.createSharedReference(sharedValue);
+
+    assert.equal(workerfarm.workerApi.resolveSharedReference(sharedValue), ref);
+    assert.ok(await workerfarm.run(ref));
+
+    await dispose();
+    assert(workerfarm.workerApi.resolveSharedReference(sharedValue) == null);
   });
 
   it('Should dispose of shared references when ending', async () => {
