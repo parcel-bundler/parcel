@@ -462,7 +462,7 @@ export default class PackagerRunner {
         new TapStream(buf => {
           let str = boundaryStr + buf.toString();
           hashReferences = hashReferences.concat(
-            [...str.matchAll(/@@HASH_REFERENCE_\w{8}/g)].map(match => match[0]),
+            str.match(/@@HASH_REFERENCE_\w{8}/g) ?? [],
           );
           size += buf.length;
           hash.update(buf);
