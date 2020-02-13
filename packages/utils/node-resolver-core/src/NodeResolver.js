@@ -271,7 +271,7 @@ export default class NodeResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: `Cannot load file __${basename}__ in ${dir}`,
-            hints: closest.map(r => {
+            hints: closest.slice(0, 3).map(r => {
               return `Did you mean __${r}__?`;
             }),
           },
