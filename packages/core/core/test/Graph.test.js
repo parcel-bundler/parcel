@@ -81,43 +81,6 @@ describe('Graph', () => {
     assert(graph.hasEdge('a', 'b'));
   });
 
-  it('serialize should have the same amount of nodes and edges', () => {
-    let graph = new Graph();
-    let node1 = {id: 'a', value: null};
-    let node2 = {id: 'b', value: null};
-
-    graph.addNode(node1);
-    graph.addNode(node2);
-
-    graph.addEdge(node1.id, node2.id);
-    let serialized = graph.serialize();
-    assert.deepEqual(serialized.edges, [
-      {from: node1.id, to: node2.id, type: null},
-    ]);
-    assert.deepEqual(
-      serialized.nodes,
-      new Map([
-        [node1.id, node1],
-        [node2.id, node2],
-      ]),
-    );
-  });
-
-  it('serialize - deserialize should be deep equal but different objects', () => {
-    let graph = new Graph();
-    let node1 = {id: 'a', value: null};
-    let node2 = {id: 'b', value: null};
-    graph.addNode(node1);
-    graph.addNode(node2);
-    graph.addEdge(node1.id, node2.id);
-
-    let copy = Graph.deserialize(graph.serialize());
-
-    assert.deepEqual(graph.getAllEdges(), copy.getAllEdges());
-    assert.deepEqual(graph.nodes, copy.nodes);
-    assert(copy !== graph);
-  });
-
   it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
     let graph = new Graph();
     let nodeA = {id: 'a', value: 'a'};
