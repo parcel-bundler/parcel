@@ -53,7 +53,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldExcludeAsset(asset, usedExports, bundleGraph)) {
+      if (shouldExcludeAsset(asset, usedExports)) {
         return context;
       }
 
@@ -63,7 +63,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      if (!context || shouldExcludeAsset(asset, usedExports, bundleGraph)) {
+      if (!context || shouldExcludeAsset(asset, usedExports)) {
         return;
       }
 
@@ -176,6 +176,16 @@ function getUsedExports(
         markUsed(resolvedAsset, symbol);
       }
     }
+
+    // If the asset is referenced by another bundle, include all exports.
+    if (bundleGraph.isAssetReferencedByAssetType(asset, 'js')) {
+      markUsed(asset, '*');
+      for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
+        if (symbol) {
+          markUsed(a, symbol);
+        }
+      }
+    }
   });
 
   function markUsed(asset, symbol) {
@@ -196,12 +206,10 @@ function getUsedExports(
 function shouldExcludeAsset(
   asset: Asset,
   usedExports: Map<string, Set<Symbol>>,
-  bundleGraph: BundleGraph,
 ) {
   return (
     asset.sideEffects === false &&
     !asset.meta.isCommonJS &&
-    !bundleGraph.isAssetReferencedByAssetType(asset, 'js') &&
     (!usedExports.has(asset.id) ||
       nullthrows(usedExports.get(asset.id)).size === 0)
   );

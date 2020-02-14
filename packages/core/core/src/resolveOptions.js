@@ -95,6 +95,11 @@ export default async function resolveOptions(
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
+    publicUrl: initialOptions.publicUrl ?? '/',
+    distDir:
+      initialOptions.distDir != null
+        ? path.resolve(initialOptions.distDir)
+        : null,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,

@@ -150,7 +150,7 @@ function getURLReplacement({
     to = URL.format(url);
   } else {
     url.pathname = nullthrows(toBundle.name);
-    to = urlJoin(nullthrows(toBundle.target.publicUrl), URL.format(url));
+    to = urlJoin(toBundle.target.publicUrl, URL.format(url));
   }
 
   return {

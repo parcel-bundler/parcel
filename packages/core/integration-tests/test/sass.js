@@ -66,6 +66,7 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
+        includedFiles: {'index.cscc': ['bar.scss', 'foo.scss']},
       },
     ]);
 
@@ -120,6 +121,7 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
+        includedFiles: {'index.scss': ['package.json']},
       },
       {
         type: 'woff2',
@@ -177,6 +179,9 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.sass'],
+        includedFiles: {
+          'index.sass': ['package.json', 'foo.sass', 'bar.sass'],
+        },
       },
     ]);
 
@@ -196,6 +201,7 @@ describe('sass', function() {
       {
         name: 'style.css',
         assets: ['style.scss'],
+        includedFiles: {'style.cscc': ['b.scss']},
       },
     ]);
 
@@ -213,6 +219,7 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
+        includedFiles: {'index.scss': ['.sassrc.js', 'package.json']},
       },
     ]);
 
@@ -259,6 +266,7 @@ To @import files from node_modules, use "library/style.sass"
       {
         name: 'index.css',
         assets: ['index.sass'],
+        includedFiles: {'index.sass': ['package.json', 'style.sass']},
       },
     ]);
 
@@ -275,6 +283,9 @@ To @import files from node_modules, use "library/style.sass"
       {
         name: 'index.css',
         assets: ['index.sass'],
+        includedFiles: {
+          'index.sass': ['.sassrc.js', 'package.json', 'style.sass'],
+        },
       },
     ]);
 

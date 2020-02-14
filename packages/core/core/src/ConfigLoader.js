@@ -26,7 +26,10 @@ export default class ConfigLoader {
 
   load(configRequest: ConfigRequestDesc) {
     let promise = this.queue.add(() => this._load(configRequest));
-    this.queue.run();
+    this.queue.run().catch(() => {
+      // Do nothing. Promises returned from `add` that will reject if the underlying
+      // promise rejects.
+    });
     return promise;
   }
 

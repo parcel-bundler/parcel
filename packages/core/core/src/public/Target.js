@@ -49,7 +49,7 @@ export default class Target implements ITarget {
     return this.#target.name;
   }
 
-  get publicUrl(): ?string {
+  get publicUrl(): string {
     return this.#target.publicUrl;
   }
 

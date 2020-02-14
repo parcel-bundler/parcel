@@ -325,7 +325,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && !bundle.env.isLibrary) {
+          } else if (dep.isWeak && dep.isDeferred) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
