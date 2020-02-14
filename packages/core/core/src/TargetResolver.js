@@ -240,7 +240,10 @@ export default class TargetResolver {
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {
-        pkgEngines.browsers = browserslistBrowsers;
+        pkgEngines = {
+          ...pkgEngines,
+          browsers: browserslistBrowsers,
+        };
       }
     }
 
@@ -264,9 +267,15 @@ export default class TargetResolver {
         : DEFAULT_DEVELOPMENT_ENGINES);
     let context = browsers || !node ? 'browser' : 'node';
     if (context === 'browser' && pkgEngines.browsers == null) {
-      pkgEngines.browsers = defaultEngines.browsers;
+      pkgEngines = {
+        ...pkgEngines,
+        browsers: defaultEngines.browsers,
+      };
     } else if (context === 'node' && pkgEngines.node == null) {
-      pkgEngines.node = defaultEngines.node;
+      pkgEngines = {
+        ...pkgEngines,
+        node: defaultEngines.node,
+      };
     }
 
     for (let targetName of COMMON_TARGETS) {

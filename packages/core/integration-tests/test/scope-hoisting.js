@@ -440,6 +440,27 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 16);
     });
 
+    it('supports correctly handles ES6 re-exports in library mode entries', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-library/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-library/build.js',
+        ),
+        'utf8',
+      );
+      assert(!contents.includes('console.log'));
+
+      let output = await run(b);
+      assert.deepEqual(output, {c1: 'foo'});
+    });
+
     it('correctly updates deferred assets that are reexported', async function() {
       let testDir = path.join(
         __dirname,
@@ -629,7 +650,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(await output, 579);
+      assert.deepEqual(await output, 581);
     });
 
     it('missing exports should be replaced with an empty object', async function() {
