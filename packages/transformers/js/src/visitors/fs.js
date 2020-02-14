@@ -46,8 +46,8 @@ export default {
         // Add location info so we log a code frame with the error
         err.loc =
           path.node.arguments.length > 0
-            ? path.node.arguments[0].loc.start
-            : path.node.loc.start;
+            ? path.node.arguments[0].loc?.start
+            : path.node.loc?.start;
         throw err;
       }
 
@@ -173,7 +173,7 @@ function getBindingPath(path, name) {
 function NodeNotEvaluatedError(node) {
   this.message = 'Cannot statically evaluate fs argument';
   this.node = node;
-  this.loc = node.loc.start;
+  this.loc = node.loc?.start;
 }
 
 function evaluate(path, vars) {
