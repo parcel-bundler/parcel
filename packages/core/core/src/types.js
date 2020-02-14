@@ -305,6 +305,7 @@ export type Bundle = {|
   target: Target,
   filePath: ?FilePath,
   name: ?string,
+  displayName: ?string,
   pipeline: ?string,
   stats: Stats,
 |};

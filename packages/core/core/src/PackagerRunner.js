@@ -197,7 +197,6 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
-    // ? How should we print progress for names with hash references?
     this.report({
       type: 'buildProgress',
       phase: 'packaging',

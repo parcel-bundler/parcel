@@ -191,4 +191,8 @@ export class NamedBundle extends Bundle implements INamedBundle {
   get name(): string {
     return nullthrows(this.#bundle.name);
   }
+
+  get displayName(): string {
+    return nullthrows(this.#bundle.displayName);
+  }
 }

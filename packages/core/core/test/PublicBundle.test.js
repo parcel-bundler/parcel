@@ -20,6 +20,7 @@ describe('Public Bundle', () => {
       env,
       filePath: null,
       name: null,
+      displayName: null,
       pipeline: null,
       isEntry: null,
       isInline: null,

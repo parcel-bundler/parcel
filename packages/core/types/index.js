@@ -583,6 +583,7 @@ export interface Bundle {
 export interface NamedBundle extends Bundle {
   +filePath: FilePath;
   +name: string;
+  +displayName: string;
 }
 
 export type BundleGroup = {|
