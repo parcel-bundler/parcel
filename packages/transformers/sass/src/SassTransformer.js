@@ -73,7 +73,14 @@ export default new Transformer({
 
     let css;
     try {
-      css = (await sassRender(config)).css;
+      let result = await sassRender(config);
+
+      css = result.css;
+      for (let included of result.stats.includedFiles) {
+        if (included !== asset.filePath) {
+          asset.addIncludedFile({filePath: included});
+        }
+      }
     } catch (err) {
       // Adapt the Error object for the reporter.
       err.fileName = err.file;
