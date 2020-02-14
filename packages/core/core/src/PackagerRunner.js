@@ -43,9 +43,9 @@ type Opts = {|
 |};
 
 type BundleInfo = {|
-  hash: string,
-  hashReferences: Array<string>,
-  time: number,
+  +hash: string,
+  +hashReferences: Array<string>,
+  +time: number,
 |};
 
 type CacheKeyMap = {|
@@ -540,30 +540,20 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
     hashRefToNameHash.set(
       bundle.hashReference,
       md5FromString(
-        [...includedBundles]
-          .map(bundleId => bundleInfoMap[bundleId].hash)
-          .join(':'),
+        includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
       ).slice(-8),
     );
   }
 }
 
-function getBundlesIncludedInHash(
-  bundleId,
-  bundleInfoMap,
-  included = new Set(),
-) {
-  included.add(bundleId);
+function getBundlesIncludedInHash(bundleId, bundleInfoMap, included = []) {
+  included.push(bundleId);
   for (let hashRef of bundleInfoMap[bundleId].hashReferences) {
     let referencedId = getIdFromHashRef(hashRef);
-    if (!included.has(referencedId)) {
-      for (let ref in getBundlesIncludedInHash(
-        referencedId,
-        bundleInfoMap,
-        included,
-      )) {
-        included.add(ref);
-      }
+    if (!included.includes(referencedId)) {
+      included.push(
+        ...getBundlesIncludedInHash(referencedId, bundleInfoMap, included),
+      );
     }
   }
 
