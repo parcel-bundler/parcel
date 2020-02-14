@@ -35,6 +35,9 @@ This telemetry includes information such memory and cpu usage. Details about use
 errors such as syntax errors should not be included in these reports. Other errors are captured automatically.
 
 Source code for our version of Parcel is available at https://staging.bb-inf.net/padmaia/parcel/src/master/
+
+Please visit #parcel-frontbucket (for Frontbucket) or #parcel (for general discussion) in Slack
+to send us your feedback or questions!
 `,
         });
         userNotified = true;
