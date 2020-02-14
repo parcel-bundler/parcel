@@ -353,7 +353,7 @@ export class DepPathRequestRunner extends RequestRunner<
 
   // Defer transforming this dependency if it is marked as weak, there are no side effects,
   // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
-  // using a wildcard.
+  // using a wildcard and isn't an entry (in library mode).
   // This helps with performance building large libraries like `lodash-es`, which re-exports
   // a huge number of functions since we can avoid even transforming the files that aren't used.
   shouldDeferDependency(dependency: Dependency, sideEffects: ?boolean) {
@@ -361,8 +361,7 @@ export class DepPathRequestRunner extends RequestRunner<
     if (
       dependency.isWeak &&
       sideEffects === false &&
-      !dependency.symbols.has('*') &&
-      !dependency.env.isLibrary // TODO (T-232): improve the logic below and remove this.
+      !dependency.symbols.has('*')
     ) {
       let depNode = this.assetGraph.getNode(dependency.id);
       invariant(depNode);
@@ -376,6 +375,7 @@ export class DepPathRequestRunner extends RequestRunner<
       let deps = this.assetGraph.getIncomingDependencies(resolvedAsset);
       defer = deps.every(
         d =>
+          !(d.env.isLibrary && d.isEntry) &&
           !d.symbols.has('*') &&
           ![...d.symbols.keys()].some(symbol => {
             let assetSymbol = resolvedAsset.symbols.get(symbol);
