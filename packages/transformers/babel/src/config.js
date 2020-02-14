@@ -14,6 +14,7 @@ import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
 import getTypescriptOptions from './typescript';
 import {enginesToBabelTargets} from './utils';
+import {BABEL_RANGE} from './constants';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
@@ -23,16 +24,16 @@ export async function load(
   options: PluginOptions,
   logger: PluginLogger,
 ) {
-  if (config.result != null) {
-    return reload(config, options);
-  }
-
   // Don't look for a custom babel config if inside node_modules
   if (!config.isSource) {
     return buildDefaultBabelConfig(config);
   }
 
-  let babelCore = await loadBabelCore(config, options);
+  let babelCore = await options.packageManager.require(
+    '@babel/core',
+    config.searchPath,
+    {range: BABEL_RANGE},
+  );
   let partialConfig = babelCore.loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
@@ -269,26 +270,4 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
       });
     }),
   );
-}
-
-async function reload(config: Config, options: PluginOptions) {
-  let {loadPartialConfig} = await loadBabelCore(config, options);
-
-  let partialConfig = loadPartialConfig({
-    filename: config.searchPath,
-    cwd: path.dirname(config.searchPath),
-    root: options.projectRoot,
-  });
-
-  config.setResult({
-    internal: false,
-    config: partialConfig.options,
-    targets: enginesToBabelTargets(config.env),
-  });
-}
-
-function loadBabelCore(config: Config, options: PluginOptions): Promise<any> {
-  return !config.isSource || config.result?.internal
-    ? bundledBabelCore
-    : options.packageManager.require('@babel/core', config.searchPath);
 }
