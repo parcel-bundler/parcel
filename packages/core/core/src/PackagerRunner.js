@@ -535,7 +535,9 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
       continue;
     }
 
-    let includedBundles = getBundlesIncludedInHash(bundle.id, bundleInfoMap);
+    let includedBundles = [
+      ...getBundlesIncludedInHash(bundle.id, bundleInfoMap),
+    ];
 
     hashRefToNameHash.set(
       bundle.hashReference,
@@ -546,14 +548,16 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
   }
 }
 
-function getBundlesIncludedInHash(bundleId, bundleInfoMap, included = []) {
-  included.push(bundleId);
+function getBundlesIncludedInHash(
+  bundleId,
+  bundleInfoMap,
+  included = new Set(),
+) {
+  included.add(bundleId);
   for (let hashRef of bundleInfoMap[bundleId].hashReferences) {
     let referencedId = getIdFromHashRef(hashRef);
-    if (!included.includes(referencedId)) {
-      included.push(
-        ...getBundlesIncludedInHash(referencedId, bundleInfoMap, included),
-      );
+    if (!included.has(referencedId)) {
+      getBundlesIncludedInHash(referencedId, bundleInfoMap, included);
     }
   }
 
