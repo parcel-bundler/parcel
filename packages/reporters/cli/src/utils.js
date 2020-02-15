@@ -18,10 +18,10 @@ export function getProgressMessage(event: BuildProgressEvent): ?string {
       return 'Bundling...';
 
     case 'packaging':
-      return `Packaging ${path.basename(event.bundle.filePath || '')}...`;
+      return `Packaging ${event.bundle.displayName}...`;
 
     case 'optimizing':
-      return `Optimizing ${path.basename(event.bundle.filePath || '')}...`;
+      return `Optimizing ${event.bundle.displayName}...`;
   }
 
   return null;

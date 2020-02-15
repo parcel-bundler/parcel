@@ -121,7 +121,6 @@ describe('babel', function() {
       defaultEngines: null,
       minify: false,
     });
-
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));

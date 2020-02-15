@@ -15,8 +15,7 @@ import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap} from '@parcel/utils';
-
+import {DefaultWeakMap, md5FromString} from '@parcel/utils';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
@@ -25,6 +24,7 @@ import {getBundleGroupId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
+import {HASH_REF_PREFIX} from '../constants';
 
 const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
   ParcelOptions,
@@ -118,12 +118,15 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       ? assetToInternalAsset(opts.entryAsset)
       : null;
 
-    let bundleId = 'bundle:' + (opts.id ?? nullthrows(entryAsset?.value.id));
+    let bundleId = md5FromString(
+      'bundle:' + (opts.uniqueKey ?? nullthrows(entryAsset?.value.id)),
+    );
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {
         id: bundleId,
+        hashReference: HASH_REF_PREFIX + bundleId,
         type: opts.type ?? nullthrows(entryAsset).value.type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)
@@ -136,6 +139,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         isSplittable: opts.isSplittable ?? entryAsset?.value.isSplittable,
         target: targetToInternalTarget(opts.target),
         name: null,
+        displayName: null,
         stats: {size: 0, time: 0},
       },
     };

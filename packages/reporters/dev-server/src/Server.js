@@ -50,7 +50,7 @@ type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
-  rootPath: ?string;
+  rootPath: string;
   bundleGraph: BundleGraph | null;
   errors: Array<{|
     message: string,
@@ -100,11 +100,7 @@ export default class Server extends EventEmitter {
 
     if (this.errors) {
       return this.send500(req, res);
-    } else if (
-      !pathname ||
-      (this.rootPath != null && !pathname.startsWith(this.rootPath)) ||
-      path.extname(pathname) === ''
-    ) {
+    } else if (!pathname || path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
       return this.sendIndex(req, res);
@@ -117,10 +113,13 @@ export default class Server extends EventEmitter {
         res,
         () => this.send404(req, res),
       );
-    } else {
+    } else if (pathname.startsWith(this.rootPath)) {
       // Otherwise, serve the file from the dist folder
-      req.url = this.rootPath ? pathname.slice(this.rootPath.length) : pathname;
+      req.url =
+        this.rootPath === '/' ? pathname : pathname.slice(this.rootPath.length);
       return this.serveDist(req, res, () => this.sendIndex(req, res));
+    } else {
+      return this.send404(req, res);
     }
   }
 
