@@ -35,7 +35,6 @@ async function configHydrator(
     configPlugins['postcss-modules'] != null
   ) {
     modules = configPlugins['postcss-modules'];
-    // $FlowFixMe
     delete configPlugins['postcss-modules'];
   }
 
