@@ -111,6 +111,53 @@ export default class NodeResolver {
     return null;
   }
 
+  async findAlternativeNodeModules(
+    moduleName: string,
+    dir: string,
+  ): Promise<Array<string>> {
+    let potentialModules: Array<string> = [];
+    let root = path.parse(dir).root;
+    let isOrganisationModule = moduleName.startsWith('@');
+
+    while (dir !== root) {
+      // Skip node_modules directories
+      if (path.basename(dir) === 'node_modules') {
+        dir = path.dirname(dir);
+      }
+
+      try {
+        let modulesDir = path.join(dir, 'node_modules');
+        let stats = await this.options.inputFS.stat(modulesDir);
+        if (stats.isDirectory()) {
+          let dirContent = await this.options.inputFS.readdir(modulesDir);
+
+          // Filter out the modules that interest us
+          let modules = dirContent.filter(i =>
+            isOrganisationModule ? i.startsWith('@') : !i.startsWith('@'),
+          );
+
+          // If it's an organisation module, loop through all the modules of that organisation
+          if (isOrganisationModule) {
+            for (let item of modules) {
+              let orgDirPath = path.join(modulesDir, item);
+              let orgDirContent = await this.options.inputFS.readdir(
+                orgDirPath,
+              );
+              potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
+            }
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+
+      // Move up a directory
+      dir = path.dirname(dir);
+    }
+
+    return fuzzySearch(potentialModules, moduleName).slice(0, 2);
+  }
+
   async resolveModule({
     filename,
     parent,
@@ -163,6 +210,22 @@ export default class NodeResolver {
         moduleName: parts[0],
         subPath: parts[1],
       };
+
+      let alternativeModules = await this.findAlternativeNodeModules(
+        resolved.moduleName,
+        dir,
+      );
+
+      if (alternativeModules.length) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Cannot find module  __${resolved.moduleName}__ in ${dir}`,
+            hints: alternativeModules.map(r => {
+              return `Did you mean __${r}__?`;
+            }),
+          },
+        });
+      }
     }
 
     return resolved;
@@ -269,7 +332,7 @@ export default class NodeResolver {
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: `Cannot load file __${basename}__ in ${dir}`,
-            hints: closest.slice(0, 3).map(r => {
+            hints: closest.slice(0, 2).map(r => {
               return `Did you mean __${r}__?`;
             }),
           },
