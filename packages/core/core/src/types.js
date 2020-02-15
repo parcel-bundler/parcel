@@ -295,6 +295,7 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
@@ -304,6 +305,7 @@ export type Bundle = {|
   target: Target,
   filePath: ?FilePath,
   name: ?string,
+  displayName: ?string,
   pipeline: ?string,
   stats: Stats,
 |};

@@ -77,6 +77,10 @@ export class Bundle implements IBundle {
     return this.#bundle.id;
   }
 
+  get hashReference(): string {
+    return this.#bundle.hashReference;
+  }
+
   get type(): string {
     return this.#bundle.type;
   }
@@ -157,10 +161,6 @@ export class Bundle implements IBundle {
       mapVisitor(asset => assetFromValue(asset, this.#options), visit),
     );
   }
-
-  getHash() {
-    return this.#bundleGraph.getHash(this.#bundle);
-  }
 }
 
 export class NamedBundle extends Bundle implements INamedBundle {
@@ -190,5 +190,9 @@ export class NamedBundle extends Bundle implements INamedBundle {
 
   get name(): string {
     return nullthrows(this.#bundle.name);
+  }
+
+  get displayName(): string {
+    return nullthrows(this.#bundle.displayName);
   }
 }

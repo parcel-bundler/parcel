@@ -99,15 +99,13 @@ export default class NodeResolver {
     }
 
     if (resolved) {
-      let result: ResolveResult = {
+      return {
         filePath: resolved.path,
+        sideEffects:
+          resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
+            ? false
+            : undefined,
       };
-
-      if (resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)) {
-        result.sideEffects = false;
-      }
-
-      return result;
     }
 
     return null;

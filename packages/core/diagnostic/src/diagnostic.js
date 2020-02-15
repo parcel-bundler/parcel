@@ -6,8 +6,8 @@ import nullthrows from 'nullthrows';
 
 export type DiagnosticHighlightLocation = {|
   // These positions are 1-based
-  line: number,
-  column: number,
+  +line: number,
+  +column: number,
 |};
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
