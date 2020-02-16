@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, run} from '@parcel/test-utils';
 
-describe.only('resolver', function() {
+describe('resolver', function() {
   it('should support resolving tilde in monorepo packages', async function() {
     let b = await bundle(
       path.join(
