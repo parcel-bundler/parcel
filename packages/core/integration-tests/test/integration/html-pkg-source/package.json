@@ -1,0 +1,7 @@
+{
+    "source": "index.html",
+    "app": "dist/index.html",
+    "targets": {
+        "app": {}
+    }
+}
