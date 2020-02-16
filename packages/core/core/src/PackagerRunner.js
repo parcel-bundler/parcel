@@ -413,9 +413,9 @@ export default class PackagerRunner {
     let writeOptions = publicBundle.env.isBrowser()
       ? undefined
       : {
-          mode: (await inputFS.stat(
-            nullthrows(publicBundle.getMainEntry()).filePath,
-          )).mode,
+          mode: (
+            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
+          ).mode,
         };
     let cacheKeys = info.cacheKeys;
     let contentStream = this.options.cache.getStream(cacheKeys.content);

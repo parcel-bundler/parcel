@@ -134,7 +134,10 @@ export function _addToInstallQueue(
           }
         }),
       )
-      .then(() => {}, () => {});
+      .then(
+        () => {},
+        () => {},
+      );
   }
 
   return queue.run();

@@ -156,11 +156,10 @@ describe('Graph', () => {
 
     graph.removeById('b');
 
-    assert.deepEqual([...graph.nodes.values()].map(node => node.id), [
-      'a',
-      'c',
-      'f',
-    ]);
+    assert.deepEqual(
+      [...graph.nodes.values()].map(node => node.id),
+      ['a', 'c', 'f'],
+    );
     assert.deepEqual(graph.getAllEdges(), [
       {from: 'a', to: 'c', type: null},
       {from: 'c', to: 'f', type: null},
@@ -204,11 +203,10 @@ describe('Graph', () => {
 
     graph.removeById('b');
 
-    assert.deepEqual([...graph.nodes.values()].map(node => node.id), [
-      'a',
-      'c',
-      'f',
-    ]);
+    assert.deepEqual(
+      [...graph.nodes.values()].map(node => node.id),
+      ['a', 'c', 'f'],
+    );
     assert.deepEqual(graph.getAllEdges(), [
       {from: 'a', to: 'c', type: null},
       {from: 'c', to: 'f', type: null},
