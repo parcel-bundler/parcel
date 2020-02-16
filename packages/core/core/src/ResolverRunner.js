@@ -5,6 +5,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
+import {relatifyFilePath} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
 import URL from 'url';
@@ -136,13 +137,12 @@ export default class ResolverRunner {
       return null;
     }
 
-    let dir = dependency.sourcePath
-      ? path.dirname(dependency.sourcePath)
-      : '<none>';
-
+    let sourcePath = dependency.sourcePath || 'unknown path';
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Failed to resolve '${dependency.moduleSpecifier}' from '${dir}'`,
+      `Failed to resolve '${
+        dependency.moduleSpecifier
+      }' from '${relatifyFilePath(this.options.projectRoot, sourcePath)}'`,
     );
 
     // Merge resolver errors

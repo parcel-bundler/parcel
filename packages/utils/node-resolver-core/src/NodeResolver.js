@@ -7,7 +7,7 @@ import type {
   Environment,
 } from '@parcel/types';
 import path from 'path';
-import {isGlob, fuzzySearch} from '@parcel/utils';
+import {isGlob, fuzzySearch, relatifyFilePath} from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
@@ -34,14 +34,6 @@ type Module = {|
   moduleDir?: FilePath,
   filePath?: FilePath,
 |};
-
-const relatifyFilePath = (from: string, to: string) => {
-  let filename = path.relative(from, to);
-  if (filename[0] !== '.') {
-    filename = './' + filename;
-  }
-  return filename;
-};
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -304,7 +296,7 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Cannot find module '${resolved.moduleName}' in ${dir}`,
+            message: `Cannot find module ${resolved.moduleName}`,
             hints: alternativeModules.map(r => {
               return `Did you mean __${r}__?`;
             }),
@@ -418,7 +410,10 @@ export default class NodeResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Cannot load file '${relativeFileSpecifier}' in ${parentdir}`,
+          message: `Cannot load file '${relativeFileSpecifier}' in '${relatifyFilePath(
+            this.options.projectRoot,
+            parentdir,
+          )}'.`,
           hints: potentialFiles.map(r => {
             return `Did you mean __${r}__?`;
           }),
@@ -567,9 +562,9 @@ export default class NodeResolver {
         );
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Failed to resolve '__${fileSpecifier}__' in package.json#${
-              failedEntry.field
-            }`,
+            message: `Could not load '${fileSpecifier}' from module '${
+              pkg.name
+            }' found in package.json#${failedEntry.field}`,
             language: 'json',
             filePath: pkg.pkgfile,
             codeFrame: {
@@ -578,7 +573,7 @@ export default class NodeResolver {
                 {
                   key: `/${failedEntry.field}`,
                   type: 'value',
-                  message: `Failed to resolve '${fileSpecifier}' ${alternative &&
+                  message: `'${fileSpecifier}' does not exist${alternative &&
                     `, did you mean '${alternative}'?`}'`,
                 },
               ]),
