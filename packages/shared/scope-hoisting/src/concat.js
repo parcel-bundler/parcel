@@ -178,7 +178,7 @@ function getUsedExports(
     }
 
     // If the asset is referenced by another bundle, include all exports.
-    if (bundleGraph.isAssetReferencedByAssetType(asset, 'js')) {
+    if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
       markUsed(asset, '*');
       for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
         if (symbol) {
