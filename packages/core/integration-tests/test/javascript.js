@@ -1453,9 +1453,10 @@ describe('javascript', function() {
     assert.equal(output.entry.test(), 'pkg-browser-multiple main-entry');
   });
 
-  it('should resolve the module field before main', async function() {
+  it('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/module-field.js'),
+      {scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1471,9 +1472,10 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-es6-module');
   });
 
-  it('should resolve the module field before main', async function() {
+  it('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/both-fields.js'),
+      {scopeHoist: true},
     );
 
     assertBundles(b, [
