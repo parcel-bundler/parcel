@@ -8,14 +8,16 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import {isGlob, fuzzySearch} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 import nullthrows from 'nullthrows';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
-type InternalPackageJSON = PackageJSON & {pkgdir: string, ...};
+type InternalPackageJSON = PackageJSON & {pkgdir: string, pkgfile: string, ...};
 type Options = {|
   options: PluginOptions,
   extensions: Array<string>,
@@ -559,12 +561,30 @@ export default class NodeResolver {
           fileSpecifier,
           pkg.pkgdir,
         );
+
+        let alternative = alternatives[0];
+        let pkgContent = await this.options.inputFS.readFile(
+          pkg.pkgfile,
+          'utf8',
+        );
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: `Failed to resolve '__${fileSpecifier}__' in package.json#${
               failedEntry.field
             }`,
-            hints: alternatives.map(a => `Did you mean __${a}__?`),
+            language: 'json',
+            filePath: pkg.pkgfile,
+            codeFrame: {
+              code: pkgContent,
+              codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                {
+                  key: `/${failedEntry.field}`,
+                  type: 'value',
+                  message: `Failed to resolve '${fileSpecifier}' ${alternative &&
+                    `, did you mean '${alternative}?`}'`,
+                },
+              ]),
+            },
           },
         });
       }
@@ -621,7 +641,10 @@ export default class NodeResolver {
           } else if (typeof pkg.browser === 'string') {
             return {field, filename: pkg.browser};
           } else if (typeof pkg.browser === 'object' && pkg.browser[pkg.name]) {
-            return {field, filename: pkg.browser[pkg.name]};
+            return {
+              field: `browser/${pkg.name}`,
+              filename: pkg.browser[pkg.name],
+            };
           }
         }
 
