@@ -15,7 +15,7 @@ export function normalizeSeparators(filePath: FilePath): FilePath {
   return ret;
 }
 
-export function relatifyFilePath(from: string, to: string) {
+export function relatifyPath(from: string, to: string) {
   let filename = path.relative(from, to);
   if (filename[0] !== '.') {
     filename = './' + filename;

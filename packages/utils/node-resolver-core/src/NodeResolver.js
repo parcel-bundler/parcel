@@ -7,7 +7,7 @@ import type {
   Environment,
 } from '@parcel/types';
 import path from 'path';
-import {isGlob, fuzzySearch, relatifyFilePath} from '@parcel/utils';
+import {isGlob, fuzzySearch, relatifyPath} from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
@@ -188,7 +188,7 @@ export default class NodeResolver {
     return Promise.all(
       dirContent.map(async item => {
         let fullPath = path.join(dir, item);
-        let relativePath = relatifyFilePath(basedir, fullPath);
+        let relativePath = relatifyPath(basedir, fullPath);
         if (relativePath.length < maxlength) {
           let stats = await this.options.inputFS.stat(fullPath);
           let isDir = stats.isDirectory();
@@ -402,7 +402,7 @@ export default class NodeResolver {
 
     if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
-      let relativeFileSpecifier = relatifyFilePath(parentdir, filename);
+      let relativeFileSpecifier = relatifyPath(parentdir, filename);
       let potentialFiles = await this.findAlternativeFiles(
         relativeFileSpecifier,
         parentdir,
@@ -410,7 +410,7 @@ export default class NodeResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Cannot load file '${relativeFileSpecifier}' in '${relatifyFilePath(
+          message: `Cannot load file '${relativeFileSpecifier}' in '${relatifyPath(
             this.options.projectRoot,
             parentdir,
           )}'.`,
@@ -549,7 +549,7 @@ export default class NodeResolver {
       }
     } catch (e) {
       if (failedEntry && pkg) {
-        let fileSpecifier = relatifyFilePath(dir, failedEntry.filename);
+        let fileSpecifier = relatifyPath(dir, failedEntry.filename);
         let alternatives = await this.findAlternativeFiles(
           fileSpecifier,
           pkg.pkgdir,
@@ -755,7 +755,7 @@ export default class NodeResolver {
 
     // If filename is an absolute path, get one relative to the package.json directory.
     if (path.isAbsolute(filename)) {
-      filename = relatifyFilePath(dir, filename);
+      filename = relatifyPath(dir, filename);
       alias = await this.lookupAlias(aliases, filename, dir);
     } else {
       // It is a node_module. First try the entire filename as a key.

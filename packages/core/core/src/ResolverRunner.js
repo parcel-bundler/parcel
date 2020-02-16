@@ -5,7 +5,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
-import {relatifyFilePath} from '@parcel/utils';
+import {relatifyPath} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
 import URL from 'url';
@@ -141,7 +141,7 @@ export default class ResolverRunner {
       dependency,
       `Failed to resolve '${dependency.moduleSpecifier}' ${
         dependency.sourcePath
-          ? `from '${relatifyFilePath(
+          ? `from '${relatifyPath(
               this.options.projectRoot,
               dependency.sourcePath,
             )}'`
