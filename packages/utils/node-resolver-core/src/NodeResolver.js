@@ -636,15 +636,12 @@ export default class NodeResolver {
       )
       .map(entry => {
         // This will never happen, it's just to help out flow?
-        if (!entry) throw new Error('Entry is undefined');
+        if (!entry || typeof entry.filename !== 'string')
+          throw new Error('Invalid package.json entry.');
 
         // Current dir refers to an index file
         if (entry.filename === '.' || entry.filename === './') {
           entry.filename = 'index';
-        }
-
-        if (typeof entry.filename !== 'string') {
-          throw new Error('invariant: expected string');
         }
 
         return {
