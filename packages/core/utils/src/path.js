@@ -20,5 +20,5 @@ export function relatifyPath(from: string, to: string) {
   if (filename[0] !== '.') {
     filename = './' + filename;
   }
-  return filename;
+  return filename.replace(/\\+/g, '/');
 }
