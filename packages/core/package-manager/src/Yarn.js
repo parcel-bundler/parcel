@@ -76,7 +76,9 @@ export class Yarn implements PackageInstaller {
           case 'step':
             logger.progress(
               prefix(
-                `[${message.data.current}/${message.data.total}] ${message.data.message}`,
+                `[${message.data.current}/${message.data.total}] ${
+                  message.data.message
+                }`,
               ),
             );
             return;

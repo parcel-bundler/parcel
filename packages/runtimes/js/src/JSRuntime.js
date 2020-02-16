@@ -162,7 +162,9 @@ export default new Runtime({
         }
 
         if (bundle.env.outputFormat === 'global') {
-          loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}'))`;
+          loaders += `.then(() => parcelRequire('${
+            bundleGroup.entryAssetId
+          }'))`;
         }
 
         assets.push({

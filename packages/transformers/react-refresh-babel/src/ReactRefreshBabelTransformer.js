@@ -20,9 +20,10 @@ async function shouldExclude(asset, options) {
 export default new Transformer({
   async transform({asset, options}) {
     if (!(await shouldExclude(asset, options))) {
-      let reactRefreshBabelPlugin = (
-        await options.packageManager.resolve('react-refresh/babel', __filename)
-      ).resolved;
+      let reactRefreshBabelPlugin = (await options.packageManager.resolve(
+        'react-refresh/babel',
+        __filename,
+      )).resolved;
 
       asset.meta.babelPlugins = asset.meta.babelPlugins || [];
       invariant(Array.isArray(asset.meta.babelPlugins));

@@ -293,10 +293,7 @@ export default class Transformation {
         ),
       ),
     );
-    this.options.cache.set(
-      cacheKey,
-      assets.map(a => a.value),
-    );
+    this.options.cache.set(cacheKey, assets.map(a => a.value));
   }
 
   getCacheKey(assets: Array<InternalAsset>, configs: ConfigMap): string {

@@ -1,4 +1,5 @@
 // @flow strict-local
+/* eslint-disable no-console */
 
 import type {IDisposable, LogEvent} from '@parcel/types';
 import type {
@@ -148,7 +149,6 @@ export function patchConsole() {
   // Skip if console is already patched...
   if (consolePatched) return;
 
-  /* eslint-disable no-console */
   // $FlowFixMe
   console.log = console.info = (...messages: Array<mixed>) => {
     logger.info(messagesToDiagnostic(messages));
@@ -170,7 +170,6 @@ export function patchConsole() {
     logger.error(messagesToDiagnostic(messages));
   };
 
-  /* eslint-enable no-console */
   consolePatched = true;
 }
 

@@ -58,7 +58,11 @@ export default new Namer({
         );
         let err = new ThrowableDiagnostic({
           diagnostic: {
-            message: `Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
+            message: `Target "${
+              bundle.target.name
+            }" declares an output file path of "${fullName}" which does not match the compiled bundle type "${
+              bundle.type
+            }".`,
             filePath: loc.filePath,
             codeFrame: {
               code: await options.inputFS.readFile(loc.filePath, 'utf8'),

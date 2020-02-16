@@ -55,11 +55,9 @@ class FSCache {
         onlyFiles: true,
       });
 
-      return (
-        await Promise.all(
-          files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime())),
-        )
-      ).reduce((a, b) => Math.max(a, b), 0);
+      return (await Promise.all(
+        files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime())),
+      )).reduce((a, b) => Math.max(a, b), 0);
     }
     return (await fs.stat(filename)).mtime.getTime();
   }
