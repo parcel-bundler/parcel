@@ -223,7 +223,6 @@ export default class NodeResolver {
     }
 
     let pkgRoot = pkg.pkgdir;
-    console.log(pkgRoot);
     await this.findAllFilesUp({
       dir: pkgRoot,
       root: pkgRoot,
