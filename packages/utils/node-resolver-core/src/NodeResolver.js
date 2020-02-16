@@ -33,6 +33,14 @@ type Module = {|
   filePath?: FilePath,
 |};
 
+const relatifyFilePath = (from: string, to: string) => {
+  let filename = path.relative(from, to);
+  if (filename[0] !== '.') {
+    filename = './' + filename;
+  }
+  return filename;
+};
+
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
  * https://nodejs.org/api/modules.html#modules_all_together
@@ -95,7 +103,12 @@ export default class NodeResolver {
     if (module.moduleDir) {
       resolved = await this.loadNodeModules(module, extensions, env);
     } else if (module.filePath) {
-      resolved = await this.loadRelative(module.filePath, extensions, env);
+      resolved = await this.loadRelative(
+        module.filePath,
+        extensions,
+        env,
+        parent ? path.dirname(parent) : this.options.projectRoot,
+      );
     }
 
     if (resolved) {
@@ -164,6 +177,70 @@ export default class NodeResolver {
     return fuzzySearch(potentialModules, moduleName).slice(0, 2);
   }
 
+  async findAllFilesUp({
+    dir,
+    root,
+    basedir,
+    maxlength,
+    collected,
+  }: {|
+    dir: string,
+    root: string,
+    basedir: string,
+    maxlength: number,
+    collected: Array<string>,
+  |}) {
+    let dirContent = await this.options.inputFS.readdir(dir);
+    return Promise.all(
+      dirContent.map(async item => {
+        let fullPath = path.join(dir, item);
+        let relativePath = relatifyFilePath(basedir, fullPath);
+        if (relativePath.length < maxlength) {
+          let stats = await this.options.inputFS.stat(fullPath);
+          let isDir = stats.isDirectory();
+          if (isDir || stats.isFile()) {
+            collected.push(relativePath);
+          }
+
+          // If it's a directory, run over each item within said directory...
+          if (isDir) {
+            return this.findAllFilesUp({
+              dir: fullPath,
+              root,
+              basedir,
+              maxlength,
+              collected,
+            });
+          }
+        }
+      }),
+    );
+  }
+
+  async findAlternativeFiles(
+    fileSpecifier: string,
+    dir: string,
+  ): Promise<Array<string>> {
+    let potentialFiles: Array<string> = [];
+    // Find our root, we won't recommend files above the package root as that's bad practise
+    let pkg = await this.findPackage(dir);
+    if (!pkg) {
+      return potentialFiles;
+    }
+
+    let pkgRoot = pkg.pkgdir;
+    console.log(pkgRoot);
+    await this.findAllFilesUp({
+      dir: pkgRoot,
+      root: pkgRoot,
+      basedir: dir,
+      maxlength: fileSpecifier.length + 10,
+      collected: potentialFiles,
+    });
+
+    return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
+  }
+
   async resolveModule({
     filename,
     parent,
@@ -225,7 +302,9 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Cannot find module  __${resolved.moduleName}__ in ${dir}`,
+            message: `Cannot find module '__${
+              resolved.moduleName
+            }__' in ${dir}`,
             hints: alternativeModules.map(r => {
               return `Did you mean __${r}__?`;
             }),
@@ -309,6 +388,7 @@ export default class NodeResolver {
     filename: string,
     extensions: Array<string>,
     env: Environment,
+    parentdir: string,
   ) {
     // Find a package.json file in the current package.
     let pkg = await this.findPackage(path.dirname(filename));
@@ -330,20 +410,20 @@ export default class NodeResolver {
 
     if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
-      let dir = path.dirname(filename);
-      let basename = path.basename(filename);
-      let dirContent = await this.options.inputFS.readdir(dir);
-      let closest = fuzzySearch(dirContent, basename);
-      if (closest.length) {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `Cannot load file __${basename}__ in ${dir}`,
-            hints: closest.slice(0, 2).map(r => {
-              return `Did you mean __${r}__?`;
-            }),
-          },
-        });
-      }
+      let relativeFileSpecifier = relatifyFilePath(parentdir, filename);
+      let potentialFiles = await this.findAlternativeFiles(
+        relativeFileSpecifier,
+        parentdir,
+      );
+
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Cannot load file '__${relativeFileSpecifier}__' in ${parentdir}`,
+          hints: potentialFiles.map(r => {
+            return `Did you mean __${r}__?`;
+          }),
+        },
+      });
     }
 
     return resolvedFile;
@@ -397,31 +477,27 @@ export default class NodeResolver {
     extensions: Array<string>,
     env: Environment,
   ) {
-    try {
-      // If a module was specified as a module sub-path (e.g. some-module/some/path),
-      // it is likely a file. Try loading it as a file first.
-      if (module.subPath && module.moduleDir) {
-        let pkg = await this.readPackage(module.moduleDir);
-        let res = await this.loadAsFile({
-          file: nullthrows(module.filePath),
-          extensions,
-          env,
-          pkg,
-        });
-        if (res) {
-          return res;
-        }
-      }
-
-      // Otherwise, load as a directory.
-      return await this.loadDirectory({
-        dir: nullthrows(module.filePath),
+    // If a module was specified as a module sub-path (e.g. some-module/some/path),
+    // it is likely a file. Try loading it as a file first.
+    if (module.subPath && module.moduleDir) {
+      let pkg = await this.readPackage(module.moduleDir);
+      let res = await this.loadAsFile({
+        file: nullthrows(module.filePath),
         extensions,
         env,
+        pkg,
       });
-    } catch (e) {
-      // ignore
+      if (res) {
+        return res;
+      }
     }
+
+    // Otherwise, load as a directory.
+    return this.loadDirectory({
+      dir: nullthrows(module.filePath),
+      extensions,
+      env,
+    });
   }
 
   async isFile(file: FilePath) {
@@ -444,23 +520,54 @@ export default class NodeResolver {
     env: Environment,
     pkg?: InternalPackageJSON | null,
   |}) {
+    let failedEntry;
     try {
       pkg = await this.readPackage(dir);
 
-      // Get a list of possible package entry points.
-      let entries = this.getPackageEntries(pkg, env);
+      if (pkg) {
+        // Get a list of possible package entry points.
+        let entries = this.getPackageEntries(pkg, env);
 
-      for (let file of entries) {
-        // First try loading package.main as a file, then try as a directory.
-        const res =
-          (await this.loadAsFile({file, extensions, env, pkg})) ||
-          (await this.loadDirectory({dir: file, extensions, env, pkg}));
-        if (res) {
-          return res;
+        for (let entry of entries) {
+          // First try loading package.main as a file, then try as a directory.
+          let res =
+            (await this.loadAsFile({
+              file: entry.filename,
+              extensions,
+              env,
+              pkg,
+            })) ||
+            (await this.loadDirectory({
+              dir: entry.filename,
+              extensions,
+              env,
+              pkg,
+            }));
+
+          if (res) {
+            return res;
+          } else {
+            failedEntry = entry;
+            throw new Error('');
+          }
         }
       }
-    } catch (err) {
-      // ignore
+    } catch (e) {
+      if (failedEntry && pkg) {
+        let fileSpecifier = relatifyFilePath(dir, failedEntry.filename);
+        let alternatives = await this.findAlternativeFiles(
+          fileSpecifier,
+          pkg.pkgdir,
+        );
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Failed to resolve '__${fileSpecifier}__' in package.json#${
+              failedEntry.field
+            }`,
+            hints: alternatives.map(a => `Did you mean __${a}__?`),
+          },
+        });
+      }
     }
 
     // Fall back to an index file inside the directory.
@@ -499,33 +606,51 @@ export default class NodeResolver {
     return pkg;
   }
 
-  getPackageEntries(pkg: InternalPackageJSON, env: Environment): Array<string> {
+  getPackageEntries(
+    pkg: InternalPackageJSON,
+    env: Environment,
+  ): Array<{|
+    filename: string,
+    field: string,
+  |}> {
     return this.mainFields
       .map(field => {
         if (field === 'browser' && pkg.browser != null) {
           if (!env.isBrowser()) {
             return null;
           } else if (typeof pkg.browser === 'string') {
-            return pkg.browser;
+            return {field, filename: pkg.browser};
           } else if (typeof pkg.browser === 'object' && pkg.browser[pkg.name]) {
-            return pkg.browser[pkg.name];
+            return {field, filename: pkg.browser[pkg.name]};
           }
         }
 
-        return pkg[field];
+        return {
+          field,
+          // $FlowFixMe
+          filename: pkg[field],
+        };
       })
-      .filter(entry => typeof entry === 'string')
-      .map(main => {
-        // Default to index file if no main field find
-        if (!main || main === '.' || main === './') {
-          main = 'index';
+      .filter(
+        entry => entry && entry.filename && typeof entry.filename === 'string',
+      )
+      .map(entry => {
+        // This will never happen, it's just to help out flow?
+        if (!entry) throw new Error('Entry is undefined');
+
+        // Current dir refers to an index file
+        if (entry.filename === '.' || entry.filename === './') {
+          entry.filename = 'index';
         }
 
-        if (typeof main !== 'string') {
+        if (typeof entry.filename !== 'string') {
           throw new Error('invariant: expected string');
         }
 
-        return path.resolve(pkg.pkgdir, main);
+        return {
+          field: entry.field,
+          filename: path.resolve(pkg.pkgdir, entry.filename),
+        };
       });
   }
 
@@ -616,11 +741,7 @@ export default class NodeResolver {
 
     // If filename is an absolute path, get one relative to the package.json directory.
     if (path.isAbsolute(filename)) {
-      filename = path.relative(dir, filename);
-      if (filename[0] !== '.') {
-        filename = './' + filename;
-      }
-
+      filename = relatifyFilePath(dir, filename);
       alias = await this.lookupAlias(aliases, filename, dir);
     } else {
       // It is a node_module. First try the entire filename as a key.
