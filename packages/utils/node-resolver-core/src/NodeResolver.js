@@ -138,13 +138,19 @@ export default class NodeResolver {
 
           // If it's an organisation module, loop through all the modules of that organisation
           if (isOrganisationModule) {
-            for (let item of modules) {
-              let orgDirPath = path.join(modulesDir, item);
-              let orgDirContent = await this.options.inputFS.readdir(
-                orgDirPath,
-              );
-              potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
-            }
+            await Promise.all(
+              modules.map(async item => {
+                let orgDirPath = path.join(modulesDir, item);
+                let orgDirContent = await this.options.inputFS.readdir(
+                  orgDirPath,
+                );
+
+                // Add all org packages
+                potentialModules.push(
+                  ...orgDirContent.map(i => `${item}/${i}`),
+                );
+              }),
+            );
           }
         }
       } catch (err) {
