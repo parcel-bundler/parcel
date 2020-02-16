@@ -55,7 +55,7 @@ describe('resolver', function() {
 
       assert(
         e.diagnostics[0].message.startsWith(
-          `Cannot find module './doesnotexisstt' from `,
+          `Failed to resolve './doesnotexisstt' from `,
         ),
       );
 
@@ -79,7 +79,7 @@ describe('resolver', function() {
 
       assert(
         e.diagnostics[0].message.startsWith(
-          `Cannot find module './thisdoesnotexist.css' from `,
+          `Failed to resolve './thisdoesnotexist.css' from `,
         ),
       );
 
