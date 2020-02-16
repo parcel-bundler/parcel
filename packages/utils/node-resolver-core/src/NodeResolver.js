@@ -304,9 +304,7 @@ export default class NodeResolver {
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Cannot find module '__${
-              resolved.moduleName
-            }__' in ${dir}`,
+            message: `Cannot find module '${resolved.moduleName}' in ${dir}`,
             hints: alternativeModules.map(r => {
               return `Did you mean __${r}__?`;
             }),
@@ -420,7 +418,7 @@ export default class NodeResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Cannot load file '__${relativeFileSpecifier}__' in ${parentdir}`,
+          message: `Cannot load file '${relativeFileSpecifier}' in ${parentdir}`,
           hints: potentialFiles.map(r => {
             return `Did you mean __${r}__?`;
           }),
@@ -581,7 +579,7 @@ export default class NodeResolver {
                   key: `/${failedEntry.field}`,
                   type: 'value',
                   message: `Failed to resolve '${fileSpecifier}' ${alternative &&
-                    `, did you mean '${alternative}?`}'`,
+                    `, did you mean '${alternative}'?`}'`,
                 },
               ]),
             },
