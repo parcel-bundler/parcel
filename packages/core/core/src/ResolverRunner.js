@@ -137,15 +137,16 @@ export default class ResolverRunner {
       return null;
     }
 
-    let originText = dependency.sourcePath
-      ? `from '${relatifyFilePath(
-          this.options.projectRoot,
-          dependency.sourcePath,
-        )}'`
-      : '';
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Failed to resolve '${dependency.moduleSpecifier}' ${originText}`,
+      `Failed to resolve '${dependency.moduleSpecifier}' ${
+        dependency.sourcePath
+          ? `from '${relatifyFilePath(
+              this.options.projectRoot,
+              dependency.sourcePath,
+            )}'`
+          : ''
+      }`,
     );
 
     // Merge resolver errors
