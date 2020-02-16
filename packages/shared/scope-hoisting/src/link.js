@@ -338,11 +338,11 @@ export function link({
         } else {
           if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
             // Replace with nothing if the require call's result is not used.
-            let name = assertString(mod.meta.exportsIdentifier);
             if (
               !isUnusedValue(path) ||
               bundleGraph.isAssetReferencedByAnotherBundleOfType(mod, 'js')
             ) {
+              let name = assertString(mod.meta.exportsIdentifier);
               node = t.identifier(replacements.get(name) || name);
 
               // Insert __esModule interop flag if the required module is an ES6 module with a default export.
