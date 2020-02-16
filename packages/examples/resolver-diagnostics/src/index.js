@@ -1,4 +1,4 @@
-const t = require('__invalid_entries');
+const t = require('invalid-entries');
 const babel = ''; // require('@baebel/core');
 const b = ''; // require('./blu.js');
 

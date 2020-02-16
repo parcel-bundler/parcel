@@ -142,7 +142,7 @@ export default class ResolverRunner {
 
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`,
+      `Failed to resolve '${dependency.moduleSpecifier}' from '${dir}'`,
     );
 
     // Merge resolver errors
