@@ -15,7 +15,7 @@ const config = {
     '*.svg': [
       '@parcel/transformer-svgo',
       '@parcel/transformer-svg-react',
-      '@parcel/transformer-js',
+      '...',
     ],
   },
   reporters: [],
