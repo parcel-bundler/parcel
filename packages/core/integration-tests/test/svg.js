@@ -12,10 +12,7 @@ const config = {
   ...defaultConfigContents,
   transforms: {
     ...defaultConfigContents.transforms,
-    '*.svg': [
-      '@parcel/transformer-svgo',
-      '@parcel/transformer-svg-react',
-    ],
+    '*.svg': ['@parcel/transformer-svgo', '@parcel/transformer-svg-react'],
   },
   reporters: [],
   filePath: require.resolve('@parcel/config-default'),
