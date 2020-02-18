@@ -200,10 +200,7 @@ describe('babel', function() {
     let fixtureDir = path.join(__dirname, '/integration/babel-invalid-engines');
     await bundle(path.join(fixtureDir, 'index.js'));
 
-    let file = await outputFS.readFile(
-      path.join(distDir, 'index.js'),
-      'utf8',
-    );
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('class Foo'));
     assert(!file.includes('**'));
   });
