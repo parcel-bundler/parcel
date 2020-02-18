@@ -196,6 +196,18 @@ describe('babel', function() {
     assert(modern.includes('class Bar'));
   });
 
+  it('can build using @babel/preset-env when engines have invalid items', async () => {
+    let fixtureDir = path.join(__dirname, '/integration/babel-invalid-engines');
+    await bundle(path.join(fixtureDir, 'index.js'));
+
+    let file = await outputFS.readFile(
+      path.join(distDir, 'index.js'),
+      'utf8',
+    );
+    assert(file.includes('class Foo'));
+    assert(!file.includes('**'));
+  });
+
   it('should not compile node_modules by default', async function() {
     await bundle(
       path.join(__dirname, '/integration/babel-node-modules/index.js'),

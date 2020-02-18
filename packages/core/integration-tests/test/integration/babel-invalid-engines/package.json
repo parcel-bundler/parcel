@@ -1,0 +1,9 @@
+{
+  "name": "some-project-with-babel",
+  "version": "1.0.0",
+  "engines": {
+    "node": "^6.0.0",
+    "yarn": "^1.13.0",
+    "foobar": "^99.0.0"
+  }
+}
