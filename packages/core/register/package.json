@@ -1,6 +1,6 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0-frontbucket.17",
+  "version": "2.0.0-frontbucket.18",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,10 +19,10 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.17",
-    "@parcel/core": "^2.0.0-frontbucket.12",
-    "@parcel/fs": "^2.0.0-frontbucket.12",
-    "@parcel/package-manager": "^2.0.0-frontbucket.12",
+    "@parcel/config-default": "^2.0.0-frontbucket.18",
+    "@parcel/core": "^2.0.0-frontbucket.13",
+    "@parcel/fs": "^2.0.0-frontbucket.13",
+    "@parcel/package-manager": "^2.0.0-frontbucket.13",
     "deasync": "^0.1.14",
     "pirates": "^4.0.0"
   }

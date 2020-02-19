@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.0-frontbucket.12",
+  "version": "2.0.0-frontbucket.13",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,17 +16,17 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@parcel/cache": "^2.0.0-frontbucket.12",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.10",
-    "@parcel/events": "^2.0.0-frontbucket.9",
-    "@parcel/fs": "^2.0.0-frontbucket.12",
-    "@parcel/logger": "^2.0.0-frontbucket.10",
-    "@parcel/package-manager": "^2.0.0-frontbucket.12",
-    "@parcel/plugin": "^2.0.0-frontbucket.12",
-    "@parcel/source-map": "^2.0.0-frontbucket.12",
-    "@parcel/types": "^2.0.0-frontbucket.12",
-    "@parcel/utils": "^2.0.0-frontbucket.12",
-    "@parcel/workers": "^2.0.0-frontbucket.12",
+    "@parcel/cache": "^2.0.0-frontbucket.13",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.11",
+    "@parcel/events": "^2.0.0-frontbucket.10",
+    "@parcel/fs": "^2.0.0-frontbucket.13",
+    "@parcel/logger": "^2.0.0-frontbucket.11",
+    "@parcel/package-manager": "^2.0.0-frontbucket.13",
+    "@parcel/plugin": "^2.0.0-frontbucket.13",
+    "@parcel/source-map": "^2.0.0-frontbucket.13",
+    "@parcel/types": "^2.0.0-frontbucket.13",
+    "@parcel/utils": "^2.0.0-frontbucket.13",
+    "@parcel/workers": "^2.0.0-frontbucket.13",
     "abortcontroller-polyfill": "^1.1.9",
     "browserslist": "^4.6.6",
     "clone": "^2.1.1",
