@@ -23,7 +23,8 @@ describe('svg', function() {
     await removeDistDirectory();
   });
 
-  it('should support transforming SVGs to react components', async function() {
+  // ATLASSIAN modification: skip as this conflicts with our default config
+  it.skip('should support transforming SVGs to react components', async function() {
     await bundle(path.join(__dirname, '/integration/svg/index.js'), {
       defaultConfig: config,
     });
