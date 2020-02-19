@@ -8,7 +8,7 @@ const path = require('path');
 
 const {shouldReplace, getReplacementName} = require('./utils');
 
-const jsFiles = glob.sync('packages/*/*/lib/**.js', {
+const jsFiles = glob.sync('packages/*/*/lib/**/*.js', {
   absolute: true,
   cwd: path.resolve(__dirname, '../../..'),
 });
