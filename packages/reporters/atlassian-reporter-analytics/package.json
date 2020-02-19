@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/parcel-reporter-analytics",
-  "version": "2.0.0-frontbucket.14",
+  "version": "2.0.0-frontbucket.15",
   "publishConfig": {
     "access": "public"
   },
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.13",
-    "@parcel/plugin": "^2.0.0-frontbucket.11",
+    "@parcel/plugin": "^2.0.0-frontbucket.12",
     "amplitude": "^4.0.0",
     "uuid": "^3.3.3"
   }
