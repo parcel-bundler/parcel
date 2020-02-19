@@ -532,7 +532,7 @@ export type CreateBundleOpts =
   // If an entryAsset is provided, a bundle id, type, and environment will be
   // inferred from the entryAsset.
   | {|
-      +id?: string,
+      +uniqueKey?: string,
       +entryAsset: Asset,
       +target: Target,
       +isEntry?: ?boolean,
@@ -544,7 +544,7 @@ export type CreateBundleOpts =
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
   | {|
-      +id: string,
+      +uniqueKey: string,
       +entryAsset?: Asset,
       +target: Target,
       +isEntry?: ?boolean,
@@ -562,6 +562,7 @@ export type SymbolResolution = {|
 
 export interface Bundle {
   +id: string;
+  +hashReference: string;
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;
@@ -574,7 +575,6 @@ export interface Bundle {
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
-  getHash(): string;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,
@@ -584,6 +584,7 @@ export interface Bundle {
 export interface NamedBundle extends Bundle {
   +filePath: FilePath;
   +name: string;
+  +displayName: string;
 }
 
 export type BundleGroup = {|

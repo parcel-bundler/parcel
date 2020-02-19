@@ -1,11 +1,17 @@
+// @flow
+import type {MutableAsset} from '@parcel/types';
+import type {PluginLogger} from '@parcel/logger';
+
 import * as t from '@babel/types';
 import Path from 'path';
 import fs from 'fs';
 import template from '@babel/template';
+import invariant from 'assert';
+import {errorToDiagnostic} from '@parcel/diagnostic';
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
 
-export default {
+export default ({
   AssignmentExpression(path) {
     if (!isRequire(path.node.right, 'fs', 'readFileSync')) {
       return;
@@ -34,20 +40,26 @@ export default {
 
         filename = Path.resolve(filename);
         res = fs.readFileSync(filename, ...args);
-      } catch (err) {
+      } catch (_err) {
+        // $FlowFixMe yes it is an error
+        let err: Error = _err;
+
         if (err instanceof NodeNotEvaluatedError) {
           // Warn using a code frame
           err.fileName = asset.filePath;
-          // asset.generateErrorMessage(err);
-          logger.warn(err);
+
+          // $FlowFixMe the actual stack is useless
+          delete err.stack;
+
+          logger.warn(errorToDiagnostic(err));
           return;
         }
 
         // Add location info so we log a code frame with the error
         err.loc =
           path.node.arguments.length > 0
-            ? path.node.arguments[0].loc.start
-            : path.node.loc.start;
+            ? path.node.arguments[0].loc?.start
+            : path.node.loc?.start;
         throw err;
       }
 
@@ -66,10 +78,14 @@ export default {
       });
 
       path.replaceWith(replacementNode);
+      invariant(asset.ast);
       asset.ast.isDirty = true;
     }
   },
-};
+}: {
+  [string]: (node: any, {|asset: MutableAsset, logger: PluginLogger|}) => void,
+  ...,
+});
 
 function isRequire(node, name, method) {
   // e.g. require('fs').readFileSync
@@ -170,12 +186,16 @@ function getBindingPath(path, name) {
   return binding && binding.path;
 }
 
-function NodeNotEvaluatedError(node) {
-  this.message = 'Cannot statically evaluate fs argument';
-  this.node = node;
-  this.loc = node.loc.start;
+class NodeNotEvaluatedError extends Error {
+  node: any;
+  loc: any;
+  constructor(node) {
+    super();
+    this.message = 'Cannot statically evaluate fs argument';
+    this.node = node;
+    this.loc = node.loc?.start;
+  }
 }
-
 function evaluate(path, vars) {
   // Inline variables
   path.traverse({

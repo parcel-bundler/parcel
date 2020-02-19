@@ -5,6 +5,7 @@ import type {BabelTargets} from './types';
 
 import invariant from 'assert';
 import semver from 'semver';
+import {TargetNames} from '@babel/helper-compilation-targets/lib/options';
 
 // List of browsers to exclude when the esmodule target is specified.
 // Based on https://caniuse.com/#feat=es6-module
@@ -45,6 +46,7 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
       targets[engineName] = engineValue;
     } else {
       invariant(typeof engineValue === 'string');
+      if (!TargetNames.hasOwnProperty(engineName)) continue;
       let minVersion = getMinSemver(engineValue);
       targets[engineName] = minVersion ?? engineValue;
     }
