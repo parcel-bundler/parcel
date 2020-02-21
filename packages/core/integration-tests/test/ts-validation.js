@@ -85,6 +85,7 @@ describe('ts-validator', function() {
       `export const message: string = "The type error is fixed!"`,
     );
     buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
     let output = await run(buildEvent.bundleGraph);
     assert.equal(output.message, 'The type error is fixed!');
 
