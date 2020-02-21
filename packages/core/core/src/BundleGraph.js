@@ -582,7 +582,7 @@ export default class BundleGraph {
         (ctx?.parentBundle === bundle.id && childBundle.isInline)
       ) {
         hash.update(this.getContentHash(childBundle));
-      } else {
+      } else if (!childBundle.isInline) {
         hash.update(childBundle.id);
       }
       return {parentBundle: childBundle.id};
