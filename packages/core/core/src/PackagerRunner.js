@@ -33,7 +33,7 @@ import BundleGraph, {
   bundleGraphToInternalBundleGraph,
 } from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
-import {PARCEL_VERSION, HASH_REF_PREFIX} from './constants';
+import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 
 type Opts = {|
   config: ParcelConfig,
@@ -55,7 +55,6 @@ type CacheKeyMap = {|
 |};
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
-const HASH_REF_REGEX = new RegExp(`${HASH_REF_PREFIX}\\w{32}`, 'g');
 
 export default class PackagerRunner {
   config: ParcelConfig;
