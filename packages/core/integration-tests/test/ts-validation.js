@@ -58,8 +58,6 @@ describe('ts-validator', function() {
 
   it('should re-run when .ts files change', async function() {
     await outputFS.mkdirp(inputDir);
-    // This can be removed once https://github.com/parcel-bundler/parcel/issues/4138 is fixed,
-    // and we can validate types even when the user does not supply a tsconfig.json.
     await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
     await outputFS.writeFile(
       path.join(inputDir, '/index.ts'),
@@ -69,7 +67,6 @@ describe('ts-validator', function() {
     let b = bundler(path.join(inputDir, '/index.ts'), {
       inputFS: overlayFS,
       defaultConfig: config,
-      patchConsole: false, // TODO: is this necessary?
     });
     subscription = await b.watch();
     let buildEvent = await getNextBuild(b);
