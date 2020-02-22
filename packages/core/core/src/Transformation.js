@@ -103,21 +103,20 @@ export default class Transformation {
     let assets = results.map(a => a.value);
 
     for (let {request, result} of this.configRequests) {
-      // $FlowFixMe
-      let resolveFrom = request.meta.parcelConfigPath;
-      if (typeof resolveFrom !== 'string') {
-        throw new Error('request.meta.parcelConfigPath should be a string!');
-      }
+      if (request.plugin != null) {
+        let resolveFrom = request.meta.parcelConfigPath;
+        if (typeof resolveFrom !== 'string') {
+          throw new Error('request.meta.parcelConfigPath should be a string!');
+        }
 
-      let plugin =
-        request.plugin != null &&
-        (await this.parcelConfig.loadPlugin({
+        let plugin = await this.parcelConfig.loadPlugin({
           packageName: request.plugin,
           resolveFrom,
-        }));
+        });
 
-      if (plugin && plugin.preSerializeConfig) {
-        plugin.preSerializeConfig({config: result});
+        if (plugin && plugin.preSerializeConfig) {
+          plugin.preSerializeConfig({config: result});
+        }
       }
     }
 
