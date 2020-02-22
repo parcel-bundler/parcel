@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {PackageJSON, FilePath, ModuleSpecifier} from '@parcel/types';
+import type {
+  SemverRange,
+  PackageJSON,
+  FilePath,
+  ModuleSpecifier,
+} from '@parcel/types';
 import type {ResolveOptions} from 'resolve';
 import type {FileSystem} from '@parcel/fs';
 
@@ -18,14 +23,21 @@ export type ResolveResult = {|
 export async function resolve(
   fs: FileSystem,
   id: string,
-  opts?: ResolveOptions,
+  opts?: {|
+    range?: ?SemverRange,
+    ...ResolveOptions,
+  |},
 ): Promise<ResolveResult> {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
     // $FlowFixMe
     opts = opts || {};
     // $FlowFixMe
     opts.packageFilter = pkg => {
-      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+      if (
+        typeof pkg.name === 'string' &&
+        pkg.name.startsWith('@parcel/') &&
+        pkg.name !== '@parcel/watcher'
+      ) {
         if (pkg.source) {
           pkg.main = pkg.source;
         }

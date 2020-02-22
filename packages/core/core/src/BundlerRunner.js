@@ -189,6 +189,11 @@ export default class BundlerRunner {
             normalizeSeparators(name),
           );
           internalBundle.name = name;
+          let {hashReference} = internalBundle;
+          internalBundle.displayName = name.includes(hashReference)
+            ? name.replace(hashReference, '[hash]')
+            : name;
+
           return;
         }
       } catch (e) {

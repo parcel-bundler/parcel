@@ -146,7 +146,7 @@ function insertBundleReferences(siblingBundles, tree) {
         attrs: {
           rel: 'stylesheet',
           href: urlJoin(
-            nullthrows(bundle.target).publicUrl ?? '/',
+            nullthrows(bundle.target).publicUrl,
             nullthrows(bundle.name),
           ),
         },
@@ -157,7 +157,7 @@ function insertBundleReferences(siblingBundles, tree) {
         attrs: {
           type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
           src: urlJoin(
-            nullthrows(bundle.target).publicUrl ?? '/',
+            nullthrows(bundle.target).publicUrl,
             nullthrows(bundle.name),
           ),
         },

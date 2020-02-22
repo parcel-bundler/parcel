@@ -74,7 +74,7 @@ export type Target = {|
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
   name: string,
-  publicUrl: ?string,
+  publicUrl: string,
   loc?: ?SourceLocation,
 |};
 
@@ -136,6 +136,8 @@ export type ParcelOptions = {|
   minify: boolean,
   scopeHoist: boolean,
   sourceMaps: boolean,
+  publicUrl: string,
+  distDir: ?FilePath,
   hot: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
@@ -316,6 +318,7 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
@@ -325,6 +328,7 @@ export type Bundle = {|
   target: Target,
   filePath: ?FilePath,
   name: ?string,
+  displayName: ?string,
   pipeline: ?string,
   stats: Stats,
 |};
