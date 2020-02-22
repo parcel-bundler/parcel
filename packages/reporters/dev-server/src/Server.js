@@ -7,6 +7,7 @@ import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';
 import EventEmitter from 'events';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
@@ -126,26 +127,30 @@ export default class Server extends EventEmitter {
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
-      let htmlBundle = null;
-      this.bundleGraph.traverseBundles((bundle, context, {stop}) => {
-        if (bundle.type !== 'html' || !bundle.isEntry) return;
+      let htmlBundle = this.bundleGraph.traverseBundles(
+        (bundle, context, {stop}) => {
+          if (bundle.type !== 'html' || !bundle.isEntry) return;
 
-        if (!htmlBundle) {
-          htmlBundle = bundle;
-        }
+          if (!context) {
+            context = bundle;
+          }
 
-        if (
-          htmlBundle &&
-          bundle.filePath &&
-          bundle.filePath.endsWith('index.html')
-        ) {
-          htmlBundle = bundle;
-          stop();
-        }
-      });
+          if (
+            context &&
+            bundle.filePath &&
+            bundle.filePath.endsWith('index.html')
+          ) {
+            stop();
+            return bundle;
+          }
+        },
+      );
 
       if (htmlBundle) {
-        req.url = `/${path.basename(htmlBundle.filePath)}`;
+        req.url = `/${path.relative(
+          this.options.distDir,
+          nullthrows(htmlBundle.filePath),
+        )}`;
 
         this.serveDist(req, res, () => this.send404(req, res));
       } else {
