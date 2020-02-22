@@ -121,7 +121,6 @@ describe('babel', function() {
       defaultEngines: null,
       minify: false,
     });
-
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
@@ -397,6 +396,7 @@ describe('babel', function() {
     });
 
     it('should rebuild when .babelrc changes', async function() {
+      let inputDir = tempy.directory();
       let differentPath = path.join(inputDir, 'differentConfig');
       let configPath = path.join(inputDir, '.babelrc');
 

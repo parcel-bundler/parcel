@@ -21,6 +21,7 @@ import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -43,6 +44,7 @@ export default async function applyRuntimes({
   runtimesBuilder: AssetGraphBuilder,
 |}): Promise<void> {
   let connections: Array<RuntimeConnection> = [];
+  let bundleReferences = [];
 
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
@@ -69,6 +71,13 @@ export default async function applyRuntimes({
               dependency: dependency,
               isEntry,
             });
+            let hashRefs = code.match(HASH_REF_REGEX) ?? [];
+            for (let hashRef of hashRefs) {
+              bundleReferences.push({
+                from: bundle.id,
+                to: hashRef.slice(HASH_REF_PREFIX.length),
+              });
+            }
           }
         }
       } catch (e) {
@@ -139,6 +148,10 @@ export default async function applyRuntimes({
     if (isEntry) {
       bundle.entryAssetIds.unshift(runtimeNode.id);
     }
+  }
+
+  for (let {from, to} of bundleReferences) {
+    bundleGraph._graph.addEdge(from, to, 'references');
   }
 }
 

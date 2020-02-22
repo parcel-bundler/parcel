@@ -79,11 +79,13 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.options = options;
     this.assetRequests = [];
 
-    let {minify, hot, scopeHoist} = options;
+    // TODO: changing these should not throw away the entire graph.
+    // We just need to re-run target resolution.
+    let {hot, publicUrl, distDir, minify, scopeHoist} = options;
     this.cacheKey = md5FromObject({
       parcelVersion: PARCEL_VERSION,
       name,
-      options: {minify, hot, scopeHoist},
+      options: {hot, publicUrl, distDir, minify, scopeHoist},
       entries,
     });
 

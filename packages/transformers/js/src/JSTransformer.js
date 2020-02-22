@@ -41,10 +41,10 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse({asset, options}) {
+  async parse({asset}) {
     let code = await asset.getCode();
     if (
-      !options.scopeHoist &&
+      !asset.env.scopeHoist &&
       !canHaveDependencies(code) &&
       !ENV_RE.test(code) &&
       !BROWSER_RE.test(code) &&
@@ -68,6 +68,12 @@ export default new Transformer({
   },
 
   async transform({asset, options, logger}) {
+    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
+    // Only set here if it is null to allow previous transformers to override this behavior.
+    if (asset.isSplittable == null) {
+      asset.isSplittable = true;
+    }
+
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
@@ -129,7 +135,7 @@ export default new Transformer({
       }
     }
 
-    if (options.scopeHoist) {
+    if (asset.env.scopeHoist) {
       hoist(asset);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS

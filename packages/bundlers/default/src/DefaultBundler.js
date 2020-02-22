@@ -99,9 +99,9 @@ export default new Bundler({
             for (let bundle of siblings) {
               bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
             }
+          } else {
+            siblingBundlesByAsset.set(asset.id, siblingBundles);
           }
-
-          siblingBundlesByAsset.set(asset.id, siblingBundles);
 
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
@@ -173,7 +173,7 @@ export default new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
-        .filter(b => !b.isEntry);
+        .filter(b => !b.isEntry && b.isSplittable);
 
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
@@ -235,7 +235,10 @@ export default new Bundler({
 
       let [firstBundle] = [...sourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        id: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        uniqueKey: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        // Allow this bundle to be deduplicated. It shouldn't be further split.
+        // TODO: Reconsider bundle/asset flags.
+        isSplittable: true,
         env: firstBundle.env,
         target: firstBundle.target,
         type: firstBundle.type,
@@ -260,7 +263,7 @@ export default new Bundler({
 });
 
 function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
-  if (bundle.env.isIsolated()) {
+  if (bundle.env.isIsolated() || !bundle.isSplittable) {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't deduplicate any assets.
     return;

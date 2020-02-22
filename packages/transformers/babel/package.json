@@ -18,6 +18,7 @@
   "dependencies": {
     "@babel/core": "^7.0.0",
     "@babel/generator": "^7.0.0",
+    "@babel/helper-compilation-targets": "^7.8.4",
     "@babel/plugin-transform-flow-strip-types": "^7.0.0",
     "@babel/plugin-transform-react-jsx": "^7.0.0",
     "@babel/plugin-transform-typescript": "^7.4.5",

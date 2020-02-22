@@ -5,10 +5,12 @@ import BundleGraph from './BundleGraph';
 import type {WorkerApi} from '@parcel/workers';
 
 import Transformation, {type TransformationOpts} from './Transformation';
+import {reportWorker} from './ReporterRunner';
 import PackagerRunner from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
+
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
 import '@parcel/fs';
@@ -30,14 +32,22 @@ export function runTransform(
   workerApi: WorkerApi,
   opts: TransformationOptsWithoutWorkerApi,
 ) {
-  return new Transformation({workerApi, ...opts}).run();
+  return new Transformation({
+    workerApi,
+    report: reportWorker.bind(null, workerApi),
+    ...opts,
+  }).run();
 }
 
 export function runValidate(
   workerApi: WorkerApi,
   opts: ValidationOptsWithoutWorkerApi,
 ) {
-  return new Validation({workerApi, ...opts}).run();
+  return new Validation({
+    workerApi,
+    report: reportWorker.bind(null, workerApi),
+    ...opts,
+  }).run();
 }
 
 export function runPackage(
@@ -46,13 +56,17 @@ export function runPackage(
     bundle,
     bundleGraphReference,
     config,
-    cacheKey,
+    cacheKeys,
     options,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
     config: ParcelConfig,
-    cacheKey: string,
+    cacheKeys: {|
+      content: string,
+      map: string,
+      info: string,
+    |},
     options: ParcelOptions,
   |},
 ) {
@@ -61,5 +75,6 @@ export function runPackage(
   return new PackagerRunner({
     config,
     options,
-  }).packageAndWriteBundle(bundle, bundleGraph, cacheKey);
+    report: reportWorker.bind(null, workerApi),
+  }).getBundleInfo(bundle, bundleGraph, cacheKeys);
 }

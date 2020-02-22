@@ -15,6 +15,7 @@ import type {
   ModuleSpecifier,
   PackageName,
   PackageJSON,
+  ReporterEvent,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
@@ -40,6 +41,8 @@ export type Environment = {|
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
+  minify: boolean,
+  scopeHoist: boolean,
 |};
 
 export type Target = {|
@@ -48,7 +51,7 @@ export type Target = {|
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
   name: string,
-  publicUrl: ?string,
+  publicUrl: string,
   loc?: ?SourceLocation,
 |};
 
@@ -80,6 +83,7 @@ export type Asset = {|
   includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
+  isSplittable: ?boolean,
   isSource: boolean,
   outputHash: string,
   env: Environment,
@@ -109,6 +113,8 @@ export type ParcelOptions = {|
   minify: boolean,
   scopeHoist: boolean,
   sourceMaps: boolean,
+  publicUrl: string,
+  distDir: ?FilePath,
   hot: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
@@ -190,10 +196,15 @@ export type EntrySpecifierNode = {|
   value: ModuleSpecifier,
 |};
 
+export type Entry = {|
+  filePath: FilePath,
+  packagePath?: FilePath,
+|};
+
 export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
-  value: ModuleSpecifier,
+  value: Entry,
 |};
 
 export type AssetGraphNode =
@@ -284,14 +295,17 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
   isEntry: ?boolean,
   isInline: ?boolean,
+  isSplittable: ?boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,
+  displayName: ?string,
   pipeline: ?string,
   stats: Stats,
 |};
@@ -317,3 +331,5 @@ export type ValidationOpts = {|
   request: AssetRequestDesc,
   options: ParcelOptions,
 |};
+
+export type ReportFn = (event: ReporterEvent) => void;

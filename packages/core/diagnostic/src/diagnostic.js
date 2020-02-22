@@ -6,8 +6,8 @@ import nullthrows from 'nullthrows';
 
 export type DiagnosticHighlightLocation = {|
   // These positions are 1-based
-  line: number,
-  column: number,
+  +line: number,
+  +column: number,
 |};
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
@@ -196,4 +196,8 @@ export function getJSONSourceLocation(pos: any, type?: ?'key' | 'value') {
       end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
     };
   }
+}
+
+export function encodeJSONKeyComponent(component: string): string {
+  return component.replace(/\//g, '~1');
 }

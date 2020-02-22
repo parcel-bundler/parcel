@@ -17,11 +17,8 @@ import template from '@babel/template';
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import mangleScope from './mangler';
 import {getName, getIdentifier} from './utils';
-import * as esmodule from './formats/esmodule';
-import * as global from './formats/global';
-import * as commonjs from './formats/commonjs';
+import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -29,12 +26,6 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_RESOLVE_CALL_TEMPLATE = template('require.resolve(ID)');
-
-const FORMATS = {
-  esmodule,
-  global,
-  commonjs,
-};
 
 function assertString(v): string {
   invariant(typeof v === 'string');
@@ -52,7 +43,7 @@ export function link({
   ast: AST,
   options: PluginOptions,
 |}) {
-  let format = FORMATS[bundle.env.outputFormat];
+  let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
@@ -177,7 +168,7 @@ export function link({
         let parent;
         if (binding) {
           parent = path.findParent(
-            p => p.scope === binding.scope && p.isStatement(),
+            p => getScopeBefore(p) === binding.scope && p.isStatement(),
           );
         }
 
@@ -196,7 +187,7 @@ export function link({
           binding.reference(decl.get('declarations.0.init'));
         }
 
-        parent.scope.registerDeclaration(decl);
+        getScopeBefore(parent).registerDeclaration(decl);
       }
 
       return t.identifier(name);
@@ -208,6 +199,10 @@ export function link({
     }
 
     return node;
+  }
+
+  function getScopeBefore(path) {
+    return path.isScope() ? path.parentPath.scope : path.scope;
   }
 
   function isUnusedValue(path) {
@@ -331,7 +326,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && !bundle.env.isLibrary) {
+          } else if (dep.isWeak && dep.isDeferred) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
@@ -591,12 +586,10 @@ export function link({
           referencedAssets,
           path,
           replacements,
+          options,
         );
 
         treeShake(path.scope, exported);
-        if (options.minify) {
-          mangleScope(path.scope, exported);
-        }
       },
     },
   });
