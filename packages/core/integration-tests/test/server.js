@@ -128,6 +128,34 @@ describe('server', function() {
     assert.equal(data, outputFile);
   });
 
+  it('should serve a default page if the main bundle is an HTML asset with package.json#source', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/html-pkg-source/');
+    let b = bundler(inputPath, {
+      config,
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    let event = await getNextBuild(b);
+    assert.equal(event.type, 'buildSuccess');
+
+    let outputFile = await outputFS.readFile(
+      event.bundleGraph.getBundles()[0].filePath,
+      'utf8',
+    );
+
+    let data = await get('/', port);
+    assert.equal(data, outputFile);
+
+    data = await get('/foo/bar', port);
+    assert.equal(data, outputFile);
+  });
+
   it('should serve a 404 if the file does not exist', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {

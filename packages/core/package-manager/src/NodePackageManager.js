@@ -11,7 +11,7 @@ import type {ResolveResult} from '@parcel/utils';
 
 import {installPackage} from './installPackage';
 import {dirname} from 'path';
-import {resolve, resolveSync} from '@parcel/utils';
+import {resolve, resolveConfig, resolveSync} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import pkg from '../package.json';
 // $FlowFixMe
@@ -242,30 +242,12 @@ registerSerializableClass(
   NodePackageManager,
 );
 
-async function findPkgJson(
-  searchPath: FilePath,
-  fs: FileSystem,
-): Promise<?FilePath> {
-  let root = path.parse(searchPath).root;
-  let dir = path.dirname(searchPath);
-  while (dir !== root) {
-    try {
-      let pkgJsonPath = path.join(dir, 'package.json');
-      await fs.stat(pkgJsonPath);
-      return pkgJsonPath;
-    } catch (e) {
-      // ignore
-    }
-    dir = path.dirname(dir);
-  }
-}
-
 async function getConflictingLocalDependencies(
   installPath: FilePath,
   name: string,
   fs: FileSystem,
 ): Promise<?{|json: string, filePath: FilePath, fields: Array<string>|}> {
-  let pkgPath = await findPkgJson(installPath, fs);
+  let pkgPath = await resolveConfig(fs, installPath, ['package.json']);
   if (pkgPath == null) {
     return;
   }
