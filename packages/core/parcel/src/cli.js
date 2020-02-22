@@ -92,7 +92,7 @@ let serve = program
     'set the port to serve on. defaults to 1234',
     parseInt,
   )
-  .option('--public-url <url>', 'set the path prefix to use in serve mode')
+  .option('--public-url <url>', 'the path prefix for absolute urls')
   .option(
     '--host <host>',
     'set the host to listen on, defaults to listening on all interfaces',
@@ -110,6 +110,11 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
+  .option(
+    '--dist-dir <dir>',
+    'output directory to write to when unspecified by targets',
+  )
+  .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
@@ -121,6 +126,11 @@ let build = program
   .description('bundles for production')
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
+  .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option(
+    '--dist-dir <dir>',
+    'Output directory to write to when unspecified by targets',
+  )
   .action(run);
 
 applyOptions(build, commonOptions);
@@ -292,6 +302,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps ?? true,
     scopeHoist: command.scopeHoist,
+    publicUrl: command.publicUrl,
+    distDir: command.distDir,
     hot: hmr,
     serve,
     targets: command.target.length > 0 ? command.target : null,

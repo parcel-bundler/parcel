@@ -128,13 +128,16 @@ export default class TargetResolver {
           return {
             name,
             distDir: path.resolve(this.fs.cwd(), distDir),
-            publicUrl: descriptor.publicUrl,
+            publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
             env: createEnvironment({
               engines: descriptor.engines,
               context: descriptor.context,
               isLibrary: descriptor.isLibrary,
               includeNodeModules: descriptor.includeNodeModules,
               outputFormat: descriptor.outputFormat,
+              minify: this.options.minify && descriptor.minify !== false,
+              scopeHoist:
+                this.options.scopeHoist && descriptor.scopeHoist !== false,
             }),
             sourceMap: descriptor.sourceMap,
           };
@@ -167,7 +170,6 @@ export default class TargetResolver {
       if (this.options.serve) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
-        let serveOptions = this.options.serve;
         targets = [
           {
             name: 'default',
@@ -175,12 +177,14 @@ export default class TargetResolver {
             // temporary, likely in a .gitignore or similar, but still readily
             // available for introspection by the user if necessary.
             distDir: path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
-            publicUrl: serveOptions.publicUrl ?? '/',
+            publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
               engines: {
                 browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers,
               },
+              minify: this.options.minify,
+              scopeHoist: this.options.scopeHoist,
             }),
           },
         ];
@@ -236,7 +240,10 @@ export default class TargetResolver {
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {
-        pkgEngines.browsers = browserslistBrowsers;
+        pkgEngines = {
+          ...pkgEngines,
+          browsers: browserslistBrowsers,
+        };
       }
     }
 
@@ -260,9 +267,15 @@ export default class TargetResolver {
         : DEFAULT_DEVELOPMENT_ENGINES);
     let context = browsers || !node ? 'browser' : 'node';
     if (context === 'browser' && pkgEngines.browsers == null) {
-      pkgEngines.browsers = defaultEngines.browsers;
+      pkgEngines = {
+        ...pkgEngines,
+        browsers: defaultEngines.browsers,
+      };
     } else if (context === 'node' && pkgEngines.node == null) {
-      pkgEngines.node = defaultEngines.node;
+      pkgEngines = {
+        ...pkgEngines,
+        node: defaultEngines.node,
+      };
     }
 
     for (let targetName of COMMON_TARGETS) {
@@ -298,7 +311,9 @@ export default class TargetResolver {
             ...getJSONSourceLocation(pkgMap.pointers[pointer], 'value'),
           };
         } else {
-          distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+          distDir =
+            this.options.distDir ??
+            path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
         let descriptor = parseCommonTargetDescriptor(
@@ -317,7 +332,7 @@ export default class TargetResolver {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: descriptor.publicUrl ?? '/',
+          publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
@@ -336,6 +351,9 @@ export default class TargetResolver {
                   : 'commonjs'
                 : 'global'),
             isLibrary: isLibrary,
+            minify: this.options.minify && descriptor.minify !== false,
+            scopeHoist:
+              this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
           sourceMap: descriptor.sourceMap,
           loc,
@@ -354,7 +372,9 @@ export default class TargetResolver {
       let distEntry;
       let loc;
       if (distPath == null) {
-        distDir = path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+        distDir =
+          this.options.distDir ??
+          path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
       } else {
         if (typeof distPath !== 'string') {
           let contents: string =
@@ -403,13 +423,16 @@ export default class TargetResolver {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: descriptor.publicUrl ?? '/',
+          publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat: descriptor.outputFormat,
             isLibrary: descriptor.isLibrary,
+            minify: this.options.minify && descriptor.minify !== false,
+            scopeHoist:
+              this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
           sourceMap: descriptor.sourceMap,
           loc,
@@ -421,11 +444,15 @@ export default class TargetResolver {
     if (targets.size === 0) {
       targets.set('default', {
         name: 'default',
-        distDir: path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
-        publicUrl: '/',
+        distDir:
+          this.options.distDir ??
+          path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
+        publicUrl: this.options.publicUrl,
         env: createEnvironment({
           engines: pkgEngines,
           context,
+          minify: this.options.minify,
+          scopeHoist: this.options.scopeHoist,
         }),
       });
     }

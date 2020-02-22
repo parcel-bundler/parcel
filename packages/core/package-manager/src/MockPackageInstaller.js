@@ -1,12 +1,14 @@
 // @flow
 
-import type {PackageInstaller, InstallerOptions} from './types';
+import type {ModuleRequest, PackageInstaller, InstallerOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
+
 import path from 'path';
 import {ncp} from '@parcel/fs';
 import {registerSerializableClass} from '@parcel/core';
 import pkg from '../package.json';
+import {moduleRequestsFromDependencyMap} from './utils';
 
 type Package = {|
   fs: FileSystem,
@@ -42,7 +44,7 @@ export class MockPackageInstaller implements PackageInstaller {
     }
 
     for (let module of modules) {
-      pkg[key][module] =
+      pkg[key][module.name] =
         '^' + (await this.installPackage(module, fs, packagePath));
     }
 
@@ -50,28 +52,32 @@ export class MockPackageInstaller implements PackageInstaller {
   }
 
   async installPackage(
-    packageName: string,
+    moduleRequest: ModuleRequest,
     fs: FileSystem,
     packagePath: FilePath,
   ) {
-    let pkg = this.packages.get(packageName);
+    let pkg = this.packages.get(moduleRequest.name);
     if (!pkg) {
-      throw new Error('Unknown package ' + packageName);
+      throw new Error('Unknown package ' + moduleRequest.name);
     }
 
     let dest = path.join(
       path.dirname(packagePath),
       'node_modules',
-      packageName,
+      moduleRequest.name,
     );
     await ncp(pkg.fs, pkg.packagePath, fs, dest);
 
     let packageJSON = JSON.parse(
       await fs.readFile(path.join(dest, 'package.json'), 'utf8'),
     );
-    let deps = packageJSON.dependencies || {};
-    for (let dep in deps) {
-      await this.installPackage(dep, fs, packagePath);
+
+    if (packageJSON.dependencies != null) {
+      for (let dep of moduleRequestsFromDependencyMap(
+        packageJSON.dependencies,
+      )) {
+        await this.installPackage(dep, fs, packagePath);
+      }
     }
 
     return packageJSON.version;
