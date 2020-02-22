@@ -9,7 +9,6 @@ import type {
   ParcelOptions,
   ProcessedParcelConfig,
   ExtendableParcelConfigPipeline,
-  PureParcelConfigPipeline,
 } from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import {parse} from 'json5';
