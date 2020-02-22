@@ -1,6 +1,5 @@
 // @flow strict-local
 export type * from './generateBundleReport';
-export type * from './prettyError';
 export type * from './prettyDiagnostic';
 
 export {default as countLines} from './countLines';
@@ -11,7 +10,6 @@ export {default as getRootDir} from './getRootDir';
 export {default as isURL} from './is-url';
 export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
-export {default as prettyError} from './prettyError';
 export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
 // $FlowFixMe this is untyped
