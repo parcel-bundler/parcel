@@ -11,23 +11,26 @@ import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 
+let parcelOptionsToPluginOptions: WeakMap<
+  ParcelOptions,
+  PluginOptions,
+> = new WeakMap();
+
 export default class PluginOptions implements IPluginOptions {
   #options; // ParcelOptions
 
   constructor(options: ParcelOptions) {
+    let existing = parcelOptionsToPluginOptions.get(options);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#options = options;
+    parcelOptionsToPluginOptions.set(options, this);
   }
 
   get mode(): BuildMode {
     return this.#options.mode;
-  }
-
-  get minify(): boolean {
-    return this.#options.minify;
-  }
-
-  get scopeHoist(): boolean {
-    return this.#options.scopeHoist;
   }
 
   get sourceMaps(): boolean {

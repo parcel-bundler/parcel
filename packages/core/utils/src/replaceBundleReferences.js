@@ -1,19 +1,12 @@
 // @flow strict-local
 
 import type SourceMap from '@parcel/source-map';
-import type {
-  Async,
-  Blob,
-  Bundle,
-  BundleResult,
-  BundleGraph,
-  Dependency,
-} from '@parcel/types';
+import type {Async, Blob, Bundle, BundleGraph, Dependency} from '@parcel/types';
 
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import URL from 'url';
-import {bufferStream, urlJoin} from '../';
+import {bufferStream, relativeBundlePath, urlJoin} from '../';
 
 type ReplacementMap = Map<
   string /* dependency id */,
@@ -21,13 +14,67 @@ type ReplacementMap = Map<
 >;
 
 /*
- * Replaces references to dependency ids with either:
- *   - in the case of an inline bundle, the packaged contents of that bundle
- *   - in the case of another bundle reference, the bundle's url from the publicUrl root
- *   - in the case of a url dependency that Parcel did not handle,
- *     the original moduleSpecifier. These are external requests.
+ * Replaces references to dependency ids for URL dependencies with:
+ *   - in the case of an unresolvable url dependency, the original moduleSpecifier.
+ *     These are external requests that Parcel did not bundle.
+ *   - in the case of a reference to another bundle, the relative url to that
+ *     bundle from the current bundle.
  */
-export async function replaceBundleReferences({
+export function replaceURLReferences({
+  bundle,
+  bundleGraph,
+  contents,
+  map,
+  relative = true,
+}: {|
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+  contents: string,
+  relative?: boolean,
+  map?: ?SourceMap,
+|}): {|+contents: string, +map: ?SourceMap|} {
+  let replacements = new Map();
+
+  for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
+    if (!dependency.isURL) {
+      continue;
+    }
+
+    let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
+    if (bundleGroup == null) {
+      replacements.set(dependency.id, {
+        from: dependency.id,
+        to: dependency.moduleSpecifier,
+      });
+      continue;
+    }
+
+    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    if (entryBundle.isInline) {
+      // If a bundle is inline, it should be replaced with inline contents,
+      // not a URL.
+      continue;
+    }
+
+    replacements.set(
+      dependency.id,
+      getURLReplacement({
+        dependency,
+        fromBundle: bundle,
+        toBundle: entryBundle,
+        relative,
+      }),
+    );
+  }
+
+  return performReplacement(replacements, contents, map);
+}
+
+/*
+ * Replaces references to dependency ids for inline bundles with the packaged
+ * contents of that bundle.
+ */
+export async function replaceInlineReferences({
   bundle,
   bundleGraph,
   contents,
@@ -48,101 +95,67 @@ export async function replaceBundleReferences({
     BundleGraph,
   ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
   map?: ?SourceMap,
-|}): Promise<BundleResult> {
+|}): Promise<{|+contents: string, +map: ?SourceMap|}> {
   let replacements = new Map();
 
-  for (let {
-    dependency,
-    bundleGroup,
-  } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
-    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-    if (entryBundle.isInline) {
-      // inline bundles
-      let packagedBundle = await getInlineBundleContents(
-        entryBundle,
-        bundleGraph,
-      );
-      let packagedContents = (packagedBundle.contents instanceof Readable
-        ? await bufferStream(packagedBundle.contents)
-        : packagedBundle.contents
-      ).toString();
+  for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
+    let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
+    if (bundleGroup == null) {
+      continue;
+    }
 
-      let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
-      if (inlineType == null || inlineType === 'string') {
-        replacements.set(
-          dependency.id,
-          getInlineReplacement(dependency, inlineType, packagedContents),
-        );
-      }
-    } else if (dependency.isURL) {
-      // url references
+    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    if (!entryBundle.isInline) {
+      continue;
+    }
+
+    let packagedBundle = await getInlineBundleContents(
+      entryBundle,
+      bundleGraph,
+    );
+    let packagedContents = (packagedBundle.contents instanceof Readable
+      ? await bufferStream(packagedBundle.contents)
+      : packagedBundle.contents
+    ).toString();
+
+    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
+    if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,
-        getURLReplacement(dependency, entryBundle),
+        getInlineReplacement(dependency, inlineType, packagedContents),
       );
     }
   }
 
-  collectExternalReferences(bundle, replacements);
   return performReplacement(replacements, contents, map);
 }
 
-export function replaceURLReferences({
-  bundle,
-  bundleGraph,
-  contents,
-  map,
+function getURLReplacement({
+  dependency,
+  fromBundle,
+  toBundle,
+  relative,
 }: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
-  contents: string,
-  map?: ?SourceMap,
-|}): BundleResult {
-  let replacements: ReplacementMap = new Map();
-
-  for (let {
-    dependency,
-    bundleGroup,
-  } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
-    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-    if (dependency.isURL && !entryBundle.isInline) {
-      // url references
-      replacements.set(
-        dependency.id,
-        getURLReplacement(dependency, entryBundle),
-      );
-    }
+  dependency: Dependency,
+  fromBundle: Bundle,
+  toBundle: Bundle,
+  relative: boolean,
+|}) {
+  let url = URL.parse(dependency.moduleSpecifier);
+  let to;
+  if (relative) {
+    url.pathname = relativeBundlePath(fromBundle, toBundle, {
+      leadingDotSlash: false,
+    });
+    to = URL.format(url);
+  } else {
+    url.pathname = nullthrows(toBundle.name);
+    to = urlJoin(toBundle.target.publicUrl, URL.format(url));
   }
 
-  collectExternalReferences(bundle, replacements);
-  return performReplacement(replacements, contents, map);
-}
-
-function collectExternalReferences(
-  bundle: Bundle,
-  replacements: Map<string, {|from: string, to: string|}>,
-): void {
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    if (dependency.isURL && !replacements.has(dependency.id)) {
-      replacements.set(dependency.id, {
-        from: dependency.id,
-        to: dependency.moduleSpecifier,
-      });
-    }
-  });
-}
-
-function getURLReplacement(dependency: Dependency, bundle: Bundle) {
-  let url = URL.parse(dependency.moduleSpecifier);
-  url.pathname = nullthrows(bundle.name);
   return {
     from: dependency.id,
-    to: urlJoin(bundle.target.publicUrl ?? '/', URL.format(url)),
+    to,
   };
 }
 
@@ -150,7 +163,7 @@ function performReplacement(
   replacements: ReplacementMap,
   contents: string,
   map?: ?SourceMap,
-): BundleResult {
+): {|+contents: string, +map: ?SourceMap|} {
   let finalContents = contents;
   for (let {from, to} of replacements.values()) {
     // Perform replacement

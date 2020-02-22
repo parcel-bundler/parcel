@@ -9,7 +9,7 @@ import path from 'path';
 
 export default new Optimizer({
   async optimize({contents, map, bundle, options}) {
-    if (!options.minify) {
+    if (!bundle.env.minify) {
       return {contents, map};
     }
 

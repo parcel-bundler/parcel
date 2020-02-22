@@ -11,6 +11,10 @@ import Environment from './Environment';
 import Target from './Target';
 import nullthrows from 'nullthrows';
 
+const internalDependencyToDependency: WeakMap<
+  InternalDependency,
+  Dependency,
+> = new WeakMap();
 const _dependencyToInternalDependency: WeakMap<
   IDependency,
   InternalDependency,
@@ -25,8 +29,14 @@ export default class Dependency implements IDependency {
   #dep; // InternalDependency
 
   constructor(dep: InternalDependency) {
+    let existing = internalDependencyToDependency.get(dep);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#dep = dep;
     _dependencyToInternalDependency.set(this, dep);
+    internalDependencyToDependency.set(dep, this);
   }
 
   get id(): string {
@@ -55,6 +65,10 @@ export default class Dependency implements IDependency {
 
   get isWeak(): boolean {
     return !!this.#dep.isWeak;
+  }
+
+  get isDeferred(): boolean {
+    return this.#dep.isDeferred;
   }
 
   get loc(): ?SourceLocation {

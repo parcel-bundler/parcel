@@ -12,7 +12,6 @@ import type {
   AssetNode,
   Bundle,
   BundleGraphNode,
-  BundleGroupNode,
   Dependency,
   DependencyNode,
 } from './types';
@@ -311,6 +310,12 @@ export default class BundleGraph {
             return;
           }
 
+          // Don't deduplicate when context changes
+          if (node.value.env.context !== bundle.env.context) {
+            actions.skipChildren();
+            return;
+          }
+
           if (this._graph.hasEdge(node.value.id, asset.id, 'contains')) {
             inBundle = true;
             actions.stop();
@@ -444,51 +449,6 @@ export default class BundleGraph {
     return siblings;
   }
 
-  getBundleGroupsReferencedByBundle(
-    bundle: Bundle,
-  ): Array<{
-    bundleGroup: BundleGroup,
-    dependency: Dependency,
-    ...
-  }> {
-    let node = nullthrows(
-      this._graph.getNode(bundle.id),
-      'Bundle graph must contain bundle',
-    );
-
-    let groupNodes: Array<BundleGroupNode> = [];
-    this._graph.traverse(
-      (node, context, actions) => {
-        if (node.type === 'bundle_group') {
-          groupNodes.push(node);
-          actions.skipChildren();
-        }
-      },
-      node,
-      'bundle',
-    );
-
-    return flatMap(groupNodes, groupNode => {
-      return this._graph
-        .getNodesConnectedTo(groupNode)
-        .filter(
-          node =>
-            node.type === 'dependency' &&
-            this._graph.hasEdge(bundle.id, node.id, 'contains'),
-        )
-        .map(dependencyNode => {
-          // TODO: Enforce non-null when bundle groups have the correct bundles
-          // pointing to them
-          invariant(dependencyNode.type === 'dependency');
-
-          return {
-            bundleGroup: groupNode.value,
-            dependency: dependencyNode.value,
-          };
-        });
-    });
-  }
-
   getIncomingDependencies(asset: Asset): Array<Dependency> {
     let node = this._graph.getNode(asset.id);
     if (!node) {
@@ -616,8 +576,17 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = crypto.createHash('md5');
-    this.traverseBundles(childBundle => {
-      hash.update(this.getContentHash(childBundle));
+    this.traverseBundles((childBundle, ctx, traversal) => {
+      if (
+        childBundle.id === bundle.id ||
+        (ctx?.parentBundle === bundle.id && childBundle.isInline)
+      ) {
+        hash.update(this.getContentHash(childBundle));
+      } else {
+        hash.update(childBundle.id);
+        traversal.skipChildren();
+      }
+      return {parentBundle: childBundle.id};
     }, bundle);
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));

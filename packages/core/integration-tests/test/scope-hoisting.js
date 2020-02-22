@@ -330,8 +330,14 @@ describe('scope hoisting', function() {
         ),
       );
 
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.equal(
+        dist.match(/var \$[a-z0-9]+\$\$interop\$default =/g).length,
+        2,
+      );
+
       let output = await run(b);
-      assert.deepEqual(output, 'foobar');
+      assert.deepEqual(output, 'foobar:foo:bar');
     });
 
     it('does not export reassigned CommonJS exports references', async function() {
@@ -341,6 +347,9 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/commonjs-exports-reassign/a.js',
         ),
       );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(/var \$[a-z0-9]+\$cjs_exports/.test(dist));
 
       let [foo, bExports] = await run(b);
       assert.equal(foo, 'foobar');
@@ -419,6 +428,39 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 123);
     });
 
+    it('should handle sideEffects: false with namespace imports and re-exports correctly', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-all/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 16);
+    });
+
+    it('supports correctly handles ES6 re-exports in library mode entries', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-library/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-library/build.js',
+        ),
+        'utf8',
+      );
+      assert(!contents.includes('console.log'));
+
+      let output = await run(b);
+      assert.deepEqual(output, {c1: 'foo'});
+    });
+
     it('correctly updates deferred assets that are reexported', async function() {
       let testDir = path.join(
         __dirname,
@@ -481,6 +523,28 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, '1234556789');
 
       await subscription.unsubscribe();
+    });
+
+    it('removes deferred reexports when imported from multiple asssets', async function() {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-re-exports-multiple/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        path.join(distDir, 'a.js'),
+        'utf8',
+      );
+
+      assert(!contents.includes('$import$'));
+      assert(contents.includes('= 1234;'));
+      assert(!contents.includes('= 5678;'));
+
+      // can't test dynamic imports in node
+      // let output = await run(b);
+      // assert.deepEqual(output, [1234, 1234]);
     });
 
     it('keeps side effects by default', async function() {
@@ -577,6 +641,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 6);
     });
 
+    it('supports the package.json sideEffects: false flag with shared dependencies', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-split/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(await output, 581);
+    });
+
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
         path.join(
@@ -636,7 +712,7 @@ describe('scope hoisting', function() {
         path.join(distDir, 'a.js'),
         'utf8',
       );
-      assert(/.\+./.test(contents));
+      assert(/output=9/.test(contents));
       assert(!/.-./.test(contents));
     });
 

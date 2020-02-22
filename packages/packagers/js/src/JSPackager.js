@@ -9,7 +9,7 @@ import {
   countLines,
   PromiseQueue,
   relativeBundlePath,
-  replaceBundleReferences,
+  replaceInlineReferences,
 } from '@parcel/utils';
 import path from 'path';
 
@@ -27,7 +27,7 @@ export default new Packager({
     options,
   }) {
     function replaceReferences({contents, map}) {
-      return replaceBundleReferences({
+      return replaceInlineReferences({
         bundle,
         bundleGraph,
         contents,
@@ -41,11 +41,11 @@ export default new Packager({
     }
 
     // If scope hoisting is enabled, we use a different code path.
-    if (options.scopeHoist) {
+    if (bundle.env.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
       return replaceReferences({
-        contents: generate(bundleGraph, bundle, ast, options).contents,
+        contents: generate(bundleGraph, bundle, ast).contents,
         map: null,
       });
     }

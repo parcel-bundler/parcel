@@ -57,6 +57,10 @@ const ESMODULE_BROWSERS = {
   samsung: '8.2',
 };
 
+const internalEnvironmentToEnvironment: WeakMap<
+  InternalEnvironment,
+  Environment,
+> = new WeakMap();
 const _environmentToInternalEnvironment: WeakMap<
   IEnvironment,
   InternalEnvironment,
@@ -71,8 +75,14 @@ export default class Environment implements IEnvironment {
   #environment; // InternalEnvironment
 
   constructor(env: InternalEnvironment) {
+    let existing = internalEnvironmentToEnvironment.get(env);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#environment = env;
     _environmentToInternalEnvironment.set(this, env);
+    internalEnvironmentToEnvironment.set(env, this);
   }
 
   get context(): EnvironmentContext {
@@ -83,7 +93,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.engines;
   }
 
-  get includeNodeModules(): boolean | Array<PackageName> {
+  get includeNodeModules():
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...} {
     return this.#environment.includeNodeModules;
   }
 
@@ -93,6 +106,14 @@ export default class Environment implements IEnvironment {
 
   get isLibrary(): boolean {
     return this.#environment.isLibrary;
+  }
+
+  get minify(): boolean {
+    return this.#environment.minify;
+  }
+
+  get scopeHoist(): boolean {
+    return this.#environment.scopeHoist;
   }
 
   isBrowser() {

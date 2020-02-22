@@ -1,18 +1,30 @@
 // @flow strict-local
 
 import type {ReporterEvent} from '@parcel/types';
+import type {WorkerApi} from '@parcel/workers';
 import type {ParcelOptions} from './types';
 
-import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
-import {bus} from '@parcel/workers';
-import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import invariant from 'assert';
+import {
+  bundleToInternalBundle,
+  bundleToInternalBundleGraph,
+  NamedBundle,
+} from './public/Bundle';
+import WorkerFarm, {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
-import logger, {patchConsole, PluginLogger} from '@parcel/logger';
+import logger, {
+  patchConsole,
+  unpatchConsole,
+  PluginLogger,
+  INTERNAL_ORIGINAL_CONSOLE,
+} from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
+import BundleGraph from './BundleGraph';
 
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
+  workerFarm: WorkerFarm,
 |};
 
 export default class ReporterRunner {
@@ -27,25 +39,32 @@ export default class ReporterRunner {
 
     logger.onLog(event => this.report(event));
 
-    // Convert any internal bundles back to their public equivalents as reporting
-    // is public api
     bus.on('reporterEvent', event => {
-      if (event.bundle == null) {
-        this.report(event);
-      } else {
+      if (
+        event.type === 'buildProgress' &&
+        (event.phase === 'optimizing' || event.phase === 'packaging') &&
+        !(event.bundle instanceof NamedBundle)
+      ) {
+        // Convert any internal bundles back to their public equivalents as reporting
+        // is public api
+        let bundleGraph = opts.workerFarm.workerApi.getSharedReference(
+          event.bundleGraphRef,
+        );
+        invariant(bundleGraph instanceof BundleGraph);
         this.report({
           ...event,
-          bundle: new NamedBundle(
-            event.bundle,
-            event.bundleGraph,
-            this.options,
-          ),
+          bundle: new NamedBundle(event.bundle, bundleGraph, this.options),
         });
+        return;
       }
+
+      this.report(event);
     });
 
     if (this.options.patchConsole) {
       patchConsole();
+    } else {
+      unpatchConsole();
     }
   }
 
@@ -60,23 +79,33 @@ export default class ReporterRunner {
           logger: new PluginLogger({origin: reporter.name}),
         });
       } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, reporter.name),
-        });
+        // We shouldn't emit a report event here as we will cause infinite loops...
+        INTERNAL_ORIGINAL_CONSOLE.error(e);
       }
     }
   }
 }
 
-export function report(event: ReporterEvent) {
-  if (event.bundle == null) {
-    bus.emit('reporterEvent', event);
-  } else {
+export function reportWorker(workerApi: WorkerApi, event: ReporterEvent) {
+  if (
+    event.type === 'buildProgress' &&
+    (event.phase === 'optimizing' || event.phase === 'packaging')
+  ) {
     // Convert any public api bundles to their internal equivalents for
     // easy serialization
     bus.emit('reporterEvent', {
       ...event,
       bundle: bundleToInternalBundle(event.bundle),
+      bundleGraphRef: workerApi.resolveSharedReference(
+        bundleToInternalBundleGraph(event.bundle),
+      ),
     });
+    return;
   }
+
+  bus.emit('reporterEvent', event);
+}
+
+export function report(event: ReporterEvent) {
+  bus.emit('reporterEvent', event);
 }

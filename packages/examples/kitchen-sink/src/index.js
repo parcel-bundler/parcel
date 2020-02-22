@@ -1,12 +1,11 @@
 import styles from './styles.css';
-import parcel from './parcel.webp';
+import parcel from 'url:./parcel.webp';
+import {message} from './message';
 
 // import('./async');
 // import('./async2');
 
-// new Worker('./worker.js');
-
-import {message} from './message';
+new Worker('worker.js');
 
 console.log(message);
 

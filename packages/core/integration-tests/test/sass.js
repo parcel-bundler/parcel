@@ -66,6 +66,7 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
+        includedFiles: {'index.cscc': ['bar.scss', 'foo.scss']},
       },
     ]);
 
@@ -120,6 +121,7 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
+        includedFiles: {'index.scss': ['package.json']},
       },
       {
         type: 'woff2',
@@ -132,13 +134,13 @@ describe('sass', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       await outputFS.exists(
-        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]),
+        path.join(distDir, css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]),
       ),
     );
   });
@@ -177,6 +179,9 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.sass'],
+        includedFiles: {
+          'index.sass': ['package.json', 'foo.sass', 'bar.sass'],
+        },
       },
     ]);
 
@@ -196,6 +201,7 @@ describe('sass', function() {
       {
         name: 'style.css',
         assets: ['style.scss'],
+        includedFiles: {'style.cscc': ['b.scss']},
       },
     ]);
 
@@ -213,6 +219,7 @@ describe('sass', function() {
       {
         name: 'index.css',
         assets: ['index.scss'],
+        includedFiles: {'index.scss': ['.sassrc.js', 'package.json']},
       },
     ]);
 
@@ -259,6 +266,7 @@ To @import files from node_modules, use "library/style.sass"
       {
         name: 'index.css',
         assets: ['index.sass'],
+        includedFiles: {'index.sass': ['package.json', 'style.sass']},
       },
     ]);
 
@@ -275,6 +283,9 @@ To @import files from node_modules, use "library/style.sass"
       {
         name: 'index.css',
         assets: ['index.sass'],
+        includedFiles: {
+          'index.sass': ['.sassrc.js', 'package.json', 'style.sass'],
+        },
       },
     ]);
 

@@ -1,12 +1,22 @@
 // @flow
 
-import type {MutableAsset, PluginOptions} from '@parcel/types';
+import type {
+  DependencyOptions,
+  MutableAsset,
+  PluginOptions,
+} from '@parcel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {hasBinding, morph} from './utils';
 import invariant from 'assert';
+
+type Visitor = (
+  node: any,
+  {|asset: MutableAsset, options: PluginOptions|},
+  ancestors: Array<any>,
+) => void;
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -32,112 +42,124 @@ export default ({
     asset.meta.isES6Module = true;
   },
 
-  CallExpression(node, {asset}, ancestors) {
-    let {callee, arguments: args} = node;
+  CallExpression: {
+    enter(node, {asset}, ancestors) {
+      let {callee, arguments: args} = node;
 
-    let isRequire =
-      types.isIdentifier(callee) &&
-      callee.name === 'require' &&
-      args.length === 1 &&
-      types.isStringLiteral(args[0]) &&
-      !hasBinding(ancestors, 'require') &&
-      !isInFalsyBranch(ancestors);
+      let isRequire =
+        types.isIdentifier(callee) &&
+        callee.name === 'require' &&
+        args.length === 1 &&
+        types.isStringLiteral(args[0]) &&
+        !hasBinding(ancestors, 'require') &&
+        !isInFalsyBranch(ancestors);
 
-    if (isRequire) {
-      let isOptional =
-        ancestors.some(a => types.isTryStatement(a)) || undefined;
-      invariant(asset.ast);
-      let isAsync = isRequireAsync(ancestors, node, asset.ast);
-      addDependency(asset, args[0], {isOptional, isAsync});
-      return;
-    }
-
-    let isDynamicImport =
-      callee.type === 'Import' &&
-      args.length === 1 &&
-      types.isStringLiteral(args[0]);
-
-    if (isDynamicImport) {
-      // Ignore dynamic imports of fully specified urls
-      if (isURL(args[0].value)) {
+      if (isRequire) {
+        let isOptional =
+          ancestors.some(a => types.isTryStatement(a)) || undefined;
+        invariant(asset.ast);
+        let isAsync = isRequireAsync(ancestors, node, asset.ast);
+        addDependency(asset, args[0], {isOptional, isAsync});
         return;
       }
 
-      addDependency(asset, args[0], {isAsync: true});
+      let isDynamicImport =
+        callee.type === 'Import' &&
+        args.length === 1 &&
+        types.isStringLiteral(args[0]);
 
-      node.callee = types.identifier('require');
-      invariant(asset.ast);
-      asset.ast.isDirty = true;
-      return;
-    }
-
-    let isRegisterServiceWorker =
-      types.isStringLiteral(args[0]) &&
-      types.matchesPattern(callee, serviceWorkerPattern) &&
-      !hasBinding(ancestors, 'navigator') &&
-      !isInFalsyBranch(ancestors);
-
-    if (isRegisterServiceWorker) {
-      // Treat service workers as an entry point so filenames remain consistent across builds.
-      // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-      addURLDependency(asset, args[0], {
-        isEntry: true,
-        env: {context: 'service-worker'},
-      });
-      return;
-    }
-
-    let isImportScripts =
-      (asset.env.context === 'web-worker' ||
-        asset.env.context === 'service-worker') &&
-      callee.name === 'importScripts';
-
-    if (isImportScripts) {
-      for (let arg of args) {
-        if (types.isStringLiteral(arg)) {
-          addURLDependency(asset, arg);
+      if (isDynamicImport) {
+        // Ignore dynamic imports of fully specified urls
+        if (isURL(args[0].value)) {
+          return;
         }
+
+        addDependency(asset, args[0], {isAsync: true});
+
+        node.callee = types.identifier('require');
+        invariant(asset.ast);
+        asset.ast.isDirty = true;
+        return;
       }
-      return;
-    }
+    },
+    exit(node, {asset}, ancestors) {
+      if (node.type !== 'CallExpression') {
+        // It's possible this node has been morphed into another type
+        return;
+      }
+
+      let {callee, arguments: args} = node;
+
+      let isRegisterServiceWorker =
+        types.isStringLiteral(args[0]) &&
+        types.matchesPattern(callee, serviceWorkerPattern) &&
+        !hasBinding(ancestors, 'navigator') &&
+        !isInFalsyBranch(ancestors);
+
+      if (isRegisterServiceWorker) {
+        // Treat service workers as an entry point so filenames remain consistent across builds.
+        // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
+        addURLDependency(asset, args[0], {
+          isEntry: true,
+          env: {context: 'service-worker'},
+        });
+        return;
+      }
+
+      let isImportScripts =
+        (asset.env.context === 'web-worker' ||
+          asset.env.context === 'service-worker') &&
+        callee.name === 'importScripts';
+
+      if (isImportScripts) {
+        for (let arg of args) {
+          if (types.isStringLiteral(arg)) {
+            addURLDependency(asset, arg);
+          }
+        }
+        return;
+      }
+    },
   },
 
-  NewExpression(node, {asset, options}, ancestors) {
-    let {callee, arguments: args} = node;
+  NewExpression: {
+    exit(node, {asset}, ancestors) {
+      let {callee, arguments: args} = node;
 
-    let isWebWorker =
-      callee.type === 'Identifier' &&
-      (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
-      !hasBinding(ancestors, callee.name) &&
-      !isInFalsyBranch(ancestors) &&
-      types.isStringLiteral(args[0]) &&
-      (args.length === 1 || args.length === 2);
+      let isWebWorker =
+        callee.type === 'Identifier' &&
+        (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
+        !hasBinding(ancestors, callee.name) &&
+        !isInFalsyBranch(ancestors) &&
+        types.isStringLiteral(args[0]) &&
+        (args.length === 1 || args.length === 2);
 
-    if (isWebWorker) {
-      let isModule = false;
-      if (types.isObjectExpression(args[1])) {
-        let prop = args[1].properties.find(v =>
-          types.isIdentifier(v.key, {name: 'type'}),
-        );
-        if (prop && types.isStringLiteral(prop.value))
-          isModule = prop.value.value === 'module';
+      if (isWebWorker) {
+        let isModule = false;
+        if (types.isObjectExpression(args[1])) {
+          let prop = args[1].properties.find(v =>
+            types.isIdentifier(v.key, {name: 'type'}),
+          );
+          if (prop && types.isStringLiteral(prop.value))
+            isModule = prop.value.value === 'module';
+        }
+
+        addURLDependency(asset, args[0], {
+          env: {
+            context: 'web-worker',
+            outputFormat:
+              isModule && asset.env.scopeHoist ? 'esmodule' : undefined,
+          },
+          meta: {
+            webworker: true,
+          },
+        });
+        return;
       }
-
-      addURLDependency(asset, args[0], {
-        env: {
-          context: 'web-worker',
-          outputFormat: isModule && options.scopeHoist ? 'esmodule' : undefined,
-        },
-      });
-      return;
-    }
+    },
   },
 }: {
-  [key: string]: (
-    node: any,
-    {|asset: MutableAsset, options: PluginOptions|},
-    ancestors: Array<any>,
-  ) => void,
+  [key: string]: Visitor | {|enter?: Visitor, exit?: Visitor|},
   ...,
 });
 
@@ -291,11 +313,23 @@ function addDependency(
   });
 }
 
-function addURLDependency(asset, node, opts = {}) {
-  node.value = asset.addURLDependency(node.value, {
+function addURLDependency(
+  asset: MutableAsset,
+  node,
+  opts: $Shape<DependencyOptions> = {},
+) {
+  let url = node.value;
+  asset.addURLDependency(url, {
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     ...opts,
   });
+
+  morph(
+    node,
+    types.callExpression(types.identifier('require'), [
+      types.stringLiteral(url),
+    ]),
+  );
   invariant(asset.ast);
   asset.ast.isDirty = true;
 }

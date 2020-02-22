@@ -164,12 +164,26 @@ function getUsedExports(
         }
 
         if (symbol === '*') {
-          for (let symbol of resolvedAsset.symbols.keys()) {
-            markUsed(resolvedAsset, symbol);
+          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
+            resolvedAsset,
+          )) {
+            if (symbol) {
+              markUsed(asset, symbol);
+            }
           }
         }
 
         markUsed(resolvedAsset, symbol);
+      }
+    }
+
+    // If the asset is referenced by another bundle, include all exports.
+    if (bundleGraph.isAssetReferencedByAssetType(asset, 'js')) {
+      markUsed(asset, '*');
+      for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
+        if (symbol) {
+          markUsed(a, symbol);
+        }
       }
     }
   });

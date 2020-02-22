@@ -1,6 +1,6 @@
 // @flow
 
-import type {FilePath, ModuleSpecifier} from '@parcel/types';
+import type {FilePath, SemverRange, ModuleSpecifier} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {ResolveResult} from '@parcel/utils';
 
@@ -12,7 +12,7 @@ export type InstallOptions = {
 };
 
 export type InstallerOptions = {|
-  modules: Array<ModuleSpecifier>,
+  modules: Array<ModuleRequest>,
   fs: FileSystem,
   cwd: FilePath,
   packagePath?: ?FilePath,
@@ -24,6 +24,19 @@ export interface PackageInstaller {
 }
 
 export interface PackageManager {
-  require(id: ModuleSpecifier, from: FilePath): Promise<any>;
-  resolve(id: ModuleSpecifier, from: FilePath): Promise<ResolveResult>;
+  require(
+    id: ModuleSpecifier,
+    from: FilePath,
+    ?{|range?: SemverRange, autoInstall?: boolean|},
+  ): Promise<any>;
+  resolve(
+    id: ModuleSpecifier,
+    from: FilePath,
+    ?{|range?: SemverRange, autoInstall?: boolean|},
+  ): Promise<ResolveResult>;
 }
+
+export type ModuleRequest = {|
+  +name: string,
+  +range: ?SemverRange,
+|};

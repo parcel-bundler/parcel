@@ -13,6 +13,11 @@ const COMMON_TARGETS_FIXTURE_PATH = path.join(
   'fixtures/common-targets',
 );
 
+const COMMON_TARGETS_IGNORE_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/common-targets-ignore',
+);
+
 const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
   'fixtures/custom-targets',
@@ -69,7 +74,7 @@ describe('TargetResolver', () => {
         targets: [
           {
             name: 'customA',
-            publicUrl: undefined,
+            publicUrl: '/',
             distDir: path.resolve('customA'),
             env: {
               context: 'browser',
@@ -79,12 +84,14 @@ describe('TargetResolver', () => {
               },
               outputFormat: 'global',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
           },
           {
             name: 'customB',
-            publicUrl: undefined,
+            publicUrl: '/',
             distDir: path.resolve('customB'),
             env: {
               context: 'node',
@@ -94,6 +101,8 @@ describe('TargetResolver', () => {
               },
               outputFormat: 'commonjs',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
           },
@@ -125,6 +134,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -155,6 +166,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'esmodule',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: {
               inlineSources: true,
@@ -187,6 +200,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -198,6 +213,58 @@ describe('TargetResolver', () => {
               end: {
                 column: 36,
                 line: 4,
+              },
+            },
+          },
+        ],
+      },
+    );
+  });
+
+  it('allows ignoring common targets from package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_IGNORE_FIXTURE_PATH),
+      {
+        files: [
+          {
+            filePath: path.join(
+              COMMON_TARGETS_IGNORE_FIXTURE_PATH,
+              'package.json',
+            ),
+          },
+        ],
+        targets: [
+          {
+            name: 'app',
+            distDir: path.join(COMMON_TARGETS_IGNORE_FIXTURE_PATH, 'dist'),
+            distEntry: 'index.js',
+            publicUrl: '/',
+            env: {
+              context: 'node',
+              engines: {
+                node: '>= 8.0.0',
+              },
+              includeNodeModules: false,
+              outputFormat: 'commonjs',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: undefined,
+            loc: {
+              filePath: path.join(
+                COMMON_TARGETS_IGNORE_FIXTURE_PATH,
+                'package.json',
+              ),
+              start: {
+                column: 10,
+                line: 3,
+              },
+              end: {
+                column: 24,
+                line: 3,
               },
             },
           },
@@ -228,6 +295,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -258,6 +327,8 @@ describe('TargetResolver', () => {
               includeNodeModules: true,
               outputFormat: 'global',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -288,6 +359,8 @@ describe('TargetResolver', () => {
               includeNodeModules: true,
               outputFormat: 'global',
               isLibrary: false,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -330,6 +403,8 @@ describe('TargetResolver', () => {
             includeNodeModules: false,
             isLibrary: true,
             outputFormat: 'commonjs',
+            minify: false,
+            scopeHoist: false,
           },
           sourceMap: undefined,
           loc: {
@@ -372,6 +447,8 @@ describe('TargetResolver', () => {
             includeNodeModules: true,
             isLibrary: false,
             outputFormat: 'global',
+            minify: false,
+            scopeHoist: false,
           },
           sourceMap: undefined,
           loc: {
@@ -416,6 +493,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
@@ -446,6 +525,8 @@ describe('TargetResolver', () => {
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
+              minify: false,
+              scopeHoist: false,
             },
             sourceMap: undefined,
             loc: {
