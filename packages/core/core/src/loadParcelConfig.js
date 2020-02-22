@@ -9,6 +9,7 @@ import type {
   ParcelOptions,
   ProcessedParcelConfig,
   ExtendableParcelConfigPipeline,
+  PureParcelConfigPipeline,
 } from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import {parse} from 'json5';
@@ -99,26 +100,21 @@ function processPipeline(
   }
 }
 
-function processMap<T>(
+function processMap(
   map: ?ConfigMap<any, any>,
   filePath: FilePath,
 ): ConfigMap<any, any> | typeof undefined {
   if (!map) return undefined;
 
-  let res: ConfigMap<any, T> = {};
+  let res: ConfigMap<any, any> = {};
   for (let k in map) {
     if (typeof map[k] === 'string') {
-      // $FlowFixMe I'm sure this is fine...
       res[k] = {
         packageName: map[k],
         resolveFrom: filePath,
       };
     } else {
-      // $FlowFixMe I'm sure this is fine...
-      res[k] = processPipeline<ExtendableParcelConfigPipeline>(
-        map[k],
-        filePath,
-      );
+      res[k] = processPipeline(map[k], filePath);
     }
   }
 
@@ -232,7 +228,7 @@ export function mergeConfigs(
   return new ParcelConfig(
     {
       filePath: ext.filePath,
-      // $FlowFixMe
+      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       resolvers: mergePipelines(base.resolvers, ext.resolvers),
       transformers: mergeMaps(
         base.transformers,
@@ -241,12 +237,12 @@ export function mergeConfigs(
       ),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
-      // $FlowFixMe
+      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       namers: mergePipelines(base.namers, ext.namers),
       runtimes: mergeMaps(base.runtimes, ext.runtimes),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-      // $FlowFixMe
+      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,

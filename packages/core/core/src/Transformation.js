@@ -103,12 +103,17 @@ export default class Transformation {
     let assets = results.map(a => a.value);
 
     for (let {request, result} of this.configRequests) {
+      // $FlowFixMe
+      let resolveFrom = request.meta.parcelConfigPath;
+      if (typeof resolveFrom !== 'string') {
+        throw new Error('request.meta.parcelConfigPath should be a string!');
+      }
+
       let plugin =
         request.plugin != null &&
         (await this.parcelConfig.loadPlugin({
           packageName: request.plugin,
-          // $FlowFixMe it should contain a parcelConfigPath
-          resolveFrom: request.meta.parcelConfigPath,
+          resolveFrom,
         }));
 
       if (plugin && plugin.preSerializeConfig) {
@@ -345,7 +350,6 @@ export default class Transformation {
 
     configs.set('parcel', config);
 
-    // $FlowFixMe Flow is acting up
     let transformers = await parcelConfig.getTransformers(
       filePath,
       pipelineName,
