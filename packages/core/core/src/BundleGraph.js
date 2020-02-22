@@ -577,11 +577,16 @@ export default class BundleGraph {
   getHash(bundle: Bundle): string {
     let hash = crypto.createHash('md5');
     this.traverseBundles((childBundle, ctx, traversal) => {
-      if (childBundle.id === bundle.id || childBundle.isInline) {
+      if (
+        childBundle.id === bundle.id ||
+        (ctx?.parentBundle === bundle.id && childBundle.isInline)
+      ) {
         hash.update(this.getContentHash(childBundle));
       } else {
+        hash.update(childBundle.id);
         traversal.skipChildren();
       }
+      return {parentBundle: childBundle.id};
     }, bundle);
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
