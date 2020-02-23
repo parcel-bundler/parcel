@@ -9,16 +9,14 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/SharpTransformer.js",
-  "source": "src/SharpTransformer.js",
+  "main": "lib/ImageResizeTransformer.js",
+  "source": "src/ImageResizeTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0-alpha.3.1",
-    "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/utils": "^2.0.0-alpha.3.1"
+    "@parcel/plugin": "^2.0.0-alpha.3.1"
   },
   "devDependencies": {
     "sharp": "^0.24.1"
