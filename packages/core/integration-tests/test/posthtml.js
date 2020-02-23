@@ -1,4 +1,5 @@
 import assert from 'assert';
+import path from 'path';
 import {
   bundle,
   assertBundles,
@@ -6,7 +7,7 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
-import path from 'path';
+import Logger from '@parcel/logger';
 
 describe('posthtml', function() {
   afterEach(async () => {
@@ -27,7 +28,7 @@ describe('posthtml', function() {
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
-      'utf-8'
+      'utf-8',
     );
     assert(html.includes('<h1>Other page</h1>'));
   });
@@ -51,17 +52,17 @@ describe('posthtml', function() {
 
   it('should support compiling with static .posthtmlrc config', async function() {
     await bundle(
-      path.join(__dirname, '/integration/posthtml-config-rc/index.html')
+      path.join(__dirname, '/integration/posthtml-config-rc/index.html'),
     );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
-      'utf-8'
+      'utf-8',
     );
     assert(
       html.includes(
-        '<h1 id="mainHeader" class="customClass">This is a header</h1>'
-      )
+        '<h1 id="mainHeader" class="customClass">This is a header</h1>',
+      ),
     );
   });
 
@@ -69,15 +70,62 @@ describe('posthtml', function() {
     await bundle(
       path.join(
         __dirname,
-        '/integration/posthtml-config-js-with-require/index.html'
-      )
+        '/integration/posthtml-config-js-with-require/index.html',
+      ),
     );
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
-      'utf-8'
+      'utf-8',
     );
     assert(html.includes('<h1>Other page</h1>'));
+  });
+
+  it('should support compiling using .posthtmlrc.js config without warnings', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    await bundle(
+      path.join(__dirname, '/integration/posthtml-assets/index.html'),
+      {
+        logLevel: 'verbose',
+      },
+    );
+    loggerDisposable.dispose();
+
+    let file = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!file.includes('other.html'));
+    assert(file.includes('<h1>Other page</h1>'));
+    assert.deepEqual(messages, []);
+  });
+
+  it('should display warnings when compiling using .posthtmlrc.js config with a require', async function() {
+    let messages = [];
+    let loggerDisposable = Logger.onLog(message => {
+      messages.push(message);
+    });
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/posthtml-config-js-with-require/index.html',
+      ),
+      {
+        logLevel: 'verbose',
+      },
+    );
+    loggerDisposable.dispose();
+
+    let file = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(!file.includes('other.html'));
+    assert(file.includes('<h1>Other page</h1>'));
+    assert.equal(messages.length, 1);
   });
 
   it.skip('should add dependencies referenced by posthtml-include', async () => {

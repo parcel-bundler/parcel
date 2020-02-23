@@ -1,4 +1,7 @@
 // @flow
+import type {ConfigResult} from '@parcel/types';
+import type {PluginLogger} from '@parcel/logger';
+import type {PostHTMLOptions} from 'posthtml';
 
 import {Transformer} from '@parcel/plugin';
 
@@ -9,22 +12,38 @@ import nullthrows from 'nullthrows';
 import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
-const canSerializeConfig = config => {
+const canSerializeConfig = (config: ConfigResult, logger: PluginLogger) => {
   if (!config || !config.plugins) {
     return true;
   }
   if (Array.isArray(config.plugins)) {
-    return config.plugins.every(plugin => typeof plugin === 'string');
-  } else if (typeof config.plugins === 'object') {
-    return Object.keys(config.plugins).every(
+    const hasOnlyStringPlugins = config.plugins.every(
       plugin => typeof plugin === 'string',
     );
+    if (!hasOnlyStringPlugins) {
+      logger.verbose({
+        message:
+          'WARNING: You are using non-serializable plugins to configure PostHTML. This means PostHTML transformations cannot be cached and will run on each build. Please use strings to configure PostHTML instead.',
+      });
+    }
+    return hasOnlyStringPlugins;
+  } else if (typeof config.plugins === 'object') {
+    const usesFunctionPluginValue = Object.values(config.plugins).every(
+      plugin => typeof plugin === 'string',
+    );
+    if (usesFunctionPluginValue) {
+      logger.verbose({
+        message:
+          'WARNING: You are using non-serializable plugins to configure PostHTML. This means PostHTML transformations cannot be cached and will run on each build. Please use an object to configure PostHTML plugins instead of including the plugin directly.',
+      });
+    }
+    return !usesFunctionPluginValue;
   }
   return true;
 };
 
 export default new Transformer({
-  async loadConfig({config, options}) {
+  async loadConfig({config, options, logger}) {
     let loaded = await config.getConfig([
       '.posthtmlrc',
       '.posthtmlrc.js',
@@ -34,7 +53,7 @@ export default new Transformer({
     loaded = loaded || {};
     loaded.skipParse = true;
 
-    if (!canSerializeConfig(loaded)) {
+    if (!canSerializeConfig(loaded, logger)) {
       config.setResult({fullyLoaded: loaded});
       config.shouldInvalidateOnStartup();
       config.setResultHash(JSON.stringify(Date.now()));
@@ -67,7 +86,7 @@ export default new Transformer({
       ]);
       loaded = loaded || {};
       loaded.skipParse = true;
-      config.fullyLoaded = loaded;
+      configResult.fullyLoaded = loaded;
     } else {
       configResult.fullyLoaded = {
         ...loaded,
