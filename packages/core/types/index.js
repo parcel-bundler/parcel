@@ -299,6 +299,7 @@ export interface BaseAsset {
   +env: Environment;
   +fs: FileSystem;
   +filePath: FilePath;
+  +query: QueryParameters;
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
@@ -643,8 +644,11 @@ export type BundleResult = {|
   +map?: ?SourceMap,
 |};
 
+export type QueryParameters = {[key: string]: string, ...};
+
 export type ResolveResult = {|
   +filePath?: FilePath,
+  +query?: QueryParameters,
   +isExcluded?: boolean,
   +sideEffects?: boolean,
   +code?: string,

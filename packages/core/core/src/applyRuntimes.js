@@ -63,6 +63,7 @@ export default async function applyRuntimes({
             let assetRequest = {
               code,
               filePath,
+              query: {},
               env: bundle.env,
             };
             connections.push({

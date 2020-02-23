@@ -20,6 +20,7 @@ import type {
   PackageJSON,
   Stats,
   Symbol,
+  QueryParameters,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -85,6 +86,10 @@ class BaseAsset {
 
   get filePath(): FilePath {
     return this.#asset.value.filePath;
+  }
+
+  get query(): QueryParameters {
+    return this.#asset.value.query;
   }
 
   get meta(): Meta {

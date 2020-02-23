@@ -12,6 +12,7 @@ import type {
   Stats,
   Symbol,
   TransformerResult,
+  QueryParameters,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 
@@ -34,6 +35,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: ?string,
   filePath: FilePath,
+  query: QueryParameters,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
@@ -65,6 +67,7 @@ export function createAsset(options: AssetOptions): Asset {
           ),
     hash: options.hash,
     filePath: options.filePath,
+    query: options.query,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
     isInline: options.isInline == null ? false : options.isInline,
     isSplittable: options.isSplittable,
@@ -281,6 +284,7 @@ export default class InternalAsset {
       value: createAsset({
         idBase: this.idBase,
         hash,
+        query: this.value.query,
         filePath: this.value.filePath,
         type: result.type,
         isIsolated: result.isIsolated ?? this.value.isIsolated,

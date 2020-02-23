@@ -118,6 +118,7 @@ export default class ResolverRunner {
             sideEffects: result.sideEffects,
             code: result.code,
             env: dependency.env,
+            query: result.query || {},
             pipeline: pipeline ?? dependency.pipeline,
           };
         }

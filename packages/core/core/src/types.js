@@ -26,6 +26,7 @@ import type {
   ConfigResult,
   OutputFormat,
   TargetDescriptor,
+  QueryParameters,
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -78,6 +79,7 @@ export type Asset = {|
   id: string,
   hash: ?string,
   filePath: FilePath,
+  query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
   includedFiles: Map<FilePath, File>,
@@ -159,6 +161,7 @@ export type RootNode = {|id: string, +type: 'root', value: string | null|};
 export type AssetRequestDesc = {|
   filePath: FilePath,
   env: Environment,
+  query: QueryParameters,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,

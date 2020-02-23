@@ -114,7 +114,7 @@ export default class Transformation {
   }
 
   async loadAsset(): Promise<InternalAsset> {
-    let {filePath, env, code, pipeline, sideEffects} = this.request;
+    let {filePath, env, code, pipeline, sideEffects, query} = this.request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       this.request,
@@ -128,6 +128,7 @@ export default class Transformation {
       value: createAsset({
         idBase,
         filePath,
+        query,
         isSource,
         type: path.extname(filePath).slice(1),
         hash,

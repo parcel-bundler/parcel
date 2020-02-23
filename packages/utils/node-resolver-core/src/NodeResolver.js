@@ -5,14 +5,17 @@ import type {
   FilePath,
   ResolveResult,
   Environment,
+  QueryParameters,
 } from '@parcel/types';
 import path from 'path';
 import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 import nullthrows from 'nullthrows';
+import querystring from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
+const QUERY_PARAMS_REGEX = /^([^\s?]*)(\?.*)?/;
 
 type InternalPackageJSON = PackageJSON & {pkgdir: string, ...};
 type Options = {|
@@ -31,6 +34,26 @@ type Module = {|
   moduleDir?: FilePath,
   filePath?: FilePath,
 |};
+
+const parseFilePath = (
+  filepath: FilePath,
+): {|
+  filepath: FilePath,
+  query: QueryParameters,
+|} => {
+  let matches = filepath.match(QUERY_PARAMS_REGEX);
+  if (matches && matches.length > 2) {
+    return {
+      filepath: matches[1],
+      query: matches[2] ? querystring.parse(matches[2].substr(1)) : {},
+    };
+  }
+
+  return {
+    filepath,
+    query: {},
+  };
+};
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -75,6 +98,7 @@ export default class NodeResolver {
   |}): Promise<?ResolveResult> {
     // Get file extensions to search
     let extensions = this.extensions.slice();
+    let parsedFilePath = parseFilePath(filename);
 
     if (parent) {
       // parent's extension given high priority
@@ -85,7 +109,12 @@ export default class NodeResolver {
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule({filename, parent, isURL, env});
+    let module = await this.resolveModule({
+      filename: parsedFilePath.filepath,
+      parent,
+      isURL,
+      env,
+    });
     if (!module) {
       return {isExcluded: true};
     }
@@ -100,6 +129,7 @@ export default class NodeResolver {
     if (resolved) {
       return {
         filePath: resolved.path,
+        query: parsedFilePath.query,
         sideEffects:
           resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
             ? false
