@@ -44,11 +44,10 @@ const canSerializeConfig = (config: ConfigResult, logger: PluginLogger) => {
 
 export default new Transformer({
   async loadConfig({config, options, logger}) {
-    let loaded = await config.getConfig([
-      '.posthtmlrc',
-      '.posthtmlrc.js',
-      'posthtml.config.js',
-    ]);
+    let loaded = await config.getConfig(
+      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      {packageKey: 'posthtml'},
+    );
 
     loaded = loaded || {};
     loaded.skipParse = true;
@@ -79,11 +78,10 @@ export default new Transformer({
     let {loaded} = configResult;
 
     if (!loaded) {
-      loaded = await config.getConfig([
-        '.posthtmlrc',
-        '.posthtmlrc.js',
-        'posthtml.config.js',
-      ]);
+      loaded = await config.getConfig(
+        ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+        {packageKey: 'posthtml'},
+      );
       loaded = loaded || {};
       loaded.skipParse = true;
       configResult.fullyLoaded = loaded;
