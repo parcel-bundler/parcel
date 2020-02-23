@@ -1,7 +1,6 @@
 // @flow
 import type {ConfigResult} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
-import type {PostHTMLOptions} from 'posthtml';
 
 import {Transformer} from '@parcel/plugin';
 
