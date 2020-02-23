@@ -1,5 +1,6 @@
 import styles from './styles.css';
 import parcel from 'url:./parcel.webp';
+import parcelFront from 'webp:./parcel-front.png';
 import {message} from './message';
 
 // import('./async');
