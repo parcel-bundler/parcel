@@ -1,6 +1,7 @@
 import styles from './styles.css';
 import parcel from 'url:./parcel.webp';
 import {message} from './message';
+import warehouse from 'url:./image.jpg?height=200';
 
 // import('./async');
 // import('./async2');
