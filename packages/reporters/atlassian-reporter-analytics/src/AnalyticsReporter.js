@@ -139,8 +139,6 @@ function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
       event.type === 'buildStart' ? null : process.cpuUsage(buildStartCpuUsage),
     disableCache: options.disableCache,
     mode: options.mode,
-    minify: options.minify,
-    scopeHoist: options.scopeHoist,
     sourceMaps: options.sourceMaps,
     serve: Boolean(options.serve),
   };
