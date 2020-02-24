@@ -7,7 +7,7 @@ import {bundle, distDir, outputFS, inputFS} from '@parcel/test-utils';
 const configPath = path.join(__dirname, '/integration/blob-url/.parcelrc');
 
 const config = {
-  ...JSON.parse(inputFS.readFileSync(configPath)),
+  ...JSON.parse(inputFS.readFileSync(configPath, 'utf8')),
   filePath: configPath,
 };
 
