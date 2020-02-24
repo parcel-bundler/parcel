@@ -8,6 +8,7 @@ import {message} from './message';
 
 new Worker('worker.js');
 
+console.log({parcelFront});
 console.log(message);
 
 // const message = require('./message');
