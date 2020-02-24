@@ -28,6 +28,7 @@
     "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
   },
   "devDependencies": {
+    "cross-env": "^5.1.1",
     "doctoc": "^1.4.0",
     "eslint": "^6.0.0",
     "flow-bin": "0.119.0",
