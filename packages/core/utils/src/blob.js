@@ -9,9 +9,9 @@ export function blobToBuffer(blob: Blob): Promise<Buffer> {
   if (blob instanceof Readable) {
     return bufferStream(blob);
   } else if (blob instanceof Buffer) {
-    return Buffer.from(blob);
+    return Promise.resolve(Buffer.from(blob));
   } else {
-    return Buffer.from(blob, 'utf8');
+    return Promise.resolve(Buffer.from(blob, 'utf8'));
   }
 }
 
