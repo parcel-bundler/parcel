@@ -19,8 +19,6 @@ const config = {
   filePath: require.resolve('@parcel/config-default'),
 };
 
-const inputDir = path.join(__dirname, '/ts-validator');
-
 describe('ts-validator', function() {
   let subscription;
   afterEach(async () => {
@@ -57,6 +55,7 @@ describe('ts-validator', function() {
   });
 
   it('should re-run when .ts files change', async function() {
+    const inputDir = path.join(__dirname, '/ts-validator-change'); // TODO: does this actually solve anything (v. just having a module-global 'inputDir')?
     await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
     await outputFS.writeFile(
@@ -97,5 +96,47 @@ describe('ts-validator', function() {
       buildEvent.diagnostics[0].message,
       "Type '\"Now it is back!\"' is not assignable to type 'boolean'.",
     );
+  });
+
+  it('should report correct errors when multiple .ts files change at the same time', async function() {
+    const inputDir = path.join(__dirname, '/ts-validator-multi-change');
+    await outputFS.mkdirp(inputDir);
+    await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.ts'),
+      `import { returnMessage } from "./returnMessage";
+      const message: string = "My Message!";
+      export const output = returnMessage(message);`,
+    );
+    await outputFS.writeFile(
+      path.join(inputDir, '/returnMessage.ts'),
+      `export function returnMessage(message: string): string { return message; }`,
+    );
+    let b = bundler([path.join(inputDir, '/index.ts')], {
+      inputFS: overlayFS,
+      defaultConfig: config,
+    });
+    subscription = await b.watch();
+
+    let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+    let output = await run(buildEvent.bundleGraph);
+    assert.equal(output.output, 'My Message!');
+
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.ts'),
+      `import { returnMessage } from "./returnMessage";
+      const message: number = 123456;
+      export const output = returnMessage(message);`,
+    );
+    await outputFS.writeFile(
+      path.join(inputDir, '/returnMessage.ts'),
+      `export function returnMessage(message: number): number { return message; }`,
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+    output = await run(buildEvent.bundleGraph);
+    assert.equal(output.output, 123456);
   });
 });
