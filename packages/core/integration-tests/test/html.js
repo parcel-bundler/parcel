@@ -91,6 +91,23 @@ describe('html', function() {
     ]);
   });
 
+  it('should support canonical links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-canonical/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+
+    assert(/<link rel="canonical" href="\/index.html">/.test(html));
+  });
+
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css/index.html'),
