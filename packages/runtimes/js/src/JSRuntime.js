@@ -9,6 +9,7 @@ import type {
 
 import assert from 'assert';
 import {Runtime} from '@parcel/plugin';
+import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -132,7 +133,7 @@ export default new Runtime({
               // Use esmodule loader if possible
               if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
                 if (!needsDynamicImportPolyfill) {
-                  return `import('./' + ${relativePathExpr})`;
+                  return `import("./" + ${relativePathExpr})`;
                 }
 
                 loader = IMPORT_POLYFILL;
@@ -140,7 +141,7 @@ export default new Runtime({
                 to.type === 'js' &&
                 to.env.outputFormat === 'commonjs'
               ) {
-                return `Promise.resolve(require('./' + ${relativePathExpr}))`;
+                return `Promise.resolve(require("./" + ${relativePathExpr}))`;
               }
 
               return `require(${JSON.stringify(
@@ -179,6 +180,7 @@ export default new Runtime({
     }
 
     if (
+      bundle.target.env.immutable !== 'none' &&
       bundleGraph.getChildBundles(bundle).length > 0 &&
       isNewContext(bundle, bundleGraph)
     ) {
@@ -253,6 +255,12 @@ function getRegisterCode(
 }
 
 function getRelativePathExpr(from: Bundle, to: Bundle): string {
+  if (from.target.env.immutable === 'none') {
+    return JSON.stringify(
+      relativeBundlePath(from, to, {leadingDotSlash: false}),
+    );
+  }
+
   return `require('./relative-path')(${JSON.stringify(
     getPublicId(from.id),
   )}, ${JSON.stringify(getPublicId(to.id))})`;

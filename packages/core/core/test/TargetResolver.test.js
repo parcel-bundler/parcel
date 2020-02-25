@@ -78,6 +78,7 @@ describe('TargetResolver', () => {
             distDir: path.resolve('customA'),
             env: {
               context: 'browser',
+              immutable: 'nonentries',
               includeNodeModules: true,
               engines: {
                 browsers: ['> 0.25%'],
@@ -95,6 +96,7 @@ describe('TargetResolver', () => {
             distDir: path.resolve('customB'),
             env: {
               context: 'node',
+              immutable: 'none',
               includeNodeModules: false,
               engines: {
                 node: '>= 8.0.0',
@@ -131,6 +133,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
@@ -163,6 +166,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'esmodule',
               isLibrary: true,
@@ -197,6 +201,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
@@ -246,6 +251,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: false,
@@ -292,6 +298,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
@@ -324,6 +331,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
+              immutable: 'nonentries',
               includeNodeModules: true,
               outputFormat: 'global',
               isLibrary: false,
@@ -356,6 +364,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['ie11'],
               },
+              immutable: 'nonentries',
               includeNodeModules: true,
               outputFormat: 'global',
               isLibrary: false,
@@ -400,6 +409,7 @@ describe('TargetResolver', () => {
                 'last 1 Edge version',
               ],
             },
+            immutable: 'none',
             includeNodeModules: false,
             isLibrary: true,
             outputFormat: 'commonjs',
@@ -444,6 +454,7 @@ describe('TargetResolver', () => {
                 'last 1 Edge version',
               ],
             },
+            immutable: 'nonentries',
             includeNodeModules: true,
             isLibrary: false,
             outputFormat: 'global',
@@ -490,6 +501,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,
@@ -522,6 +534,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
+              immutable: 'none',
               includeNodeModules: false,
               outputFormat: 'commonjs',
               isLibrary: true,

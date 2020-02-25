@@ -303,13 +303,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'JSRuntime.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          'relative-path.js',
-        ],
+        assets: ['index.js', 'JSRuntime.js'],
       },
       {
         assets: ['local.js'],

@@ -11,6 +11,7 @@ const DEFAULT_ENGINES = {
 export function createEnvironment({
   context,
   engines,
+  immutable,
   includeNodeModules,
   outputFormat,
   minify = false,
@@ -77,9 +78,14 @@ export function createEnvironment({
     }
   }
 
+  if (immutable == null) {
+    immutable = context === 'browser' && !isLibrary ? 'nonentries' : 'none';
+  }
+
   return {
     context,
     engines,
+    immutable,
     includeNodeModules,
     outputFormat,
     isLibrary,

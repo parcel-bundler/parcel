@@ -89,6 +89,7 @@ export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
+  +immutable?: ImmutableType,
   +includeNodeModules?:
     | boolean
     | Array<PackageName>
@@ -110,6 +111,7 @@ export type TargetDescriptor = {|
 export type EnvironmentOpts = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
+  +immutable?: ImmutableType,
   +includeNodeModules?:
     | boolean
     | Array<PackageName>
@@ -125,6 +127,8 @@ export type VersionMap = {
   ...,
 };
 
+export type ImmutableType = 'nonentries' | 'none';
+
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
@@ -136,6 +140,7 @@ export interface Environment {
   +isLibrary: boolean;
   +minify: boolean;
   +scopeHoist: boolean;
+  +immutable: ImmutableType;
 
   isBrowser(): boolean;
   isNode(): boolean;

@@ -11,6 +11,7 @@ import type {
   Glob,
   JSONObject,
   LogLevel,
+  ImmutableType,
   Meta,
   ModuleSpecifier,
   PackageName,
@@ -41,6 +42,7 @@ export type Environment = {|
     | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
+  immutable: ImmutableType,
   minify: boolean,
   scopeHoist: boolean,
 |};
