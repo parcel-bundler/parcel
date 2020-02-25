@@ -126,9 +126,12 @@ export default function collectDependencies(asset: MutableAsset) {
       }
     }
 
-    let {href, rel} = attrs.rel;
-    if (tag === 'link' && (rel === 'canonical' || rel === 'manifest') && href) {
-      attrs.href = asset.addURLDependency(href, {
+    if (
+      tag === 'link' &&
+      (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
+      attrs.href
+    ) {
+      attrs.href = asset.addURLDependency(attrs.href, {
         isEntry: true,
       });
       ast.isDirty = true;
