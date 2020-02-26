@@ -2272,4 +2272,40 @@ describe('javascript', function() {
 
     assert.equal(await run(b), 2);
   });
+
+  it('only updates bundle names of changed bundles for browsers', async () => {
+    let fixtureDir = path.join(__dirname, '/integration/name-invalidation');
+    let _bundle = () =>
+      bundle(path.join(fixtureDir, 'index.js'), {
+        inputFS: overlayFS,
+      });
+
+    let first = await _bundle();
+    assert.equal(await (await run(first)).default, 42);
+
+    let bPath = path.join(fixtureDir, 'b.js');
+    await overlayFS.mkdirp(fixtureDir);
+    overlayFS.writeFile(
+      bPath,
+      (await overlayFS.readFile(bPath, 'utf8')).replace('42', '43'),
+    );
+
+    let second = await _bundle();
+    assert.equal(await (await run(second)).default, 43);
+
+    let getBundleNameWithPrefix = (b, prefix) =>
+      b
+        .getBundles()
+        .map(bundle => bundle.name)
+        .find(name => name.startsWith(prefix));
+
+    assert.equal(
+      getBundleNameWithPrefix(first, 'a'),
+      getBundleNameWithPrefix(second, 'a'),
+    );
+    assert.notEqual(
+      getBundleNameWithPrefix(first, 'b'),
+      getBundleNameWithPrefix(second, 'b'),
+    );
+  });
 });
