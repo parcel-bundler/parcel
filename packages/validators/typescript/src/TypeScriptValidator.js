@@ -45,7 +45,13 @@ export default new Validator({
     if (!config) return;
 
     let {baseDir, configHash, tsconfig} = config;
-    if (tsconfig && !langServiceCache[configHash]) {
+
+    // We want to re-create the language service if the file system has changed (e.g. when running multiple tests with the same config).
+    if (
+      tsconfig &&
+      (!langServiceCache[configHash] ||
+        langServiceCache[configHash].fs !== options.inputFS)
+    ) {
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
         new ParseConfigHost(options.inputFS, ts),
