@@ -1,4 +1,4 @@
-import polyfills from 'node-libs-browser';
+import polyfills from '@parcel/node-libs-browser';
 import {builtinModules} from 'module';
 
 const empty = require.resolve('./_empty.js');
