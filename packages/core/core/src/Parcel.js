@@ -351,10 +351,13 @@ export default class Parcel {
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, _events) => {
-        let events = _events.filter(e => !e.path.includes('.cache'));
-
         if (err) {
           this.#watchEvents.emit({error: err});
+          return;
+        }
+
+        let events = _events.filter(e => !e.path.includes('.cache'));
+        if (!events.length) {
           return;
         }
 
