@@ -381,11 +381,9 @@ export class RequestRunner<TRequest, TResult> {
   ): Promise<TResult | void> {
     let id = this.generateRequestId(requestDesc);
     try {
-      let request = {id, type: this.type, request: requestDesc};
-
       let api = this.createAPI(id);
 
-      this.tracker.trackRequest(request);
+      this.tracker.trackRequest({id, type: this.type, request: requestDesc});
       let result: TResult = this.tracker.hasValidResult(id)
         ? // $FlowFixMe
           (this.tracker.getRequestResult(id): any)

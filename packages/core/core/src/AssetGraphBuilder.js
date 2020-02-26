@@ -218,7 +218,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   queueRequest(request: AssetGraphBuildRequest, runOpts: RunRequestOpts) {
     return this.queue.add(async () => {
-      if (this.rejected.size) {
+      if (this.rejected.size > 0) {
         return;
       }
       try {
