@@ -1,0 +1,5 @@
+{
+  "name": "monorepo-babel-config",
+  "private": true,
+  "workspaces": ["pkg-a", "pkg-b"]
+}
