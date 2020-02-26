@@ -6042,10 +6042,10 @@ flatten@^1.0.2:
   resolved "https://registry.yarnpkg.com/flatten/-/flatten-1.0.3.tgz#c1283ac9f27b368abc1e36d1ff7b04501a30356b"
   integrity sha512-dVsPA/UwQ8+2uoFe5GHtiBMu48dWLTdsuEd7CKGlZlD78r1TTWBvDuFaFGKCo/ZfEr95Uk56vZoX86OsHkUeIg==
 
-flow-bin@0.119.0:
-  version "0.119.0"
-  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.119.0.tgz#f72523b4843caf7302576f7ad3f63637070b69f1"
-  integrity sha512-fCVv++rjBsx/q6YVeB3F+A/owztjUO5PyBLwhGZdK5igVmiFQ8RKBTR9T2mb+SQRLZJJhl/xwPLhNzr3dBba6w==
+flow-bin@0.119.1:
+  version "0.119.1"
+  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.119.1.tgz#b6d763b386ec9f1085848ca7df98909d80a16bd0"
+  integrity sha512-mX6qjJVi7aLqR9sDf8QIHt8yYEWQbkMLw7qFoC7sM/AbJwvqFm3pATPN96thsaL9o1rrshvxJpSgoj1PJSC3KA==
 
 flush-write-stream@^1.0.0, flush-write-stream@^1.0.2:
   version "1.1.1"
@@ -12272,7 +12272,7 @@ stealthy-require@^1.1.1:
   resolved "https://registry.yarnpkg.com/stealthy-require/-/stealthy-require-1.1.1.tgz#35b09875b4ff49f26a777e509b3090a3226bf24b"
   integrity sha1-NbCYdbT/SfJqd35QmzCQoyJr8ks=
 
-stream-browserify@^2.0.1, stream-browserify@^2.0.2:
+stream-browserify@^2.0.1:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/stream-browserify/-/stream-browserify-2.0.2.tgz#87521d38a44aa7ee91ce1cd2a47df0cb49dd660b"
   integrity sha512-nX6hmklHs/gr2FuxYDltq8fJA1GDlxKQCz8O/IM4atRqBH8OORmBNgfvW5gG10GT/qQ9u0CzIvr2X5Pkt6ntqg==
