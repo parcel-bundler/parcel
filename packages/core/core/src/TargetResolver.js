@@ -133,7 +133,6 @@ export default class TargetResolver {
               engines: descriptor.engines,
               context: descriptor.context,
               isLibrary: descriptor.isLibrary,
-              immutable: descriptor.immutable,
               includeNodeModules: descriptor.includeNodeModules,
               outputFormat: descriptor.outputFormat,
               minify: this.options.minify && descriptor.minify !== false,
@@ -343,7 +342,6 @@ export default class TargetResolver {
                 : targetName === 'module'
                 ? moduleContext
                 : mainContext),
-            immutable: descriptor.immutable,
             includeNodeModules: descriptor.includeNodeModules ?? !isLibrary,
             outputFormat:
               descriptor.outputFormat ??
@@ -429,7 +427,6 @@ export default class TargetResolver {
           env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
-            immutable: descriptor.immutable,
             includeNodeModules: descriptor.includeNodeModules,
             outputFormat: descriptor.outputFormat,
             isLibrary: descriptor.isLibrary,

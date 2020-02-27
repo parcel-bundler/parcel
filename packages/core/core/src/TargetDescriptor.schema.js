@@ -37,10 +37,6 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
         'electron-renderer',
       ],
     },
-    immutable: {
-      type: 'string',
-      enum: ['nonentries', 'none'],
-    },
     includeNodeModules: {
       oneOf: [
         {

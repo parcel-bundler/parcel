@@ -603,11 +603,7 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(
-        new RegExp(
-          'import\\("\\.\\/" \\+ .+? "' + asyncBundle.id.slice(-16) + '"\\)',
-        ).test(entry),
-      );
+      assert(entry.includes(`import("./" + "${asyncBundle.name}")`));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -638,11 +634,7 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(
-        new RegExp(
-          'getBundleURL\\(\\) \\+ .+? "' + asyncBundle.id.slice(-16) + '"\\)',
-        ).test(entry),
-      );
+      assert(entry.includes(`getBundleURL() + "${asyncBundle.name}"`));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -681,11 +673,11 @@ describe('output formats', function() {
       );
       assert(
         new RegExp(
-          'Promise.all\\(\\[.+?getBundleURL\\(\\) \\+ .+? "' +
-            asyncCssBundle.id.slice(-16) +
-            '"\\)\\), import\\("\\.\\/" \\+ .+? "' +
-            asyncJsBundle.id.slice(-16) +
-            '"\\)\\)]\\)',
+          'Promise.all\\(\\[.+?getBundleURL\\(\\) \\+ "' +
+            asyncCssBundle.name +
+            '"\\), import\\("\\.\\/" \\+ "' +
+            asyncJsBundle.name +
+            '"\\)\\]\\)',
         ).test(entry),
       );
 
@@ -731,13 +723,9 @@ describe('output formats', function() {
       for (let bundle of [async1Bundle, async2Bundle]) {
         // async import both bundles in parallel for performance
         assert(
-          new RegExp(
-            'import\\("\\.\\/" \\+ .+? "' +
-              sharedBundle.id.slice(-16) +
-              '"\\)\\), import\\("\\.\\/" \\+ .+? "' +
-              bundle.id.slice(-16) +
-              '"\\)\\);',
-          ).test(entry),
+          entry.includes(
+            `import("./" + "${sharedBundle.name}"), import("./" + "${bundle.name}");`,
+          ),
         );
       }
 

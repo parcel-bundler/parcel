@@ -3,7 +3,6 @@ import type {
   Environment as IEnvironment,
   EnvironmentContext,
   Engines,
-  ImmutableType,
   OutputFormat,
   PackageName,
   VersionMap,
@@ -92,10 +91,6 @@ export default class Environment implements IEnvironment {
 
   get engines(): Engines {
     return this.#environment.engines;
-  }
-
-  get immutable(): ImmutableType {
-    return this.#environment.immutable;
   }
 
   get includeNodeModules():

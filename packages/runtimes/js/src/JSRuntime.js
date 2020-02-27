@@ -180,7 +180,7 @@ export default new Runtime({
     }
 
     if (
-      bundle.target.env.immutable !== 'none' &&
+      shouldUseRuntimeManifest(bundle) &&
       bundleGraph.getChildBundles(bundle).length > 0 &&
       isNewContext(bundle, bundleGraph)
     ) {
@@ -255,17 +255,20 @@ function getRegisterCode(
 }
 
 function getRelativePathExpr(from: Bundle, to: Bundle): string {
-  if (from.target.env.immutable === 'none') {
-    return JSON.stringify(
-      relativeBundlePath(from, to, {leadingDotSlash: false}),
-    );
+  if (shouldUseRuntimeManifest(from)) {
+    return `require('./relative-path')(${JSON.stringify(
+      getPublicId(from.id),
+    )}, ${JSON.stringify(getPublicId(to.id))})`;
   }
 
-  return `require('./relative-path')(${JSON.stringify(
-    getPublicId(from.id),
-  )}, ${JSON.stringify(getPublicId(to.id))})`;
+  return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
 function getPublicId(id: string): string {
   return id.slice(-16);
+}
+
+function shouldUseRuntimeManifest(bundle: Bundle): boolean {
+  let env = bundle.env;
+  return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
 }

@@ -10,7 +10,6 @@ describe('Environment', () => {
       engines: {
         browsers: ['> 0.25%'],
       },
-      immutable: 'nonentries',
       includeNodeModules: true,
       outputFormat: 'global',
       isLibrary: false,
@@ -25,7 +24,6 @@ describe('Environment', () => {
       engines: {
         node: '>= 10.0.0',
       },
-      immutable: 'none',
       includeNodeModules: false,
       outputFormat: 'commonjs',
       isLibrary: false,
@@ -42,7 +40,6 @@ describe('Environment', () => {
         engines: {
           browsers: ['last 1 version'],
         },
-        immutable: 'nonentries',
         includeNodeModules: true,
         outputFormat: 'global',
         isLibrary: false,
@@ -58,7 +55,6 @@ describe('Environment', () => {
       engines: {
         node: '>= 8.0.0',
       },
-      immutable: 'none',
       includeNodeModules: false,
       outputFormat: 'commonjs',
       isLibrary: false,
@@ -73,7 +69,6 @@ describe('Environment', () => {
       engines: {
         browsers: ['> 0.25%'],
       },
-      immutable: 'nonentries',
       includeNodeModules: true,
       outputFormat: 'global',
       isLibrary: false,
