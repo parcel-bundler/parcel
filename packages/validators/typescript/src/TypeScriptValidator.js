@@ -46,12 +46,7 @@ export default new Validator({
 
     let {baseDir, configHash, tsconfig} = config;
 
-    // We want to re-create the language service if the file system has changed (e.g. when running multiple tests with the same config).
-    if (
-      tsconfig &&
-      (!langServiceCache[configHash] ||
-        langServiceCache[configHash].fs !== options.inputFS)
-    ) {
+    if (tsconfig && !langServiceCache[configHash]) {
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
         new ParseConfigHost(options.inputFS, ts),
@@ -70,8 +65,17 @@ export default new Validator({
 
     if (!langServiceCache[configHash]) return;
 
+    // Make sure that the filesystem being used by the LanguageServiceHost is up-to-date. (This could change in the context of running multiple tests (I think?), and probably also for other reasons).
+    langServiceCache[configHash].host.fs = options.inputFS;
+
+    // ANDREW_TODO: this log statement us to inspect the order in which files are validated. You'll get different test results depending on the order.
+    // console.log(`Config ${path.basename(configHash)} - about to invalidate ${path.basename(asset.filePath)}`);
+
     // Make sure that when the typescript language service asks us for this file, we let it know that there is a new version.
-    langServiceCache[configHash].host.invalidate(asset.filePath);
+    // ANDREW_TODO: This is one (slow) way we might fix the problem - always assume that every file changes whenever any file changes.
+    langServiceCache[configHash].host.invalidateAll();
+    // OLD VERSION:
+    // langServiceCache[configHash].host.invalidate(asset.filePath);
 
     const diagnostics = langServiceCache[
       configHash

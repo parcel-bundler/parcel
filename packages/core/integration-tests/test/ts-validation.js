@@ -55,7 +55,9 @@ describe('ts-validator', function() {
   });
 
   it('should re-run when .ts files change', async function() {
-    const inputDir = path.join(__dirname, '/ts-validator-change'); // TODO: does this actually solve anything (v. just having a module-global 'inputDir')?
+    // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
+    // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
+    const inputDir = path.join(__dirname, '/ts-validator-change');
     await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
     await outputFS.writeFile(
@@ -98,7 +100,9 @@ describe('ts-validator', function() {
     );
   });
 
-  it('should report correct errors when multiple .ts files change at the same time', async function() {
+  it('should report correct errors when multiple .ts files change at the same time - no errors', async function() {
+    // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
+    // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change');
     await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
@@ -135,8 +139,75 @@ describe('ts-validator', function() {
     );
 
     buildEvent = await getNextBuild(b);
+    // ANDREW_TODO: This is the output we expect, given the bug.
+    // assert.equal(buildEvent.type, 'buildFailure');
+    // assert.equal(buildEvent.diagnostics.length, 1);
+    // assert.equal(
+    //   buildEvent.diagnostics[0].message,
+    //   'Argument of type \'number\' is not assignable to parameter of type \'string\'.',
+    // );
+
+    // ANDREW_TODO: this is the output we actually want, after the bug is fixed:
     assert.equal(buildEvent.type, 'buildSuccess');
     output = await run(buildEvent.bundleGraph);
     assert.equal(output.output, 123456);
+  });
+
+  it('should report correct errors when multiple .ts files change at the same time - with errors', async function() {
+    // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
+    // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
+    const inputDir = path.join(__dirname, '/ts-validator-multi-change-errors');
+    await outputFS.mkdirp(inputDir);
+    await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.ts'),
+      `import { returnMessage } from "./returnMessage";
+      const message: string = "My Message!";
+      export const output: string = returnMessage(message);`,
+    );
+    await outputFS.writeFile(
+      path.join(inputDir, '/returnMessage.ts'),
+      `export function returnMessage(message: number): number { return message; }`,
+    );
+    let b = bundler([path.join(inputDir, '/index.ts')], {
+      inputFS: overlayFS,
+      defaultConfig: config,
+    });
+    subscription = await b.watch();
+
+    let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildFailure');
+    assert.equal(buildEvent.diagnostics.length, 1);
+    assert.equal(
+      buildEvent.diagnostics[0].message,
+      "Argument of type 'string' is not assignable to parameter of type 'number'.",
+    );
+
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.ts'),
+      `import { returnMessage } from "./returnMessage";
+      const message: boolean = true;
+      export const output: boolean = returnMessage(message);`,
+    );
+    await outputFS.writeFile(
+      path.join(inputDir, '/returnMessage.ts'),
+      `export function returnMessage(message: null): null { return message; }`,
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildFailure');
+    assert.equal(buildEvent.diagnostics.length, 1);
+
+    // ANDREW_TODO: this is the result we expect, given the bug.
+    // assert.equal(
+    //   buildEvent.diagnostics[0].message,
+    //   'Argument of type \'true\' is not assignable to parameter of type \'number\'.',
+    // );
+
+    // ANDREW_TODO: this is the output we actually want, after the bug is fixed:
+    assert.equal(
+      buildEvent.diagnostics[0].message,
+      "Argument of type 'true' is not assignable to parameter of type 'null'.",
+    );
   });
 });
