@@ -36,8 +36,8 @@ describe('blob urls', () => {
 
   it('should inline minified content as a blob url with `blob-url:*` imports', async () => {
     await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      minify: true,
       config,
+      minify: true,
     });
 
     let bundleContent = await outputFS.readFile(
