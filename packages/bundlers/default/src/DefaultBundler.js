@@ -91,14 +91,14 @@ export default new Bundler({
           let siblings = siblingBundlesByAsset.get(asset.id);
 
           if (parentAsset.type === asset.type) {
-            // If any sibling bundles were created for this asset or its subtree previously,
-            // add them all to the current bundle group as well. This fixes cases where two entries
-            // depend on a shared asset which has siblings. Due to DFS, the subtree of the shared
-            // asset is only processed once, meaning any sibling bundles created due to type changes
-            // would only be connected to the first bundle group. To work around this, we store a list
-            // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
-            // connect them all to the current bundle group as well.
             if (allSameType && siblings) {
+              // If any sibling bundles were created for this asset or its subtree previously,
+              // add them all to the current bundle group as well. This fixes cases where two entries
+              // depend on a shared asset which has siblings. Due to DFS, the subtree of the shared
+              // asset is only processed once, meaning any sibling bundles created due to type changes
+              // would only be connected to the first bundle group. To work around this, we store a list
+              // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
+              // connect them all to the current bundle group as well.
               for (let bundle of siblings) {
                 bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
               }
