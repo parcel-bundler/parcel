@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/parcel-reporter-analytics",
-  "version": "2.0.0-frontbucket.16",
+  "version": "2.0.0-frontbucket.17",
   "publishConfig": {
     "access": "public"
   },

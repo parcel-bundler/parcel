@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.18",
+  "version": "2.0.0-frontbucket.19",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,13 +17,13 @@
   },
   "dependencies": {
     "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.14",
-    "@parcel/config-default": "^2.0.0-frontbucket.18",
-    "@parcel/core": "^2.0.0-frontbucket.13",
+    "@parcel/config-default": "^2.0.0-frontbucket.19",
+    "@parcel/core": "^2.0.0-frontbucket.14",
     "@parcel/diagnostic": "^2.0.0-frontbucket.11",
-    "@parcel/fs": "^2.0.0-frontbucket.13",
+    "@parcel/fs": "^2.0.0-frontbucket.14",
     "@parcel/logger": "^2.0.0-frontbucket.11",
-    "@parcel/package-manager": "^2.0.0-frontbucket.13",
-    "@parcel/utils": "^2.0.0-frontbucket.13",
+    "@parcel/package-manager": "^2.0.0-frontbucket.14",
+    "@parcel/utils": "^2.0.0-frontbucket.14",
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",

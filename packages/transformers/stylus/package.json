@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-stylus",
-  "version": "2.0.0-frontbucket.13",
+  "version": "2.0.0-frontbucket.14",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.13",
-    "@parcel/utils": "^2.0.0-frontbucket.13"
+    "@parcel/utils": "^2.0.0-frontbucket.14"
   },
   "devDependencies": {
     "stylus": "^0.54.5"

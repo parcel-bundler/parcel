@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.0.0-frontbucket.19",
+  "version": "2.0.0-frontbucket.20",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -33,8 +33,8 @@
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
     "nyc": "^11.1.0",
-    "parcel": "^2.0.0-frontbucket.18",
-    "parcel-bundler": "^2.0.0-frontbucket.13",
+    "parcel": "^2.0.0-frontbucket.19",
+    "parcel-bundler": "^2.0.0-frontbucket.14",
     "postcss-custom-properties": "^8.0.9",
     "postcss-import": "^12.0.1",
     "react": "^16.11.0",

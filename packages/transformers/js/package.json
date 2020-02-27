@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-js",
-  "version": "2.0.0-frontbucket.14",
+  "version": "2.0.0-frontbucket.15",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -24,9 +24,9 @@
     "@babel/traverse": "^7.0.0",
     "@babel/types": "^7.0.0",
     "@parcel/plugin": "^2.0.0-frontbucket.13",
-    "@parcel/scope-hoisting": "^2.0.0-frontbucket.13",
-    "@parcel/source-map": "^2.0.0-frontbucket.13",
-    "@parcel/utils": "^2.0.0-frontbucket.13",
+    "@parcel/scope-hoisting": "^2.0.0-frontbucket.14",
+    "@parcel/source-map": "^2.0.0-frontbucket.14",
+    "@parcel/utils": "^2.0.0-frontbucket.14",
     "babylon-walk": "^1.0.2",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
