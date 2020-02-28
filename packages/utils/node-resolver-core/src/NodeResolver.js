@@ -15,7 +15,7 @@ import nullthrows from 'nullthrows';
 import querystring from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
-const QUERY_PARAMS_REGEX = /^([^\s?]*)(\?.*)?/;
+const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 type InternalPackageJSON = PackageJSON & {pkgdir: string, ...};
 type Options = {|
