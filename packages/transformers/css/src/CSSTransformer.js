@@ -1,6 +1,7 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
+import type {Container, Node} from 'postcss';
 
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isURL} from '@parcel/utils';
@@ -171,18 +172,20 @@ export default new Transformer({
     // $FlowFixMe
     if (Object.getPrototypeOf(ast.program) === Object.prototype) {
       root = postcss.root(ast.program);
-      let convert = (parent, node, index) => {
+      let convert = (parent: Container, node: Node, index: number) => {
         let type = node.type === 'atrule' ? 'atRule' : node.type;
-        // $FlowFixMe TODO
         let result = postcss[type](node);
         result.parent = parent;
         if (parent) {
-          // $FlowFixMe TODO
           parent.nodes[index] = result;
         }
 
         if (result.walk) {
-          result.each((node, index) => convert(result, node, index));
+          // $FlowFixMe
+          const container = (result: Container);
+          container.each((node, index) => {
+            convert(container, node, index);
+          });
         }
       };
 

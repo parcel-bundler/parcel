@@ -7,20 +7,26 @@
 import type {SourceMapGenerator} from 'source-map';
 
 declare module 'postcss' {
-  declare type Node = {
-    type: string,
-    ...
-  };
+  declare type NodeCallback = (Node, number) => false | void;
 
-  declare interface AST {
-    each: (cb: (node: Node, index: number) => mixed) => mixed;
+  declare interface Node {
+    parent: Container;
+    type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
   }
+
+  declare interface Container extends Node {
+    each(callback: NodeCallback): false | void;
+    nodes: Array<Node>;
+    walk(callback: NodeCallback): false | void;
+  }
+
+  declare interface Root extends Container {}
 
   declare class Processor {
     process(css: string | Result, opts?: processOptions): Promise<Result>;
   }
 
-  declare type processOptions = {|
+  declare type ProcessOptions = {|
     from?: string,
     to?: string,
     map?: MapOptions,
@@ -40,7 +46,7 @@ declare module 'postcss' {
     from?: string,
   |};
 
-  declare type parser = (
+  declare type Parser = (
     css: string,
     optsopt: {|from?: string, map?: MapOptions|},
   ) => Root;
@@ -51,7 +57,6 @@ declare module 'postcss' {
 
   declare type pluginFunction = (root: Root, result: Result) => void;
 
-  declare type Root = any;
   declare type Result = {
     content: string,
     css: string,
@@ -69,19 +74,23 @@ declare module 'postcss' {
     plugin: string,
   |};
 
-  declare type builder = (
+  declare type Builder = (
     part: string,
     node: Root,
     typeopt?: 'start' | 'end',
   ) => void;
 
-  declare type stringifier = (root: Root, builder: builder) => void;
+  declare type Stringifier = (root: Root, builder: Builder) => void;
 
   declare module.exports: {
-    (plugins?: Array<Plugin | pluginFunction> | Processor): Processor,
-    parse: parser,
-    stringify: stringifier,
-    root: (ast: AST) => AST,
+    (plugins?: Array<Plugin | PluginFunction> | Processor): Processor,
+    parse: Parser,
+    stringify: Stringifier,
+    root: ($Shape<Node>) => Root,
+    atRule: ($Shape<Node>) => Container,
+    comment: ($Shape<Node>) => Node,
+    decl: ($Shape<Node>) => Node,
+    rule: ($Shape<Node>) => Container,
     ...
   };
 }
