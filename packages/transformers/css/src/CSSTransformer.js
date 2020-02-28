@@ -173,9 +173,11 @@ export default new Transformer({
       root = postcss.root(ast.program);
       let convert = (parent, node, index) => {
         let type = node.type === 'atrule' ? 'atRule' : node.type;
+        // $FlowFixMe TODO
         let result = postcss[type](node);
         result.parent = parent;
         if (parent) {
+          // $FlowFixMe TODO
           parent.nodes[index] = result;
         }
 

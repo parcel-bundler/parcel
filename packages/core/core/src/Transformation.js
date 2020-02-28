@@ -28,7 +28,6 @@ import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
-import {report} from './ReporterRunner';
 import {Asset, MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
 import summarizeRequest from './summarizeRequest';
@@ -210,7 +209,7 @@ export default class Transformation {
   ): Promise<Array<InternalAsset>> {
     let initialType = initialAsset.value.type;
     let inputAssets = [initialAsset];
-    let resultingAssets;
+    let resultingAssets = [];
     let finalAssets = [];
     for (let transformer of pipeline.transformers) {
       resultingAssets = [];
@@ -235,6 +234,7 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
+            this.parcelConfig,
           );
 
           for (let result of transformerResults) {
@@ -459,6 +459,7 @@ async function runTransformer(
   transformer: Transformer,
   transformerName: string,
   preloadedConfig: ?Config,
+  parcelConfig: ParcelConfig,
 ): Promise<Array<TransformerResult>> {
   const logger = new PluginLogger({origin: transformerName});
 
@@ -570,7 +571,7 @@ async function runTransformer(
           asset.createChildAsset(
             result,
             transformerName,
-            this.parcelConfig.filePath,
+            parcelConfig.filePath,
           ),
         ),
       );

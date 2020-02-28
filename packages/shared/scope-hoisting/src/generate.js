@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, Bundle, BundleGraph} from '@parcel/types';
+import type {AST, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
 import babelGenerate from '@babel/generator';
 import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
@@ -13,7 +13,12 @@ const REGISTER_TEMPLATE = template(
 );
 const WRAPPER_TEMPLATE = template('(function () { STATEMENTS; })()');
 
-export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: AST) {
+export function generate(
+  bundleGraph: BundleGraph,
+  bundle: Bundle,
+  ast: AST,
+  options: PluginOptions,
+) {
   // $FlowFixMe
   let interpreter: ?string = bundle.target.env.isBrowser()
     ? null
@@ -46,13 +51,13 @@ export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: AST) {
   );
 
   let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: bundle.env.sourceMaps,
+    sourceMaps: options.sourceMaps,
     minified: bundle.env.minify,
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
   return {
     contents: code,
-    map: bundle.env.sourceMaps ? new SourceMap(rawMappings) : null,
+    map: options.sourceMaps ? new SourceMap(rawMappings) : null,
   };
 }

@@ -7,6 +7,15 @@
 import type {SourceMapGenerator} from 'source-map';
 
 declare module 'postcss' {
+  declare type Node = {
+    type: string,
+    ...
+  };
+
+  declare interface AST {
+    each: (cb: (node: Node, index: number) => mixed) => mixed;
+  }
+
   declare class Processor {
     process(css: string | Result, opts?: processOptions): Promise<Result>;
   }
@@ -72,6 +81,7 @@ declare module 'postcss' {
     (plugins?: Array<Plugin | pluginFunction> | Processor): Processor,
     parse: parser,
     stringify: stringifier,
+    root: (ast: AST) => AST,
     ...
   };
 }

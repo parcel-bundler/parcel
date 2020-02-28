@@ -41,7 +41,7 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse({asset}) {
+  async parse({asset, options}) {
     let code = await asset.getCode();
     if (
       !asset.env.scopeHoist &&

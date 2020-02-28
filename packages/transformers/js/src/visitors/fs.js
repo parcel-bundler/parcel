@@ -1,12 +1,11 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 
 import * as t from '@babel/types';
 import Path from 'path';
 import fs from 'fs';
 import template from '@babel/template';
-import invariant from 'assert';
 import {errorToDiagnostic} from '@parcel/diagnostic';
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
@@ -82,7 +81,10 @@ export default ({
     }
   },
 }: {
-  [string]: (node: any, {|asset: MutableAsset, logger: PluginLogger|}) => void,
+  [string]: (
+    node: any,
+    {|asset: MutableAsset, ast: AST, logger: PluginLogger|},
+  ) => void,
   ...,
 });
 

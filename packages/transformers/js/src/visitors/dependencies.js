@@ -11,7 +11,6 @@ import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {hasBinding, morph} from './utils';
-import invariant from 'assert';
 
 type Visitor = (
   node: any,
@@ -58,7 +57,7 @@ export default ({
       if (isRequire) {
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
-        let isAsync = isRequireAsync(ancestors, node, ast);
+        let isAsync = isRequireAsync(ancestors, node, asset, ast);
         addDependency(asset, args[0], {isOptional, isAsync});
         return;
       }
@@ -77,8 +76,7 @@ export default ({
         addDependency(asset, args[0], {isAsync: true});
 
         node.callee = types.identifier('require');
-        invariant(asset.ast);
-        asset.ast.isDirty = true;
+        asset.setAST(ast);
         return;
       }
     },
@@ -196,7 +194,7 @@ function evaluateExpression(node) {
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
 //   2. Rollup - new Promise(function (resolve) { resolve(require(...)) })
 //   3. Parcel - Promise.resolve(require(...))
-function isRequireAsync(ancestors, requireNode, ast) {
+function isRequireAsync(ancestors, requireNode, asset, ast) {
   let parent = ancestors[ancestors.length - 2];
 
   // Promise.resolve().then(() => require('foo'))
@@ -251,7 +249,7 @@ function isRequireAsync(ancestors, requireNode, ast) {
       );
 
       morph(functionParent, replacement);
-      ast.isDirty = true;
+      asset.setAST(ast);
     }
 
     return true;

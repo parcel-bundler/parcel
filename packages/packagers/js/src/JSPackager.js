@@ -45,7 +45,7 @@ export default new Packager({
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
       return replaceReferences({
-        contents: generate(bundleGraph, bundle, ast).contents,
+        contents: generate(bundleGraph, bundle, ast, options).contents,
         map: null,
       });
     }

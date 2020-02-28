@@ -58,7 +58,7 @@ export function streamFromPromise(promise: Promise<Blob>): Readable {
 
 export function fallbackStream(
   stream: Readable,
-  fallback: () => Readable
+  fallback: () => Readable,
 ): Readable {
   const res = new PassThrough();
   stream.on('error', err => {
