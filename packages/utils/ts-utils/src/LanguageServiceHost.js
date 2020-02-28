@@ -41,6 +41,8 @@ export class LanguageServiceHost extends FSHost {
     return this.config.fileNames;
   }
 
+  // ANDREW_TODO: remove this if we ever go back to the previous version.
+  // eslint-disable-next-line no-unused-vars
   getScriptVersion(fileName: FilePath) {
     // ANDREW_TODO: Remove this when we find a better way of keeping track of changed files.
     return this.globalVersion;
