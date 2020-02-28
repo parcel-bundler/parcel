@@ -21,6 +21,7 @@ import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
+import querystring from 'querystring';
 
 import {getBundleGroupId} from './utils';
 import Graph, {mapVisitor} from './Graph';
@@ -566,7 +567,13 @@ export default class BundleGraph {
     let hash = crypto.createHash('md5');
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.update([asset.outputHash, asset.filePath].join(':'));
+      hash.update(
+        [
+          asset.outputHash,
+          asset.filePath,
+          querystring.stringify(asset.query),
+        ].join(':'),
+      );
     });
 
     let hashHex = hash.digest('hex');

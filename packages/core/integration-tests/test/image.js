@@ -3,7 +3,7 @@ import {bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
 
 describe('image', function() {
-  it.skip('Should be able to resize images', async () => {
+  it('Should be able to resize images', async () => {
     await bundle(path.join(__dirname, '/integration/image/resized.js'));
 
     let dirContent = await outputFS.readdir(distDir);
