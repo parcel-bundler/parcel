@@ -8,7 +8,7 @@ import type {
   AssetGraphNode,
   AssetRequestDesc,
   ParcelOptions,
-  ValidationOpts
+  ValidationOpts,
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 import type {RunRequestOpts} from './RequestTracker';
@@ -21,14 +21,14 @@ import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import RequestTracker, {
   RequestGraph,
-  generateRequestId
+  generateRequestId,
 } from './RequestTracker';
 import {PARCEL_VERSION} from './constants';
 import {
   EntryRequestRunner,
   TargetRequestRunner,
   AssetRequestRunner,
-  DepPathRequestRunner
+  DepPathRequestRunner,
 } from './requests';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
@@ -39,13 +39,13 @@ type Opts = {|
   name: string,
   entries?: Array<string>,
   assetRequests?: Array<AssetRequestDesc>,
-  workerFarm: WorkerFarm
+  workerFarm: WorkerFarm,
 |};
 
 const requestPriorities: $ReadOnlyArray<$ReadOnlyArray<string>> = [
   ['entry_request'],
   ['target_request'],
-  ['dep_path_request', 'asset_request']
+  ['dep_path_request', 'asset_request'],
 ];
 
 export default class AssetGraphBuilder extends EventEmitter {
@@ -59,6 +59,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   assetRequests: Array<AssetRequestDesc>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
+  rejected: Map<string, mixed>;
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
@@ -74,17 +75,19 @@ export default class AssetGraphBuilder extends EventEmitter {
     entries,
     name,
     assetRequests,
-    workerFarm
+    workerFarm,
   }: Opts) {
     this.options = options;
     this.assetRequests = [];
 
-    let {minify, hot, scopeHoist} = options;
+    // TODO: changing these should not throw away the entire graph.
+    // We just need to re-run target resolution.
+    let {hot, publicUrl, distDir, minify, scopeHoist} = options;
     this.cacheKey = md5FromObject({
       parcelVersion: PARCEL_VERSION,
       name,
-      options: {minify, hot, scopeHoist},
-      entries
+      options: {hot, publicUrl, distDir, minify, scopeHoist},
+      entries,
     });
 
     this.queue = new PromiseQueue();
@@ -102,35 +105,35 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.assetGraph.initOptions({
       onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
-      onIncompleteNode: node => this.handleIncompleteNode(node)
+      onIncompleteNode: node => this.handleIncompleteNode(node),
     });
 
     let assetGraph = this.assetGraph;
     this.requestTracker = new RequestTracker({
-      graph: this.requestGraph
+      graph: this.requestGraph,
     });
     let tracker = this.requestTracker;
     this.entryRequestRunner = new EntryRequestRunner({
       tracker,
       options,
-      assetGraph
+      assetGraph,
     });
     this.targetRequestRunner = new TargetRequestRunner({
       tracker,
       options,
-      assetGraph
+      assetGraph,
     });
     this.assetRequestRunner = new AssetRequestRunner({
       tracker,
       options,
       workerFarm,
-      assetGraph
+      assetGraph,
     });
     this.depPathRequestRunner = new DepPathRequestRunner({
       tracker,
       options,
       config,
-      assetGraph
+      assetGraph,
     });
 
     if (changes) {
@@ -139,17 +142,18 @@ export default class AssetGraphBuilder extends EventEmitter {
     } else {
       this.assetGraph.initialize({
         entries,
-        assetGroups: assetRequests
+        assetGroups: assetRequests,
       });
     }
   }
 
   async build(
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<{|
     assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>
+    changedAssets: Map<string, Asset>,
   |}> {
+    this.rejected = new Map();
     let lastQueueError;
     for (let currPriorities of requestPriorities) {
       if (!this.requestTracker.hasInvalidRequests()) {
@@ -161,27 +165,38 @@ export default class AssetGraphBuilder extends EventEmitter {
         // $FlowFixMe
         let assetGraphBuildRequest: AssetGraphBuildRequest = (request: any);
         if (currPriorities.includes(request.type)) {
-          promises.push(this.runRequest(assetGraphBuildRequest, {signal}));
+          promises.push(this.queueRequest(assetGraphBuildRequest, {signal}));
         }
       }
-      await Promise.all(promises);
       if (lastQueueError) {
         throw lastQueueError;
       }
       this.queue.run().catch(e => {
         lastQueueError = e;
       });
+      await Promise.all(promises);
     }
 
     if (this.assetGraph.hasIncompleteNodes()) {
       for (let id of this.assetGraph.incompleteNodeIds) {
         this.processIncompleteAssetGraphNode(
           nullthrows(this.assetGraph.getNode(id)),
-          signal
+          signal,
         );
       }
+    }
 
-      await this.queue.run();
+    await this.queue.run();
+
+    let errors = [];
+    for (let [requestId, error] of this.rejected) {
+      if (this.requestTracker.isTracked(requestId)) {
+        errors.push(error);
+      }
+    }
+
+    if (errors.length) {
+      throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
@@ -195,10 +210,23 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async validate(): Promise<void> {
     let promises = this.assetRequests.map(request =>
-      this.runValidate({request, options: this.options})
+      this.runValidate({request, options: this.options}),
     );
     this.assetRequests = [];
     await Promise.all(promises);
+  }
+
+  queueRequest(request: AssetGraphBuildRequest, runOpts: RunRequestOpts) {
+    return this.queue.add(async () => {
+      if (this.rejected.size > 0) {
+        return;
+      }
+      try {
+        await this.runRequest(request, runOpts);
+      } catch (e) {
+        this.rejected.set(request.id, e);
+      }
+    });
   }
 
   async runRequest(request: AssetGraphBuildRequest, runOpts: RunRequestOpts) {
@@ -213,11 +241,11 @@ export default class AssetGraphBuilder extends EventEmitter {
         this.assetRequests.push(request.request);
         let result = await this.assetRequestRunner.runRequest(
           request.request,
-          runOpts
+          runOpts,
         );
         if (result != null) {
           for (let asset of result.assets) {
-            this.changedAssets.set(asset.id, asset); // ? Is this right?
+            this.changedAssets.set(asset.id, asset);
           }
         }
         return result;
@@ -232,7 +260,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
       case 'entry_file': {
@@ -240,7 +268,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
       case 'dependency': {
@@ -248,7 +276,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
       case 'asset_group': {
@@ -256,7 +284,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value)
+          id: generateRequestId(type, node.value),
         };
       }
     }
@@ -265,15 +293,9 @@ export default class AssetGraphBuilder extends EventEmitter {
   processIncompleteAssetGraphNode(node: AssetGraphNode, signal: ?AbortSignal) {
     let request = nullthrows(this.getCorrespondingRequest(node));
     if (!this.requestTracker.isTracked(request.id)) {
-      this.queue
-        .add(() =>
-          this.runRequest(request, {
-            signal
-          })
-        )
-        .catch(() => {
-          // Do nothing, the individual promise is not being awaited, but the queue is and will throw
-        });
+      this.queueRequest(request, {
+        signal,
+      });
     }
   }
 
@@ -294,7 +316,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   getWatcherOptions() {
     let vcsDirs = ['.git', '.hg'].map(dir =>
-      path.join(this.options.projectRoot, dir)
+      path.join(this.options.projectRoot, dir),
     );
     let ignore = [this.options.cacheDir, ...vcsDirs];
     return {ignore};
@@ -325,7 +347,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       return this.options.inputFS.getEventsSince(
         this.options.projectRoot,
         snapshotPath,
-        opts
+        opts,
       );
     }
 
@@ -346,7 +368,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     await this.options.inputFS.writeSnapshot(
       this.options.projectRoot,
       snapshotPath,
-      opts
+      opts,
     );
   }
 }

@@ -14,7 +14,7 @@ import type {
   Stats,
   Symbol,
   Transformer,
-  TransformerResult
+  TransformerResult,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 
@@ -27,7 +27,7 @@ import {
   blobToStream,
   streamFromPromise,
   fallbackStream,
-  TapStream
+  TapStream,
 } from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import {createDependency, mergeDependencies} from './Dependency';
@@ -52,6 +52,7 @@ type AssetOptions = {|
   includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
   isInline?: boolean,
+  isSplittable?: ?boolean,
   isSource: boolean,
   env: Environment,
   meta?: Meta,
@@ -61,7 +62,7 @@ type AssetOptions = {|
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
-  configPath?: FilePath
+  configPath?: FilePath,
 |};
 
 export function createAsset(options: AssetOptions): Asset {
@@ -72,12 +73,13 @@ export function createAsset(options: AssetOptions): Asset {
       options.id != null
         ? options.id
         : md5FromString(
-            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey
+            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey,
           ),
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
     isInline: options.isInline == null ? false : options.isInline,
+    isSplittable: options.isSplittable,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
@@ -94,7 +96,7 @@ export function createAsset(options: AssetOptions): Asset {
     sideEffects: options.sideEffects != null ? options.sideEffects : true,
     uniqueKey: uniqueKey,
     plugin: options.plugin,
-    configPath: options.configPath
+    configPath: options.configPath,
   };
 }
 
@@ -105,7 +107,7 @@ type InternalAssetOptions = {|
   map?: ?SourceMap,
   ast?: ?AST,
   isASTDirty?: ?boolean,
-  idBase?: ?string
+  idBase?: ?string,
 |};
 
 export default class InternalAsset {
@@ -125,7 +127,7 @@ export default class InternalAsset {
     map,
     ast,
     isASTDirty,
-    idBase
+    idBase,
   }: InternalAssetOptions) {
     this.value = value;
     this.options = options;
@@ -151,7 +153,7 @@ export default class InternalAsset {
       contentStream.bytesRead !== contentStream.readableLength
     ) {
       throw new Error(
-        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.'
+        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.',
       );
     }
 
@@ -171,15 +173,15 @@ export default class InternalAsset {
             contentStream.pipe(
               new TapStream(buf => {
                 size += buf.length;
-              })
-            )
+              }),
+            ),
           ),
       this.map == null
         ? Promise.resolve()
         : this.options.cache.set(mapKey, this.map),
       astKey == null
         ? Promise.resolve()
-        : this.options.cache.set(astKey, this.ast)
+        : this.options.cache.set(astKey, this.ast),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
@@ -207,7 +209,7 @@ export default class InternalAsset {
     let plugin: Transformer = await loadPlugin(
       this.options.packageManager,
       pluginName,
-      nullthrows(this.value.configPath)
+      nullthrows(this.value.configPath),
     );
     if (!plugin.generate) {
       throw new Error(`${pluginName} does not have a generate method`);
@@ -217,7 +219,7 @@ export default class InternalAsset {
       asset: new PublicAsset(this),
       ast,
       options: new PluginOptions(this.options),
-      logger: new PluginLogger({origin: pluginName})
+      logger: new PluginLogger({origin: pluginName}),
     });
 
     this.content = code;
@@ -227,11 +229,11 @@ export default class InternalAsset {
     await Promise.all([
       this.options.cache.setStream(
         nullthrows(this.value.contentKey),
-        this.getStream()
+        this.getStream(),
       ),
       this.map == null
         ? Promise.resolve()
-        : this.options.cache.set(nullthrows(this.value.mapKey), this.map)
+        : this.options.cache.set(nullthrows(this.value.mapKey), this.map),
     ]);
 
     this.isGenerating = false;
@@ -244,7 +246,7 @@ export default class InternalAsset {
       // First try the contentKey, and if it doesn't exist, fall back to generating from AST
       this.content = fallbackStream(
         this.options.cache.getStream(contentKey),
-        () => streamFromPromise(this.generateFromAST())
+        () => streamFromPromise(this.generateFromAST()),
       );
     }
   }
@@ -330,7 +332,7 @@ export default class InternalAsset {
     this.isASTDirty = true;
     this.value.astGenerator = {
       type: ast.type,
-      version: ast.version
+      version: ast.version,
     };
 
     this.content = null;
@@ -345,7 +347,7 @@ export default class InternalAsset {
 
   getCacheKey(key: string): string {
     return md5FromString(
-      PARCEL_VERSION + key + this.value.id + (this.value.hash || '')
+      PARCEL_VERSION + key + this.value.id + (this.value.hash || ''),
     );
   }
 
@@ -356,7 +358,7 @@ export default class InternalAsset {
       ...rest,
       env: mergeEnvironments(this.value.env, env),
       sourceAssetId: this.value.id,
-      sourcePath: this.value.filePath
+      sourcePath: this.value.filePath,
     });
     let existing = this.value.dependencies.get(dep.id);
     if (existing) {
@@ -382,7 +384,7 @@ export default class InternalAsset {
   createChildAsset(
     result: TransformerResult,
     plugin: PackageName,
-    configPath: FilePath
+    configPath: FilePath,
   ): InternalAsset {
     let content = result.content ?? result.code ?? null;
 
@@ -394,6 +396,7 @@ export default class InternalAsset {
         type: result.type,
         isIsolated: result.isIsolated ?? this.value.isIsolated,
         isInline: result.isInline ?? this.value.isInline,
+        isSplittable: result.isSplittable ?? this.value.isSplittable,
         isSource: result.isSource ?? this.value.isSource,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
@@ -404,14 +407,14 @@ export default class InternalAsset {
         meta: {
           ...this.value.meta,
           // $FlowFixMe
-          ...result.meta
+          ...result.meta,
         },
         pipeline:
           result.pipeline ??
           (this.value.type === result.type ? this.value.pipeline : null),
         stats: {
           time: 0,
-          size: this.value.stats.size
+          size: this.value.stats.size,
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
         sideEffects: result.sideEffects ?? this.value.sideEffects,
@@ -420,14 +423,14 @@ export default class InternalAsset {
           ? {type: result.ast.type, version: result.ast.version}
           : null,
         plugin,
-        configPath
+        configPath,
       }),
       options: this.options,
       content,
       ast: result.ast,
       isASTDirty: result.ast === this.ast ? this.isASTDirty : true,
       map: result.map,
-      idBase: this.idBase
+      idBase: this.idBase,
     });
 
     let dependencies = result.dependencies;
@@ -451,8 +454,8 @@ export default class InternalAsset {
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
-      parse?: boolean
-    |}
+      parse?: boolean,
+    |},
   ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;
@@ -468,7 +471,7 @@ export default class InternalAsset {
       this.options.inputFS,
       this.value.filePath,
       filePaths,
-      parse == null ? null : {parse}
+      parse == null ? null : {parse},
     );
     if (!conf) {
       return null;

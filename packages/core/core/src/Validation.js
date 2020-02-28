@@ -1,7 +1,12 @@
 // @flow strict-local
 
 import type {WorkerApi} from '@parcel/workers';
-import type {AssetRequestDesc, ConfigRequestDesc, ParcelOptions} from './types';
+import type {
+  AssetRequestDesc,
+  ConfigRequestDesc,
+  ParcelOptions,
+  ReportFn,
+} from './types';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -10,16 +15,16 @@ import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
-import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
-  request: AssetRequestDesc,
   options: ParcelOptions,
-  workerApi: WorkerApi
+  request: AssetRequestDesc,
+  report: ReportFn,
+  workerApi: WorkerApi,
 |};
 
 export default class Validation {
@@ -28,19 +33,21 @@ export default class Validation {
   configLoader: ConfigLoader;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
+  report: ReportFn;
   workerApi: WorkerApi;
 
-  constructor({request, options, workerApi}: ValidationOpts) {
-    this.request = request;
-    this.options = options;
-    this.workerApi = workerApi;
+  constructor({request, report, options, workerApi}: ValidationOpts) {
     this.configLoader = new ConfigLoader(options);
+    this.options = options;
+    this.report = report;
+    this.request = request;
+    this.workerApi = workerApi;
   }
 
   async run(): Promise<void> {
-    report({
+    this.report({
       type: 'validation',
-      filePath: this.request.filePath
+      filePath: this.request.filePath,
     });
 
     let asset = await this.loadAsset();
@@ -49,16 +56,16 @@ export default class Validation {
       filePath: this.request.filePath,
       isSource: asset.value.isSource,
       meta: {
-        actionType: 'validation'
+        actionType: 'validation',
       },
-      env: this.request.env
+      env: this.request.env,
     };
 
     let config = await this.configLoader.load(configRequest);
     nullthrows(config.result);
     let parcelConfig = new ParcelConfig(
       config.result,
-      this.options.packageManager
+      this.options.packageManager,
     );
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
@@ -77,8 +84,8 @@ export default class Validation {
               resolveConfig(
                 this.options.inputFS,
                 asset.value.filePath,
-                configNames
-              )
+                configNames,
+              ),
           });
         }
 
@@ -86,7 +93,7 @@ export default class Validation {
           asset: new Asset(asset),
           options: pluginOptions,
           config,
-          logger: validatorLogger
+          logger: validatorLogger,
         });
 
         if (validatorResult) {
@@ -94,7 +101,7 @@ export default class Validation {
 
           if (errors.length > 0) {
             throw new ThrowableDiagnostic({
-              diagnostic: errors
+              diagnostic: errors,
             });
           }
 
@@ -104,7 +111,7 @@ export default class Validation {
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, validator.name)
+          diagnostic: errorToDiagnostic(e, validator.name),
         });
       }
     }
@@ -114,7 +121,7 @@ export default class Validation {
     let {filePath, env, code, sideEffects} = this.request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
-      this.request
+      this.request,
     );
 
     // If the transformer request passed code rather than a filename,
@@ -131,12 +138,12 @@ export default class Validation {
         env: env,
         stats: {
           time: 0,
-          size
+          size,
         },
-        sideEffects: sideEffects
+        sideEffects: sideEffects,
       }),
       options: this.options,
-      content
+      content,
     });
   }
 }

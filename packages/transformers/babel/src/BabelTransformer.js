@@ -51,23 +51,23 @@ export default new Transformer({
   async generate({asset, ast, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
-      asset.filePath
+      asset.filePath,
     );
 
     try {
       let generated = generate(ast.program, {
         sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName
+        sourceFileName: sourceFileName,
       });
 
       return {
         code: generated.code,
         map: new SourceMap(generated.rawMappings, {
-          [sourceFileName]: null
-        })
+          [sourceFileName]: null,
+        }),
       };
     } catch (e) {
       throw await babelErrorEnhancer(e, asset);
     }
-  }
+  },
 });

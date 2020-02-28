@@ -12,7 +12,7 @@ import sinon from 'sinon';
 const jsonConfig = {
   ...defaultConfigContents,
   reporters: ['@parcel/reporter-json'],
-  filePath: require.resolve('@parcel/config-default')
+  filePath: require.resolve('@parcel/config-default'),
 };
 
 const DIST_INDEX = 'dist' + path.sep + 'index.js';
@@ -23,7 +23,7 @@ describe('json reporter', () => {
     try {
       await bundle(path.join(__dirname, '/integration/commonjs/index.js'), {
         defaultConfig: jsonConfig,
-        logLevel: 'info'
+        logLevel: 'info',
       });
 
       let parsedCalls = consoleStub
@@ -43,7 +43,7 @@ describe('json reporter', () => {
         } else if (i === 9) {
           assert.deepEqual(parsed, {
             type: 'buildProgress',
-            phase: 'bundling'
+            phase: 'bundling',
           });
         } else if (i === 10) {
           assert.equal(parsed.type, 'buildProgress');

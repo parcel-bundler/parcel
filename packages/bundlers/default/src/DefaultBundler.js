@@ -10,7 +10,7 @@ import nullthrows from 'nullthrows';
 const OPTIONS = {
   minBundles: 1,
   minBundleSize: 30000,
-  maxParallelRequests: 5
+  maxParallelRequests: 5,
 };
 
 export default new Bundler({
@@ -24,6 +24,7 @@ export default new Bundler({
 
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
+    let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
@@ -33,8 +34,9 @@ export default new Bundler({
             ...context,
             bundleGroup: context?.bundleGroup,
             bundleByType: context?.bundleByType,
+            siblingBundles: context?.siblingBundles,
             bundleGroupDependency: context?.bundleGroupDependency,
-            parentNode: node
+            parentNode: node,
           };
         }
 
@@ -50,27 +52,30 @@ export default new Bundler({
         ) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,
-            nullthrows(dependency.target ?? context?.bundleGroup?.target)
+            nullthrows(dependency.target ?? context?.bundleGroup?.target),
           );
           let bundleByType: Map<string, Bundle> = new Map();
+          let siblingBundles = [];
 
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
               isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
               isInline: asset.isInline,
-              target: bundleGroup.target
+              target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
+            siblingBundlesByAsset.set(asset.id, siblingBundles);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
 
           return {
             bundleGroup,
             bundleByType,
+            siblingBundles,
             bundleGroupDependency: dependency,
-            parentNode: node
+            parentNode: node,
           };
         }
 
@@ -79,8 +84,25 @@ export default new Bundler({
         let bundleGroup = nullthrows(context.bundleGroup);
         let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
         let bundleByType = nullthrows(context.bundleByType);
+        let siblingBundles = nullthrows(context.siblingBundles);
 
         for (let asset of assets) {
+          // If any sibling bundles were created for this asset or its subtree previously,
+          // add them all to the current bundle group as well. This fixes cases where two entries
+          // depend on a shared asset which has siblings. Due to DFS, the subtree of the shared
+          // asset is only processed once, meaning any sibling bundles created due to type changes
+          // would only be connected to the first bundle group. To work around this, we store a list
+          // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
+          // connect them all to the current bundle group as well.
+          let siblings = siblingBundlesByAsset.get(asset.id);
+          if (siblings) {
+            for (let bundle of siblings) {
+              bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+            }
+          } else {
+            siblingBundlesByAsset.set(asset.id, siblingBundles);
+          }
+
           let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
             continue;
@@ -97,9 +119,10 @@ export default new Bundler({
               entryAsset: asset,
               target: bundleGroup.target,
               isEntry: bundleGroupDependency.isEntry,
-              isInline: asset.isInline
+              isInline: asset.isInline,
             });
             bundleByType.set(bundle.type, bundle);
+            siblingBundles.push(bundle);
             bundleRoots.set(bundle, [asset]);
             bundleGraph.createAssetReference(dependency, asset);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
@@ -108,9 +131,9 @@ export default new Bundler({
 
         return {
           ...context,
-          parentNode: node
+          parentNode: node,
         };
-      }
+      },
     });
 
     for (let [bundle, rootAssets] of bundleRoots) {
@@ -125,7 +148,7 @@ export default new Bundler({
     bundleGraph.traverseBundles({
       exit(bundle) {
         deduplicateBundle(bundleGraph, bundle);
-      }
+      },
     });
 
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
@@ -135,8 +158,8 @@ export default new Bundler({
       {|
         assets: Array<Asset>,
         sourceBundles: Set<Bundle>,
-        size: number
-      |}
+        size: number,
+      |},
     > = new Map();
 
     bundleGraph.traverseContents((node, ctx, actions) => {
@@ -150,7 +173,7 @@ export default new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
-        .filter(b => !b.isEntry);
+        .filter(b => !b.isEntry && b.isSplittable);
 
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
@@ -169,7 +192,7 @@ export default new Bundler({
           candidateBundles.set(id, {
             assets: [asset],
             sourceBundles: new Set(containingBundles),
-            size: bundleGraph.getTotalSize(asset)
+            size: bundleGraph.getTotalSize(asset),
           });
         }
 
@@ -182,7 +205,7 @@ export default new Bundler({
     let sortedCandidates: Array<{|
       assets: Array<Asset>,
       sourceBundles: Set<Bundle>,
-      size: number
+      size: number,
     |}> = Array.from(candidateBundles.values())
       .filter(bundle => bundle.size >= OPTIONS.minBundleSize)
       .sort((a, b) => b.size - a.size);
@@ -193,7 +216,7 @@ export default new Bundler({
 
       for (let bundle of sourceBundles) {
         for (let bundleGroup of bundleGraph.getBundleGroupsContainingBundle(
-          bundle
+          bundle,
         )) {
           bundleGroups.add(bundleGroup);
         }
@@ -204,7 +227,7 @@ export default new Bundler({
         Array.from(bundleGroups).some(
           group =>
             bundleGraph.getBundlesInBundleGroup(group).length >=
-            OPTIONS.maxParallelRequests
+            OPTIONS.maxParallelRequests,
         )
       ) {
         continue;
@@ -212,10 +235,13 @@ export default new Bundler({
 
       let [firstBundle] = [...sourceBundles];
       let sharedBundle = bundleGraph.createBundle({
-        id: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        uniqueKey: md5FromString([...sourceBundles].map(b => b.id).join(':')),
+        // Allow this bundle to be deduplicated. It shouldn't be further split.
+        // TODO: Reconsider bundle/asset flags.
+        isSplittable: true,
         env: firstBundle.env,
         target: firstBundle.target,
-        type: firstBundle.type
+        type: firstBundle.type,
       });
 
       // Remove all of the root assets from each of the original bundles
@@ -233,11 +259,11 @@ export default new Bundler({
 
       deduplicateBundle(bundleGraph, sharedBundle);
     }
-  }
+  },
 });
 
 function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
-  if (bundle.env.isIsolated()) {
+  if (bundle.env.isIsolated() || !bundle.isSplittable) {
     // If a bundle's environment is isolated, it can't access assets present
     // in any ancestor bundles. Don't deduplicate any assets.
     return;

@@ -8,11 +8,13 @@ describe('Environment', () => {
     assert.deepEqual(createEnvironment(), {
       context: 'browser',
       engines: {
-        browsers: ['> 0.25%']
+        browsers: ['> 0.25%'],
       },
       includeNodeModules: true,
       outputFormat: 'global',
-      isLibrary: false
+      isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 
@@ -20,11 +22,13 @@ describe('Environment', () => {
     assert.deepEqual(createEnvironment({engines: {node: '>= 10.0.0'}}), {
       context: 'node',
       engines: {
-        node: '>= 10.0.0'
+        node: '>= 10.0.0',
       },
       includeNodeModules: false,
       outputFormat: 'commonjs',
-      isLibrary: false
+      isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 
@@ -34,12 +38,14 @@ describe('Environment', () => {
       {
         context: 'browser',
         engines: {
-          browsers: ['last 1 version']
+          browsers: ['last 1 version'],
         },
         includeNodeModules: true,
         outputFormat: 'global',
-        isLibrary: false
-      }
+        isLibrary: false,
+        minify: false,
+        scopeHoist: false,
+      },
     );
   });
 
@@ -47,11 +53,13 @@ describe('Environment', () => {
     assert.deepEqual(createEnvironment({context: 'node'}), {
       context: 'node',
       engines: {
-        node: '>= 8.0.0'
+        node: '>= 8.0.0',
       },
       includeNodeModules: false,
       outputFormat: 'commonjs',
-      isLibrary: false
+      isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 
@@ -59,11 +67,13 @@ describe('Environment', () => {
     assert.deepEqual(createEnvironment({context: 'browser'}), {
       context: 'browser',
       engines: {
-        browsers: ['> 0.25%']
+        browsers: ['> 0.25%'],
       },
       includeNodeModules: true,
       outputFormat: 'global',
-      isLibrary: false
+      isLibrary: false,
+      minify: false,
+      scopeHoist: false,
     });
   });
 });

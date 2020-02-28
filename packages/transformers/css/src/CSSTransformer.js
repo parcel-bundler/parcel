@@ -3,13 +3,13 @@
 import type {FilePath} from '@parcel/types';
 
 import {Transformer} from '@parcel/plugin';
+import {createDependencyLocation, isURL} from '@parcel/utils';
 import postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
 import semver from 'semver';
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
-const PROTOCOL_RE = /^[a-z]+:/;
 
 function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
@@ -40,12 +40,28 @@ export default new Transformer({
       type: 'postcss',
       version: '7.0.0',
       program: postcss.parse(code, {
-        from: asset.filePath
-      })
+        from: asset.filePath,
+      }),
     };
   },
 
   async transform({asset}) {
+    // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
+    // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
+    asset.setEnvironment({
+      context: 'browser',
+      engines: {
+        browsers: asset.env.engines.browsers,
+      },
+      minify: asset.env.minify,
+    });
+
+    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
+    // Only set here if it is null to allow previous transformers to override this behavior.
+    if (asset.isSplittable == null) {
+      asset.isSplittable = true;
+    }
+
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
     // ast and CSSTransformer's parse was never called.
@@ -73,30 +89,42 @@ export default new Transformer({
         throw new Error('Could not find import name for ' + rule);
       }
 
-      if (PROTOCOL_RE.test(moduleSpecifier)) {
-        return;
+      if (isURL(moduleSpecifier)) {
+        name.value = asset.addURLDependency(moduleSpecifier, {
+          loc: createDependencyLocation(
+            rule.source.start,
+            moduleSpecifier,
+            0,
+            8,
+          ),
+        });
+      } else {
+        // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
+        // TODO: run CSSPackager on inline style tags.
+        // let inlineHTML =
+        //   this.options.rendition && this.options.rendition.inlineHTML;
+        // if (inlineHTML) {
+        //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
+        //   rule.params = params.toString();
+        // } else {
+        media = valueParser.stringify(media).trim();
+        let dep = {
+          moduleSpecifier,
+          // Offset by 8 as it does not include `@import `
+          loc: createDependencyLocation(
+            rule.source.start,
+            moduleSpecifier,
+            0,
+            8,
+          ),
+          meta: {
+            media,
+          },
+        };
+        asset.addDependency(dep);
+        rule.remove();
+        // }
       }
-
-      // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
-      // TODO: run CSSPackager on inline style tags.
-      // let inlineHTML =
-      //   this.options.rendition && this.options.rendition.inlineHTML;
-      // if (inlineHTML) {
-      //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
-      //   rule.params = params.toString();
-      // } else {
-      media = valueParser.stringify(media).trim();
-      let dep = {
-        moduleSpecifier,
-        loc: rule.source.start,
-        meta: {
-          media
-        }
-      };
-      asset.addDependency(dep);
-      rule.remove();
-      // }
-
       isDirty = true;
     });
 
@@ -109,10 +137,14 @@ export default new Transformer({
           if (
             node.type === 'function' &&
             node.value === 'url' &&
-            node.nodes.length
+            node.nodes.length > 0 &&
+            !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
             let url = asset.addURLDependency(node.nodes[0].value, {
-              loc: decl.source.start
+              loc: createDependencyLocation(
+                decl.source.start,
+                node.nodes[0].value,
+              ),
             });
             isDeclDirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
@@ -156,10 +188,12 @@ export default new Transformer({
     }
 
     let code = '';
-    postcss.stringify(root, c => (code += c));
+    postcss.stringify(root, c => {
+      code += c;
+    });
 
     return {
-      code
+      code,
     };
-  }
+  },
 });

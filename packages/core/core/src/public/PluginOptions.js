@@ -1,43 +1,47 @@
 // @flow
 import type {
   BuildMode,
+  EnvMap,
   FilePath,
   LogLevel,
   PluginOptions as IPluginOptions,
-  ServerOptions
+  ServerOptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
 import type {ParcelOptions} from '../types';
 
+let parcelOptionsToPluginOptions: WeakMap<
+  ParcelOptions,
+  PluginOptions,
+> = new WeakMap();
+
 export default class PluginOptions implements IPluginOptions {
   #options; // ParcelOptions
 
   constructor(options: ParcelOptions) {
+    let existing = parcelOptionsToPluginOptions.get(options);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#options = options;
+    parcelOptionsToPluginOptions.set(options, this);
   }
 
   get mode(): BuildMode {
     return this.#options.mode;
   }
 
-  get minify(): boolean {
-    return this.#options.minify;
-  }
-
-  get scopeHoist(): boolean {
-    return this.#options.scopeHoist;
-  }
-
   get sourceMaps(): boolean {
     return this.#options.sourceMaps;
   }
 
-  get env(): {+[string]: string, ...} {
+  get env(): EnvMap {
     return this.#options.env;
   }
 
-  get hot(): ServerOptions | false {
+  get hot(): boolean {
     return this.#options.hot;
   }
 

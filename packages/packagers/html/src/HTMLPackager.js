@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Blob, Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
@@ -16,7 +16,7 @@ const metadataContent = new Set([
   'script',
   'style',
   'template',
-  'title'
+  'title',
 ]);
 
 export default new Packager({
@@ -34,37 +34,51 @@ export default new Packager({
     // Insert references to sibling bundles. For example, a <script> tag in the original HTML
     // may import CSS files. This will result in a sibling bundle in the same bundle group as the
     // JS. This will be inserted as a <link> element into the HTML here.
-    let bundleGroups = bundleGraph.getBundleGroupsReferencedByBundle(bundle);
-    let bundles = bundleGroups.reduce((p, {bundleGroup}) => {
+    let bundleGroups = bundleGraph
+      .getExternalDependencies(bundle)
+      .map(dependency => bundleGraph.resolveExternalDependency(dependency))
+      .filter(Boolean);
+    let bundles = bundleGroups.reduce((p, bundleGroup) => {
       let bundles = bundleGraph
         .getBundlesInBundleGroup(bundleGroup)
         .filter(
           bundle =>
             !bundle
               .getEntryAssets()
-              .some(asset => asset.id === bundleGroup.entryAssetId)
+              .some(asset => asset.id === bundleGroup.entryAssetId),
         );
       return p.concat(bundles);
     }, []);
 
+    // Add bundles in the same bundle group that are not inline. For example, if two inline
+    // bundles refer to the same library that is extracted into a shared bundle.
+    bundles = bundles.concat(
+      bundleGraph.getSiblingBundles(bundle).filter(b => !b.isInline),
+    );
+
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
-      replaceInlineAssetContent.bind(this, bundleGraph, getInlineBundleContents)
+      replaceInlineAssetContent.bind(
+        this,
+        bundleGraph,
+        getInlineBundleContents,
+      ),
     ]).process(code);
 
     return replaceURLReferences({
       bundle,
       bundleGraph,
-      contents: html
+      contents: html,
+      relative: false,
     });
-  }
+  },
 });
 
 async function getAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
-  assetId
-): Promise<?Blob> {
+  assetId,
+) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
@@ -77,10 +91,10 @@ async function getAssetContent(
   if (inlineBundle) {
     const bundleResult = await getInlineBundleContents(
       inlineBundle,
-      bundleGraph
+      bundleGraph,
     );
 
-    return bundleResult.contents;
+    return {bundle: inlineBundle, contents: bundleResult.contents};
   }
 
   return null;
@@ -89,7 +103,7 @@ async function getAssetContent(
 async function replaceInlineAssetContent(
   bundleGraph: BundleGraph,
   getInlineBundleContents,
-  tree
+  tree,
 ) {
   const inlineNodes = [];
   tree.walk(node => {
@@ -103,11 +117,16 @@ async function replaceInlineAssetContent(
     let newContent = await getAssetContent(
       bundleGraph,
       getInlineBundleContents,
-      node.attrs['data-parcel-key']
+      node.attrs['data-parcel-key'],
     );
 
     if (newContent != null) {
-      node.content = newContent;
+      let {contents, bundle} = newContent;
+      node.content = contents;
+
+      if (bundle.env.outputFormat === 'esmodule') {
+        node.attrs.type = 'module';
+      }
 
       // remove attr from output
       delete node.attrs['data-parcel-key'];
@@ -127,20 +146,21 @@ function insertBundleReferences(siblingBundles, tree) {
         attrs: {
           rel: 'stylesheet',
           href: urlJoin(
-            nullthrows(bundle.target).publicUrl ?? '/',
-            nullthrows(bundle.name)
-          )
-        }
+            nullthrows(bundle.target).publicUrl,
+            nullthrows(bundle.name),
+          ),
+        },
       });
     } else if (bundle.type === 'js') {
       bundles.push({
         tag: 'script',
         attrs: {
+          type: bundle.env.outputFormat === 'esmodule' ? 'module' : undefined,
           src: urlJoin(
-            nullthrows(bundle.target).publicUrl ?? '/',
-            nullthrows(bundle.name)
-          )
-        }
+            nullthrows(bundle.target).publicUrl,
+            nullthrows(bundle.name),
+          ),
+        },
       });
     }
   }

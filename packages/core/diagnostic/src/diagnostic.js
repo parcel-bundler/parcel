@@ -6,8 +6,8 @@ import nullthrows from 'nullthrows';
 
 export type DiagnosticHighlightLocation = {|
   // These positions are 1-based
-  line: number,
-  column: number
+  +line: number,
+  +column: number,
 |};
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
@@ -18,19 +18,19 @@ export type DiagnosticCodeHighlight = {|
   // start and end are included in the highlighted region
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
-  message?: string
+  message?: string,
 |};
 
 export type DiagnosticCodeFrame = {|
   code: string,
-  codeHighlights: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>
+  codeHighlights: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>,
 |};
 
 // A Diagnostic is a style agnostic way of emitting errors, warnings and info
 // The reporter's are responsible for rendering the message, codeframes, hints, ...
 export type Diagnostic = {|
   message: string,
-  origin: string, // Name of plugin or file that threw this error
+  origin?: string, // Name of plugin or file that threw this error
 
   // basic error data
   stack?: string,
@@ -44,7 +44,9 @@ export type Diagnostic = {|
   codeFrame?: DiagnosticCodeFrame,
 
   // Hints to resolve issues faster
-  hints?: Array<string>
+  hints?: Array<string>,
+
+  skipFormatting?: boolean,
 |};
 
 // This type should represent all error formats Parcel can encounter...
@@ -64,7 +66,7 @@ export type PrintableError = Error & {
 
 export type DiagnosticWithoutOrigin = {|
   ...Diagnostic,
-  origin?: string
+  origin?: string,
 |};
 
 // Something that can be turned into a diagnostic...
@@ -76,7 +78,7 @@ export type Diagnostifiable =
   | string;
 
 export function anyToDiagnostic(
-  input: Diagnostifiable
+  input: Diagnostifiable,
 ): Diagnostic | Array<Diagnostic> {
   // $FlowFixMe
   let diagnostic: Diagnostic | Array<Diagnostic> = input;
@@ -91,7 +93,7 @@ export function anyToDiagnostic(
 
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
-  realOrigin?: string
+  realOrigin?: string,
 ): Diagnostic | Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
@@ -99,7 +101,7 @@ export function errorToDiagnostic(
     return {
       origin: realOrigin || 'Error',
       message: error,
-      codeFrame
+      codeFrame,
     };
   }
 
@@ -107,7 +109,7 @@ export function errorToDiagnostic(
     return error.diagnostics.map(d => {
       return {
         ...d,
-        origin: realOrigin || d.origin || 'unknown'
+        origin: realOrigin || d.origin || 'unknown',
       };
     });
   }
@@ -118,13 +120,13 @@ export function errorToDiagnostic(
       codeHighlights: {
         start: {
           line: error.loc.line,
-          column: error.loc.column
+          column: error.loc.column,
         },
         end: {
           line: error.loc.line,
-          column: error.loc.column
-        }
-      }
+          column: error.loc.column,
+        },
+      },
     };
   }
 
@@ -134,7 +136,7 @@ export function errorToDiagnostic(
     name: error.name,
     filePath: error.filePath || error.fileName,
     stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
-    codeFrame
+    codeFrame,
   };
 }
 
@@ -163,31 +165,39 @@ export default class ThrowableDiagnostic extends Error {
 // ids.key has to be "/some/parent/child"
 export function generateJSONCodeHighlights(
   code: string,
-  ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>
+  ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
 ): Array<DiagnosticCodeHighlight> {
   // json-source-map doesn't support a tabWidth option (yet)
   let map = jsonMap.parse(code.replace(/\t/g, ' '));
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
-    if (!type && pos.value) {
-      // key and value
-      return {
-        start: {line: pos.key.line + 1, column: pos.key.column + 1},
-        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
-        message
-      };
-    } else if (type == 'key' || !pos.value) {
-      return {
-        start: {line: pos.key.line + 1, column: pos.key.column + 1},
-        end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
-        message
-      };
-    } else {
-      return {
-        start: {line: pos.value.line + 1, column: pos.value.column + 1},
-        end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
-        message
-      };
-    }
+    return {
+      ...getJSONSourceLocation(pos, type),
+      message,
+    };
   });
+}
+
+export function getJSONSourceLocation(pos: any, type?: ?'key' | 'value') {
+  if (!type && pos.value) {
+    // key and value
+    return {
+      start: {line: pos.key.line + 1, column: pos.key.column + 1},
+      end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
+    };
+  } else if (type == 'key' || !pos.value) {
+    return {
+      start: {line: pos.key.line + 1, column: pos.key.column + 1},
+      end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
+    };
+  } else {
+    return {
+      start: {line: pos.value.line + 1, column: pos.value.column + 1},
+      end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
+    };
+  }
+}
+
+export function encodeJSONKeyComponent(component: string): string {
+  return component.replace(/\//g, '~1');
 }

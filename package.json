@@ -11,7 +11,7 @@
     "packages/*/*"
   ],
   "scripts": {
-    "build": "NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
@@ -23,12 +23,15 @@
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
-    "update-readme-toc": "doctoc README.md"
+    "update-readme-toc": "doctoc README.md",
+    "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=*",
+    "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
   },
   "devDependencies": {
+    "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
-    "eslint": "^5.16.0",
-    "flow-bin": "0.112.0",
+    "eslint": "^6.0.0",
+    "flow-bin": "0.119.1",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "lerna": "^3.3.2",
@@ -36,7 +39,7 @@
     "mocha": "^6.1.3",
     "mocha-junit-reporter": "^1.21.0",
     "mocha-multi-reporters": "^1.1.7",
-    "prettier": "1.17.1",
+    "prettier": "1.19.1",
     "rimraf": "^2.6.3",
     "sinon": "^7.3.1"
   },

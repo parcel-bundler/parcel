@@ -56,8 +56,8 @@ export default new Transformer({
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
-      })
+        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+      }),
     };
   },
 
@@ -76,13 +76,13 @@ export default new Transformer({
 
     ast.program.program.body = wrapper({
       helper: t.stringLiteral(wrapperPath),
-      module: ast.program.program.body
+      module: ast.program.program.body,
     });
     asset.setAST(ast);
 
     // The JSTransformer has already run, do it manually
     asset.addDependency({
-      moduleSpecifier: wrapperPath
+      moduleSpecifier: wrapperPath,
     });
 
     return [asset];
@@ -91,28 +91,28 @@ export default new Transformer({
   generate({asset, ast, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
-      asset.filePath
+      asset.filePath,
     );
 
     let generated = generate(
       ast.program,
       {
         sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName
+        sourceFileName: sourceFileName,
       },
-      ''
+      '',
     );
 
     let res = {
       code: generated.code,
       map: new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null
-      })
+        [sourceFileName]: null,
+      }),
     };
 
     res.code = generateGlobals(asset) + res.code;
     return res;
-  }
+  },
 });
 
 function generateGlobals(asset) {

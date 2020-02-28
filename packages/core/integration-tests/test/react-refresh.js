@@ -4,7 +4,7 @@ import {
   bundler,
   overlayFS as fs,
   getNextBuild,
-  defaultConfig
+  defaultConfig,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
 import JSDom from 'jsdom';
@@ -24,22 +24,21 @@ describe('react-refresh', function() {
     b = bundler(path.join(testDir, 'index.js'), {
       inputFS: fs,
       outputFS: fs,
-      hot: {
-        port
+      serve: {
+        https: false,
+        port,
+        host: '127.0.0.1',
       },
-      env: {
-        HMR_HOSTNAME: '127.0.0.1',
-        HMR_PORT: port
-      },
+      hot: true,
       defaultConfig: {
         ...defaultConfig,
-        reporters: ['@parcel/reporter-hmr-server']
-      }
+        reporters: ['@parcel/reporter-dev-server'],
+      },
     });
 
     window = new JSDom.JSDOM(`<div id="root"></div>`, {
       runScripts: 'outside-only',
-      url: 'http://127.0.0.1/index.html'
+      url: 'http://127.0.0.1:' + port + '/index.html',
     }).window;
     window.console.clear = () => {};
     let {document} = window;
@@ -50,14 +49,14 @@ describe('react-refresh', function() {
     let bundleEvent = await getNextBuild(b);
     assert.equal(bundleEvent.type, 'buildSuccess');
     let bundle = nullthrows(
-      bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js')
+      bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
     );
     window.eval(await fs.readFile(nullthrows(bundle.filePath), 'utf8'));
     // ReactDOM.render
     window.parcelRequire(bundle.getMainEntry().id).default();
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/
+      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
     );
     assert(indexNum);
     assert(appNum);
@@ -71,7 +70,7 @@ describe('react-refresh', function() {
     await fs.mkdirp(testDir);
     await fs.copyFile(
       path.join(testDir, 'Foo.1.js'),
-      path.join(testDir, 'Foo.js')
+      path.join(testDir, 'Foo.js'),
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -79,7 +78,7 @@ describe('react-refresh', function() {
     await new Promise(res => setTimeout(res, 100));
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/
+      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
     );
     assert.equal(randoms.indexNum, indexNum);
     assert.equal(randoms.appNum, appNum);
@@ -91,7 +90,7 @@ describe('react-refresh', function() {
     await fs.mkdirp(testDir);
     await fs.copyFile(
       path.join(testDir, 'Foo.2-hooks.js'),
-      path.join(testDir, 'Foo.js')
+      path.join(testDir, 'Foo.js'),
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -99,7 +98,7 @@ describe('react-refresh', function() {
     await new Promise(res => setTimeout(res, 100));
 
     let [, indexNum, appNum, fooText, fooNum, fooNum2] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/
+      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
     );
     assert.equal(randoms.indexNum, indexNum);
     assert.equal(randoms.appNum, appNum);
@@ -112,7 +111,7 @@ describe('react-refresh', function() {
     await fs.mkdirp(testDir);
     await fs.copyFile(
       path.join(testDir, 'Foo.3-class.js'),
-      path.join(testDir, 'Foo.js')
+      path.join(testDir, 'Foo.js'),
     );
     assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
@@ -120,7 +119,7 @@ describe('react-refresh', function() {
     await new Promise(res => setTimeout(res, 100));
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/
+      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
     );
     assert.equal(randoms.indexNum, indexNum);
     assert.equal(randoms.appNum, appNum);

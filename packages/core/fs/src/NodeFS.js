@@ -4,14 +4,15 @@ import type {FilePath} from '@parcel/types';
 import type {
   Event,
   Options as WatcherOptions,
-  AsyncSubscription
+  AsyncSubscription,
 } from '@parcel/watcher';
 
 import fs from 'fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
-import {registerSerializableClass, promisify} from '@parcel/utils';
+import {promisify} from '@parcel/utils';
+import {registerSerializableClass} from '@parcel/core';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -36,11 +37,17 @@ export class NodeFS implements FileSystem {
   cwd = process.cwd;
   chdir = process.chdir;
 
-  readFileSync = fs.readFileSync;
   statSync = fs.statSync;
   realpathSync = fs.realpathSync;
   existsSync = fs.existsSync;
   readdirSync = (fs.readdirSync: any);
+
+  readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
+    if (encoding != null) {
+      return fs.readFileSync(filePath, encoding);
+    }
+    return fs.readFileSync(filePath);
+  }
 
   async realpath(originalPath: string): Promise<string> {
     try {
@@ -61,7 +68,7 @@ export class NodeFS implements FileSystem {
   watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<AsyncSubscription> {
     return watcher.subscribe(dir, fn, opts);
   }
@@ -69,7 +76,7 @@ export class NodeFS implements FileSystem {
   getEventsSince(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<Array<Event>> {
     return watcher.getEventsSince(dir, snapshot, opts);
   }
@@ -77,7 +84,7 @@ export class NodeFS implements FileSystem {
   async writeSnapshot(
     dir: FilePath,
     snapshot: FilePath,
-    opts: WatcherOptions
+    opts: WatcherOptions,
   ): Promise<void> {
     await watcher.writeSnapshot(dir, snapshot, opts);
   }

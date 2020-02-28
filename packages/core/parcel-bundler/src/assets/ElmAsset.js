@@ -13,7 +13,7 @@ class ElmAsset extends Asset {
 
   async parse() {
     let options = {
-      cwd: path.dirname(this.name)
+      cwd: path.dirname(this.name),
     };
 
     // If elm is not installed globally, install it locally.
@@ -24,7 +24,7 @@ class ElmAsset extends Asset {
       options.pathToElm = path.join(
         path.dirname(require.resolve('elm')),
         'bin',
-        'elm'
+        'elm',
       );
     }
 
@@ -85,7 +85,7 @@ class ElmAsset extends Asset {
     }
 
     return {
-      [this.type]: output
+      [this.type]: output,
     };
 
     // Recommended minification
@@ -112,14 +112,14 @@ class ElmAsset extends Asset {
             'A6',
             'A7',
             'A8',
-            'A9'
+            'A9',
           ],
           pure_getters: true,
           unsafe: true,
-          unsafe_comps: true
+          unsafe_comps: true,
         },
         mangle: true,
-        rename: false
+        rename: false,
       };
 
       let result = minify(source, options);

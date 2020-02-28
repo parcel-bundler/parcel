@@ -25,9 +25,9 @@
     "@parcel/packager-js": "^2.0.0-alpha.3.1",
     "@parcel/packager-raw": "^2.0.0-alpha.3.1",
     "@parcel/packager-ts": "^2.0.0-alpha.3.1",
+    "@parcel/reporter-bundle-analyzer": "^2.0.0-alpha.3.1",
     "@parcel/reporter-cli": "^2.0.0-alpha.3.1",
     "@parcel/reporter-dev-server": "^2.0.0-alpha.3.1",
-    "@parcel/reporter-hmr-server": "^2.0.0-alpha.3.1",
     "@parcel/resolver-default": "^2.0.0-alpha.3.1",
     "@parcel/runtime-browser-hmr": "^2.0.0-alpha.3.1",
     "@parcel/runtime-js": "^2.0.0-alpha.3.1",
@@ -52,6 +52,7 @@
     "@parcel/transformer-sugarss": "^2.0.0-alpha.3.1",
     "@parcel/transformer-toml": "^2.0.0-alpha.3.1",
     "@parcel/transformer-typescript-types": "^2.0.0-alpha.3.1",
-    "@parcel/transformer-yaml": "^2.0.0-alpha.3.1"
+    "@parcel/transformer-yaml": "^2.0.0-alpha.3.1",
+    "@parcel/transformer-mdx": "^2.0.0-alpha.3.1"
   }
 }

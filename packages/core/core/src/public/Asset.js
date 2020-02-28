@@ -13,13 +13,14 @@ import type {
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
+  EnvironmentOpts,
   File,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol
+  Symbol,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -27,14 +28,21 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
 import InternalAsset from '../InternalAsset';
+import {createEnvironment} from '../Environment';
+
+const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
+const assetValueToMutableAsset: WeakMap<
+  AssetValue,
+  MutableAsset,
+> = new WeakMap();
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
-  InternalAsset
+  InternalAsset,
 > = new WeakMap();
 
 export function assetToInternalAsset(
-  asset: IAsset | IMutableAsset
+  asset: IAsset | IMutableAsset,
 ): InternalAsset {
   return nullthrows(_assetToInternalAsset.get(asset));
 }
@@ -43,8 +51,8 @@ export function assetFromValue(value: AssetValue, options: ParcelOptions) {
   return new Asset(
     new InternalAsset({
       value,
-      options
-    })
+      options,
+    }),
   );
 }
 
@@ -88,6 +96,10 @@ class BaseAsset {
     return this.#asset.value.isInline;
   }
 
+  get isSplittable(): ?boolean {
+    return this.#asset.value.isSplittable;
+  }
+
   get isSource(): boolean {
     return this.#asset.value.isSource;
   }
@@ -112,8 +124,8 @@ class BaseAsset {
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
-      parse?: boolean
-    |}
+      parse?: boolean,
+    |},
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }
@@ -155,8 +167,14 @@ export class Asset extends BaseAsset implements IAsset {
   #asset; // InternalAsset
 
   constructor(asset: InternalAsset) {
+    let existing = assetValueToAsset.get(asset.value);
+    if (existing != null) {
+      return existing;
+    }
+
     super(asset);
     this.#asset = asset;
+    assetValueToAsset.set(asset.value, this);
   }
 
   get stats(): Stats {
@@ -168,8 +186,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset; // InternalAsset
 
   constructor(asset: InternalAsset) {
+    let existing = assetValueToMutableAsset.get(asset.value);
+    if (existing != null) {
+      return existing;
+    }
+
     super(asset);
     this.#asset = asset;
+    assetValueToMutableAsset.set(asset.value, this);
   }
 
   setMap(map: ?SourceMap): void {
@@ -198,6 +222,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set isInline(isInline: boolean): void {
     this.#asset.value.isInline = isInline;
+  }
+
+  get isSplittable(): ?boolean {
+    return this.#asset.value.isSplittable;
+  }
+
+  set isSplittable(isSplittable: ?boolean): void {
+    this.#asset.value.isSplittable = isSplittable;
   }
 
   addDependency(dep: DependencyOptions): string {
@@ -229,7 +261,11 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       moduleSpecifier: url,
       isURL: true,
       isAsync: true, // The browser has native loaders for url dependencies
-      ...opts
+      ...opts,
     });
+  }
+
+  setEnvironment(env: EnvironmentOpts): void {
+    this.#asset.value.env = createEnvironment(env);
   }
 }

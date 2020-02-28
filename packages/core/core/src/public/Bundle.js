@@ -11,12 +11,13 @@ import type {
   NamedBundle as INamedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor
+  GraphVisitor,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetToInternalAsset, assetFromValue} from './Asset';
 import {mapVisitor} from '../Graph';
@@ -24,11 +25,27 @@ import Environment from './Environment';
 import Dependency from './Dependency';
 import Target from './Target';
 
+const internalBundleToBundle: DefaultWeakMap<
+  ParcelOptions,
+  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, Bundle>>,
+> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
+const internalBundleToNamedBundle: DefaultWeakMap<
+  ParcelOptions,
+  DefaultWeakMap<BundleGraph, WeakMap<InternalBundle, NamedBundle>>,
+> = new DefaultWeakMap(() => new DefaultWeakMap(() => new WeakMap()));
+
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
 const _bundleToInternalBundle: WeakMap<IBundle, InternalBundle> = new WeakMap();
 export function bundleToInternalBundle(bundle: IBundle): InternalBundle {
   return nullthrows(_bundleToInternalBundle.get(bundle));
+}
+const _bundleToInternalBundleGraph: WeakMap<
+  IBundle,
+  BundleGraph,
+> = new WeakMap();
+export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
+  return nullthrows(_bundleToInternalBundleGraph.get(bundle));
 }
 
 export class Bundle implements IBundle {
@@ -39,16 +56,29 @@ export class Bundle implements IBundle {
   constructor(
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
+    options: ParcelOptions,
   ) {
+    let existingMap = internalBundleToBundle.get(options).get(bundleGraph);
+    let existing = existingMap.get(bundle);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#bundle = bundle;
     this.#bundleGraph = bundleGraph;
     this.#options = options;
+
     _bundleToInternalBundle.set(this, bundle);
+    _bundleToInternalBundleGraph.set(this, bundleGraph);
+    existingMap.set(bundle, this);
   }
 
   get id(): string {
     return this.#bundle.id;
+  }
+
+  get hashReference(): string {
+    return this.#bundle.hashReference;
   }
 
   get type(): string {
@@ -65,6 +95,10 @@ export class Bundle implements IBundle {
 
   get isInline(): ?boolean {
     return this.#bundle.isInline;
+  }
+
+  get isSplittable(): ?boolean {
+    return this.#bundle.isSplittable;
   }
 
   get target(): ITarget {
@@ -86,7 +120,7 @@ export class Bundle implements IBundle {
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
-      assetToInternalAsset(asset).value
+      assetToInternalAsset(asset).value,
     );
   }
 
@@ -104,7 +138,7 @@ export class Bundle implements IBundle {
   }
 
   traverse<TContext>(
-    visit: GraphVisitor<BundleTraversable, TContext>
+    visit: GraphVisitor<BundleTraversable, TContext>,
   ): ?TContext {
     return this.#bundleGraph.traverseBundle(
       this.#bundle,
@@ -112,24 +146,20 @@ export class Bundle implements IBundle {
         if (node.type === 'asset') {
           return {
             type: 'asset',
-            value: assetFromValue(node.value, this.#options)
+            value: assetFromValue(node.value, this.#options),
           };
         } else if (node.type === 'dependency') {
           return {type: 'dependency', value: new Dependency(node.value)};
         }
-      }, visit)
+      }, visit),
     );
   }
 
   traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
-      mapVisitor(asset => assetFromValue(asset, this.#options), visit)
+      mapVisitor(asset => assetFromValue(asset, this.#options), visit),
     );
-  }
-
-  getHash() {
-    return this.#bundleGraph.getHash(this.#bundle);
   }
 }
 
@@ -140,11 +170,18 @@ export class NamedBundle extends Bundle implements INamedBundle {
   constructor(
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
+    options: ParcelOptions,
   ) {
+    let existingMap = internalBundleToNamedBundle.get(options).get(bundleGraph);
+    let existing = existingMap.get(bundle);
+    if (existing != null) {
+      return existing;
+    }
+
     super(bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
+    existingMap.set(bundle, this);
   }
 
   get filePath(): FilePath {
@@ -153,5 +190,9 @@ export class NamedBundle extends Bundle implements INamedBundle {
 
   get name(): string {
     return nullthrows(this.#bundle.name);
+  }
+
+  get displayName(): string {
+    return nullthrows(this.#bundle.displayName);
   }
 }

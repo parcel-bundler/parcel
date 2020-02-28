@@ -4,11 +4,28 @@ import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
+function logUncaughtError(e: mixed) {
+  if (e instanceof ThrowableDiagnostic) {
+    for (let diagnostic of e.diagnostics) {
+      let out = prettyDiagnostic(diagnostic);
+      console.error(out.message);
+      console.error(out.codeframe || out.stack);
+      for (let h of out.hints) {
+        console.error(h);
+      }
+    }
+  } else {
+    console.error(e);
+  }
+}
+
 process.on('unhandledRejection', (reason: mixed) => {
-  console.error(reason);
+  logUncaughtError(reason);
   process.exit(1);
 });
 
@@ -17,6 +34,16 @@ const program = require('commander');
 const path = require('path');
 const getPort = require('get-port');
 const version = require('../package.json').version;
+
+// Capture the NODE_ENV this process was launched with, so that it can be
+// used in Parcel (such as in process.env inlining).
+const initialNodeEnv = process.env.NODE_ENV;
+// Then, override NODE_ENV to be PARCEL_BUILD_ENV (replaced with `production` in builds)
+// so that dependencies of Parcel like React (which renders the cli through `ink`)
+// run in the appropriate mode.
+if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
+  process.env.NODE_ENV = process.env.PARCEL_BUILD_ENV;
+}
 
 program.version(version);
 
@@ -31,34 +58,28 @@ const commonOptions = {
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
-    []
+    [],
   ],
   '--log-level <level>': [
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
-    /^(none|error|warn|info|verbose)$/
+    /^(none|error|warn|info|verbose)$/,
   ],
   '--profile': 'enable build profiling',
-  '-V, --version': 'output the version number'
+  '-V, --version': 'output the version number',
 };
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
-  '--hmr-port <port>': [
-    'set the port to serve HMR websockets, defaults to random',
-    parseInt
-  ],
-  '--hmr-host <hostname>':
-    'set the hostname of HMR websockets, defaults to location.hostname of current window',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
-  '--key <path>': 'path to private key to use with HTTPS'
+  '--key <path>': 'path to private key to use with HTTPS',
 };
 
 function applyOptions(cmd, options) {
   for (let opt in options) {
     cmd.option(
       opt,
-      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]])
+      ...(Array.isArray(options[opt]) ? options[opt] : [options[opt]]),
     );
   }
 }
@@ -69,17 +90,18 @@ let serve = program
   .option(
     '-p, --port <port>',
     'set the port to serve on. defaults to 1234',
-    parseInt
+    parseInt,
   )
-  .option('--public-url <url>', 'set the path prefix to use in serve mode')
+  .option('--public-url <url>', 'the path prefix for absolute urls')
   .option(
     '--host <host>',
-    'set the host to listen on, defaults to listening on all interfaces'
+    'set the host to listen on, defaults to listening on all interfaces',
   )
   .option(
     '--open [browser]',
-    'automatically open in specified browser, defaults to default browser'
+    'automatically open in specified browser, defaults to default browser',
   )
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(serve, hmrOptions);
@@ -88,6 +110,12 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
+  .option(
+    '--dist-dir <dir>',
+    'output directory to write to when unspecified by targets',
+  )
+  .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
 
 applyOptions(watch, hmrOptions);
@@ -98,6 +126,11 @@ let build = program
   .description('bundles for production')
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
+  .option('--public-url <url>', 'the path prefix for absolute urls')
+  .option(
+    '--dist-dir <dir>',
+    'Output directory to write to when unspecified by targets',
+  )
   .action(run);
 
 applyOptions(build, commonOptions);
@@ -115,7 +148,7 @@ program.on('--help', function() {
   console.log(
     '  Run `' +
       chalk.bold('parcel help <command>') +
-      '` for more information on specific commands'
+      '` for more information on specific commands',
   );
   console.log('');
 });
@@ -140,20 +173,19 @@ async function run(entries: Array<string>, command: any) {
   let packageManager = new NodePackageManager(new NodeFS());
   let defaultConfig: ParcelConfigFile = await packageManager.require(
     '@parcel/config-default',
-    __filename
+    __filename,
   );
   let parcel = new Parcel({
     entries,
     packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: (await packageManager.resolve(
-        '@parcel/config-default',
-        __filename
-      )).resolved
+      filePath: (
+        await packageManager.resolve('@parcel/config-default', __filename)
+      ).resolved,
     },
-    patchConsole: false,
-    ...(await normalizeOptions(command))
+    patchConsole: true,
+    ...(await normalizeOptions(command)),
   });
 
   if (command.name() === 'watch' || command.name() === 'serve') {
@@ -173,6 +205,15 @@ async function run(entries: Array<string>, command: any) {
       await unsubscribe();
       process.exit();
     };
+
+    if (command.watchForStdin) {
+      process.stdin.on('end', async () => {
+        console.log('STDIN closed, ending');
+
+        await exit();
+      });
+      process.stdin.resume();
+    }
 
     // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
     // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
@@ -204,24 +245,27 @@ async function run(entries: Array<string>, command: any) {
     } catch (e) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
-      if (!(e instanceof BuildError)) console.error(e);
+      if (!(e instanceof BuildError)) {
+        logUncaughtError(e);
+      }
       process.exit(1);
     }
   }
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {
+  let nodeEnv;
   if (command.name() === 'build') {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+    nodeEnv = initialNodeEnv || 'production';
   } else {
-    process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+    nodeEnv = initialNodeEnv || 'development';
   }
 
   let https = !!command.https;
   if (command.cert && command.key) {
     https = {
       cert: command.cert,
-      key: command.key
+      key: command.key,
     };
   }
 
@@ -233,7 +277,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     if (command.port && port !== command.port) {
       // Parcel logger is not set up at this point, so just use native console.
       console.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`)
+        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
     }
 
@@ -241,24 +285,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
       https,
       port,
       host,
-      publicUrl
+      publicUrl,
     };
   }
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let port = command.hmrPort || 12345;
-    let host = command.hmrHost || command.host;
-    port = await getPort({port, host});
-
-    process.env.HMR_HOSTNAME = host || '';
-    process.env.HMR_PORT = port;
-
-    hmr = {
-      https,
-      port,
-      host
-    };
+    hmr = true;
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
@@ -269,11 +302,16 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps ?? true,
     scopeHoist: command.scopeHoist,
+    publicUrl: command.publicUrl,
+    distDir: command.distDir,
     hot: hmr,
     serve,
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
-    profile: command.profile
+    profile: command.profile,
+    env: {
+      NODE_ENV: nodeEnv,
+    },
   };
 }

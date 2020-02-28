@@ -1,21 +1,10 @@
 // @flow strict-local
 
+import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+import type {TranspileOptions} from 'typescript';
+
 import {Transformer} from '@parcel/plugin';
 import {loadTSConfig} from '@parcel/ts-utils';
-
-type TypescriptCompilerOptions = {
-  module?: mixed,
-  jsx?: mixed,
-  noEmit?: boolean,
-  sourceMap?: boolean,
-  ...
-};
-
-type TypescriptTranspilerOptions = {
-  compilerOptions: TypescriptCompilerOptions,
-  fileName: string,
-  ...
-};
 
 export default new Transformer({
   async loadConfig({config, options}) {
@@ -25,9 +14,9 @@ export default new Transformer({
   async transform({asset, config, options}) {
     asset.type = 'js';
 
-    let [typescript, code] = await Promise.all([
+    let [typescript, code]: [TypeScriptModule, string] = await Promise.all([
       options.packageManager.require('typescript', asset.filePath),
-      asset.getCode()
+      asset.getCode(),
     ]);
 
     let transpiled = typescript.transpileModule(
@@ -36,23 +25,23 @@ export default new Transformer({
         compilerOptions: {
           // React is the default. Users can override this by supplying their own tsconfig,
           // which many TypeScript users will already have for typechecking, etc.
-          jsx: 'React',
+          jsx: typescript.JsxEmit.React,
           ...config,
           // Always emit output
           noEmit: false,
           // Don't compile ES `import`s -- scope hoisting prefers them and they will
           // otherwise compiled to CJS via babel in the js transformer
-          module: typescript.ModuleKind.ESNext
+          module: typescript.ModuleKind.ESNext,
         },
-        fileName: asset.filePath // Should be relativePath?
-      }: TypescriptTranspilerOptions)
+        fileName: asset.filePath, // Should be relativePath?
+      }: TranspileOptions),
     );
 
     return [
       {
         type: 'js',
-        code: transpiled.outputText
-      }
+        code: transpiled.outputText,
+      },
     ];
-  }
+  },
 });

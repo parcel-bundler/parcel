@@ -25,7 +25,8 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
-    "*": ["@parcel/transformer-raw"]
+    "*.mdx": ["@parcel/transformer-mdx"],
+    "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
@@ -34,6 +35,8 @@
       "@parcel/runtime-browser-hmr",
       "@parcel/runtime-react-refresh"
     ],
+    "service-worker": ["@parcel/runtime-js"],
+    "web-worker": ["@parcel/runtime-js"],
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
@@ -53,6 +56,6 @@
   "reporters": [
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
-    "@parcel/reporter-hmr-server"
+    "@parcel/reporter-bundle-analyzer"
   ]
 }

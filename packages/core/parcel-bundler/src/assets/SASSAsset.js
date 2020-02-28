@@ -18,7 +18,7 @@ class SASSAsset extends Asset {
     let render = promisify(sass.render.bind(sass));
     const resolver = new Resolver({
       extensions: ['.scss', '.sass'],
-      rootDir: this.options.rootDir
+      rootDir: this.options.rootDir,
     });
 
     let opts =
@@ -89,8 +89,8 @@ class SASSAsset extends Asset {
         map:
           this.ast && this.ast.map
             ? JSON.parse(this.ast.map.toString())
-            : undefined
-      }
+            : undefined,
+      },
     ];
   }
 }
@@ -113,7 +113,7 @@ function sassToCodeFrame(err) {
   error.fileName = err.file;
   error.loc = {
     line: err.line,
-    column: err.column
+    column: err.column,
   };
   return error;
 }

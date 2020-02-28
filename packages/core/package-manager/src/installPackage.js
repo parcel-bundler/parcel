@@ -1,9 +1,10 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
-import type {PackageInstaller, InstallOptions} from './types';
+import type {ModuleRequest, PackageInstaller, InstallOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
 
+import invariant from 'assert';
 import logger from '@parcel/logger';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -12,17 +13,18 @@ import WorkerFarm from '@parcel/workers';
 import {loadConfig, PromiseQueue, resolveConfig, resolve} from '@parcel/utils';
 import {Npm} from './Npm';
 import {Yarn} from './Yarn';
-import validateModuleSpecifiers from './validateModuleSpecifiers';
+import validateModuleSpecifier from './validateModuleSpecifier';
 
 async function install(
   fs: FileSystem,
-  modules: Array<string>,
+  modules: Array<ModuleRequest>,
   filepath: FilePath,
-  options: InstallOptions = {}
+  options: InstallOptions = {},
 ): Promise<void> {
   let {installPeers = true, saveDev = true, packageInstaller} = options;
+  let moduleNames = modules.map(m => m.name).join(', ');
 
-  logger.progress(`Installing ${modules.join(', ')}...`);
+  logger.progress(`Installing ${moduleNames}...`);
 
   let packagePath = await resolveConfig(fs, filepath, ['package.json']);
   let cwd = packagePath ? path.dirname(packagePath) : fs.cwd();
@@ -34,12 +36,12 @@ async function install(
   try {
     await packageInstaller.install({modules, saveDev, cwd, packagePath, fs});
   } catch (err) {
-    throw new Error(`Failed to install ${modules.join(', ')}.`);
+    throw new Error(`Failed to install ${moduleNames}.`);
   }
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(fs, filepath, m, options))
+      modules.map(m => installPeerDependencies(fs, filepath, m, options)),
     );
   }
 }
@@ -47,37 +49,43 @@ async function install(
 async function installPeerDependencies(
   fs: FileSystem,
   filepath: FilePath,
-  name: string,
-  options
+  module: ModuleRequest,
+  options,
 ) {
   let basedir = path.dirname(filepath);
-  const {resolved} = await resolve(fs, name, {basedir});
+  const {resolved} = await resolve(fs, module.name, {
+    basedir,
+    range: module.range,
+  });
   const pkg = nullthrows(await loadConfig(fs, resolved, ['package.json']))
     .config;
   const peers = pkg.peerDependencies || {};
 
-  const modules = [];
-  for (const peer in peers) {
-    modules.push(`${peer}@${peers[peer]}`);
-  }
+  const modules = Object.entries(peers).map(([name, range]) => {
+    invariant(typeof range === 'string');
+    return {
+      name,
+      range,
+    };
+  });
 
   if (modules.length) {
     await install(
       fs,
       modules,
       filepath,
-      Object.assign({}, options, {installPeers: false})
+      Object.assign({}, options, {installPeers: false}),
     );
   }
 }
 
 async function determinePackageInstaller(
   fs: FileSystem,
-  filepath: FilePath
+  filepath: FilePath,
 ): Promise<PackageInstaller> {
   let configFile = await resolveConfig(fs, filepath, [
     'yarn.lock',
-    'package-lock.json'
+    'package-lock.json',
   ]);
   let hasYarn = await Yarn.exists();
 
@@ -98,33 +106,38 @@ let modulesInstalling: Set<string> = new Set();
 // across multiple instances of the package manager.
 export function _addToInstallQueue(
   fs: FileSystem,
-  modules: Array<string>,
+  modules: Array<ModuleRequest>,
   filePath: FilePath,
-  options?: InstallOptions
+  options?: InstallOptions,
 ): Promise<mixed> {
-  modules = validateModuleSpecifiers(modules);
+  modules = modules.map(request => ({
+    name: validateModuleSpecifier(request.name),
+    range: request.range,
+  }));
 
   // Wrap PromiseQueue and track modules that are currently installing.
   // If a request comes in for a module that is currently installing, don't bother
   // enqueuing it.
-  //
-  // "module" means anything acceptable to yarn/npm. This can include a semver range,
-  // e.g. "lodash@^3.2.0" -- we don't dedupe unless this entire string is an exact match.
-  let modulesToInstall = modules.filter(m => !modulesInstalling.has(m));
+  let modulesToInstall = modules.filter(
+    m => !modulesInstalling.has(getModuleRequestKey(m)),
+  );
   if (modulesToInstall.length) {
     for (let m of modulesToInstall) {
-      modulesInstalling.add(m);
+      modulesInstalling.add(getModuleRequestKey(m));
     }
 
     queue
       .add(() =>
         install(fs, modulesToInstall, filePath, options).then(() => {
           for (let m of modulesToInstall) {
-            modulesInstalling.delete(m);
+            modulesInstalling.delete(getModuleRequestKey(m));
           }
-        })
+        }),
       )
-      .then(() => {}, () => {});
+      .then(
+        () => {},
+        () => {},
+      );
   }
 
   return queue.run();
@@ -132,18 +145,22 @@ export function _addToInstallQueue(
 
 export function installPackage(
   fs: FileSystem,
-  modules: Array<string>,
+  modules: Array<ModuleRequest>,
   filePath: FilePath,
-  options?: InstallOptions
+  options?: InstallOptions,
 ): Promise<mixed> {
   if (WorkerFarm.isWorker()) {
     let workerApi = WorkerFarm.getWorkerApi();
     return workerApi.callMaster({
       location: __filename,
       args: [fs, modules, filePath, options],
-      method: '_addToInstallQueue'
+      method: '_addToInstallQueue',
     });
   }
 
   return _addToInstallQueue(fs, modules, filePath, options);
+}
+
+function getModuleRequestKey(moduleRequest: ModuleRequest): string {
+  return [moduleRequest.name, moduleRequest.range].join('@');
 }

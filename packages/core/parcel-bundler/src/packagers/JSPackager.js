@@ -7,7 +7,7 @@ const objectHash = require('../utils/objectHash');
 
 const prelude = getExisting(
   path.join(__dirname, '../builtins/prelude.min.js'),
-  path.join(__dirname, '../builtins/prelude.js')
+  path.join(__dirname, '../builtins/prelude.js'),
 );
 
 class JSPackager extends Packager {
@@ -23,7 +23,7 @@ class JSPackager extends Packager {
         `process.env.HMR_PORT=${
           this.options.hmrPort
         };process.env.HMR_HOSTNAME=${JSON.stringify(
-          this.options.hmrHostname
+          this.options.hmrHostname,
         )};` + preludeCode;
     }
     await this.write(preludeCode + '({');
@@ -89,7 +89,7 @@ class JSPackager extends Packager {
       asset.id,
       asset.generated.js,
       deps,
-      asset.generated.map
+      asset.generated.map,
     );
   }
 
@@ -151,7 +151,7 @@ class JSPackager extends Packager {
     }
 
     let bundleLoader = this.bundler.loadedAssets.get(
-      require.resolve('../builtins/bundle-loader')
+      require.resolve('../builtins/bundle-loader'),
     );
     if (this.externalModules.size > 0 && !bundleLoader) {
       bundleLoader = await this.bundler.getAsset('_bundle_loader');
@@ -194,7 +194,7 @@ class JSPackager extends Packager {
       loads += 'b.load(' + JSON.stringify(preload) + ')';
       if (this.bundle.entryAsset) {
         loads += `.then(function(){require(${JSON.stringify(
-          this.bundle.entryAsset.id
+          this.bundle.entryAsset.id,
         )});})`;
       }
 
@@ -212,7 +212,7 @@ class JSPackager extends Packager {
     // Add the HMR runtime if needed.
     if (this.options.hmr) {
       let asset = await this.bundler.getAsset(
-        require.resolve('../builtins/hmr-runtime')
+        require.resolve('../builtins/hmr-runtime'),
       );
       await this.addAssetToBundle(asset);
       entry.push(asset.id);
@@ -231,7 +231,7 @@ class JSPackager extends Packager {
         JSON.stringify(entry) +
         ', ' +
         JSON.stringify(this.options.global || null) +
-        ')'
+        ')',
     );
     if (this.options.sourceMaps) {
       // Add source map url if a map bundle exists
@@ -239,7 +239,7 @@ class JSPackager extends Packager {
       if (mapBundle) {
         let mapUrl = urlJoin(
           this.options.publicURL,
-          path.relative(this.options.outDir, mapBundle.name)
+          path.relative(this.options.outDir, mapBundle.name),
         );
         await this.write(`\n//# sourceMappingURL=${mapUrl}`);
       }

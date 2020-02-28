@@ -2,9 +2,11 @@
 
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
-import packageJson from '../package.json';
 import invariant from 'assert';
 import {relativeUrl} from '@parcel/utils';
+
+import {BABEL_RANGE} from './constants';
+import packageJson from '../package.json';
 
 const transformerVersion: mixed = packageJson.version;
 invariant(typeof transformerVersion === 'string');
@@ -13,13 +15,15 @@ export default async function babel7(
   asset: MutableAsset,
   options: PluginOptions,
   babelOptions: any,
-  additionalPlugins: Array<any> = []
+  additionalPlugins: Array<any> = [],
 ): Promise<?AST> {
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
   let babel = babelOptions.internal
     ? require('@babel/core')
-    : await options.packageManager.require('@babel/core', asset.filePath);
+    : await options.packageManager.require('@babel/core', asset.filePath, {
+        range: BABEL_RANGE,
+      });
 
   let sourceFilename: string = relativeUrl(options.projectRoot, asset.filePath);
 
@@ -37,13 +41,13 @@ export default async function babel7(
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
-      plugins: ['dynamicImport']
+      plugins: ['dynamicImport'],
     },
     caller: {
       name: 'parcel',
       version: transformerVersion,
-      targets: JSON.stringify(babelOptions.targets)
-    }
+      targets: JSON.stringify(babelOptions.targets),
+    },
   };
 
   let ast = await asset.getAST();
@@ -60,7 +64,7 @@ export default async function babel7(
     asset.setAST({
       type: 'babel',
       version: '7.0.0',
-      program: res.ast
+      program: res.ast,
     });
   }
 }

@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {AST, Bundle, BundleGraph} from '@parcel/types';
 import babelGenerate from '@babel/generator';
 import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
@@ -9,16 +9,11 @@ import * as t from '@babel/types';
 import template from '@babel/template';
 
 const REGISTER_TEMPLATE = template(
-  'parcelRequire.registerBundle(ID, function () { STATEMENTS; })'
+  'parcelRequire.registerBundle(ID, function () { STATEMENTS; })',
 );
 const WRAPPER_TEMPLATE = template('(function () { STATEMENTS; })()');
 
-export function generate(
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
-  ast: AST,
-  options: PluginOptions
-) {
+export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: AST) {
   // $FlowFixMe
   let interpreter: ?string = bundle.target.env.isBrowser()
     ? null
@@ -34,8 +29,8 @@ export function generate(
     statements = [
       REGISTER_TEMPLATE({
         ID: t.stringLiteral(nullthrows(entry).id),
-        STATEMENTS: statements
-      })
+        STATEMENTS: statements,
+      }),
     ];
   } else if (bundle.env.outputFormat === 'global') {
     statements = [WRAPPER_TEMPLATE({STATEMENTS: statements})];
@@ -46,18 +41,18 @@ export function generate(
       statements,
       [],
       bundle.env.outputFormat === 'esmodule' ? 'module' : 'script',
-      interpreter ? t.interpreterDirective(interpreter) : null
-    )
+      interpreter ? t.interpreterDirective(interpreter) : null,
+    ),
   );
 
   let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: options.sourceMaps,
-    minified: options.minify,
-    comments: true // retain /*@__PURE__*/ comments for terser
+    sourceMaps: bundle.env.sourceMaps,
+    minified: bundle.env.minify,
+    comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
   return {
     contents: code,
-    map: options.sourceMaps ? new SourceMap(rawMappings) : null
+    map: bundle.env.sourceMaps ? new SourceMap(rawMappings) : null,
   };
 }

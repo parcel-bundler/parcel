@@ -6,21 +6,32 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  ConfigResult
+  ConfigResult,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
-import {loadConfig} from '@parcel/utils';
+import {DefaultWeakMap, loadConfig} from '@parcel/utils';
 
 import Environment from './Environment';
+
+const internalConfigToConfig: DefaultWeakMap<
+  ParcelOptions,
+  WeakMap<Config, PublicConfig>,
+> = new DefaultWeakMap(() => new WeakMap());
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
   #options; // ParcelOptions
 
   constructor(config: Config, options: ParcelOptions) {
+    let existing = internalConfigToConfig.get(options).get(config);
+    if (existing != null) {
+      return existing;
+    }
+
     this.#config = config;
     this.#options = options;
+    internalConfigToConfig.get(options).set(config, this);
   }
 
   get env() {
@@ -86,15 +97,15 @@ export default class PublicConfig implements IConfig {
     options: ?{|
       packageKey?: string,
       parse?: boolean,
-      exclude?: boolean
-    |}
+      exclude?: boolean,
+    |},
   ): Promise<ConfigResult | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
       searchPath,
       filePaths,
-      parse == null ? null : {parse}
+      parse == null ? null : {parse},
     );
     if (conf == null) {
       return null;
@@ -116,8 +127,8 @@ export default class PublicConfig implements IConfig {
     options: ?{|
       packageKey?: string,
       parse?: boolean,
-      exclude?: boolean
-    |}
+      exclude?: boolean,
+    |},
   ): Promise<ConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }

@@ -6,6 +6,7 @@ import type {
   BundleGroup,
   Engines,
   EnvironmentContext,
+  EnvMap,
   File,
   FilePath,
   Glob,
@@ -15,6 +16,7 @@ import type {
   ModuleSpecifier,
   PackageName,
   PackageJSON,
+  ReporterEvent,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
@@ -24,7 +26,7 @@ import type {
   TargetSourceMapOptions,
   ConfigResult,
   OutputFormat,
-  TargetDescriptor
+  TargetDescriptor,
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -34,9 +36,14 @@ import type {PackageManager} from '@parcel/package-manager';
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules: boolean | Array<PackageName>,
+  includeNodeModules:
+    | boolean
+    | Array<PackageName>
+    | {[PackageName]: boolean, ...},
   outputFormat: OutputFormat,
-  isLibrary: boolean
+  isLibrary: boolean,
+  minify: boolean,
+  scopeHoist: boolean,
 |};
 
 export type Target = {|
@@ -45,7 +52,8 @@ export type Target = {|
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
   name: string,
-  publicUrl: ?string
+  publicUrl: string,
+  loc?: ?SourceLocation,
 |};
 
 export type Dependency = {|
@@ -56,6 +64,7 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
+  isDeferred: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -63,7 +72,7 @@ export type Dependency = {|
   sourceAssetId: ?string,
   sourcePath: ?string,
   symbols: Map<Symbol, Symbol>,
-  pipeline?: ?string
+  pipeline?: ?string,
 |};
 
 export type Asset = {|
@@ -75,6 +84,7 @@ export type Asset = {|
   includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
+  isSplittable: ?boolean,
   isSource: boolean,
   env: Environment,
   meta: Meta,
@@ -88,7 +98,7 @@ export type Asset = {|
   sideEffects: boolean,
   uniqueKey?: ?string,
   configPath?: FilePath,
-  plugin?: ?PackageName
+  plugin?: ?PackageName,
 |};
 
 export type ParcelOptions = {|
@@ -96,7 +106,7 @@ export type ParcelOptions = {|
   rootDir: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
-  env: {+[string]: string, ...},
+  env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,
 
@@ -107,7 +117,9 @@ export type ParcelOptions = {|
   minify: boolean,
   scopeHoist: boolean,
   sourceMaps: boolean,
-  hot: ServerOptions | false,
+  publicUrl: string,
+  distDir: ?FilePath,
+  hot: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -119,7 +131,7 @@ export type ParcelOptions = {|
   inputFS: FileSystem,
   outputFS: FileSystem,
   cache: Cache,
-  packageManager: PackageManager
+  packageManager: PackageManager,
 |};
 
 export type NodeId = string;
@@ -127,7 +139,7 @@ export type NodeId = string;
 export type Edge<TEdgeType: string | null> = {|
   from: NodeId,
   to: NodeId,
-  type: TEdgeType
+  type: TEdgeType,
 |};
 
 export interface Node {
@@ -142,7 +154,8 @@ export type AssetNode = {|id: string, +type: 'asset', value: Asset|};
 export type DependencyNode = {|
   id: string,
   type: 'dependency',
-  value: Dependency
+  value: Dependency,
+  complete?: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -152,12 +165,12 @@ export type AssetRequestDesc = {|
   env: Environment,
   sideEffects?: boolean,
   code?: string,
-  pipeline?: ?string
+  pipeline?: ?string,
 |};
 
 export type AssetRequestResult = {|
   assets: Array<Asset>,
-  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>
+  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
 |};
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = AssetRequestDesc;
@@ -166,31 +179,36 @@ export type AssetGroupNode = {|
   +type: 'asset_group',
   // An asset group node is used to
   value: AssetGroup,
-  deferred: boolean
+  deferred: boolean,
 |};
 
 export type DepPathRequestNode = {|
   id: string,
   +type: 'dep_path_request',
-  value: Dependency
+  value: Dependency,
 |};
 
 export type AssetRequestNode = {|
   id: string,
   +type: 'asset_request',
-  value: AssetRequestDesc
+  value: AssetRequestDesc,
 |};
 
 export type EntrySpecifierNode = {|
   id: string,
   +type: 'entry_specifier',
-  value: ModuleSpecifier
+  value: ModuleSpecifier,
+|};
+
+export type Entry = {|
+  filePath: FilePath,
+  packagePath?: FilePath,
 |};
 
 export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
-  value: ModuleSpecifier
+  value: Entry,
 |};
 
 export type AssetGraphNode =
@@ -213,7 +231,7 @@ export type BundleGraphNode =
 export type ConfigRequestNode = {|
   id: string,
   +type: 'config_request',
-  value: ConfigRequestDesc
+  value: ConfigRequestDesc,
 |};
 
 export type Config = {|
@@ -229,7 +247,7 @@ export type Config = {|
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,
   shouldReload: boolean,
-  shouldInvalidateOnStartup: boolean
+  shouldInvalidateOnStartup: boolean,
 |};
 
 export type ConfigRequestDesc = {|
@@ -238,36 +256,36 @@ export type ConfigRequestDesc = {|
   isSource: boolean,
   pipeline?: ?string,
   plugin?: PackageName,
-  meta: JSONObject
+  meta: JSONObject,
 |};
 
 export type DepVersionRequestNode = {|
   id: string,
   +type: 'dep_version_request',
-  value: DepVersionRequestDesc
+  value: DepVersionRequestDesc,
 |};
 
 export type DepVersionRequestDesc = {|
   moduleSpecifier: PackageName,
   resolveFrom: FilePath,
-  result?: Semver
+  result?: Semver,
 |};
 
 export type EntryRequest = {|
   specifier: ModuleSpecifier,
-  result?: FilePath
+  result?: FilePath,
 |};
 
 export type EntryRequestNode = {|
   id: string,
   +type: 'entry_request',
-  value: string
+  value: string,
 |};
 
 export type TargetRequestNode = {|
   id: string,
   +type: 'target_request',
-  value: FilePath
+  value: FilePath,
 |};
 
 export type CacheEntry = {|
@@ -276,41 +294,46 @@ export type CacheEntry = {|
   hash: string,
   assets: Array<Asset>,
   // Initial assets, pre-post processing
-  initialAssets: ?Array<Asset>
+  initialAssets: ?Array<Asset>,
 |};
 
 export type Bundle = {|
   id: string,
+  hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
   isEntry: ?boolean,
   isInline: ?boolean,
+  isSplittable: ?boolean,
   target: Target,
   filePath: ?FilePath,
   name: ?string,
+  displayName: ?string,
   pipeline: ?string,
-  stats: Stats
+  stats: Stats,
 |};
 
 export type BundleNode = {|
   id: string,
   +type: 'bundle',
-  value: Bundle
+  value: Bundle,
 |};
 
 export type BundleGroupNode = {|
   id: string,
   +type: 'bundle_group',
-  value: BundleGroup
+  value: BundleGroup,
 |};
 
 export type TransformationOpts = {|
   request: AssetRequestDesc,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
 
 export type ValidationOpts = {|
   request: AssetRequestDesc,
-  options: ParcelOptions
+  options: ParcelOptions,
 |};
+
+export type ReportFn = (event: ReporterEvent) => void;

@@ -4,7 +4,7 @@ import semver from 'semver';
 import generate from '@babel/generator';
 import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
-import envVisitor from './visitors/env';
+import processVisitor from './visitors/process';
 import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import {parse} from '@babel/parser';
@@ -17,6 +17,7 @@ import SourceMap from '@parcel/source-map';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
+const BROWSER_RE = /\b(?:process\.browser)\b/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
@@ -40,12 +41,13 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse({asset, options}) {
+  async parse({asset}) {
     let code = await asset.getCode();
     if (
-      !options.scopeHoist &&
+      !asset.env.scopeHoist &&
       !canHaveDependencies(code) &&
       !ENV_RE.test(code) &&
+      !BROWSER_RE.test(code) &&
       !FS_RE.test(code)
     ) {
       return null;
@@ -53,7 +55,7 @@ export default new Transformer({
 
     let sourceFilename: string = relativeUrl(
       options.projectRoot,
-      asset.filePath
+      asset.filePath,
     );
 
     return {
@@ -65,12 +67,18 @@ export default new Transformer({
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
-      })
+        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+      }),
     };
   },
 
   async transform({asset, options, logger}) {
+    // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
+    // Only set here if it is null to allow previous transformers to override this behavior.
+    if (asset.isSplittable == null) {
+      asset.isSplittable = true;
+    }
+
     asset.type = 'js';
     let ast = await asset.getAST();
     if (!ast) {
@@ -79,9 +87,18 @@ export default new Transformer({
 
     let code = await asset.getCode();
 
-    // Inline environment variables
-    if (!asset.env.isNode() && (!code || ENV_RE.test(code))) {
-      walk.simple(ast.program, envVisitor, {asset, ast, env: options.env});
+    // Inline process/ environment variables
+    if (
+      (!asset.env.isNode() && (!code || ENV_RE.test(code))) ||
+      (asset.env.isBrowser() && (!code || BROWSER_RE.test(code)))
+    ) {
+      walk.ancestor(ast.program, processVisitor, {
+        asset,
+        ast,
+        env: options.env,
+        isNode: asset.env.isNode(),
+        isBrowser: asset.env.isBrowser(),
+      });
     }
 
     // Collect dependencies
@@ -124,7 +141,7 @@ export default new Transformer({
       }
     }
 
-    if (options.scopeHoist) {
+    if (asset.env.scopeHoist) {
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
@@ -134,13 +151,13 @@ export default new Transformer({
         filename: asset.filePath,
         babelrc: false,
         configFile: false,
-        plugins: [require('@babel/plugin-transform-modules-commonjs')]
+        plugins: [require('@babel/plugin-transform-modules-commonjs')],
       });
 
       asset.setAST({
         type: 'babel',
         version: '7.0.0',
-        program: res.ast
+        program: res.ast,
       });
     }
 
@@ -150,28 +167,28 @@ export default new Transformer({
   generate({asset, ast, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
-      asset.filePath
+      asset.filePath,
     );
 
     let generated = generate(
       ast.program,
       {
         sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName
+        sourceFileName: sourceFileName,
       },
-      ''
+      '',
     );
 
     let res = {
       code: generated.code,
       map: new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null
-      })
+        [sourceFileName]: null,
+      }),
     };
 
     res.code = generateGlobals(asset) + res.code;
     return res;
-  }
+  },
 });
 
 function generateGlobals(asset) {

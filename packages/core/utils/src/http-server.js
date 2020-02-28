@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Server as HTTPServer} from 'http';
+import type {Server as HTTPOnlyServer} from 'http';
 import type {Server as HTTPSServer} from 'https';
 import type {Socket} from 'net';
 import type {FilePath, HTTPSOptions} from '@parcel/types';
@@ -16,29 +16,36 @@ type CreateHTTPServerOpts = {|
   inputFS: FileSystem,
   outputFS: FileSystem,
   cacheDir: FilePath,
-  listener?: (mixed, mixed) => void
+  listener?: (mixed, mixed) => void,
+  host?: string,
 |};
+
+export type HTTPServer = HTTPOnlyServer | HTTPSServer;
 
 // Creates either an http or https server with an awaitable dispose
 // that closes any connections
 export async function createHTTPServer(
-  options: CreateHTTPServerOpts
+  options: CreateHTTPServerOpts,
 ): Promise<{|
   stop: () => Promise<void>,
-  server: HTTPServer | HTTPSServer
+  server: HTTPServer,
 |}> {
   let server;
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
     server = https.createServer(
-      await generateCertificate(options.outputFS, options.cacheDir),
-      options.listener
+      await generateCertificate(
+        options.outputFS,
+        options.cacheDir,
+        options.host,
+      ),
+      options.listener,
     );
   } else {
     server = https.createServer(
       await getCertificate(options.inputFS, options.https),
-      options.listener
+      options.listener,
     );
   }
 
@@ -71,6 +78,6 @@ export async function createHTTPServer(
           resolve();
         });
       });
-    }
+    },
   };
 }

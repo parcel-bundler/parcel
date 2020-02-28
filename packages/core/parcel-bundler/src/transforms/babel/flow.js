@@ -7,8 +7,8 @@ function getFlowConfig(asset) {
       internal: true,
       babelVersion: 7,
       config: {
-        plugins: [[require('@babel/plugin-transform-flow-strip-types')]]
-      }
+        plugins: [[require('@babel/plugin-transform-flow-strip-types')]],
+      },
     };
   }
 

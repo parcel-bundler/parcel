@@ -26,7 +26,16 @@ declare module 'ink' {
     cyan?: boolean,
     magenta?: boolean,
     reset?: boolean,
-    yellow?: boolean
+    yellow?: boolean,
+    blue?: boolean,
+    blackBright?: boolean,
+    redBright?: boolean,
+    greenBright?: boolean,
+    yellowBright?: boolean,
+    blueBright?: boolean,
+    magentaBright?: boolean,
+    cyanBright?: boolean,
+    whiteBright?: boolean,
   |};
   declare export var Color: React$ComponentType<ColorProps>;
   // https://github.com/vadimdemedes/ink#static

@@ -23,6 +23,8 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   mode: 'development',
   scopeHoist: false,
   minify: false,
+  publicUrl: '/',
+  distDir: process.cwd(),
   env: {},
   disableCache: false,
   sourceMaps: false,
@@ -31,5 +33,5 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   outputFS,
   cache,
   patchConsole: false,
-  packageManager: new NodePackageManager(inputFS)
+  packageManager: new NodePackageManager(inputFS),
 };

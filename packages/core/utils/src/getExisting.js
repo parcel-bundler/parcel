@@ -8,7 +8,7 @@ import fs from 'fs';
  */
 export default function getExisting(
   minifiedPath: string,
-  sourcePath: string
+  sourcePath: string,
 ): {|minified: string, source: string|} {
   let source = fs.readFileSync(sourcePath, 'utf8').trim();
   return {
@@ -18,6 +18,6 @@ export default function getExisting(
           .readFileSync(minifiedPath, 'utf8')
           .trim()
           .replace(/;$/, '')
-      : source
+      : source,
   };
 }

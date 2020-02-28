@@ -3,17 +3,18 @@ import type {Diagnostic} from '@parcel/diagnostic';
 
 import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
+import chalk from 'chalk';
 import path from 'path';
 
 export type AnsiDiagnosticResult = {|
   message: string,
   stack: string,
   codeframe: string,
-  hints: Array<string>
+  hints: Array<string>,
 |};
 
 export default function prettyDiagnostic(
-  diagnostic: Diagnostic
+  diagnostic: Diagnostic,
 ): AnsiDiagnosticResult {
   let {
     origin,
@@ -22,18 +23,18 @@ export default function prettyDiagnostic(
     codeFrame,
     hints,
     filePath,
-    language
+    language,
+    skipFormatting,
   } = diagnostic;
 
   let result = {
-    message: '',
-    stack: '',
+    message:
+      mdAnsi(`**${origin ?? 'unknown'}**: `) +
+      (skipFormatting ? message : mdAnsi(message)),
+    stack: stack ?? filePath ?? '',
     codeframe: '',
-    hints: []
+    hints: [],
   };
-
-  result.message = mdAnsi(`**${origin}**: ${message}`);
-  result.stack = stack || '';
 
   if (codeFrame !== undefined) {
     let highlights = Array.isArray(codeFrame.codeHighlights)
@@ -45,16 +46,14 @@ export default function prettyDiagnostic(
       syntaxHighlighting: true,
       language:
         // $FlowFixMe sketchy null checks do not matter here...
-        language || (filePath ? path.extname(filePath).substr(1) : undefined)
+        language || (filePath ? path.extname(filePath).substr(1) : undefined),
     });
 
     result.codeframe +=
       typeof filePath !== 'string'
         ? ''
-        : mdAnsi(
-            `__${filePath}:${highlights[0].start.line}:${
-              highlights[0].start.column
-            }__\n`
+        : chalk.underline(
+            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
           );
     result.codeframe += formattedCodeFrame;
   }

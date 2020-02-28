@@ -9,136 +9,136 @@ describe('sourcemaps', function() {
         name: 'A',
         original: {
           line: 0,
-          column: 0
+          column: 0,
         },
         generated: {
           line: 0,
-          column: 0
-        }
+          column: 0,
+        },
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: null,
         source: null,
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: null,
         source: null,
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: {
           line: 0,
-          column: 0
+          column: 0,
         },
         source: null,
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         source: null,
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         source: 'index.js',
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: {
           line: 0,
-          column: 0
+          column: 0,
         },
         source: 'index.js',
-        name: null
+        name: null,
       },
       {
         source: 'index.js',
         name: 'A',
         original: {
           line: 1,
-          column: 18
+          column: 18,
         },
         generated: {
           line: 4,
-          column: 187
-        }
-      }
+          column: 187,
+        },
+      },
     ];
 
     let expectedResult = [
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: null,
         source: null,
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: null,
         source: null,
-        name: null
+        name: null,
       },
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         source: 'index.js',
-        name: null
+        name: null,
       },
       {
         source: 'index.js',
         name: 'A',
         original: {
           line: 1,
-          column: 18
+          column: 18,
         },
         generated: {
           line: 4,
-          column: 187
-        }
-      }
+          column: 187,
+        },
+      },
     ];
 
     let sourcemap = new SourceMap(mappings, {});
@@ -150,28 +150,28 @@ describe('sourcemaps', function() {
       {
         generated: {
           line: 1,
-          column: 0
+          column: 0,
         },
         original: {
           line: 1,
-          column: 0
+          column: 0,
         },
         source: 'input.js',
-        name: 'console'
+        name: 'console',
       },
       {
         generated: {
           line: 1,
-          column: 7
+          column: 7,
         },
         original: null,
         source: null,
-        name: null
-      }
+        name: null,
+      },
     ];
 
     let sources = {
-      'input.js': 'console.log("hello world!");'
+      'input.js': 'console.log("hello world!");',
     };
 
     let sourcemap = new SourceMap(mappings, sources);

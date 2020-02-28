@@ -14,8 +14,8 @@ export default new Transformer({
     let config = await asset.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
       {
-        packageKey: 'posthtml'
-      }
+        packageKey: 'posthtml',
+      },
     );
 
     config = config || {};
@@ -42,8 +42,8 @@ export default new Transformer({
       type: 'posthtml',
       version: '0.4.1',
       program: parse(await asset.getCode(), {
-        lowerCaseAttributeNames: true
-      })
+        lowerCaseAttributeNames: true,
+      }),
     };
   },
 
@@ -62,14 +62,14 @@ export default new Transformer({
             return asset.addIncludedFile({filePath});
           }
           return Promise.resolve();
-        })
+        }),
       );
     }
 
     asset.setAST({
       type: 'posthtml',
       version: '0.4.1',
-      program: [...res.tree] // posthtml adds functions to the AST that are not serializable
+      program: [...res.tree], // posthtml adds functions to the AST that are not serializable
     });
 
     return [asset];
@@ -77,7 +77,7 @@ export default new Transformer({
 
   generate({ast}) {
     return {
-      code: render(ast.program)
+      code: render(ast.program),
     };
-  }
+  },
 });

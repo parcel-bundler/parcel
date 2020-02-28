@@ -1,17 +1,25 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  PluginOptions,
+  Symbol,
+} from '@parcel/types';
 import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
 import {relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {relative} from 'path';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 
 export function generateBundleImports(
   from: Bundle,
   bundle: Bundle,
-  assets: Set<Asset>
+  assets: Set<Asset>,
 ) {
   let specifiers = [...assets].map(asset => {
     let id = t.identifier(asset.meta.exportsIdentifier);
@@ -21,14 +29,14 @@ export function generateBundleImports(
   return [
     t.importDeclaration(
       specifiers,
-      t.stringLiteral(relativeBundlePath(from, bundle))
-    )
+      t.stringLiteral(relativeBundlePath(from, bundle)),
+    ),
   ];
 }
 
 export function generateExternalImport(
   bundle: Bundle,
-  external: ExternalModule
+  external: ExternalModule,
 ) {
   let {source, specifiers, isCommonJS} = external;
   let defaultSpecifier = null;
@@ -41,7 +49,7 @@ export function generateExternalImport(
       namespaceSpecifier = t.importNamespaceSpecifier(t.identifier(symbol));
     } else {
       namedSpecifiers.push(
-        t.importSpecifier(t.identifier(symbol), t.identifier(imported))
+        t.importSpecifier(t.identifier(symbol), t.identifier(imported)),
       );
     }
   }
@@ -62,7 +70,7 @@ export function generateExternalImport(
 
   if (namedSpecifiers.length > 0 || statements.length === 0) {
     statements.push(
-      t.importDeclaration(namedSpecifiers, t.stringLiteral(source))
+      t.importDeclaration(namedSpecifiers, t.stringLiteral(source)),
     );
   }
 
@@ -74,15 +82,27 @@ export function generateExports(
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: any,
-  replacements: Map<Symbol, Symbol>
+  replacements: Map<Symbol, Symbol>,
+  options: PluginOptions,
 ) {
   let exportedIdentifiers = new Map();
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {exportSymbol, symbol} of bundleGraph.getExportedSymbols(entry)) {
-      if (symbol) {
-        symbol = replacements.get(symbol) || symbol;
+    for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
+      entry,
+    )) {
+      if (!symbol) {
+        let relativePath = relative(options.inputFS.cwd(), asset.filePath);
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `${relativePath} does not export '${exportSymbol}'`,
+            filePath: entry.filePath,
+            // TODO: add codeFrame when AST from transformers is reused
+          },
+        });
       }
+
+      symbol = replacements.get(symbol) || symbol;
 
       // Map CommonJS module.exports assignments to default ESM exports for interop
       if (exportSymbol === '*') {
@@ -122,10 +142,10 @@ export function generateExports(
       let exportedIds = ids.filter(
         id =>
           exportedIdentifiers.has(id) &&
-          exportedIdentifiers.get(id) !== 'default'
+          exportedIdentifiers.get(id) !== 'default',
       );
       let defaultExport = ids.find(
-        id => exportedIdentifiers.get(id) === 'default'
+        id => exportedIdentifiers.get(id) === 'default',
       );
 
       // If all exports in the binding are named exports, export the entire declaration.
@@ -158,7 +178,7 @@ export function generateExports(
           }
 
           insertPath.insertAfter(
-            t.exportDefaultDeclaration(t.identifier(defaultExport))
+            t.exportDefaultDeclaration(t.identifier(defaultExport)),
           );
         }
 
@@ -171,15 +191,15 @@ export function generateExports(
             specifiers.push(
               t.exportSpecifier(
                 t.identifier(exportName),
-                t.identifier(exportName)
-              )
+                t.identifier(exportName),
+              ),
             );
           }
 
           path.insertAfter(t.exportNamedDeclaration(null, specifiers));
         }
       }
-    }
+    },
   });
 
   return exported;

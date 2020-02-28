@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {PackageJSON, FilePath, ModuleSpecifier} from '@parcel/types';
+import type {
+  SemverRange,
+  PackageJSON,
+  FilePath,
+  ModuleSpecifier,
+} from '@parcel/types';
 import type {ResolveOptions} from 'resolve';
 import type {FileSystem} from '@parcel/fs';
 
@@ -12,20 +17,27 @@ const resolveAsync = promisify(_resolve);
 
 export type ResolveResult = {|
   resolved: FilePath | ModuleSpecifier,
-  pkg?: ?PackageJSON
+  pkg?: ?PackageJSON,
 |};
 
 export async function resolve(
   fs: FileSystem,
   id: string,
-  opts?: ResolveOptions
+  opts?: {|
+    range?: ?SemverRange,
+    ...ResolveOptions,
+  |},
 ): Promise<ResolveResult> {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
     // $FlowFixMe
     opts = opts || {};
     // $FlowFixMe
     opts.packageFilter = pkg => {
-      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+      if (
+        typeof pkg.name === 'string' &&
+        pkg.name.startsWith('@parcel/') &&
+        pkg.name !== '@parcel/watcher'
+      ) {
         if (pkg.source) {
           pkg.main = pkg.source;
         }
@@ -59,25 +71,25 @@ export async function resolve(
       } catch (err) {
         callback(null, false);
       }
-    }
+    },
   });
 
   if (typeof res === 'string') {
     return {
-      resolved: res
+      resolved: res,
     };
   }
 
   return {
     resolved: res[0],
-    pkg: res[1]
+    pkg: res[1],
   };
 }
 
 export function resolveSync(
   fs: FileSystem,
   id: string,
-  opts?: ResolveOptions
+  opts?: ResolveOptions,
 ): ResolveResult {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
     // $FlowFixMe
@@ -114,10 +126,10 @@ export function resolveSync(
       } catch (err) {
         return false;
       }
-    }
+    },
   });
 
   return {
-    resolved: res
+    resolved: res,
   };
 }

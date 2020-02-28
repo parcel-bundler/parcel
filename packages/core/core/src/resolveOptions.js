@@ -16,7 +16,7 @@ const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 export default async function resolveOptions(
-  initialOptions: InitialParcelOptions
+  initialOptions: InitialParcelOptions,
 ): Promise<ParcelOptions> {
   let entries: Array<FilePath>;
   if (initialOptions.entries == null || initialOptions.entries === '') {
@@ -42,7 +42,7 @@ export default async function resolveOptions(
     (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
       ...LOCK_FILE_NAMES,
       '.git',
-      '.hg'
+      '.hg',
     ])) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
 
   let lockFile = null;
@@ -70,9 +70,15 @@ export default async function resolveOptions(
     defaultConfig: initialOptions.defaultConfig,
     patchConsole:
       initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
-    env:
-      initialOptions.env ??
-      (await loadDotEnv(inputFS, path.join(projectRoot, 'index'))),
+    env: {
+      ...initialOptions.env,
+      // $FlowFixMe
+      ...(await loadDotEnv(
+        initialOptions.env ?? {},
+        inputFS,
+        path.join(projectRoot, 'index'),
+      )),
+    },
     mode,
     minify,
     autoinstall: initialOptions.autoinstall ?? true,
@@ -89,12 +95,17 @@ export default async function resolveOptions(
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
+    publicUrl: initialOptions.publicUrl ?? '/',
+    distDir:
+      initialOptions.distDir != null
+        ? path.resolve(initialOptions.distDir)
+        : null,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
     inputFS,
     outputFS,
     cache,
-    packageManager
+    packageManager,
   };
 }

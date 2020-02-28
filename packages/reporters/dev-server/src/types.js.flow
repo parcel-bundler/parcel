@@ -2,15 +2,14 @@
 import type {ServerOptions} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import type {FileSystem} from '@parcel/fs';
+import type {HTTPServer} from '@parcel/utils';
 import {
   IncomingMessage as HTTPIncomingMessage,
-  ServerResponse as HTTPServerResponse,
-  Server as HTTPServer
+  ServerResponse as HTTPServerResponse
 } from 'http';
 import {
   IncomingMessage as HTTPSIncomingMessage,
-  ServerResponse as HTTPSServerResponse,
-  Server as HTTPSServer
+  ServerResponse as HTTPSServerResponse
 } from 'https';
 
 interface HTTPRequest extends HTTPIncomingMessage {
@@ -21,7 +20,6 @@ interface HTTPSRequest extends HTTPSIncomingMessage {
 };
 export type Request = HTTPRequest | HTTPSRequest;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
-export type Server = HTTPServer | HTTPSServer;
 export type DevServerOptions = {|
   ...ServerOptions,
   projectRoot: string,
@@ -30,5 +28,15 @@ export type DevServerOptions = {|
   cacheDir: string,
   inputFS: FileSystem,
   outputFS: FileSystem,
+  logger: PluginLogger
+|};
+
+// TODO: Figure out if there is a node.js type that could be imported with a complete ServerError
+export type ServerError = Error & {|
+  code: string
+|};
+
+export type HMRServerOptions = {|
+  devServer: HTTPServer,
   logger: PluginLogger
 |};

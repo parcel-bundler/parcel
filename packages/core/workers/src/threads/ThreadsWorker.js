@@ -5,14 +5,11 @@ import type {
   MessageHandler,
   ErrorHandler,
   ExitHandler,
-  WorkerMessage
+  WorkerMessage,
 } from '../types';
 import {Worker} from 'worker_threads';
 import path from 'path';
-import {
-  prepareForSerialization,
-  restoreDeserializedObject
-} from '@parcel/utils';
+import {prepareForSerialization, restoreDeserializedObject} from '@parcel/core';
 
 const WORKER_PATH = path.join(__dirname, 'ThreadsChild.js');
 
@@ -27,7 +24,7 @@ export default class ThreadsWorker implements WorkerImpl {
     execArgv: Object,
     onMessage: MessageHandler,
     onError: ErrorHandler,
-    onExit: ExitHandler
+    onExit: ExitHandler,
   ) {
     this.execArgv = execArgv;
     this.onMessage = onMessage;
@@ -38,7 +35,7 @@ export default class ThreadsWorker implements WorkerImpl {
   start() {
     this.worker = new Worker(WORKER_PATH, {
       execArgv: this.execArgv,
-      env: process.env
+      env: process.env,
     });
 
     this.worker.on('message', data => this.handleMessage(data));

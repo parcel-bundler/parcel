@@ -11,9 +11,9 @@ describe.skip('glob', function() {
       assets: ['index.js', '*.js', 'a.js', 'b.js'],
       childBundles: [
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -23,7 +23,7 @@ describe.skip('glob', function() {
 
   it('should require nested directories with a glob', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/glob-deep/index.js')
+      path.join(__dirname, '/integration/glob-deep/index.js'),
     );
 
     await assertBundleTree(b, {
@@ -31,9 +31,9 @@ describe.skip('glob', function() {
       assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
       childBundles: [
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -43,7 +43,7 @@ describe.skip('glob', function() {
 
   it('should support importing a glob of CSS files', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/glob-css/index.js')
+      path.join(__dirname, '/integration/glob-css/index.js'),
     );
 
     await assertBundleTree(b, {
@@ -55,14 +55,14 @@ describe.skip('glob', function() {
           assets: ['index.css', 'other.css', 'local.css'],
           childBundles: [
             {
-              type: 'map'
-            }
-          ]
+              type: 'map',
+            },
+          ],
         },
         {
-          type: 'map'
-        }
-      ]
+          type: 'map',
+        },
+      ],
     });
 
     let output = await run(b);
@@ -71,7 +71,7 @@ describe.skip('glob', function() {
 
     let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
-      'utf8'
+      'utf8',
     );
     assert(css.includes('.local'));
     assert(css.includes('.other'));

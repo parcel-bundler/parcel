@@ -11,12 +11,13 @@ const SCRIPT_TYPES = {
   'text/javascript': 'js',
   'application/json': false,
   'application/ld+json': 'jsonld',
-  'text/html': false
+  'text/html': false,
+  module: 'js',
 };
 
 export default function extractInlineAssets(
   asset: MutableAsset,
-  ast: AST
+  ast: AST,
 ): Array<TransformerResult> {
   let program: PostHTMLNode = ast.program;
   let key = 0;
@@ -28,7 +29,7 @@ export default function extractInlineAssets(
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {
-        let type;
+        let type, env;
 
         if (node.tag === 'style') {
           if (node.attrs && node.attrs.type) {
@@ -46,6 +47,12 @@ export default function extractInlineAssets(
             type = SCRIPT_TYPES[node.attrs.type];
           } else {
             type = node.attrs.type.split('/')[1];
+          }
+
+          if (node.attrs.type === 'module' && asset.env.scopeHoist) {
+            env = {
+              outputFormat: 'esmodule',
+            };
           }
         } else {
           type = 'js';
@@ -74,22 +81,31 @@ export default function extractInlineAssets(
         node.attrs['data-parcel-key'] = parcelKey;
         asset.setAST(ast); // mark dirty
 
+        asset.addDependency({
+          moduleSpecifier: parcelKey,
+        });
+
         parts.push({
           type,
           code: value,
           uniqueKey: parcelKey,
           isIsolated: true,
           isInline: true,
+          env,
           meta: {
             type: 'tag',
-            node
-          }
+            node,
+          },
         });
       }
     }
 
     // Process inline style attributes.
     if (node.attrs && node.attrs.style) {
+      asset.addDependency({
+        moduleSpecifier: parcelKey,
+      });
+
       parts.push({
         type: 'css',
         code: node.attrs.style,
@@ -98,8 +114,8 @@ export default function extractInlineAssets(
         isInline: true,
         meta: {
           type: 'attr',
-          node
-        }
+          node,
+        },
       });
     }
 

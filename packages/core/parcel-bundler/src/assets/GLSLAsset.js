@@ -17,7 +17,7 @@ class GLSLAsset extends Asset {
     // This adds support for parcel features like aliases, and tilde paths.
     const resolver = new Resolver({
       extensions: ['.glsl', '.vert', '.frag'],
-      rootDir: this.options.rootDir
+      rootDir: this.options.rootDir,
     });
 
     // Parse and collect dependencies with glslify-deps
@@ -28,13 +28,13 @@ class GLSLAsset extends Asset {
         try {
           let res = await resolver.resolve(
             target,
-            path.join(opts.basedir, 'index')
+            path.join(opts.basedir, 'index'),
           );
           next(null, res.path);
         } catch (err) {
           next(err);
         }
-      }
+      },
     });
 
     return promisify(depper.inline.bind(depper))(this.contents, cwd);

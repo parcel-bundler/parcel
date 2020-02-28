@@ -4,6 +4,7 @@ import type {PluginLogger} from '@parcel/logger';
 import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
 import {dirname} from 'path';
+import {EOL} from 'os';
 import {NodeFS} from '@parcel/fs';
 
 // E.g: ~library/file.sass
@@ -14,7 +15,7 @@ let didWarnAboutNodeSass = false;
 
 async function warnAboutNodeSassBeingUnsupported(
   filePath,
-  logger: PluginLogger
+  logger: PluginLogger,
 ) {
   if (!didWarnAboutNodeSass) {
     try {
@@ -23,7 +24,7 @@ async function warnAboutNodeSassBeingUnsupported(
       logger.warn({
         origin: '@parcel/transformer-sass',
         message:
-          '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
+          '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`',
       });
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND') {
@@ -38,18 +39,16 @@ async function warnAboutNodeSassBeingUnsupported(
 export default new Transformer({
   async getConfig({asset, resolve}) {
     let config = await asset.getConfig(['.sassrc', '.sassrc.js'], {
-      packageKey: 'sass'
+      packageKey: 'sass',
     });
 
     if (config === null) {
       config = {};
     }
 
-    if (asset.isInline) {
-      config.data = await asset.getCode();
-    } else {
-      config.file = asset.filePath;
-    }
+    const code = await asset.getCode();
+    config.data = config.data ? config.data + EOL + code : code;
+    config.file = asset.filePath;
 
     if (config.importer === undefined) {
       config.importer = [];
@@ -74,13 +73,20 @@ export default new Transformer({
 
     let css;
     try {
-      css = (await sassRender(config)).css;
+      let result = await sassRender(config);
+
+      css = result.css;
+      for (let included of result.stats.includedFiles) {
+        if (included !== asset.filePath) {
+          asset.addIncludedFile({filePath: included});
+        }
+      }
     } catch (err) {
       // Adapt the Error object for the reporter.
       err.fileName = err.file;
       err.loc = {
         line: err.line,
-        column: err.column
+        column: err.column,
       };
 
       throw err;
@@ -89,7 +95,7 @@ export default new Transformer({
     asset.type = 'css';
     asset.setCode(css);
     return [asset];
-  }
+  },
 });
 
 function resolvePathImporter({resolve}) {
@@ -99,7 +105,7 @@ function resolvePathImporter({resolve}) {
     if (WEBPACK_ALIAS_RE.test(url)) {
       const correctPath = url.replace(/^~/, '');
       const error = new Error(
-        `The @import path "${url}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`
+        `The @import path "${url}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`,
       );
       done(error);
       return;
