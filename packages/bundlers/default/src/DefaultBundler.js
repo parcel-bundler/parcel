@@ -34,7 +34,6 @@ export default new Bundler({
             ...context,
             bundleGroup: context?.bundleGroup,
             bundleByType: context?.bundleByType,
-            siblingBundles: context?.siblingBundles,
             bundleGroupDependency: context?.bundleGroupDependency,
             parentNode: node,
           };
@@ -55,7 +54,6 @@ export default new Bundler({
             nullthrows(dependency.target ?? context?.bundleGroup?.target),
           );
           let bundleByType: Map<string, Bundle> = new Map();
-          let siblingBundles = [];
 
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
@@ -66,14 +64,13 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
-            siblingBundlesByAsset.set(asset.id, siblingBundles);
+            siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
 
           return {
             bundleGroup,
             bundleByType,
-            siblingBundles,
             bundleGroupDependency: dependency,
             parentNode: node,
           };
@@ -81,30 +78,39 @@ export default new Bundler({
 
         invariant(context != null);
         invariant(context.parentNode.type === 'asset');
+        let parentAsset = context.parentNode.value;
         let bundleGroup = nullthrows(context.bundleGroup);
         let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
         let bundleByType = nullthrows(context.bundleByType);
-        let siblingBundles = nullthrows(context.siblingBundles);
+        let siblingBundles = nullthrows(
+          siblingBundlesByAsset.get(parentAsset.id),
+        );
+        let allSameType = assets.every(a => a.type === parentAsset.type);
 
         for (let asset of assets) {
-          // If any sibling bundles were created for this asset or its subtree previously,
-          // add them all to the current bundle group as well. This fixes cases where two entries
-          // depend on a shared asset which has siblings. Due to DFS, the subtree of the shared
-          // asset is only processed once, meaning any sibling bundles created due to type changes
-          // would only be connected to the first bundle group. To work around this, we store a list
-          // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
-          // connect them all to the current bundle group as well.
           let siblings = siblingBundlesByAsset.get(asset.id);
-          if (siblings) {
-            for (let bundle of siblings) {
-              bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
-            }
-          } else {
-            siblingBundlesByAsset.set(asset.id, siblingBundles);
-          }
 
-          let parentAsset = context.parentNode.value;
           if (parentAsset.type === asset.type) {
+            if (allSameType && siblings) {
+              // If any sibling bundles were created for this asset or its subtree previously,
+              // add them all to the current bundle group as well. This fixes cases where two entries
+              // depend on a shared asset which has siblings. Due to DFS, the subtree of the shared
+              // asset is only processed once, meaning any sibling bundles created due to type changes
+              // would only be connected to the first bundle group. To work around this, we store a list
+              // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
+              // connect them all to the current bundle group as well.
+              for (let bundle of siblings) {
+                bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+              }
+            } else if (!siblings) {
+              // Propagate the same siblings further if there are no bundles being created in this
+              // asset group, otherwise start a new set of siblings.
+              siblingBundlesByAsset.set(
+                asset.id,
+                allSameType ? siblingBundles : [],
+              );
+            }
+
             continue;
           }
 
@@ -126,6 +132,10 @@ export default new Bundler({
             bundleRoots.set(bundle, [asset]);
             bundleGraph.createAssetReference(dependency, asset);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+          }
+
+          if (!siblings) {
+            siblingBundlesByAsset.set(asset.id, []);
           }
         }
 
