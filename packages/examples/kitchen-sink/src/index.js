@@ -3,6 +3,8 @@ import parcel from 'url:./parcel.webp';
 import {message} from './message';
 import warehouse from 'url:./image.jpg?height=200&as=webp';
 
+console.log(warehouse);
+
 // import('./async');
 // import('./async2');
 
