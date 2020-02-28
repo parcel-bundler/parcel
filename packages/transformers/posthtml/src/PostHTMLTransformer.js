@@ -69,7 +69,7 @@ export default new Transformer({
     asset.setAST({
       type: 'posthtml',
       version: '0.4.1',
-      program: [...res.tree], // posthtml adds functions to the AST that are not serializable
+      program: JSON.parse(JSON.stringify(res.tree)), // posthtml adds functions to the AST that are not serializable
     });
 
     return [asset];
