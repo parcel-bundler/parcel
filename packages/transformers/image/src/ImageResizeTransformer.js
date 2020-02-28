@@ -24,7 +24,7 @@ export default new Transformer({
       imagePipeline[format]();
     }
 
-    asset.setBuffer(await imagePipeline.toBuffer());
+    asset.setStream(imagePipeline);
 
     return [asset];
   },
