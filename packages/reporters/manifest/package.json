@@ -1,0 +1,14 @@
+{
+  "name": "@parcel/reporter-manifest",
+  "version": "2.0.0-frontbucket.14",
+  "main": "lib/ManifestReporter.js",
+  "source": "src/ManifestReporter.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-frontbucket.13",
+    "@parcel/utils": "^2.0.0-frontbucket.14"
+  }
+}
