@@ -339,7 +339,8 @@ export function generateExports(
           });
         }
 
-        symbol = replacements.get(symbol) || symbol;
+        let hasReplacement = replacements.get(symbol);
+        symbol = hasReplacement ?? symbol;
 
         // If there is an existing binding with the exported name (e.g. an import),
         // rename it so we can use the name for the export instead.
@@ -352,28 +353,37 @@ export function generateExports(
         }
 
         let binding = path.scope.getBinding(symbol);
-        let id = !t.isValidIdentifier(exportSymbol)
-          ? path.scope.generateUid(exportSymbol)
-          : exportSymbol;
-        rename(path.scope, symbol, id);
+        if (!hasReplacement) {
+          let id = !t.isValidIdentifier(exportSymbol)
+            ? path.scope.generateUid(exportSymbol)
+            : exportSymbol;
+          // rename only once, avoid having to update `replacements` transitively
+          rename(path.scope, symbol, id);
+          replacements.set(symbol, id);
+          symbol = id;
+        }
 
-        binding.path.getStatementParent().insertAfter(
+        let [stmt] = binding.path.getStatementParent().insertAfter(
           EXPORT_TEMPLATE({
             NAME: t.identifier(exportSymbol),
-            IDENTIFIER: t.identifier(id),
+            IDENTIFIER: t.identifier(symbol),
           }),
         );
+        path.scope.getBinding(symbol).reference(stmt.get('expression.right'));
 
         // Exports other than the default export are live bindings. Insert an assignment
         // after each constant violation so this remains true.
         if (exportSymbol !== 'default') {
           for (let path of binding.constantViolations) {
-            path.insertAfter(
+            let [stmt] = path.insertAfter(
               EXPORT_TEMPLATE({
                 NAME: t.identifier(exportSymbol),
-                IDENTIFIER: t.identifier(id),
+                IDENTIFIER: t.identifier(symbol),
               }),
             );
+            path.scope
+              .getBinding(symbol)
+              .reference(stmt.get('expression.right'));
           }
         }
       }
