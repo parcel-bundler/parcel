@@ -177,7 +177,7 @@ export default new Bundler({
           b =>
             !b.isEntry &&
             b.isSplittable &&
-            // Don't share across workers for now as worker-specific code is added
+            // ATLASSIAN: Don't share across workers for now as worker-specific code is added
             !b.env.isIsolated(),
         );
 

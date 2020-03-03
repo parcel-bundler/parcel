@@ -90,7 +90,10 @@ export default new Namer({
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
     let name = nameFromContent(mainBundle, options.rootDir);
-    if (!bundle.isEntry) {
+    if (
+      (options.mode === 'production' && bundle.env.context === 'browser') ||
+      !bundle.isEntry
+    ) {
       name += '.' + bundle.hashReference;
     }
 
