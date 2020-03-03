@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-react-refresh-wrap",
-  "version": "2.0.0-frontbucket.14",
+  "version": "2.0.0-frontbucket.15",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,7 +20,7 @@
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.0.0",
     "@babel/types": "^7.0.0",
-    "@parcel/plugin": "^2.0.0-frontbucket.13",
+    "@parcel/plugin": "^2.0.0-frontbucket.14",
     "@parcel/source-map": "^2.0.0-frontbucket.14",
     "@parcel/utils": "^2.0.0-frontbucket.14",
     "react-refresh": "^0.6.0",
