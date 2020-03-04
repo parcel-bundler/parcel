@@ -32,7 +32,6 @@
     "lodash": "^4.17.15",
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
-    "nyc": "^11.1.0",
     "parcel": "^2.0.0-alpha.3.2",
     "parcel-bundler": "^2.0.0-alpha.3.1",
     "postcss-custom-properties": "^8.0.9",

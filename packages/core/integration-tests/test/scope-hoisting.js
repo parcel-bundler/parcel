@@ -138,6 +138,44 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('supports namespace imports of excluded assets (node_modules)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-external/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      assert(contents.includes('require("lodash")'));
+
+      let match = contents.match(
+        /\$parcel\$exportWildcard\((\$[a-f0-9]+\$exports), _lodash\);/,
+      );
+      assert(match);
+      let [, id] = match;
+      assert(contents.includes(`output = ${id}.add(10, 2);`));
+
+      let output = await run(b);
+      assert.deepEqual(output, 12);
+    });
+
+    it('supports namespace imports of excluded reexporting assets (sideEffects: false)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-sideEffects/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {Main: 'main', a: 'foo', b: 'bar'});
+    });
+
     it('supports re-exporting all exports from another module', async function() {
       let b = await bundle(
         path.join(
@@ -641,7 +679,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 6);
     });
 
-    it('supports the package.json sideEffects: false flag with shared dependencies', async function() {
+    it('supports the package.json sideEffects: false flag with shared dependencies and code splitting', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -675,6 +713,21 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(await output, 4);
+    });
+
+    it('supports importing a namespace from a transpiled CommonJS module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-commonjs-transpiled/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(await output, {
+        bar: 3,
+        foo: 1,
+      });
     });
 
     it('removes unused exports', async function() {
