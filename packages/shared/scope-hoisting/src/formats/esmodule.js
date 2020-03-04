@@ -140,24 +140,30 @@ export function generateExports(
       if (ids.length === 0) {
         return;
       }
+      ids.sort();
 
-      let exportedSymbols = [...exportedIdentifiers.entries()]
+      let exportedIdentifiersFiltered = [...exportedIdentifiers.entries()]
         .filter(
           ([exportSymbol, symbol]) =>
             exportSymbol !== 'default' && ids.includes(symbol),
         )
-        .map(([exportSymbol]) => exportSymbol);
+        .sort(([, a], [, b]) => (a > b ? -1 : a < b ? 1 : 0));
+      let exportedSymbolsBindings = exportedIdentifiersFiltered.map(
+        ([, symbol]) => symbol,
+      );
+      let exportedSymbols = exportedIdentifiersFiltered.map(
+        ([exportSymbol]) => exportSymbol,
+      );
+
       let defaultExport = exportedIdentifiers.get('default');
       if (!ids.includes(defaultExport)) {
         defaultExport = null;
       }
 
-      ids.sort();
-      exportedSymbols.sort();
       // If all exports in the binding are named exports, export the entire declaration.
       // Also rename all of the identifiers to their exported name.
       if (
-        areArraysStrictlyEqual(ids, exportedSymbols) &&
+        areArraysStrictlyEqual(ids, exportedSymbolsBindings) &&
         !path.isImportDeclaration()
       ) {
         path.replaceWith(t.exportNamedDeclaration(path.node, []));

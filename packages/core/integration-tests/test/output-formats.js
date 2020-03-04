@@ -420,8 +420,8 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export { test, test as other, foo };'));
-      assert(dist.includes('export default test;'));
+      assert(dist.includes('export { foo, other, other as test };'));
+      assert(dist.includes('export default other;'));
     });
 
     it('should support esmodule output (re-export)', async function() {

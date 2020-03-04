@@ -28,35 +28,45 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 import {assertString} from '../utils';
 
-const REQUIRE_TEMPLATE: ({|
-  BUNDLE: Expression,
-  // $FlowFixMe
-|}) => Expression = template.expression('require(BUNDLE)');
-const EXPORT_TEMPLATE: ({|
-  NAME: Identifier,
-  IDENTIFIER: Expression,
-  // $FlowFixMe
-|}) => ExpressionStatement = template.statement('exports.NAME = IDENTIFIER;');
-const MODULE_EXPORTS_TEMPLATE: ({|
-  IDENTIFIER: Expression,
-  // $FlowFixMe
-|}) => ExpressionStatement = template.statement('module.exports = IDENTIFIER;');
-const INTEROP_TEMPLATE: ({|
-  MODULE: Expression,
-  // $FlowFixMe
-|}) => Expression = template.expression('$parcel$interopDefault(MODULE)');
-const ASSIGN_TEMPLATE: ({|
-  SPECIFIERS: LVal,
-  MODULE: Expression,
-  // $FlowFixMe
-|}) => VariableDeclaration = template.statement('var SPECIFIERS = MODULE;');
-const NAMESPACE_TEMPLATE: ({|
-  NAMESPACE: Expression,
-  MODULE: Expression,
-  // $FlowFixMe
-|}) => Expression = template.expression(
-  '$parcel$exportWildcard(NAMESPACE, MODULE)',
-);
+const REQUIRE_TEMPLATE = template.expression<
+  {|
+    BUNDLE: Expression,
+  |},
+  Expression,
+>('require(BUNDLE)');
+const EXPORT_TEMPLATE = template.statement<
+  {|
+    NAME: Identifier,
+    IDENTIFIER: Expression,
+  |},
+  ExpressionStatement,
+>('exports.NAME = IDENTIFIER;');
+const MODULE_EXPORTS_TEMPLATE = template.statement<
+  {|
+    IDENTIFIER: Expression,
+  |},
+  ExpressionStatement,
+>('module.exports = IDENTIFIER;');
+const INTEROP_TEMPLATE = template.expression<
+  {|
+    MODULE: Expression,
+  |},
+  Expression,
+>('$parcel$interopDefault(MODULE)');
+const ASSIGN_TEMPLATE = template.statement<
+  {|
+    SPECIFIERS: LVal,
+    MODULE: Expression,
+  |},
+  VariableDeclaration,
+>('var SPECIFIERS = MODULE;');
+const NAMESPACE_TEMPLATE = template.expression<
+  {|
+    NAMESPACE: Expression,
+    MODULE: Expression,
+  |},
+  Expression,
+>('$parcel$exportWildcard(NAMESPACE, MODULE)');
 
 // List of engines that support object destructuring syntax
 const DESTRUCTURING_ENGINES = {
