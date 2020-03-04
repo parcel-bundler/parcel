@@ -26,7 +26,7 @@ import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {assertString} from '../utils';
+import {assertString, getIdentifier} from '../utils';
 
 const REQUIRE_TEMPLATE: ({|
   BUNDLE: Expression,
@@ -115,7 +115,10 @@ export function generateBundleImports(
   scope: Scope,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
-    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
+    let id = asset.meta.shouldWrap
+      ? getIdentifier(asset, 'init')
+      : t.identifier(assertString(asset.meta.exportsIdentifier));
+
     return t.objectProperty(id, id, false, true);
   });
 
@@ -283,16 +286,26 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
-    exported.add(exportsId);
-
-    statements.push(
-      EXPORT_TEMPLATE({
-        NAME: t.identifier(exportsId),
-        IDENTIFIER: t.identifier(exportsId),
-      }),
-    );
+    if (asset.meta.shouldWrap) {
+      let id = getIdentifier(asset, 'init');
+      exported.add(id.name);
+      statements.push(
+        EXPORT_TEMPLATE({
+          NAME: id,
+          IDENTIFIER: id,
+        }),
+      );
+    } else {
+      let exportsId = asset.meta.exportsIdentifier;
+      invariant(typeof exportsId === 'string');
+      exported.add(exportsId);
+      statements.push(
+        EXPORT_TEMPLATE({
+          NAME: t.identifier(exportsId),
+          IDENTIFIER: t.identifier(exportsId),
+        }),
+      );
+    }
   }
 
   let entry = bundle.getMainEntry();

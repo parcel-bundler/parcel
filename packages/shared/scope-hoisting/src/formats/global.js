@@ -14,8 +14,13 @@ import * as t from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
 import {relativeBundlePath} from '@parcel/utils';
-import {isEntry, isReferenced} from '../utils';
-import {assertString} from '../utils';
+import {
+  assertString,
+  getName,
+  getIdentifier,
+  isEntry,
+  isReferenced,
+} from '../utils';
 
 const IMPORT_TEMPLATE = template.statement<
   {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
@@ -48,7 +53,9 @@ export function generateBundleImports(
   for (let asset of assets) {
     statements.push(
       IMPORT_TEMPLATE({
-        IDENTIFIER: t.identifier(assertString(asset.meta.exportsIdentifier)),
+        IDENTIFIER: asset.meta.shouldWrap
+          ? getIdentifier(asset, 'init')
+          : t.identifier(assertString(asset.meta.exportsIdentifier)),
         ASSET_ID: t.stringLiteral(asset.id),
       }),
     );
@@ -73,14 +80,15 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId = asset.meta.shouldWrap
+      ? getName(asset, 'init')
+      : assertString(asset.meta.exportsIdentifier);
     exported.add(exportsId);
 
     statements.push(
       EXPORT_TEMPLATE({
         ASSET_ID: t.stringLiteral(asset.id),
-        IDENTIFIER: t.identifier(assertString(asset.meta.exportsIdentifier)),
+        IDENTIFIER: t.identifier(exportsId),
       }),
     );
   }

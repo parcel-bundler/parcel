@@ -9,13 +9,13 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule} from '../types';
 import * as t from '@babel/types';
-import {relativeBundlePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {relative} from 'path';
+import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {assertString} from '../utils';
+import {assertString, getName, getIdentifier} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -23,7 +23,10 @@ export function generateBundleImports(
   assets: Set<Asset>,
 ) {
   let specifiers = [...assets].map(asset => {
-    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
+    let id = asset.meta.shouldWrap
+      ? getIdentifier(asset, 'init')
+      : t.identifier(assertString(asset.meta.exportsIdentifier));
+
     return t.importSpecifier(id, id);
   });
 
@@ -121,8 +124,13 @@ export function generateExports(
   }
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId: string;
+    if (asset.meta.shouldWrap) {
+      exportsId = getName(asset, 'init');
+    } else {
+      invariant(typeof asset.meta.exportsIdentifier === 'string');
+      exportsId = asset.meta.exportsIdentifier;
+    }
     exportedIdentifiers.set(exportsId, exportsId);
   }
 
