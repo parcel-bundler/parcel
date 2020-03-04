@@ -18,11 +18,8 @@ const WRAPPER_TEMPLATE = template(`
 `);
 
 const ESMODULE_TEMPLATE = template(`exports.__esModule = true;`);
-
-const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
-const EXPORT_ALL_TEMPLATE = template(
-  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))',
-);
+const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL;');
+const EXPORT_ALL_TEMPLATE = template('$parcel$exportAll(INTO, ID, SOURCE);');
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
 const REQUIRE_RESOLVE_CALL_TEMPLATE = template(
   '$parcel$require$resolve(ID, SOURCE)',
@@ -569,7 +566,7 @@ const VISITOR = {
 
     path.replaceWith(
       EXPORT_ALL_TEMPLATE({
-        OLD_NAME: getExportsIdentifier(asset, path.scope),
+        INTO: getExportsIdentifier(asset, path.scope),
         SOURCE: t.stringLiteral(path.node.source.value),
         ID: t.stringLiteral(asset.id),
       }),

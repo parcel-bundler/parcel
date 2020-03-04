@@ -556,7 +556,7 @@ export type CreateBundleOpts =
 export type SymbolResolution = {|
   +asset: Asset,
   +exportSymbol: Symbol | string,
-  +symbol: void | Symbol,
+  +symbol: ?Symbol,
 |};
 
 export interface Bundle {
@@ -615,6 +615,7 @@ export interface MutableBundleGraph {
 }
 
 export interface BundleGraph {
+  bundleHasAsset(bundle: Bundle, asset: Asset): boolean;
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
@@ -627,8 +628,12 @@ export interface BundleGraph {
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
-  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): SymbolResolution;
+  getExportedSymbols(asset: Asset, boundary: ?Bundle): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>,
   ): ?TContext;

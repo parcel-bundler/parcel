@@ -20,11 +20,13 @@ import treeShake from './shake';
 import {getName, getIdentifier} from './utils';
 import OutputFormats from './formats/index.js';
 
+const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL;');
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)',
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
+const WILDCARD_TEMPLATE = template('$parcel$exportWildcard(DEST, SRC);');
 
 function assertString(v): string {
   invariant(typeof v === 'string');
@@ -121,7 +123,7 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
-      node = addBundleImport(originalModule, path);
+      node = addBundleImport(originalModule, isUnusedValue(path));
       return node ? interop(originalModule, symbol, path, node) : null;
     }
 
@@ -144,14 +146,15 @@ export function link({
     return node;
   }
 
-  function findSymbol(path, symbol) {
+  function findSymbol(path: any, symbol: string) {
+    let replaced = symbol;
     if (symbol && replacements.has(symbol)) {
-      symbol = replacements.get(symbol);
+      replaced = replacements.get(symbol);
     }
 
     // if the symbol is in the scope there is no need to remap it
-    if (path.scope.getProgramParent().hasBinding(symbol)) {
-      return t.identifier(symbol);
+    if (path.scope.getProgramParent().hasBinding(replaced)) {
+      return t.identifier(replaced);
     }
 
     return null;
@@ -265,7 +268,7 @@ export function link({
     return specifiers.get('*');
   }
 
-  function addBundleImport(mod, path) {
+  function addBundleImport(mod, unused) {
     // Find the first bundle containing this asset, and create an import for it if needed.
     // An asset may be duplicated in multiple bundles, so try to find one that matches
     // the current environment if possible and fall back to the first one.
@@ -283,7 +286,7 @@ export function link({
     }
 
     // If not unused, add the asset to the list of specifiers to import.
-    if (!isUnusedValue(path) && mod.meta.exportsIdentifier) {
+    if (!unused && mod.meta.exportsIdentifier) {
       invariant(imported.assets != null);
       imported.assets.add(mod);
       return t.identifier(mod.meta.exportsIdentifier);
@@ -339,6 +342,7 @@ export function link({
           if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
+              // TODO `mod` might be excluded by concat()
               let name = assertString(mod.meta.exportsIdentifier);
               node = t.identifier(replacements.get(name) || name);
 
@@ -374,7 +378,7 @@ export function link({
               node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else if (mod.type === 'js') {
-            node = addBundleImport(mod, path);
+            node = addBundleImport(mod, isUnusedValue(path));
           }
 
           if (node) {
@@ -403,6 +407,86 @@ export function link({
         );
         let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
         path.replaceWith(t.valueToNode(mod.id));
+      } else if (callee.name === '$parcel$exportAll') {
+        let [obj, id, source] = args;
+        if (
+          args.length !== 3 ||
+          !t.isIdentifier(obj) ||
+          !t.isStringLiteral(id) ||
+          !t.isStringLiteral(source)
+        ) {
+          throw new Error(
+            'invariant: invalid signature, expected : $parcel$exportWildcard(identifier, string, string)',
+          );
+        }
+
+        let asset = nullthrows(assets.get(id.value));
+        let dep = nullthrows(
+          bundleGraph
+            .getDependencies(asset)
+            .find(dep => dep.moduleSpecifier === source.value),
+        );
+
+        let mod = bundleGraph.getDependencyResolution(dep);
+
+        if (mod && mod.meta.isES6Module) {
+          // resolve wildcard into static assignments
+          let exports = bundleGraph
+            .getExportedSymbols(mod, bundle)
+            .map(({asset: symbolAsset, symbol, exportSymbol}) => {
+              if (exportSymbol === 'default') return;
+
+              if (symbol) {
+                let symbolID = findSymbol(path, symbol);
+                if (symbolID) {
+                  return EXPORT_ASSIGN_TEMPLATE({
+                    EXPORTS: obj,
+                    NAME: t.identifier(exportSymbol),
+                    LOCAL: symbolID,
+                  });
+                }
+              } else {
+                // asset is outside of bundle
+                let symbolID = addBundleImport(symbolAsset, false);
+                if (symbolID) {
+                  return EXPORT_ASSIGN_TEMPLATE({
+                    EXPORTS: obj,
+                    NAME: t.identifier(exportSymbol),
+                    LOCAL: t.memberExpression(
+                      symbolID,
+                      t.identifier(exportSymbol),
+                    ),
+                  });
+                }
+              }
+            })
+            .filter(Boolean);
+          path.replaceWithMultiple(exports);
+        } else {
+          // TODO
+          if (!mod) {
+            let name = addExternalModule(path, dep);
+            if (!name) {
+              path.remove();
+            } else {
+              path.replaceWith(
+                WILDCARD_TEMPLATE({
+                  DEST: obj,
+                  SRC: nullthrows(findSymbol(path, name)),
+                }),
+              );
+            }
+          } else {
+            path.replaceWith(
+              WILDCARD_TEMPLATE({
+                DEST: obj,
+                SRC: nullthrows(
+                  findSymbol(path, assertString(mod.meta.exportsIdentifier)),
+                ),
+              }),
+            );
+          }
+        }
       }
     },
     VariableDeclarator: {

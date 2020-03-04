@@ -479,7 +479,13 @@ export default class BundleGraph {
     );
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol) {
+  // don't resolve asset further when an asset outside of `boundary`
+  // is encountered
+  resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
+    if (boundary && !this.bundleHasAsset(boundary, asset)) {
+      return {asset, exportSymbol: symbol, symbol: null};
+    }
+
     let identifier = asset.symbols.get(symbol);
     if (symbol === '*') {
       return {asset, exportSymbol: '*', symbol: identifier};
@@ -521,8 +527,13 @@ export default class BundleGraph {
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
       if (dep.symbols.get('*') === '*' && symbol !== 'default') {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
-        let result = this.resolveSymbol(resolved, symbol);
+        let resolved = this.getDependencyResolution(dep);
+        if (!resolved) {
+          // External module.
+          break;
+        }
+
+        let result = this.resolveSymbol(resolved, symbol, boundary);
         if (result.symbol != null) {
           return {
             asset: result.asset,
@@ -536,21 +547,35 @@ export default class BundleGraph {
     return {asset, exportSymbol: symbol, symbol: identifier};
   }
 
-  getExportedSymbols(asset: Asset) {
+  // don't resolve asset further when assets outside of `boundary`
+  // are encountered (but do list the symbols)
+  getExportedSymbols(asset: Asset, boundary: ?Bundle) {
     let symbols = [];
 
     for (let symbol of asset.symbols.keys()) {
-      symbols.push(this.resolveSymbol(asset, symbol));
+      symbols.push(this.resolveSymbol(asset, symbol, boundary));
     }
 
     let deps = this.getDependencies(asset);
     for (let dep of deps) {
       if (dep.symbols.get('*') === '*') {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
-        let exported = this.getExportedSymbols(resolved).filter(
+        let resolved = this.getDependencyResolution(dep);
+        if (!resolved) continue;
+
+        let exported = this.getExportedSymbols(resolved, boundary).filter(
           s => s.exportSymbol !== 'default',
         );
-        symbols.push(...exported);
+        if (boundary && !this.bundleHasAsset(boundary, resolved)) {
+          symbols.push(
+            ...exported.map(({exportSymbol}) => ({
+              asset,
+              exportSymbol,
+              symbol: null,
+            })),
+          );
+        } else {
+          symbols.push(...exported);
+        }
       }
     }
 
