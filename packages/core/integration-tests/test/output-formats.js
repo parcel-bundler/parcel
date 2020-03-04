@@ -298,6 +298,41 @@ describe('output formats', function() {
       );
     });
 
+    it('should call init for wrapped modules when codesplitting to to commonjs', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-wrap-codesplit/a.js',
+        ),
+      );
+
+      let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+      let [childBundle] = b.getChildBundles(mainBundle);
+
+      let mainBundleContents = await outputFS.readFile(
+        mainBundle.filePath,
+        'utf8',
+      );
+      let childBundleContents = await outputFS.readFile(
+        childBundle.filePath,
+        'utf8',
+      );
+
+      assert(
+        /exports.\$[a-f0-9]+\$init = \$[a-f0-9]+\$init;/.test(
+          mainBundleContents,
+        ),
+      );
+      assert(
+        /var {\s*\$[a-f0-9]+\$init\s*} = require\("\.\/index\.js"\);/.test(
+          childBundleContents,
+        ),
+      );
+
+      // TODO uncoment after https://github.com/parcel-bundler/parcel/issues/3989 is fixed
+      // assert.equal(await run(b), 2);
+    });
+
     it('should support sideEffects: false', async function() {
       let b = await bundle(
         path.join(
@@ -579,6 +614,31 @@ describe('output formats', function() {
       assert(
         new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
           async2,
+        ),
+      );
+    });
+
+    it('should call init for wrapped modules when codesplitting to esmodules', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-wrap-codesplit/a.js'),
+      );
+
+      let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+      let [childBundle] = b.getChildBundles(mainBundle);
+
+      let mainBundleContents = await outputFS.readFile(
+        mainBundle.filePath,
+        'utf8',
+      );
+      let childBundleContents = await outputFS.readFile(
+        childBundle.filePath,
+        'utf8',
+      );
+
+      assert(/export function \$[a-f0-9]+\$init\(\)/.test(mainBundleContents));
+      assert(
+        /import { \$[a-f0-9]+\$init } from "\.\/index\.js"/.test(
+          childBundleContents,
         ),
       );
     });

@@ -1153,6 +1153,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {exports: {foo: 2}});
     });
 
+    it('should call init for wrapped modules when codesplitting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-module-codesplit/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+    });
+
     it('should wrap modules that non-statically access `module`', async function() {
       let b = await bundle(
         path.join(
