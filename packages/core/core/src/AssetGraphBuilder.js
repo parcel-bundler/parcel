@@ -292,7 +292,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   processIncompleteAssetGraphNode(node: AssetGraphNode, signal: ?AbortSignal) {
     let request = nullthrows(this.getCorrespondingRequest(node));
-    if (!this.requestTracker.isTracked(request.id)) {
+    if (!this.requestTracker.hasValidResult(request.id)) {
       this.queueRequest(request, {
         signal,
       });
