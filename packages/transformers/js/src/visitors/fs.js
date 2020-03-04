@@ -1,15 +1,37 @@
 // @flow
 import type {MutableAsset} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
+import type {Visitor, NodePath} from '@babel/traverse';
+import type {
+  CallExpression,
+  Node,
+  ObjectProperty,
+  StringLiteral,
+} from '@babel/types';
 
 import * as t from '@babel/types';
+import {
+  isAssignmentExpression,
+  isCallExpression,
+  isIdentifier,
+  isImportDeclaration,
+  isImportSpecifier,
+  isMemberExpression,
+  isObjectPattern,
+  isObjectProperty,
+  isStringLiteral,
+  isVariableDeclarator,
+} from '@babel/types';
 import Path from 'path';
 import fs from 'fs';
 import template from '@babel/template';
 import invariant from 'assert';
 import {errorToDiagnostic} from '@parcel/diagnostic';
 
-const bufferTemplate = template('Buffer(CONTENT, ENC)');
+const bufferTemplate = template.expression<
+  {|CONTENT: StringLiteral, ENC: StringLiteral|},
+  CallExpression,
+>('Buffer(CONTENT, ENC)');
 
 export default ({
   AssignmentExpression(path) {
@@ -31,15 +53,33 @@ export default ({
         __dirname: Path.dirname(asset.filePath),
         __filename: Path.basename(asset.filePath),
       };
-      let filename, args, res;
 
       try {
-        [filename, ...args] = path
+        let [filename, ...args] = (path
           .get('arguments')
-          .map(arg => evaluate(arg, vars));
+          .map(arg => evaluate(arg, vars)): Array<string>);
 
         filename = Path.resolve(filename);
-        res = fs.readFileSync(filename, ...args);
+        let res = fs.readFileSync(filename, ...args);
+
+        let replacementNode;
+        if (Buffer.isBuffer(res)) {
+          replacementNode = bufferTemplate({
+            CONTENT: t.stringLiteral(res.toString('base64')),
+            ENC: t.stringLiteral('base64'),
+          });
+        } else {
+          // $FlowFixMe it is a string
+          replacementNode = t.stringLiteral(res);
+        }
+
+        asset.addIncludedFile({
+          filePath: filename,
+        });
+
+        path.replaceWith(replacementNode);
+        invariant(asset.ast);
+        asset.ast.isDirty = true;
       } catch (_err) {
         // $FlowFixMe yes it is an error
         let err: Error = _err;
@@ -52,57 +92,35 @@ export default ({
           delete err.stack;
 
           logger.warn(errorToDiagnostic(err));
-          return;
+        } else {
+          // Add location info so we log a code frame with the error
+          err.loc =
+            path.node.arguments.length > 0
+              ? path.node.arguments[0].loc?.start
+              : path.node.loc?.start;
+          throw err;
         }
-
-        // Add location info so we log a code frame with the error
-        err.loc =
-          path.node.arguments.length > 0
-            ? path.node.arguments[0].loc?.start
-            : path.node.loc?.start;
-        throw err;
       }
-
-      let replacementNode;
-      if (Buffer.isBuffer(res)) {
-        replacementNode = bufferTemplate({
-          CONTENT: t.stringLiteral(res.toString('base64')),
-          ENC: t.stringLiteral('base64'),
-        });
-      } else {
-        replacementNode = t.stringLiteral(res);
-      }
-
-      asset.addIncludedFile({
-        filePath: filename,
-      });
-
-      path.replaceWith(replacementNode);
-      invariant(asset.ast);
-      asset.ast.isDirty = true;
     }
   },
-}: {
-  [string]: (node: any, {|asset: MutableAsset, logger: PluginLogger|}) => void,
-  ...,
-});
+}: Visitor<{|asset: MutableAsset, logger: PluginLogger|}>);
 
 function isRequire(node, name, method) {
   // e.g. require('fs').readFileSync
-  if (t.isMemberExpression(node) && node.property.name === method) {
+  if (isMemberExpression(node) && node.property.name === method) {
     node = node.object;
   }
 
-  if (!t.isCallExpression(node)) {
+  if (!isCallExpression(node)) {
     return false;
   }
 
   let {callee, arguments: args} = node;
   let isRequire =
-    t.isIdentifier(callee) &&
+    isIdentifier(callee) &&
     callee.name === 'require' &&
     args.length === 1 &&
-    t.isStringLiteral(args[0]);
+    isStringLiteral(args[0]);
 
   if (!isRequire) {
     return false;
@@ -115,20 +133,20 @@ function isRequire(node, name, method) {
   return true;
 }
 
-function referencesImport(path, name, method) {
+function referencesImport(path: NodePath<CallExpression>, name, method) {
   let callee = path.node.callee;
   let bindingPath;
 
   // e.g. readFileSync()
-  if (t.isIdentifier(callee)) {
+  if (isIdentifier(callee)) {
     bindingPath = getBindingPath(path, callee.name);
-  } else if (t.isMemberExpression(callee)) {
+  } else if (isMemberExpression(callee)) {
     if (callee.property.name !== method) {
       return false;
     }
 
     // e.g. fs.readFileSync()
-    if (t.isIdentifier(callee.object)) {
+    if (isIdentifier(callee.object)) {
       bindingPath = getBindingPath(path, callee.object.name);
 
       // require('fs').readFileSync()
@@ -143,35 +161,46 @@ function referencesImport(path, name, method) {
     return;
   }
 
-  let bindingNode = bindingPath.getData('__require') || bindingPath.node;
-  let parent = bindingPath.parentPath;
+  let bindingNode: Node = bindingPath.getData('__require') || bindingPath.node;
+  let parent: Node = bindingPath.parent;
 
   // e.g. import fs from 'fs';
-  if (parent.isImportDeclaration()) {
+  if (isImportDeclaration(parent)) {
+    let {node: bindingPathNode} = bindingPath;
     if (
-      bindingPath.isImportSpecifier() &&
-      bindingPath.node.imported.name !== method
+      isImportSpecifier(bindingPathNode) &&
+      bindingPathNode.imported.name !== method
     ) {
       return false;
     }
 
-    return parent.node.source.value === name;
+    return parent.source.value === name;
 
     // e.g. var fs = require('fs');
   } else if (
-    t.isVariableDeclarator(bindingNode) ||
-    t.isAssignmentExpression(bindingNode)
+    isVariableDeclarator(bindingNode) ||
+    isAssignmentExpression(bindingNode)
   ) {
-    let left = bindingNode.id || bindingNode.left;
-    let right = bindingNode.init || bindingNode.right;
+    let left = isVariableDeclarator(bindingNode)
+      ? bindingNode.id
+      : bindingNode.left;
+    let right = isVariableDeclarator(bindingNode)
+      ? bindingNode.init
+      : bindingNode.right;
 
     // e.g. var {readFileSync} = require('fs');
-    if (t.isObjectPattern(left)) {
-      let prop = left.properties.find(p => p.value.name === callee.name);
+    if (isObjectPattern(left)) {
+      invariant(isIdentifier(callee));
+      let prop: ?ObjectProperty = (left.properties.map(p => {
+        invariant(isObjectProperty(p));
+        return p;
+      }): Array<ObjectProperty>).find(
+        p => isIdentifier(p.value) && p.value.name === callee.name,
+      );
       if (!prop || prop.key.name !== method) {
         return false;
       }
-    } else if (!t.isIdentifier(left)) {
+    } else if (!isIdentifier(left)) {
       return false;
     }
 
@@ -187,8 +216,12 @@ function getBindingPath(path, name) {
 }
 
 class NodeNotEvaluatedError extends Error {
-  node: any;
-  loc: any;
+  node: Node;
+  loc: ?{
+    line: number,
+    column: number,
+    ...
+  };
   constructor(node) {
     super();
     this.message = 'Cannot statically evaluate fs argument';
@@ -196,10 +229,10 @@ class NodeNotEvaluatedError extends Error {
     this.loc = node.loc?.start;
   }
 }
-function evaluate(path, vars) {
+function evaluate(path: NodePath<Node>, vars) {
   // Inline variables
   path.traverse({
-    Identifier: function(ident) {
+    Identifier(ident) {
       let key = ident.node.name;
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));
@@ -207,13 +240,24 @@ function evaluate(path, vars) {
     },
   });
 
+  let {node} = path;
   if (
-    path.isCallExpression() &&
-    referencesImport(path, 'path', 'join') &&
-    path.node.arguments.every(n => t.isStringLiteral(n))
+    isCallExpression(node) &&
+    referencesImport(
+      // $FlowFixMe yes it is
+      (path: NodePath<CallExpression>),
+      'path',
+      'join',
+    ) &&
+    node.arguments.every(n => isStringLiteral(n))
   ) {
     // e.g. path.join("literal", "another_literal")
-    return Path.join(...path.node.arguments.map(n => n.value));
+    return Path.join(
+      ...node.arguments.map(n => {
+        invariant(isStringLiteral(n));
+        return n.value;
+      }),
+    );
   } else {
     // try to evaluate other cases
     let res = path.evaluate();
