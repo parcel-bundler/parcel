@@ -1,0 +1,8 @@
+{
+    "default": "build.js",
+    "targets": {
+        "default": {
+            "context": "node"
+        }
+    }
+}
