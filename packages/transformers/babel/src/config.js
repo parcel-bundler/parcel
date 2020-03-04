@@ -7,7 +7,7 @@ import type {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import * as bundledBabelCore from '@babel/core';
-import {md5FromObject} from '@parcel/utils';
+import {md5FromObject, resolveConfig} from '@parcel/utils';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
@@ -29,6 +29,20 @@ export async function load(
     return buildDefaultBabelConfig(config);
   }
 
+  // If we are in a monorepo, also find .babelrc configs in the sub packages.
+  let babelrcRoots = [options.projectRoot];
+  let packageJSONPath = await resolveConfig(
+    options.inputFS,
+    config.searchPath,
+    ['package.json'],
+  );
+  if (packageJSONPath) {
+    let packageRoot = path.dirname(packageJSONPath);
+    if (packageRoot && packageRoot !== options.projectRoot) {
+      babelrcRoots.push(packageRoot);
+    }
+  }
+
   let babelCore = await options.packageManager.require(
     '@babel/core',
     config.searchPath,
@@ -38,6 +52,7 @@ export async function load(
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot,
+    babelrcRoots,
   });
 
   // loadPartialConfig returns null when the file should explicitly not be run through babel (ignore/exclude)

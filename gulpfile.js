@@ -12,6 +12,7 @@ const IGNORED_PACKAGES = [
   '!packages/core/is-v2-ready-yet/**',
   '!packages/core/test-utils/**',
   '!packages/core/types/**',
+  '!packages/utils/node-libs-browser/**',
 ];
 
 const paths = {
