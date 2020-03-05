@@ -65,14 +65,13 @@ export class NodePackageManager implements PackageManager {
     return this.load(resolved, from);
   }
 
-  load(resolved: FilePath, from: FilePath) {
-    if (!path.isAbsolute(resolved)) {
+  load(filePath: FilePath, from: FilePath) {
+    if (!path.isAbsolute(filePath)) {
       // Node builtin module
       // $FlowFixMe
-      return require(resolved);
+      return require(filePath);
     }
 
-    let filePath = this.fs.realpathSync(resolved);
     const cachedModule = Module._cache[filePath];
     if (cachedModule !== undefined) {
       return cachedModule.exports;
@@ -114,11 +113,17 @@ export class NodePackageManager implements PackageManager {
     let key = basedir + ':' + name;
     let resolved = this.cache.get(key);
     if (!resolved) {
+      // console.log('uncached', basedir, name)
+      // process.stdout.write('uncached ' + basedir + ' ' + name + '\n\n')
       try {
         resolved = await resolve(this.fs, name, {
           basedir,
           extensions: Object.keys(Module._extensions),
         });
+
+        if (path.isAbsolute(resolved.resolved)) {
+          resolved.resolved = await this.fs.realpath(resolved.resolved);
+        }
       } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND' || options?.autoInstall === false) {
           throw e;
@@ -219,10 +224,22 @@ export class NodePackageManager implements PackageManager {
 
   resolveSync(name: ModuleSpecifier, from: FilePath) {
     let basedir = dirname(from);
-    return resolveSync(this.fs, name, {
-      basedir,
-      extensions: Object.keys(Module._extensions),
-    });
+    let key = basedir + ':' + name;
+    let resolved = this.cache.get(key);
+    if (!resolved) {
+      resolved = resolveSync(this.fs, name, {
+        basedir,
+        extensions: Object.keys(Module._extensions),
+      });
+
+      if (path.isAbsolute(resolved.resolved)) {
+        resolved.resolved = this.fs.realpathSync(resolved.resolved);
+      }
+
+      this.cache.set(key, resolved);
+    }
+
+    return resolved;
   }
 
   async install(
