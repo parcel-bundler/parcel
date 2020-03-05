@@ -14,6 +14,9 @@ import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import * as swc from '@swc/core';
+
+import {DependencyVisitor} from './swc_visitors/dependencies';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -53,17 +56,32 @@ export default new Transformer({
       return null;
     }
 
+    // return {
+    //   type: 'babel',
+    //   version: '7.0.0',
+    //   isDirty: false,
+    //   program: parse(code, {
+    //     filename: this.name,
+    //     allowReturnOutsideFunction: true,
+    //     strictMode: false,
+    //     sourceType: 'module',
+    //     plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+    //   }),
+    // };
+
+    // console.log(swc)
+    let program = swc.parseSync(code, {
+      syntax: 'ecmascript',
+      exportDefaultFrom: true,
+      exportNamespaceFrom: true,
+      dynamicImport: true,
+    });
+
     return {
-      type: 'babel',
-      version: '7.0.0',
+      type: 'swc',
+      version: '1.0.0',
       isDirty: false,
-      program: parse(code, {
-        filename: this.name,
-        allowReturnOutsideFunction: true,
-        strictMode: false,
-        sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
-      }),
+      program,
     };
   },
 
@@ -83,73 +101,102 @@ export default new Transformer({
     let code = await asset.getCode();
 
     // Inline process/ environment variables
-    if (
-      (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) ||
-      (asset.env.isBrowser() && (ast.isDirty || BROWSER_RE.test(code)))
-    ) {
-      walk.ancestor(ast.program, processVisitor, {
-        asset,
-        env: options.env,
-        isNode: asset.env.isNode(),
-        isBrowser: asset.env.isBrowser(),
-      });
-    }
+    // if (
+    //   (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) ||
+    //   (asset.env.isBrowser() && (ast.isDirty || BROWSER_RE.test(code)))
+    // ) {
+    //   walk.ancestor(ast.program, processVisitor, {
+    //     asset,
+    //     env: options.env,
+    //     isNode: asset.env.isNode(),
+    //     isBrowser: asset.env.isBrowser(),
+    //   });
+    // }
 
     // Collect dependencies
     if (canHaveDependencies(code) || ast.isDirty) {
-      walk.ancestor(ast.program, collectDependencies, {asset, options});
+      // walk.ancestor(ast.program, collectDependencies, {asset, options});
+      // console.log(ast.program)
+      new DependencyVisitor(asset).visitProgram(ast.program);
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.
     // During packaging, if this is the entry asset, it will be prepended to the
     // packaged output.
-    if (ast.program.program.interpreter != null) {
-      asset.meta.interpreter = ast.program.program.interpreter.value;
-      delete ast.program.program.interpreter;
+    if (ast.program.interpreter != null) {
+      asset.meta.interpreter = ast.program.interpreter.value;
+      delete ast.program.interpreter;
     }
 
-    if (!asset.env.isNode()) {
-      // Inline fs calls
-      let fsDep = asset
-        .getDependencies()
-        .find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && FS_RE.test(code)) {
-        // Check if we should ignore fs calls
-        // See https://github.com/defunctzombie/node-browser-resolve#skip
-        let pkg = await asset.getPackage();
-        let ignore =
-          pkg &&
-          pkg.browser &&
-          typeof pkg.browser === 'object' &&
-          pkg.browser.fs === false;
+    // if (!asset.env.isNode()) {
+    //   // Inline fs calls
+    //   let fsDep = asset
+    //     .getDependencies()
+    //     .find(dep => dep.moduleSpecifier === 'fs');
+    //   if (fsDep && FS_RE.test(code)) {
+    //     // Check if we should ignore fs calls
+    //     // See https://github.com/defunctzombie/node-browser-resolve#skip
+    //     let pkg = await asset.getPackage();
+    //     let ignore =
+    //       pkg &&
+    //       pkg.browser &&
+    //       typeof pkg.browser === 'object' &&
+    //       pkg.browser.fs === false;
 
-        if (!ignore) {
-          traverse(ast.program, fsVisitor, null, {asset, logger});
-        }
-      }
+    //     if (!ignore) {
+    //       traverse(ast.program, fsVisitor, null, {asset, logger});
+    //     }
+    //   }
 
-      // Insert node globals
-      if (GLOBAL_RE.test(code)) {
-        asset.meta.globals = new Map();
-        walk.ancestor(ast.program, insertGlobals, asset);
-      }
-    }
+    //   // Insert node globals
+    //   if (GLOBAL_RE.test(code)) {
+    //     asset.meta.globals = new Map();
+    //     walk.ancestor(ast.program, insertGlobals, asset);
+    //   }
+    // }
 
-    if (asset.env.scopeHoist) {
-      hoist(asset);
+    // asset.meta.isES6Module = true;
+
+    if (false && asset.env.scopeHoist) {
+      // hoist(asset);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = babelCore.transformFromAst(ast.program, code, {
-        code: false,
-        ast: true,
+      // let res = babelCore.transformFromAst(ast.program, code, {
+      //   code: false,
+      //   ast: true,
+      //   filename: asset.filePath,
+      //   babelrc: false,
+      //   configFile: false,
+      //   plugins: [require('@babel/plugin-transform-modules-commonjs')],
+      // });
+
+      // console.log(ast.program)
+      let res = swc.transformSync(code, {
         filename: asset.filePath,
-        babelrc: false,
+        sourceMaps: options.sourceMaps,
+        swcrc: false,
         configFile: false,
-        plugins: [require('@babel/plugin-transform-modules-commonjs')],
+        inputSourceMap: false,
+        jsc: {
+          // transform: {
+
+          // },
+          target: 'es2019',
+        },
+        module: {
+          type: 'commonjs',
+        },
       });
 
-      ast.program = res.ast;
-      ast.isDirty = true;
+      // console.log(res)
+
+      // ast.program = res.ast;
+      // ast.isDirty = true;
+      asset.ast = null;
+      asset.setCode(res.code);
+      if (options.sourceMaps) {
+        asset.setMap(await SourceMap.fromRawSourceMap(res.map));
+      }
     }
 
     return [asset];
@@ -163,25 +210,31 @@ export default new Transformer({
 
     let ast = asset.ast;
     if (ast && ast.isDirty !== false) {
+      // console.log('GENERATE!')
+
       let sourceFileName: string = relativeUrl(
         options.projectRoot,
         asset.filePath,
       );
 
-      let generated = generate(
-        ast.program,
-        {
-          sourceMaps: options.sourceMaps,
-          sourceFileName: sourceFileName,
-        },
-        code,
-      );
+      // let generated = generate(
+      //   ast.program,
+      //   {
+      //     sourceMaps: options.sourceMaps,
+      //     sourceFileName: sourceFileName,
+      //   },
+      //   code,
+      // );
 
+      // res.code = generated.code;
+      // // $FlowFixMe...
+      // res.map = new SourceMap(generated.rawMappings, {
+      //   [sourceFileName]: null,
+      // });
+
+      let generated = swc.printSync(ast.program, {});
       res.code = generated.code;
-      // $FlowFixMe...
-      res.map = new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null,
-      });
+      res.map = await SourceMap.fromRawSourceMap(generated.map);
     }
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {
