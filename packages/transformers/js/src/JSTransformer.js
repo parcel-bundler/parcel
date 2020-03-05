@@ -58,7 +58,7 @@ export default new Transformer({
       version: '7.0.0',
       isDirty: false,
       program: parse(code, {
-        filename: this.name,
+        sourceFilename: this.name,
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',
@@ -139,7 +139,7 @@ export default new Transformer({
       hoist(asset);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = babelCore.transformFromAst(ast.program, code, {
+      let res = await babelCore.transformFromAstAsync(ast.program, code, {
         code: false,
         ast: true,
         filename: asset.filePath,
