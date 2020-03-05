@@ -140,6 +140,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       assetGraph,
     });
 
+    this.config = config;
+
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
       this.requestTracker.respondToFSEvents(changes);
@@ -213,9 +215,11 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async validate(): Promise<void> {
-    let promises = this.assetRequests.map(request =>
-      this.runValidate({request, options: this.options}),
-    );
+    let promises = this.assetRequests
+      .filter(
+        request => this.config.getValidatorNames(request.filePath).length > 0,
+      )
+      .map(request => this.runValidate({request, options: this.options}));
     this.assetRequests = [];
     await Promise.all(promises);
   }
