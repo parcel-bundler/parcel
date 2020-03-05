@@ -60,9 +60,7 @@ export function createAsset(options: AssetOptions): Asset {
     id:
       options.id != null
         ? options.id
-        : md5FromString(
-            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey,
-          ),
+        : md5FromString(idBase + options.type + options.env.id + uniqueKey),
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
@@ -155,9 +153,9 @@ export default class InternalAsset {
       ),
       this.map == null
         ? Promise.resolve()
-        : this.options.cache.set(
+        : this.options.cache.setBlob(
             this.getCacheKey('map' + pipelineKey),
-            this.map,
+            JSON.stringify(this.map.serialize()),
           ),
     ]);
     this.value.contentKey = contentKey;
@@ -215,7 +213,11 @@ export default class InternalAsset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.value.mapKey != null) {
-      this.map = await this.options.cache.get(this.value.mapKey);
+      let map = JSON.parse(
+        await this.options.cache.getBlob(this.value.mapKey, 'utf8'),
+      );
+      this.map = new SourceMap(map.mappings, map.sources);
+      // this.map = await this.options.cache.getBlob(this.value.mapKey);
     }
 
     return this.map;
