@@ -4,7 +4,7 @@ import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
-import SourceMap from '@parcel/source-map';
+import {SourceMap} from '@parcel/sourcemap';
 import {
   countLines,
   PromiseQueue,
@@ -121,17 +121,24 @@ export default new Packager({
         wrapped += ']';
 
         if (options.sourceMaps) {
+          let lineCount = countLines(output);
           let assetMap =
-            maps[i] ??
+            maps[
+              i
+            ]; /*??
             SourceMap.generateEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
               output,
-            );
+            );*/
+          if (!assetMap) {
+            console.log('no source map', asset.filePath);
+          } else {
+            map.add(assetMap, lineOffset);
+          }
 
-          map.addMap(assetMap, lineOffset);
-          lineOffset += countLines(output) + 1;
+          lineOffset += lineCount + 1;
         }
         i++;
       }

@@ -213,11 +213,7 @@ export default class InternalAsset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.value.mapKey != null) {
-      let map = JSON.parse(
-        await this.options.cache.getBlob(this.value.mapKey, 'utf8'),
-      );
-      this.map = new SourceMap(map.mappings, map.sources);
-      // this.map = await this.options.cache.getBlob(this.value.mapKey);
+      this.map = await this.options.cache.getBlob(this.value.mapKey);
     }
 
     return this.map;
