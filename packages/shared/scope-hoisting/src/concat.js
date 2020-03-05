@@ -1,13 +1,26 @@
 // @flow
 
 import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
-import * as babylon from '@babel/parser';
+import type {CallExpression, Identifier, Statement} from '@babel/types';
+
+import {parse as babelParse} from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
+import {
+  isArrayPattern,
+  isClassDeclaration,
+  isExpressionStatement,
+  isFunctionDeclaration,
+  isIdentifier,
+  isObjectPattern,
+  isVariableDeclaration,
+  isStringLiteral,
+} from '@babel/types';
 import * as walk from 'babylon-walk';
 import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import {PromiseQueue} from '@parcel/utils';
 import {needsPrelude} from './utils';
 
@@ -17,7 +30,7 @@ const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
 
-type AssetASTMap = Map<string, Object>;
+type AssetASTMap = Map<string, Array<Statement>>;
 type TraversalContext = {|
   parent: ?AssetASTMap,
   children: AssetASTMap,
@@ -43,7 +56,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     }
   });
 
-  let outputs = new Map(await queue.run());
+  let outputs = new Map<string, Array<Statement>>(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
   if (needsPrelude(bundle, bundleGraph)) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
@@ -71,7 +84,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       let statementIndices: Map<string, number> = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
-        if (t.isExpressionStatement(statement)) {
+        if (isExpressionStatement(statement)) {
           for (let depAsset of findRequires(bundleGraph, asset, statement)) {
             if (!statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
@@ -103,10 +116,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
 async function processAsset(bundle: Bundle, asset: Asset) {
   let code = await asset.getCode();
-  let statements = parse(code, asset.filePath);
+  let statements: Array<Statement> = parse(code, asset.filePath);
 
   if (statements[0]) {
-    addComment(statements[0], ` ASSET: ${asset.filePath}`);
+    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
   }
 
   if (asset.meta.shouldWrap) {
@@ -117,23 +130,13 @@ async function processAsset(bundle: Bundle, asset: Asset) {
 }
 
 function parse(code, filename) {
-  let ast = babylon.parse(code, {
+  let ast = babelParse(code, {
     sourceFilename: filename,
     allowReturnOutsideFunction: true,
     plugins: ['dynamicImport'],
   });
 
   return ast.program.body;
-}
-
-function addComment(statement, comment) {
-  if (!statement.leadingComments) {
-    statement.leadingComments = [];
-  }
-  statement.leadingComments.push({
-    type: 'CommentLine',
-    value: comment,
-  });
 }
 
 function getUsedExports(
@@ -222,18 +225,20 @@ function findRequires(
 ): Array<Asset> {
   let result = [];
   walk.simple(ast, {
-    CallExpression(node) {
+    CallExpression(node: CallExpression) {
       let {arguments: args, callee} = node;
-      if (!t.isIdentifier(callee)) {
+      if (!isIdentifier(callee)) {
         return;
       }
 
       if (callee.name === '$parcel$require') {
+        let [, src] = args;
+        invariant(isStringLiteral(src));
         let dep = bundleGraph
           .getDependencies(asset)
-          .find(dep => dep.moduleSpecifier === args[1].value);
+          .find(dep => dep.moduleSpecifier === src.value);
         if (!dep) {
-          throw new Error(`Could not find dep for "${args[1].value}`);
+          throw new Error(`Could not find dep for "${src.value}`);
         }
         // can be undefined if AssetGraph#resolveDependency optimized
         // ("deferred") this dependency away as an unused reexport
@@ -255,46 +260,48 @@ function wrapModule(asset: Asset, statements) {
   for (let node of statements) {
     // Hoist all declarations out of the function wrapper
     // so that they can be referenced by other modules directly.
-    if (t.isVariableDeclaration(node)) {
+    if (isVariableDeclaration(node)) {
       for (let decl of node.declarations) {
-        if (t.isObjectPattern(decl.id) || t.isArrayPattern(decl.id)) {
-          for (let prop of Object.values(t.getBindingIdentifiers(decl.id))) {
+        let {id, init} = decl;
+        if (isObjectPattern(id) || isArrayPattern(id)) {
+          // $FlowFixMe it is an identifier
+          for (let prop: Identifier of Object.values(
+            t.getBindingIdentifiers(id),
+          )) {
             decls.push(t.variableDeclarator(prop));
           }
-          if (decl.init) {
+          if (init) {
             body.push(
-              t.expressionStatement(
-                t.assignmentExpression('=', decl.id, decl.init),
-              ),
+              t.expressionStatement(t.assignmentExpression('=', id, init)),
             );
           }
         } else {
-          decls.push(t.variableDeclarator(decl.id));
-          if (decl.init) {
+          invariant(isIdentifier(id));
+          decls.push(t.variableDeclarator(id));
+          let {init} = decl;
+          if (init) {
             body.push(
               t.expressionStatement(
-                t.assignmentExpression(
-                  '=',
-                  t.identifier(decl.id.name),
-                  decl.init,
-                ),
+                t.assignmentExpression('=', t.identifier(id.name), init),
               ),
             );
           }
         }
       }
-    } else if (t.isFunctionDeclaration(node)) {
+    } else if (isFunctionDeclaration(node)) {
       // Function declarations can be hoisted out of the module initialization function
       fns.push(node);
-    } else if (t.isClassDeclaration(node)) {
+    } else if (isClassDeclaration(node)) {
+      let {id} = node;
+      invariant(isIdentifier(id));
       // Class declarations are not hoisted. We declare a variable outside the
       // function and convert to a class expression assignment.
-      decls.push(t.variableDeclarator(t.identifier(node.id.name)));
+      decls.push(t.variableDeclarator(t.identifier(id.name)));
       body.push(
         t.expressionStatement(
           t.assignmentExpression(
             '=',
-            t.identifier(node.id.name),
+            t.identifier(id.name),
             t.toExpression(node),
           ),
         ),
@@ -325,5 +332,9 @@ function wrapModule(asset: Asset, statements) {
     ]),
   );
 
-  return [t.variableDeclaration('var', decls), ...fns, init];
+  return ([
+    t.variableDeclaration('var', decls),
+    ...fns,
+    init,
+  ]: Array<Statement>);
 }

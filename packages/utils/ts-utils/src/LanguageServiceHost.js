@@ -16,12 +16,15 @@ export class LanguageServiceHost extends FSHost {
   }
 
   invalidate(fileName: FilePath) {
-    const entry = this.files[fileName];
+    // When the typescript language server calls "getScriptVersion", it will normalize paths for cross-platform (e.g. C:\myFile.ts on Windows becomes C:/myFile.ts). We need to do the same thing.
+    // $FlowFixMe getNormalizedAbsolutePath is missing from the flow-typed definition.
+    const normalizedFileName = this.ts.getNormalizedAbsolutePath(fileName);
+    const entry = this.files[normalizedFileName];
 
     if (entry) {
       entry.version++;
     } else {
-      this.files[fileName] = {
+      this.files[normalizedFileName] = {
         version: 0,
       };
     }

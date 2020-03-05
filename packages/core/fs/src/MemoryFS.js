@@ -7,6 +7,7 @@ import type {
   Options as WatcherOptions,
   AsyncSubscription,
 } from '@parcel/watcher';
+
 import path from 'path';
 import {Readable, Writable} from 'stream';
 import {registerSerializableClass} from '@parcel/core';
@@ -649,7 +650,7 @@ class WriteStream extends Writable {
     encoding: any,
     callback: (error?: Error) => void,
   ) {
-    let c = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+    let c = typeof chunk === 'string' ? Buffer.from(chunk, encoding) : chunk;
     this.buffer = Buffer.concat([this.buffer, c]);
     callback();
   }

@@ -282,7 +282,7 @@ Build code once, in production mode.
 
 Entry files to start bundling, these will be preserved as entry points in the
 output. Defaults to `package.json#source`, falling back to `src/index.*` or
-`index.*`. See [#Entries](#entries-sources-targets-environment).
+`index.*`. See [#Sources](#sources).
 
 #### `--target [name]`
 

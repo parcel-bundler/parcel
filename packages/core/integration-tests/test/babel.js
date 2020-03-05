@@ -389,6 +389,23 @@ describe('babel', function() {
     assert(file.includes('hello there'));
   });
 
+  it('should support merging .babelrc and babel.config.json in a monorepo', async function() {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/babel-config-monorepo/packages/pkg-a/src/index.js',
+      ),
+    );
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('string from a plugin in babel.config.json'));
+    assert(!file.includes('ANOTHER_THING_TO_REPLACE'));
+    assert(file.includes('string from a plugin in .babelrc'));
+    assert(file.includes('SOMETHING ELSE'));
+    assert(!file.includes('string from a plugin from a different sub-package'));
+  });
+
   describe('tests needing the real filesystem', () => {
     beforeEach(async () => {
       await fs.rimraf(inputDir);

@@ -1,0 +1,59 @@
+// @flow strict-local
+
+declare module "@babel/parser" {
+  import type { File, Expression } from "@babel/types";
+
+  declare export type ParserPlugin =
+    | "estree"
+    | "flow"
+    | "flowComments"
+    | "jsx"
+    | "typescript"
+    | "v8intrinsic"
+    | "asyncGenerators"
+    | "bigInt"
+    | "classProperties"
+    | "classPrivateProperties"
+    | "classPrivateMethods"
+    | "decorators"
+    | "doExpressions"
+    | "dynamicImport"
+    | "exportDefaultFrom"
+    | "exportNamespaceFrom"
+    | "functionBind"
+    | "functionSent"
+    | "importMeta"
+    | "logicalAssignment"
+    | "nullishCoalescingOperator"
+    | "numericSeparator"
+    | "objectRestSpread"
+    | "optionalCatchBinding"
+    | "optionalChaining"
+    | "partialApplication"
+    | "pipelineOperator"
+    | "throwExpressions"
+    | "topLevelAwait";
+
+  declare export type Options = {|
+    allowImportExportEverywhere?: boolean,
+    allowAwaitOutsideFunction?: boolean,
+    allowReturnOutsideFunction?: boolean,
+    allowSuperOutsideMethod?: boolean,
+    allowUndeclaredExports?: boolean,
+    createParenthesizedExpressions?: boolean,
+    errorRecovery?: boolean,
+    plugins?: Array<ParserPlugin>,
+    sourceType?: "script" | "module" | "unambiguous",
+    sourceFilename?: string,
+    startLine?: number,
+    strictMode?: boolean,
+    ranges?: boolean,
+    tokens?: boolean,
+  |};
+
+  declare export function parse(code: string, opts?: Options): File;
+  declare export function parseExpression(
+    code: string,
+    opts?: Options
+  ): Expression;
+}
