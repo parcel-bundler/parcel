@@ -324,12 +324,12 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetRequestDesc,
-  options: ParcelOptions,
+  optionsRef: number,
 |};
 
 export type ValidationOpts = {|
   request: AssetRequestDesc,
-  options: ParcelOptions,
+  optionsRef: number,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

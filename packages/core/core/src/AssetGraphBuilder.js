@@ -35,6 +35,7 @@ import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
+  optionsRef: number,
   config: ParcelConfig,
   name: string,
   entries?: Array<string>,
@@ -63,6 +64,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
+  optionsRef: number;
   config: ParcelConfig;
   workerFarm: WorkerFarm;
   cacheKey: string;
@@ -72,12 +74,14 @@ export default class AssetGraphBuilder extends EventEmitter {
   async init({
     config,
     options,
+    optionsRef,
     entries,
     name,
     assetRequests,
     workerFarm,
   }: Opts) {
     this.options = options;
+    this.optionsRef = optionsRef;
     this.assetRequests = [];
 
     // TODO: changing these should not throw away the entire graph.
@@ -126,6 +130,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetRequestRunner = new AssetRequestRunner({
       tracker,
       options,
+      optionsRef,
       workerFarm,
       assetGraph,
     });
@@ -210,7 +215,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async validate(): Promise<void> {
     let promises = this.assetRequests.map(request =>
-      this.runValidate({request, options: this.options}),
+      this.runValidate({request, optionsRef: this.optionsRef}),
     );
     this.assetRequests = [];
     await Promise.all(promises);
