@@ -6,7 +6,6 @@
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
-      "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
