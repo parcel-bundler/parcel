@@ -14,14 +14,20 @@ import type {
   VariableDeclaration,
   Identifier,
   LVal,
+  Program,
 } from '@babel/types';
-import type {Scope} from '@babel/traverse';
+import type {NodePath, Scope} from '@babel/traverse';
 import type {ExternalModule} from '../types';
 
 import * as t from '@babel/types';
-import {isIdentifier} from '@babel/types';
+import {
+  isIdentifier,
+  isObjectExpression,
+  isVariableDeclarator,
+} from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -76,7 +82,7 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
   // with member expressions for each property.
   if (!env.matchesEngines(DESTRUCTURING_ENGINES)) {
     let statements = [];
-    if (!t.isIdentifier(value) && specifiers.length > 1) {
+    if (!isIdentifier(value) && specifiers.length > 1) {
       let name = scope.generateUid();
       statements.push(
         ASSIGN_TEMPLATE({
@@ -278,7 +284,7 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any,
+  path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
 ) {
@@ -296,8 +302,7 @@ export function generateExports(
         }),
       );
     } else {
-      let exportsId = asset.meta.exportsIdentifier;
-      invariant(typeof exportsId === 'string');
+      let exportsId = assertString(asset.meta.exportsIdentifier);
       exported.add(exportsId);
       statements.push(
         EXPORT_TEMPLATE({
@@ -311,16 +316,16 @@ export function generateExports(
   let entry = bundle.getMainEntry();
   if (entry) {
     if (entry.meta.isCommonJS) {
-      let exportsId = entry.meta.exportsIdentifier;
-      invariant(typeof exportsId === 'string');
+      let exportsId = assertString(entry.meta.exportsIdentifier);
 
       let binding = path.scope.getBinding(exportsId);
       if (binding) {
         // If the exports object is constant, then we can just remove it and rename the
         // references to the builtin CommonJS exports object. Otherwise, assign to module.exports.
+        invariant(isVariableDeclarator(binding.path.node));
         let init = binding.path.node.init;
         let isEmptyObject =
-          init && t.isObjectExpression(init) && init.properties.length === 0;
+          init && isObjectExpression(init) && init.properties.length === 0;
         if (binding.constant && isEmptyObject) {
           for (let path of binding.referencePaths) {
             path.node.name = 'exports';
@@ -364,7 +369,7 @@ export function generateExports(
           );
         }
 
-        let binding = path.scope.getBinding(symbol);
+        let binding = nullthrows(path.scope.getBinding(symbol));
         let id = !t.isValidIdentifier(exportSymbol)
           ? path.scope.generateUid(exportSymbol)
           : exportSymbol;

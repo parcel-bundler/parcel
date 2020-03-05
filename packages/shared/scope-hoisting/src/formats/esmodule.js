@@ -7,10 +7,13 @@ import type {
   PluginOptions,
   Symbol,
 } from '@parcel/types';
+import type {NodePath} from '@babel/traverse';
+import type {Program} from '@babel/types';
 import type {ExternalModule} from '../types';
+
 import * as t from '@babel/types';
+import {isImportDeclaration, isVariableDeclaration} from '@babel/types';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -85,7 +88,7 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any,
+  path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
 ) {
@@ -124,13 +127,10 @@ export function generateExports(
   }
 
   for (let asset of referencedAssets) {
-    let exportsId: string;
-    if (asset.meta.shouldWrap) {
-      exportsId = getName(asset, 'init');
-    } else {
-      invariant(typeof asset.meta.exportsIdentifier === 'string');
-      exportsId = asset.meta.exportsIdentifier;
-    }
+    let exportsId = asset.meta.shouldWrap
+      ? getName(asset, 'init')
+      : assertString(asset.meta.exportsIdentifier);
+
     exportedIdentifiers.set(exportsId, exportsId);
   }
 
@@ -142,8 +142,10 @@ export function generateExports(
         return;
       }
 
+      let {node} = path;
+
       let bindingIdentifiers = path.getBindingIdentifierPaths(false, true);
-      let ids = Object.keys(bindingIdentifiers);
+      let ids: Array<string> = Object.keys(bindingIdentifiers);
       if (ids.length === 0) {
         return;
       }
@@ -171,10 +173,11 @@ export function generateExports(
       } else if (
         ids.length === 1 &&
         defaultExport &&
-        !path.isVariableDeclaration() &&
-        !path.isImportDeclaration()
+        !isVariableDeclaration(node) &&
+        !isImportDeclaration(node)
       ) {
-        path.replaceWith(t.exportDefaultDeclaration(path.node));
+        // $FlowFixMe
+        path.replaceWith(t.exportDefaultDeclaration(node));
 
         // Otherwise, add export statements after for each identifier.
       } else {

@@ -12,7 +12,6 @@ import type {
 
 import * as t from '@babel/types';
 import template from '@babel/template';
-import invariant from 'assert';
 import {relativeBundlePath} from '@parcel/utils';
 import {
   assertString,
@@ -98,8 +97,7 @@ export function generateExports(
     entry &&
     (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph))
   ) {
-    let exportsId = entry.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId = assertString(entry.meta.exportsIdentifier);
     exported.add(exportsId);
 
     statements.push(
