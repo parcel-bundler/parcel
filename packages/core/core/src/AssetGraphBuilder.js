@@ -71,7 +71,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async init({
     config,
+    configRef,
     options,
+    optionsRef,
     entries,
     name,
     assetRequests,
@@ -126,6 +128,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetRequestRunner = new AssetRequestRunner({
       tracker,
       options,
+      optionsRef,
+      configRef,
       workerFarm,
       assetGraph,
     });

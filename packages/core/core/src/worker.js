@@ -32,9 +32,14 @@ export function runTransform(
   workerApi: WorkerApi,
   opts: TransformationOptsWithoutWorkerApi,
 ) {
+  let options: ParcelOptions = workerApi.getSharedReference(opts.optionsRef);
+  // console.log(opts.optionsRef, options)
+  let config: ParcelConfig = workerApi.getSharedReference(opts.configRef);
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
+    options,
+    config,
     ...opts,
   }).run();
 }
@@ -55,21 +60,26 @@ export function runPackage(
   {
     bundle,
     bundleGraphReference,
-    config,
+    // config,
     cacheKeys,
-    options,
+    // options,
+    configRef,
+    optionsRef,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    // config: ParcelConfig,
     cacheKeys: {|
       content: string,
       map: string,
       info: string,
     |},
-    options: ParcelOptions,
+    // options: ParcelOptions,
   |},
 ) {
+  let options: ParcelOptions = workerApi.getSharedReference(optionsRef);
+  // console.log(opts.optionsRef, options)
+  let config: ParcelConfig = workerApi.getSharedReference(configRef);
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   return new PackagerRunner({

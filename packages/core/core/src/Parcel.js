@@ -98,18 +98,28 @@ export default class Parcel {
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
 
+    let {ref} = await this.#farm.createSharedReference(resolvedOptions);
+    this.optionsRef = ref;
+
+    let r = await this.#farm.createSharedReference(config);
+    this.configRef = r.ref;
+
     await Promise.all([
       this.#assetGraphBuilder.init({
         name: 'MainAssetGraph',
         options: resolvedOptions,
+        optionsRef: this.optionsRef,
         config,
+        configRef: this.configRef,
         entries: resolvedOptions.entries,
         workerFarm: this.#farm,
       }),
       this.#runtimesAssetGraphBuilder.init({
         name: 'RuntimesAssetGraph',
         options: resolvedOptions,
+        optionsRef: this.optionsRef,
         config,
+        configRef: this.configRef,
         workerFarm: this.#farm,
       }),
     ]);
@@ -132,6 +142,8 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
       report,
+      configRef: this.configRef,
+      optionsRef: this.optionsRef,
     });
 
     this.#runPackage = this.#farm.createHandle('runPackage');

@@ -72,9 +72,11 @@ export default class PackagerRunner {
     options: ParcelOptions,
   |}) => Promise<BundleInfo>;
 
-  constructor({config, farm, options, report}: Opts) {
+  constructor({config, farm, options, report, configRef, optionsRef}: Opts) {
     this.config = config;
     this.options = options;
+    this.configRef = configRef;
+    this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
 
     this.farm = farm;
@@ -147,8 +149,10 @@ export default class PackagerRunner {
         bundle,
         bundleGraphReference,
         cacheKeys,
-        options: this.options,
-        config: this.config,
+        // options: this.options,
+        // config: this.config,
+        optionsRef: this.optionsRef,
+        configRef: this.configRef,
       }));
 
     return {time: Date.now() - start, hash, hashReferences, cacheKeys};
