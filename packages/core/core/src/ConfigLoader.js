@@ -14,6 +14,8 @@ import Config from './public/Config';
 import loadParcelConfig from './loadParcelConfig';
 import loadPlugin from './loadParcelPlugin';
 
+const cache = new Map();
+
 export default class ConfigLoader {
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
@@ -43,8 +45,12 @@ export default class ConfigLoader {
 
   async loadParcelConfig(configRequest: ConfigRequestDesc) {
     let {filePath, isSource, env, pipeline} = configRequest;
-    let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
+    // let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
+    let dir = this.options.projectRoot;
     let searchPath = path.join(dir, 'index');
+    if (cache.has(searchPath)) {
+      return cache.get(searchPath);
+    }
     let config = createConfig({
       isSource,
       searchPath,
@@ -57,7 +63,7 @@ export default class ConfigLoader {
     );
 
     publicConfig.setResolvedPath(parcelConfig.filePath);
-    publicConfig.setResult(parcelConfig.getConfig());
+    publicConfig.setResult(parcelConfig);
     this.parcelConfig = parcelConfig;
 
     let devDeps = [];
@@ -83,6 +89,7 @@ export default class ConfigLoader {
       publicConfig.addIncludedFile(extendedFile);
     }
 
+    cache.set(searchPath, config);
     return config;
   }
 

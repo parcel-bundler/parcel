@@ -331,11 +331,11 @@ export default class Transformation {
     let configs = new Map();
 
     let config = await this.loadConfig(configRequest);
-    let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(
-      config.result,
-      this.options.packageManager,
-    );
+    let parcelConfig = nullthrows(config.result);
+    // let parcelConfig = new ParcelConfig(
+    //   config.result,
+    //   this.options.packageManager,
+    // );
     // A little hacky
     this.parcelConfig = parcelConfig;
 
@@ -348,7 +348,7 @@ export default class Transformation {
         let thirdPartyConfig = await this.loadTransformerConfig({
           filePath,
           plugin: moduleName,
-          parcelConfigPath: result.filePath,
+          parcelConfigPath: parcelConfig.filePath,
           isSource,
         });
 
@@ -371,10 +371,10 @@ export default class Transformation {
       configs,
       options: this.options,
       resolverRunner: new ResolverRunner({
-        config: new ParcelConfig(
-          nullthrows(nullthrows(configs.get('parcel')).result),
-          this.options.packageManager,
-        ),
+        //new ParcelConfig(
+        config: nullthrows(nullthrows(configs.get('parcel')).result),
+        //this.options.packageManager,
+        // ),
         options: this.options,
       }),
 
