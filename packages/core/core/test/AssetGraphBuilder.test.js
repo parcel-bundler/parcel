@@ -40,6 +40,7 @@ describe('AssetGraphBuilder', function() {
     await builder.init({
       name: 'test',
       options: DEFAULT_OPTIONS,
+      optionsRef: 1,
       config,
       entries: ['./module-b'],
       workerFarm,
