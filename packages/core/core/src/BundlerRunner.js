@@ -19,7 +19,7 @@ import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
+import {normalizeSeparators, unique, md5FromOrderedObject} from '@parcel/utils';
 import PluginOptions from './public/PluginOptions';
 import applyRuntimes from './applyRuntimes';
 import {PARCEL_VERSION} from './constants';
@@ -135,7 +135,7 @@ export default class BundlerRunner {
     );
 
     let version = nullthrows(pkg).version;
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       bundler,
       version,

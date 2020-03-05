@@ -1,7 +1,7 @@
 // @flow
 import type {EnvironmentOpts} from '@parcel/types';
 import type {Environment} from './types';
-import {md5FromObject} from '@parcel/utils';
+import {md5FromOrderedObject} from '@parcel/utils';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
@@ -77,7 +77,15 @@ export function createEnvironment({
     }
   }
 
+  let id = md5FromOrderedObject({
+    engines: engines,
+    includeNodeModules: includeNodeModules,
+    outputFormat: outputFormat,
+    isLibrary: isLibrary,
+  });
+
   return {
+    id,
     context,
     engines,
     includeNodeModules,
@@ -106,7 +114,7 @@ export function mergeEnvironments(
 export function getEnvironmentHash(env: Environment) {
   // context is excluded from hash so that assets can be shared between e.g. workers and browser.
   // Different engines should be sufficient to distinguish multi-target builds.
-  return md5FromObject({
+  return md5FromOrderedObject({
     engines: env.engines,
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,

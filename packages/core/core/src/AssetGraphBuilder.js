@@ -17,7 +17,7 @@ import type {AssetGraphBuildRequest} from './requests';
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
+import {md5FromOrderedObject, md5FromString, PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import RequestTracker, {
   RequestGraph,
@@ -85,7 +85,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     // TODO: changing these should not throw away the entire graph.
     // We just need to re-run target resolution.
     let {hot, publicUrl, distDir, minify, scopeHoist} = options;
-    this.cacheKey = md5FromObject({
+    this.cacheKey = md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       name,
       options: {hot, publicUrl, distDir, minify, scopeHoist},
@@ -264,7 +264,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value),
+          id: type + node.id,
         };
       }
       case 'entry_file': {
@@ -272,7 +272,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value),
+          id: type + node.id,
         };
       }
       case 'dependency': {
@@ -280,7 +280,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value),
+          id: type + node.id,
         };
       }
       case 'asset_group': {
@@ -288,7 +288,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         return {
           type,
           request: node.value,
-          id: generateRequestId(type, node.value),
+          id: type + node.id,
         };
       }
     }

@@ -16,9 +16,10 @@ import type {
 
 import invariant from 'assert';
 import crypto from 'crypto';
-import {md5FromObject} from '@parcel/utils';
+import {md5FromOrderedObject} from '@parcel/utils';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
+import {getEnvironmentHash} from './Environment';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
@@ -51,7 +52,13 @@ export function nodeFromAssetGroup(
   deferred: boolean = false,
 ) {
   return {
-    id: md5FromObject(assetGroup),
+    id: md5FromOrderedObject({
+      filePath: assetGroup.filePath,
+      env: assetGroup.env.id,
+      sideEffects: assetGroup.sideEffects,
+      code: assetGroup.code,
+      pipeline: assetGroup.pipeline,
+    }),
     type: 'asset_group',
     value: assetGroup,
     deferred,
@@ -76,7 +83,12 @@ export function nodeFromEntrySpecifier(entry: string) {
 
 export function nodeFromEntryFile(entry: Entry) {
   return {
-    id: 'entry_file:' + md5FromObject(entry),
+    id:
+      'entry_file:' +
+      md5FromOrderedObject({
+        filePath: entry.filePath,
+        packagePath: entry.packagePath,
+      }),
     type: 'entry_file',
     value: entry,
   };

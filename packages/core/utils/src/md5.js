@@ -36,6 +36,13 @@ export function md5FromObject(
   return md5FromString(JSON.stringify(objectSortedEntriesDeep(obj)), encoding);
 }
 
+export function md5FromOrderedObject(
+  obj: {+[string]: mixed, ...},
+  encoding: StringHashEncoding = 'hex',
+): string {
+  return md5FromString(JSON.stringify(obj), encoding);
+}
+
 export function md5FromFilePath(
   fs: FileSystem,
   filePath: string,

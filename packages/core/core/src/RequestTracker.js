@@ -420,7 +420,10 @@ export class RequestRunner<TRequest, TResult> {
   }
 
   generateRequestId(request: TRequest) {
-    return md5FromObject({type: this.type, request});
+    // return md5FromObject({type: this.type, request});
+    throw new Error(
+      `RequestRunner for type ${this.type} did not implement generateRequestId()`,
+    );
   }
 
   createAPI(requestId: string): RequestRunnerAPI {

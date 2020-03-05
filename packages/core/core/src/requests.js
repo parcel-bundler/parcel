@@ -18,12 +18,13 @@ import type {EntryResult} from './EntryResolver'; // ? Is this right
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {isGlob} from '@parcel/utils';
+import {isGlob, md5FromOrderedObject} from '@parcel/utils';
 import {nodeFromAssetGroup} from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import {EntryResolver} from './EntryResolver';
 import TargetResolver from './TargetResolver';
 import {RequestRunner, generateRequestId} from './RequestTracker';
+import {getEnvironmentHash} from './Environment';
 
 export type AssetGraphBuildRequest =
   | EntryRequest
@@ -75,6 +76,13 @@ export class EntryRequestRunner extends RequestRunner<FilePath, EntryResult> {
     this.assetGraph = opts.assetGraph;
   }
 
+  generateRequestId(request: FilePath) {
+    return md5FromOrderedObject({
+      type: 'entry_request',
+      filePath: request,
+    });
+  }
+
   run(request: FilePath) {
     return this.entryResolver.resolveEntry(request);
   }
@@ -112,6 +120,14 @@ export class TargetRequestRunner extends RequestRunner<
     this.type = 'target_request';
     this.targetResolver = new TargetResolver(opts.options);
     this.assetGraph = opts.assetGraph;
+  }
+
+  generateRequestId(request: Entry) {
+    return md5FromOrderedObject({
+      type: 'target_request',
+      filePath: request.filePath,
+      packagePath: request.packagePath,
+    });
   }
 
   run(request: Entry) {
@@ -157,6 +173,17 @@ export class AssetRequestRunner extends RequestRunner<
     this.configRef = opts.configRef;
   }
 
+  generateRequestId(request: AssetRequestDesc) {
+    return md5FromOrderedObject({
+      type: 'asset_request',
+      filePath: request.filePath,
+      env: request.env.id,
+      sideEffects: request.sideEffects,
+      code: request.code,
+      pipeline: request.pipeline,
+    });
+  }
+
   async run(request: AssetRequestDesc, api: RequestRunnerAPI) {
     api.invalidateOnFileUpdate(
       await this.options.inputFS.realpath(request.filePath),
@@ -197,7 +224,16 @@ export class AssetRequestRunner extends RequestRunner<
     let subrequestNodes = [];
     // Add config requests
     for (let {request, result} of configRequests) {
-      let id = generateRequestId('config_request', request);
+      // let id = generateRequestId('config_request', request);
+      let id = md5FromOrderedObject({
+        type: 'config_request',
+        filePath: request.filePath,
+        env: request.env.id,
+        isSource: request.isSource,
+        pipeline: request.pipeline,
+        plugin: request.plugin,
+        meta: request.meta,
+      });
       let shouldSetupInvalidations =
         graph.invalidNodeIds.has(id) || !graph.hasNode(id);
       let subrequestNode = nullthrows(
@@ -235,7 +271,11 @@ export class AssetRequestRunner extends RequestRunner<
           moduleSpecifier,
           resolveFrom: result.resolvedPath, // TODO: resolveFrom should be nearest package boundary
         };
-        let id = generateRequestId('dep_version_request', depVersionRequst);
+        // let id = generateRequestId('dep_version_request', depVersionRequst);
+        let id = md5FromOrderedObject({
+          type: 'dep_version_request',
+          ...depVersionRequst,
+        });
         let shouldSetupInvalidations =
           graph.invalidNodeIds.has(id) || !graph.hasNode(id);
         let subrequestNode = nullthrows(
@@ -289,6 +329,13 @@ export class DepPathRequestRunner extends RequestRunner<
       config,
     });
     this.assetGraph = assetGraph;
+  }
+
+  generateRequestId(request: Dependency) {
+    return md5FromOrderedObject({
+      type: 'dep_path_request',
+      id: request.id,
+    });
   }
 
   run(request: Dependency) {

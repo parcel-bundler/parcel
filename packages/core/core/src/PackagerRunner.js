@@ -15,7 +15,7 @@ import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import {
-  md5FromObject,
+  md5FromOrderedObject,
   md5FromString,
   blobToStream,
   TapStream,
@@ -353,7 +353,7 @@ export default class PackagerRunner {
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
-    return md5FromObject({
+    return md5FromOrderedObject({
       parcelVersion: PARCEL_VERSION,
       deps,
       opts: {sourceMaps},
