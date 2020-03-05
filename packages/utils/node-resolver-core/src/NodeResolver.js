@@ -59,6 +59,7 @@ export default class NodeResolver {
     this.mainFields = opts.mainFields;
     this.options = opts.options;
     this.packageCache = new Map();
+    this.statCache = new Map();
     this.rootPackage = null;
   }
 
@@ -272,7 +273,7 @@ export default class NodeResolver {
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
-        let stats = await this.options.inputFS.stat(moduleDir);
+        let stats = await this.stat(moduleDir);
         if (stats.isDirectory()) {
           return {
             moduleName: parts[0],
@@ -324,9 +325,21 @@ export default class NodeResolver {
     }
   }
 
+  stat(file: FilePath) {
+    if (this.statCache.has(file)) {
+      return this.statCache.get(file);
+    }
+
+    // console.log('STAT', file)
+
+    let statPromise = this.options.inputFS.stat(file);
+    this.statCache.set(file, statPromise);
+    return statPromise;
+  }
+
   async isFile(file: FilePath) {
     try {
-      let stat = await this.options.inputFS.stat(file);
+      let stat = await this.stat(file);
       return stat.isFile() || stat.isFIFO();
     } catch (err) {
       return false;

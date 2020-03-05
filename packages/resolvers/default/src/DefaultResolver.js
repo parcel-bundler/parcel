@@ -7,6 +7,8 @@ import NodeResolver from '@parcel/node-resolver-core';
 // ex. `imports-loader?$=jquery!./example.js`
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
+let resolver;
+
 export default new Resolver({
   resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
@@ -25,11 +27,12 @@ export default new Resolver({
       mainFields.push('main', 'module');
     }
 
-    const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
-      mainFields,
-      options,
-    });
+    if (!resolver)
+      resolver = new NodeResolver({
+        extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
+        mainFields,
+        options,
+      });
     return resolver.resolve({
       filename: filePath,
       isURL: dependency.isURL,
