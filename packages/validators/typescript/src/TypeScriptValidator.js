@@ -4,9 +4,12 @@ import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
-import {LanguageServiceHost} from '@parcel/ts-utils';
+import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
-let langServiceCache = {};
+let langServiceCache: {
+  [configHash: string]: {|host: LanguageServiceHost, service: any|},
+  ...,
+} = {};
 
 type TSValidatorConfig = {|
   filepath: string | null,
@@ -45,21 +48,28 @@ export default new Validator({
     if (tsconfig && !langServiceCache[configHash]) {
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
-        ts.sys,
+        new ParseConfigHost(options.inputFS, ts),
         baseDir,
       );
-
-      langServiceCache[configHash] = ts.createLanguageService(
-        new LanguageServiceHost(options.inputFS, ts, parsedCommandLine),
-        ts.createDocumentRegistry(),
+      const host = new LanguageServiceHost(
+        options.inputFS,
+        ts,
+        parsedCommandLine,
       );
+      langServiceCache[configHash] = {
+        host,
+        service: ts.createLanguageService(host, ts.createDocumentRegistry()),
+      };
     }
 
     if (!langServiceCache[configHash]) return;
 
-    const diagnostics = langServiceCache[configHash].getSemanticDiagnostics(
-      asset.filePath,
-    );
+    // Make sure that when the typescript language service asks us for this file, we let it know that there is a new version.
+    langServiceCache[configHash].host.invalidate(asset.filePath);
+
+    const diagnostics = langServiceCache[
+      configHash
+    ].service.getSemanticDiagnostics(asset.filePath);
 
     let validatorResult = {
       warnings: [],

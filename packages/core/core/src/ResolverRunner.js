@@ -14,6 +14,8 @@ import {report} from './ReporterRunner';
 import PublicDependency from './public/Dependency';
 import PluginOptions from './public/PluginOptions';
 
+import {escapeMarkdown} from '@parcel/utils';
+
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
@@ -136,15 +138,21 @@ export default class ResolverRunner {
     if (dep.isOptional) {
       return null;
     }
+      
+    let dir = dependency.sourcePath
+      ? escapeMarkdown(relatifyPath(
+              this.options.projectRoot,
+              dependency.sourcePath,
+            ))
+      : '';
+      
+      let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Failed to resolve '${dependency.moduleSpecifier}' ${
-        dependency.sourcePath
-          ? `from '${relatifyPath(
-              this.options.projectRoot,
-              dependency.sourcePath,
-            )}'`
+      `Failed to resolve '${specifier}' ${
+        dir
+          ? `from '${dir}'`
           : ''
       }`,
     );

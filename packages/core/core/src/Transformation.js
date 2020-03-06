@@ -103,13 +103,23 @@ export default class Transformation {
     let assets = results.map(a => a.value);
 
     for (let {request, result} of this.configRequests) {
-      let plugin =
-        request.plugin != null &&
-        (await this.parcelConfig.loadPlugin(request.plugin));
-      if (plugin && plugin.preSerializeConfig) {
-        plugin.preSerializeConfig({config: result});
+      if (request.plugin != null) {
+        let resolveFrom = request.meta.parcelConfigPath;
+        if (typeof resolveFrom !== 'string') {
+          throw new Error('request.meta.parcelConfigPath should be a string!');
+        }
+
+        let plugin = await this.parcelConfig.loadPlugin({
+          packageName: request.plugin,
+          resolveFrom,
+        });
+
+        if (plugin && plugin.preSerializeConfig) {
+          plugin.preSerializeConfig({config: result});
+        }
       }
     }
+
     return {assets, configRequests: this.configRequests};
   }
 
@@ -332,37 +342,31 @@ export default class Transformation {
 
     let config = await this.loadConfig(configRequest);
     let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(
-      config.result,
-      this.options.packageManager,
-    );
+    let parcelConfig = new ParcelConfig(result, this.options.packageManager);
+
     // A little hacky
     this.parcelConfig = parcelConfig;
 
     configs.set('parcel', config);
 
-    for (let [moduleName] of config.devDeps) {
-      let plugin = await parcelConfig.loadPlugin(moduleName);
-      // TODO: implement loadPlugin in existing plugins that require config
-      if (plugin.loadConfig) {
-        let thirdPartyConfig = await this.loadTransformerConfig({
-          filePath,
-          plugin: moduleName,
-          parcelConfigPath: result.filePath,
-          isSource,
-        });
-
-        configs.set(moduleName, thirdPartyConfig);
-      }
-    }
-
     let transformers = await parcelConfig.getTransformers(
       filePath,
       pipelineName,
     );
+
+    for (let {name, resolveFrom} of transformers) {
+      let thirdPartyConfig = await this.loadTransformerConfig({
+        filePath,
+        plugin: name,
+        parcelConfigPath: resolveFrom,
+        isSource,
+      });
+
+      configs.set(name, thirdPartyConfig);
+    }
+
     let pipeline = {
       id: transformers.map(t => t.name).join(':'),
-
       transformers: transformers.map(transformer => ({
         name: transformer.name,
         config: configs.get(transformer.name)?.result,
@@ -431,6 +435,7 @@ export default class Transformation {
         parcelConfigPath,
       },
     };
+
     return this.loadConfig(configRequest);
   }
 }
