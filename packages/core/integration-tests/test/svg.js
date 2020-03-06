@@ -10,8 +10,8 @@ import path from 'path';
 
 const config = {
   ...defaultConfigContents,
-  transforms: {
-    ...defaultConfigContents.transforms,
+  transformers: {
+    ...defaultConfigContents.transformers,
     '*.svg': ['@parcel/transformer-svgo', '@parcel/transformer-svg-react'],
   },
   reporters: [],

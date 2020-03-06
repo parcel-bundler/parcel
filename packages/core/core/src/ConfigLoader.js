@@ -98,12 +98,14 @@ export default class ConfigLoader {
       searchPath: filePath,
       env,
     });
+
     invariant(typeof parcelConfigPath === 'string');
     let pluginInstance = await loadPlugin(
       this.options.packageManager,
       nullthrows(plugin),
       parcelConfigPath,
     );
+
     if (pluginInstance.loadConfig != null) {
       await pluginInstance.loadConfig({
         config: new Config(config, this.options),
