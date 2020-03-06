@@ -55,7 +55,7 @@
     semver "^5.4.1"
     source-map "^0.5.0"
 
-"@babel/core@^7.0.0", "@babel/core@^7.2.0", "@babel/core@^7.2.2", "@babel/core@^7.4.4", "@babel/core@^7.7.0":
+"@babel/core@^7.0.0", "@babel/core@^7.2.0", "@babel/core@^7.2.2", "@babel/core@^7.4.4", "@babel/core@^7.7.0", "@babel/core@^7.8.7":
   version "7.8.7"
   resolved "https://registry.yarnpkg.com/@babel/core/-/core-7.8.7.tgz#b69017d221ccdeb203145ae9da269d72cf102f3b"
   integrity sha512-rBlqF3Yko9cynC5CCFy6+K/w2N+Sq/ff2BPy+Krp7rHlABIr5epbA7OxVeKoMHB39LZOp1UY5SuLjy6uWi35yA==
