@@ -8,21 +8,19 @@ import path from 'path';
 import * as t from '@babel/types';
 import {
   isArrayPattern,
-  isClassDeclaration,
   isExpressionStatement,
-  isFunctionDeclaration,
   isIdentifier,
   isObjectPattern,
-  isVariableDeclaration,
+  isProgram,
   isStringLiteral,
 } from '@babel/types';
+import traverse from '@babel/traverse';
 import {simple as walkSimple} from '@parcel/babylon-walk';
-import {getName, getIdentifier} from './utils';
+import {PromiseQueue} from '@parcel/utils';
+import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
-import {PromiseQueue} from '@parcel/utils';
-import {needsPrelude} from './utils';
+import {getName, getIdentifier, needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
@@ -218,49 +216,58 @@ function shouldExcludeAsset(
   );
 }
 
+const FIND_REQUIRES_VISITOR = {
+  CallExpression(
+    node: CallExpression,
+    {
+      bundleGraph,
+      asset,
+      result,
+    }: {|bundleGraph: BundleGraph, asset: Asset, result: Array<Asset>|},
+  ) {
+    let {arguments: args, callee} = node;
+    if (!isIdentifier(callee)) {
+      return;
+    }
+
+    if (callee.name === '$parcel$require') {
+      let [, src] = args;
+      invariant(isStringLiteral(src));
+      let dep = bundleGraph
+        .getDependencies(asset)
+        .find(dep => dep.moduleSpecifier === src.value);
+      if (!dep) {
+        throw new Error(`Could not find dep for "${src.value}`);
+      }
+      // can be undefined if AssetGraph#resolveDependency optimized
+      // ("deferred") this dependency away as an unused reexport
+      let resolution = bundleGraph.getDependencyResolution(dep);
+      if (resolution) {
+        result.push(resolution);
+      }
+    }
+  },
+};
+
 function findRequires(
   bundleGraph: BundleGraph,
   asset: Asset,
   ast: mixed,
 ): Array<Asset> {
   let result = [];
-  walkSimple(ast, {
-    CallExpression(node: CallExpression) {
-      let {arguments: args, callee} = node;
-      if (!isIdentifier(callee)) {
-        return;
-      }
-
-      if (callee.name === '$parcel$require') {
-        let [, src] = args;
-        invariant(isStringLiteral(src));
-        let dep = bundleGraph
-          .getDependencies(asset)
-          .find(dep => dep.moduleSpecifier === src.value);
-        if (!dep) {
-          throw new Error(`Could not find dep for "${src.value}`);
-        }
-        // can be undefined if AssetGraph#resolveDependency optimized
-        // ("deferred") this dependency away as an unused reexport
-        let resolution = bundleGraph.getDependencyResolution(dep);
-        if (resolution) {
-          result.push(resolution);
-        }
-      }
-    },
-  });
+  walkSimple(ast, FIND_REQUIRES_VISITOR, {asset, bundleGraph, result});
 
   return result;
 }
 
-function wrapModule(asset: Asset, statements) {
-  let body = [];
-  let decls = [];
-  let fns = [];
-  for (let node of statements) {
-    // Hoist all declarations out of the function wrapper
-    // so that they can be referenced by other modules directly.
-    if (isVariableDeclaration(node)) {
+// Toplevel var/let/const declarations, function declarations and all `var` declarations
+// in a non-function scope need to be hoisted.
+const WRAP_MODULE_VISITOR = {
+  noScope: true,
+  VariableDeclaration(path, {decls}) {
+    let {node} = path;
+    let replace = [];
+    if (node.kind === 'var' || isProgram(path.parent)) {
       for (let decl of node.declarations) {
         let {id, init} = decl;
         if (isObjectPattern(id) || isArrayPattern(id)) {
@@ -271,45 +278,57 @@ function wrapModule(asset: Asset, statements) {
             decls.push(t.variableDeclarator(prop));
           }
           if (init) {
-            body.push(
+            replace.push(
               t.expressionStatement(t.assignmentExpression('=', id, init)),
             );
           }
         } else {
-          invariant(isIdentifier(id));
           decls.push(t.variableDeclarator(id));
+          invariant(t.isIdentifier(id));
           let {init} = decl;
           if (init) {
-            body.push(
-              t.expressionStatement(
-                t.assignmentExpression('=', t.identifier(id.name), init),
-              ),
+            replace.push(
+              t.expressionStatement(t.assignmentExpression('=', id, init)),
             );
           }
         }
       }
-    } else if (isFunctionDeclaration(node)) {
-      // Function declarations can be hoisted out of the module initialization function
-      fns.push(node);
-    } else if (isClassDeclaration(node)) {
-      let {id} = node;
-      invariant(isIdentifier(id));
-      // Class declarations are not hoisted. We declare a variable outside the
-      // function and convert to a class expression assignment.
-      decls.push(t.variableDeclarator(t.identifier(id.name)));
-      body.push(
-        t.expressionStatement(
-          t.assignmentExpression(
-            '=',
-            t.identifier(id.name),
-            t.toExpression(node),
-          ),
-        ),
-      );
-    } else {
-      body.push(node);
     }
-  }
+    if (replace.length > 0) {
+      path.replaceWithMultiple(replace).forEach(p => p.skip());
+    } else {
+      path.skip();
+    }
+  },
+  FunctionDeclaration(path, {fns}) {
+    fns.push(path.node);
+    path.remove();
+  },
+  FunctionExpression(path) {
+    path.skip();
+  },
+  ClassDeclaration(path, {decls}) {
+    let {node} = path;
+    let {id} = node;
+    invariant(isIdentifier(id));
+
+    // Class declarations are not hoisted. We declare a variable outside the
+    // function and convert to a class expression assignment.
+    decls.push(t.variableDeclarator(id));
+    path.replaceWith(
+      t.expressionStatement(
+        t.assignmentExpression('=', id, t.toExpression(node)),
+      ),
+    );
+    path.skip();
+  },
+};
+
+function wrapModule(asset: Asset, statements) {
+  let decls = [];
+  let fns = [];
+  let program = t.program(statements);
+  traverse(t.file(program), WRAP_MODULE_VISITOR, null, {decls, fns});
 
   let executed = getName(asset, 'executed');
   decls.push(
@@ -328,7 +347,7 @@ function wrapModule(asset: Asset, statements) {
           t.booleanLiteral(true),
         ),
       ),
-      ...body,
+      ...program.body,
     ]),
   );
 
