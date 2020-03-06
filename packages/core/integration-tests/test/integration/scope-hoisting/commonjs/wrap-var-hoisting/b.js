@@ -1,4 +1,4 @@
-const BigIntSupported = true;
+for(var BigIntSupported in [0, 1]){}
 
 if (BigIntSupported) {
 	var bigIntValue = () => true;

@@ -13,6 +13,9 @@ import {
   isObjectPattern,
   isProgram,
   isStringLiteral,
+  isForInStatement,
+  isForOfStatement,
+  isForStatement,
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import {simple as walkSimple} from '@parcel/babylon-walk';
@@ -265,7 +268,7 @@ function findRequires(
 const WRAP_MODULE_VISITOR = {
   noScope: true,
   VariableDeclaration(path, {decls}) {
-    let {node} = path;
+    let {node, parent} = path;
     let replace = [];
     if (node.kind === 'var' || isProgram(path.parent)) {
       for (let decl of node.declarations) {
@@ -277,16 +280,20 @@ const WRAP_MODULE_VISITOR = {
           )) {
             decls.push(t.variableDeclarator(prop));
           }
-          if (init) {
-            replace.push(
-              t.expressionStatement(t.assignmentExpression('=', id, init)),
-            );
-          }
         } else {
           decls.push(t.variableDeclarator(id));
           invariant(t.isIdentifier(id));
-          let {init} = decl;
-          if (init) {
+        }
+        if (
+          isForInStatement(parent, {left: node}) ||
+          isForOfStatement(parent, {left: node})
+        ) {
+          invariant(!init);
+          replace.push(id);
+        } else if (init) {
+          if (isForStatement(parent, {init: node})) {
+            replace.push(t.assignmentExpression('=', id, init));
+          } else {
             replace.push(
               t.expressionStatement(t.assignmentExpression('=', id, init)),
             );
@@ -294,10 +301,14 @@ const WRAP_MODULE_VISITOR = {
         }
       }
     }
-    if (replace.length > 0) {
+
+    if (replace.length > 1) {
       path.replaceWithMultiple(replace).forEach(p => p.skip());
-    } else {
+    } else if (replace.length == 1) {
+      path.replaceWith(replace[0]);
       path.skip();
+    } else {
+      path.remove();
     }
   },
   FunctionDeclaration(path, {fns}) {
