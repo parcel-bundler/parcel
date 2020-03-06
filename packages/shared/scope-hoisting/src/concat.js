@@ -16,7 +16,7 @@ import {
   isVariableDeclaration,
   isStringLiteral,
 } from '@babel/types';
-import * as walk from 'babylon-walk';
+import {simple as walkSimple} from '@parcel/babylon-walk';
 import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -224,7 +224,7 @@ function findRequires(
   ast: mixed,
 ): Array<Asset> {
   let result = [];
-  walk.simple(ast, {
+  walkSimple(ast, {
     CallExpression(node: CallExpression) {
       let {arguments: args, callee} = node;
       if (!isIdentifier(callee)) {
