@@ -142,7 +142,7 @@ export default new Transformer({
       {
         type: 'ts',
         code,
-        map: SourceMap(map.mappings, map.sources, map.names || []),
+        map: new SourceMap(map.mappings, map.sources, map.names || []),
         includedFiles,
       },
     ];
