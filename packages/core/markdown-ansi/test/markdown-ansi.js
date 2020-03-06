@@ -27,4 +27,14 @@ describe('markdown-ansi', () => {
     let res = mdAnsi('~~strikethrough~~');
     assert.equal(res, '\u001b[9mstrikethrough\u001b[29m');
   });
+
+  it('should support escape 01', () => {
+    let res = mdAnsi('\\*\\*bold\\*\\*');
+    assert.equal(res, '**bold**');
+  });
+
+  it('should support italic with escape', () => {
+    let res = mdAnsi('\\__italic_\\_');
+    assert.equal(res, '_\u001b[3mitalic\u001b[23m_');
+  });
 });
