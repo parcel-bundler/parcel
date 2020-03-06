@@ -39,3 +39,4 @@ export * from './resolve';
 export * from './relativeBundlePath';
 export * from './ansi-html';
 export * from './escape-html';
+export * from './escape-markdown';
