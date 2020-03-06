@@ -138,23 +138,18 @@ export default class ResolverRunner {
     if (dep.isOptional) {
       return null;
     }
-      
+
     let dir = dependency.sourcePath
-      ? escapeMarkdown(relatifyPath(
-              this.options.projectRoot,
-              dependency.sourcePath,
-            ))
+      ? escapeMarkdown(
+          relatifyPath(this.options.projectRoot, dependency.sourcePath),
+        )
       : '';
-      
-      let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
+
+    let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Failed to resolve '${specifier}' ${
-        dir
-          ? `from '${dir}'`
-          : ''
-      }`,
+      `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
 
     // Merge resolver errors
