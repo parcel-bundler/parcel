@@ -84,7 +84,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       let statementIndices: Map<string, number> = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
-        if (isExpressionStatement(statement)) {
+        if (
+          isVariableDeclaration(statement) ||
+          isExpressionStatement(statement)
+        ) {
           for (let depAsset of findRequires(bundleGraph, asset, statement)) {
             if (!statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
