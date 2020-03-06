@@ -1141,6 +1141,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('should hoist all vars in the scope', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-var-hoisting/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, true);
+    });
+
     it('should wrap modules that access `module` as a free variable', async function() {
       let b = await bundle(
         path.join(
