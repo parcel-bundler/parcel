@@ -142,7 +142,7 @@ export default new Transformer({
       {
         type: 'ts',
         code,
-        map: await SourceMap.fromRawSourceMap(map),
+        map: SourceMap(map.mappings, map.sources, map.names || []),
         includedFiles,
       },
     ];

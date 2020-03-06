@@ -156,6 +156,10 @@ class BaseAsset {
   getMap(): Promise<?SourceMap> {
     return this.#asset.getMap();
   }
+
+  getMapBuffer(): Promise<?Buffer> {
+    return this.#asset.getMapBuffer();
+  }
 }
 
 export class Asset extends BaseAsset implements IAsset {

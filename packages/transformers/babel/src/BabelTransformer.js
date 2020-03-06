@@ -62,11 +62,14 @@ export default new Transformer({
         sourceFileName: sourceFileName,
       });
 
+      let map = null;
+      if (generated.rawMappings) {
+        map = new SourceMap(generated.rawMappings);
+      }
+
       return {
         code: generated.code,
-        map: new SourceMap(generated.rawMappings ?? undefined, {
-          [sourceFileName]: null,
-        }),
+        map,
       };
     } catch (e) {
       throw await babelErrorEnhancer(e, asset);

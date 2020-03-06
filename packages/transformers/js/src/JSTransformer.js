@@ -179,9 +179,7 @@ export default new Transformer({
 
       res.code = generated.code;
       // $FlowFixMe...
-      res.map = new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null,
-      });
+      res.map = new SourceMap(generated.rawMappings);
     }
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {

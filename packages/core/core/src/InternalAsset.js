@@ -99,6 +99,7 @@ export default class InternalAsset {
   options: ParcelOptions;
   content: Blob;
   map: ?SourceMap;
+  mapBuffer: ?Buffer;
   ast: ?AST;
   idBase: ?string;
 
@@ -155,9 +156,10 @@ export default class InternalAsset {
       ),
       this.map == null
         ? Promise.resolve()
-        : this.options.cache.set(
+        : this.options.cache.setBlob(
             this.getCacheKey('map' + pipelineKey),
-            this.map,
+            // $FlowFixMe
+            this.mapBuffer ? this.mapBuffer : this.map.toBuffer(),
           ),
     ]);
     this.value.contentKey = contentKey;
@@ -213,12 +215,22 @@ export default class InternalAsset {
     this.content = stream;
   }
 
+  async getMapBuffer(): Promise<?Buffer> {
+    if (!this.mapBuffer) {
+      if (this.map) {
+        this.mapBuffer = this.map.toBuffer();
+      } else if (this.value.mapKey != null) {
+        this.mapBuffer = await this.options.cache.getBlob(this.value.mapKey);
+      }
+    }
+
+    return this.mapBuffer;
+  }
+
   async getMap(): Promise<?SourceMap> {
-    if (this.value.mapKey != null) {
+    if (!this.map && this.value.mapKey != null) {
       // Get sourcemap from flatbuffer
-      this.map = new SourceMap(
-        await this.options.cache.getBlob(this.value.mapKey),
-      );
+      this.map = new SourceMap(await this.getMapBuffer());
     }
 
     return this.map;
