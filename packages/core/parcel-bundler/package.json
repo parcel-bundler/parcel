@@ -70,7 +70,6 @@
     "semver": "^5.4.1",
     "serialize-to-js": "^3.0.1",
     "serve-static": "^1.12.4",
-    "source-map": "0.6.1",
     "terser": "^3.7.3",
     "v8-compile-cache": "^2.0.0",
     "ws": "^5.1.1"
