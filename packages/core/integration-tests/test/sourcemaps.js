@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import os from 'os';
-import SourceMap from 'parcel-bundler/src/SourceMap';
+import SourceMap from '@parcel/source-map';
 import {
   bundle,
   run,
@@ -40,13 +40,14 @@ function checkSourceMapping({
   );
   let sourcePosition = indexToLineCol(source, source.indexOf(str));
 
-  let index = map.findClosestGenerated(
+  let mapping = map.findClosestMapping(
     generatedPosition.line,
     generatedPosition.column,
   );
 
-  let mapping = map.mappings[index];
   assert(mapping, "no mapping for '" + str + "'" + msg);
+
+  let mapData = map.getMap();
 
   let generatedDiff = {
     line: generatedPosition.line - mapping.generated.line,
@@ -62,7 +63,7 @@ function checkSourceMapping({
     {
       line: computedSourcePosition.line,
       column: computedSourcePosition.column,
-      source: mapping.source,
+      source: mapData.sources[mapping.source],
     },
     {
       line: sourcePosition.line,
@@ -97,11 +98,9 @@ describe('sourcemaps', function() {
       'sourceRoot should be the project root mounted to dev server.',
     );
 
-    let sourceMap = await new SourceMap().addMap(map);
+    let sourceMap = new SourceMap(map.mappings, map.sources, map.names);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = 'index.js';
-    assert.equal(Object.keys(sourceMap.sources).length, 1);
-    assert.strictEqual(sourceMap.sources[sourcePath], null);
 
     checkSourceMapping({
       map: sourceMap,
@@ -151,11 +150,12 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = await new SourceMap().addMap(map);
+    let sourceMap = new SourceMap(map.mappings, map.sources, map.names);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = 'index.js';
-    assert.equal(Object.keys(sourceMap.sources).length, 1);
-    assert.strictEqual(sourceMap.sources[sourcePath], null);
+    let mapData = sourceMap.getMap();
+    assert.equal(Object.keys(mapData.sources).length, 1);
+
     assert(
       await inputFS.exists(path.resolve(distDir + sourceRoot + sourcePath)),
       'combining sourceRoot and sources object should resolve to the original file',
@@ -207,11 +207,11 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = await new SourceMap().addMap(map);
-    assert.equal(Object.keys(sourceMap.sources).length, 3);
+    let sourceMap = new SourceMap(map.mappings, map.sources, map.names);
+    let mapData = sourceMap.getMap();
+    assert.equal(Object.keys(mapData.sources).length, 3);
 
-    for (let source of Object.keys(sourceMap.sources)) {
-      assert.strictEqual(sourceMap.sources[source], null);
+    for (let source of mapData.sources) {
       assert(
         await inputFS.exists(path.resolve(distDir + sourceRoot + source)),
         'combining sourceRoot and sources object should resolve to the original file',
