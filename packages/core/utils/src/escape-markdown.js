@@ -1,5 +1,5 @@
 // @flow
-const escapeCharacters = ['*', '_', '~'];
+const escapeCharacters = ['\\', '*', '_', '~'];
 
 export function escapeMarkdown(s: string): string {
   for (const char of escapeCharacters) {

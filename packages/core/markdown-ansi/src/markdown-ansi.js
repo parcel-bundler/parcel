@@ -18,7 +18,7 @@ export default function markdownParser(input: string): string {
   input = input.replace(ITALIC_REGEX, (...args) =>
     chalk.italic(args[1] || args[2]),
   );
-  input = input.replace(/\\/g, '');
+  input = input.replace(/(?<!\\)\\/g, '');
 
   return input;
 }
