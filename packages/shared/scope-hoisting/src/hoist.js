@@ -145,6 +145,39 @@ const VISITOR: Visitor<MutableAsset> = {
             shouldWrap = true;
             path.stop();
           }
+
+          // We must disable resolving $..$exports.foo if `exports`
+          // is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            node.name === 'exports' &&
+            (!isMemberExpression(parent) ||
+              !(isIdentifier(parent.property) && !parent.computed) ||
+              isStringLiteral(parent.property)) &&
+            !path.scope.hasBinding('exports') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            asset.meta.isCommonJS = true;
+            asset.meta.resolveExportsBailedOut = true;
+          }
+        },
+
+        MemberExpression(path) {
+          let {node, parent} = path;
+
+          // We must disable resolving $..$exports.foo if `exports`
+          // is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            t.matchesPattern(node, 'module.exports') &&
+            (!isMemberExpression(parent) ||
+              !(isIdentifier(parent.property) && !parent.computed) ||
+              isStringLiteral(parent.property)) &&
+            !path.scope.hasBinding('module') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            asset.meta.resolveExportsBailedOut = true;
+          }
         },
       });
 
@@ -321,10 +354,6 @@ const VISITOR: Visitor<MutableAsset> = {
     //   }
     // }
 
-    if (path.scope.hasBinding('exports')) {
-      return;
-    }
-
     if (isIdentifier(left) && left.name === 'exports') {
       path.scope.getProgramParent().setData('cjsExportsReassigned', true);
       path
@@ -337,7 +366,10 @@ const VISITOR: Visitor<MutableAsset> = {
     // This allows us to remove the CommonJS export object completely in many cases.
     if (
       isMemberExpression(left) &&
-      isIdentifier(left.object, {name: 'exports'}) &&
+      ((isIdentifier(left.object, {name: 'exports'}) &&
+        !path.scope.hasBinding('exports')) ||
+        (t.matchesPattern(left.object, 'module.exports') &&
+          !path.scope.hasBinding('module'))) &&
       ((isIdentifier(left.property) && !left.computed) ||
         isStringLiteral(left.property))
     ) {
