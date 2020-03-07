@@ -865,6 +865,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('concats modules with inserted globals in the correct order', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/concat-order-globals/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'foobar');
+    });
+
     it('supports named imports of commonjs modules', async function() {
       let b = await bundle(
         path.join(

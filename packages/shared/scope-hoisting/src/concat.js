@@ -64,6 +64,8 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   let usedExports = getUsedExports(bundle, bundleGraph);
 
+  // Node: for each asset, the order of `$parcel$require` calls and the corresponding
+  // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
       if (shouldExcludeAsset(asset, usedExports)) {
