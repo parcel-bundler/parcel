@@ -25,8 +25,10 @@ var checkedAssets, assetsToAccept, acceptedAssets;
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = location.hostname;
-  var port = location.port ? ':' + location.port : '';
+  var hostname = location.origin.startsWith('http')
+    ? location.hostname
+    : 'localhost';
+  var port = location.port ? ':' + location.port : ':1234';
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + port + '/');
   ws.onmessage = function(event) {
