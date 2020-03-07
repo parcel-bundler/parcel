@@ -26,7 +26,6 @@ export default new Optimizer({
     );
 
     let config = {
-      warnings: true,
       ...userConfig?.config,
       compress: {
         ...userConfig?.config?.compress,
@@ -40,42 +39,15 @@ export default new Optimizer({
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    let sourceMap = null;
-    let mappingsBuffer = [];
-    if (options.sourceMaps) {
-      sourceMap = new SourceMap();
-
-      // $FlowFixMe
-      config.output = {
-        source_map: {
-          add(source, gen_line, gen_col, orig_line, orig_col, name) {
-            mappingsBuffer.push({
-              source,
-              name,
-              original: {
-                line: orig_line,
-                column: orig_col,
-              },
-              generated: {
-                line: gen_line,
-                column: gen_col,
-              },
-            });
-
-            if (mappingsBuffer.length > 25) {
-              // $FlowFixMe
-              sourceMap.addIndexedMappings(mappingsBuffer);
-              mappingsBuffer = [];
-            }
-          },
-        },
-      };
-    }
-
+    // $FlowFixMe
     let result = minify(contents, config);
 
-    if (sourceMap && map) {
-      sourceMap.addIndexedMappings(mappingsBuffer);
+    // $FlowFixMe
+    let jsonmap = JSON.parse(result.map);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(jsonmap.mappings, jsonmap.sources, jsonmap.names);
+
+    if (map) {
       sourceMap = sourceMap.extends(map.toBuffer());
     }
 
