@@ -599,7 +599,7 @@ function normalizeAssets(
       type: result.type,
       content: internalAsset.content,
       ast: result.ast,
-      map: internalAsset.map,
+      mapBuffer: internalAsset.mapBuffer,
       // $FlowFixMe
       dependencies: [...internalAsset.value.dependencies.values()],
       includedFiles: result.getIncludedFiles(),

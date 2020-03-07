@@ -208,7 +208,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   setMap(map: ?SourceMap): void {
-    this.#asset.map = map;
+    this.#asset.setMap(map);
   }
 
   get type(): string {
