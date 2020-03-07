@@ -270,7 +270,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  if (command.name() === 'serve') {
+  if (command.name() === 'serve' || command.name() === 'watch') {
     let {port = 1234, host, publicUrl} = command;
     port = await getPort({port, host});
 
