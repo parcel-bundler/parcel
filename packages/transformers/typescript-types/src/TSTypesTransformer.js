@@ -138,11 +138,17 @@ export default new Transformer({
       path.join(path.dirname(asset.filePath), source),
     );
 
+    let sourceMap = null;
+    if (map.mappings) {
+      sourceMap = new SourceMap();
+      sourceMap.addRawMappings(map.mappings, map.sources, map.names || []);
+    }
+
     return [
       {
         type: 'ts',
         code,
-        map: new SourceMap(map.mappings, map.sources, map.names || []),
+        map: sourceMap,
         includedFiles,
       },
     ];

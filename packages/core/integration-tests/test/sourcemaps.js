@@ -98,7 +98,8 @@ describe('sourcemaps', function() {
       'sourceRoot should be the project root mounted to dev server.',
     );
 
-    let sourceMap = new SourceMap(map.mappings, map.sources, map.names);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = 'index.js';
 
@@ -150,7 +151,8 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap(map.mappings, map.sources, map.names);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = 'index.js';
     let mapData = sourceMap.getMap();
@@ -207,7 +209,8 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap(map.mappings, map.sources, map.names);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
     let mapData = sourceMap.getMap();
     assert.equal(Object.keys(mapData.sources).length, 3);
 

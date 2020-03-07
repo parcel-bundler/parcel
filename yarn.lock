@@ -12094,10 +12094,10 @@ source-map@^0.7.3:
   resolved "https://registry.yarnpkg.com/source-map/-/source-map-0.7.3.tgz#5302f8169031735226544092e64981f751750383"
   integrity sha512-CkCj6giN3S+n9qrYiBTX5gystlENnRW5jZeNLHpe6aue+SrHcG5VYwujhW9s4dY31mEGsxBDrHR6oI69fTXsaQ==
 
-source-maps@^1.0.7:
-  version "1.0.7"
-  resolved "https://registry.yarnpkg.com/source-maps/-/source-maps-1.0.7.tgz#e7a995506ba29cf51344df4b8bae105c5293fab1"
-  integrity sha512-aXKfZ9ZGmY3p7CyL8j/28ElSG0Ltsta+KJ6HDzE/7GINhmmKeTxKhBy0YgcLbTHMfVnmpJ4TOeBRaPfjPOaKVg==
+source-maps@^1.0.8:
+  version "1.0.8"
+  resolved "https://registry.yarnpkg.com/source-maps/-/source-maps-1.0.8.tgz#4763a4076783b26b98eb54f0edc0e16b4bf9b6e7"
+  integrity sha512-Hrpfic5Amkr3c+yuhM28o9bEE6bCBv+pNZcnI2cwegvfws+rrGk7hS86ZBLaoPBZIDobR1/kE6zwlFxbdHNW6g==
   dependencies:
     node-addon-api "^1.6.2"
     node-gyp-build "^4.2.1"

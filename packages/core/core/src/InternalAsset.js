@@ -230,7 +230,8 @@ export default class InternalAsset {
   async getMap(): Promise<?SourceMap> {
     if (!this.map && this.value.mapKey != null) {
       // Get sourcemap from flatbuffer
-      this.map = new SourceMap(await this.getMapBuffer());
+      this.map = new SourceMap();
+      this.map.addBufferMappings(await this.getMapBuffer());
     }
 
     return this.map;

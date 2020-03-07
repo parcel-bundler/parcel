@@ -64,7 +64,8 @@ export default new Transformer({
 
       let map = null;
       if (generated.rawMappings) {
-        map = new SourceMap(generated.rawMappings);
+        map = new SourceMap();
+        map.addIndexedMappings(generated.rawMappings);
       }
 
       return {
