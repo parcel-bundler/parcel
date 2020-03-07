@@ -63,9 +63,14 @@ export default new Transformer({
       });
 
       let map = null;
-      if (generated.rawMappings) {
+      if (generated.map) {
         map = new SourceMap();
-        map.addIndexedMappings(generated.rawMappings);
+        // $FlowFixMe flow-types are incomplete
+        map.addRawMappings(
+          generated.map.mappings,
+          generated.map.sources,
+          generated.map.names,
+        );
       }
 
       return {

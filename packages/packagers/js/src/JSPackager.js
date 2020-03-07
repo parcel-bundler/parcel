@@ -122,16 +122,18 @@ export default new Packager({
 
         if (options.sourceMaps) {
           let lineCount = countLines(output);
-          let assetMap =
-            maps[i] ??
-            SourceMap.generateEmptyMap(
+          if (maps[i]) {
+            map.addBufferMappings(maps[i], lineOffset);
+          } else {
+            map.generateEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
               output,
-            ).toBuffer();
+              lineOffset,
+            );
+          }
 
-          map.addBufferMappings(assetMap, lineOffset);
           lineOffset += lineCount + 1;
         }
         i++;
