@@ -9,7 +9,7 @@ import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
-import * as walk from 'babylon-walk';
+import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {relativeUrl} from '@parcel/utils';
@@ -87,7 +87,7 @@ export default new Transformer({
       (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) ||
       (asset.env.isBrowser() && (ast.isDirty || BROWSER_RE.test(code)))
     ) {
-      walk.ancestor(ast.program, processVisitor, {
+      walkAncestor(ast.program, processVisitor, {
         asset,
         env: options.env,
         isNode: asset.env.isNode(),
@@ -97,7 +97,7 @@ export default new Transformer({
 
     // Collect dependencies
     if (canHaveDependencies(code) || ast.isDirty) {
-      walk.ancestor(ast.program, collectDependencies, {asset, options});
+      walkAncestor(ast.program, collectDependencies, {asset, options});
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.
@@ -131,7 +131,7 @@ export default new Transformer({
       // Insert node globals
       if (GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
-        walk.ancestor(ast.program, insertGlobals, asset);
+        walkAncestor(ast.program, insertGlobals, asset);
       }
     }
 
