@@ -39,16 +39,40 @@ export default new Optimizer({
       module: bundle.env.outputFormat === 'esmodule',
     };
 
+    let mappings = [];
+    if (options.sourceMaps) {
+      // $FlowFixMe
+      config.output = {
+        source_map: {
+          add(source, gen_line, gen_col, orig_line, orig_col, name) {
+            mappings.push({
+              source,
+              name,
+              original: {
+                line: orig_line,
+                column: orig_col,
+              },
+              generated: {
+                line: gen_line,
+                column: gen_col,
+              },
+            });
+          },
+        },
+      };
+    }
+
     // $FlowFixMe
     let result = minify(contents, config);
 
-    // $FlowFixMe
-    let jsonmap = JSON.parse(result.map);
-    let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(jsonmap.mappings, jsonmap.sources, jsonmap.names);
+    let sourceMap;
+    if (mappings.length) {
+      sourceMap = new SourceMap();
+      sourceMap.addIndexedMappings(mappings, -1);
 
-    if (map) {
-      sourceMap = sourceMap.extends(map.toBuffer());
+      if (map) {
+        sourceMap = sourceMap.extends(map.toBuffer());
+      }
     }
 
     if (result.error) {
