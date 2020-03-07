@@ -125,7 +125,7 @@ export default new Packager({
           if (maps[i]) {
             map.addBufferMappings(maps[i], lineOffset);
           } else {
-            map.generateEmptyMap(
+            map.addEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
