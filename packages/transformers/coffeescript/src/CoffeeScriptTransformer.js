@@ -19,12 +19,16 @@ export default new Transformer({
 
     // return from compile is based on sourceMaps option
     if (options.sourceMaps) {
-      let map = new SourceMap();
-      map.addRawMappings(
-        output.v3SourceMap.mappings,
-        output.v3SourceMap.sources,
-        output.v3SourceMap.names || [],
-      );
+      let map = null;
+      if (output.v3SourceMap) {
+        let parsedMap = JSON.parse(output.v3SourceMap);
+        map = new SourceMap();
+        map.addRawMappings(
+          parsedMap.mappings,
+          parsedMap.sources,
+          parsedMap.names || [],
+        );
+      }
 
       asset.setCode(output.js);
       asset.setMap(map);
