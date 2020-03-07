@@ -148,37 +148,6 @@ function validateVisitorMethods(path, val) {
   }
 }
 
-function wrapWithStateOrWrapper(oldVisitor, state, wrapper) {
-  let newVisitor = {};
-
-  for (let key in oldVisitor) {
-    let fns = oldVisitor[key];
-
-    // not an enter/exit array of callbacks
-    if (!Array.isArray(fns)) continue;
-
-    fns = fns.map(function(fn) {
-      let newFn = fn;
-
-      if (state) {
-        newFn = function(path) {
-          return fn.call(state, path, state);
-        };
-      }
-
-      if (wrapper) {
-        newFn = wrapper(state.key, key, newFn);
-      }
-
-      return newFn;
-    });
-
-    newVisitor[key] = fns;
-  }
-
-  return newVisitor;
-}
-
 function ensureEntranceObjects(obj) {
   for (let key in obj) {
     if (shouldIgnoreKey(key)) continue;
