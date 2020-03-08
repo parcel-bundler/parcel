@@ -46,7 +46,7 @@ export async function load(
   let babelCore = await options.packageManager.require(
     '@babel/core',
     config.searchPath,
-    {range: BABEL_RANGE},
+    {range: BABEL_RANGE, autoinstall: options.autoinstall},
   );
   let partialConfig = babelCore.loadPartialConfig({
     filename: config.searchPath,

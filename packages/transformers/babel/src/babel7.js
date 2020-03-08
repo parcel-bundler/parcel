@@ -3,6 +3,7 @@
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
+import * as bundledBabelCore from '@babel/core';
 
 import {BABEL_RANGE} from './constants';
 import packageJson from '../package.json';
@@ -19,9 +20,10 @@ export default async function babel7(
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
   let babel = babelOptions.internal
-    ? require('@babel/core')
+    ? bundledBabelCore
     : await options.packageManager.require('@babel/core', asset.filePath, {
         range: BABEL_RANGE,
+        autoinstall: options.autoinstall,
       });
 
   let config = {

@@ -11,6 +11,7 @@ import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -155,12 +156,29 @@ export default class NodeResolver {
       // ignore
     }
 
+    if (resolved === undefined && process.versions.pnp != null) {
+      try {
+        let [moduleName, subPath] = this.getModuleParts(filename);
+        // $FlowFixMe injected at runtime
+        let res = require('pnpapi').resolveToUnqualified(moduleName, parent);
+
+        resolved = {
+          moduleName,
+          subPath,
+          moduleDir: res,
+          filePath: path.join(res, subPath || ''),
+        };
+      } catch (e) {
+        // ignore
+      }
+    }
+
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
-      let parts = this.getModuleParts(filename);
+      let [moduleName, subPath] = this.getModuleParts(filename);
       resolved = {
-        moduleName: parts[0],
-        subPath: parts[1],
+        moduleName,
+        subPath,
       };
     }
 
@@ -173,13 +191,13 @@ export default class NodeResolver {
     }
 
     if (Array.isArray(includeNodeModules)) {
-      let parts = this.getModuleParts(name);
-      return includeNodeModules.includes(parts[0]);
+      let [moduleName] = this.getModuleParts(name);
+      return includeNodeModules.includes(moduleName);
     }
 
     if (includeNodeModules && typeof includeNodeModules === 'object') {
-      let parts = this.getModuleParts(name);
-      let include = includeNodeModules[parts[0]];
+      let [moduleName] = this.getModuleParts(name);
+      let include = includeNodeModules[moduleName];
       if (include != null) {
         return !!include;
       }
@@ -260,7 +278,7 @@ export default class NodeResolver {
   }
 
   async findNodeModulePath(filename: string, dir: string) {
-    let parts = this.getModuleParts(filename);
+    let [moduleName, subPath] = this.getModuleParts(filename);
     let root = path.parse(dir).root;
 
     while (dir !== root) {
@@ -271,12 +289,12 @@ export default class NodeResolver {
 
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
-        let moduleDir = path.join(dir, 'node_modules', parts[0]);
+        let moduleDir = path.join(dir, 'node_modules', moduleName);
         let stats = await this.options.inputFS.stat(moduleDir);
         if (stats.isDirectory()) {
           return {
-            moduleName: parts[0],
-            subPath: parts[1],
+            moduleName: moduleName,
+            subPath: subPath,
             moduleDir: moduleDir,
             filePath: path.join(dir, 'node_modules', filename),
           };
@@ -416,13 +434,10 @@ export default class NodeResolver {
       })
       .filter(entry => typeof entry === 'string')
       .map(main => {
+        invariant(typeof main === 'string');
         // Default to index file if no main field find
         if (!main || main === '.' || main === './') {
           main = 'index';
-        }
-
-        if (typeof main !== 'string') {
-          throw new Error('invariant: expected string');
         }
 
         return path.resolve(pkg.pkgdir, main);
@@ -535,11 +550,11 @@ export default class NodeResolver {
       );
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let [mod, ...rest] = this.getModuleParts(filename);
-        alias = await this.lookupAlias(aliases, mod, dir);
-        if (typeof alias === 'string') {
+        let [moduleName, subPath] = this.getModuleParts(filename);
+        alias = await this.lookupAlias(aliases, moduleName, dir);
+        if (typeof alias === 'string' && subPath) {
           // Append the filename back onto the aliased module.
-          alias = path.join(alias, ...rest);
+          alias = path.join(alias, subPath);
         }
       }
     }
@@ -610,16 +625,22 @@ export default class NodeResolver {
   }
 
   getModuleParts(name: string) {
-    let parts = path.normalize(name).split(path.sep);
-    if (parts[0].charAt(0) === '@') {
-      // Scoped module (e.g. @scope/module). Merge the first two parts back together.
-      parts.splice(0, 2, `${parts[0]}/${parts[1]}`);
+    name = path.normalize(name);
+    let splitOn = name.indexOf(path.sep);
+    if (name.charAt(0) === '@') {
+      splitOn = name.indexOf(path.sep, splitOn + 1);
+    }
+    if (splitOn < 0) {
+      return [name, undefined];
     }
 
-    return parts;
+    return [
+      name.substring(0, splitOn),
+      name.substring(splitOn + 1) || undefined,
+    ];
   }
 
-  hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON) {
+  hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON): boolean {
     switch (typeof pkg.sideEffects) {
       case 'boolean':
         return pkg.sideEffects;
