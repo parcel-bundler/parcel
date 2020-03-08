@@ -9,6 +9,7 @@ import {
   isExpressionStatement,
   isIdentifier,
   isMemberExpression,
+  isObjectExpression,
   isSequenceExpression,
   isVariableDeclarator,
 } from '@babel/types';
@@ -136,13 +137,18 @@ function remove(path: NodePath<Node>) {
   } else if (isExportAssignment(path)) {
     remove(path.parentPath.parentPath);
   } else if (isWildcardDest(path)) {
-    let src: Identifier | CallExpression | ObjectExpression =
-      path.parent.arguments[1];
+    let wildcard = path.parent;
+    invariant(isCallExpression(wildcard));
+    let src = wildcard.arguments[1];
 
     if (isCallExpression(src)) {
-      // return `$...$init` of arguments even though identifier isn't used
+      // keep `$...$init()` call
       path.parentPath.replaceWith(src);
     } else {
+      invariant(
+        isIdentifier(src) ||
+          (isObjectExpression(src) && src.properties.length === 0),
+      );
       remove(path.parentPath);
     }
   } else if (!path.removed) {
