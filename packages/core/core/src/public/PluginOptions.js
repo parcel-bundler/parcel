@@ -41,7 +41,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.env;
   }
 
-  get hot(): boolean {
+  get hot(): {|port: number|} | boolean {
     return this.#options.hot;
   }
 
