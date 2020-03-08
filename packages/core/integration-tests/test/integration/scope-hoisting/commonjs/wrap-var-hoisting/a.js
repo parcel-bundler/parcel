@@ -1,4 +1,4 @@
 if (Date.now() > 0) {
 	const b = require("./b");
-	output = b.is();
+	output = b.run();
 }

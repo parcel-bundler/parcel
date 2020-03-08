@@ -311,12 +311,12 @@ const WRAP_MODULE_VISITOR = {
       path.remove();
     }
   },
+  Function(path) {
+    path.skip();
+  },
   FunctionDeclaration(path, {fns}) {
     fns.push(path.node);
     path.remove();
-  },
-  FunctionExpression(path) {
-    path.skip();
   },
   ClassDeclaration(path, {decls}) {
     let {node} = path;
@@ -331,6 +331,9 @@ const WRAP_MODULE_VISITOR = {
         t.assignmentExpression('=', id, t.toExpression(node)),
       ),
     );
+    path.skip();
+  },
+  ClassExpression(path) {
     path.skip();
   },
 };

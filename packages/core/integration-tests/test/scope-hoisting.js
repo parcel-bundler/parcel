@@ -1149,6 +1149,19 @@ describe('scope hoisting', function() {
         ),
       );
 
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      assert(contents.split('f1_var').length - 1, 1);
+      assert(contents.split('f2_var').length - 1, 1);
+      assert(contents.split('f3_var').length - 1, 1);
+      assert(contents.split('f4_var').length - 1, 1);
+      assert(contents.split('c1_var').length - 1, 1);
+      assert(contents.split('c2_var').length - 1, 1);
+      assert(contents.split('BigIntSupported').length - 1, 4);
+
       let output = await run(b);
       assert.equal(output, true);
     });
