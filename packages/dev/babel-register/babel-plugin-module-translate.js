@@ -11,7 +11,7 @@ function resolveSource(specifier, from) {
         }
       }
       return pkg;
-    }
+    },
   });
 }
 
@@ -35,7 +35,7 @@ module.exports = ({types: t}) => ({
       if (t.isStringLiteral(source)) {
         source.value = getSourceField(
           source.value,
-          state.file.opts.filename || process.cwd()
+          state.file.opts.filename || process.cwd(),
         );
       }
     },
@@ -50,7 +50,7 @@ module.exports = ({types: t}) => ({
         try {
           node.arguments[0].value = getSourceField(
             node.arguments[0].value,
-            state.file.opts.filename || process.cwd()
+            state.file.opts.filename || process.cwd(),
           );
         } catch (e) {
           let exprStmtParent = path
@@ -58,13 +58,13 @@ module.exports = ({types: t}) => ({
             .find(v => v.isExpressionStatement());
           if (exprStmtParent) {
             exprStmtParent.replaceWith(
-              t.throwStatement(t.stringLiteral(e.message))
+              t.throwStatement(t.stringLiteral(e.message)),
             );
           }
         }
       }
-    }
-  }
+    },
+  },
 });
 
 module.exports.resolveSource = resolveSource;

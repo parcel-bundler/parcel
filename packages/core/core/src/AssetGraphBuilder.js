@@ -142,8 +142,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
 
     if (changes) {
-      this.requestGraph.invalidateUnpredictableNodes();
-      this.requestTracker.respondToFSEvents(changes);
+      this.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
         entries,
@@ -316,7 +315,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   respondToFSEvents(events: Array<Event>) {
-    return this.requestGraph.respondToFSEvents(events);
+    this.requestGraph.invalidateUnpredictableNodes();
+    return this.requestTracker.respondToFSEvents(events);
   }
 
   getWatcherOptions() {

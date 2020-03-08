@@ -77,7 +77,6 @@ export class RequestGraph extends Graph<
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
-    // $FlowFixMe
     return deserialized;
   }
 

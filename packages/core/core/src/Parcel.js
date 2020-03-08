@@ -53,6 +53,7 @@ export default class Parcel {
   #initialOptions; // InitialParcelOptions;
   #reporterRunner; // ReporterRunner
   #resolvedOptions = null; // ?ParcelOptions
+  #resolvedOptionsRef = 0; // number
   #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
   #watchAbortController; // AbortController
   #watchQueue = new PromiseQueue<?BuildEvent>({maxConcurrent: 1}); // PromiseQueue<?BuildEvent>
@@ -97,9 +98,9 @@ export default class Parcel {
 
     // ? Should we have a dispose function on the Parcel class or should we create these references
     //  - in run and watch and dispose at the end of run and in the unsubsribe function of watch
-    let {ref: optionsRef} = await this.#farm.createSharedReference(
-      resolvedOptions,
-    );
+    let optionsRef = (this.#resolvedOptionsRef = (
+      await this.#farm.createSharedReference(resolvedOptions)
+    ).ref);
 
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
@@ -254,6 +255,35 @@ export default class Parcel {
     try {
       if (options.profile) {
         await this.#farm.startProfile();
+      }
+
+      let assetGraphBuilderChanges = await this.#assetGraphBuilder.readFromCache();
+      if (assetGraphBuilderChanges) {
+        this.#assetGraphBuilder.respondToFSEvents(assetGraphBuilderChanges);
+      } else {
+        this.#assetGraphBuilder.init({
+          name: 'MainAssetGraph',
+          options: options,
+          optionsRef: this.#resolvedOptionsRef,
+          config: this.#config,
+          entries: options.entries,
+          workerFarm: this.#farm,
+        });
+      }
+
+      let runtimesAssetGraphBuilderChanges = await this.#runtimesAssetGraphBuilder.readFromCache();
+      if (runtimesAssetGraphBuilderChanges) {
+        this.#runtimesAssetGraphBuilder.respondToFSEvents(
+          runtimesAssetGraphBuilderChanges,
+        );
+      } else {
+        this.#runtimesAssetGraphBuilder.init({
+          name: 'RuntimesAssetGraph',
+          options: options,
+          optionsRef: this.#resolvedOptionsRef,
+          config: this.#config,
+          workerFarm: this.#farm,
+        });
       }
 
       this.#reporterRunner.report({
