@@ -180,14 +180,9 @@ export default new Transformer({
       res.code = generated.code;
 
       let map = null;
-      if (generated.map) {
+      if (generated.rawMappings) {
         map = new SourceMap();
-        // $FlowFixMe flow-types are incomplete
-        map.addRawMappings(
-          generated.map.mappings,
-          generated.map.sources,
-          generated.map.names,
-        );
+        map.addIndexedMappings(generated.rawMappings);
       }
       // $FlowFixMe...
       res.map = map;

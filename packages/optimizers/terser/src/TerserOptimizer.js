@@ -68,7 +68,7 @@ export default new Optimizer({
     let sourceMap;
     if (mappings.length) {
       sourceMap = new SourceMap();
-      sourceMap.addIndexedMappings(mappings, -1);
+      sourceMap.addIndexedMappings(mappings);
 
       if (map) {
         sourceMap = sourceMap.extends(map.toBuffer());

@@ -41,7 +41,7 @@ function checkSourceMapping({
   let sourcePosition = indexToLineCol(source, source.indexOf(str));
 
   let mapping = map.findClosestMapping(
-    generatedPosition.line - 1,
+    generatedPosition.line,
     generatedPosition.column,
   );
 
