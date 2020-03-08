@@ -70,6 +70,13 @@ const commonOptions = {
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
+  '--hmr-port <port>': [
+    'set the port to serve HMR websockets, defaults to random if not available',
+    (val, defaultVal) => (val ? parseInt(val) : defaultVal),
+    1234,
+  ],
+  '--hmr-host <host>':
+    "set the hostname of HMR websockets, defaults to location.hostname for (HTTP) served web pages and 'localhost' for the rest",
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
@@ -90,7 +97,8 @@ let serve = program
   .option(
     '-p, --port <port>',
     'set the port to serve on. defaults to 1234',
-    parseInt,
+    (val, defaultVal) => (val ? parseInt(val) : defaultVal),
+    1234,
   )
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option(
@@ -270,14 +278,16 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  if (command.name() === 'serve' || command.name() === 'watch') {
-    let {port = 1234, host, publicUrl} = command;
-    port = await getPort({port, host});
+  if (command.name() === 'serve') {
+    let {port: givenPort, host, publicUrl} = command;
+    let port = await getPort({port: givenPort, host});
 
-    if (command.port && port !== command.port) {
+    if (port !== givenPort) {
       // Parcel logger is not set up at this point, so just use native console.
       console.warn(
-        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
+        chalk.bold.yellowBright(
+          `⚠️  Port ${givenPort} could not be used. using ${port}.`,
+        ),
       );
     }
 
@@ -291,7 +301,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = true;
+    hmr = {port: command.hmrPort};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
