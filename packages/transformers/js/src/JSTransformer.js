@@ -82,7 +82,7 @@ export default new Transformer({
     let ast = asset.ast;
     let code = await asset.getCode();
 
-    // Inline process/ environment variables
+    // Inline process/environment variables
     if (
       (!asset.env.isNode() && (ast.isDirty || ENV_RE.test(code))) ||
       (asset.env.isBrowser() && (ast.isDirty || BROWSER_RE.test(code)))
@@ -93,6 +93,14 @@ export default new Transformer({
         isNode: asset.env.isNode(),
         isBrowser: asset.env.isBrowser(),
       });
+    }
+
+    if (!asset.env.isNode()) {
+      // Insert node globals, run before dependencies
+      if (GLOBAL_RE.test(code)) {
+        asset.meta.globals = new Map();
+        walkAncestor(ast.program, insertGlobals, asset);
+      }
     }
 
     // Collect dependencies
@@ -126,12 +134,6 @@ export default new Transformer({
         if (!ignore) {
           traverse(ast.program, fsVisitor, null, {asset, logger});
         }
-      }
-
-      // Insert node globals
-      if (GLOBAL_RE.test(code)) {
-        asset.meta.globals = new Map();
-        walkAncestor(ast.program, insertGlobals, asset);
       }
     }
 
