@@ -35,6 +35,7 @@ export default new Optimizer({
       },
       sourceMap: {
         filename: path.relative(options.projectRoot, bundle.filePath),
+        asObject: true,
       },
       module: bundle.env.outputFormat === 'esmodule',
     };
