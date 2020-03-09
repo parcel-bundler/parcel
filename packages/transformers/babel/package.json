@@ -35,5 +35,8 @@
   },
   "devDependencies": {
     "@parcel/types": "^2.0.0-alpha.3.1"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }
