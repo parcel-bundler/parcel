@@ -8,8 +8,9 @@ import {
   mergeMaps,
   mergeConfigs,
   resolveExtends,
-  readAndProcess,
+  readAndProcessConfigChain,
   resolveParcelConfig,
+  processConfig,
 } from '../src/loadParcelConfig';
 import {validatePackageName} from '../src/ParcelConfig.schema';
 import {DEFAULT_OPTIONS} from './utils';
@@ -18,35 +19,39 @@ describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
     it('should error on an invalid official package', () => {
       assert.throws(() => {
-        validatePackageName('@parcel/foo-bar', 'transform', 'transforms');
+        validatePackageName('@parcel/foo-bar', 'transform', 'transformers');
       }, /Official parcel transform packages must be named according to "@parcel\/transform-{name}"/);
     });
 
     it('should succeed on a valid official package', () => {
-      validatePackageName('@parcel/transform-bar', 'transform', 'transforms');
+      validatePackageName('@parcel/transform-bar', 'transform', 'transformers');
     });
 
     it('should error on an invalid community package', () => {
       assert.throws(() => {
-        validatePackageName('foo-bar', 'transform', 'transforms');
+        validatePackageName('foo-bar', 'transform', 'transformers');
       }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
 
       assert.throws(() => {
-        validatePackageName('parcel-foo-bar', 'transform', 'transforms');
+        validatePackageName('parcel-foo-bar', 'transform', 'transformers');
       }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
     });
 
     it('should succeed on a valid community package', () => {
-      validatePackageName('parcel-transform-bar', 'transform', 'transforms');
+      validatePackageName('parcel-transform-bar', 'transform', 'transformers');
     });
 
     it('should error on an invalid scoped package', () => {
       assert.throws(() => {
-        validatePackageName('@test/foo-bar', 'transform', 'transforms');
+        validatePackageName('@test/foo-bar', 'transform', 'transformers');
       }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
 
       assert.throws(() => {
-        validatePackageName('@test/parcel-foo-bar', 'transform', 'transforms');
+        validatePackageName(
+          '@test/parcel-foo-bar',
+          'transform',
+          'transformers',
+        );
       }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
     });
 
@@ -54,7 +59,7 @@ describe('loadParcelConfig', () => {
       validatePackageName(
         '@test/parcel-transform-bar',
         'transform',
-        'transforms',
+        'transformers',
       );
     });
   });
@@ -66,7 +71,7 @@ describe('loadParcelConfig', () => {
           {
             filePath: '.parcelrc',
             extends: 'parcel-config-foo',
-            transforms: {
+            transformers: {
               '*.js': ['parcel-invalid-plugin'],
             },
           },
@@ -142,7 +147,7 @@ describe('loadParcelConfig', () => {
           {
             filePath: '.parcelrc',
             // $FlowFixMe
-            transforms: ['parcel-transformer-test', '...'],
+            transformers: ['parcel-transformer-test', '...'],
           },
           '.parcelrc',
         );
@@ -154,7 +159,7 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            transforms: {
+            transformers: {
               'types:*.{ts,tsx}': ['@parcel/transformer-typescript-types'],
               'bundle-text:*': ['-inline-string', '...'],
             },
@@ -249,7 +254,7 @@ describe('loadParcelConfig', () => {
         {
           filePath: '.parcelrc',
           extends: 'parcel-config-foo',
-          transforms: {
+          transformers: {
             '*.js': ['parcel-transformer-foo'],
           },
         },
@@ -270,34 +275,101 @@ describe('loadParcelConfig', () => {
     });
 
     it('should return base if extension is null', () => {
-      assert.deepEqual(mergePipelines(['parcel-transform-foo'], null), [
-        'parcel-transform-foo',
-      ]);
+      assert.deepEqual(
+        mergePipelines(
+          [
+            {
+              packageName: 'parcel-transform-foo',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+          null,
+        ),
+        [
+          {
+            packageName: 'parcel-transform-foo',
+            resolveFrom: '.parcelrc',
+          },
+        ],
+      );
     });
 
     it('should return extension if base is null', () => {
-      assert.deepEqual(mergePipelines(null, ['parcel-transform-bar']), [
-        'parcel-transform-bar',
-      ]);
+      assert.deepEqual(
+        mergePipelines(null, [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+          },
+        ]),
+        [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+          },
+        ],
+      );
     });
 
     it('should return extension if there are no spread elements', () => {
       assert.deepEqual(
-        mergePipelines(['parcel-transform-foo'], ['parcel-transform-bar']),
-        ['parcel-transform-bar'],
+        mergePipelines(
+          [
+            {
+              packageName: 'parcel-transform-foo',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+          [
+            {
+              packageName: 'parcel-transform-bar',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+        ),
+        [
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+          },
+        ],
       );
     });
 
     it('should return merge base into extension if there are spread elements', () => {
       assert.deepEqual(
         mergePipelines(
-          ['parcel-transform-foo'],
-          ['parcel-transform-bar', '...', 'parcel-transform-baz'],
+          [
+            {
+              packageName: 'parcel-transform-foo',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+          [
+            {
+              packageName: 'parcel-transform-bar',
+              resolveFrom: '.parcelrc',
+            },
+            '...',
+            {
+              packageName: 'parcel-transform-baz',
+              resolveFrom: '.parcelrc',
+            },
+          ],
         ),
         [
-          'parcel-transform-bar',
-          'parcel-transform-foo',
-          'parcel-transform-baz',
+          {
+            packageName: 'parcel-transform-bar',
+            resolveFrom: '.parcelrc',
+          },
+          {
+            packageName: 'parcel-transform-foo',
+            resolveFrom: '.parcelrc',
+          },
+          {
+            packageName: 'parcel-transform-baz',
+            resolveFrom: '.parcelrc',
+          },
         ],
       );
     });
@@ -305,8 +377,24 @@ describe('loadParcelConfig', () => {
     it('should throw if more than one spread element is in a pipeline', () => {
       assert.throws(() => {
         mergePipelines(
-          ['parcel-transform-foo'],
-          ['parcel-transform-bar', '...', 'parcel-transform-baz', '...'],
+          [
+            {
+              packageName: 'parcel-transform-foo',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+          [
+            {
+              packageName: 'parcel-transform-bar',
+              resolveFrom: '.parcelrc',
+            },
+            '...',
+            {
+              packageName: 'parcel-transform-baz',
+              resolveFrom: '.parcelrc',
+            },
+            '...',
+          ],
         );
       }, /Only one spread element can be included in a config pipeline/);
     });
@@ -361,33 +449,89 @@ describe('loadParcelConfig', () => {
       let base = new ParcelConfig(
         {
           filePath: '.parcelrc',
-          resolvers: ['parcel-resolver-base'],
-          transforms: {
-            '*.js': ['parcel-transform-base'],
-            '*.css': ['parcel-transform-css'],
+          resolvers: [
+            {
+              packageName: 'parcel-resolver-base',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+          transformers: {
+            '*.js': [
+              {
+                packageName: 'parcel-transform-base',
+                resolveFrom: '.parcelrc',
+              },
+            ],
+            '*.css': [
+              {
+                packageName: 'parcel-transform-css',
+                resolveFrom: '.parcelrc',
+              },
+            ],
           },
-          bundler: 'parcel-bundler-base',
+          bundler: {
+            packageName: 'parcel-bundler-base',
+            resolveFrom: '.parcelrc',
+          },
         },
         DEFAULT_OPTIONS.packageManager,
       );
 
       let ext = {
         filePath: '.parcelrc',
-        resolvers: ['parcel-resolver-ext', '...'],
-        transforms: {
-          '*.js': ['parcel-transform-ext', '...'],
+        resolvers: [
+          {
+            packageName: 'parcel-resolver-ext',
+            resolveFrom: '.parcelrc',
+          },
+          '...',
+        ],
+        transformers: {
+          '*.js': [
+            {
+              packageName: 'parcel-transform-ext',
+              resolveFrom: '.parcelrc',
+            },
+            '...',
+          ],
         },
       };
 
       let merged = new ParcelConfig(
         {
           filePath: '.parcelrc',
-          resolvers: ['parcel-resolver-ext', 'parcel-resolver-base'],
-          transforms: {
-            '*.js': ['parcel-transform-ext', 'parcel-transform-base'],
-            '*.css': ['parcel-transform-css'],
+          resolvers: [
+            {
+              packageName: 'parcel-resolver-ext',
+              resolveFrom: '.parcelrc',
+            },
+            {
+              packageName: 'parcel-resolver-base',
+              resolveFrom: '.parcelrc',
+            },
+          ],
+          transformers: {
+            '*.js': [
+              {
+                packageName: 'parcel-transform-ext',
+                resolveFrom: '.parcelrc',
+              },
+              {
+                packageName: 'parcel-transform-base',
+                resolveFrom: '.parcelrc',
+              },
+            ],
+            '*.css': [
+              {
+                packageName: 'parcel-transform-css',
+                resolveFrom: '.parcelrc',
+              },
+            ],
           },
-          bundler: 'parcel-bundler-base',
+          bundler: {
+            packageName: 'parcel-bundler-base',
+            resolveFrom: '.parcelrc',
+          },
           runtimes: {},
           namers: [],
           optimizers: {},
@@ -397,6 +541,7 @@ describe('loadParcelConfig', () => {
         DEFAULT_OPTIONS.packageManager,
       );
 
+      // $FlowFixMe
       assert.deepEqual(mergeConfigs(base, ext), merged);
     });
   });
@@ -424,20 +569,43 @@ describe('loadParcelConfig', () => {
     });
   });
 
-  describe('readAndProcess', () => {
+  describe('readAndProcessConfigChain', () => {
     it('should load and merge configs', async () => {
-      let defaultConfig = require('@parcel/config-default');
-      let {config} = await readAndProcess(
-        path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
+      let defaultConfigPath = require.resolve('@parcel/config-default');
+      let defaultConfig = processConfig({
+        ...require('@parcel/config-default'),
+        filePath: defaultConfigPath,
+      });
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config',
+        '.parcelrc',
+      );
+      let subConfigFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config',
+        'subfolder',
+        '.parcelrc',
+      );
+      let {config} = await readAndProcessConfigChain(
+        subConfigFilePath,
         DEFAULT_OPTIONS,
       );
 
-      assert.deepEqual(config.transforms['*.js'], [
-        'parcel-transformer-sub',
-        'parcel-transformer-base',
+      assert.deepEqual(config.transformers['*.js'], [
+        {
+          packageName: 'parcel-transformer-sub',
+          resolveFrom: subConfigFilePath,
+        },
+        {
+          packageName: 'parcel-transformer-base',
+          resolveFrom: configFilePath,
+        },
         '...',
       ]);
-      assert(Object.keys(config.transforms).length > 1);
+      assert(Object.keys(config.transformers).length > 1);
       assert.deepEqual(config.resolvers, defaultConfig.resolvers);
       assert.deepEqual(config.bundler, defaultConfig.bundler);
       assert.deepEqual(config.namers, defaultConfig.namers || []);

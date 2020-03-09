@@ -13,6 +13,8 @@ import {report} from './ReporterRunner';
 import PublicDependency from './public/Dependency';
 import PluginOptions from './public/PluginOptions';
 
+import {escapeMarkdown} from '@parcel/utils';
+
 type Opts = {|
   config: ParcelConfig,
   options: ParcelOptions,
@@ -133,7 +135,7 @@ export default class ResolverRunner {
     }
 
     let dir = dependency.sourcePath
-      ? path.dirname(dependency.sourcePath)
+      ? escapeMarkdown(path.dirname(dependency.sourcePath))
       : '<none>';
 
     let err: any = await this.getThrowableDiagnostic(

@@ -1,5 +1,7 @@
 // @flow
 
+import type {StringLiteral, Statement} from '@babel/types';
+
 import semver from 'semver';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
@@ -12,7 +14,10 @@ import * as t from '@babel/types';
 
 const WRAPPER = path.join(__dirname, 'helpers', 'helpers.js');
 
-const wrapper = template(`
+const wrapper = template.statements<{|
+  helper: StringLiteral,
+  module: Array<Statement>,
+|}>(`
 var helpers = require(%%helper%%);
 var prevRefreshReg = window.$RefreshReg$;
 var prevRefreshSig = window.$RefreshSig$;
@@ -53,7 +58,7 @@ export default new Transformer({
       version: '7.0.0',
       isDirty: false,
       program: parse(code, {
-        filename: this.name,
+        sourceFilename: this.name,
         allowReturnOutsideFunction: true,
         strictMode: false,
         sourceType: 'module',

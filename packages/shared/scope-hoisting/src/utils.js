@@ -1,6 +1,8 @@
 // @flow
 import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+
 import * as t from '@babel/types';
+import invariant from 'assert';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -59,4 +61,9 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
   ].some(
     b => b.type === 'js' && (!b.env.isIsolated() || bundle.env.isIsolated()),
   );
+}
+
+export function assertString(v: mixed): string {
+  invariant(typeof v === 'string');
+  return v;
 }
