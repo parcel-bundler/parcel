@@ -9,9 +9,10 @@ import type {
   Runtime,
   EnvironmentContext,
   PackageName,
-  Packager,
   Optimizer,
+  Packager,
   Reporter,
+  Semver,
   Validator,
 } from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
@@ -30,6 +31,7 @@ type SerializedParcelConfig = {|
   $$raw: boolean,
   config: ProcessedParcelConfig,
   packageManager: PackageManager,
+  autoinstall: boolean,
 |};
 
 export default class ParcelConfig {
@@ -45,8 +47,13 @@ export default class ParcelConfig {
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
   reporters: PureParcelConfigPipeline;
   pluginCache: Map<PackageName, any>;
+  autoinstall: boolean;
 
-  constructor(config: ProcessedParcelConfig, packageManager: PackageManager) {
+  constructor(
+    config: ProcessedParcelConfig,
+    packageManager: PackageManager,
+    autoinstall: boolean,
+  ) {
     this.packageManager = packageManager;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
@@ -59,10 +66,15 @@ export default class ParcelConfig {
     this.reporters = config.reporters || [];
     this.validators = config.validators || {};
     this.pluginCache = new Map();
+    this.autoinstall = autoinstall;
   }
 
   static deserialize(serialized: SerializedParcelConfig) {
-    return new ParcelConfig(serialized.config, serialized.packageManager);
+    return new ParcelConfig(
+      serialized.config,
+      serialized.packageManager,
+      serialized.autoinstall,
+    );
   }
 
   getConfig() {
@@ -85,10 +97,13 @@ export default class ParcelConfig {
       $$raw: false,
       packageManager: this.packageManager,
       config: this.getConfig(),
+      autoinstall: this.autoinstall,
     };
   }
 
-  loadPlugin(node: ParcelPluginNode) {
+  loadPlugin(
+    node: ParcelPluginNode,
+  ): Promise<{|plugin: any, version: Semver|}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
@@ -98,6 +113,7 @@ export default class ParcelConfig {
       this.packageManager,
       node.packageName,
       node.resolveFrom,
+      this.autoinstall,
     );
     this.pluginCache.set(node.packageName, plugin);
     return plugin;
@@ -108,15 +124,18 @@ export default class ParcelConfig {
   ): Promise<
     Array<{|
       name: string,
+      version: Semver,
       plugin: T,
       resolveFrom: FilePath,
     |}>,
   > {
     return Promise.all(
       plugins.map(async p => {
+        let {plugin, version} = await this.loadPlugin(p);
         return {
           name: p.packageName,
-          plugin: await this.loadPlugin(p),
+          plugin,
+          version,
           resolveFrom: p.resolveFrom,
         };
       }),
@@ -199,7 +218,7 @@ export default class ParcelConfig {
     return this.bundler.packageName;
   }
 
-  getBundler(): Promise<Bundler> {
+  getBundler(): Promise<{|version: Semver, plugin: Bundler|}> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }
@@ -220,6 +239,7 @@ export default class ParcelConfig {
   ): Promise<
     Array<{|
       name: string,
+      version: Semver,
       plugin: Runtime,
       resolveFrom: FilePath,
     |}>,
@@ -248,13 +268,16 @@ export default class ParcelConfig {
     filePath: FilePath,
   ): Promise<{|
     name: string,
+    version: Semver,
     plugin: Packager,
   |}> {
     let packager = this._getPackagerNode(filePath);
 
+    let {plugin, version} = await this.loadPlugin(packager);
     return {
       name: packager.packageName,
-      plugin: await this.loadPlugin(packager),
+      version,
+      plugin,
     };
   }
 
@@ -275,6 +298,7 @@ export default class ParcelConfig {
   ): Promise<
     Array<{|
       name: string,
+      version: Semver,
       plugin: Optimizer,
       resolveFrom: FilePath,
     |}>,

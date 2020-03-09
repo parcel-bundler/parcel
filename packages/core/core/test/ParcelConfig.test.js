@@ -131,7 +131,7 @@ describe('ParcelConfig', () => {
       );
 
       sinon.stub(logger, 'warn');
-      let plugin = await config.loadPlugin({
+      let {plugin} = await config.loadPlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
       });

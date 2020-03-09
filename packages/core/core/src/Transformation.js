@@ -109,7 +109,7 @@ export default class Transformation {
           throw new Error('request.meta.parcelConfigPath should be a string!');
         }
 
-        let plugin = await this.parcelConfig.loadPlugin({
+        let {plugin} = await this.parcelConfig.loadPlugin({
           packageName: request.plugin,
           resolveFrom,
         });
