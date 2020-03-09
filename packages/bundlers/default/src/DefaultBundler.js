@@ -290,10 +290,19 @@ function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
     for (let asset of assets) {
       if (
         bundle.hasAsset(asset) &&
-        bundleGraph.isAssetInAncestorBundles(bundle, asset)
+        (bundleGraph.isAssetInAncestorBundles(bundle, asset) ||
+          isAssetInSiblingBundleGroups(bundleGraph, bundle, asset))
       ) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
       }
     }
+  });
+}
+
+function isAssetInSiblingBundleGroups(bundleGraph, bundle, asset) {
+  let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(bundle);
+  return bundleGroups.every(bundleGroup => {
+    let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+    return bundles.some(b => b.id !== bundle.id && b.hasAsset(asset));
   });
 }
