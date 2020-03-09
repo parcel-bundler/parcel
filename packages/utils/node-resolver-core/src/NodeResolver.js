@@ -521,17 +521,25 @@ export default class NodeResolver {
         filename = './' + filename;
       }
 
-      alias = await this.lookupAlias(aliases, filename, dir);
+      alias = await this.lookupAlias(
+        aliases,
+        filename.replace(/\\/g, '/'),
+        dir,
+      );
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = await this.lookupAlias(aliases, filename, dir);
+      alias = await this.lookupAlias(
+        aliases,
+        filename.replace(/\\/g, '/'),
+        dir,
+      );
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let parts = this.getModuleParts(filename);
-        alias = await this.lookupAlias(aliases, parts[0], dir);
+        let [mod, ...rest] = this.getModuleParts(filename);
+        alias = await this.lookupAlias(aliases, mod, dir);
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
-          alias = path.join(alias, ...parts.slice(1));
+          alias = path.join(alias, ...rest);
         }
       }
     }
