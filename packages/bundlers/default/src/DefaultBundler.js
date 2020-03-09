@@ -234,7 +234,7 @@ export default new Bundler({
 
       // Check that all the bundle groups are inside the parallel request limit.
       if (
-        Array.from(bundleGroups).some(
+        Array.from(bundleGroups).every(
           group =>
             bundleGraph.getBundlesInBundleGroup(group).length >=
             OPTIONS.maxParallelRequests,
@@ -258,13 +258,29 @@ export default new Bundler({
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
         for (let bundle of sourceBundles) {
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+            bundle,
+          );
+          if (
+            bundleGroups.every(
+              bundleGroup =>
+                bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+                OPTIONS.maxParallelRequests,
+            )
+          ) {
+            bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          }
         }
       }
 
       // Create new bundle node and connect it to all of the original bundle groups
       for (let bundleGroup of bundleGroups) {
-        bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        if (
+          bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+          OPTIONS.maxParallelRequests
+        ) {
+          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        }
       }
 
       deduplicateBundle(bundleGraph, sharedBundle);
