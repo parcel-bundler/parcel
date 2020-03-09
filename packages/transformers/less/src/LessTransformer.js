@@ -26,7 +26,9 @@ export default new Transformer({
   },
 
   async transform({asset, options, config}) {
-    const less = await options.packageManager.require('less', asset.filePath);
+    const less = await options.packageManager.require('less', asset.filePath, {
+      autoinstall: options.autoinstall,
+    });
     const code = await asset.getCode();
     let css;
     try {

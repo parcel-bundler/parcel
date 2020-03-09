@@ -170,10 +170,12 @@ async function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
+  let options = await normalizeOptions(command);
   let packageManager = new NodePackageManager(new NodeFS());
   let defaultConfig: RawParcelConfig = await packageManager.require(
     '@parcel/config-default',
     __filename,
+    {autoinstall: options.autoinstall},
   );
   let parcel = new Parcel({
     entries,
@@ -181,11 +183,13 @@ async function run(entries: Array<string>, command: any) {
     defaultConfig: {
       ...defaultConfig,
       filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename)
+        await packageManager.resolve('@parcel/config-default', __filename, {
+          autoinstall: options.autoinstall,
+        })
       ).resolved,
     },
     patchConsole: true,
-    ...(await normalizeOptions(command)),
+    ...options,
   });
 
   if (command.name() === 'watch' || command.name() === 'serve') {

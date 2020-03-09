@@ -347,7 +347,11 @@ export default class Transformation {
 
     let config = await this.loadConfig(configRequest);
     let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(result, this.options.packageManager);
+    let parcelConfig = new ParcelConfig(
+      result,
+      this.options.packageManager,
+      this.options.autoinstall,
+    );
 
     // A little hacky
     this.parcelConfig = parcelConfig;
@@ -383,6 +387,7 @@ export default class Transformation {
         config: new ParcelConfig(
           nullthrows(nullthrows(configs.get('parcel')).result),
           this.options.packageManager,
+          this.options.autoinstall,
         ),
         options: this.options,
       }),

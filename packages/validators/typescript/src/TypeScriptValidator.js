@@ -39,7 +39,11 @@ export default new Validator({
   },
 
   async validate({asset, config, options}) {
-    let ts = await options.packageManager.require('typescript', asset.filePath);
+    let ts = await options.packageManager.require(
+      'typescript',
+      asset.filePath,
+      {autoinstall: options.autoinstall},
+    );
 
     // This should never happen...
     if (!config) return;

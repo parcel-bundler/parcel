@@ -158,7 +158,11 @@ export async function processConfigChain(
     filePath,
     ...configFile,
   });
-  let config = new ParcelConfig(resolvedFile, options.packageManager);
+  let config = new ParcelConfig(
+    resolvedFile,
+    options.packageManager,
+    options.autoinstall,
+  );
 
   let extendedFiles: Array<FilePath> = [];
   if (configFile.extends) {
@@ -245,6 +249,7 @@ export function mergeConfigs(
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,
+    base.autoinstall,
   );
 }
 

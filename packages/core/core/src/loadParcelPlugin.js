@@ -5,6 +5,7 @@ import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
 import type {FilePath, PackageName} from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
+import nullthrows from 'nullthrows';
 
 const PARCEL_VERSION = require('../package.json').version;
 
@@ -12,10 +13,12 @@ export default async function loadPlugin(
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
+  autoinstall: boolean,
 ) {
   let {resolved, pkg} = await packageManager.resolve(
     pluginName,
     `${resolveFrom}/index`,
+    {autoinstall},
   );
 
   // Validate the engines.parcel field in the plugin's package.json
@@ -36,7 +39,9 @@ export default async function loadPlugin(
     );
   }
 
-  let plugin = await packageManager.require(resolved, `${resolveFrom}/index`);
+  let plugin = await packageManager.require(resolved, `${resolveFrom}/index`, {
+    autoinstall,
+  });
   plugin = plugin.default ? plugin.default : plugin;
   if (!plugin) {
     throw new Error(`Plugin ${pluginName} has no exports.`);
@@ -47,5 +52,5 @@ export default async function loadPlugin(
       `Plugin ${pluginName} is not a valid Parcel plugin, should export an instance of a Parcel plugin ex. "export default new Reporter({ ... })".`,
     );
   }
-  return plugin;
+  return {plugin, version: nullthrows(pkg).version};
 }

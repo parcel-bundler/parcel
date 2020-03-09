@@ -66,6 +66,7 @@ export default class Validation {
     let parcelConfig = new ParcelConfig(
       config.result,
       this.options.packageManager,
+      this.options.autoinstall,
     );
 
     let validators = await parcelConfig.getValidators(this.request.filePath);

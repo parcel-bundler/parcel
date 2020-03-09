@@ -104,6 +104,7 @@ export default class ConfigLoader {
       this.options.packageManager,
       nullthrows(plugin),
       parcelConfigPath,
+      this.options.autoinstall,
     );
 
     if (pluginInstance.loadConfig != null) {
