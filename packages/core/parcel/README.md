@@ -745,7 +745,7 @@ See [Reporters](#reporters).
 }
 ```
 
-See [Reporters](#validators).
+See [Validators](#validators).
 
 ## Parcel Architecture
 
