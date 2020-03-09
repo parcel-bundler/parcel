@@ -24,7 +24,7 @@
     "ansi-html": "^0.0.7",
     "chalk": "^2.4.2",
     "clone": "^2.1.1",
-    "fast-glob": "^3.0.4",
+    "fast-glob": "3.1.1",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "js-levenshtein": "^1.1.6",

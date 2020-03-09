@@ -29,6 +29,7 @@
     "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
   },
   "devDependencies": {
+    "@babel/core": "^7.8.7",
     "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^6.0.0",

@@ -1,11 +1,13 @@
 // @flow
 
-import type {AST, Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph} from '@parcel/types';
+import type {File} from '@babel/types';
+
 import babelGenerate from '@babel/generator';
 import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
 
-export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: AST) {
+export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: File) {
   let {code} = babelGenerate(ast, {
     minified: bundle.env.minify,
     comments: true, // retain /*@__PURE__*/ comments for terser
