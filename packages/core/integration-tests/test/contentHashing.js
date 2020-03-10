@@ -24,7 +24,6 @@ describe('content hashing', function() {
 
     let bundleHtml = () => bundle(path.join(__dirname, '/input/index.html'));
     await bundleHtml();
-
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',

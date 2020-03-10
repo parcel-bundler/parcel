@@ -496,6 +496,7 @@ describe('babel', function() {
       );
       let distDir = path.resolve(inputDir, './dist');
       await fs.ncp(path.join(fixtureDir), inputDir);
+      await fs.rimraf(path.join(__dirname, '.parcel-cache'));
 
       let build = () =>
         spawnSync(
@@ -511,6 +512,7 @@ describe('babel', function() {
         );
 
       build();
+      console.log('FINISHED FIRST BUILD');
       let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(file.includes('hello there'));
