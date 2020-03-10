@@ -1,6 +1,13 @@
 // @flow
 
-import type {AST, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {
+  ExpressionStatement,
+  File,
+  Statement,
+  StringLiteral,
+} from '@babel/types';
+
 import babelGenerate from '@babel/generator';
 import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
@@ -8,15 +15,19 @@ import SourceMap from '@parcel/source-map';
 import * as t from '@babel/types';
 import template from '@babel/template';
 
-const REGISTER_TEMPLATE = template(
-  'parcelRequire.registerBundle(ID, function () { STATEMENTS; })',
-);
-const WRAPPER_TEMPLATE = template('(function () { STATEMENTS; })()');
+const REGISTER_TEMPLATE = template.statement<
+  {|ID: StringLiteral, STATEMENTS: Array<Statement>|},
+  ExpressionStatement,
+>('parcelRequire.registerBundle(ID, function () { STATEMENTS; })');
+const WRAPPER_TEMPLATE = template.statement<
+  {|STATEMENTS: Array<Statement>|},
+  ExpressionStatement,
+>('(function () { STATEMENTS; })()');
 
 export function generate(
   bundleGraph: BundleGraph,
   bundle: Bundle,
-  ast: AST,
+  ast: File,
   options: PluginOptions,
 ) {
   // $FlowFixMe
@@ -43,6 +54,7 @@ export function generate(
 
   ast = t.file(
     t.program(
+      // $FlowFixMe Statement is incompatible with BabelNodeStatement
       statements,
       [],
       bundle.env.outputFormat === 'esmodule' ? 'module' : 'script',
@@ -58,6 +70,9 @@ export function generate(
 
   return {
     contents: code,
-    map: options.sourceMaps ? new SourceMap(rawMappings) : null,
+    map:
+      options.sourceMaps && rawMappings != null
+        ? new SourceMap(rawMappings)
+        : null,
   };
 }

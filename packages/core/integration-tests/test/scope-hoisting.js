@@ -1637,6 +1637,9 @@ describe('scope hoisting', function() {
           'index.js',
           'js-loader.js',
           'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
         ],
       },
       {

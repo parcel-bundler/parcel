@@ -62,7 +62,7 @@ export default new Transformer({
 
       return {
         code: generated.code,
-        map: new SourceMap(generated.rawMappings, {
+        map: new SourceMap(generated.rawMappings ?? undefined, {
           [sourceFileName]: null,
         }),
       };

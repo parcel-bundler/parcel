@@ -138,18 +138,21 @@ export class AssetRequestRunner extends RequestRunner<
   AssetRequestResult,
 > {
   options: ParcelOptions;
+  optionsRef: number;
   runTransform: TransformationOpts => Promise<AssetRequestResult>;
   assetGraph: AssetGraph;
 
   constructor(opts: {|
     tracker: RequestTracker,
     options: ParcelOptions,
+    optionsRef: number,
     workerFarm: WorkerFarm,
     assetGraph: AssetGraph,
   |}) {
     super(opts);
     this.type = 'asset_request';
     this.options = opts.options;
+    this.optionsRef = opts.optionsRef;
     this.runTransform = opts.workerFarm.createHandle('runTransform');
     this.assetGraph = opts.assetGraph;
   }
@@ -161,7 +164,7 @@ export class AssetRequestRunner extends RequestRunner<
     let start = Date.now();
     let {assets, configRequests} = await this.runTransform({
       request: request,
-      options: this.options,
+      optionsRef: this.optionsRef,
     });
 
     let time = Date.now() - start;

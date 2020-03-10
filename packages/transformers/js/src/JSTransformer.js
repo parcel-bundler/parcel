@@ -9,7 +9,7 @@ import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
 import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
-import * as walk from 'babylon-walk';
+import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {relativeUrl} from '@parcel/utils';
@@ -62,7 +62,6 @@ export default new Transformer({
       type: 'babel',
       version: '7.0.0',
       program: parse(code, {
-        filename: this.name,
         sourceFilename,
         allowReturnOutsideFunction: true,
         strictMode: false,
@@ -92,7 +91,7 @@ export default new Transformer({
       (!asset.env.isNode() && (!code || ENV_RE.test(code))) ||
       (asset.env.isBrowser() && (!code || BROWSER_RE.test(code)))
     ) {
-      walk.ancestor(ast.program, processVisitor, {
+      walkAncestor(ast.program, processVisitor, {
         asset,
         ast,
         env: options.env,
@@ -103,7 +102,7 @@ export default new Transformer({
 
     // Collect dependencies
     if (!code || canHaveDependencies(code)) {
-      walk.ancestor(ast.program, collectDependencies, {asset, ast, options});
+      walkAncestor(ast.program, collectDependencies, {asset, ast, options});
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.
@@ -137,7 +136,7 @@ export default new Transformer({
       // Insert node globals
       if (!code || GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
-        walk.ancestor(ast.program, insertGlobals, asset);
+        walkAncestor(ast.program, insertGlobals, asset);
       }
     }
 
@@ -145,7 +144,7 @@ export default new Transformer({
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = babelCore.transformFromAst(ast.program, code, {
+      let res = await babelCore.transformFromAstAsync(ast.program, code, {
         code: false,
         ast: true,
         filename: asset.filePath,
@@ -181,9 +180,12 @@ export default new Transformer({
 
     let res = {
       code: generated.code,
-      map: new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null,
-      }),
+      map:
+        generated.rawMappings != null
+          ? new SourceMap(generated.rawMappings, {
+              [sourceFileName]: null,
+            })
+          : null,
     };
 
     res.code = generateGlobals(asset) + res.code;
