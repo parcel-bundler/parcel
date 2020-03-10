@@ -25,18 +25,25 @@ export function generate(bundleGraph: BundleGraph, bundle: Bundle, ast: File) {
     code = `\n${code}`;
   }
 
+  // ATLASSIAN: Include a variable in scope holding the identifier
+  // for this bundle, which is used to resolve external dependencies from
+  // the current bundle in JSRuntime.
+  let bundleIdStatement = `var __PARCEL_BUNDLE_ID__ = ${JSON.stringify(
+    bundle.id.slice(-16),
+  )};`;
+
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
   // at the right time (after other bundle dependencies are loaded).
   let contents = '';
   if (isAsync && bundle.env.outputFormat === 'global') {
     contents = `${hashBang}parcelRequire.registerBundle(${JSON.stringify(
       nullthrows(entry).id,
-    )},function(){${code}\n});`;
+    )},function(){${bundleIdStatement}\n${code}\n});`;
   } else {
     contents =
       hashBang +
       (bundle.env.outputFormat === 'global'
-        ? `(function(){${code}\n})();`
+        ? `(function(){${bundleIdStatement}\n${code}\n})();`
         : code);
   }
 

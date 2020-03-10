@@ -4,7 +4,6 @@ import type {Bundle, Target} from '@parcel/types';
 
 import path from 'path';
 import {Reporter} from '@parcel/plugin';
-import {DefaultMap} from '@parcel/utils';
 
 export default new Reporter({
   async report({event, options}) {
