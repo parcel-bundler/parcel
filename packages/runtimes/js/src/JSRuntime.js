@@ -4,6 +4,7 @@ import type {
   Bundle,
   BundleGraph,
   Dependency,
+  Environment,
   RuntimeAsset,
 } from '@parcel/types';
 
@@ -23,21 +24,35 @@ const DYNAMIC_IMPORT_BROWSERS = {
   opera: '50',
 };
 
-const IMPORT_POLYFILL = './loaders/browser/import-polyfill';
 const LOADERS = {
   browser: {
     css: './loaders/browser/css-loader',
     html: './loaders/browser/html-loader',
     js: './loaders/browser/js-loader',
     wasm: './loaders/browser/wasm-loader',
+    IMPORT_POLYFILL: './loaders/browser/import-polyfill',
+  },
+  worker: {
+    js: './loaders/worker/js-loader',
+    wasm: './loaders/worker/wasm-loader',
+    IMPORT_POLYFILL: false,
   },
   node: {
     css: './loaders/node/css-loader',
     html: './loaders/node/html-loader',
     js: './loaders/node/js-loader',
     wasm: './loaders/node/wasm-loader',
+    IMPORT_POLYFILL: null,
   },
 };
+function getLoaders(
+  ctx: Environment,
+): ?{[string]: string, IMPORT_POLYFILL: null | false | string, ...} {
+  if (ctx.isWorker()) return LOADERS.worker;
+  if (ctx.isBrowser()) return LOADERS.browser;
+  if (ctx.isNode()) return LOADERS.node;
+  return null;
+}
 
 export default new Runtime({
   apply({bundle, bundleGraph}) {
@@ -52,8 +67,7 @@ export default new Runtime({
       return;
     }
 
-    // $FlowFixMe - ignore unknown properties?
-    let loaders = LOADERS[bundle.env.context];
+    let loaders = getLoaders(bundle.env);
 
     // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
     let needsDynamicImportPolyfill = false;
@@ -136,7 +150,10 @@ export default new Runtime({
                   return `import("./" + ${relativePathExpr})`;
                 }
 
-                loader = IMPORT_POLYFILL;
+                loader = nullthrows(
+                  loaders.IMPORT_POLYFILL,
+                  `No import() polyfill available for context '${bundle.env.context}'`,
+                );
               } else if (
                 to.type === 'js' &&
                 to.env.outputFormat === 'commonjs'
@@ -162,6 +179,8 @@ export default new Runtime({
           if (bundle.env.outputFormat !== 'global') {
             loaders += `.then(r => r[r.length - 1])`;
           }
+        } else {
+          loaders = `(${loaders})`;
         }
 
         if (bundle.env.outputFormat === 'global') {
