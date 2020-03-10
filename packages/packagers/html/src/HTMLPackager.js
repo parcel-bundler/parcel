@@ -177,42 +177,8 @@ function addBundlesToTree(bundles, tree) {
   }
 
   const html = find(tree, 'html');
-  let content,
-    index = 0;
-  if (html) {
-    content = html.content || (html.content = []);
-    for (let i = 0; i < content.length; i++) {
-      const node = content[i];
-      if (node && node.tag && !metadataContent.has(node.tag)) {
-        index = i;
-        break;
-      }
-    }
-  } else {
-    content = tree;
-
-    // HTML document order (https://html.spec.whatwg.org/multipage/syntax.html#writing)
-    //   - Any number of comments and ASCII whitespace.
-    //   - A DOCTYPE.
-    //   - Any number of comments and ASCII whitespace.
-    //   - The document element, in the form of an html element.
-    //   - Any number of comments and ASCII whitespace.
-    // so insert after doctype declaration or before first element
-    for (let i = 0; i < content.length; i++) {
-      let node = content[i];
-      if (typeof node === 'string') {
-        if (content[i].toLowerCase().startsWith('<!doctype')) {
-          // insert after doctype
-          index = i + 1;
-          break;
-        }
-      } else {
-        // an actual element (not a comment or space), insert before
-        index = i;
-        break;
-      }
-    }
-  }
+  const content = html ? html.content || (html.content = []) : tree;
+  const index = findBundleInsertIndex(content);
 
   content.splice(index, 0, ...bundles);
 }
@@ -225,4 +191,31 @@ function find(tree, tag) {
   });
 
   return res;
+}
+
+function findBundleInsertIndex(content) {
+  // HTML document order (https://html.spec.whatwg.org/multipage/syntax.html#writing)
+  //   - Any number of comments and ASCII whitespace.
+  //   - A DOCTYPE.
+  //   - Any number of comments and ASCII whitespace.
+  //   - The document element, in the form of an html element.
+  //   - Any number of comments and ASCII whitespace.
+  //
+  // -> Insert before first non-metadata element; if none was found, after the doctype
+
+  let doctypeIndex = 0;
+  for (let index = 0; index < content.length; index++) {
+    const node = content[index];
+    if (node && node.tag && !metadataContent.has(node.tag)) {
+      return index;
+    }
+    if (
+      typeof node === 'string' &&
+      node.toLowerCase().startsWith('<!doctype')
+    ) {
+      doctypeIndex = index;
+    }
+  }
+
+  return doctypeIndex + 1;
 }
