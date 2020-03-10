@@ -1,13 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {
-  asssertBundles,
-  bundle as _bundle,
-  outputFS,
-  run,
-  Worker,
-} from '@parcel/test-utils';
+import {bundle as _bundle, outputFS, run} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
