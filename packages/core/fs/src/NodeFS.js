@@ -14,6 +14,8 @@ import rimraf from 'rimraf';
 import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import watcher from '@parcel/watcher';
+import fsWriteStreamAtomic from 'fs-write-stream-atomic';
+import writeFileAtomic from 'write-file-atomic';
 import packageJSON from '../package.json';
 
 // Most of this can go away once we only support Node 10+, which includes
@@ -23,7 +25,7 @@ const realpath = promisify(fs.realpath);
 
 export class NodeFS implements FileSystem {
   readFile = promisify(fs.readFile);
-  writeFile = promisify(fs.writeFile);
+  writeFile = promisify(writeFileAtomic);
   copyFile = promisify(fs.copyFile);
   stat = promisify(fs.stat);
   readdir = promisify(fs.readdir);
@@ -33,7 +35,7 @@ export class NodeFS implements FileSystem {
   rimraf = promisify(rimraf);
   ncp = promisify(ncp);
   createReadStream = fs.createReadStream;
-  createWriteStream = fs.createWriteStream;
+  createWriteStream = fsWriteStreamAtomic;
   cwd = process.cwd;
   chdir = process.chdir;
 
