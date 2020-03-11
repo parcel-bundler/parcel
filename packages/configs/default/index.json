@@ -4,7 +4,6 @@
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
-    "url:*": ["@parcel/transformer-raw"],
     "webmanifest:*": ["@parcel/transformer-webmanifest"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
@@ -29,6 +28,7 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
+    "url:*": ["@parcel/transformer-raw"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
