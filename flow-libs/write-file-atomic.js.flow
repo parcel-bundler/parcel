@@ -1,7 +1,0 @@
-// @flow
-
-declare module 'write-file-atomic' {
-  import typeof {writeFile} from 'fs';
-
-  declare module.exports: writeFile;
-}

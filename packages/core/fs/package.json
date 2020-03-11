@@ -19,12 +19,10 @@
     "@parcel/utils": "^2.0.0-alpha.3.1",
     "@parcel/watcher": "^2.0.0-alpha.5",
     "@parcel/workers": "^2.0.0-alpha.3.1",
-    "fs-write-stream-atomic": "^1.0.10",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
-    "rimraf": "^2.6.2",
-    "write-file-atomic": "^3.0.3"
+    "rimraf": "^2.6.2"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"
