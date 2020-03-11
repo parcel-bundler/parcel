@@ -75,6 +75,8 @@ export default new Transformer({
     let contents = await asset.getCode();
     const {data, pointers} = parse(contents);
     collectDependencies(asset, contents, data, pointers);
+
+    asset.type = 'webmanifest';
     asset.setCode(JSON.stringify(data));
     return [asset];
   },

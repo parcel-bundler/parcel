@@ -5,7 +5,8 @@
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "url:*": ["@parcel/transformer-raw"],
-    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
+    "webmanifest:*": ["@parcel/transformer-webmanifest"],
+    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
@@ -27,7 +28,6 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
-    "webmanifest:*": ["@parcel/transformer-webmanifest"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
