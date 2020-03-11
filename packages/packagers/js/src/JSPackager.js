@@ -84,7 +84,7 @@ export default new Packager({
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
-        let resolved = bundleGraph.getDependencyResolution(node.value);
+        let resolved = bundleGraph.getDependencyResolution(node.value, bundle);
         if (
           resolved &&
           resolved.type !== 'js' &&
@@ -109,7 +109,7 @@ export default new Packager({
         let deps = {};
         let dependencies = bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = bundleGraph.getDependencyResolution(dep);
+          let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
             deps[dep.moduleSpecifier] = resolved.id;
           }

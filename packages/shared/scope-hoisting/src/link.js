@@ -93,7 +93,7 @@ export function link({
     exportsMap.set(assertString(asset.meta.exportsIdentifier), asset);
 
     for (let dep of bundleGraph.getDependencies(asset)) {
-      let resolved = bundleGraph.getDependencyResolution(dep);
+      let resolved = bundleGraph.getDependencyResolution(dep, bundle);
 
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
@@ -344,7 +344,7 @@ export function link({
             .find(dep => dep.moduleSpecifier === source.value),
         );
 
-        let mod = bundleGraph.getDependencyResolution(dep);
+        let mod = bundleGraph.getDependencyResolution(dep, bundle);
         let node;
 
         if (!mod) {
@@ -432,7 +432,7 @@ export function link({
             .getDependencies(mapped)
             .find(dep => dep.moduleSpecifier === source.value),
         );
-        let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
+        let mod = nullthrows(bundleGraph.getDependencyResolution(dep, bundle));
         path.replaceWith(t.valueToNode(mod.id));
       }
     },
