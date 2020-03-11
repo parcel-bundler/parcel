@@ -7,21 +7,54 @@ import type {
   PluginOptions,
   Symbol,
 } from '@parcel/types';
+import type {
+  Expression,
+  ExpressionStatement,
+  ObjectProperty,
+  VariableDeclaration,
+  Identifier,
+  LVal,
+} from '@babel/types';
+import type {Scope} from '@babel/traverse';
 import type {ExternalModule} from '../types';
+
 import * as t from '@babel/types';
+import {isIdentifier} from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
+import {assertString} from '../utils';
 
-const REQUIRE_TEMPLATE = template('require(BUNDLE)');
-const EXPORT_TEMPLATE = template('exports.NAME = IDENTIFIER');
-const MODULE_EXPORTS_TEMPLATE = template('module.exports = IDENTIFIER');
-const INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
-const ASSIGN_TEMPLATE = template('var SPECIFIERS = MODULE');
-const NAMESPACE_TEMPLATE = template(
+const REQUIRE_TEMPLATE: ({|
+  BUNDLE: Expression,
+  // $FlowFixMe
+|}) => Expression = template.expression('require(BUNDLE)');
+const EXPORT_TEMPLATE: ({|
+  NAME: Identifier,
+  IDENTIFIER: Expression,
+  // $FlowFixMe
+|}) => ExpressionStatement = template.statement('exports.NAME = IDENTIFIER;');
+const MODULE_EXPORTS_TEMPLATE: ({|
+  IDENTIFIER: Expression,
+  // $FlowFixMe
+|}) => ExpressionStatement = template.statement('module.exports = IDENTIFIER;');
+const INTEROP_TEMPLATE: ({|
+  MODULE: Expression,
+  // $FlowFixMe
+|}) => Expression = template.expression('$parcel$interopDefault(MODULE)');
+const ASSIGN_TEMPLATE: ({|
+  SPECIFIERS: LVal,
+  MODULE: Expression,
+  // $FlowFixMe
+|}) => VariableDeclaration = template.statement('var SPECIFIERS = MODULE;');
+const NAMESPACE_TEMPLATE: ({|
+  NAMESPACE: Expression,
+  MODULE: Expression,
+  // $FlowFixMe
+|}) => Expression = template.expression(
   '$parcel$exportWildcard(NAMESPACE, MODULE)',
 );
 
@@ -55,6 +88,7 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
     }
 
     for (let specifier of specifiers) {
+      invariant(isIdentifier(specifier.value));
       statements.push(
         ASSIGN_TEMPLATE({
           SPECIFIERS: specifier.value,
@@ -78,14 +112,14 @@ export function generateBundleImports(
   from: Bundle,
   bundle: Bundle,
   assets: Set<Asset>,
-  scope: any,
+  scope: Scope,
 ) {
-  let specifiers = [...assets].map(asset => {
-    let id = t.identifier(asset.meta.exportsIdentifier);
+  let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
+    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
     return t.objectProperty(id, id, false, true);
   });
 
-  let statement = REQUIRE_TEMPLATE({
+  let expression = REQUIRE_TEMPLATE({
     BUNDLE: t.stringLiteral(relativeBundlePath(from, bundle)),
   });
 
@@ -93,22 +127,22 @@ export function generateBundleImports(
     return generateDestructuringAssignment(
       bundle.env,
       specifiers,
-      statement.expression,
+      expression,
       scope,
     );
   }
 
-  return [statement];
+  return [t.expressionStatement(expression)];
 }
 
 export function generateExternalImport(
   bundle: Bundle,
   external: ExternalModule,
-  scope: any,
+  scope: Scope,
 ) {
   let {source, specifiers, isCommonJS} = external;
   let statements = [];
-  let properties = [];
+  let properties: Array<ObjectProperty> = [];
   let categories = new Set();
   for (let [imported, symbol] of specifiers) {
     if (imported === '*') {
@@ -128,6 +162,9 @@ export function generateExternalImport(
     }
   }
 
+  let specifiersWildcard = specifiers.get('*');
+  let specifiersDefault = specifiers.get('default');
+
   // Attempt to combine require calls as much as possible. Namespace, default, and named specifiers
   // cannot be combined, so in the case where we have more than one type, assign the require() result
   // to a variable first and then create additional variables for each specifier based on that.
@@ -139,34 +176,34 @@ export function generateExternalImport(
         SPECIFIERS: t.identifier(name),
         MODULE: REQUIRE_TEMPLATE({
           BUNDLE: t.stringLiteral(source),
-        }).expression,
+        }),
       }),
     );
 
-    if (specifiers.has('*')) {
-      let value = name;
+    if (specifiersWildcard) {
+      let value = t.identifier(name);
       if (!isCommonJS) {
         value = NAMESPACE_TEMPLATE({
           NAMESPACE: t.objectExpression([]),
           MODULE: value,
-        }).expression;
+        });
       }
 
       statements.push(
         ASSIGN_TEMPLATE({
-          SPECIFIERS: t.identifier(specifiers.get('*')),
+          SPECIFIERS: t.identifier(specifiersWildcard),
           MODULE: value,
         }),
       );
     }
 
-    if (specifiers.has('default')) {
+    if (specifiersDefault) {
       statements.push(
         ASSIGN_TEMPLATE({
-          SPECIFIERS: t.identifier(specifiers.get('default')),
+          SPECIFIERS: t.identifier(specifiersDefault),
           MODULE: INTEROP_TEMPLATE({
             MODULE: t.identifier(name),
-          }).expression,
+          }),
         }),
       );
     }
@@ -181,32 +218,32 @@ export function generateExternalImport(
         ),
       );
     }
-  } else if (specifiers.has('default')) {
+  } else if (specifiersDefault) {
     statements.push(
       ASSIGN_TEMPLATE({
-        SPECIFIERS: t.identifier(specifiers.get('default')),
+        SPECIFIERS: t.identifier(specifiersDefault),
         MODULE: INTEROP_TEMPLATE({
           MODULE: REQUIRE_TEMPLATE({
             BUNDLE: t.stringLiteral(source),
-          }).expression,
-        }).expression,
+          }),
+        }),
       }),
     );
-  } else if (specifiers.has('*')) {
+  } else if (specifiersWildcard) {
     let require = REQUIRE_TEMPLATE({
       BUNDLE: t.stringLiteral(source),
-    }).expression;
+    });
 
     if (!isCommonJS) {
       require = NAMESPACE_TEMPLATE({
         NAMESPACE: t.objectExpression([]),
         MODULE: require,
-      }).expression;
+      });
     }
 
     statements.push(
       ASSIGN_TEMPLATE({
-        SPECIFIERS: t.identifier(specifiers.get('*')),
+        SPECIFIERS: t.identifier(specifiersWildcard),
         MODULE: require,
       }),
     );
@@ -217,15 +254,17 @@ export function generateExternalImport(
         properties,
         REQUIRE_TEMPLATE({
           BUNDLE: t.stringLiteral(source),
-        }).expression,
+        }),
         scope,
       ),
     );
   } else {
     statements.push(
-      REQUIRE_TEMPLATE({
-        BUNDLE: t.stringLiteral(source),
-      }),
+      t.expressionStatement(
+        REQUIRE_TEMPLATE({
+          BUNDLE: t.stringLiteral(source),
+        }),
+      ),
     );
   }
 

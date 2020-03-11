@@ -158,7 +158,7 @@ console.log("Hello World");
     - [Glob maps in `.parcelrc`](#glob-maps-in-parcelrc)
     - [`.parcelrc#extends`](#parcelrcextends)
     - [`.parcelrc#resolvers`](#parcelrcresolvers)
-    - [`.parcelrc#transforms`](#parcelrctransforms)
+    - [`.parcelrc#transformers`](#parcelrctransformers)
     - [`.parcelrc#bundler`](#parcelrcbundler)
     - [`.parcelrc#namers`](#parcelrcnamers)
     - [`.parcelrc#runtimes`](#parcelrcruntimes)
@@ -183,7 +183,7 @@ console.log("Hello World");
   - [Aliases](#aliases)
 - [Plugins](#plugins)
   - [Resolvers](#resolvers)
-  - [Transforms](#transforms)
+  - [Transformers](#transformers)
   - [Bundlers](#bundlers)
   - [Namers](#namers)
   - [Runtimes](#runtimes)
@@ -197,7 +197,7 @@ console.log("Hello World");
   - [Engines](#engines)
 - [Plugin APIs](#plugin-apis)
   - [Resolvers](#resolvers-1)
-  - [Transforms](#transforms-1)
+  - [Transformers](#transformers-1)
   - [Bundler](#bundler)
   - [Namers](#namers-1)
   - [Runtimes](#runtimes-1)
@@ -282,7 +282,7 @@ Build code once, in production mode.
 
 Entry files to start bundling, these will be preserved as entry points in the
 output. Defaults to `package.json#source`, falling back to `src/index.*` or
-`index.*`. See [#Entries](#entries-sources-targets-environment).
+`index.*`. See [#Sources](#sources).
 
 #### `--target [name]`
 
@@ -487,7 +487,7 @@ See [Sources](#sources)
 
 #### `package.json#browserslist`
 
-As specified by Browserslist, this field is for specifying which transforms
+As specified by Browserslist, this field is for specifying which transformers
 should be applied to browser bundles.
 
 ```json
@@ -561,7 +561,7 @@ all), but here's an example of a `.parcelrc` file that contains every field:
 {
   "extends": ["@parcel/config-default"],
   "resolvers": ["@parcel/resolver-default"],
-  "transforms": {
+  "transformers": {
     "*.vue": ["@parcel/transformer-vue"],
     "*.scss": ["@parcel/transformer-sass"],
     "*.js": ["@parcel/transformer-babel"],
@@ -593,14 +593,14 @@ all), but here's an example of a `.parcelrc` file that contains every field:
 
 #### Glob maps in `.parcelrc`
 
-Many config properties like `transforms` or `packagers` use objects as maps of
+Many config properties like `transformers` or `packagers` use objects as maps of
 globs to package names. While objects in JSON are technically unordered, Parcel
 does use the order to give globs priority when a file name is being tested
 against them.
 
 ```json
 {
-  "transforms": {
+  "transformers": {
     "icons/*.svg": ["highest-priority"],
     "*.svg": ["lowest-priority"]
   }
@@ -640,19 +640,19 @@ package.
 
 See [Resolvers](#resolvers)
 
-#### `.parcelrc#transforms`
+#### `.parcelrc#transformers`
 
-`transforms` is an object map of globs to arrays of Parcel transform packages.
+`transformers` is an object map of globs to arrays of Parcel transform packages.
 
 ```json
 {
-  "transforms": {
+  "transformers": {
     "*.js": ["@parcel/transformer-babel"]
   }
 }
 ```
 
-See [Transforms](#transforms)
+See [Transformers](#transformers)
 
 #### `.parcelrc#bundler`
 
@@ -745,7 +745,7 @@ See [Reporters](#reporters).
 }
 ```
 
-See [Reporters](#validators).
+See [Validators](#validators).
 
 ## Parcel Architecture
 
@@ -1065,20 +1065,20 @@ See [Asset Resolution](#asset-resolution) for more details.
 
 - `@parcel/resolver-v1`
 
-### Transforms
+### Transformers
 
-Transforms _transform_ single assets as they are discovered and added to the
+transformers _transform_ single assets as they are discovered and added to the
 asset graph. They mostly call out to different compilers and preprocessors.
 
 ```json
 {
-  "transforms": {
+  "transformers": {
     "*.js": ["@parcel/transformer-babel"]
   }
 }
 ```
 
-**Official Transforms:**
+**Official Transformers:**
 
 - `@parcel/transformer-babel`
 - `@parcel/transformer-coffeescript`
@@ -1235,7 +1235,7 @@ All plugins must follow a naming system:
 | ---------- | -------------------------- | ------------------------- | ------------------------------------ |
 | Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config[-{name}]`      |
 | Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver[-{name}]`    |
-| Transforms | `@parcel/transformer-{name}` | `parcel-transformer-{name}` | `@scope/parcel-transformer[-{name}]`   |
+| Transformers | `@parcel/transformer-{name}` | `parcel-transformer-{name}` | `@scope/parcel-transformer[-{name}]`   |
 | Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler[-{name}]`     |
 | Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer[-{name}]`       |
 | Runtimes   | `@parcel/runtime-{name}`   | `parcel-runtime-{name}`   | `@scope/parcel-runtime[-{name}]`     |
@@ -1376,9 +1376,9 @@ export default new Resolver({
 });
 ```
 
-### Transforms
+### Transformers
 
-Transforms _transform_ single assets as they are discovered and added to the
+Transformers _transform_ single assets as they are discovered and added to the
 asset graph. They mostly call out to different compilers and preprocessors.
 
 ```js

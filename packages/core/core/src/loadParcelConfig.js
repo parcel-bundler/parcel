@@ -1,11 +1,15 @@
 // @flow
 import type {
   FilePath,
-  ParcelConfigFile,
+  RawParcelConfig,
   ResolvedParcelConfigFile,
   PackageName,
 } from '@parcel/types';
-import type {ParcelOptions} from './types';
+import type {
+  ParcelOptions,
+  ProcessedParcelConfig,
+  ExtendableParcelConfigPipeline,
+} from './types';
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import {parse} from 'json5';
 import path from 'path';
@@ -14,7 +18,6 @@ import assert from 'assert';
 import ParcelConfig from './ParcelConfig';
 import ParcelConfigSchema from './ParcelConfig.schema';
 
-type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V, ...};
 
 export default async function loadParcelConfig(
@@ -59,38 +62,105 @@ export async function resolveParcelConfig(
     return null;
   }
 
-  return readAndProcess(configPath, options);
+  return readAndProcessConfigChain(configPath, options);
 }
 
 export function create(
   config: ResolvedParcelConfigFile,
   options: ParcelOptions,
 ) {
-  return processConfig(config, config.filePath, options);
+  return processConfigChain(config, config.filePath, options);
 }
 
-export async function readAndProcess(
+export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
 ) {
-  let config: ParcelConfigFile = parse(
+  let config: RawParcelConfig = parse(
     await options.inputFS.readFile(configPath),
   );
-  return processConfig(config, configPath, options);
+  return processConfigChain(config, configPath, options);
 }
 
-export async function processConfig(
-  configFile: ParcelConfigFile | ResolvedParcelConfigFile,
+function processPipeline(
+  pipeline: ?Array<PackageName>,
+  filePath: FilePath,
+): any {
+  if (pipeline) {
+    // $FlowFixMe
+    return pipeline.map(pkg => {
+      if (pkg === '...') return pkg;
+
+      return {
+        packageName: pkg,
+        resolveFrom: filePath,
+      };
+    });
+  }
+}
+
+function processMap(
+  map: ?ConfigMap<any, any>,
+  filePath: FilePath,
+): ConfigMap<any, any> | typeof undefined {
+  if (!map) return undefined;
+
+  let res: ConfigMap<any, any> = {};
+  for (let k in map) {
+    if (typeof map[k] === 'string') {
+      res[k] = {
+        packageName: map[k],
+        resolveFrom: filePath,
+      };
+    } else {
+      res[k] = processPipeline(map[k], filePath);
+    }
+  }
+
+  return res;
+}
+
+export function processConfig(
+  configFile: ResolvedParcelConfigFile,
+): ProcessedParcelConfig {
+  return {
+    extends: configFile.extends,
+    filePath: configFile.filePath,
+    resolveFrom: configFile.resolveFrom,
+    resolvers: processPipeline(configFile.resolvers, configFile.filePath),
+    transformers: processMap(configFile.transformers, configFile.filePath),
+    bundler: configFile.bundler
+      ? {
+          packageName: configFile.bundler,
+          resolveFrom: configFile.filePath,
+        }
+      : undefined,
+    namers: processPipeline(configFile.namers, configFile.filePath),
+    runtimes: processMap(configFile.runtimes, configFile.filePath),
+    packagers: processMap(configFile.packagers, configFile.filePath),
+    optimizers: processMap(configFile.optimizers, configFile.filePath),
+    reporters: processPipeline(configFile.reporters, configFile.filePath),
+    validators: processMap(configFile.validators, configFile.filePath),
+  };
+}
+
+export async function processConfigChain(
+  configFile: RawParcelConfig | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
 ) {
-  let resolvedFile: ResolvedParcelConfigFile = {filePath, ...configFile};
-  let config = new ParcelConfig(resolvedFile, options.packageManager);
+  // Validate config...
   let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
 
-  let extendedFiles: Array<FilePath> = [];
+  // Process config...
+  let resolvedFile: ProcessedParcelConfig = processConfig({
+    filePath,
+    ...configFile,
+  });
+  let config = new ParcelConfig(resolvedFile, options.packageManager);
 
+  let extendedFiles: Array<FilePath> = [];
   if (configFile.extends) {
     let exts = Array.isArray(configFile.extends)
       ? configFile.extends
@@ -101,7 +171,7 @@ export async function processConfig(
       let {
         extendedFiles: moreExtendedFiles,
         config: baseConfig,
-      } = await readAndProcess(resolved, options);
+      } = await readAndProcessConfigChain(resolved, options);
       extendedFiles = extendedFiles.concat(moreExtendedFiles);
       config = mergeConfigs(baseConfig, resolvedFile);
     }
@@ -127,7 +197,7 @@ export async function resolveExtends(
 }
 
 export function validateConfigFile(
-  config: ParcelConfigFile | ResolvedParcelConfigFile,
+  config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
   validateNotEmpty(config, relativePath);
@@ -144,7 +214,7 @@ export function validateConfigFile(
 }
 
 export function validateNotEmpty(
-  config: ParcelConfigFile | ResolvedParcelConfigFile,
+  config: RawParcelConfig | ResolvedParcelConfigFile,
   relativePath: FilePath,
 ) {
   assert.notDeepStrictEqual(config, {}, `${relativePath} can't be empty`);
@@ -152,26 +222,36 @@ export function validateNotEmpty(
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: ResolvedParcelConfigFile,
+  ext: ProcessedParcelConfig,
 ): ParcelConfig {
   return new ParcelConfig(
     {
-      filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
+      filePath: ext.filePath,
+      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       resolvers: mergePipelines(base.resolvers, ext.resolvers),
-      transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
+      transformers: mergeMaps(
+        base.transformers,
+        ext.transformers,
+        mergePipelines,
+      ),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
+      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       namers: mergePipelines(base.namers, ext.namers),
       runtimes: mergeMaps(base.runtimes, ext.runtimes),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,
   );
 }
 
-export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
+export function mergePipelines(
+  base: ?ExtendableParcelConfigPipeline,
+  ext: ?ExtendableParcelConfigPipeline,
+): any {
   if (!ext) {
     return base || [];
   }
