@@ -28,8 +28,7 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
-    "url:*": ["@parcel/transformer-raw"],
-    "*": ["@parcel/transformer-raw"]
+    "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {

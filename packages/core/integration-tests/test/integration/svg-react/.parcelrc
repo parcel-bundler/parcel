@@ -1,0 +1,6 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.svg": ["@parcel/transformer-svgo", "@parcel/transformer-svg-react"]
+  }
+}

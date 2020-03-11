@@ -1,6 +1,12 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle as _bundle, overlayFS, outputFS, ncp} from '@parcel/test-utils';
+import {
+  bundle as _bundle,
+  distDir,
+  overlayFS,
+  outputFS,
+  ncp,
+} from '@parcel/test-utils';
 
 function bundle(path) {
   return _bundle(path, {
@@ -8,8 +14,6 @@ function bundle(path) {
     disableCache: false,
   });
 }
-
-const distDir = '/dist';
 
 describe('content hashing', function() {
   beforeEach(async () => {
@@ -50,22 +54,18 @@ describe('content hashing', function() {
   });
 
   it('should update content hash when raw asset changes', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/import-raw'),
-      path.join(__dirname, '/input'),
-    );
+    let inputDir = path.join(__dirname, 'input');
+    let bundleJs = () => bundle(path.join(__dirname, 'input/index.js'));
 
-    let bundleJs = () => bundle(path.join(__dirname, '/input/index.js'));
+    await ncp(path.join(__dirname, 'integration/import-raw'), inputDir);
+
     await bundleJs();
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     let filename = js.match(/(test\.[0-9a-f]+\.txt)/)[1];
     assert(await outputFS.exists(path.join(distDir, filename)));
 
-    await outputFS.writeFile(
-      path.join(__dirname, '/input/test.txt'),
-      'hello world',
-    );
+    await outputFS.writeFile(path.join(inputDir, 'test.txt'), 'hello world');
     await bundleJs();
 
     js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
