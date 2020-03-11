@@ -210,4 +210,45 @@ describe('ts-validator', function() {
       "Argument of type 'true' is not assignable to parameter of type 'null'.",
     );
   });
+
+  it('should report correct errors when .ts dependencies change in a way that breaks a contract', async function() {
+    // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
+    // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
+    const inputDir = path.join(__dirname, '/ts-validator-dependencies-change');
+    await outputFS.mkdirp(inputDir);
+    await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
+    await outputFS.writeFile(
+      path.join(inputDir, '/index.ts'),
+      `import { returnMessage } from "./returnMessage";
+      const message: string = "My Message!";
+      export const output = returnMessage(message);`,
+    );
+    await outputFS.writeFile(
+      path.join(inputDir, '/returnMessage.ts'),
+      `export function returnMessage(message: string): string { return message; }`,
+    );
+    let b = bundler([path.join(inputDir, '/index.ts')], {
+      inputFS: overlayFS,
+      defaultConfig: config,
+    });
+    subscription = await b.watch();
+
+    let buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildSuccess');
+    let output = await run(buildEvent.bundleGraph);
+    assert.equal(output.output, 'My Message!');
+
+    await outputFS.writeFile(
+      path.join(inputDir, '/returnMessage.ts'),
+      `export function returnMessage(message: number): number { return message; }`,
+    );
+
+    buildEvent = await getNextBuild(b);
+    assert.equal(buildEvent.type, 'buildFailure');
+    assert.equal(buildEvent.diagnostics.length, 1);
+    assert.equal(
+      buildEvent.diagnostics[0].message,
+      "Argument of type 'string' is not assignable to parameter of type 'number'.",
+    );
+  });
 });
