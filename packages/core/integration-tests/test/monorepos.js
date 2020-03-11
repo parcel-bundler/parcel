@@ -461,4 +461,97 @@ describe('monorepos', function() {
     );
     assert(contents.includes('return 2'));
   });
+
+  it('should not share bundles between targets', async function() {
+    let b = await bundle(
+      [
+        path.join(__dirname, '/integration/monorepo-shared/packages/pkg-a'),
+        path.join(__dirname, '/integration/monorepo-shared/packages/pkg-b'),
+      ],
+      {scopeHoist: true},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'pkg-a.cjs.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'pkg-a.module.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'pkg-a.cjs.css',
+        assets: ['index.module.css'],
+      },
+      {
+        name: 'pkg-b.cjs.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'pkg-b.module.js',
+        assets: ['index.js', 'index.module.css'],
+      },
+      {
+        name: 'pkg-b.cjs.css',
+        assets: ['index.module.css'],
+      },
+    ]);
+
+    let contents = await outputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/monorepo-shared/packages/pkg-a/dist/pkg-a.cjs.js',
+      ),
+      'utf8',
+    );
+    assert(contents.includes('exports.default ='));
+    assert(contents.includes('require("./pkg-a.cjs.css")'));
+
+    contents = await outputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/monorepo-shared/packages/pkg-a/dist/pkg-a.module.js',
+      ),
+      'utf8',
+    );
+    assert(contents.includes('export default function'));
+    assert(contents.includes('import "./pkg-a.cjs.css"'));
+
+    contents = await outputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/monorepo-shared/packages/pkg-a/dist/pkg-a.cjs.css',
+      ),
+      'utf8',
+    );
+    assert(contents.includes('._foo'));
+
+    contents = await outputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/monorepo-shared/packages/pkg-b/dist/pkg-b.cjs.js',
+      ),
+      'utf8',
+    );
+    assert(contents.includes('require("./pkg-b.cjs.css")'));
+
+    contents = await outputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/monorepo-shared/packages/pkg-b/dist/pkg-b.cjs.css',
+      ),
+      'utf8',
+    );
+    assert(contents.includes('._foo'));
+
+    contents = await outputFS.readFile(
+      path.join(
+        __dirname,
+        '/integration/monorepo-shared/packages/pkg-b/dist/pkg-b.module.js',
+      ),
+      'utf8',
+    );
+    assert(contents.includes('import "./pkg-b.cjs.css"'));
+  });
 });

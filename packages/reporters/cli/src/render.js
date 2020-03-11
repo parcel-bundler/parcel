@@ -32,6 +32,7 @@ export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
 let spinner = ora({
   color: 'green',
   stream: stdout,
+  discardStdin: false,
 });
 let persistedMessages = [];
 

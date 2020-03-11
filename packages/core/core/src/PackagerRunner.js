@@ -39,6 +39,7 @@ type Opts = {|
   config: ParcelConfig,
   farm?: WorkerFarm,
   options: ParcelOptions,
+  optionsRef?: number,
   report: ReportFn,
 |};
 
@@ -59,6 +60,7 @@ const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 export default class PackagerRunner {
   config: ParcelConfig;
   options: ParcelOptions;
+  optionsRef: ?number;
   farm: ?WorkerFarm;
   pluginOptions: PluginOptions;
   distDir: FilePath;
@@ -69,12 +71,13 @@ export default class PackagerRunner {
     bundleGraphReference: number,
     config: ParcelConfig,
     cacheKeys: CacheKeyMap,
-    options: ParcelOptions,
+    optionsRef: number,
   |}) => Promise<BundleInfo>;
 
-  constructor({config, farm, options, report}: Opts) {
+  constructor({config, farm, options, optionsRef, report}: Opts) {
     this.config = config;
     this.options = options;
+    this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
 
     this.farm = farm;
@@ -147,7 +150,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraphReference,
         cacheKeys,
-        options: this.options,
+        optionsRef: nullthrows(this.optionsRef),
         config: this.config,
       }));
 

@@ -15,6 +15,7 @@ import invariant from 'assert';
 import {relative} from 'path';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
+import {assertString} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -22,7 +23,7 @@ export function generateBundleImports(
   assets: Set<Asset>,
 ) {
   let specifiers = [...assets].map(asset => {
-    let id = t.identifier(asset.meta.exportsIdentifier);
+    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
     return t.importSpecifier(id, id);
   });
 
