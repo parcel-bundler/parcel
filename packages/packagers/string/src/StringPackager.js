@@ -2,9 +2,10 @@
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
+import {replaceURLReferences} from '@parcel/utils';
 
 export default new Packager({
-  async package({bundle}) {
+  async package({bundle, bundleGraph}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -15,6 +16,12 @@ export default new Packager({
       1,
       'String bundles must only contain one asset',
     );
-    return {contents: await assets[0].getCode()};
+    return {
+      contents: replaceURLReferences({
+        bundle,
+        bundleGraph,
+        contents: await assets[0].getCode(),
+      }).contents,
+    };
   },
 });

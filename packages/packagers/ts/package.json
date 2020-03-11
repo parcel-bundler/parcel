@@ -12,7 +12,7 @@
   "main": "lib/TSPackager.js",
   "source": "src/TSPackager.js",
   "engines": {
-    "node": ">= 8.0.0",
+    "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {

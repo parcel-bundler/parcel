@@ -153,16 +153,18 @@ function getURLReplacement({
   toBundle: Bundle,
   relative: boolean,
 |}) {
-  let url = URL.parse(dependency.moduleSpecifier);
   let to;
   if (relative) {
-    url.pathname = relativeBundlePath(fromBundle, toBundle, {
-      leadingDotSlash: false,
+    to = URL.format({
+      pathname: relativeBundlePath(fromBundle, toBundle, {
+        leadingDotSlash: false,
+      }),
     });
-    to = URL.format(url);
   } else {
-    url.pathname = nullthrows(toBundle.name);
-    to = urlJoin(toBundle.target.publicUrl, URL.format(url));
+    to = urlJoin(
+      toBundle.target.publicUrl,
+      URL.format({pathname: nullthrows(toBundle.name)}),
+    );
   }
 
   return {

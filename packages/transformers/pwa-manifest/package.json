@@ -2,6 +2,9 @@
   "name": "@parcel/transformer-pwa-manifest",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
@@ -14,8 +17,5 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.3.1"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

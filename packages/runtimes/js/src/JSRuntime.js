@@ -121,7 +121,7 @@ export default new Runtime({
         assets.push({
           filePath: __filename,
           code: `module.exports = ${JSON.stringify(
-            dependency.moduleSpecifier,
+            dependency.moduleSpecifier, // TODO remove pipeline ?
           )}`,
           dependency,
         });
