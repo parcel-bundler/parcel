@@ -114,6 +114,7 @@ export type Asset = {|
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
+  outputHash: ?string,
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,

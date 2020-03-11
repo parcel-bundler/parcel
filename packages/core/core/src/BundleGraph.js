@@ -607,7 +607,9 @@ export default class BundleGraph {
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
       hash.update(
-        [asset.hash, asset.filePath, asset.type, asset.uniqueKey].join(':'),
+        [asset.outputHash, asset.filePath, asset.type, asset.uniqueKey].join(
+          ':',
+        ),
       );
     });
 

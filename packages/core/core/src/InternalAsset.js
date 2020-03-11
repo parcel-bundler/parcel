@@ -56,6 +56,7 @@ type AssetOptions = {|
   isSource: boolean,
   env: Environment,
   meta?: Meta,
+  outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
@@ -88,6 +89,7 @@ export function createAsset(options: AssetOptions): Asset {
     dependencies: options.dependencies || new Map(),
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
+    outputHash: options.outputHash,
     pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
@@ -186,6 +188,9 @@ export default class InternalAsset {
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
+    this.value.outputHash = md5FromString(
+      [this.value.hash, pipelineKey].join(':'),
+    );
 
     // TODO: how should we set the size when we only store an AST?
     if (this.content != null) {

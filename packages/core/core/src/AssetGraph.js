@@ -334,7 +334,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // TODO: sort??
     this.traverse(node => {
       if (node.type === 'asset') {
-        hash.update(nullthrows(node.value.hash));
+        hash.update(nullthrows(node.value.outputHash));
       } else if (node.type === 'dependency' && node.value.target) {
         hash.update(JSON.stringify(node.value.target));
       }
