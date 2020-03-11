@@ -194,12 +194,28 @@ function find(tree, tag) {
 }
 
 function findBundleInsertIndex(content) {
+  // HTML document order (https://html.spec.whatwg.org/multipage/syntax.html#writing)
+  //   - Any number of comments and ASCII whitespace.
+  //   - A DOCTYPE.
+  //   - Any number of comments and ASCII whitespace.
+  //   - The document element, in the form of an html element.
+  //   - Any number of comments and ASCII whitespace.
+  //
+  // -> Insert before first non-metadata element; if none was found, after the doctype
+
+  let doctypeIndex = 0;
   for (let index = 0; index < content.length; index++) {
     const node = content[index];
     if (node && node.tag && !metadataContent.has(node.tag)) {
       return index;
     }
+    if (
+      typeof node === 'string' &&
+      node.toLowerCase().startsWith('<!doctype')
+    ) {
+      doctypeIndex = index;
+    }
   }
 
-  return 0;
+  return doctypeIndex + 1;
 }
