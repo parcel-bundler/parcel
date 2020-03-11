@@ -102,7 +102,7 @@ export default class TargetResolver {
             name,
             _descriptor,
             null,
-            {targets: optionTargets},
+            JSON.stringify({targets: optionTargets}, null, '\t'),
           );
           if (!distDir) {
             let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
@@ -236,7 +236,7 @@ export default class TargetResolver {
         pkgContents,
         '/engines',
         'Invalid engines in package.json',
-      ) || {};
+      ) ?? {};
     if (!pkgEngines.browsers) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {
@@ -469,7 +469,7 @@ export default class TargetResolver {
 function parseEngines(
   engines: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
   prependKey: string,
   message: string,
 ): Engines | typeof undefined {
@@ -478,11 +478,8 @@ function parseEngines(
   } else {
     validateSchema.diagnostic(
       ENGINES_SCHEMA,
-      engines,
-      pkgPath,
-      pkgContents,
+      {data: engines, source: pkgContents, filePath: pkgPath, prependKey},
       '@parcel/core',
-      prependKey,
       message,
     );
 
@@ -495,15 +492,17 @@ function parseDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
 ): TargetDescriptor | PackageTargetDescriptor {
   validateSchema.diagnostic(
     DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
 
@@ -515,15 +514,17 @@ function parseCommonTargetDescriptor(
   targetName: string,
   descriptor: mixed,
   pkgPath: ?FilePath,
-  pkgContents: string | mixed,
+  pkgContents: ?string,
 ): TargetDescriptor | PackageTargetDescriptor | false {
   validateSchema.diagnostic(
     COMMON_TARGET_DESCRIPTOR_SCHEMA,
-    descriptor,
-    pkgPath,
-    pkgContents,
+    {
+      data: descriptor,
+      source: pkgContents,
+      filePath: pkgPath,
+      prependKey: `/targets/${targetName}`,
+    },
     '@parcel/core',
-    `/targets/${targetName}`,
     `Invalid target descriptor for target "${targetName}"`,
   );
 

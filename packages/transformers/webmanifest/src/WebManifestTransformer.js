@@ -43,17 +43,14 @@ const MANIFEST_SCHEMA: SchemaEntity = {
 
 function collectDependencies(
   asset: MutableAsset,
-  contents: string,
+  source: string,
   data: Manifest,
   pointers: any,
 ) {
   validateSchema.diagnostic(
     MANIFEST_SCHEMA,
-    data,
-    null,
-    contents,
+    {source, map: {data, pointers}},
     '@parcel/transformer-webmanifest',
-    null,
     'Invalid webmanifest',
   );
 

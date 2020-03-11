@@ -4,6 +4,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 // flowlint-next-line untyped-import:off
 import levenshteinDistance from 'js-levenshtein';
+import nullthrows from 'nullthrows';
 
 export type SchemaEntity =
   | SchemaObject
@@ -354,20 +355,37 @@ export function fuzzySearch(
 
 validateSchema.diagnostic = function(
   schema: SchemaEntity,
-  data: mixed,
-  dataContentsPath: ?string,
-  dataContents: string | mixed,
+  data: {|
+    ...
+      | {|
+          source?: ?string,
+          data?: mixed,
+        |}
+      | {|source: string, map: {|data: mixed, pointers: Array<{...}>|}|},
+    filePath?: ?string,
+    prependKey?: ?string,
+  |},
   origin: string,
-  prependKey: ?string,
   message: string,
 ): void {
-  let errors = validateSchema(schema, data);
+  if (
+    'source' in data &&
+    'data' in data &&
+    typeof data.source !== 'string' &&
+    !data
+  ) {
+    throw new Error(
+      'At least one of data.source and data.source must be defined!',
+    );
+  }
+
+  let object = data.map
+    ? data.map.data
+    : // $FlowFixMe we can assume it's a JSON object
+      data.data ?? JSON.parse(data.source);
+
+  let errors = validateSchema(schema, object);
   if (errors.length) {
-    let dataContentsString: string =
-      typeof dataContents === 'string'
-        ? dataContents
-        : // $FlowFixMe
-          JSON.stringify(dataContents, null, '\t');
     let keys = errors.map(e => {
       let message;
       if (e.type === 'enum') {
@@ -422,12 +440,23 @@ validateSchema.diagnostic = function(
       }
       return {key: e.dataPath, type: e.dataType, message};
     });
+
+    let map, code;
+    if (data.map) {
+      map = data.map;
+      code = data.source;
+    } else {
+      // $FlowFixMe we can assume that data is valid JSON
+      map = data.source ?? JSON.stringify(nullthrows(data.data), 0, '\t');
+      code = map;
+    }
+
     let codeFrame = {
-      code: dataContentsString,
+      code,
       codeHighlights: generateJSONCodeHighlights(
-        dataContentsString,
+        map,
         keys.map(({key, type, message}) => ({
-          key: (prependKey || '') + key,
+          key: (data.prependKey ?? '') + key,
           type: type,
           message,
         })),
@@ -439,7 +468,7 @@ validateSchema.diagnostic = function(
         message,
         origin,
         // $FlowFixMe should be a sketchy string check
-        filePath: dataContentsPath || undefined,
+        filePath: data.filePath,
         language: 'json',
         codeFrame,
       },
