@@ -1,11 +1,17 @@
 // @flow strict-local
 
-import type {Bundle, Dependency, RuntimeAsset} from '@parcel/types';
+import type {
+  Bundle,
+  BundleGraph,
+  Dependency,
+  RuntimeAsset,
+} from '@parcel/types';
 
 import assert from 'assert';
 import {Runtime} from '@parcel/plugin';
 import {relativeBundlePath} from '@parcel/utils';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 // List of browsers that support dynamic import natively
 // https://caniuse.com/#feat=es6-module-dynamic-import
@@ -116,34 +122,31 @@ export default new Runtime({
 
       let loaderModules = loaders
         ? externalBundles
-            .map(b => {
-              let loader = loaders[b.type];
+            .map(to => {
+              let loader = loaders[to.type];
               if (!loader) {
                 return;
               }
 
+              let relativePathExpr = getRelativePathExpr(bundle, to);
+
               // Use esmodule loader if possible
-              if (b.type === 'js' && b.env.outputFormat === 'esmodule') {
+              if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
                 if (!needsDynamicImportPolyfill) {
-                  return `import('' + '${relativeBundlePath(bundle, b)}')`;
+                  return `import("./" + ${relativePathExpr})`;
                 }
 
                 loader = IMPORT_POLYFILL;
-              } else if (b.type === 'js' && b.env.outputFormat === 'commonjs') {
-                return `Promise.resolve(require('' + '${relativeBundlePath(
-                  bundle,
-                  b,
-                )}'))`;
+              } else if (
+                to.type === 'js' &&
+                to.env.outputFormat === 'commonjs'
+              ) {
+                return `Promise.resolve(require("./" + ${relativePathExpr}))`;
               }
 
-              let relativePath = relativeBundlePath(bundle, b, {
-                leadingDotSlash: false,
-              });
               return `require(${JSON.stringify(
                 loader,
-              )})(require('./bundle-url').getBundleURL() + ${JSON.stringify(
-                relativePath,
-              )})`;
+              )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
             })
             .filter(Boolean)
         : [];
@@ -176,34 +179,96 @@ export default new Runtime({
       }
     }
 
+    if (
+      shouldUseRuntimeManifest(bundle) &&
+      bundleGraph.getChildBundles(bundle).length > 0 &&
+      isNewContext(bundle, bundleGraph)
+    ) {
+      assets.push({
+        filePath: __filename,
+        code: getRegisterCode(bundle, bundleGraph),
+        isEntry: true,
+      });
+    }
+
     return assets;
   },
 });
 
+function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+  return (
+    bundle.isEntry ||
+    bundleGraph
+      .getParentBundles(bundle)
+      .some(
+        parent =>
+          parent.env.context !== bundle.env.context || parent.type !== 'js',
+      )
+  );
+}
+
 function getURLRuntime(
   dependency: Dependency,
-  bundle: Bundle,
-  externalBundle: Bundle,
+  from: Bundle,
+  to: Bundle,
 ): RuntimeAsset {
-  let relativePath = relativeBundlePath(bundle, externalBundle, {
-    leadingDotSlash: false,
-  });
+  let relativePathExpr = getRelativePathExpr(from, to);
 
   if (dependency.meta.webworker === true) {
     return {
       filePath: __filename,
-      code: `module.exports = require('./get-worker-url')(${JSON.stringify(
-        relativePath,
-      )});`,
+      code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
       dependency,
     };
   }
 
   return {
     filePath: __filename,
-    code: `module.exports = require('./bundle-url').getBundleURL() + ${JSON.stringify(
-      relativePath,
-    )}`,
+    code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
     dependency,
   };
+}
+
+function getRegisterCode(
+  entryBundle: Bundle,
+  bundleGraph: BundleGraph,
+): string {
+  let idToName = {};
+  bundleGraph.traverseBundles((bundle, _, actions) => {
+    if (bundle.isInline) {
+      return;
+    }
+
+    idToName[getPublicId(bundle.id)] = nullthrows(bundle.name);
+
+    if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
+      // New contexts have their own manifests, so there's no need to continue.
+      actions.skipChildren();
+    }
+  }, entryBundle);
+
+  return (
+    "require('./bundle-manifest').register(JSON.parse(" +
+    JSON.stringify(JSON.stringify(idToName)) +
+    '));'
+  );
+}
+
+function getRelativePathExpr(from: Bundle, to: Bundle): string {
+  if (shouldUseRuntimeManifest(from)) {
+    return `require('./relative-path')(${JSON.stringify(
+      getPublicId(from.id),
+    )}, ${JSON.stringify(getPublicId(to.id))})`;
+  }
+
+  return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
+}
+
+function getPublicId(id: string): string {
+  return id.slice(-16);
+}
+
+function shouldUseRuntimeManifest(bundle: Bundle): boolean {
+  let env = bundle.env;
+  return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
 }

@@ -5,8 +5,8 @@ import warehouse from 'url:./image.jpg?height=200&as=webp';
 
 console.log(warehouse);
 
-// import('./async');
-// import('./async2');
+import('./async');
+import('./async2');
 
 new Worker('worker.js');
 

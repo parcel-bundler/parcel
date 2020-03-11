@@ -126,7 +126,12 @@ export default class Validation {
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
-    let idBase = code != null ? hash : filePath;
+    let idBase =
+      code != null
+        ? hash
+        : path
+            .relative(this.options.projectRoot, filePath)
+            .replace(/[\\/]+/g, '/');
     return new InternalAsset({
       idBase,
       value: createAsset({

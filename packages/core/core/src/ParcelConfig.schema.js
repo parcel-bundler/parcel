@@ -112,7 +112,7 @@ export default {
       __validate: validatePluginName('bundler', 'bundler'),
     },
     resolvers: pipelineSchema('resolver', 'resolvers'),
-    transforms: mapPipelineSchema('transformer', 'transforms'),
+    transformers: mapPipelineSchema('transformer', 'transformers'),
     validators: mapPipelineSchema('validator', 'validators'),
     namers: pipelineSchema('namer', 'namers'),
     packagers: mapStringSchema('packager', 'packagers'),
