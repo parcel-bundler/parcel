@@ -1,6 +1,7 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, assertBundles, outputFS} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle, assertBundles, inputFS, outputFS} from '@parcel/test-utils';
+import {escapeMarkdown} from '@parcel/utils';
 
 describe('webmanifest', function() {
   it('should support .webmanifest', async function() {
@@ -67,5 +68,115 @@ describe('webmanifest', function() {
     );
     assert(/screenshot\.[0-9a-f]+\.png/.test(manifest));
     assert(/icon\.[0-9a-f]+\.png/.test(manifest));
+  });
+
+  it('should throw on malformed icons and screenshots', async function() {
+    let manifestPath = path.join(
+      __dirname,
+      '/integration/webmanifest-schema/manifest.webmanifest',
+    );
+    let manifest = await inputFS.readFileSync(manifestPath, 'utf8');
+
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, '/integration/webmanifest-schema/index.html'),
+        ),
+      {
+        name: 'BuildError',
+        message: path.normalize('Invalid webmanifest'),
+        diagnostics: [
+          {
+            codeFrame: {
+              code: manifest,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 5,
+                    line: 12,
+                  },
+                  message: 'Did you mean "src"?',
+                  start: {
+                    column: 5,
+                    line: 9,
+                  },
+                },
+                {
+                  end: {
+                    column: 6,
+                    line: 13,
+                  },
+                  message: 'Did you mean "src"?',
+                  start: {
+                    column: 5,
+                    line: 13,
+                  },
+                },
+                {
+                  end: {
+                    column: 19,
+                    line: 15,
+                  },
+                  message: 'Expected type array',
+                  start: {
+                    column: 18,
+                    line: 15,
+                  },
+                },
+              ],
+            },
+            filePath: manifestPath,
+            language: 'json',
+            message: 'Invalid webmanifest',
+            origin: '@parcel/transformer-webmanifest',
+          },
+        ],
+      },
+    );
+  });
+
+  it('should throw on missing dependency', async function() {
+    let manifestPath = path.join(
+      __dirname,
+      '/integration/webmanifest-not-found/manifest.json',
+    );
+    let manifest = await inputFS.readFileSync(manifestPath, 'utf8');
+
+    let message = `Cannot find module 'icon.png' from '${escapeMarkdown(
+      path.dirname(manifestPath),
+    )}'`;
+
+    await assert.rejects(
+      () =>
+        bundle(
+          path.join(__dirname, '/integration/webmanifest-not-found/index.html'),
+        ),
+      {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            codeFrame: {
+              code: manifest,
+              codeHighlights: [
+                {
+                  end: {
+                    column: 23,
+                    line: 5,
+                  },
+                  start: {
+                    column: 14,
+                    line: 5,
+                  },
+                },
+              ],
+            },
+            message,
+            filePath: manifestPath,
+            origin: '@parcel/resolver-default',
+          },
+        ],
+      },
+    );
   });
 });

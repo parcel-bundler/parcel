@@ -1,0 +1,17 @@
+{
+  "name": "pwa-webmanifest-example",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "100x100",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot.png",
+      "sizes": "100x100",
+      "type": "image/png"
+    }
+  ]
+}

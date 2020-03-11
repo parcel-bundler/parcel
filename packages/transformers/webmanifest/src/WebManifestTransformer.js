@@ -49,7 +49,7 @@ function collectDependencies(
 ) {
   validateSchema.diagnostic(
     MANIFEST_SCHEMA,
-    {source, map: {data, pointers}},
+    {source, map: {data, pointers}, filePath: asset.filePath},
     '@parcel/transformer-webmanifest',
     'Invalid webmanifest',
   );
