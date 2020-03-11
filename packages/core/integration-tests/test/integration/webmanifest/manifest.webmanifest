@@ -12,12 +12,6 @@
       "src": "screenshot.png",
       "sizes": "100x100",
       "type": "image/png"
-    },
-    {
-        "src": ""
     }
-  ],
-  "serviceworker": {
-    "src": "./serviceworker.js"
-  }
+  ]
 }

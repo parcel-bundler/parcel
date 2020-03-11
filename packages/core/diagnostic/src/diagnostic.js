@@ -164,11 +164,12 @@ export default class ThrowableDiagnostic extends Error {
 
 // ids.key has to be "/some/parent/child"
 export function generateJSONCodeHighlights(
-  code: string,
+  data: string | {|data: any, pointers: any|},
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
 ): Array<DiagnosticCodeHighlight> {
   // json-source-map doesn't support a tabWidth option (yet)
-  let map = jsonMap.parse(code.replace(/\t/g, ' '));
+  let map =
+    typeof data === 'string' ? jsonMap.parse(data.replace(/\t/g, ' ')) : data;
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     return {

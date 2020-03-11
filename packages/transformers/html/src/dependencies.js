@@ -123,16 +123,20 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       }
     }
 
-    if (
-      tag === 'link' &&
-      (attrs.rel === 'canonical' || attrs.rel === 'manifest') &&
-      attrs.href
-    ) {
-      attrs.href = asset.addURLDependency(`pwa-manifest:${attrs.href}`, {
-        isEntry: true,
-      });
-      isDirty = true;
-      return node;
+    if (tag === 'link' && attrs.href) {
+      if (attrs.rel === 'canonical') {
+        attrs.href = asset.addURLDependency(attrs.href, {
+          isEntry: true,
+        });
+        isDirty = true;
+        return node;
+      } else if (attrs.rel === 'manifest') {
+        attrs.href = asset.addURLDependency(`webmanifest:${attrs.href}`, {
+          isEntry: true,
+        });
+        isDirty = true;
+        return node;
+      }
     }
 
     for (let attr in attrs) {

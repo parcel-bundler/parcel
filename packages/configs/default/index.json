@@ -27,8 +27,7 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
-    "pwa-manifest:*": ["@parcel/transformer-pwa-manifest"],
-    "*.webmanifest": ["@parcel/transformer-pwa-manifest"],
+    "webmanifest:*": ["@parcel/transformer-webmanifest"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

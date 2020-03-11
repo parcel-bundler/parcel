@@ -234,7 +234,7 @@ export function validateConfigFile(
     relativePath,
     JSON.stringify(config, null, '\t'),
     '@parcel/core',
-    '',
+    null,
     'Invalid Parcel Config',
   );
 }

@@ -28,13 +28,13 @@ import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
-export let outputFS = new MemoryFS(workerFarm);
+export let outputFS = inputFS;
 export let overlayFS = new OverlayFS(outputFS, inputFS);
 
-beforeEach(() => {
-  outputFS = new MemoryFS(workerFarm);
-  overlayFS = new OverlayFS(outputFS, inputFS);
-});
+// beforeEach(() => {
+//   outputFS = new MemoryFS(workerFarm);
+//   overlayFS = new OverlayFS(outputFS, inputFS);
+// });
 
 // Recursively copies a directory from the inputFS to the outputFS
 export async function ncp(source: FilePath, destination: FilePath) {

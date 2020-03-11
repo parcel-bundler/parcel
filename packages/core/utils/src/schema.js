@@ -88,7 +88,7 @@ export type SchemaError =
       prop: string,
       expectedProps: Array<string>,
       actualProps: Array<string>,
-      dataType: null | 'key',
+      dataType: 'key' | 'value',
 
       dataPath: string,
       ancestors: Array<SchemaEntity>,
@@ -159,8 +159,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
               }
             } else if (schemaNode.__validate) {
               let validationError = schemaNode.__validate(value);
-              // $FlowFixMe
-              if (validationError) {
+              if (typeof validationError === 'string') {
                 return {
                   type: 'other',
                   dataType: 'value',
@@ -209,7 +208,7 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                     ({
                       type: 'missing-prop',
                       dataPath,
-                      dataType: null,
+                      dataType: 'value',
                       prop: k,
                       expectedProps: schemaNode.required,
                       actualProps: keys,
@@ -356,10 +355,10 @@ export function fuzzySearch(
 validateSchema.diagnostic = function(
   schema: SchemaEntity,
   data: mixed,
-  dataContentsPath?: ?string,
+  dataContentsPath: ?string,
   dataContents: string | mixed,
   origin: string,
-  prependKey: string,
+  prependKey: ?string,
   message: string,
 ): void {
   let errors = validateSchema(schema, data);
@@ -403,14 +402,12 @@ validateSchema.diagnostic = function(
           message = 'Unexpected property';
         }
       } else if (e.type === 'missing-prop') {
-        let {prop, actualProps} = e;
-        let likely = fuzzySearch(actualProps, prop);
+        let {prop, expectedProps} = e;
+        let likely = fuzzySearch(expectedProps, prop);
         if (likely.length > 0) {
           message = `Did you mean ${likely
             .map(v => JSON.stringify(v))
             .join(', ')}?`;
-          e.dataPath += '/' + prop;
-          e.dataType = 'key';
         } else {
           message = `Missing property ${prop}`;
         }
@@ -430,7 +427,7 @@ validateSchema.diagnostic = function(
       codeHighlights: generateJSONCodeHighlights(
         dataContentsString,
         keys.map(({key, type, message}) => ({
-          key: prependKey + key,
+          key: (prependKey || '') + key,
           type: type,
           message,
         })),

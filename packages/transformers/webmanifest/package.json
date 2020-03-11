@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/transformer-pwa-manifest",
+  "name": "@parcel/transformer-webmanifest",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
@@ -9,13 +9,16 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/PWAManifestTransformer.js",
-  "source": "src/PWAManifestTransformer.js",
+  "main": "lib/WebManifestTransformer.js",
+  "source": "src/WebManifestTransformer.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.3.1"
+    "@parcel/diagnostic": "^2.0.0-alpha.3.1",
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "@parcel/utils": "^2.0.0-alpha.3.1",
+    "json-source-map": "^0.6.1"
   }
 }
