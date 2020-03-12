@@ -298,6 +298,7 @@ export default class RequestTracker {
 
   hasValidResult(id: string) {
     return (
+      this.graph.nodes.has(id) &&
       !this.graph.invalidNodeIds.has(id) &&
       !this.graph.incompleteNodeIds.has(id)
     );

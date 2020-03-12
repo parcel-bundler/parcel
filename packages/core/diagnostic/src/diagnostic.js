@@ -55,7 +55,7 @@ export type PrintableError = Error & {
   filePath?: string,
   codeFrame?: string,
   highlightedCodeFrame?: string,
-  loc?: {
+  loc?: ?{
     column: number,
     line: number,
     ...

@@ -111,7 +111,6 @@ export function bundler(
       browsers: ['last 1 Chrome version'],
       node: '8',
     },
-    // $FlowFixMe
     ...opts,
   });
 }

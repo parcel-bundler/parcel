@@ -24,8 +24,3 @@ Please look for any issues that this PR resolves and tag them in the PR.
 - [ ] Added/updated unit tests for this change
 - [ ] Filled out test instructions (In case there aren't any unit tests)
 - [ ] Included links to related issues/PRs
-
-<!--
-Love parcel? Please consider supporting our collective:
-👉  https://opencollective.com/parcel/donate
--->
