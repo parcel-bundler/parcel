@@ -105,7 +105,7 @@ export function createAsset(options: AssetOptions): Asset {
 type InternalAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
-  content?: ?Blob,
+  content?: ?(Blob | Promise<Buffer>),
   map?: ?SourceMap,
   ast?: ?AST,
   isASTDirty?: ?boolean,
@@ -115,7 +115,7 @@ type InternalAssetOptions = {|
 export default class InternalAsset {
   value: Asset;
   options: ParcelOptions;
-  content: ?Blob;
+  content: ?(Blob | Promise<Buffer>);
   map: ?SourceMap;
   ast: ?AST;
   isASTDirty: boolean;
@@ -147,17 +147,6 @@ export default class InternalAsset {
    */
   async commit(pipelineKey: string): Promise<void> {
     let contentStream = this.getStream();
-    if (
-      // $FlowFixMe
-      typeof contentStream.bytesRead === 'number' &&
-      // If the amount of data read from this stream so far isn't exactly the amount
-      // of data that is available to be read, then it has been read from.
-      contentStream.bytesRead !== contentStream.readableLength
-    ) {
-      throw new Error(
-        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.',
-      );
-    }
 
     let size = 0;
     let contentKey = this.getCacheKey('content' + pipelineKey);
@@ -258,34 +247,51 @@ export default class InternalAsset {
 
   async getCode(): Promise<string> {
     this.ensureContent();
+    let content = await this.content;
 
-    if (typeof this.content === 'string' || this.content instanceof Buffer) {
-      this.content = this.content.toString();
-    } else if (this.content != null) {
-      this.content = (await bufferStream(this.content)).toString();
+    if (typeof content === 'string' || content instanceof Buffer) {
+      return content.toString();
+    } else if (content != null) {
+      this.content = bufferStream(content);
+      return (await this.content).toString();
     }
 
-    return this.content || '';
+    return '';
   }
 
   async getBuffer(): Promise<Buffer> {
     this.ensureContent();
+    let content = await this.content;
 
-    if (this.content == null) {
+    if (content == null) {
       return Buffer.alloc(0);
-    } else if (
-      typeof this.content === 'string' ||
-      this.content instanceof Buffer
-    ) {
-      return Buffer.from(this.content);
+    } else if (typeof content === 'string' || content instanceof Buffer) {
+      return Buffer.from(content);
     }
 
-    this.content = await bufferStream(this.content);
+    this.content = bufferStream(content);
     return this.content;
   }
 
   getStream(): Readable {
     this.ensureContent();
+    if (
+      this.content instanceof Readable &&
+      // $FlowFixMe
+      typeof this.content.bytesRead === 'number' &&
+      // If the amount of data read from this stream so far isn't exactly the amount
+      // of data that is available to be read, then it has been read from.
+      this.content.bytesRead !== this.content.readableLength
+    ) {
+      throw new Error(
+        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.',
+      );
+    }
+
+    if (this.content instanceof Promise) {
+      return streamFromPromise(this.content);
+    }
+
     return blobToStream(this.content != null ? this.content : Buffer.alloc(0));
   }
 

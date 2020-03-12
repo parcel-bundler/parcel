@@ -593,30 +593,32 @@ async function runTransformer(
 
 function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>,
-): Array<TransformerResult> {
-  return results.map(result => {
-    if (!(result instanceof MutableAsset)) {
-      return result;
-    }
+): Promise<Array<TransformerResult>> {
+  return Promise.all(
+    results.map<Promise<TransformerResult>>(async result => {
+      if (!(result instanceof MutableAsset)) {
+        return result;
+      }
 
-    let internalAsset = assetToInternalAsset(result);
-    return {
-      type: result.type,
-      content: internalAsset.content,
-      ast: internalAsset.ast,
-      map: internalAsset.map,
-      // $FlowFixMe
-      dependencies: [...internalAsset.value.dependencies.values()],
-      includedFiles: result.getIncludedFiles(),
-      // $FlowFixMe
-      env: result.env,
-      isIsolated: result.isIsolated,
-      isInline: result.isInline,
-      pipeline: internalAsset.value.pipeline,
-      meta: result.meta,
-      uniqueKey: internalAsset.value.uniqueKey,
-    };
-  });
+      let internalAsset = assetToInternalAsset(result);
+      return {
+        type: result.type,
+        content: await internalAsset.content,
+        ast: internalAsset.ast,
+        map: internalAsset.map,
+        // $FlowFixMe
+        dependencies: [...internalAsset.value.dependencies.values()],
+        includedFiles: result.getIncludedFiles(),
+        // $FlowFixMe
+        env: result.env,
+        isIsolated: result.isIsolated,
+        isInline: result.isInline,
+        pipeline: internalAsset.value.pipeline,
+        meta: result.meta,
+        uniqueKey: internalAsset.value.uniqueKey,
+      };
+    }),
+  );
 }
 
 function getImpactfulConfigInfo(configs: ConfigMap) {
