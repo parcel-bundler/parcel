@@ -13,7 +13,7 @@ import path from 'path';
 import {addHook} from 'pirates';
 import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
 
-import syncPromise from './syncPromise';
+import pSync from 'p-syncy';
 
 let hooks = {};
 let lastDisposable;
@@ -47,11 +47,11 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     },
   };
 
-  syncPromise(parcel.init());
+  pSync(parcel.init());
 
   let isProcessing = false;
 
-  // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
+  // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a synchronous promise later...
   async function fileProcessor(code, filePath) {
     if (isProcessing) {
       return code;
@@ -85,13 +85,13 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     return '';
   }
 
-  let hookFunction = (...args) => syncPromise(fileProcessor(...args));
+  let hookFunction = (...args) => pSync(fileProcessor(...args));
 
   function resolveFile(currFile, targetFile) {
     try {
       isProcessing = true;
 
-      let resolved = syncPromise(
+      let resolved = pSync(
         // $FlowFixMe
         parcel[INTERNAL_RESOLVE]({
           moduleSpecifier: targetFile,

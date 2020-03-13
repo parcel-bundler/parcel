@@ -5,7 +5,7 @@ const fs = require('@parcel/fs');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
-const syncPromise = require('./utils/syncPromise');
+const pSync = require('p-syncy');
 const logger = require('@parcel/logger');
 const Resolver = require('./Resolver');
 const objectHash = require('./utils/objectHash');
@@ -132,7 +132,7 @@ class Asset {
     logger.warn(
       '`asset.package` is deprecated. Please use `await asset.getPackage()` instead.',
     );
-    return syncPromise(this.getPackage());
+    return pSync(this.getPackage());
   }
 
   async getPackage() {
