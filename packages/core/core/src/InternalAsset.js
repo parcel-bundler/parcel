@@ -18,6 +18,7 @@ import type {
 } from '@parcel/types';
 import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 
+import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {
@@ -172,7 +173,11 @@ export default class InternalAsset {
         : this.options.cache.set(mapKey, this.map),
       astKey == null
         ? Promise.resolve()
-        : this.options.cache.set(astKey, this.ast),
+        : this.options.cache.setBlob(
+            astKey,
+            // $FlowFixMe
+            v8.serialize(this.ast),
+          ),
     ]);
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
@@ -332,7 +337,11 @@ export default class InternalAsset {
 
   async getAST(): Promise<?AST> {
     if (this.value.astKey != null) {
-      this.ast = await this.options.cache.get(this.value.astKey);
+      let serializedAst = await this.options.cache.getBlob(this.value.astKey);
+      if (serializedAst != null) {
+        // $FlowFixMe
+        this.ast = v8.deserialize(serializedAst);
+      }
     }
 
     return this.ast;
