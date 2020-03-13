@@ -354,7 +354,11 @@ const VISITOR: Visitor<MutableAsset> = {
     //   }
     // }
 
-    if (isIdentifier(left) && left.name === 'exports') {
+    if (
+      isIdentifier(left) &&
+      left.name === 'exports' &&
+      !path.scope.hasBinding('exports')
+    ) {
       path.scope.getProgramParent().setData('cjsExportsReassigned', true);
       path
         .get<NodePath<LVal>>('left')
