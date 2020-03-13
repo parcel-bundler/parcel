@@ -1337,7 +1337,7 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        type: 'js',
+        name: 'browser.js',
         assets: ['browser.js', 'browser-module.js'],
       },
     ]);
@@ -1453,7 +1453,7 @@ describe('javascript', function() {
     assert.equal(output.entry.test(), 'pkg-browser-multiple main-entry');
   });
 
-  it('should resolve the module field before main if scope-hoisting is enabled', async function() {
+  it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/module-field.js'),
       {scopeHoist: true},
@@ -1461,7 +1461,7 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        type: 'js',
+        name: 'module-field.js',
         assets: ['module-field.js', 'es6.module.js'],
       },
     ]);
@@ -1472,7 +1472,7 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-es6-module');
   });
 
-  it('should resolve the module field before main and jsnext:main if scope-hoisting is enabled', async function() {
+  it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/both-fields.js'),
       {scopeHoist: true},
@@ -1480,7 +1480,7 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        type: 'js',
+        name: 'both-fields.js',
         assets: ['both-fields.js', 'es6.module.js'],
       },
     ]);
@@ -1498,7 +1498,7 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        type: 'js',
+        name: 'main-field.js',
         assets: ['main-field.js', 'main.js'],
       },
     ]);
