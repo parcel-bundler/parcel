@@ -9,6 +9,7 @@ import type {
 } from '@babel/types';
 
 import babelGenerate from '@babel/generator';
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
 import SourceMap from '@parcel/source-map';
@@ -30,10 +31,12 @@ export function generate(
   ast: File,
   options: PluginOptions,
 ) {
-  // $FlowFixMe
-  let interpreter: ?string = bundle.target.env.isBrowser()
-    ? null
-    : nullthrows(bundle.getMainEntry()).meta.interpreter;
+  let interpreter;
+  if (!bundle.target.env.isBrowser()) {
+    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+    invariant(_interpreter == null || typeof _interpreter === 'string');
+    interpreter = _interpreter;
+  }
 
   let entry = bundle.getMainEntry();
   let isAsync = entry && !isEntry(bundle, bundleGraph);
@@ -54,7 +57,6 @@ export function generate(
 
   ast = t.file(
     t.program(
-      // $FlowFixMe Statement is incompatible with BabelNodeStatement
       statements,
       [],
       bundle.env.outputFormat === 'esmodule' ? 'module' : 'script',

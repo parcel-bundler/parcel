@@ -165,13 +165,9 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
-    try {
-      let res = this.readFileSync(filePath, encoding);
-      return Promise.resolve(res);
-    } catch (err) {
-      return Promise.reject(err);
-    }
+  // eslint-disable-next-line require-await
+  async readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
+    return this.readFileSync(filePath, encoding);
   }
 
   readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {

@@ -409,7 +409,7 @@ export default class SourceMap {
         } else {
           try {
             let content = await nullthrows(fs).readFile(
-              path.resolve(rootDir || '', sourceName),
+              path.join(rootDir || '', sourceName),
               'utf8',
             );
 

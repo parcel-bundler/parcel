@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -141,19 +142,19 @@ export default new Packager({
       first = false;
     });
 
-    let entries = bundle.getEntryAssets();
-    let interpreter: ?string = null;
-
     let isEntry =
       !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
       bundle.env.isIsolated();
-    if (isEntry) {
-      let entryAsset = entries[entries.length - 1];
-      // $FlowFixMe
-      interpreter = bundle.target.env.isBrowser()
-        ? null
-        : entryAsset.meta.interpreter;
-    } else if (bundle.env.outputFormat === 'global') {
+
+    let interpreter: ?string;
+    if (isEntry && !bundle.target.env.isBrowser()) {
+      let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+      invariant(_interpreter == null || typeof _interpreter === 'string');
+      interpreter = _interpreter;
+    }
+
+    let entries = bundle.getEntryAssets();
+    if (!isEntry && bundle.env.outputFormat === 'global') {
       // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries.pop();
