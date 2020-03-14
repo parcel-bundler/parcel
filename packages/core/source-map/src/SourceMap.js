@@ -3,11 +3,8 @@ import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 import type {FileSystem} from '@parcel/fs';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
 import {countLines} from '@parcel/utils';
-import {registerSerializableClass} from '@parcel/core';
 import path from 'path';
 import nullthrows from 'nullthrows';
-// $FlowFixMe
-import pkg from '../package.json';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
@@ -28,11 +25,6 @@ type NullOriginalPosition = {
 };
 
 type Sources = {[key: string]: string | null, ...};
-type SerializedSourceMap = {
-  mappings: Array<Mapping>,
-  sources: Sources,
-  ...
-};
 
 function generateInlineMap(map: string): string {
   return `data:application/json;charset=utf-8;base64,${Buffer.from(
@@ -50,15 +42,16 @@ export default class SourceMap {
     this.sources = sources;
   }
 
-  static deserialize(opts: SerializedSourceMap) {
-    return new SourceMap(opts.mappings, opts.sources);
+  static deserialize(serialized: string) {
+    let {mappings, sources} = JSON.parse(serialized);
+    return new SourceMap(mappings, sources);
   }
 
-  serialize(): SerializedSourceMap {
-    return {
+  serialize(): string {
+    return JSON.stringify({
       mappings: this.mappings,
       sources: this.sources,
-    };
+    });
   }
 
   // Static Helper functions
@@ -424,5 +417,3 @@ export default class SourceMap {
     return inlineMap ? generateInlineMap(stringifiedMap) : stringifiedMap;
   }
 }
-
-registerSerializableClass(`${pkg.version}:SourceMap`, SourceMap);

@@ -155,9 +155,9 @@ export default class InternalAsset {
       ),
       this.map == null
         ? Promise.resolve()
-        : this.options.cache.set(
+        : this.options.cache.setBlob(
             this.getCacheKey('map' + pipelineKey),
-            this.map,
+            this.map?.serialize() || '',
           ),
     ]);
     this.value.contentKey = contentKey;
@@ -215,7 +215,9 @@ export default class InternalAsset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.value.mapKey != null) {
-      this.map = await this.options.cache.get(this.value.mapKey);
+      this.map = SourceMap.deserialize(
+        await this.options.cache.getBlob(this.value.mapKey, 'utf-8'),
+      );
     }
 
     return this.map;
