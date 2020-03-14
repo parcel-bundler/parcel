@@ -38,7 +38,10 @@ export default new Reporter({
 
       value.timings[value.lastPhase] =
         Date.now() - value.timings[value.lastPhase];
-      let metricsFilePath = path.join(process.cwd(), 'parcel-metrics.json');
+      let metricsFilePath = path.join(
+        options.projectRoot,
+        'parcel-metrics.json',
+      );
 
       let metrics = {
         phaseTimings: value.timings,
