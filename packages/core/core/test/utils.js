@@ -34,4 +34,5 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   cache,
   patchConsole: false,
   packageManager: new NodePackageManager(inputFS),
+  instanceId: 'test',
 };
