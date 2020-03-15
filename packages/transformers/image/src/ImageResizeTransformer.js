@@ -20,6 +20,9 @@ export default new Transformer({
     let inputBuffer = await asset.getBuffer();
     let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
     let height = asset.query.height ? parseInt(asset.query.height, 10) : null;
+    let quality = asset.query.quality
+      ? parseInt(asset.query.quality, 10)
+      : undefined;
     let format = asset.query.as ? asset.query.as.toLowerCase().trim() : null;
 
     let imagePipeline = sharp(inputBuffer);
@@ -34,7 +37,9 @@ export default new Transformer({
 
       asset.type = format;
 
-      imagePipeline[FORMATS.get(format)]();
+      imagePipeline[FORMATS.get(format)]({
+        quality,
+      });
     }
 
     asset.setStream(imagePipeline);
