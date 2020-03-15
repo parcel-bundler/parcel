@@ -365,7 +365,7 @@ export default class Parcel {
           return;
         }
 
-        let events = _events.filter(e => !e.path.includes('.cache'));
+        let events = _events.filter(e => !e.path.includes('.parcel-cache'));
         if (!events.length) {
           return;
         }
