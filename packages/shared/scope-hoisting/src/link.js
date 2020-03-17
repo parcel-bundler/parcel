@@ -513,14 +513,14 @@ export function link({
           return;
         }
 
-        let module = exportsMap.get(object.name);
-        if (!module) {
+        let asset = exportsMap.get(object.name);
+        if (!asset || asset.meta.resolveExportsBailedOut) {
           return;
         }
 
         // If it's a $id$exports.name expression.
         let name = isIdentifier(property) ? property.name : property.value;
-        let {identifier} = resolveSymbol(module, name);
+        let {identifier} = resolveSymbol(asset, name);
 
         // Check if $id$export$name exists and if so, replace the node by it.
         if (identifier) {
