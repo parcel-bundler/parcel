@@ -239,7 +239,7 @@ function getRegisterCode(
       return;
     }
 
-    idToName[getPublicId(bundle.id)] = nullthrows(bundle.name);
+    idToName[getPublicBundleId(bundle)] = nullthrows(bundle.name);
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       // New contexts have their own manifests, so there's no need to continue.
@@ -256,21 +256,19 @@ function getRegisterCode(
 
 function getRelativePathExpr(from: Bundle, to: Bundle): string {
   if (shouldUseRuntimeManifest(from)) {
-    // ATLASSIAN: Find the bundle identifier at runtime to prevent multiple
-    // runtimes when this is included across bundles.
-    return `require('./relative-path')(__PARCEL_BUNDLE_ID__, ${JSON.stringify(
-      getPublicId(to.id),
-    )})`;
+    return `require('./relative-path')(${JSON.stringify(
+      getPublicBundleId(from),
+    )}, ${JSON.stringify(getPublicBundleId(to))})`;
   }
 
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
-function getPublicId(id: string): string {
-  return id.slice(-16);
-}
-
 function shouldUseRuntimeManifest(bundle: Bundle): boolean {
   let env = bundle.env;
   return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
+}
+
+function getPublicBundleId(bundle: Bundle): string {
+  return bundle.id.slice(-16);
 }
