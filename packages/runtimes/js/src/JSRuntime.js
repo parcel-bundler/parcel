@@ -256,11 +256,9 @@ function getRegisterCode(
 
 function getRelativePathExpr(from: Bundle, to: Bundle): string {
   if (shouldUseRuntimeManifest(from)) {
-    // ATLASSIAN: Find the bundle identifier at runtime to prevent multiple
-    // runtimes when this is included across bundles.
-    return `require('./relative-path')(__PARCEL_BUNDLE_ID__, ${JSON.stringify(
-      getPublicId(to.id),
-    )})`;
+    return `require('./relative-path')(${JSON.stringify(
+      getPublicId(from.id),
+    )}, ${JSON.stringify(getPublicId(to.id))})`;
   }
 
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));

@@ -24,7 +24,7 @@ describe('blob urls', () => {
     assert(bundleContent.includes('new Worker(require("blob-url:./worker"))'));
     assert(
       bundleContent.includes(
-        'module.exports = URL.createObjectURL(new Blob(["',
+        'module.exports = URL.createObjectURL(new Blob(["// modules are defined as an array\\n',
       ),
     );
     assert(

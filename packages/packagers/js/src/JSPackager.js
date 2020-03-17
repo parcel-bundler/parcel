@@ -13,7 +13,7 @@ import {
 } from '@parcel/utils';
 import path from 'path';
 
-const _PRELUDE = fs
+const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
   .trim()
   .replace(/;$/, '');
@@ -49,19 +49,12 @@ export default new Packager({
         map: null,
       });
     }
+
     if (bundle.env.outputFormat === 'esmodule') {
       throw new Error(
         `esmodule output is not supported without scope hoisting.`,
       );
     }
-
-    // ATLASSIAN: Prefix the prelude with a closure with a variable in scope
-    // for this bundle, which is used to resolve external dependencies from
-    // the current bundle in JSRuntime.
-    let PRELUDE =
-      '(function() {\n' +
-      `var __PARCEL_BUNDLE_ID__ = ${JSON.stringify(bundle.id.slice(-16))};\n` +
-      _PRELUDE;
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
@@ -75,6 +68,7 @@ export default new Packager({
     });
 
     let [code, maps] = await Promise.all([codeQueue.run(), mapQueue.run()]);
+
     let assets = '';
     let i = 0;
     let first = true;
@@ -186,9 +180,7 @@ export default new Packager({
           JSON.stringify(entries.map(asset => asset.id)) +
           ', ' +
           'null' +
-          ')\n' +
-          // ATLASSIAN: Close and invoke the outer closure with the bundle id.
-          '})()\n\n' +
+          ')\n\n' +
           '//# sourceMappingURL=' +
           sourceMapReference +
           '\n'),
