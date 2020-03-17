@@ -18,7 +18,7 @@
   "dependencies": {
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
-    "buffer": "^5.4.3",
+    "buffer": "^5.5.0",
     "console-browserify": "^1.2.0",
     "constants-browserify": "^1.0.0",
     "crypto-browserify": "^3.12.0",
