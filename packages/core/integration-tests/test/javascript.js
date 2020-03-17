@@ -2,17 +2,16 @@ import assert from 'assert';
 import path from 'path';
 import url from 'url';
 import {
+  assertBundles,
   bundle,
   bundler,
-  run,
-  runBundle,
-  assertBundles,
-  ncp,
+  distDir,
+  inputFS,
+  outputFS,
   overlayFS,
   removeDistDirectory,
-  distDir,
-  outputFS,
-  inputFS,
+  run,
+  runBundle,
 } from '@parcel/test-utils';
 import {makeDeferredWithPromise} from '@parcel/utils';
 
@@ -1074,15 +1073,17 @@ describe('javascript', function() {
     let assetSizeBytes = 6000000;
 
     let fixtureDir = path.join(__dirname, 'integration/import-raw');
-    let inputDir = path.join(__dirname, 'input');
+    await overlayFS.mkdirp(fixtureDir);
 
-    await ncp(fixtureDir, inputDir);
-    await outputFS.writeFile(
-      path.join(inputDir, 'test.txt'),
+    await overlayFS.writeFile(
+      path.join(fixtureDir, 'test.txt'),
       Buffer.alloc(assetSizeBytes),
     );
 
-    let b = await bundle(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    let b = await bundle(path.join(fixtureDir, 'index.js'), {
+      distDir,
+      inputFS: overlayFS,
+    });
     assertBundles(b, [
       {
         name: 'index.js',
@@ -1104,7 +1105,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output()));
-    let stats = await outputFS.stat(
+    let stats = await overlayFS.stat(
       path.join(distDir, url.parse(output()).pathname),
     );
     assert.equal(stats.size, assetSizeBytes);

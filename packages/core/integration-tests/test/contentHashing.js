@@ -1,76 +1,64 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  bundle as _bundle,
-  distDir,
-  overlayFS,
-  outputFS,
-  ncp,
-} from '@parcel/test-utils';
+import {bundle as _bundle, distDir, overlayFS} from '@parcel/test-utils';
 
 function bundle(path) {
   return _bundle(path, {
-    inputFS: overlayFS,
     disableCache: false,
+    distDir,
+    inputFS: overlayFS,
   });
 }
 
 describe('content hashing', function() {
-  beforeEach(async () => {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
-  });
-
   it('should update content hash when content changes', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/html-css'),
-      path.join(__dirname, '/input'),
-    );
+    let fixtureDir = path.join(__dirname, 'integration/html-css');
+    await overlayFS.mkdirp(fixtureDir);
 
-    let bundleHtml = () => bundle(path.join(__dirname, '/input/index.html'));
+    let bundleHtml = () => bundle(path.join(fixtureDir, 'index.html'));
     await bundleHtml();
 
-    let html = await outputFS.readFile(
+    let html = await overlayFS.readFile(
       path.join(distDir, 'index.html'),
       'utf8',
     );
     let filename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/,
+      /<link rel="stylesheet" href="[/\\]{1}(html-css\.[a-f0-9]+\.css)">/,
     )[1];
-    assert(await outputFS.exists(path.join(distDir, filename)));
+    assert(await overlayFS.exists(path.join(distDir, filename)));
 
-    await outputFS.writeFile(
-      path.join(__dirname, '/input/index.css'),
+    await overlayFS.writeFile(
+      path.join(fixtureDir, 'index.css'),
       'body { background: green }',
     );
     await bundleHtml();
 
-    html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
+    html = await overlayFS.readFile(path.join(distDir, 'index.html'), 'utf8');
     let newFilename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/,
+      /<link rel="stylesheet" href="[/\\]{1}(html-css\.[a-f0-9]+\.css)">/,
     )[1];
-    assert(await outputFS.exists(path.join(distDir, newFilename)));
+    assert(await overlayFS.exists(path.join(distDir, newFilename)));
 
     assert.notEqual(filename, newFilename);
   });
 
   it('should update content hash when raw asset changes', async function() {
-    let inputDir = path.join(__dirname, 'input');
-    let bundleJs = () => bundle(path.join(__dirname, 'input/index.js'));
+    let fixtureDir = path.join(__dirname, 'integration/import-raw');
+    await overlayFS.mkdirp(fixtureDir);
 
-    await ncp(path.join(__dirname, 'integration/import-raw'), inputDir);
-
+    let bundleJs = () => bundle(path.join(fixtureDir, 'index.js'));
     await bundleJs();
 
-    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let js = await overlayFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     let filename = js.match(/(test\.[0-9a-f]+\.txt)/)[1];
-    assert(await outputFS.exists(path.join(distDir, filename)));
+    assert(await overlayFS.exists(path.join(distDir, filename)));
 
-    await outputFS.writeFile(path.join(inputDir, 'test.txt'), 'hello world');
+    await overlayFS.writeFile(path.join(fixtureDir, 'test.txt'), 'hello world');
     await bundleJs();
 
-    js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    js = await overlayFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     let newFilename = js.match(/(test\.[0-9a-f]+\.txt)/)[1];
-    assert(await outputFS.exists(path.join(distDir, newFilename)));
+    assert(await overlayFS.exists(path.join(distDir, newFilename)));
 
     assert.notEqual(filename, newFilename);
   });
