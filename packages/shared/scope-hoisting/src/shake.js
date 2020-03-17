@@ -10,6 +10,7 @@ import {
   isIdentifier,
   isMemberExpression,
   isSequenceExpression,
+  isStringLiteral,
   isVariableDeclarator,
 } from '@babel/types';
 import invariant from 'assert';
@@ -97,7 +98,12 @@ function isPure(binding) {
 function isExportAssignment(path) {
   let {parent} = path;
   // match "path.foo = bar;"
-  if (isMemberExpression(parent) && parent.object === path.node) {
+  if (
+    isMemberExpression(parent) &&
+    parent.object === path.node &&
+    ((isIdentifier(parent.property) && !parent.computed) ||
+      isStringLiteral(parent.property))
+  ) {
     let parentParent = path.parentPath.parent;
     return isAssignmentExpression(parentParent) && parentParent.left === parent;
   }
