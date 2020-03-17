@@ -19,34 +19,39 @@ registerCoreWithSerializer();
 
 // Remove the workerApi type from the TransformationOpts and ValidationOpts types:
 // https://github.com/facebook/flow/issues/2835
-type TransformationOptsWithoutWorkerApi = $Diff<
-  TransformationOpts,
-  {|workerApi: mixed|},
->;
-type ValidationOptsWithoutWorkerApi = $Diff<
-  ValidationOpts,
-  {|workerApi: mixed|},
->;
+type WorkerTransformationOpts = {|
+  ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
+  optionsRef: number,
+|};
+type WorkerValidationOpts = {|
+  ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
+  optionsRef: number,
+|};
 
 export function runTransform(
   workerApi: WorkerApi,
-  opts: TransformationOptsWithoutWorkerApi,
+  opts: WorkerTransformationOpts,
 ) {
+  let {optionsRef, ...rest} = opts;
+  let options = workerApi.getSharedReference(optionsRef);
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    ...opts,
+    // $FlowFixMe
+    options,
+    ...rest,
   }).run();
 }
 
-export function runValidate(
-  workerApi: WorkerApi,
-  opts: ValidationOptsWithoutWorkerApi,
-) {
+export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
+  let {optionsRef, ...rest} = opts;
+  let options = workerApi.getSharedReference(optionsRef);
   return new Validation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    ...opts,
+    // $FlowFixMe
+    options,
+    ...rest,
   }).run();
 }
 
@@ -57,7 +62,7 @@ export function runPackage(
     bundleGraphReference,
     config,
     cacheKeys,
-    options,
+    optionsRef,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
@@ -67,13 +72,15 @@ export function runPackage(
       map: string,
       info: string,
     |},
-    options: ParcelOptions,
+    optionsRef: number,
   |},
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
+  let options = workerApi.getSharedReference(optionsRef);
   invariant(bundleGraph instanceof BundleGraph);
   return new PackagerRunner({
     config,
+    // $FlowFixMe
     options,
     report: reportWorker.bind(null, workerApi),
   }).getBundleInfo(bundle, bundleGraph, cacheKeys);

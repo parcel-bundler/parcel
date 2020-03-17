@@ -1,6 +1,6 @@
 {
   "extends": "../.parcelrc",
-  "transforms": {
+  "transformers": {
     "*.js": ["parcel-transformer-sub", "..."]
   }
 }

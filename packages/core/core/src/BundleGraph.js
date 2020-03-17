@@ -187,31 +187,39 @@ export default class BundleGraph {
       });
   }
 
-  getDependencyResolution(dep: Dependency): ?Asset {
+  getDependencyResolution(dep: Dependency, bundle?: Bundle): ?Asset {
     let depNode = this._graph.getNode(dep.id);
     if (!depNode) {
       return null;
     }
 
-    let res = null;
-    function findFirstAsset(node, _, traversal) {
-      if (node.type === 'asset') {
-        res = node.value;
-        traversal.stop();
-      } else if (node.id !== dep.id) {
-        traversal.skipChildren();
-      }
+    let assets = this.getDependencyAssets(dep);
+    let firstAsset = assets[0];
+    let resolved =
+      // If no bundle is specified, use the first concrete asset.
+      bundle == null
+        ? firstAsset
+        : // Otherwise, find the first asset that belongs to this bundle.
+          assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
+          firstAsset;
+
+    // If a resolution still hasn't been found, return the first referenced asset.
+    if (resolved == null) {
+      this._graph.traverse(
+        (node, _, traversal) => {
+          if (node.type === 'asset') {
+            resolved = node.value;
+            traversal.stop();
+          } else if (node.id !== dep.id) {
+            traversal.skipChildren();
+          }
+        },
+        depNode,
+        'references',
+      );
     }
 
-    // TODO: Combine with multiple edge type traversal?
-    this._graph.traverse(findFirstAsset, depNode);
-    if (!res) {
-      // Prefer real assets when resolving dependencies, but use the first
-      // asset reference in absence of a real one.
-      this._graph.traverse(findFirstAsset, depNode, 'references');
-    }
-
-    return res;
+    return resolved;
   }
 
   getDependencies(asset: Asset): Array<Dependency> {
@@ -279,13 +287,25 @@ export default class BundleGraph {
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
+    let parents = this.getParentBundles(bundle);
+    return parents.length > 0 && parents.every(parent => parent.type === type);
+  }
+
+  getParentBundles(bundle: Bundle): Array<Bundle> {
     return flatMap(
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(bundle.id)),
         'bundle',
       ),
-      node => this._graph.getNodesConnectedTo(node, 'bundle'),
-    ).every(node => node.type === 'bundle' && node.value.type === type);
+      bundleGroupNode =>
+        this._graph
+          .getNodesConnectedTo(bundleGroupNode, 'bundle')
+          // Entry bundle groups have the root node as their parent
+          .filter(node => node.type !== 'root'),
+    ).map(node => {
+      invariant(node.type === 'bundle');
+      return node.value;
+    });
   }
 
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
@@ -332,8 +352,12 @@ export default class BundleGraph {
     bundle: Bundle,
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
   ): ?TContext {
-    return this._graph.filteredTraverse(
-      (node, actions) => {
+    let entries = true;
+
+    // A modified DFS traversal which traverses entry assets in the same order
+    // as their ids appear in `bundle.entryAssetIds`.
+    return this._graph.dfs({
+      visit: mapVisitor((node, actions) => {
         if (node.id === bundle.id) {
           return;
         }
@@ -345,10 +369,34 @@ export default class BundleGraph {
         }
 
         actions.skipChildren();
+      }, visit),
+      startNode: nullthrows(this._graph.getNode(bundle.id)),
+      getChildren: node => {
+        let children = this._graph.getNodesConnectedFrom(nullthrows(node));
+        let sorted =
+          entries && bundle.entryAssetIds.length > 0
+            ? children.sort((a, b) => {
+                let aIndex = bundle.entryAssetIds.indexOf(a.id);
+                let bIndex = bundle.entryAssetIds.indexOf(b.id);
+
+                if (aIndex === bIndex) {
+                  // If both don't exist in the entry asset list, or
+                  // otherwise have the same index.
+                  return 0;
+                } else if (aIndex === -1) {
+                  return 1;
+                } else if (bIndex === -1) {
+                  return -1;
+                }
+
+                return aIndex - bIndex;
+              })
+            : children;
+
+        entries = false;
+        return sorted;
       },
-      visit,
-      nullthrows(this._graph.getNode(bundle.id)),
-    );
+    });
   }
 
   traverseContents<TContext>(

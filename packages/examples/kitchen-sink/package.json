@@ -11,8 +11,8 @@
     "@parcel/config-default": "^2.0.0-alpha.3.1",
     "parcel": "^2.0.0-alpha.3.2"
   },
-  "browser": "dist/legacy/index.js",
-  "browserModern": "dist/modern/index.js",
+  "browser": "dist/legacy/index.html",
+  "browserModern": "dist/modern/index.html",
   "targets": {
     "browserModern": {
       "engines": {

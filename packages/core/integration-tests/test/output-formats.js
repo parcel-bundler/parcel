@@ -236,7 +236,7 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        /Promise\.resolve\(require\('' \+ '\.\/async\..+?\.js'\)\)/.test(index),
+        /Promise\.resolve\(require\("\.\/" \+ "async\..+?\.js"\)\)/.test(index),
       );
 
       let async = await outputFS.readFile(
@@ -256,12 +256,12 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        /Promise\.resolve\(require\('' \+ '\.\/async1\..+?\.js'\)\)/.test(
+        /Promise\.resolve\(require\("\.\/" \+ "async1\..+?\.js"\)\)/.test(
           index,
         ),
       );
       assert(
-        /Promise\.resolve\(require\('' \+ '\.\/async2\..+?\.js'\)\)/.test(
+        /Promise\.resolve\(require\("\.\/" \+ "async2\..+?\.js"\)\)/.test(
           index,
         ),
       );
@@ -513,7 +513,7 @@ describe('output formats', function() {
         b.getBundles().find(b => b.name.startsWith('index')).filePath,
         'utf8',
       );
-      assert(/import\('' \+ '\.\/async\..+?\.js'\)/.test(index));
+      assert(/import\("\.\/" \+ "async\..+?\.js"\)/.test(index));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -549,8 +549,8 @@ describe('output formats', function() {
         b.getBundles().find(b => b.name.startsWith('index')).filePath,
         'utf8',
       );
-      assert(/import\('' \+ '\.\/async1\..+?\.js'\)/.test(index));
-      assert(/import\('' \+ '\.\/async2\..+?\.js'\)/.test(index));
+      assert(/import\("\.\/" \+ "async1\..+?\.js"\)/.test(index));
+      assert(/import\("\.\/" \+ "async2\..+?\.js"\)/.test(index));
 
       let sharedBundle = b
         .getBundles()
@@ -599,7 +599,11 @@ describe('output formats', function() {
         b.getBundles().find(b => b.name.startsWith('esm-browser')).filePath,
         'utf8',
       );
-      assert(entry.includes("import('' + './async"));
+
+      let asyncBundle = b
+        .getBundles()
+        .find(bundle => bundle.name.startsWith('async'));
+      assert(entry.includes(`import("./" + "${asyncBundle.name}")`));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -626,7 +630,11 @@ describe('output formats', function() {
         'utf8',
       );
       assert(entry.includes('function importModule'));
-      assert(/"async.[0-9a-f]*.js"\)/.test(entry));
+
+      let asyncBundle = b
+        .getBundles()
+        .find(bundle => bundle.name.startsWith('async'));
+      assert(entry.includes(`getBundleURL() + "${asyncBundle.name}"`));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -655,9 +663,23 @@ describe('output formats', function() {
           .filePath,
         'utf8',
       );
-      assert(entry.includes('Promise.all'));
-      assert(/"async.[0-9a-f]*.css"\)/.test(entry));
-      assert(/import\('' \+ '\.\/async\..+?\.js'\)/.test(entry));
+
+      let bundles = b.getBundles();
+      let asyncJsBundle = bundles.find(
+        bundle => bundle.type === 'js' && bundle.name.startsWith('async'),
+      );
+      let asyncCssBundle = bundles.find(
+        bundle => bundle.type === 'css' && bundle.name.startsWith('async'),
+      );
+      assert(
+        new RegExp(
+          'Promise.all\\(\\[.+?getBundleURL\\(\\) \\+ "' +
+            asyncCssBundle.name +
+            '"\\), import\\("\\.\\/" \\+ "' +
+            asyncJsBundle.name +
+            '"\\)\\]\\)',
+        ).test(entry),
+      );
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.type === 'js' && b.name.startsWith('async'))
@@ -685,41 +707,39 @@ describe('output formats', function() {
         html.includes('<script type="module" src="/esm-browser-split-bundle'),
       );
 
+      let bundles = b.getBundles();
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('esm-browser-split-bundle'))
+        bundles.find(b => b.name.startsWith('esm-browser-split-bundle'))
           .filePath,
         'utf8',
       );
-      // async import both bundles in parallel for performance
-      assert(
-        /import\('' \+ '\.\/async1\..+?\.js'\), import\('' \+ '\.\/async1\..+?\.js'\)/.test(
-          entry,
-        ),
+
+      let sharedBundle = bundles.find(b => b.getEntryAssets().length === 0);
+      let async1Bundle = bundles.find(
+        b => b.name.startsWith('async1') && b.id !== sharedBundle.id,
       );
-      assert(
-        /import\('' \+ '\.\/async1\..+?\.js'\), import\('' \+ '\.\/async2\..+?\.js'\)/.test(
-          entry,
-        ),
-      );
+      let async2Bundle = bundles.find(b => b.name.startsWith('async2'));
+
+      for (let bundle of [async1Bundle, async2Bundle]) {
+        // async import both bundles in parallel for performance
+        assert(
+          entry.includes(
+            `import("./" + "${sharedBundle.name}"), import("./" + "${bundle.name}");`,
+          ),
+        );
+      }
+
       assert(!entry.includes('Promise.all')); // not needed - esmodules will wait for shared bundle
 
-      let sharedName = entry.match(/import\('' \+ '\.\/(.+?)'\)/)[1];
-      let shared = await outputFS.readFile(
-        b.getBundles().find(b => b.name === sharedName).filePath,
-        'utf8',
-      );
+      let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
 
       assert(shared.includes('export var $'));
 
-      let async1 = await outputFS.readFile(
-        b
-          .getBundles()
-          .find(b => b.name.startsWith('async1') && b.name !== sharedName)
-          .filePath,
-        'utf8',
-      );
+      let async1 = await outputFS.readFile(async1Bundle.filePath, 'utf8');
       assert(
-        new RegExp(`import { .+ } from "\\.\\/${sharedName}"`).test(async1),
+        new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
+          async1,
+        ),
       );
 
       let async2 = await outputFS.readFile(
@@ -727,7 +747,9 @@ describe('output formats', function() {
         'utf8',
       );
       assert(
-        new RegExp(`import { .+ } from "\\.\\/${sharedName}"`).test(async2),
+        new RegExp(`import { .+ } from "\\.\\/${sharedBundle.name}"`).test(
+          async2,
+        ),
       );
     });
 
