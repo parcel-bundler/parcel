@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {Bundle, BundleGraph} from '@parcel/types';
+
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {Packager} from '@parcel/plugin';
@@ -75,14 +77,16 @@ export default new Packager({
     let i = 0;
     let first = true;
     let map = new SourceMap();
-    let lineOffset = countLines(PRELUDE);
+
+    let prefix = getPrefix(bundle, bundleGraph);
+    let lineOffset = countLines(prefix);
 
     let stubsWritten = new Set();
     bundle.traverse(node => {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
-        let resolved = bundleGraph.getDependencyResolution(node.value);
+        let resolved = bundleGraph.getDependencyResolution(node.value, bundle);
         if (
           resolved &&
           resolved.type !== 'js' &&
@@ -107,7 +111,7 @@ export default new Packager({
         let deps = {};
         let dependencies = bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = bundleGraph.getDependencyResolution(dep);
+          let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
             deps[dep.moduleSpecifier] = resolved.id;
           }
@@ -142,51 +146,56 @@ export default new Packager({
       first = false;
     });
 
-    let isEntry =
-      !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
-      bundle.env.isIsolated();
-
-    let interpreter: ?string;
-    if (isEntry && !bundle.target.env.isBrowser()) {
-      let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
-      invariant(_interpreter == null || typeof _interpreter === 'string');
-      interpreter = _interpreter;
-    }
-
     let entries = bundle.getEntryAssets();
-    if (!isEntry && bundle.env.outputFormat === 'global') {
+    if (!isEntry(bundle, bundleGraph) && bundle.env.outputFormat === 'global') {
       // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries.pop();
     }
 
-    let importScripts = '';
-    if (bundle.env.isWorker()) {
-      let bundles = bundleGraph.getSiblingBundles(bundle);
-      for (let b of bundles) {
-        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
-      }
-    }
-
-    let sourceMapReference = await getSourceMapReference(map);
-
     return replaceReferences({
       contents:
-        // If the entry asset included a hashbang, repeat it at the top of the bundle
-        (interpreter != null ? `#!${interpreter}\n` : '') +
-        importScripts +
-        (PRELUDE +
-          '({' +
-          assets +
-          '},{},' +
-          JSON.stringify(entries.map(asset => asset.id)) +
-          ', ' +
-          'null' +
-          ')\n\n' +
-          '//# sourceMappingURL=' +
-          sourceMapReference +
-          '\n'),
+        prefix +
+        '({' +
+        assets +
+        '},{},' +
+        JSON.stringify(entries.map(asset => asset.id)) +
+        ', ' +
+        'null' +
+        ')' +
+        '\n\n' +
+        '//# sourceMappingURL=' +
+        (await getSourceMapReference(map)) +
+        '\n',
       map,
     });
   },
 });
+
+function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
+  let interpreter: ?string;
+  if (isEntry(bundle, bundleGraph) && !bundle.target.env.isBrowser()) {
+    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+    invariant(_interpreter == null || typeof _interpreter === 'string');
+    interpreter = _interpreter;
+  }
+
+  let importScripts = '';
+  if (bundle.env.isWorker()) {
+    let bundles = bundleGraph.getSiblingBundles(bundle);
+    for (let b of bundles) {
+      importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+    }
+  }
+
+  return (
+    // If the entry asset included a hashbang, repeat it at the top of the bundle
+    (interpreter != null ? `#!${interpreter}\n` : '') + importScripts + PRELUDE
+  );
+}
+
+function isEntry(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+  return (
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+  );
+}

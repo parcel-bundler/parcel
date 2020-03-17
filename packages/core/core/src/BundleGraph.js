@@ -187,31 +187,39 @@ export default class BundleGraph {
       });
   }
 
-  getDependencyResolution(dep: Dependency): ?Asset {
+  getDependencyResolution(dep: Dependency, bundle?: Bundle): ?Asset {
     let depNode = this._graph.getNode(dep.id);
     if (!depNode) {
       return null;
     }
 
-    let res = null;
-    function findFirstAsset(node, _, traversal) {
-      if (node.type === 'asset') {
-        res = node.value;
-        traversal.stop();
-      } else if (node.id !== dep.id) {
-        traversal.skipChildren();
-      }
+    let assets = this.getDependencyAssets(dep);
+    let firstAsset = assets[0];
+    let resolved =
+      // If no bundle is specified, use the first concrete asset.
+      bundle == null
+        ? firstAsset
+        : // Otherwise, find the first asset that belongs to this bundle.
+          assets.find(asset => this.bundleHasAsset(bundle, asset)) ||
+          firstAsset;
+
+    // If a resolution still hasn't been found, return the first referenced asset.
+    if (resolved == null) {
+      this._graph.traverse(
+        (node, _, traversal) => {
+          if (node.type === 'asset') {
+            resolved = node.value;
+            traversal.stop();
+          } else if (node.id !== dep.id) {
+            traversal.skipChildren();
+          }
+        },
+        depNode,
+        'references',
+      );
     }
 
-    // TODO: Combine with multiple edge type traversal?
-    this._graph.traverse(findFirstAsset, depNode);
-    if (!res) {
-      // Prefer real assets when resolving dependencies, but use the first
-      // asset reference in absence of a real one.
-      this._graph.traverse(findFirstAsset, depNode, 'references');
-    }
-
-    return res;
+    return resolved;
   }
 
   getDependencies(asset: Asset): Array<Dependency> {
