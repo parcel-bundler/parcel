@@ -72,7 +72,9 @@ const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
 >('$parcel$require$resolve(ID, SOURCE)');
 const TYPEOF = {
   module: 'object',
-  require: 'function',
+  // ATLASSIAN: Don't inline `require` as `'function'` -- this confuses
+  // browserify-built bundles like Bitbucket connect-js.
+  // require: 'function',
 };
 
 export function hoist(asset: MutableAsset, ast: AST) {
