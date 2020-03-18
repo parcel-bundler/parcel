@@ -12,6 +12,7 @@ import type AssetGraphBuilder from './AssetGraphBuilder';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 
+import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
@@ -138,15 +139,22 @@ export default async function applyRuntimes({
       }
     }, runtimeNode);
 
-    bundleGraph._graph.addEdge(
-      dependency
-        ? dependency.id
-        : nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
-      runtimeNode.id,
-    );
-
     if (isEntry) {
+      bundleGraph._graph.addEdge(
+        nullthrows(bundleGraph._graph.getNode(bundle.id)).id,
+        runtimeNode.id,
+      );
       bundle.entryAssetIds.unshift(runtimeNode.id);
+    }
+
+    if (dependency == null) {
+      // Verify this asset won't become an island
+      assert(
+        bundleGraph._graph.getNodesConnectedTo(runtimeNode).length > 0,
+        'Runtime must have an inbound dependency or be an entry',
+      );
+    } else {
+      bundleGraph._graph.addEdge(dependency.id, runtimeNode.id);
     }
   }
 

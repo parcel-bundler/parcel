@@ -621,10 +621,11 @@ export interface BundleGraph {
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   getChildBundles(bundle: Bundle): Array<Bundle>;
+  getParentBundles(bundle: Bundle): Array<Bundle>;
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
+  getDependencyResolution(dependency: Dependency, bundle: Bundle): ?Asset;
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
@@ -633,6 +634,7 @@ export interface BundleGraph {
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>,
+    startBundle?: Bundle,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
   getExternalDependencies(bundle: Bundle): Array<Dependency>;
