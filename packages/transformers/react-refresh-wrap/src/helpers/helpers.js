@@ -35,40 +35,42 @@ module.exports.postlude = function(module) {
   if (isReactRefreshBoundary(module.exports)) {
     registerExportsForReactRefresh(module);
 
-    module.hot.dispose(function(data) {
-      data.prevExports = module.exports;
-    });
+    if (module.hot) {
+      module.hot.dispose(function(data) {
+        data.prevExports = module.exports;
+      });
 
-    module.hot.accept(function(getParents) {
-      var prevExports = module.hot.data.prevExports;
-      var nextExports = module.exports;
-      // Since we just executed the code for it, it's possible
-      // that the new exports make it ineligible for being a boundary.
-      var isNoLongerABoundary = !isReactRefreshBoundary(nextExports);
-      // It can also become ineligible if its exports are incompatible
-      // with the previous exports.
-      // For example, if you add/remove/change exports, we'll want
-      // to re-execute the importing modules, and force those components
-      // to re-render. Similarly, if you convert a class component
-      // to a function, we want to invalidate the boundary.
-      var didInvalidate = shouldInvalidateReactRefreshBoundary(
-        prevExports,
-        nextExports,
-      );
-      if (isNoLongerABoundary || didInvalidate) {
-        // We'll be conservative. The only case in which we won't do a full
-        // reload is if all parent modules are also refresh boundaries.
-        // In that case we'll add them to the current queue.
-        var parents = getParents();
-        if (parents.length === 0) {
-          // Looks like we bubbled to the root. Can't recover from that.
-          window.location.reload();
-          return;
+      module.hot.accept(function(getParents) {
+        var prevExports = module.hot.data.prevExports;
+        var nextExports = module.exports;
+        // Since we just executed the code for it, it's possible
+        // that the new exports make it ineligible for being a boundary.
+        var isNoLongerABoundary = !isReactRefreshBoundary(nextExports);
+        // It can also become ineligible if its exports are incompatible
+        // with the previous exports.
+        // For example, if you add/remove/change exports, we'll want
+        // to re-execute the importing modules, and force those components
+        // to re-render. Similarly, if you convert a class component
+        // to a function, we want to invalidate the boundary.
+        var didInvalidate = shouldInvalidateReactRefreshBoundary(
+          prevExports,
+          nextExports,
+        );
+        if (isNoLongerABoundary || didInvalidate) {
+          // We'll be conservative. The only case in which we won't do a full
+          // reload is if all parent modules are also refresh boundaries.
+          // In that case we'll add them to the current queue.
+          var parents = getParents();
+          if (parents.length === 0) {
+            // Looks like we bubbled to the root. Can't recover from that.
+            window.location.reload();
+            return;
+          }
+          return parents;
         }
-        return parents;
-      }
-      enqueueUpdate();
-    });
+        enqueueUpdate();
+      });
+    }
     if (Refresh.hasUnrecoverableErrors()) {
       window.location.reload();
     }

@@ -1,24 +1,30 @@
 // @flow
 
-import type {FilePath} from '@parcel/types';
+import type {FilePath, PackageJSON} from '@parcel/types';
 import type {ModuleRequest, PackageInstaller, InstallOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';
-import logger from '@parcel/logger';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import semver from 'semver';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights,
+  encodeJSONKeyComponent,
+} from '@parcel/diagnostic';
+import logger from '@parcel/logger';
+import {loadConfig, PromiseQueue, resolveConfig, resolve} from '@parcel/utils';
 import WorkerFarm from '@parcel/workers';
 
-import {loadConfig, PromiseQueue, resolveConfig, resolve} from '@parcel/utils';
 import {Npm} from './Npm';
 import {Yarn} from './Yarn';
+import {getConflictingLocalDependencies} from './utils';
 import validateModuleSpecifier from './validateModuleSpecifier';
 
 async function install(
   fs: FileSystem,
   modules: Array<ModuleRequest>,
-  filepath: FilePath,
+  from: FilePath,
   options: InstallOptions = {},
 ): Promise<void> {
   let {installPeers = true, saveDev = true, packageInstaller} = options;
@@ -26,54 +32,90 @@ async function install(
 
   logger.progress(`Installing ${moduleNames}...`);
 
-  let packagePath = await resolveConfig(fs, filepath, ['package.json']);
-  let cwd = packagePath ? path.dirname(packagePath) : fs.cwd();
+  let fromPkgPath = await resolveConfig(fs, from, ['package.json']);
+  let cwd = fromPkgPath ? path.dirname(fromPkgPath) : fs.cwd();
 
   if (!packageInstaller) {
-    packageInstaller = await determinePackageInstaller(fs, filepath);
+    packageInstaller = await determinePackageInstaller(fs, from);
   }
 
   try {
-    await packageInstaller.install({modules, saveDev, cwd, packagePath, fs});
+    await packageInstaller.install({
+      modules,
+      saveDev,
+      cwd,
+      packagePath: fromPkgPath,
+      fs,
+    });
   } catch (err) {
     throw new Error(`Failed to install ${moduleNames}.`);
   }
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(fs, filepath, m, options)),
+      modules.map(m => installPeerDependencies(fs, m, from, options)),
     );
   }
 }
 
 async function installPeerDependencies(
   fs: FileSystem,
-  filepath: FilePath,
   module: ModuleRequest,
+  from: FilePath,
   options,
 ) {
-  let basedir = path.dirname(filepath);
+  let basedir = path.dirname(from);
   const {resolved} = await resolve(fs, module.name, {
     basedir,
     range: module.range,
   });
-  const pkg = nullthrows(await loadConfig(fs, resolved, ['package.json']))
-    .config;
-  const peers = pkg.peerDependencies || {};
+  const modulePkg: PackageJSON = nullthrows(
+    await loadConfig(fs, resolved, ['package.json']),
+  ).config;
+  const peers = modulePkg.peerDependencies || {};
 
-  const modules = Object.entries(peers).map(([name, range]) => {
+  let modules: Array<ModuleRequest> = [];
+  for (let [name, range] of Object.entries(peers)) {
     invariant(typeof range === 'string');
-    return {
-      name,
-      range,
-    };
-  });
+
+    let conflicts = await getConflictingLocalDependencies(fs, name, from);
+    if (conflicts) {
+      let {pkg} = await resolve(fs, name, {
+        basedir,
+      });
+      invariant(pkg);
+      if (!semver.satisfies(pkg.version, range)) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
+            filePath: conflicts.filePath,
+            origin: '@parcel/package-manager',
+            language: 'json',
+            codeFrame: {
+              code: conflicts.json,
+              codeHighlights: generateJSONCodeHighlights(
+                conflicts.json,
+                conflicts.fields.map(field => ({
+                  key: `/${field}/${encodeJSONKeyComponent(name)}`,
+                  type: 'key',
+                  message: 'Found this conflicting local requirement.',
+                })),
+              ),
+            },
+          },
+        });
+      }
+
+      continue;
+    }
+    modules.push({name, range});
+  }
 
   if (modules.length) {
     await install(
       fs,
       modules,
-      filepath,
+      from,
       Object.assign({}, options, {installPeers: false}),
     );
   }
