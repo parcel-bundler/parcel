@@ -1,0 +1,9 @@
+{
+  "name": "some-project-with-babel",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "module": "dist/module.js",
+  "dependencies": {
+    "@parcel/babel-plugin-tranform-runtime": "^2.0.0-alpha.3.1"
+  }
+}

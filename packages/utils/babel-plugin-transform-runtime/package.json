@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/plugin-tranform-runtime",
+  "name": "@parcel/babel-plugin-transform-runtime",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
