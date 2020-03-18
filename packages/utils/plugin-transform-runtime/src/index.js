@@ -19,10 +19,11 @@ module.exports = function parcelPluginTransformRuntime(api, opts, dirname) {
     if (typeof targets !== 'string') {
       throw new Error('Expected targets to be a string');
     }
+    let parsedTargets = JSON.parse(targets);
 
     return pluginTransformRuntime(
       api,
-      {targets: JSON.parse(targets), opts},
+      {useESModules: parsedTargets.esmodules === true, opts},
       dirname,
     );
   }

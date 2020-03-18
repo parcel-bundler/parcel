@@ -18,6 +18,7 @@
     "semver": "^5.4.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.4.4"
+    "@babel/core": "^7.4.4",
+    "@parcel/babel-preset-env": "^2.0.0-alpha.3"
   }
 }
