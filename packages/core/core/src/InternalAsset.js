@@ -147,8 +147,6 @@ export default class InternalAsset {
    * content and map of the asset to the cache.
    */
   async commit(pipelineKey: string): Promise<void> {
-    let contentStream = this.getStream();
-
     let size = 0;
     let contentKey = this.getCacheKey('content' + pipelineKey);
     let mapKey = this.getCacheKey('map' + pipelineKey);
@@ -162,7 +160,7 @@ export default class InternalAsset {
         ? Promise.resolve()
         : this.options.cache.setStream(
             contentKey,
-            contentStream.pipe(
+            this.getStream().pipe(
               new TapStream(buf => {
                 size += buf.length;
               }),
@@ -280,24 +278,19 @@ export default class InternalAsset {
 
   getStream(): Readable {
     this.ensureContent();
-    if (
-      this.content instanceof Readable &&
-      // $FlowFixMe
-      typeof this.content.bytesRead === 'number' &&
-      // If the amount of data read from this stream so far isn't exactly the amount
-      // of data that is available to be read, then it has been read from.
-      this.content.bytesRead !== this.content.readableLength
-    ) {
-      throw new Error(
-        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.',
-      );
+
+    let content = this.content;
+    if (content instanceof Readable) {
+      // Remove content if it's a stream, as it should not be reused.
+      this.content = null;
+      return content;
     }
 
-    if (this.content instanceof Promise) {
-      return streamFromPromise(this.content);
+    if (content instanceof Promise) {
+      return streamFromPromise(content);
     }
 
-    return blobToStream(this.content != null ? this.content : Buffer.alloc(0));
+    return blobToStream(content ?? Buffer.alloc(0));
   }
 
   setCode(code: string) {
