@@ -19,6 +19,7 @@ export default new Runtime({
     return {
       filePath: __filename,
       code:
+        `var __PARCEL_BUNDLE_ID = ${JSON.stringify(bundle.id)};` +
         `var __PARCEL_HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
         HMR_RUNTIME,
       isEntry: true,
