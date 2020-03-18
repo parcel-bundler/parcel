@@ -351,18 +351,19 @@ describe('babel', function() {
       '/integration/babel-config-js-multitarget-transform-runtime',
     );
 
-    await bundle(path.join(fixtureDir, 'src/index.js'));
+    await bundle(path.join(fixtureDir, 'src/index.js'), {
+      mode: 'production',
+      minify: false,
+    });
 
-    let [modern, legacy] = await Promise.all([
+    let [main, esmodule] = await Promise.all([
       outputFS.readFile(path.join(fixtureDir, 'dist/main.js'), 'utf8'),
       outputFS.readFile(path.join(fixtureDir, 'dist/module.js'), 'utf8'),
     ]);
 
-    assert(modern.includes('class Foo'));
-    assert(modern.includes('this.x ** 2'));
+    assert(main.includes('exports.default'));
 
-    assert(!legacy.includes('class Foo'));
-    assert(!legacy.includes('this.x ** 2'));
+    assert(esmodule.includes('export default'));
 
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
   });
