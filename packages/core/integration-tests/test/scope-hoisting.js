@@ -1057,6 +1057,54 @@ describe('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
+    it('bails out exports access resolving if it is accessed freely (exports assign)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/exports-assign.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
+    it('bails out exports access resolving if it is accessed freely (exports define)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/exports-define.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
+    it('bails out exports access resolving if it is accessed freely (module.exports assign)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/module-exports-assign.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
+    it('bails out exports access resolving if it is accessed freely (module.exports define)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/module-exports-define.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
     it('builds commonjs modules that assigns to exports before module.exports', async function() {
       let b = await bundle(
         path.join(

@@ -2308,4 +2308,16 @@ describe('javascript', function() {
       getBundleNameWithPrefix(second, 'b'),
     );
   });
+
+  it('can load the same resource when referenced in multiple bundles', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/same-resource-multiple-bundles/index.js',
+      ),
+    );
+
+    let res = await run(b);
+    assert((await res.default()).startsWith('/resource'));
+  });
 });

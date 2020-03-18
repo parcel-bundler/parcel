@@ -75,39 +75,105 @@ describe('NodePackageManager', () => {
   it('does not autoinstall packages that are already listed in package.json', async () => {
     packageInstaller.register('a', fs, path.join(FIXTURES_DIR, 'packages/a'));
 
-    let err;
-    try {
-      await packageManager.resolve(
-        'a',
-        path.join(FIXTURES_DIR, 'has-a-not-yet-installed/index.js'),
-      );
-    } catch (_err) {
-      err = _err;
-    }
+    // $FlowFixMe assert.rejects is Node 10+
+    await assert.rejects(
+      () =>
+        packageManager.resolve(
+          'a',
+          path.join(FIXTURES_DIR, 'has-a-not-yet-installed/index.js'),
+        ),
+      err => {
+        invariant(err instanceof ThrowableDiagnostic);
+        assert(err.message.includes('Run your package manager'));
+        return true;
+      },
+    );
+  });
 
-    invariant(err instanceof ThrowableDiagnostic);
-    assert(err.message.includes('Run your package manager'));
+  it('does not autoinstall peer dependencies that are already listed in package.json', async () => {
+    packageInstaller.register(
+      'peers',
+      fs,
+      path.join(FIXTURES_DIR, 'packages/peers'),
+    );
+
+    let spy = sinon.spy(packageInstaller, 'install');
+    await packageManager.resolve(
+      'peers',
+      path.join(FIXTURES_DIR, 'has-foo/index.js'),
+    );
+    assert.deepEqual(spy.args, [
+      [
+        {
+          cwd: path.join(FIXTURES_DIR, 'has-foo'),
+          packagePath: path.join(FIXTURES_DIR, 'has-foo/package.json'),
+          fs,
+          saveDev: true,
+          modules: [{name: 'peers', range: undefined}],
+        },
+      ],
+    ]);
+  });
+
+  it('autoinstalls peer dependencies that are not listed in package.json', async () => {
+    packageInstaller.register(
+      'foo',
+      fs,
+      path.join(FIXTURES_DIR, 'packages/foo-2.0'),
+    );
+    packageInstaller.register(
+      'peers',
+      fs,
+      path.join(FIXTURES_DIR, 'packages/peers-2.0'),
+    );
+
+    let spy = sinon.spy(packageInstaller, 'install');
+    await packageManager.resolve(
+      'peers',
+      path.join(FIXTURES_DIR, 'empty/index.js'),
+    );
+    assert.deepEqual(spy.args, [
+      [
+        {
+          cwd: path.join(FIXTURES_DIR, 'empty'),
+          packagePath: path.join(FIXTURES_DIR, 'empty/package.json'),
+          fs,
+          saveDev: true,
+          modules: [{name: 'peers', range: undefined}],
+        },
+      ],
+      [
+        {
+          cwd: path.join(FIXTURES_DIR, 'empty'),
+          packagePath: path.join(FIXTURES_DIR, 'empty/package.json'),
+          fs,
+          saveDev: true,
+          modules: [{name: 'foo', range: '^2.0.0'}],
+        },
+      ],
+    ]);
   });
 
   describe('range mismatch', () => {
     it("cannot autoinstall if there's a local requirement", async () => {
-      let err;
-      try {
-        await packageManager.resolve(
-          'foo',
-          path.join(FIXTURES_DIR, 'has-foo/index.js'),
-          {
-            range: '^2.0.0',
-          },
-        );
-      } catch (_err) {
-        err = _err;
-      }
-
-      invariant(err instanceof ThrowableDiagnostic);
-      assert.equal(
-        err.message,
-        'Could not find module "foo" satisfying ^2.0.0.',
+      // $FlowFixMe assert.rejects is Node 10+
+      await assert.rejects(
+        () =>
+          packageManager.resolve(
+            'foo',
+            path.join(FIXTURES_DIR, 'has-foo/index.js'),
+            {
+              range: '^2.0.0',
+            },
+          ),
+        err => {
+          invariant(err instanceof ThrowableDiagnostic);
+          assert.equal(
+            err.message,
+            'Could not find module "foo" satisfying ^2.0.0.',
+          );
+          return true;
+        },
       );
     });
 
@@ -153,6 +219,39 @@ describe('NodePackageManager', () => {
           },
         ],
       ]);
+    });
+
+    it("cannot autoinstall peer dependencies if there's an incompatible local requirement", async () => {
+      packageInstaller.register(
+        'foo',
+        fs,
+        path.join(FIXTURES_DIR, 'packages/foo-2.0'),
+      );
+      packageInstaller.register(
+        'peers',
+        fs,
+        path.join(FIXTURES_DIR, 'packages/peers-2.0'),
+      );
+
+      // $FlowFixMe assert.rejects is Node 10+
+      await assert.rejects(
+        () =>
+          packageManager.resolve(
+            'peers',
+            path.join(FIXTURES_DIR, 'has-foo/index.js'),
+            {
+              range: '^2.0.0',
+            },
+          ),
+        err => {
+          assert(err instanceof ThrowableDiagnostic);
+          assert.equal(
+            err.message,
+            'Could not install the peer dependency "foo" for "peers", installed version 1.1.0 is incompatible with ^2.0.0',
+          );
+          return true;
+        },
+      );
     });
   });
 });
