@@ -118,7 +118,7 @@ export async function resolve(
 
   if (id === 'pnpapi') {
     // the resolve package doesn't recognize pnpapi as a builtin
-    return {resolved: require.resolve('pnpapi')};
+    return {resolved: 'pnpapi'};
   }
 
   let res = await resolveAsync(id, {
@@ -218,7 +218,7 @@ export function resolveSync(
 
   if (id === 'pnpapi') {
     // the resolve package doesn't recognize pnpapi as a builtin
-    return {resolved: require.resolve('pnpapi')};
+    return {resolved: 'pnpapi'};
   }
 
   // $FlowFixMe
