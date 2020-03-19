@@ -8,18 +8,11 @@ import {FSHost} from './FSHost';
 export class LanguageServiceHost extends FSHost {
   config: ParsedCommandLine;
   files: {[key: string]: {version: number, ...}, ...};
-  // ANDREW_TODO: Remove this when we find a better way of keeping track of changed files.
-  globalVersion = 0;
 
   constructor(fs: FileSystem, ts: TypeScriptModule, config: ParsedCommandLine) {
     super(fs, ts);
     this.config = config;
     this.files = {};
-  }
-
-  // ANDREW_TODO: Remove this when we find a better way of keeping track of changed files.
-  invalidateAll() {
-    this.globalVersion++;
   }
 
   invalidate(fileName: FilePath) {
@@ -41,13 +34,8 @@ export class LanguageServiceHost extends FSHost {
     return this.config.fileNames;
   }
 
-  // ANDREW_TODO: remove this if we ever go back to the previous version.
-  // eslint-disable-next-line no-unused-vars
   getScriptVersion(fileName: FilePath) {
-    // ANDREW_TODO: Remove this when we find a better way of keeping track of changed files.
-    return this.globalVersion;
-    // PREVIOUS VERSION:
-    // return this.files[fileName] && this.files[fileName].version.toString();
+    return this.files[fileName] && this.files[fileName].version.toString();
   }
 
   getScriptSnapshot(fileName: string) {

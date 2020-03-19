@@ -139,15 +139,6 @@ describe('ts-validator', function() {
     );
 
     buildEvent = await getNextBuild(b);
-    // ANDREW_TODO: This is the output we expect, given the bug.
-    // assert.equal(buildEvent.type, 'buildFailure');
-    // assert.equal(buildEvent.diagnostics.length, 1);
-    // assert.equal(
-    //   buildEvent.diagnostics[0].message,
-    //   'Argument of type \'number\' is not assignable to parameter of type \'string\'.',
-    // );
-
-    // ANDREW_TODO: this is the output we actually want, after the bug is fixed:
     assert.equal(buildEvent.type, 'buildSuccess');
     output = await run(buildEvent.bundleGraph);
     assert.equal(output.output, 123456);
@@ -197,14 +188,6 @@ describe('ts-validator', function() {
     buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildFailure');
     assert.equal(buildEvent.diagnostics.length, 1);
-
-    // ANDREW_TODO: this is the result we expect, given the bug.
-    // assert.equal(
-    //   buildEvent.diagnostics[0].message,
-    //   'Argument of type \'true\' is not assignable to parameter of type \'number\'.',
-    // );
-
-    // ANDREW_TODO: this is the output we actually want, after the bug is fixed:
     assert.equal(
       buildEvent.diagnostics[0].message,
       "Argument of type 'true' is not assignable to parameter of type 'null'.",
@@ -245,7 +228,7 @@ describe('ts-validator', function() {
 
     buildEvent = await getNextBuild(b);
 
-    // ANDREW_TODO: this is the result we expect, when the bug mentioned here is fixed: https://github.com/parcel-bundler/parcel/pull/4237#issuecomment-595572660
+    // ANDREW_TODO: this is the result we expect, when issue #4347 is fixed (https://github.com/parcel-bundler/parcel/issues/4347)
     // assert.equal(buildEvent.type, 'buildFailure');
     // assert.equal(buildEvent.diagnostics.length, 1);
     // assert.equal(

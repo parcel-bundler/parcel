@@ -7,6 +7,7 @@ import type {
   ParcelOptions,
   ReportFn,
 } from './types';
+import type {FilePath, Validator, ValidateResult} from '@parcel/types';
 
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -22,106 +23,171 @@ import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
   options: ParcelOptions,
-  request: AssetRequestDesc,
+  requests: AssetRequestDesc[],
   report: ReportFn,
-  workerApi: WorkerApi,
+  workerApi?: WorkerApi,
 |};
 
 export default class Validation {
-  request: AssetRequestDesc;
+  requests: AssetRequestDesc[];
   configRequests: Array<ConfigRequestDesc>;
   configLoader: ConfigLoader;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
   report: ReportFn;
-  workerApi: WorkerApi;
+  workerApi: ?WorkerApi;
+  dedicatedThread: boolean;
 
-  constructor({request, report, options, workerApi}: ValidationOpts) {
+  constructor({requests, report, options, workerApi}: ValidationOpts) {
     this.configLoader = new ConfigLoader(options);
     this.options = options;
     this.report = report;
-    this.request = request;
+    this.requests = requests;
     this.workerApi = workerApi;
+    // ANDREW_TODO: make dedicatedThread part of ValidationOps instead of calculating it implicitly.
+    this.dedicatedThread = !workerApi; // For now, we're running all "single-threaded" validators on the main process (with no worker API). Eventually, we might dedicate a worker to single-threaded validators.
   }
 
   async run(): Promise<void> {
-    this.report({
-      type: 'validation',
-      filePath: this.request.filePath,
-    });
-
-    let asset = await this.loadAsset();
-
-    let configRequest = {
-      filePath: this.request.filePath,
-      isSource: asset.value.isSource,
-      meta: {
-        actionType: 'validation',
-      },
-      env: this.request.env,
-    };
-
-    let config = await this.configLoader.load(configRequest);
-    nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(
-      config.result,
-      this.options.packageManager,
-    );
-
-    let validators = await parcelConfig.getValidators(this.request.filePath);
+    // Figure out what validators need to be run, and group the assets by the relevant validators.
+    let allAssets: {[validatorName: string]: InternalAsset[], ...} = {};
+    let allValidators: {
+      [validatorName: string]: {|
+        name: string,
+        plugin: Validator,
+        resolveFrom: FilePath,
+      |},
+      ...,
+    } = {};
     let pluginOptions = new PluginOptions(this.options);
 
-    for (let validator of validators) {
-      let validatorLogger = new PluginLogger({origin: validator.name});
-      try {
-        let config = null;
-        if (validator.plugin.getConfig) {
-          config = await validator.plugin.getConfig({
-            asset: new Asset(asset),
-            options: pluginOptions,
-            logger: validatorLogger,
-            resolveConfig: (configNames: Array<string>) =>
-              resolveConfig(
-                this.options.inputFS,
-                asset.value.filePath,
-                configNames,
-              ),
-          });
+    for (let request of this.requests) {
+      this.report({
+        type: 'validation',
+        filePath: request.filePath,
+      });
+
+      let asset = await this.loadAsset(request);
+
+      let configRequest = {
+        filePath: request.filePath,
+        isSource: asset.value.isSource,
+        meta: {
+          actionType: 'validation',
+        },
+        env: request.env,
+      };
+
+      let config = await this.configLoader.load(configRequest);
+      nullthrows(config.result);
+      let parcelConfig = new ParcelConfig(
+        config.result,
+        this.options.packageManager,
+      );
+
+      let validators = await parcelConfig.getValidators(request.filePath);
+      for (let validator of validators) {
+        // ANDREW_TODO: are we sure that the 'validator' object with the same name will be identical?
+        allValidators[validator.name] = validator;
+        if (allAssets[validator.name]) {
+          allAssets[validator.name].push(asset);
+        } else {
+          allAssets[validator.name] = [asset];
         }
+      }
+    }
 
-        let validatorResult = await validator.plugin.validate({
-          asset: new Asset(asset),
-          options: pluginOptions,
-          config,
-          logger: validatorLogger,
-        });
+    // ANDREW_TODO: look at ways to maximize parallelization here (with promise.all)?
+    for (let validatorName in allValidators) {
+      if (allValidators.hasOwnProperty(validatorName)) {
+        let validator = allValidators[validatorName];
+        let assets = allAssets[validatorName];
+        let validatorLogger = new PluginLogger({origin: validator.name});
 
-        if (validatorResult) {
-          let {warnings, errors} = validatorResult;
+        if (assets) {
+          try {
+            let {validateAll, validate} = validator.plugin;
+            // If the plugin supports the single-threading validateAll method, pass all assets to it.
+            if (validateAll && this.dedicatedThread) {
+              let validatorResults = await validateAll({
+                assets: assets.map(asset => new Asset(asset)),
+                options: pluginOptions,
+                logger: validatorLogger,
+                resolveConfigWithPath: (
+                  configNames: Array<string>,
+                  assetFilePath: string,
+                ) =>
+                  resolveConfig(
+                    this.options.inputFS,
+                    assetFilePath,
+                    configNames,
+                  ),
+              });
+              for (let validatorResult of validatorResults) {
+                this.handleResult(validatorResult);
+              }
+            }
 
-          if (errors.length > 0) {
+            // Otherwise, pass the assets one-at-a-time
+            else if (validate && !this.dedicatedThread) {
+              for (let asset of assets) {
+                let config = null;
+                // ANDREW_TODO: we should have a different version of this for the 'validateAll' case.
+                if (validator.plugin.getConfig) {
+                  config = await validator.plugin.getConfig({
+                    asset: new Asset(asset),
+                    options: pluginOptions,
+                    logger: validatorLogger,
+                    resolveConfig: (configNames: Array<string>) =>
+                      resolveConfig(
+                        this.options.inputFS,
+                        asset.value.filePath,
+                        configNames,
+                      ),
+                  });
+                }
+
+                let validatorResult = await validate({
+                  asset: new Asset(asset),
+                  options: pluginOptions,
+                  config,
+                  logger: validatorLogger,
+                });
+                this.handleResult(validatorResult);
+                // ANDREW_TODO: use Promise.all() to increase performance
+              }
+            }
+          } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errors,
+              diagnostic: errorToDiagnostic(e, validator.name),
             });
           }
-
-          if (warnings.length > 0) {
-            logger.warn(warnings);
-          }
         }
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, validator.name),
-        });
       }
     }
   }
 
-  async loadAsset(): Promise<InternalAsset> {
-    let {filePath, env, code, sideEffects} = this.request;
+  handleResult(validatorResult: ?ValidateResult) {
+    if (validatorResult) {
+      let {warnings, errors} = validatorResult;
+
+      if (errors.length > 0) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errors,
+        });
+      }
+
+      if (warnings.length > 0) {
+        logger.warn(warnings);
+      }
+    }
+  }
+
+  async loadAsset(request: AssetRequestDesc): Promise<InternalAsset> {
+    let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
-      this.request,
+      request,
     );
 
     // If the transformer request passed code rather than a filename,
