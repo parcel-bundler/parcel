@@ -19,8 +19,6 @@ const PARSERS = {
   toml: require('@iarna/toml').parse,
 };
 
-const existsCache = new Map();
-
 export async function resolveConfig(
   fs: FileSystem,
   filepath: FilePath,
@@ -43,6 +41,30 @@ export async function resolveConfig(
   }
 
   return resolveConfig(fs, filepath, filenames, opts);
+}
+
+export function resolveConfigSync(
+  fs: FileSystem,
+  filepath: FilePath,
+  filenames: Array<FilePath>,
+  opts: ?ConfigOptions,
+  root: FilePath = path.parse(filepath).root,
+): FilePath | null {
+  filepath = fs.realpathSync(path.dirname(filepath));
+
+  // Don't traverse above the module root
+  if (filepath === root || path.basename(filepath) === 'node_modules') {
+    return null;
+  }
+
+  for (const filename of filenames) {
+    let file = path.join(filepath, filename);
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+      return file;
+    }
+  }
+
+  return resolveConfigSync(fs, filepath, filenames, opts);
 }
 
 export async function loadConfig(
@@ -82,7 +104,6 @@ export async function loadConfig(
       };
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
-        existsCache.delete(configFile);
         return null;
       }
 

@@ -12,6 +12,8 @@ import micromatch from 'micromatch';
 import builtins from './builtins';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+// $FlowFixMe this is untyped
+import _Module from 'module';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -156,11 +158,15 @@ export default class NodeResolver {
       // ignore
     }
 
-    if (resolved === undefined && process.versions.pnp != null) {
+    if (resolved === undefined && process.versions.pnp != null && parent) {
       try {
         let [moduleName, subPath] = this.getModuleParts(filename);
-        // $FlowFixMe injected at runtime
-        let res = require('pnpapi').resolveToUnqualified(moduleName, parent);
+        let pnp =
+          process.env.PARCEL_BUILD_ENV !== 'production'
+            ? _Module.findPnpApi(path.dirname(parent))
+            : // $FlowFixMe injected at runtime
+              require('pnpapi');
+        let res = pnp.resolveToUnqualified(moduleName, parent);
 
         resolved = {
           moduleName,
@@ -169,7 +175,9 @@ export default class NodeResolver {
           filePath: path.join(res, subPath || ''),
         };
       } catch (e) {
-        // ignore
+        if (e.code !== 'MODULE_NOT_FOUND') {
+          throw e;
+        }
       }
     }
 
