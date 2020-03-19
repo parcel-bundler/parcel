@@ -12,8 +12,7 @@ import type {FileSystem} from '@parcel/fs';
 // $FlowFixMe TODO: Type promisify
 import promisify from './promisify';
 import _resolve from 'resolve';
-import {resolveConfig, resolveConfigSync} from '@parcel/utils';
-import path from 'path';
+import {resolveConfig, resolveConfigSync} from '../';
 // $FlowFixMe this is untyped
 import Module from 'module';
 
