@@ -1,3 +1,5 @@
+/* global __PARCEL_BUNDLE_ID, __PARCEL_HMR_ENV_HASH */
+
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
@@ -41,7 +43,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       removeErrorOverlay();
 
       let assets = data.assets.filter(
-        // eslint-disable-next-line no-undef
         asset => asset.envHash === __PARCEL_HMR_ENV_HASH,
       );
 
@@ -177,7 +178,7 @@ function hmrApply(bundle, asset) {
 
   if (modules[asset.id] || !bundle.parent) {
     var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, asset.deps];
+    modules[asset.id] = [fn, asset.depsByBundle[__PARCEL_BUNDLE_ID]];
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
   }

@@ -9,20 +9,21 @@ import type {
 } from './types';
 import type {ResolveResult} from '@parcel/utils';
 
-import {installPackage} from './installPackage';
-import {dirname} from 'path';
-import {resolve, resolveConfig, resolveSync} from '@parcel/utils';
+import {resolve, resolveSync} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
-import pkg from '../package.json';
-// $FlowFixMe
-import Module from 'module';
-import path from 'path';
-import nativeFS from 'fs';
-import Semver from 'semver';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
+import nativeFS from 'fs';
+// $FlowFixMe
+import Module from 'module';
+import path from 'path';
+import semver from 'semver';
+
+import {getConflictingLocalDependencies} from './utils';
+import {installPackage} from './installPackage';
+import pkg from '../package.json';
 
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
@@ -110,7 +111,7 @@ export class NodePackageManager implements PackageManager {
     from: FilePath,
     options?: ?{|range?: string, autoInstall?: boolean|},
   ) {
-    let basedir = dirname(from);
+    let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = this.cache.get(key);
     if (!resolved) {
@@ -125,9 +126,9 @@ export class NodePackageManager implements PackageManager {
         }
 
         let conflicts = await getConflictingLocalDependencies(
-          from,
-          name,
           this.fs,
+          name,
+          from,
         );
 
         if (conflicts == null) {
@@ -161,11 +162,11 @@ export class NodePackageManager implements PackageManager {
       let range = options?.range;
       if (range != null) {
         let pkg = resolved.pkg;
-        if (pkg == null || !Semver.satisfies(pkg.version, range)) {
+        if (pkg == null || !semver.satisfies(pkg.version, range)) {
           let conflicts = await getConflictingLocalDependencies(
-            from,
-            name,
             this.fs,
+            name,
+            from,
           );
 
           if (conflicts == null && options?.autoInstall !== false) {
@@ -218,7 +219,7 @@ export class NodePackageManager implements PackageManager {
   }
 
   resolveSync(name: ModuleSpecifier, from: FilePath) {
-    let basedir = dirname(from);
+    let basedir = path.dirname(from);
     return resolveSync(this.fs, name, {
       basedir,
       extensions: Object.keys(Module._extensions),
@@ -241,57 +242,3 @@ registerSerializableClass(
   `${pkg.version}:NodePackageManager`,
   NodePackageManager,
 );
-
-async function getConflictingLocalDependencies(
-  installPath: FilePath,
-  name: string,
-  fs: FileSystem,
-): Promise<?{|json: string, filePath: FilePath, fields: Array<string>|}> {
-  let pkgPath = await resolveConfig(fs, installPath, ['package.json']);
-  if (pkgPath == null) {
-    return;
-  }
-
-  let pkgStr = await fs.readFile(pkgPath, 'utf8');
-  let pkg;
-  try {
-    pkg = JSON.parse(pkgStr);
-  } catch (e) {
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        filePath: pkgPath,
-        message: 'Failed to parse package.json',
-        origin: '@parcel/package-manager',
-      },
-    });
-  }
-
-  if (typeof pkg !== 'object' || pkg == null) {
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        filePath: pkgPath,
-        message: 'Expected package.json contents to be an object.',
-        origin: '@parcel/package-manager',
-      },
-    });
-  }
-
-  let fields = [];
-  for (let field of ['dependencies', 'devDependencies', 'peerDependencies']) {
-    if (
-      typeof pkg[field] === 'object' &&
-      pkg[field] != null &&
-      pkg[field][name] != null
-    ) {
-      fields.push(field);
-    }
-  }
-
-  if (fields.length > 0) {
-    return {
-      filePath: pkgPath,
-      json: pkgStr,
-      fields,
-    };
-  }
-}

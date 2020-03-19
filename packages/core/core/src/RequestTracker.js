@@ -324,7 +324,9 @@ export default class RequestTracker {
 
   rejectRequest(id: string) {
     this.graph.incompleteNodeIds.delete(id);
-    this.graph.invalidNodeIds.add(id);
+    if (this.graph.hasNode(id)) {
+      this.graph.invalidNodeIds.add(id);
+    }
   }
 
   respondToFSEvents(events: Array<Event>): boolean {
