@@ -270,6 +270,30 @@ export default class Transformation {
       inputAssets = resultingAssets;
     }
 
+    // Make assets generate if they are js assets and the target doesn't
+    // scope hoist. This parallelizes generation and distributes work more
+    // evenly across workers than if one worker needed to generate all assets in
+    // a large bundle during packaging.
+    let generate = pipeline.generate;
+    if (generate != null) {
+      await Promise.all(
+        resultingAssets
+          .filter(
+            asset =>
+              asset.value.type === 'js' &&
+              !asset.value.env.scopeHoist &&
+              asset.ast != null,
+          )
+          .map(async asset => {
+            let output = await generate(asset);
+            asset.content = output.code;
+            asset.map = output.map;
+            asset.ast = null;
+            asset.isASTDirty = false;
+          }),
+      );
+    }
+
     return finalAssets.concat(resultingAssets);
   }
 
