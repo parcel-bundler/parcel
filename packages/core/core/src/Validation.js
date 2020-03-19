@@ -26,6 +26,7 @@ export type ValidationOpts = {|
   requests: AssetRequestDesc[],
   report: ReportFn,
   workerApi?: WorkerApi,
+  dedicatedThread?: boolean,
 |};
 
 export default class Validation {
@@ -36,16 +37,23 @@ export default class Validation {
   impactfulOptions: $Shape<ParcelOptions>;
   report: ReportFn;
   workerApi: ?WorkerApi;
+  /** If true, this Validation instance will run all validators that implement the single-threaded "validateAll" method.
+  If false, it will run the one-asset-at-a-time "validate" method. */
   dedicatedThread: boolean;
 
-  constructor({requests, report, options, workerApi}: ValidationOpts) {
+  constructor({
+    requests,
+    report,
+    options,
+    workerApi,
+    dedicatedThread,
+  }: ValidationOpts) {
     this.configLoader = new ConfigLoader(options);
     this.options = options;
     this.report = report;
     this.requests = requests;
     this.workerApi = workerApi;
-    // ANDREW_TODO: make dedicatedThread part of ValidationOps instead of calculating it implicitly.
-    this.dedicatedThread = !workerApi; // For now, we're running all "single-threaded" validators on the main process (with no worker API). Eventually, we might dedicate a worker to single-threaded validators.
+    this.dedicatedThread = dedicatedThread ?? false;
   }
 
   async run(): Promise<void> {

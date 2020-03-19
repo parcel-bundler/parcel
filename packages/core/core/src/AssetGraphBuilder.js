@@ -226,6 +226,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         requests: this.assetRequests,
         options: this.options,
         report,
+        dedicatedThread: true,
       }).run(),
     );
     this.assetRequests = [];
