@@ -95,6 +95,12 @@ export default class Parcel {
         patchConsole: resolvedOptions.patchConsole,
       });
 
+    // ? Should we have a dispose function on the Parcel class or should we create these references
+    //  - in run and watch and dispose at the end of run and in the unsubsribe function of watch
+    let {ref: optionsRef} = await this.#farm.createSharedReference(
+      resolvedOptions,
+    );
+
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
 
@@ -102,6 +108,7 @@ export default class Parcel {
       this.#assetGraphBuilder.init({
         name: 'MainAssetGraph',
         options: resolvedOptions,
+        optionsRef,
         config,
         entries: resolvedOptions.entries,
         workerFarm: this.#farm,
@@ -109,6 +116,7 @@ export default class Parcel {
       this.#runtimesAssetGraphBuilder.init({
         name: 'RuntimesAssetGraph',
         options: resolvedOptions,
+        optionsRef,
         config,
         workerFarm: this.#farm,
       }),
@@ -131,6 +139,7 @@ export default class Parcel {
       config,
       farm: this.#farm,
       options: resolvedOptions,
+      optionsRef,
       report,
     });
 
@@ -350,9 +359,7 @@ export default class Parcel {
 
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
-      (err, _events) => {
-        let events = _events.filter(e => !e.path.includes('.cache'));
-
+      (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
           return;

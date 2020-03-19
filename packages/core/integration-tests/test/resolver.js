@@ -91,4 +91,40 @@ describe('resolver', function() {
 
     assert(didThrow);
   });
+
+  it('should resolve packages to packages through the alias field', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/alias/package-to-package.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 3);
+  });
+
+  it('should resolve packages to local files through the alias field', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/alias/package-to-local.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 'bar');
+  });
+
+  it('should exclude local files using the alias field', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/alias/exclude-local.js'),
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output.default, {});
+  });
+
+  it('should exclude packages using the alias field', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/alias/exclude-package.js'),
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output.default, {});
+  });
 });

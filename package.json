@@ -11,7 +11,7 @@
     "packages/*/*"
   ],
   "scripts": {
-    "build": "NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
+    "build": "cross-env NODE_ENV=production PARCEL_BUILD_ENV=production gulp",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
     "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
@@ -28,9 +28,11 @@
     "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
   },
   "devDependencies": {
+    "@babel/core": "^7.8.7",
+    "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^6.0.0",
-    "flow-bin": "0.115.0",
+    "flow-bin": "0.120.1",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "lerna": "^3.3.2",

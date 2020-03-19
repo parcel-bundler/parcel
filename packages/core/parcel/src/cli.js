@@ -1,6 +1,6 @@
 // @flow
 
-import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
+import type {RawParcelConfig, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
@@ -171,7 +171,7 @@ async function run(entries: Array<string>, command: any) {
   }
   let Parcel = require('@parcel/core').default;
   let packageManager = new NodePackageManager(new NodeFS());
-  let defaultConfig: ParcelConfigFile = await packageManager.require(
+  let defaultConfig: RawParcelConfig = await packageManager.require(
     '@parcel/config-default',
     __filename,
   );

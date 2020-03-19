@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Namer} from '@parcel/types';
+import type {Namer, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
@@ -83,11 +83,11 @@ export default class BundlerRunner {
       await bundler.bundle({
         bundleGraph: mutableBundleGraph,
         options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.bundler}),
+        logger: new PluginLogger({origin: this.config.getBundlerName()}),
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.bundler),
+        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
       });
     }
     assertSignalNotAborted(signal);
@@ -97,11 +97,11 @@ export default class BundlerRunner {
       await bundler.optimize({
         bundleGraph: mutableBundleGraph,
         options: this.pluginOptions,
-        logger: new PluginLogger({origin: this.config.bundler}),
+        logger: new PluginLogger({origin: this.config.getBundlerName()}),
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.bundler),
+        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
       });
     }
     assertSignalNotAborted(signal);
@@ -128,7 +128,7 @@ export default class BundlerRunner {
   }
 
   async getCacheKey(assetGraph: AssetGraph) {
-    let bundler = this.config.bundler;
+    let bundler = this.config.getBundlerName();
     let {pkg} = await this.options.packageManager.resolve(
       `${bundler}/package.json`,
       `${this.config.filePath}/index`, // TODO: is this right?
@@ -160,7 +160,7 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|name: string, plugin: Namer|}>,
+    namers: Array<{|name: string, plugin: Namer, resolveFrom: FilePath|}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {

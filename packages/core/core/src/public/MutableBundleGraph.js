@@ -118,8 +118,11 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
       ? assetToInternalAsset(opts.entryAsset)
       : null;
 
+    let target = targetToInternalTarget(opts.target);
     let bundleId = md5FromString(
-      'bundle:' + (opts.uniqueKey ?? nullthrows(entryAsset?.value.id)),
+      'bundle:' +
+        (opts.uniqueKey ?? nullthrows(entryAsset?.value.id)) +
+        target.distDir,
     );
     let bundleNode = {
       type: 'bundle',
@@ -137,7 +140,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         isEntry: opts.isEntry,
         isInline: opts.isInline,
         isSplittable: opts.isSplittable ?? entryAsset?.value.isSplittable,
-        target: targetToInternalTarget(opts.target),
+        target,
         name: null,
         displayName: null,
         stats: {size: 0, time: 0},

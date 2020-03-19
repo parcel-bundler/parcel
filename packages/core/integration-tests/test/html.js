@@ -59,7 +59,10 @@ describe('html', function() {
     ]);
 
     let files = await outputFS.readdir(distDir);
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -91,6 +94,26 @@ describe('html', function() {
     ]);
   });
 
+  it('should support canonical links', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-canonical/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    assert(/<link rel="canonical" href="\/index.html">/.test(html));
+  });
+
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css/index.html'),
@@ -111,7 +134,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(
       /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html,
@@ -139,9 +165,43 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(
       /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
+        html,
+      ),
+    );
+  });
+
+  it('should insert sibling bundles after doctype if no html', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css-doctype/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(
+      /^\s*<!DOCTYPE html>\s*<link .*>\s*<script .*>\s*<\/script>\s*$/.test(
         html,
       ),
     );
@@ -175,7 +235,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
@@ -206,7 +269,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(
       /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
         html,
@@ -526,6 +592,7 @@ describe('html', function() {
 
     const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
+      'utf8',
     );
     assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
   });
@@ -909,6 +976,54 @@ describe('html', function() {
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
     assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
+  });
+
+  it('should not point to unrelated sibling bundles', async function() {
+    await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-sibling-entries-multiple/*.html',
+      ),
+      {production: true, scopeHoist: true},
+    );
+
+    // a.html should point to a CSS bundle containing a.css and b.css.
+    // It should not point to the bundle for b.css from b.html.
+    let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    assert.equal(
+      html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g).length,
+      1,
+    );
+    assert.equal(
+      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g),
+      null,
+    );
+
+    let css = await outputFS.readFile(
+      path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
+      'utf8',
+    );
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
+
+    // b.html should point to a CSS bundle containing only b.css
+    // It should not point to the bundle containing a.css from a.html
+    html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    assert.equal(
+      html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g),
+      null,
+    );
+    assert.equal(
+      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
+      1,
+    );
+
+    css = await outputFS.readFile(
+      path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
+      'utf8',
+    );
+    assert(!css.includes('.a'));
+    assert(css.includes('.b'));
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {

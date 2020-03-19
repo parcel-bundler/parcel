@@ -32,6 +32,29 @@ import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
 
+export type ParcelPluginNode = {|
+  packageName: PackageName,
+  resolveFrom: FilePath,
+|};
+
+export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
+export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
+
+export type ProcessedParcelConfig = {|
+  extends?: PackageName | FilePath | Array<PackageName | FilePath>,
+  resolvers?: PureParcelConfigPipeline,
+  transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  bundler: ?ParcelPluginNode,
+  namers?: PureParcelConfigPipeline,
+  runtimes?: {[EnvironmentContext]: PureParcelConfigPipeline, ...},
+  packagers?: {[Glob]: ParcelPluginNode, ...},
+  optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  reporters?: PureParcelConfigPipeline,
+  validators?: {[Glob]: ExtendableParcelConfigPipeline, ...},
+  filePath: FilePath,
+  resolveFrom?: FilePath,
+|};
+
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
@@ -324,12 +347,12 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetRequestDesc,
-  options: ParcelOptions,
+  optionsRef: number,
 |};
 
 export type ValidationOpts = {|
   request: AssetRequestDesc,
-  options: ParcelOptions,
+  optionsRef: number,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

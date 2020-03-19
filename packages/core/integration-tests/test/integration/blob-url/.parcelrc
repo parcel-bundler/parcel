@@ -1,7 +1,7 @@
 
 {
   "extends": "@parcel/config-default",
-  "transforms": {
+  "transformers": {
     "blob-url:*": ["@parcel/transformer-inline", "..."]
   },
   "optimizers": {

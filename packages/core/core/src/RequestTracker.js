@@ -224,8 +224,6 @@ export class RequestGraph extends Graph<
   }
 
   respondToFSEvents(events: Array<Event>): boolean {
-    let isInvalid = false;
-
     for (let {path, type} of events) {
       let node = this.getNode(path);
 
@@ -238,7 +236,6 @@ export class RequestGraph extends Graph<
           'invalidated_by_update',
         )) {
           this.invalidateNode(connectedNode);
-          isInvalid = true;
         }
       } else if (type === 'create') {
         for (let id of this.globNodeIds) {
@@ -252,7 +249,6 @@ export class RequestGraph extends Graph<
             );
             for (let connectedNode of connectedNodes) {
               this.invalidateNode(connectedNode);
-              isInvalid = true;
             }
           }
         }
@@ -262,12 +258,11 @@ export class RequestGraph extends Graph<
           'invalidated_by_delete',
         )) {
           this.invalidateNode(connectedNode);
-          isInvalid = true;
         }
       }
     }
 
-    return isInvalid;
+    return this.invalidNodeIds.size > 0;
   }
 }
 
@@ -292,6 +287,7 @@ export default class RequestTracker {
     }
 
     this.graph.incompleteNodeIds.add(request.id);
+    this.graph.invalidNodeIds.delete(request.id);
     let node = nodeFromRequest(request);
     this.graph.addNode(node);
   }
@@ -302,6 +298,7 @@ export default class RequestTracker {
 
   hasValidResult(id: string) {
     return (
+      this.graph.nodes.has(id) &&
       !this.graph.invalidNodeIds.has(id) &&
       !this.graph.incompleteNodeIds.has(id)
     );
@@ -316,6 +313,13 @@ export default class RequestTracker {
   completeRequest(id: string) {
     this.graph.invalidNodeIds.delete(id);
     this.graph.incompleteNodeIds.delete(id);
+  }
+
+  rejectRequest(id: string) {
+    this.graph.incompleteNodeIds.delete(id);
+    if (this.graph.hasNode(id)) {
+      this.graph.invalidNodeIds.add(id);
+    }
   }
 
   respondToFSEvents(events: Array<Event>): boolean {
@@ -379,24 +383,27 @@ export class RequestRunner<TRequest, TResult> {
     {signal}: RunRequestOpts = {},
   ): Promise<TResult | void> {
     let id = this.generateRequestId(requestDesc);
-    let request = {id, type: this.type, request: requestDesc};
+    try {
+      let api = this.createAPI(id);
 
-    let api = this.createAPI(id);
+      this.tracker.trackRequest({id, type: this.type, request: requestDesc});
+      let result: TResult = this.tracker.hasValidResult(id)
+        ? // $FlowFixMe
+          (this.tracker.getRequestResult(id): any)
+        : await this.run(requestDesc, api);
+      assertSignalNotAborted(signal);
+      // Request may have been removed by a parent request
+      if (!this.tracker.isTracked(id)) {
+        return;
+      }
+      await this.onComplete(requestDesc, result, api);
+      this.tracker.completeRequest(id);
 
-    this.tracker.trackRequest(request);
-    let result: TResult = this.tracker.hasValidResult(id)
-      ? // $FlowFixMe
-        (this.tracker.getRequestResult(id): any)
-      : await this.run(requestDesc, api);
-    assertSignalNotAborted(signal);
-    // Request may have been removed by a parent request
-    if (!this.tracker.isTracked(id)) {
-      return;
+      return result;
+    } catch (err) {
+      this.tracker.rejectRequest(id);
+      throw err;
     }
-    await this.onComplete(requestDesc, result, api);
-    this.tracker.completeRequest(id);
-
-    return result;
   }
 
   // unused vars are used for types

@@ -1,14 +1,46 @@
 // @flow
 
 import type {MutableAsset} from '@parcel/types';
+import type {Visitor, NodePath} from '@babel/traverse';
+import type {
+  ExportNamedDeclaration,
+  ImportDeclaration,
+  VariableDeclaration,
+  Identifier,
+  Expression,
+  LVal,
+  StringLiteral,
+  Statement,
+  CallExpression,
+} from '@babel/types';
 
 import * as t from '@babel/types';
+import {
+  isClassDeclaration,
+  isExportDefaultSpecifier,
+  isExportNamespaceSpecifier,
+  isExportSpecifier,
+  isExpression,
+  isFunctionDeclaration,
+  isIdentifier,
+  isImportDefaultSpecifier,
+  isImportNamespaceSpecifier,
+  isImportSpecifier,
+  isMemberExpression,
+  isStringLiteral,
+  isUnaryExpression,
+} from '@babel/types';
 import traverse from '@babel/traverse';
 import template from '@babel/template';
+import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import rename from './renamer';
 import {getName, getIdentifier, getExportIdentifier} from './utils';
 
-const WRAPPER_TEMPLATE = template(`
+const WRAPPER_TEMPLATE = template.statement<
+  {|NAME: LVal, BODY: Array<Statement>|},
+  VariableDeclaration,
+>(`
   var NAME = (function () {
     var exports = this;
     var module = {exports: this};
@@ -17,16 +49,26 @@ const WRAPPER_TEMPLATE = template(`
   }).call({});
 `);
 
-const ESMODULE_TEMPLATE = template(`exports.__esModule = true;`);
+const ESMODULE_TEMPLATE = template.statement<null, Statement>(
+  `exports.__esModule = true;`,
+);
 
-const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
-const EXPORT_ALL_TEMPLATE = template(
-  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))',
-);
-const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
-const REQUIRE_RESOLVE_CALL_TEMPLATE = template(
-  '$parcel$require$resolve(ID, SOURCE)',
-);
+const EXPORT_ASSIGN_TEMPLATE = template.statement<
+  {|EXPORTS: Identifier, NAME: Identifier, LOCAL: Expression|},
+  Statement,
+>('EXPORTS.NAME = LOCAL;');
+const EXPORT_ALL_TEMPLATE = template.statement<
+  {|OLD_NAME: Identifier, ID: StringLiteral, SOURCE: StringLiteral|},
+  Statement,
+>('$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE));');
+const REQUIRE_CALL_TEMPLATE = template.expression<
+  {|ID: StringLiteral, SOURCE: StringLiteral|},
+  CallExpression,
+>('$parcel$require(ID, SOURCE)');
+const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
+  {|ID: StringLiteral, SOURCE: StringLiteral|},
+  CallExpression,
+>('$parcel$require$resolve(ID, SOURCE)');
 const TYPEOF = {
   module: 'object',
   require: 'function',
@@ -45,7 +87,7 @@ export function hoist(asset: MutableAsset) {
   traverse(asset.ast.program, VISITOR, null, asset);
 }
 
-const VISITOR = {
+const VISITOR: Visitor<MutableAsset> = {
   Program: {
     enter(path, asset: MutableAsset) {
       asset.meta.id = asset.id;
@@ -61,7 +103,7 @@ const VISITOR = {
           // Otherwise, local variables accessed inside the eval won't work.
           let callee = path.node.callee;
           if (
-            t.isIdentifier(callee) &&
+            isIdentifier(callee) &&
             callee.name === 'eval' &&
             !path.scope.hasBinding('eval', true)
           ) {
@@ -89,21 +131,52 @@ const VISITOR = {
         },
 
         ReferencedIdentifier(path) {
+          let {parent, node} = path;
           // We must wrap if `module` is referenced as a free identifier rather
           // than a statically resolvable member expression.
           if (
-            path.node.name === 'module' &&
-            (!path.parentPath.isMemberExpression() || path.parent.computed) &&
-            !(
-              path.parentPath.isUnaryExpression() &&
-              path.parent.operator === 'typeof'
-            ) &&
+            node.name === 'module' &&
+            (!isMemberExpression(parent) || parent.computed) &&
+            !(isUnaryExpression(parent) && parent.operator === 'typeof') &&
             !path.scope.hasBinding('module') &&
             !path.scope.getData('shouldWrap')
           ) {
             asset.meta.isCommonJS = true;
             shouldWrap = true;
             path.stop();
+          }
+
+          // We must disable resolving $..$exports.foo if `exports`
+          // is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            node.name === 'exports' &&
+            (!isMemberExpression(parent) ||
+              !(isIdentifier(parent.property) && !parent.computed) ||
+              isStringLiteral(parent.property)) &&
+            !path.scope.hasBinding('exports') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            asset.meta.isCommonJS = true;
+            asset.meta.resolveExportsBailedOut = true;
+          }
+        },
+
+        MemberExpression(path) {
+          let {node, parent} = path;
+
+          // We must disable resolving $..$exports.foo if `exports`
+          // is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            t.matchesPattern(node, 'module.exports') &&
+            (!isMemberExpression(parent) ||
+              !(isIdentifier(parent.property) && !parent.computed) ||
+              isStringLiteral(parent.property)) &&
+            !path.scope.hasBinding('module') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            asset.meta.resolveExportsBailedOut = true;
           }
         },
       });
@@ -227,9 +300,11 @@ const VISITOR = {
 
     let globalCode = globals.get(path.node.name);
     if (globalCode) {
-      let decl = path.scope
+      let [decl] = path.scope
         .getProgramParent()
-        .path.unshiftContainer('body', [template(globalCode.code)()])[0];
+        .path.unshiftContainer('body', [
+          template.statement<null, Statement>(globalCode.code)(),
+        ]);
 
       path.requeue(decl);
 
@@ -279,32 +354,37 @@ const VISITOR = {
     //   }
     // }
 
-    if (path.scope.hasBinding('exports')) {
-      return;
-    }
-
-    if (t.isIdentifier(left) && left.name === 'exports') {
+    if (
+      isIdentifier(left) &&
+      left.name === 'exports' &&
+      !path.scope.hasBinding('exports')
+    ) {
       path.scope.getProgramParent().setData('cjsExportsReassigned', true);
-      path.get('left').replaceWith(getCJSExportsIdentifier(asset, path.scope));
+      path
+        .get<NodePath<LVal>>('left')
+        .replaceWith(getCJSExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
 
     // If we can statically evaluate the name of a CommonJS export, create an ES6-style export for it.
     // This allows us to remove the CommonJS export object completely in many cases.
     if (
-      t.isMemberExpression(left) &&
-      t.isIdentifier(left.object, {name: 'exports'}) &&
-      ((t.isIdentifier(left.property) && !left.computed) ||
-        t.isStringLiteral(left.property))
+      isMemberExpression(left) &&
+      ((isIdentifier(left.object, {name: 'exports'}) &&
+        !path.scope.hasBinding('exports')) ||
+        (t.matchesPattern(left.object, 'module.exports') &&
+          !path.scope.hasBinding('module'))) &&
+      ((isIdentifier(left.property) && !left.computed) ||
+        isStringLiteral(left.property))
     ) {
-      let name = t.isIdentifier(left.property)
+      let name = isIdentifier(left.property)
         ? left.property.name
         : left.property.value;
       let identifier = getExportIdentifier(asset, name);
 
       // Replace the CommonJS assignment with a reference to the ES6 identifier.
       path
-        .get('left.object')
+        .get<NodePath<Identifier>>('left.object')
         .replaceWith(getExportsIdentifier(asset, path.scope));
       path.get('right').replaceWith(identifier);
 
@@ -344,7 +424,7 @@ const VISITOR = {
     // Replace `typeof module` with "object"
     if (
       path.node.operator === 'typeof' &&
-      t.isIdentifier(path.node.argument) &&
+      isIdentifier(path.node.argument) &&
       TYPEOF[path.node.argument.name] &&
       !path.scope.hasBinding(path.node.argument.name) &&
       !path.scope.getData('shouldWrap')
@@ -355,18 +435,18 @@ const VISITOR = {
 
   CallExpression(path, asset: MutableAsset) {
     let {callee, arguments: args} = path.node;
-    let isRequire = t.isIdentifier(callee, {name: 'require'});
-    let ignore =
+    let isRequire = isIdentifier(callee, {name: 'require'});
+    let [arg] = args;
+    if (
       args.length !== 1 ||
-      !t.isStringLiteral(args[0]) ||
-      path.scope.hasBinding('require');
-
-    if (ignore) {
+      !isStringLiteral(arg) ||
+      path.scope.hasBinding('require')
+    ) {
       return;
     }
 
     if (isRequire) {
-      let source = args[0].value;
+      let source = arg.value;
       // Ignore require calls that were ignored earlier.
       let dep = asset
         .getDependencies()
@@ -396,7 +476,7 @@ const VISITOR = {
       path.replaceWith(
         REQUIRE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
-          SOURCE: t.stringLiteral(args[0].value),
+          SOURCE: t.stringLiteral(arg.value),
         }),
       );
     }
@@ -405,7 +485,7 @@ const VISITOR = {
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
-          SOURCE: args[0],
+          SOURCE: arg,
         }),
       );
     }
@@ -422,12 +502,12 @@ const VISITOR = {
       let id = getIdentifier(asset, 'import', specifier.local.name);
 
       if (dep) {
-        let imported;
-        if (t.isImportDefaultSpecifier(specifier)) {
+        let imported: string;
+        if (isImportDefaultSpecifier(specifier)) {
           imported = 'default';
-        } else if (t.isImportSpecifier(specifier)) {
+        } else if (isImportSpecifier(specifier)) {
           imported = specifier.imported.name;
-        } else if (t.isImportNamespaceSpecifier(specifier)) {
+        } else if (isImportNamespaceSpecifier(specifier)) {
           imported = '*';
         } else {
           throw new Error('Unknown import construct');
@@ -450,9 +530,17 @@ const VISITOR = {
   ExportDefaultDeclaration(path, asset: MutableAsset) {
     let {declaration} = path.node;
     let identifier = getExportIdentifier(asset, 'default');
-    let name = declaration.id ? declaration.id.name : declaration.name;
+    let name: ?string;
+    if (
+      (isClassDeclaration(declaration) || isFunctionDeclaration(declaration)) &&
+      declaration.id
+    ) {
+      name = declaration.id.name;
+    } else if (isIdentifier(declaration)) {
+      name = declaration.name;
+    }
 
-    if (hasImport(asset, name) || hasExport(asset, name)) {
+    if (name && (hasImport(asset, name) || hasExport(asset, name))) {
       identifier = t.identifier(name);
     }
 
@@ -465,20 +553,23 @@ const VISITOR = {
       }),
     );
 
-    if (t.isIdentifier(declaration)) {
+    if (isIdentifier(declaration)) {
       // Rename the variable being exported.
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();
-    } else if (t.isExpression(declaration) || !declaration.id) {
+    } else if (isExpression(declaration) || !declaration.id) {
+      // $FlowFixMe
+      let declarationExpr = t.toExpression(declaration);
       // Declare a variable to hold the exported value.
       path.replaceWith(
         t.variableDeclaration('var', [
-          t.variableDeclarator(identifier, t.toExpression(declaration)),
+          t.variableDeclarator(identifier, declarationExpr),
         ]),
       );
 
       path.scope.registerDeclaration(path);
     } else {
+      invariant(isIdentifier(declaration.id));
       // Rename the declaration to the exported name.
       safeRename(path, asset, declaration.id.name, identifier.name);
       path.replaceWith(declaration);
@@ -493,15 +584,15 @@ const VISITOR = {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
-      for (let specifier of specifiers) {
+      for (let specifier of nullthrows(specifiers)) {
         let exported = specifier.exported;
         let imported;
 
-        if (t.isExportDefaultSpecifier(specifier)) {
+        if (isExportDefaultSpecifier(specifier)) {
           imported = 'default';
-        } else if (t.isExportNamespaceSpecifier(specifier)) {
+        } else if (isExportNamespaceSpecifier(specifier)) {
           imported = '*';
-        } else if (t.isExportSpecifier(specifier)) {
+        } else if (isExportSpecifier(specifier)) {
           imported = specifier.local.name;
         } else {
           throw new Error('Unknown export construct');
@@ -542,7 +633,7 @@ const VISITOR = {
     } else if (declaration) {
       path.replaceWith(declaration);
 
-      if (t.isIdentifier(declaration.id)) {
+      if (isIdentifier(declaration.id)) {
         addExport(asset, path, declaration.id, declaration.id);
       } else {
         let identifiers = t.getBindingIdentifiers(declaration);
@@ -552,6 +643,7 @@ const VISITOR = {
       }
     } else if (specifiers.length > 0) {
       for (let specifier of specifiers) {
+        invariant(isExportSpecifier(specifier)); // because source is empty
         addExport(asset, path, specifier.local, specifier.exported);
       }
 
@@ -577,19 +669,24 @@ const VISITOR = {
   },
 };
 
-function addImport(asset: MutableAsset, path) {
+function addImport(
+  asset: MutableAsset,
+  path: NodePath<ImportDeclaration | ExportNamedDeclaration>,
+) {
   // Replace with a $parcel$require call so we know where to insert side effects.
-  let requireCall = REQUIRE_CALL_TEMPLATE({
-    ID: t.stringLiteral(asset.id),
-    SOURCE: t.stringLiteral(path.node.source.value),
-  });
+  let requireStmt = t.expressionStatement(
+    REQUIRE_CALL_TEMPLATE({
+      ID: t.stringLiteral(asset.id),
+      SOURCE: t.stringLiteral(nullthrows(path.node.source).value),
+    }),
+  );
 
   // Hoist the call to the top of the file.
   let lastImport = path.scope.getData('hoistedImport');
   if (lastImport) {
-    [lastImport] = lastImport.insertAfter(requireCall);
+    [lastImport] = lastImport.insertAfter(requireStmt);
   } else {
-    [lastImport] = path.parentPath.unshiftContainer('body', [requireCall]);
+    [lastImport] = path.parentPath.unshiftContainer('body', [requireStmt]);
   }
 
   path.scope.setData('hoistedImport', lastImport);
@@ -648,7 +745,7 @@ function safeRename(path, asset: MutableAsset, from, to) {
 
   // If the binding that we're renaming is constant, it's safe to rename it.
   // Otherwise, create a new binding that references the original.
-  let binding = path.scope.getBinding(from);
+  let binding = nullthrows(path.scope.getBinding(from));
   if (binding && binding.constant) {
     rename(path.scope, from, to);
   } else {
@@ -658,7 +755,7 @@ function safeRename(path, asset: MutableAsset, from, to) {
       ]),
     );
 
-    path.scope.getBinding(from).reference(decl.get('declarations.0.init'));
+    binding.reference(decl.get<NodePath<Identifier>>('declarations.0.init'));
     path.scope.registerDeclaration(decl);
   }
 }
