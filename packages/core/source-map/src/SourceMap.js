@@ -385,16 +385,16 @@ export default class SourceMap {
   |}): Promise<string> {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
-    let sources = {};
+    let sources = [];
     this.eachMapping(mapping => {
       if (mapping.source != null) {
-        sources[mapping.source] = true;
+        sources.push(mapping.source);
       }
       generator.addMapping(mapping);
     });
 
     if (inlineSources) {
-      for (let sourceName in sources) {
+      for (let sourceName of sources) {
         let sourceContent = this.sourceContentFor(sourceName);
         if (sourceContent != null) {
           generator.setSourceContent(sourceName, sourceContent);
@@ -416,7 +416,6 @@ export default class SourceMap {
     }
 
     let stringifiedMap = generator.toString();
-
     return inlineMap ? generateInlineMap(stringifiedMap) : stringifiedMap;
   }
 }
