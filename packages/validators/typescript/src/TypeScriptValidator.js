@@ -6,6 +6,7 @@ import type {
   PluginOptions,
   ValidateResult,
 } from '@parcel/types';
+import type {LanguageService, Diagnostic} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
@@ -16,7 +17,7 @@ let langServiceCache: {
   [configHash: string]: {|
     configHost: ParseConfigHost,
     host: LanguageServiceHost,
-    service: any, // ANDREW_TODO: could this be strongly typed?
+    service: LanguageService,
   |},
   ...,
 } = {};
@@ -130,7 +131,7 @@ async function tryCreateLanguageService(
 /** Translates semantic diagnostics (from TypeScript) into a ValidateResult that Parcel understands. */
 function getValidateResultFromDiagnostics(
   asset: Asset,
-  diagnostics: any,
+  diagnostics: Diagnostic[],
 ): ValidateResult {
   let validatorResult = {
     warnings: [],
