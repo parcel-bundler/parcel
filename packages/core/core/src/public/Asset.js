@@ -88,6 +88,10 @@ class BaseAsset {
     return this.#asset.value.meta;
   }
 
+  get isASTDirty(): boolean {
+    return this.#asset.isASTDirty;
+  }
+
   get isIsolated(): boolean {
     return this.#asset.value.isIsolated;
   }

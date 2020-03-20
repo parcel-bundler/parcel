@@ -538,7 +538,7 @@ async function runTransformer(
   ) {
     let output = await pipeline.generate(asset);
     asset.content = output.code;
-    asset.clearAST();
+    asset.map = output.map;
   }
 
   // Parse if there is no AST available from a previous transform.
@@ -572,14 +572,14 @@ async function runTransformer(
   // Create generate and postProcess functions that can be called later
   pipeline.generate = (input: InternalAsset): Promise<GenerateOutput> => {
     if (transformer.generate && input.ast) {
-      return Promise.resolve(
-        transformer.generate({
-          asset: new Asset(input),
-          ast: input.ast,
-          options: pipeline.pluginOptions,
-          logger,
-        }),
-      );
+      let generated = transformer.generate({
+        asset: new Asset(input),
+        ast: input.ast,
+        options: pipeline.pluginOptions,
+        logger,
+      });
+      input.clearAST();
+      return Promise.resolve(generated);
     }
 
     throw new Error(

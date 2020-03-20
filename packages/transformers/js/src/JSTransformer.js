@@ -84,12 +84,12 @@ export default new Transformer({
       return [asset];
     }
 
-    let code = await asset.getCode();
+    let code = asset.isASTDirty ? null : await asset.getCode();
 
     // Inline process/ environment variables
     if (
-      (!asset.env.isNode() && (!code || ENV_RE.test(code))) ||
-      (asset.env.isBrowser() && (!code || BROWSER_RE.test(code)))
+      (!asset.env.isNode() && (code == null || ENV_RE.test(code))) ||
+      (asset.env.isBrowser() && (code == null || BROWSER_RE.test(code)))
     ) {
       walkAncestor(ast.program, processVisitor, {
         asset,
@@ -101,7 +101,7 @@ export default new Transformer({
     }
 
     // Collect dependencies
-    if (!code || canHaveDependencies(code)) {
+    if (code == null || canHaveDependencies(code)) {
       walkAncestor(ast.program, collectDependencies, {asset, ast, options});
     }
 
@@ -118,7 +118,7 @@ export default new Transformer({
       let fsDep = asset
         .getDependencies()
         .find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && (!code || FS_RE.test(code))) {
+      if (fsDep && (code == null || FS_RE.test(code))) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
         let pkg = await asset.getPackage();
@@ -134,7 +134,7 @@ export default new Transformer({
       }
 
       // Insert node globals
-      if (!code || GLOBAL_RE.test(code)) {
+      if (code == null || GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
         walkAncestor(ast.program, insertGlobals, asset);
       }
@@ -144,14 +144,18 @@ export default new Transformer({
       hoist(asset, ast);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = await babelCore.transformFromAstAsync(ast.program, code, {
-        code: false,
-        ast: true,
-        filename: asset.filePath,
-        babelrc: false,
-        configFile: false,
-        plugins: [require('@babel/plugin-transform-modules-commonjs')],
-      });
+      let res = await babelCore.transformFromAstAsync(
+        ast.program,
+        code ?? undefined,
+        {
+          code: false,
+          ast: true,
+          filename: asset.filePath,
+          babelrc: false,
+          configFile: false,
+          plugins: [require('@babel/plugin-transform-modules-commonjs')],
+        },
+      );
 
       asset.setAST({
         type: 'babel',

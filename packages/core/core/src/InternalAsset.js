@@ -256,6 +256,12 @@ export default class InternalAsset {
   }
 
   async getCode(): Promise<string> {
+    if (this.ast != null && this.isASTDirty) {
+      throw new Error(
+        'Cannot call getCode() on an asset with a dirty AST. For transformers, implement canReuseAST() and check asset.isASTDirty.',
+      );
+    }
+
     this.ensureContent();
     let content = await this.content;
 

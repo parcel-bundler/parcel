@@ -33,7 +33,7 @@ export default new Transformer({
     }
 
     let code = await asset.getCode();
-    if (!canHaveDependencies(asset.filePath, code)) {
+    if (code != null && !canHaveDependencies(asset.filePath, code)) {
       return null;
     }
 

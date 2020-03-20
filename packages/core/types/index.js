@@ -307,6 +307,7 @@ export interface BaseAsset {
   +filePath: FilePath;
   +id: string;
   +meta: Meta;
+  +isASTDirty: boolean;
   +isIsolated: boolean;
   +isInline: boolean;
   +isSplittable: ?boolean;
