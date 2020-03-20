@@ -254,7 +254,7 @@ function getResolveFrom(options: ParcelOptions) {
 function isSubdirectory(child: FilePath, parent: FilePath) {
   if (child === parent) return false;
   const parentTokens = parent.split(path.sep).filter(i => i.length);
-  return parentTokens.every((t, i) => child.split('/')[i] === t);
+  return parentTokens.every((t, i) => child.split(path.sep)[i] === t);
 }
 
 export function mergePipelines(
