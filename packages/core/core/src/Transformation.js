@@ -179,10 +179,6 @@ export default class Transformation {
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
-    if (initialCacheEntry) {
-      console.log('FOUND CACHE ENTRY');
-    }
-
     let assets =
       initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
 

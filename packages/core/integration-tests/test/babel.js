@@ -512,7 +512,6 @@ describe('babel', function() {
         );
 
       build();
-      console.log('FINISHED FIRST BUILD');
       let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(file.includes('hello there'));
