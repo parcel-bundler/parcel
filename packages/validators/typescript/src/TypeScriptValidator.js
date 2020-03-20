@@ -1,6 +1,11 @@
 // @flow
 import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
-import type {ValidateResult, Asset} from '@parcel/types';
+import type {
+  Asset,
+  ConfigResult,
+  PluginOptions,
+  ValidateResult,
+} from '@parcel/types';
 
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
@@ -11,10 +16,17 @@ let langServiceCache: {
   [configHash: string]: {|
     configHost: ParseConfigHost,
     host: LanguageServiceHost,
-    service: any,
+    service: any, // ANDREW_TODO: could this be strongly typed?
   |},
   ...,
 } = {};
+
+type TSValidatorConfig = {|
+  filepath: string | null,
+  baseDir: string,
+  configHash: string,
+  tsconfig: ConfigResult | null,
+|};
 
 export default new Validator({
   async validateAll({
@@ -22,54 +34,15 @@ export default new Validator({
     options,
     resolveConfigWithPath,
   }): Promise<Array<?ValidateResult>> {
-    // ANDREW_TODO: refactor this for clarity.
     // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
     let assetsToValidate: Array<{|configHash: string, asset: Asset|}> = [];
     await Promise.all(
       assets.map(async asset => {
-        let ts = await options.packageManager.require(
-          'typescript',
-          asset.filePath,
-        );
+        let config = await getConfig(asset, options, resolveConfigWithPath);
+        let {configHash} = config;
 
-        // Get configuration for each asset.
-        let configNames = ['tsconfig.json'];
-        let tsconfig = await asset.getConfig(configNames);
-        let configPath: string | null = await resolveConfigWithPath(
-          configNames,
-          asset.filePath,
-        );
-        let baseDir = configPath
-          ? path.dirname(configPath)
-          : options.projectRoot;
-        let configHash =
-          (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
-
-        // Create a languageService/host for each asset if it doesn't already exist.
-        if (tsconfig && !langServiceCache[configHash]) {
-          // In order to prevent race conditions where we accidentally create two language services for the same config,
-          // it's important that nothing in this block is asynchronous.
-          let configHost = new ParseConfigHost(options.inputFS, ts);
-          let parsedCommandLine = ts.parseJsonConfigFileContent(
-            tsconfig,
-            configHost,
-            baseDir,
-          );
-          const host = new LanguageServiceHost(
-            options.inputFS,
-            ts,
-            parsedCommandLine,
-          );
-          langServiceCache[configHash] = {
-            configHost,
-            host,
-            service: ts.createLanguageService(
-              host,
-              ts.createDocumentRegistry(),
-            ),
-          };
-        }
-
+        // Create a languageService/host in the cache for the configuration if it doesn't already exist.
+        await tryCreateLanguageService(config, asset, options);
         if (!langServiceCache[configHash]) return;
 
         // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
@@ -87,82 +60,141 @@ export default new Validator({
       langServiceCache[configHash].host.fs = options.inputFS;
       langServiceCache[configHash].configHost.fs = options.inputFS;
 
-      // ANDREW_TODO: should we also call getSemanticDiagnostics and getCompilerOptionsDiagnostics?
-      // ANDREW_TODO: this will still not catch errors in dependencies of the files that changed.
       const diagnostics = langServiceCache[
         configHash
       ].service.getSemanticDiagnostics(asset.filePath);
 
-      let validatorResult = {
-        warnings: [],
-        errors: [],
-      };
-
-      // ANDREW_TODO: refactor this into its own function?
-      if (diagnostics.length > 0) {
-        for (let diagnostic of diagnostics) {
-          let filename = asset.filePath;
-          let {file} = diagnostic;
-
-          let diagnosticMessage =
-            typeof diagnostic.messageText === 'string'
-              ? diagnostic.messageText
-              : diagnostic.messageText.messageText;
-
-          let codeframe: ?DiagnosticCodeFrame;
-          if (file != null && diagnostic.start != null) {
-            let source = file.text || diagnostic.source;
-            if (file.fileName) {
-              filename = file.fileName;
-            }
-
-            if (source) {
-              let lineChar = file.getLineAndCharacterOfPosition(
-                diagnostic.start,
-              );
-              let start = {
-                line: lineChar.line + 1,
-                column: lineChar.character + 1,
-              };
-              let end = {
-                line: start.line,
-                column: start.column + 1,
-              };
-
-              if (typeof diagnostic.length === 'number') {
-                let endCharPosition = file.getLineAndCharacterOfPosition(
-                  diagnostic.start + diagnostic.length,
-                );
-
-                end = {
-                  line: endCharPosition.line + 1,
-                  column: endCharPosition.character + 1,
-                };
-              }
-
-              codeframe = {
-                code: source,
-                codeHighlights: {
-                  start,
-                  end,
-                  message: diagnosticMessage,
-                },
-              };
-            }
-          }
-
-          validatorResult.errors.push({
-            origin: '@parcel/validator-typescript',
-            message: diagnosticMessage,
-            filePath: filename,
-            codeFrame: codeframe ? codeframe : undefined,
-          });
-        }
-      }
-
-      validatorResults.push(validatorResult);
+      validatorResults.push(
+        getValidateResultFromDiagnostics(asset, diagnostics),
+      );
     });
 
     return validatorResults;
   },
 });
+
+async function getConfig(
+  asset,
+  options,
+  resolveConfigWithPath,
+): Promise<TSValidatorConfig> {
+  let configNames = ['tsconfig.json'];
+  let tsconfig = await asset.getConfig(configNames);
+  let configPath: string | null = await resolveConfigWithPath(
+    configNames,
+    asset.filePath,
+  );
+  let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
+  let configHash = (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
+
+  return {
+    filepath: configPath,
+    baseDir,
+    configHash,
+    tsconfig,
+  };
+}
+
+/** Tries to create a typescript language service instance in the cache if it doesn't already exist. */
+async function tryCreateLanguageService(
+  config: TSValidatorConfig,
+  asset: Asset,
+  options: PluginOptions,
+): Promise<void> {
+  if (config.tsconfig && !langServiceCache[config.configHash]) {
+    let ts = await options.packageManager.require('typescript', asset.filePath);
+
+    // In order to prevent race conditions where we accidentally create two language services for the same config,
+    // we need to re-check the cache to see if a service has been created while we were awaiting 'ts'.
+    if (!langServiceCache[config.configHash]) {
+      let configHost = new ParseConfigHost(options.inputFS, ts);
+      let parsedCommandLine = ts.parseJsonConfigFileContent(
+        config.tsconfig,
+        configHost,
+        config.baseDir,
+      );
+      const host = new LanguageServiceHost(
+        options.inputFS,
+        ts,
+        parsedCommandLine,
+      );
+      langServiceCache[config.configHash] = {
+        configHost,
+        host,
+        service: ts.createLanguageService(host, ts.createDocumentRegistry()),
+      };
+    }
+  }
+}
+
+/** Translates semantic diagnostics (from TypeScript) into a ValidateResult that Parcel understands. */
+function getValidateResultFromDiagnostics(
+  asset: Asset,
+  diagnostics: any,
+): ValidateResult {
+  let validatorResult = {
+    warnings: [],
+    errors: [],
+  };
+
+  if (diagnostics.length > 0) {
+    for (let diagnostic of diagnostics) {
+      let filename = asset.filePath;
+      let {file} = diagnostic;
+
+      let diagnosticMessage =
+        typeof diagnostic.messageText === 'string'
+          ? diagnostic.messageText
+          : diagnostic.messageText.messageText;
+
+      let codeframe: ?DiagnosticCodeFrame;
+      if (file != null && diagnostic.start != null) {
+        let source = file.text || diagnostic.source;
+        if (file.fileName) {
+          filename = file.fileName;
+        }
+
+        if (source) {
+          let lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
+          let start = {
+            line: lineChar.line + 1,
+            column: lineChar.character + 1,
+          };
+          let end = {
+            line: start.line,
+            column: start.column + 1,
+          };
+
+          if (typeof diagnostic.length === 'number') {
+            let endCharPosition = file.getLineAndCharacterOfPosition(
+              diagnostic.start + diagnostic.length,
+            );
+
+            end = {
+              line: endCharPosition.line + 1,
+              column: endCharPosition.character + 1,
+            };
+          }
+
+          codeframe = {
+            code: source,
+            codeHighlights: {
+              start,
+              end,
+              message: diagnosticMessage,
+            },
+          };
+        }
+      }
+
+      validatorResult.errors.push({
+        origin: '@parcel/validator-typescript',
+        message: diagnosticMessage,
+        filePath: filename,
+        codeFrame: codeframe ? codeframe : undefined,
+      });
+    }
+  }
+
+  return validatorResult;
+}
