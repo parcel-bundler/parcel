@@ -108,16 +108,15 @@ export default class Validation {
     // ANDREW_TODO: look at ways to maximize parallelization here (with promise.all)?
     for (let validatorName in allValidators) {
       if (allValidators.hasOwnProperty(validatorName)) {
-        let validator = allValidators[validatorName];
+        let {plugin, name} = allValidators[validatorName];
         let assets = allAssets[validatorName];
-        let validatorLogger = new PluginLogger({origin: validator.name});
+        let validatorLogger = new PluginLogger({origin: name});
 
         if (assets) {
           try {
-            let {validateAll, validate} = validator.plugin;
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
-            if (validateAll && this.dedicatedThread) {
-              let validatorResults = await validateAll({
+            if (plugin.validateAll && this.dedicatedThread) {
+              let validatorResults = await plugin.validateAll({
                 assets: assets.map(asset => new Asset(asset)),
                 options: pluginOptions,
                 logger: validatorLogger,
@@ -137,12 +136,12 @@ export default class Validation {
             }
 
             // Otherwise, pass the assets one-at-a-time
-            else if (validate && !this.dedicatedThread) {
+            else if (plugin.validate && !this.dedicatedThread) {
               for (let asset of assets) {
                 let config = null;
                 // ANDREW_TODO: we should have a different version of this for the 'validateAll' case.
-                if (validator.plugin.getConfig) {
-                  config = await validator.plugin.getConfig({
+                if (plugin.getConfig) {
+                  config = await plugin.getConfig({
                     asset: new Asset(asset),
                     options: pluginOptions,
                     logger: validatorLogger,
@@ -155,7 +154,7 @@ export default class Validation {
                   });
                 }
 
-                let validatorResult = await validate({
+                let validatorResult = await plugin.validate({
                   asset: new Asset(asset),
                   options: pluginOptions,
                   config,
@@ -167,7 +166,7 @@ export default class Validation {
             }
           } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, validator.name),
+              diagnostic: errorToDiagnostic(e, name),
             });
           }
         }

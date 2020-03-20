@@ -437,20 +437,22 @@ export type ValidateResult = {|
   errors: Array<Diagnostic>,
 |};
 
-// ANDREW_TODO: this should be split into two interfaces - it must be _either_ getConfig/validate _or_ validateAll
-export type Validator = {|
-  validate?: ({|
-    asset: Asset,
-    config: ConfigResult | void,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<ValidateResult | void>,
-  validateAll?: ({|
+export type DedicatedThreadValidator = {|
+  validateAll: ({|
     assets: Asset[],
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<Array<?ValidateResult>>,
+|};
+
+export type MultiThreadValidator = {|
+  validate: ({|
+    asset: Asset,
+    config: ConfigResult | void,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
@@ -458,6 +460,8 @@ export type Validator = {|
     logger: PluginLogger,
   |}) => Async<ConfigResult | void>,
 |};
+
+export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
   // TODO: deprecate getConfig
