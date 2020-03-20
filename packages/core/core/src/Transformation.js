@@ -270,8 +270,8 @@ export default class Transformation {
       inputAssets = resultingAssets;
     }
 
-    // Make assets generate if they are js assets and the target doesn't
-    // scope hoist. This parallelizes generation and distributes work more
+    // Make assets with ASTs generate unless they are js assets and target uses
+    // scope hoisting. This parallelizes generation and distributes work more
     // evenly across workers than if one worker needed to generate all assets in
     // a large bundle during packaging.
     let generate = pipeline.generate;
@@ -280,9 +280,8 @@ export default class Transformation {
         resultingAssets
           .filter(
             asset =>
-              asset.value.type === 'js' &&
-              !asset.value.env.scopeHoist &&
-              asset.ast != null,
+              asset.ast != null &&
+              !(asset.value.type === 'js' && asset.value.env.scopeHoist),
           )
           .map(async asset => {
             if (asset.isASTDirty) {
