@@ -437,6 +437,7 @@ export type ValidateResult = {|
   errors: Array<Diagnostic>,
 |};
 
+// ANDREW_TODO: this should be split into two interfaces - it must be _either_ getConfig/validate _or_ validateAll
 export type Validator = {|
   validate?: ({|
     asset: Asset,
