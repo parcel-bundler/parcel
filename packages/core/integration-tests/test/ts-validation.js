@@ -194,7 +194,8 @@ describe('ts-validator', function() {
     );
   });
 
-  it('should report correct errors when .ts dependencies change in a way that breaks a contract', async function() {
+  // This test should be enabled when issue #4347 is fixed (https://github.com/parcel-bundler/parcel/issues/4347).
+  it.skip('should report correct errors when .ts dependencies change in a way that breaks a contract', async function() {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-dependencies-change');
@@ -227,16 +228,11 @@ describe('ts-validator', function() {
     );
 
     buildEvent = await getNextBuild(b);
-
-    // ANDREW_TODO: this is the result we expect, when issue #4347 is fixed (https://github.com/parcel-bundler/parcel/issues/4347)
-    // assert.equal(buildEvent.type, 'buildFailure');
-    // assert.equal(buildEvent.diagnostics.length, 1);
-    // assert.equal(
-    //   buildEvent.diagnostics[0].message,
-    //   "Argument of type 'string' is not assignable to parameter of type 'number'.",
-    // );
-
-    // ANDREW_TODO: this is the current result, with the bug.
-    assert.equal(buildEvent.type, 'buildSuccess');
+    assert.equal(buildEvent.type, 'buildFailure');
+    assert.equal(buildEvent.diagnostics.length, 1);
+    assert.equal(
+      buildEvent.diagnostics[0].message,
+      "Argument of type 'string' is not assignable to parameter of type 'number'.",
+    );
   });
 });
