@@ -16,14 +16,16 @@ module.exports = function parcelPluginTransformRuntime(api, opts, dirname) {
     let targets = api.caller(caller => {
       return caller && caller.targets;
     });
+    let outputFormat = api.caller(caller => {
+      return caller && caller.env;
+    });
     if (typeof targets !== 'string') {
       throw new Error('Expected targets to be a string');
     }
-    let parsedTargets = JSON.parse(targets);
 
     return pluginTransformRuntime(
       api,
-      {useESModules: parsedTargets.esmodules === true, opts},
+      {useESModules: outputFormat === 'esmodule', ...opts},
       dirname,
     );
   }

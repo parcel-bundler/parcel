@@ -43,6 +43,7 @@ export default async function babel7(
       name: 'parcel',
       version: transformerVersion,
       targets: JSON.stringify(babelOptions.targets),
+      env: asset.env.outputFormat,
     },
   };
 

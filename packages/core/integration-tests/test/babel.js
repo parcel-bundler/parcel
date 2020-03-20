@@ -361,9 +361,9 @@ describe('babel', function() {
       outputFS.readFile(path.join(fixtureDir, 'dist/module.js'), 'utf8'),
     ]);
 
-    assert(main.includes('exports.default'));
+    assert(main.includes('"@babel/runtime/helpers/objectSpread2"'));
 
-    assert(esmodule.includes('export default'));
+    assert(esmodule.includes('"@babel/runtime/helpers/esm/objectSpread2"'));
 
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
   });

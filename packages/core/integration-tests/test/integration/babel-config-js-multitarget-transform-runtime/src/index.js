@@ -1,9 +1,5 @@
-export default class Foo {
-  constructor(x) {
-    this.x;
-  }
 
-  getSquare() {
-    return this.x ** 2;
-  }
+export function Bar(x) {
+  let a = {b: 6, ...x};
+  return a;
 }
