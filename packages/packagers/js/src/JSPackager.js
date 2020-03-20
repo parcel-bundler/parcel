@@ -127,17 +127,18 @@ export default new Packager({
         wrapped += ']';
 
         if (options.sourceMaps) {
+          let lineCount = countLines(output);
           let assetMap =
             results[i].map ??
             SourceMap.generateEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
-              output,
+              lineCount,
             );
 
           map.addMap(assetMap, lineOffset);
-          lineOffset += countLines(output) + 1;
+          lineOffset += lineCount + 1;
         }
         i++;
       }

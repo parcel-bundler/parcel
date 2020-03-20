@@ -25,6 +25,7 @@ export default new Optimizer({
       ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'],
     );
 
+    let originalMap = map ? await map.stringify({}) : null;
     let config = {
       warnings: true,
       ...userConfig?.config,
@@ -36,34 +37,11 @@ export default new Optimizer({
       },
       sourceMap: {
         filename: path.relative(options.projectRoot, bundle.filePath),
+        asObject: true,
+        content: originalMap,
       },
       module: bundle.env.outputFormat === 'esmodule',
     };
-
-    let sourceMap = null;
-    if (options.sourceMaps) {
-      sourceMap = new SourceMap();
-      // $FlowFixMe
-      config.output = {
-        source_map: {
-          add(source, gen_line, gen_col, orig_line, orig_col, name) {
-            // $FlowFixMe
-            sourceMap.addMapping({
-              source,
-              name,
-              original: {
-                line: orig_line,
-                column: orig_col,
-              },
-              generated: {
-                line: gen_line,
-                column: gen_col,
-              },
-            });
-          },
-        },
-      };
-    }
 
     let result = minify(contents, config);
 
@@ -71,8 +49,9 @@ export default new Optimizer({
       throw result.error;
     }
 
-    if (sourceMap && map) {
-      sourceMap = await map.extend(sourceMap);
+    let sourceMap = null;
+    if (result.map) {
+      sourceMap = await SourceMap.fromRawSourceMap(result.map);
     }
 
     return {contents: nullthrows(result.code), map: sourceMap};

@@ -2,7 +2,6 @@
 import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 import type {FileSystem} from '@parcel/fs';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
-import {countLines} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
 import path from 'path';
 import nullthrows from 'nullthrows';
@@ -43,7 +42,6 @@ function generateInlineMap(map: string): string {
 export default class SourceMap {
   mappings: Array<Mapping>;
   sources: Sources;
-  linecount: ?number;
 
   constructor(mappings?: Array<Mapping> = [], sources?: Sources = {}) {
     this.mappings = mappings;
@@ -62,14 +60,9 @@ export default class SourceMap {
   }
 
   // Static Helper functions
-  static generateEmptyMap(
-    sourceName: string,
-    sourceContent: string,
-  ): SourceMap {
+  static generateEmptyMap(sourceName: string, lineCount: number): SourceMap {
     let map = new SourceMap();
-    map.setSourceContentFor(sourceName, sourceContent);
 
-    let lineCount = countLines(sourceContent);
     for (let line = 1; line < lineCount + 1; line++) {
       map.addMapping({
         source: sourceName,
@@ -83,7 +76,6 @@ export default class SourceMap {
         },
       });
     }
-    map.linecount = lineCount;
 
     return map;
   }
