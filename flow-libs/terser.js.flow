@@ -28,7 +28,7 @@ declare module 'terser' {
         ecma?: ECMAVersion,
         evaluate?: boolean,
         expression?: boolean,
-        global_defs: { [string]: string, ... },
+        global_defs?: { [string]: string, ... },
         hoist_funs?: boolean,
         hoist_props?: boolean,
         hoist_vars?: boolean,
@@ -42,7 +42,7 @@ declare module 'terser' {
         loops?: boolean,
         module?: boolean,
         negate_iife?: boolean,
-        passes: number,
+        passes?: number,
         properties?: boolean,
         pure_funcs?: ?Array<string>,
         pure_getters?: boolean | 'strict',
@@ -129,8 +129,9 @@ declare module 'terser' {
   declare type SourceMapOptions = {|
     filename?: string,
     url?: string,
-    content?: string,
-    root?: string
+    content?: any,
+    root?: string,
+    asObject?: boolean
   |}
 
   declare type MinifyOptions = {|
