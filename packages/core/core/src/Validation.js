@@ -38,7 +38,7 @@ export default class Validation {
   report: ReportFn;
   workerApi: ?WorkerApi;
   /** If true, this Validation instance will run all validators that implement the single-threaded "validateAll" method.
-  If false, it will run the one-asset-at-a-time "validate" method. */
+  If false, it will run validators that implement the one-asset-at-a-time "validate" method. */
   dedicatedThread: boolean;
   allAssets: {[validatorName: string]: InternalAsset[], ...} = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};

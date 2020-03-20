@@ -22,57 +22,65 @@ export default new Validator({
     options,
     resolveConfigWithPath,
   }): Promise<Array<?ValidateResult>> {
-    let assetsToValidate: Array<{|configHash: string, asset: Asset|}> = []; // Relates the assets that need to be validated to a particular LanguageService that will do the validating.
-    let validatorResults: Array<?ValidateResult> = [];
-
-    // ANDREW_TODO: make this more parallelized with Promise.All() or array.forEach?
-    for (let asset of assets) {
-      let ts = await options.packageManager.require(
-        'typescript',
-        asset.filePath,
-      );
-
-      // Get configuration for each asset.
-      // ANDREW_TODO: should this be a separate part of the Validator interface (e.g. "getAllConfigs", similar to "getConfig")?
-      let configNames = ['tsconfig.json'];
-      let tsconfig = await asset.getConfig(configNames);
-      let configPath: string | null = await resolveConfigWithPath(
-        configNames,
-        asset.filePath,
-      );
-      let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
-      let configHash =
-        (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
-
-      // Create a languageService/host for each asset if it doesn't already exist.
-      if (tsconfig && !langServiceCache[configHash]) {
-        let configHost = new ParseConfigHost(options.inputFS, ts);
-        let parsedCommandLine = ts.parseJsonConfigFileContent(
-          tsconfig,
-          configHost,
-          baseDir,
+    // ANDREW_TODO: refactor this for clarity.
+    // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
+    let assetsToValidate: Array<{|configHash: string, asset: Asset|}> = [];
+    await Promise.all(
+      assets.map(async asset => {
+        let ts = await options.packageManager.require(
+          'typescript',
+          asset.filePath,
         );
-        const host = new LanguageServiceHost(
-          options.inputFS,
-          ts,
-          parsedCommandLine,
+
+        // Get configuration for each asset.
+        let configNames = ['tsconfig.json'];
+        let tsconfig = await asset.getConfig(configNames);
+        let configPath: string | null = await resolveConfigWithPath(
+          configNames,
+          asset.filePath,
         );
-        langServiceCache[configHash] = {
-          configHost,
-          host,
-          service: ts.createLanguageService(host, ts.createDocumentRegistry()),
-        };
-      }
+        let baseDir = configPath
+          ? path.dirname(configPath)
+          : options.projectRoot;
+        let configHash =
+          (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
 
-      if (!langServiceCache[configHash]) break;
+        // Create a languageService/host for each asset if it doesn't already exist.
+        if (tsconfig && !langServiceCache[configHash]) {
+          // In order to prevent race conditions where we accidentally create two language services for the same config,
+          // it's important that nothing in this block is asynchronous.
+          let configHost = new ParseConfigHost(options.inputFS, ts);
+          let parsedCommandLine = ts.parseJsonConfigFileContent(
+            tsconfig,
+            configHost,
+            baseDir,
+          );
+          const host = new LanguageServiceHost(
+            options.inputFS,
+            ts,
+            parsedCommandLine,
+          );
+          langServiceCache[configHash] = {
+            configHost,
+            host,
+            service: ts.createLanguageService(
+              host,
+              ts.createDocumentRegistry(),
+            ),
+          };
+        }
 
-      // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
-      langServiceCache[configHash].host.invalidate(asset.filePath);
+        if (!langServiceCache[configHash]) return;
 
-      assetsToValidate.push({configHash, asset});
-    }
+        // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
+        langServiceCache[configHash].host.invalidate(asset.filePath);
+
+        assetsToValidate.push({configHash, asset});
+      }),
+    );
 
     // Ask typescript to analyze all changed files and translate the results into ValidatorResult objects.
+    let validatorResults: Array<?ValidateResult> = [];
     assetsToValidate.forEach(({configHash, asset}) => {
       // Make sure that the filesystem being used by the LanguageServiceHost and ParseConfigHost is up-to-date.
       // (This could change in the context of re-running tests, and probably also for other reasons).
