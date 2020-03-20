@@ -187,6 +187,7 @@ export default class WorkerFarm extends EventEmitter {
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
       patchConsole: this.options.patchConsole,
+      sharedReferences: this.sharedReferences,
     });
 
     worker.fork(nullthrows(this.options.workerPath));
@@ -374,17 +375,9 @@ export default class WorkerFarm extends EventEmitter {
     this.sharedReferencesByValue.set(value, ref);
     let promises = [];
     for (let worker of this.workers.values()) {
-      promises.push(
-        new Promise((resolve, reject) => {
-          worker.call({
-            method: 'createSharedReference',
-            args: [ref, value],
-            resolve,
-            reject,
-            retries: 0,
-          });
-        }),
-      );
+      if (worker.ready) {
+        promises.push(worker.sendSharedReference(ref, value));
+      }
     }
 
     await Promise.all(promises);

@@ -20,6 +20,7 @@ type WorkerOpts = {|
   forcedKillTime: number,
   backend: BackendType,
   patchConsole?: boolean,
+  sharedReferences: Map<number, mixed>,
 |};
 
 let WORKER_ID = 0;
@@ -27,6 +28,7 @@ export default class Worker extends EventEmitter {
   +options: WorkerOpts;
   worker: WorkerImpl;
   id: number = WORKER_ID++;
+  sharedReferences: Map<number, mixed> = new Map();
 
   calls: Map<number, WorkerCall> = new Map();
   exitCode = null;
@@ -86,8 +88,34 @@ export default class Worker extends EventEmitter {
       });
     });
 
+    let sharedRefs = this.options.sharedReferences;
+    let refsShared = new Set();
+    // in case more refs are created while initial refs are sending
+    while (refsShared.size < sharedRefs.size) {
+      await Promise.all(
+        [...sharedRefs]
+          .filter(([ref]) => !refsShared.has(ref))
+          .map(async ([ref, value]) => {
+            await this.sendSharedReference(ref, value);
+            refsShared.add(ref);
+          }),
+      );
+    }
+
     this.ready = true;
     this.emit('ready');
+  }
+
+  sendSharedReference(ref: number, value: mixed) {
+    new Promise((resolve, reject) => {
+      this.call({
+        method: 'createSharedReference',
+        args: [ref, value],
+        resolve,
+        reject,
+        retries: 0,
+      });
+    });
   }
 
   send(data: WorkerMessage): void {
