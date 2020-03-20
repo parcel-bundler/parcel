@@ -403,12 +403,16 @@ const VISITOR: Visitor<MutableAsset> = {
         } else {
           scope.push({id: t.clone(identifier)});
           path.insertBefore(
-            t.assignmentExpression('=', t.clone(identifier), right),
+            t.expressionStatement(
+              t.assignmentExpression('=', t.clone(identifier), right),
+            ),
           );
         }
       } else {
         path.insertBefore(
-          t.assignmentExpression('=', t.clone(identifier), right),
+          t.expressionStatement(
+            t.assignmentExpression('=', t.clone(identifier), right),
+          ),
         );
       }
 
