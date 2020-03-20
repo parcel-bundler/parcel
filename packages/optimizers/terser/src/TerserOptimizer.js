@@ -43,7 +43,6 @@ export default new Optimizer({
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    // $FlowFixMe, config has outdated sourcemap typings
     let result = minify(contents, config);
 
     if (result.error) {
