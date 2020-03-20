@@ -57,6 +57,9 @@ export default class Validation {
   }
 
   async run(): Promise<void> {
+    let pluginOptions = new PluginOptions(this.options);
+    // ANDREW_TODO: refactor the major portions of this into separate methods for clarity.
+
     // Figure out what validators need to be run, and group the assets by the relevant validators.
     let allAssets: {[validatorName: string]: InternalAsset[], ...} = {};
     let allValidators: {
@@ -67,52 +70,50 @@ export default class Validation {
       |},
       ...,
     } = {};
-    let pluginOptions = new PluginOptions(this.options);
+    await Promise.all(
+      this.requests.map(async request => {
+        this.report({
+          type: 'validation',
+          filePath: request.filePath,
+        });
 
-    for (let request of this.requests) {
-      this.report({
-        type: 'validation',
-        filePath: request.filePath,
-      });
+        let asset = await this.loadAsset(request);
 
-      let asset = await this.loadAsset(request);
+        let configRequest = {
+          filePath: request.filePath,
+          isSource: asset.value.isSource,
+          meta: {
+            actionType: 'validation',
+          },
+          env: request.env,
+        };
 
-      let configRequest = {
-        filePath: request.filePath,
-        isSource: asset.value.isSource,
-        meta: {
-          actionType: 'validation',
-        },
-        env: request.env,
-      };
+        let config = await this.configLoader.load(configRequest);
+        nullthrows(config.result);
+        let parcelConfig = new ParcelConfig(
+          config.result,
+          this.options.packageManager,
+        );
 
-      let config = await this.configLoader.load(configRequest);
-      nullthrows(config.result);
-      let parcelConfig = new ParcelConfig(
-        config.result,
-        this.options.packageManager,
-      );
-
-      let validators = await parcelConfig.getValidators(request.filePath);
-      for (let validator of validators) {
-        // ANDREW_TODO: are we sure that the 'validator' object with the same name will be identical?
-        allValidators[validator.name] = validator;
-        if (allAssets[validator.name]) {
-          allAssets[validator.name].push(asset);
-        } else {
-          allAssets[validator.name] = [asset];
+        let validators = await parcelConfig.getValidators(request.filePath);
+        for (let validator of validators) {
+          // ANDREW_TODO: are we sure that the 'validator' object with the same name will be identical?
+          allValidators[validator.name] = validator;
+          if (allAssets[validator.name]) {
+            allAssets[validator.name].push(asset);
+          } else {
+            allAssets[validator.name] = [asset];
+          }
         }
-      }
-    }
+      }),
+    );
 
-    // ANDREW_TODO: look at ways to maximize parallelization here (with promise.all)?
-    for (let validatorName in allValidators) {
-      if (allValidators.hasOwnProperty(validatorName)) {
-        let {plugin, name} = allValidators[validatorName];
+    await Promise.all(
+      Object.keys(allValidators).map(async validatorName => {
         let assets = allAssets[validatorName];
-        let validatorLogger = new PluginLogger({origin: name});
-
         if (assets) {
+          let {plugin, name} = allValidators[validatorName];
+          let validatorLogger = new PluginLogger({origin: name});
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
@@ -137,32 +138,33 @@ export default class Validation {
 
             // Otherwise, pass the assets one-at-a-time
             else if (plugin.validate && !this.dedicatedThread) {
-              for (let asset of assets) {
-                let config = null;
-                // ANDREW_TODO: we should have a different version of this for the 'validateAll' case.
-                if (plugin.getConfig) {
-                  config = await plugin.getConfig({
+              await Promise.all(
+                assets.map(async asset => {
+                  let config = null;
+                  // ANDREW_TODO: we should have a different version of this for the 'validateAll' case.
+                  if (plugin.getConfig) {
+                    config = await plugin.getConfig({
+                      asset: new Asset(asset),
+                      options: pluginOptions,
+                      logger: validatorLogger,
+                      resolveConfig: (configNames: Array<string>) =>
+                        resolveConfig(
+                          this.options.inputFS,
+                          asset.value.filePath,
+                          configNames,
+                        ),
+                    });
+                  }
+
+                  let validatorResult = await plugin.validate({
                     asset: new Asset(asset),
                     options: pluginOptions,
+                    config,
                     logger: validatorLogger,
-                    resolveConfig: (configNames: Array<string>) =>
-                      resolveConfig(
-                        this.options.inputFS,
-                        asset.value.filePath,
-                        configNames,
-                      ),
                   });
-                }
-
-                let validatorResult = await plugin.validate({
-                  asset: new Asset(asset),
-                  options: pluginOptions,
-                  config,
-                  logger: validatorLogger,
-                });
-                this.handleResult(validatorResult);
-                // ANDREW_TODO: use Promise.all() to increase performance
-              }
+                  this.handleResult(validatorResult);
+                }),
+              );
             }
           } catch (e) {
             throw new ThrowableDiagnostic({
@@ -170,8 +172,8 @@ export default class Validation {
             });
           }
         }
-      }
-    }
+      }),
+    );
   }
 
   handleResult(validatorResult: ?ValidateResult) {
