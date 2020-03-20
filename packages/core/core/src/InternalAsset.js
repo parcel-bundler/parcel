@@ -147,6 +147,13 @@ export default class InternalAsset {
    * content and map of the asset to the cache.
    */
   async commit(pipelineKey: string): Promise<void> {
+    // If there is a dirty AST, clear out any old content and map as these
+    // must be regenerated later and shouldn't be committed.
+    if (this.ast != null && this.isASTDirty) {
+      this.content = null;
+      this.map = null;
+    }
+
     let size = 0;
     let contentKey = this.getCacheKey('content' + pipelineKey);
     let mapKey = this.getCacheKey('map' + pipelineKey);
@@ -347,9 +354,6 @@ export default class InternalAsset {
       type: ast.type,
       version: ast.version,
     };
-
-    this.content = null;
-    this.map = null;
   }
 
   clearAST() {

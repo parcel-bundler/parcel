@@ -285,11 +285,13 @@ export default class Transformation {
               asset.ast != null,
           )
           .map(async asset => {
-            let output = await generate(asset);
-            asset.content = output.code;
-            asset.map = output.map;
-            asset.ast = null;
-            asset.isASTDirty = false;
+            if (asset.isASTDirty) {
+              let output = await generate(asset);
+              asset.content = output.code;
+              asset.map = output.map;
+            }
+
+            asset.clearAST();
           }),
       );
     }
@@ -536,8 +538,7 @@ async function runTransformer(
   ) {
     let output = await pipeline.generate(asset);
     asset.content = output.code;
-    asset.ast = null;
-    asset.isASTDirty = false;
+    asset.clearAST();
   }
 
   // Parse if there is no AST available from a previous transform.
