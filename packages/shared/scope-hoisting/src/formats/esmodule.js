@@ -7,15 +7,18 @@ import type {
   PluginOptions,
   Symbol,
 } from '@parcel/types';
+import type {NodePath} from '@babel/traverse';
+import type {Program} from '@babel/types';
 import type {ExternalModule} from '../types';
+
 import * as t from '@babel/types';
-import {relativeBundlePath} from '@parcel/utils';
+import {isImportDeclaration, isVariableDeclaration} from '@babel/types';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
 import {relative} from 'path';
+import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {assertString} from '../utils';
+import {assertString, getName, getIdentifier} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -23,7 +26,10 @@ export function generateBundleImports(
   assets: Set<Asset>,
 ) {
   let specifiers = [...assets].map(asset => {
-    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
+    let id = asset.meta.shouldWrap
+      ? getIdentifier(asset, 'init')
+      : t.identifier(assertString(asset.meta.exportsIdentifier));
+
     return t.importSpecifier(id, id);
   });
 
@@ -82,7 +88,7 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any,
+  path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
 ) {
@@ -122,8 +128,10 @@ export function generateExports(
   }
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId = asset.meta.shouldWrap
+      ? getName(asset, 'init')
+      : assertString(asset.meta.exportsIdentifier);
+
     exportedIdentifiers.set(exportsId, exportsId);
   }
 
@@ -134,6 +142,8 @@ export function generateExports(
       if (path.isExportDeclaration() || path.parentPath.isExportDeclaration()) {
         return;
       }
+
+      let {node} = path;
 
       let bindingIdentifiers = path.getBindingIdentifierPaths(false, true);
       let ids: Array<string> = Object.keys(bindingIdentifiers);
@@ -195,10 +205,11 @@ export function generateExports(
       } else if (
         ids.length === 1 &&
         defaultExport &&
-        !path.isVariableDeclaration() &&
-        !path.isImportDeclaration()
+        !isVariableDeclaration(node) &&
+        !isImportDeclaration(node)
       ) {
-        path.replaceWith(t.exportDefaultDeclaration(path.node));
+        // $FlowFixMe
+        path.replaceWith(t.exportDefaultDeclaration(node));
 
         // Otherwise, add export statements after for each identifier.
       } else {

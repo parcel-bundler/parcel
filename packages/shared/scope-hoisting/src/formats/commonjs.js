@@ -14,19 +14,25 @@ import type {
   VariableDeclaration,
   Identifier,
   LVal,
+  Program,
 } from '@babel/types';
-import type {Scope} from '@babel/traverse';
+import type {NodePath, Scope} from '@babel/traverse';
 import type {ExternalModule} from '../types';
 
 import * as t from '@babel/types';
-import {isIdentifier} from '@babel/types';
+import {
+  isIdentifier,
+  isObjectExpression,
+  isVariableDeclarator,
+} from '@babel/types';
 import template from '@babel/template';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {assertString} from '../utils';
+import {assertString, getIdentifier} from '../utils';
 
 const REQUIRE_TEMPLATE = template.expression<
   {|
@@ -86,7 +92,7 @@ function generateDestructuringAssignment(env, specifiers, value, scope) {
   // with member expressions for each property.
   if (!env.matchesEngines(DESTRUCTURING_ENGINES)) {
     let statements = [];
-    if (!t.isIdentifier(value) && specifiers.length > 1) {
+    if (!isIdentifier(value) && specifiers.length > 1) {
       let name = scope.generateUid();
       statements.push(
         ASSIGN_TEMPLATE({
@@ -125,7 +131,10 @@ export function generateBundleImports(
   scope: Scope,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
-    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
+    let id = asset.meta.shouldWrap
+      ? getIdentifier(asset, 'init')
+      : t.identifier(assertString(asset.meta.exportsIdentifier));
+
     return t.objectProperty(id, id, false, true);
   });
 
@@ -285,7 +294,7 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any,
+  path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
 ) {
@@ -293,31 +302,40 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
-    exported.add(exportsId);
-
-    statements.push(
-      EXPORT_TEMPLATE({
-        NAME: t.identifier(exportsId),
-        IDENTIFIER: t.identifier(exportsId),
-      }),
-    );
+    if (asset.meta.shouldWrap) {
+      let id = getIdentifier(asset, 'init');
+      exported.add(id.name);
+      statements.push(
+        EXPORT_TEMPLATE({
+          NAME: id,
+          IDENTIFIER: id,
+        }),
+      );
+    } else {
+      let exportsId = assertString(asset.meta.exportsIdentifier);
+      exported.add(exportsId);
+      statements.push(
+        EXPORT_TEMPLATE({
+          NAME: t.identifier(exportsId),
+          IDENTIFIER: t.identifier(exportsId),
+        }),
+      );
+    }
   }
 
   let entry = bundle.getMainEntry();
   if (entry) {
     if (entry.meta.isCommonJS) {
-      let exportsId = entry.meta.exportsIdentifier;
-      invariant(typeof exportsId === 'string');
+      let exportsId = assertString(entry.meta.exportsIdentifier);
 
       let binding = path.scope.getBinding(exportsId);
       if (binding) {
         // If the exports object is constant, then we can just remove it and rename the
         // references to the builtin CommonJS exports object. Otherwise, assign to module.exports.
+        invariant(isVariableDeclarator(binding.path.node));
         let init = binding.path.node.init;
         let isEmptyObject =
-          init && t.isObjectExpression(init) && init.properties.length === 0;
+          init && isObjectExpression(init) && init.properties.length === 0;
         if (binding.constant && isEmptyObject) {
           for (let path of binding.referencePaths) {
             path.node.name = 'exports';
@@ -362,7 +380,7 @@ export function generateExports(
           );
         }
 
-        let binding = path.scope.getBinding(symbol);
+        let binding = nullthrows(path.scope.getBinding(symbol));
         if (!hasReplacement) {
           let id = !t.isValidIdentifier(exportSymbol)
             ? path.scope.generateUid(exportSymbol)
@@ -379,7 +397,7 @@ export function generateExports(
             IDENTIFIER: t.identifier(symbol),
           }),
         );
-        path.scope.getBinding(symbol).reference(stmt.get('expression.right'));
+        binding.reference(stmt.get('expression.right'));
 
         // Exports other than the default export are live bindings. Insert an assignment
         // after each constant violation so this remains true.
