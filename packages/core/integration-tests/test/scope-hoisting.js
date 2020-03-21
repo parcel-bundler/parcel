@@ -7,7 +7,6 @@ import {
   outputFS,
   overlayFS,
   assertBundles,
-  distDir,
   getNextBuild,
 } from '@parcel/test-utils';
 
@@ -526,7 +525,7 @@ describe('scope hoisting', function() {
     });
 
     it('removes deferred reexports when imported from multiple asssets', async function() {
-      await bundle(
+      let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/side-effects-re-exports-multiple/a.js',
@@ -534,7 +533,7 @@ describe('scope hoisting', function() {
       );
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
 
@@ -677,6 +676,24 @@ describe('scope hoisting', function() {
       assert.deepEqual(await output, 4);
     });
 
+    it('supports importing a namespace from a wrapped module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-wrapped/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$parcel$exportWildcard'));
+
+      let output = await run(b);
+      assert.deepEqual(await output, 1);
+    });
+
     it('removes unused exports', async function() {
       let b = await bundle(
         path.join(
@@ -689,7 +706,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('foo'));
@@ -709,7 +726,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 9);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(/output=9/.test(contents));
@@ -729,7 +746,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 3);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('method'));
@@ -809,7 +826,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(!/bar/.test(contents));
@@ -1213,6 +1230,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {exports: {foo: 2}});
     });
 
+    it('should call init for wrapped modules when codesplitting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-module-codesplit/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+    });
+
     it('should wrap modules that non-statically access `module`', async function() {
       let b = await bundle(
         path.join(
@@ -1535,7 +1564,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('foo'));
