@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel src/index.html"
+    "demo": "parcel build src/index.html --no-scope-hoist"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.3.1",

@@ -21,13 +21,7 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({
-    bundle,
-    bundleGraph,
-    getInlineBundleContents,
-    getSourceMapReference,
-    options,
-  }) {
+  async package({bundle, bundleGraph, getInlineBundleContents, options}) {
     function replaceReferences({contents, map}) {
       return replaceInlineReferences({
         bundle,
@@ -161,13 +155,24 @@ export default new Packager({
         JSON.stringify(entries.map(asset => asset.id)) +
         ', ' +
         'null' +
-        ')' +
-        '\n\n' +
-        '//# sourceMappingURL=' +
-        (await getSourceMapReference(map)) +
-        '\n',
+        ')',
       map,
     });
+  },
+  async postProcess({contents, map, getSourceMapReference}) {
+    // $FlowFixMe sketchy null checks are fun
+    if (!map) return {contents, map};
+
+    if (typeof contents !== 'string') {
+      throw new Error('Contents should be a string!');
+    }
+
+    let sourcemapReference = await getSourceMapReference(map);
+    return {
+      contents:
+        contents + '\n\n' + '//# sourceMappingURL=' + sourcemapReference + '\n',
+      map,
+    };
   },
 });
 

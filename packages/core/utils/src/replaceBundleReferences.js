@@ -93,7 +93,7 @@ export async function replaceInlineReferences({
   getInlineBundleContents: (
     Bundle,
     BundleGraph,
-  ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+  ) => Async<{|contents: Blob, map: ?SourceMap|}>,
   map?: ?SourceMap,
 |}): Promise<{|+contents: string, +map: ?SourceMap|}> {
   let replacements = new Map();
