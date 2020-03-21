@@ -9,6 +9,7 @@ import {
   isExpressionStatement,
   isIdentifier,
   isMemberExpression,
+  isObjectExpression,
   isSequenceExpression,
   isStringLiteral,
   isVariableDeclarator,
@@ -67,7 +68,7 @@ function getUnusedBinding(path, name) {
 
   // Is there any references which aren't simple assignments?
   let bailout = binding.referencePaths.some(
-    path => !isExportAssignment(path) && !isUnusedWildcard(path),
+    path => !isExportAssignment(path) && !isWildcardDest(path),
   );
 
   if (!bailout && pure) {
@@ -110,22 +111,15 @@ function isExportAssignment(path) {
   return false;
 }
 
-function isUnusedWildcard(path) {
+// check if the argument appears as $parcel$exportWildcard(path, ...)
+function isWildcardDest(path) {
   let parent: Node = path.parent;
 
-  if (
-    // match `$parcel$exportWildcard` calls
+  return (
     isCallExpression(parent) &&
     isIdentifier(parent.callee, {name: '$parcel$exportWildcard'}) &&
     parent.arguments[0] === path.node
-  ) {
-    // check if the $id$exports variable is used}
-    let [, id] = parent.arguments;
-    invariant(isIdentifier(id));
-    return !getUnusedBinding(path, id.name);
-  }
-
-  return false;
+  );
 }
 
 function remove(path: NodePath<Node>) {
@@ -148,8 +142,21 @@ function remove(path: NodePath<Node>) {
     }
   } else if (isExportAssignment(path)) {
     remove(path.parentPath.parentPath);
-  } else if (isUnusedWildcard(path)) {
-    remove(path.parentPath);
+  } else if (isWildcardDest(path)) {
+    let wildcard = path.parent;
+    invariant(isCallExpression(wildcard));
+    let src = wildcard.arguments[1];
+
+    if (isCallExpression(src)) {
+      // keep `$...$init()` call
+      path.parentPath.replaceWith(src);
+    } else {
+      invariant(
+        isIdentifier(src) ||
+          (isObjectExpression(src) && src.properties.length === 0),
+      );
+      remove(path.parentPath);
+    }
   } else if (!path.removed) {
     if (isSequenceExpression(parent) && parent.expressions.length === 1) {
       // replace sequence expression with it's sole child
