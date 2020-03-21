@@ -47,9 +47,14 @@ export default new Packager({
     if (bundle.env.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
+
+      let {contents, map} = generate(bundleGraph, bundle, ast, options);
       return replaceReferences({
-        contents: generate(bundleGraph, bundle, ast, options).contents,
-        map: null,
+        contents:
+          contents +
+          '\n' +
+          (await getSourceMapSuffix(getSourceMapReference, map)),
+        map,
       });
     }
 
@@ -165,9 +170,7 @@ export default new Packager({
         'null' +
         ')' +
         '\n\n' +
-        '//# sourceMappingURL=' +
-        (await getSourceMapReference(map)) +
-        '\n',
+        (await getSourceMapSuffix(getSourceMapReference, map)),
       map,
     });
   },
@@ -199,4 +202,15 @@ function isEntry(bundle: Bundle, bundleGraph: BundleGraph): boolean {
   return (
     !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
   );
+}
+
+async function getSourceMapSuffix(
+  getSourceMapReference: SourceMap => Promise<string> | string,
+  map: ?SourceMap,
+): Promise<string> {
+  if (map == null) {
+    return '';
+  }
+
+  return '//# sourceMappingURL=' + (await getSourceMapReference(map)) + '\n';
 }

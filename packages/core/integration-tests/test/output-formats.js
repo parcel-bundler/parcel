@@ -842,11 +842,11 @@ describe('output formats', function() {
         b.getBundles().find(b => b.type === 'js').filePath,
         'utf8',
       );
+
+      let lines = dist.trim('\n').split('\n');
       assert(
-        dist
-          .split('\n')
-          .pop()
-          .startsWith('export default'),
+        // The last line is a sourcemap comment -- test the second-to-last line
+        lines[lines.length - 2].startsWith('export default'),
       );
     });
   });
