@@ -170,7 +170,7 @@ export default new Packager({
     let sourcemapReference = await getSourceMapReference(map);
     return {
       contents:
-        contents + '\n\n' + '//# sourceMappingURL=' + sourcemapReference + '\n',
+        contents + '\n' + '//# sourceMappingURL=' + sourcemapReference + '\n',
       map,
     };
   },
