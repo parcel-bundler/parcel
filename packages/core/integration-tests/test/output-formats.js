@@ -1,6 +1,7 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle as _bundle, run, outputFS} from '@parcel/test-utils';
+import nullthrows from 'nullthrows';
+import {bundle as _bundle, outputFS, run} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -298,6 +299,41 @@ describe('output formats', function() {
       );
     });
 
+    it('should call init for wrapped modules when codesplitting to to commonjs', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/commonjs-wrap-codesplit/a.js',
+        ),
+      );
+
+      let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+      let [childBundle] = b.getChildBundles(mainBundle);
+
+      let mainBundleContents = await outputFS.readFile(
+        mainBundle.filePath,
+        'utf8',
+      );
+      let childBundleContents = await outputFS.readFile(
+        childBundle.filePath,
+        'utf8',
+      );
+
+      assert(
+        /exports.\$[a-f0-9]+\$init = \$[a-f0-9]+\$init;/.test(
+          mainBundleContents,
+        ),
+      );
+      assert(
+        /var {\s*\$[a-f0-9]+\$init\s*} = require\("\.\/index\.js"\);/.test(
+          childBundleContents,
+        ),
+      );
+
+      // TODO uncoment after https://github.com/parcel-bundler/parcel/issues/3989 is fixed
+      // assert.equal(await run(b), 2);
+    });
+
     it('should support sideEffects: false', async function() {
       let b = await bundle(
         path.join(
@@ -583,6 +619,71 @@ describe('output formats', function() {
       );
     });
 
+    it('should call init for wrapped modules when codesplitting to esmodules', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm-wrap-codesplit/a.js'),
+      );
+
+      let mainBundle = b.getBundles().find(b => b.name === 'index.js');
+      let [childBundle] = b.getChildBundles(mainBundle);
+
+      let mainBundleContents = await outputFS.readFile(
+        mainBundle.filePath,
+        'utf8',
+      );
+      let childBundleContents = await outputFS.readFile(
+        childBundle.filePath,
+        'utf8',
+      );
+
+      assert(/export function \$[a-f0-9]+\$init\(\)/.test(mainBundleContents));
+      assert(
+        /import { \$[a-f0-9]+\$init } from "\.\/index\.js"/.test(
+          childBundleContents,
+        ),
+      );
+    });
+
+    it('should support async split bundles for workers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-split-worker/index.html',
+        ),
+      );
+
+      let workerBundle = nullthrows(
+        b.getChildBundles(
+          nullthrows(
+            b.getChildBundles(
+              nullthrows(b.getBundles().find(b => b.type === 'html')),
+            )[0],
+          ),
+        )[0],
+      );
+      let workerBundleContents = await outputFS.readFile(
+        workerBundle.filePath,
+        'utf8',
+      );
+
+      let asyncBundle = b
+        .getChildBundles(workerBundle)
+        .find(b => b.filePath.includes('async'));
+      let syncBundle = b
+        .getChildBundles(workerBundle)
+        .find(b => !b.filePath.includes('async'));
+
+      assert(
+        new RegExp(
+          `\\$[a-f0-9]+\\$exports\\s*=\\s*\\(import\\("\\./"\\s*\\+\\s*"${path.basename(
+            syncBundle.filePath,
+          )}"\\),\\s*import\\("\\./"\\s*\\+\\s*"${path.basename(
+            asyncBundle.filePath,
+          )}"\\)\\);`,
+        ).test(workerBundleContents),
+      );
+    });
+
     it('should support building esmodules for browser targets', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
@@ -806,6 +907,17 @@ describe('output formats', function() {
           .split('\n')
           .pop()
           .startsWith('export default'),
+      );
+    });
+  });
+
+  describe('global', function() {
+    it('should support async split bundles for workers', async function() {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/global-split-worker/index.html',
+        ),
       );
     });
   });
