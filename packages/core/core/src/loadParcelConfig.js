@@ -20,10 +20,7 @@ import ParcelConfigSchema from './ParcelConfig.schema';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
-export default async function loadParcelConfig(
-  filePath: FilePath,
-  options: ParcelOptions,
-) {
+export default async function loadParcelConfig(options: ParcelOptions) {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -33,7 +30,7 @@ export default async function loadParcelConfig(
         },
         options,
       )
-    : await resolveParcelConfig(filePath, options);
+    : await resolveParcelConfig(options);
   if (!parcelConfig && options.defaultConfig) {
     parcelConfig = await create(
       {
@@ -51,10 +48,8 @@ export default async function loadParcelConfig(
   return parcelConfig;
 }
 
-export async function resolveParcelConfig(
-  filePath: FilePath,
-  options: ParcelOptions,
-) {
+export async function resolveParcelConfig(options: ParcelOptions) {
+  let filePath = getResolveFrom(options);
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
   ]);
@@ -246,6 +241,20 @@ export function mergeConfigs(
     },
     base.packageManager,
   );
+}
+
+function getResolveFrom(options: ParcelOptions) {
+  let cwd = options.inputFS.cwd();
+  let dir = isSubdirectory(cwd, options.projectRoot)
+    ? cwd
+    : options.projectRoot;
+  return path.join(dir, 'index');
+}
+
+function isSubdirectory(child: FilePath, parent: FilePath) {
+  if (child === parent) return false;
+  const parentTokens = parent.split(path.sep).filter(i => i.length);
+  return parentTokens.every((t, i) => child.split(path.sep)[i] === t);
 }
 
 export function mergePipelines(
