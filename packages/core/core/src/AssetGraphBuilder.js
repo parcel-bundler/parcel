@@ -10,9 +10,11 @@ import type {
   ParcelOptions,
   ValidationOpts,
 } from './types';
-import type ParcelConfig from './ParcelConfig';
 import type {RunRequestOpts} from './RequestTracker';
-import type {AssetGraphBuildRequest} from './requests';
+import type {EntryRequest} from './requests/EntryRequestRunner';
+import type {TargetRequest} from './requests/TargetRequestRunner';
+import type {AssetRequest} from './requests/AssetRequestRunner';
+import type {DepPathRequest} from './requests/DepPathRequestRunner';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
@@ -24,19 +26,19 @@ import RequestTracker, {
   generateRequestId,
 } from './RequestTracker';
 import {PARCEL_VERSION} from './constants';
-import {
-  EntryRequestRunner,
-  TargetRequestRunner,
-  AssetRequestRunner,
-  DepPathRequestRunner,
-} from './requests';
+import ParcelConfig from './ParcelConfig';
+
+import ParcelConfigRequestRunner from './requests/ParcelConfigRequestRunner';
+import EntryRequestRunner from './requests/EntryRequestRunner';
+import TargetRequestRunner from './requests/TargetRequestRunner';
+import AssetRequestRunner from './requests/AssetRequestRunner';
+import DepPathRequestRunner from './requests/DepPathRequestRunner';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
   optionsRef: number,
-  config: ParcelConfig,
   name: string,
   entries?: Array<string>,
   assetRequests?: Array<AssetRequestDesc>,
@@ -49,6 +51,12 @@ const requestPriorities: $ReadOnlyArray<$ReadOnlyArray<string>> = [
   ['dep_path_request', 'asset_request'],
 ];
 
+type AssetGraphBuildRequest =
+  | EntryRequest
+  | TargetRequest
+  | AssetRequest
+  | DepPathRequest;
+
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
@@ -57,6 +65,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   targetRequestRunner: TargetRequestRunner;
   depPathRequestRunner: DepPathRequestRunner;
   assetRequestRunner: AssetRequestRunner;
+  configRequestRunner: ParcelConfigRequestRunner;
   assetRequests: Array<AssetRequestDesc>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
@@ -66,13 +75,13 @@ export default class AssetGraphBuilder extends EventEmitter {
   options: ParcelOptions;
   optionsRef: number;
   config: ParcelConfig;
+  configRef: number;
   workerFarm: WorkerFarm;
   cacheKey: string;
 
   handle: Handle;
 
   async init({
-    config,
     options,
     optionsRef,
     entries,
@@ -82,6 +91,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }: Opts) {
     this.options = options;
     this.optionsRef = optionsRef;
+    this.workerFarm = workerFarm;
     this.assetRequests = [];
 
     // TODO: changing these should not throw away the entire graph.
@@ -127,18 +137,10 @@ export default class AssetGraphBuilder extends EventEmitter {
       options,
       assetGraph,
     });
-    this.assetRequestRunner = new AssetRequestRunner({
+    this.configRequestRunner = new ParcelConfigRequestRunner({
       tracker,
       options,
-      optionsRef,
       workerFarm,
-      assetGraph,
-    });
-    this.depPathRequestRunner = new DepPathRequestRunner({
-      tracker,
-      options,
-      config,
-      assetGraph,
     });
 
     if (changes) {
@@ -158,6 +160,39 @@ export default class AssetGraphBuilder extends EventEmitter {
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
   |}> {
+    let {config, configRef} = nullthrows(
+      await this.configRequestRunner.runRequest(null, {
+        signal,
+      }),
+    );
+
+    // This should not be necessary once sub requests are supported
+    if (configRef !== this.configRef) {
+      this.configRef = configRef;
+      this.config = new ParcelConfig(config, this.options.packageManager);
+      let {
+        requestTracker: tracker,
+        options,
+        optionsRef,
+        workerFarm,
+        assetGraph,
+      } = this;
+      this.assetRequestRunner = new AssetRequestRunner({
+        tracker,
+        options,
+        optionsRef,
+        configRef,
+        workerFarm,
+        assetGraph,
+      });
+      this.depPathRequestRunner = new DepPathRequestRunner({
+        tracker,
+        options,
+        assetGraph,
+        config: this.config,
+      });
+    }
+
     this.rejected = new Map();
     let lastQueueError;
     for (let currPriorities of requestPriorities) {
@@ -215,7 +250,11 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async validate(): Promise<void> {
     let promises = this.assetRequests.map(request =>
-      this.runValidate({request, optionsRef: this.optionsRef}),
+      this.runValidate({
+        request,
+        optionsRef: this.optionsRef,
+        configRef: this.configRef,
+      }),
     );
     this.assetRequests = [];
     await Promise.all(promises);

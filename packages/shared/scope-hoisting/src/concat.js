@@ -89,7 +89,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       let statementIndices: Map<string, number> = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
-        if (isExpressionStatement(statement)) {
+        if (
+          isVariableDeclaration(statement) ||
+          isExpressionStatement(statement)
+        ) {
           for (let depAsset of findRequires(
             bundle,
             bundleGraph,
@@ -191,7 +194,7 @@ function getUsedExports(
     }
 
     // If the asset is referenced by another bundle, include all exports.
-    if (bundleGraph.isAssetReferencedByAssetType(asset, 'js')) {
+    if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
       markUsed(asset, '*');
       for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
         if (symbol) {

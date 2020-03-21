@@ -617,15 +617,15 @@ describe('loadParcelConfig', () => {
 
   describe('resolve', () => {
     it('should return null if there is no .parcelrc file found', async () => {
-      let resolved = await resolveParcelConfig(__dirname, DEFAULT_OPTIONS);
+      let resolved = await resolveParcelConfig(DEFAULT_OPTIONS);
       assert.equal(resolved, null);
     });
 
     it('should resolve a config if a .parcelrc file is found', async () => {
-      let resolved = await resolveParcelConfig(
-        path.join(__dirname, 'fixtures', 'config', 'subfolder'),
-        DEFAULT_OPTIONS,
-      );
+      let resolved = await resolveParcelConfig({
+        ...DEFAULT_OPTIONS,
+        projectRoot: path.join(__dirname, 'fixtures', 'config', 'subfolder'),
+      });
 
       assert(resolved !== null);
     });

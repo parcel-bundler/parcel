@@ -870,6 +870,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('concats commonjs modules in the correct order', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/concat-order/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports default imports of commonjs modules', async function() {
       let b = await bundle(
         path.join(
@@ -1633,6 +1645,30 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output.__esModule, true);
       assert.equal(output.default, 2);
+    });
+
+    it('should export the same values for interop shared modules in main and child bundle', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module-code-split/main.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output.default, 'bar:bar');
+    });
+
+    it('should export the same values for interop shared modules in main and child bundle if shared bundle is deep nested', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module-code-split-intermediate/main.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output.default, 'bar:bar');
     });
 
     it('should support assigning to exports from inside a function', async function() {
