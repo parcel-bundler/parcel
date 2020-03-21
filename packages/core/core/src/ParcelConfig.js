@@ -65,7 +65,7 @@ export default class ParcelConfig {
     return new ParcelConfig(serialized.config, serialized.packageManager);
   }
 
-  getConfig() {
+  getConfig(): ProcessedParcelConfig {
     return {
       filePath: this.filePath,
       resolvers: this.resolvers,

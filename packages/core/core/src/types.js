@@ -348,11 +348,13 @@ export type BundleGroupNode = {|
 export type TransformationOpts = {|
   request: AssetRequestDesc,
   optionsRef: number,
+  configRef: number,
 |};
 
 export type ValidationOpts = {|
   requests: AssetRequestDesc[],
   optionsRef: number,
+  configRef: number,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

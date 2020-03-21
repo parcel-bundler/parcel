@@ -10,7 +10,6 @@ import type {
 import type {Validator, ValidateResult} from '@parcel/types';
 
 import path from 'path';
-import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -22,40 +21,46 @@ import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
+  config: ParcelConfig,
+  /**
+   * If true, this Validation instance will run all validators that implement the single-threaded "validateAll" method.
+   * If falsy, it will run validators that implement the one-asset-at-a-time "validate" method.
+   */
+  dedicatedThread?: boolean,
   options: ParcelOptions,
   requests: AssetRequestDesc[],
   report: ReportFn,
   workerApi?: WorkerApi,
-  dedicatedThread?: boolean,
 |};
 
 export default class Validation {
-  requests: AssetRequestDesc[];
-  configRequests: Array<ConfigRequestDesc>;
-  configLoader: ConfigLoader;
-  options: ParcelOptions;
-  impactfulOptions: $Shape<ParcelOptions>;
-  report: ReportFn;
-  workerApi: ?WorkerApi;
-  /** If true, this Validation instance will run all validators that implement the single-threaded "validateAll" method.
-  If false, it will run validators that implement the one-asset-at-a-time "validate" method. */
-  dedicatedThread: boolean;
   allAssets: {[validatorName: string]: InternalAsset[], ...} = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};
+  dedicatedThread: boolean;
+  configRequests: Array<ConfigRequestDesc>;
+  configLoader: ConfigLoader;
+  impactfulOptions: $Shape<ParcelOptions>;
+  options: ParcelOptions;
+  parcelConfig: ParcelConfig;
+  report: ReportFn;
+  requests: AssetRequestDesc[];
+  workerApi: ?WorkerApi;
 
   constructor({
+    config,
+    dedicatedThread,
+    options,
     requests,
     report,
-    options,
     workerApi,
-    dedicatedThread,
   }: ValidationOpts) {
-    this.configLoader = new ConfigLoader(options);
+    this.configLoader = new ConfigLoader({options, config});
+    this.dedicatedThread = dedicatedThread ?? false;
     this.options = options;
+    this.parcelConfig = config;
     this.report = report;
     this.requests = requests;
     this.workerApi = workerApi;
-    this.dedicatedThread = dedicatedThread ?? false;
   }
 
   async run(): Promise<void> {
@@ -139,23 +144,9 @@ export default class Validation {
 
         let asset = await this.loadAsset(request);
 
-        let configRequest = {
-          filePath: request.filePath,
-          isSource: asset.value.isSource,
-          meta: {
-            actionType: 'validation',
-          },
-          env: request.env,
-        };
-
-        let config = await this.configLoader.load(configRequest);
-        nullthrows(config.result);
-
-        let parcelConfig = new ParcelConfig(
-          config.result,
-          this.options.packageManager,
+        let validators = await this.parcelConfig.getValidators(
+          request.filePath,
         );
-        let validators = await parcelConfig.getValidators(request.filePath);
 
         for (let validator of validators) {
           this.allValidators[validator.name] = validator.plugin;
