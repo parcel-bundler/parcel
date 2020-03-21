@@ -662,13 +662,17 @@ const VISITOR: Visitor<MutableAsset> = {
       dep.symbols.set('*', '*');
     }
 
-    path.replaceWith(
+    path.replaceWithMultiple([
+      REQUIRE_CALL_TEMPLATE({
+        SOURCE: t.stringLiteral(path.node.source.value),
+        ID: t.stringLiteral(asset.id),
+      }),
       EXPORT_ALL_TEMPLATE({
         INTO: getExportsIdentifier(asset, path.scope),
         SOURCE: t.stringLiteral(path.node.source.value),
         ID: t.stringLiteral(asset.id),
       }),
-    );
+    ]);
   },
 };
 
