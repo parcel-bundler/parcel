@@ -313,7 +313,12 @@ export function link({
     if (!isUnusedValue(path) && mod.meta.exportsIdentifier) {
       invariant(imported.assets != null);
       imported.assets.add(mod);
-      return t.identifier(assertString(mod.meta.exportsIdentifier));
+
+      if (mod.meta.shouldWrap) {
+        return t.callExpression(getIdentifier(mod, 'init'), []);
+      } else {
+        return t.identifier(assertString(mod.meta.exportsIdentifier));
+      }
     }
   }
 
@@ -400,8 +405,7 @@ export function link({
             // call happens inside a non top-level scope, e.g. in a
             // function, if statement, or conditional expression.
             if (mod.meta.shouldWrap) {
-              let call = t.callExpression(getIdentifier(mod, 'init'), []);
-              node = node ? t.sequenceExpression([call, node]) : call;
+              node = t.callExpression(getIdentifier(mod, 'init'), []);
             }
           } else if (mod.type === 'js') {
             node = addBundleImport(mod, path);
