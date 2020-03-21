@@ -198,7 +198,7 @@ export function generateExports(
           let [decl] = insertPath.insertAfter(
             t.exportDefaultDeclaration(t.identifier(defaultExport)),
           );
-          binding.reference(decl.get('declaration'));
+          binding?.reference(decl.get('declaration'));
         }
 
         // If there is only a default export, export the entire declaration.
@@ -225,7 +225,7 @@ export function generateExports(
           let [decl] = insertPath.insertAfter(
             t.exportDefaultDeclaration(t.identifier(defaultExport)),
           );
-          binding.reference(decl.get('declaration'));
+          binding?.reference(decl.get('declaration'));
         }
 
         if (exportedSymbols.length > 0) {
@@ -240,7 +240,7 @@ export function generateExports(
             let [spec] = decl.unshiftContainer('specifiers', [
               t.exportSpecifier(t.identifier(sym), t.identifier(sym)),
             ]);
-            path.scope.getBinding(sym).reference(spec.get('local'));
+            path.scope.getBinding(sym)?.reference(spec.get('local'));
           }
         }
       }

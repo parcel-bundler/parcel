@@ -409,9 +409,7 @@ export function generateExports(
                 IDENTIFIER: t.identifier(symbol),
               }),
             );
-            path.scope
-              .getBinding(symbol)
-              .reference(stmt.get('expression.right'));
+            binding.reference(stmt.get('expression.right'));
           }
         }
       }
