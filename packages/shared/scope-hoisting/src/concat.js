@@ -23,7 +23,7 @@ import {PromiseQueue} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
-import {getName, getIdentifier, needsPrelude} from './utils';
+import {assertString, getName, getIdentifier, needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
@@ -364,25 +364,36 @@ function wrapModule(asset: Asset, statements) {
     t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false)),
   );
 
+  let execId = getIdentifier(asset, 'exec');
+  let exec = t.functionDeclaration(execId, [], t.blockStatement(program.body));
+
   let init = t.functionDeclaration(
     getIdentifier(asset, 'init'),
     [],
     t.blockStatement([
-      t.ifStatement(t.identifier(executed), t.returnStatement()),
-      t.expressionStatement(
-        t.assignmentExpression(
-          '=',
-          t.identifier(executed),
-          t.booleanLiteral(true),
-        ),
+      t.ifStatement(
+        t.unaryExpression('!', t.identifier(executed)),
+        t.blockStatement([
+          t.expressionStatement(
+            t.assignmentExpression(
+              '=',
+              t.identifier(executed),
+              t.booleanLiteral(true),
+            ),
+          ),
+          t.expressionStatement(t.callExpression(execId, [])),
+        ]),
       ),
-      ...program.body,
+      t.returnStatement(
+        t.identifier(assertString(asset.meta.exportsIdentifier)),
+      ),
     ]),
   );
 
   return ([
     t.variableDeclaration('var', decls),
     ...fns,
+    exec,
     init,
   ]: Array<Statement>);
 }
