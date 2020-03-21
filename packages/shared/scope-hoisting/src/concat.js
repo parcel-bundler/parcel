@@ -290,15 +290,17 @@ const WRAP_MODULE_VISITOR = {
         let {id, init} = decl;
         if (isObjectPattern(id) || isArrayPattern(id)) {
           // $FlowFixMe it is an identifier
-          for (let prop: Identifier of Object.values(
+          let ids: Array<Identifier> = Object.values(
             t.getBindingIdentifiers(id),
-          )) {
+          );
+          for (let prop of ids) {
             decls.push(t.variableDeclarator(prop));
           }
         } else {
           decls.push(t.variableDeclarator(id));
           invariant(t.isIdentifier(id));
         }
+
         if (
           isForInStatement(parent, {left: node}) ||
           isForOfStatement(parent, {left: node})
@@ -338,8 +340,8 @@ const WRAP_MODULE_VISITOR = {
     let {id} = node;
     invariant(isIdentifier(id));
 
-    // Class declarations are not hoisted. We declare a variable outside the
-    // function and convert to a class expression assignment.
+    // Class declarations are not hoisted (they behave like `let`). We declare a variable
+    // outside the function and convert to a class expression assignment.
     decls.push(t.variableDeclarator(id));
     path.replaceWith(
       t.expressionStatement(
