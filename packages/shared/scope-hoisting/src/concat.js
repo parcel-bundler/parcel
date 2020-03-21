@@ -284,8 +284,8 @@ const WRAP_MODULE_VISITOR = {
   noScope: true,
   VariableDeclaration(path, {decls}) {
     let {node, parent} = path;
-    let replace = [];
     if (node.kind === 'var' || isProgram(path.parent)) {
+      let replace = [];
       for (let decl of node.declarations) {
         let {id, init} = decl;
         if (isObjectPattern(id) || isArrayPattern(id)) {
@@ -315,15 +315,15 @@ const WRAP_MODULE_VISITOR = {
           }
         }
       }
-    }
 
-    if (replace.length > 1) {
-      path.replaceWithMultiple(replace).forEach(p => p.skip());
-    } else if (replace.length == 1) {
-      path.replaceWith(replace[0]);
-      path.skip();
-    } else {
-      path.remove();
+      if (replace.length > 1) {
+        path.replaceWithMultiple(replace).forEach(p => p.skip());
+      } else if (replace.length == 1) {
+        path.replaceWith(replace[0]);
+        path.skip();
+      } else {
+        path.remove();
+      }
     }
   },
   Function(path) {

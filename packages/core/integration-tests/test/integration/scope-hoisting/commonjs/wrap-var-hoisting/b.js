@@ -2,6 +2,10 @@ for(var BigIntSupported in [0, 1]){}
 
 if (BigIntSupported) {
 	var bigIntValue = () => true;
+  let inner_let = false;
+  if (inner_let){
+    throw new Error();
+  }
 }
 
 function testIsHoisted() {

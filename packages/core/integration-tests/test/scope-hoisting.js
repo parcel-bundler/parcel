@@ -1226,6 +1226,7 @@ describe('scope hoisting', function() {
       assert(contents.split('c1_var').length - 1, 1);
       assert(contents.split('c2_var').length - 1, 1);
       assert(contents.split('BigIntSupported').length - 1, 4);
+      assert(contents.split('inner_let').length - 1, 2);
 
       let output = await run(b);
       assert.equal(output, true);
