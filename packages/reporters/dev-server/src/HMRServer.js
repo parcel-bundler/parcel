@@ -13,7 +13,7 @@ type HMRAsset = {|
   type: string,
   output: string,
   envHash: string,
-  deps: Object,
+  depsByBundle: {[string]: {[string]: string, ...}, ...},
 |};
 
 type HMRMessage =
@@ -100,12 +100,19 @@ export default class HMRServer {
     let assets = await Promise.all(
       changedAssets.map(async asset => {
         let dependencies = event.bundleGraph.getDependencies(asset);
-        let deps = {};
-        for (let dep of dependencies) {
-          let resolved = event.bundleGraph.getDependencyResolution(dep);
-          if (resolved) {
-            deps[dep.moduleSpecifier] = resolved.id;
+        let depsByBundle = {};
+        for (let bundle of event.bundleGraph.findBundlesWithAsset(asset)) {
+          let deps = {};
+          for (let dep of dependencies) {
+            let resolved = event.bundleGraph.getDependencyResolution(
+              dep,
+              bundle,
+            );
+            if (resolved) {
+              deps[dep.moduleSpecifier] = resolved.id;
+            }
           }
+          depsByBundle[bundle.id] = deps;
         }
 
         return {
@@ -113,7 +120,7 @@ export default class HMRServer {
           type: asset.type,
           output: await asset.getCode(),
           envHash: md5FromObject(asset.env),
-          deps,
+          depsByBundle,
         };
       }),
     );

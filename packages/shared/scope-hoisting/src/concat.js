@@ -22,7 +22,7 @@ import fs from 'fs';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {PromiseQueue} from '@parcel/utils';
-import {needsPrelude} from './utils';
+import {assertString, needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
@@ -44,7 +44,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       case 'dependency':
         // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
         if (shouldWrap || node.value.meta.shouldWrap) {
-          let resolved = bundleGraph.getDependencyResolution(node.value);
+          let resolved = bundleGraph.getDependencyResolution(
+            node.value,
+            bundle,
+          );
           if (resolved) {
             resolved.meta.shouldWrap = true;
           }
@@ -85,7 +88,12 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
         if (isExpressionStatement(statement)) {
-          for (let depAsset of findRequires(bundleGraph, asset, statement)) {
+          for (let depAsset of findRequires(
+            bundle,
+            bundleGraph,
+            asset,
+            statement,
+          )) {
             if (!statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
@@ -156,7 +164,7 @@ function getUsedExports(
 
   bundle.traverseAssets(asset => {
     for (let dep of bundleGraph.getDependencies(asset)) {
-      let resolvedAsset = bundleGraph.getDependencyResolution(dep);
+      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
       if (!resolvedAsset) {
         continue;
       }
@@ -219,6 +227,7 @@ function shouldExcludeAsset(
 }
 
 function findRequires(
+  bundle: Bundle,
   bundleGraph: BundleGraph,
   asset: Asset,
   ast: mixed,
@@ -242,7 +251,7 @@ function findRequires(
         }
         // can be undefined if AssetGraph#resolveDependency optimized
         // ("deferred") this dependency away as an unused reexport
-        let resolution = bundleGraph.getDependencyResolution(dep);
+        let resolution = bundleGraph.getDependencyResolution(dep, bundle);
         if (resolution) {
           result.push(resolution);
         }
@@ -316,25 +325,36 @@ function wrapModule(asset: Asset, statements) {
     t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false)),
   );
 
+  let execId = getIdentifier(asset, 'exec');
+  let exec = t.functionDeclaration(execId, [], t.blockStatement(body));
+
   let init = t.functionDeclaration(
     getIdentifier(asset, 'init'),
     [],
     t.blockStatement([
-      t.ifStatement(t.identifier(executed), t.returnStatement()),
-      t.expressionStatement(
-        t.assignmentExpression(
-          '=',
-          t.identifier(executed),
-          t.booleanLiteral(true),
-        ),
+      t.ifStatement(
+        t.unaryExpression('!', t.identifier(executed)),
+        t.blockStatement([
+          t.expressionStatement(
+            t.assignmentExpression(
+              '=',
+              t.identifier(executed),
+              t.booleanLiteral(true),
+            ),
+          ),
+          t.expressionStatement(t.callExpression(execId, [])),
+        ]),
       ),
-      ...body,
+      t.returnStatement(
+        t.identifier(assertString(asset.meta.exportsIdentifier)),
+      ),
     ]),
   );
 
   return ([
     t.variableDeclaration('var', decls),
     ...fns,
+    exec,
     init,
   ]: Array<Statement>);
 }
