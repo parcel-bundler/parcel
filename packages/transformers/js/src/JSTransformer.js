@@ -96,7 +96,23 @@ export default new Transformer({
     }
 
     if (!asset.env.isNode()) {
-      // Insert node globals, run before dependencies
+      // Inline fs calls, run before globals to also collect Buffer
+      if (FS_RE.test(code)) {
+        // Check if we should ignore fs calls
+        // See https://github.com/defunctzombie/node-browser-resolve#skip
+        let pkg = await asset.getPackage();
+        let ignore =
+          pkg &&
+          pkg.browser &&
+          typeof pkg.browser === 'object' &&
+          pkg.browser.fs === false;
+
+        if (!ignore) {
+          traverse(ast.program, fsVisitor, null, {asset, logger});
+        }
+      }
+
+      // Insert node globals
       if (GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
         walkAncestor(ast.program, insertGlobals, asset);
@@ -114,27 +130,6 @@ export default new Transformer({
     if (ast.program.program.interpreter != null) {
       asset.meta.interpreter = ast.program.program.interpreter.value;
       delete ast.program.program.interpreter;
-    }
-
-    if (!asset.env.isNode()) {
-      // Inline fs calls
-      let fsDep = asset
-        .getDependencies()
-        .find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && FS_RE.test(code)) {
-        // Check if we should ignore fs calls
-        // See https://github.com/defunctzombie/node-browser-resolve#skip
-        let pkg = await asset.getPackage();
-        let ignore =
-          pkg &&
-          pkg.browser &&
-          typeof pkg.browser === 'object' &&
-          pkg.browser.fs === false;
-
-        if (!ignore) {
-          traverse(ast.program, fsVisitor, null, {asset, logger});
-        }
-      }
     }
 
     if (asset.env.scopeHoist) {
