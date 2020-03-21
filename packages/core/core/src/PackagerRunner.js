@@ -223,20 +223,27 @@ export default class PackagerRunner {
           contents: res.contents,
           map: res.map,
           getSourceMapReference: map => {
-            return bundle.isInline ||
+            if (
+              bundle.isInline ||
               (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-              ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-              : path.basename(bundle.filePath) + '.map';
+            ) {
+              return this.generateSourceMap(
+                bundleToInternalBundle(bundle),
+                map,
+              );
+            } else {
+              return path.basename(bundle.filePath) + '.map';
+            }
           },
         });
       }
 
-      let map = res.map
-        ? await this.generateSourceMap(internalBundle, res.map)
-        : null;
       return {
         contents: res.contents,
-        map,
+        map:
+          !bundle.isInline && res.map
+            ? await this.generateSourceMap(internalBundle, res.map)
+            : null,
       };
     } catch (e) {
       throw new ThrowableDiagnostic({
