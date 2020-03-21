@@ -1,17 +1,38 @@
 // @flow
 
 import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {NodePath} from '@babel/traverse';
+import type {
+  Identifier,
+  Program,
+  Statement,
+  StringLiteral,
+  VariableDeclaration,
+} from '@babel/types';
+
 import * as t from '@babel/types';
 import template from '@babel/template';
-import invariant from 'assert';
 import {relativeBundlePath} from '@parcel/utils';
-import {isEntry, isReferenced} from '../utils';
+import {
+  assertString,
+  getName,
+  getIdentifier,
+  isEntry,
+  isReferenced,
+} from '../utils';
 
-const IMPORT_TEMPLATE = template('var IDENTIFIER = parcelRequire(ASSET_ID)');
-const EXPORT_TEMPLATE = template(
-  'parcelRequire.register(ASSET_ID, IDENTIFIER)',
-);
-const IMPORTSCRIPTS_TEMPLATE = template('importScripts(BUNDLE)');
+const IMPORT_TEMPLATE = template.statement<
+  {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
+  VariableDeclaration,
+>('var IDENTIFIER = parcelRequire(ASSET_ID);');
+const EXPORT_TEMPLATE = template.statement<
+  {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
+  Statement,
+>('parcelRequire.register(ASSET_ID, IDENTIFIER)');
+const IMPORTSCRIPTS_TEMPLATE = template.statement<
+  {|BUNDLE: StringLiteral|},
+  Statement,
+>('importScripts(BUNDLE);');
 
 export function generateBundleImports(
   from: Bundle,
@@ -31,7 +52,9 @@ export function generateBundleImports(
   for (let asset of assets) {
     statements.push(
       IMPORT_TEMPLATE({
-        IDENTIFIER: t.identifier(asset.meta.exportsIdentifier),
+        IDENTIFIER: asset.meta.shouldWrap
+          ? getIdentifier(asset, 'init')
+          : t.identifier(assertString(asset.meta.exportsIdentifier)),
         ASSET_ID: t.stringLiteral(asset.id),
       }),
     );
@@ -50,20 +73,21 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any,
+  path: NodePath<Program>,
 ) {
   let exported = new Set<Symbol>();
   let statements = [];
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId = asset.meta.shouldWrap
+      ? getName(asset, 'init')
+      : assertString(asset.meta.exportsIdentifier);
     exported.add(exportsId);
 
     statements.push(
       EXPORT_TEMPLATE({
         ASSET_ID: t.stringLiteral(asset.id),
-        IDENTIFIER: t.identifier(asset.meta.exportsIdentifier),
+        IDENTIFIER: t.identifier(exportsId),
       }),
     );
   }
@@ -73,14 +97,13 @@ export function generateExports(
     entry &&
     (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph))
   ) {
-    let exportsId = entry.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId = assertString(entry.meta.exportsIdentifier);
     exported.add(exportsId);
 
     statements.push(
       EXPORT_TEMPLATE({
         ASSET_ID: t.stringLiteral(entry.id),
-        IDENTIFIER: t.identifier(entry.meta.exportsIdentifier),
+        IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),
     );
   }

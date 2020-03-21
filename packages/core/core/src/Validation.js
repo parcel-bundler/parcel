@@ -9,7 +9,6 @@ import type {
 } from './types';
 
 import path from 'path';
-import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -22,6 +21,7 @@ import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
   options: ParcelOptions,
+  config: ParcelConfig,
   request: AssetRequestDesc,
   report: ReportFn,
   workerApi: WorkerApi,
@@ -35,9 +35,11 @@ export default class Validation {
   impactfulOptions: $Shape<ParcelOptions>;
   report: ReportFn;
   workerApi: WorkerApi;
+  parcelConfig: ParcelConfig;
 
-  constructor({request, report, options, workerApi}: ValidationOpts) {
-    this.configLoader = new ConfigLoader(options);
+  constructor({request, report, options, config, workerApi}: ValidationOpts) {
+    this.configLoader = new ConfigLoader({options, config});
+    this.parcelConfig = config;
     this.options = options;
     this.report = report;
     this.request = request;
@@ -52,23 +54,9 @@ export default class Validation {
 
     let asset = await this.loadAsset();
 
-    let configRequest = {
-      filePath: this.request.filePath,
-      isSource: asset.value.isSource,
-      meta: {
-        actionType: 'validation',
-      },
-      env: this.request.env,
-    };
-
-    let config = await this.configLoader.load(configRequest);
-    nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(
-      config.result,
-      this.options.packageManager,
+    let validators = await this.parcelConfig.getValidators(
+      this.request.filePath,
     );
-
-    let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
 
     for (let validator of validators) {
@@ -126,7 +114,12 @@ export default class Validation {
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
-    let idBase = code != null ? hash : filePath;
+    let idBase =
+      code != null
+        ? hash
+        : path
+            .relative(this.options.projectRoot, filePath)
+            .replace(/[\\/]+/g, '/');
     return new InternalAsset({
       idBase,
       value: createAsset({

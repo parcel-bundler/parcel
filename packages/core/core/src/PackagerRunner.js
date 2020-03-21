@@ -37,8 +37,10 @@ import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 
 type Opts = {|
   config: ParcelConfig,
+  configRef?: number,
   farm?: WorkerFarm,
   options: ParcelOptions,
+  optionsRef?: number,
   report: ReportFn,
 |};
 
@@ -58,7 +60,9 @@ const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
 export default class PackagerRunner {
   config: ParcelConfig;
+  configRef: ?number;
   options: ParcelOptions;
+  optionsRef: ?number;
   farm: ?WorkerFarm;
   pluginOptions: PluginOptions;
   distDir: FilePath;
@@ -67,14 +71,16 @@ export default class PackagerRunner {
   getBundleInfoFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    configRef: number,
     cacheKeys: CacheKeyMap,
-    options: ParcelOptions,
+    optionsRef: number,
   |}) => Promise<BundleInfo>;
 
-  constructor({config, farm, options, report}: Opts) {
+  constructor({config, configRef, farm, options, optionsRef, report}: Opts) {
     this.config = config;
+    this.configRef = configRef;
     this.options = options;
+    this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
 
     this.farm = farm;
@@ -147,8 +153,8 @@ export default class PackagerRunner {
         bundle,
         bundleGraphReference,
         cacheKeys,
-        options: this.options,
-        config: this.config,
+        optionsRef: nullthrows(this.optionsRef),
+        configRef: nullthrows(this.configRef),
       }));
 
     return {time: Date.now() - start, hash, hashReferences, cacheKeys};

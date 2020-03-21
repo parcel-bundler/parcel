@@ -111,7 +111,6 @@ export function bundler(
       browsers: ['last 1 Chrome version'],
       node: '8',
     },
-    // $FlowFixMe
     ...opts,
   });
 }
@@ -154,10 +153,7 @@ export async function run(
   globals: mixed,
   opts: {require?: boolean, ...} = {},
 ): Promise<mixed> {
-  let bundles = [];
-  bundleGraph.traverseBundles(bundle => {
-    bundles.push(bundle);
-  });
+  let bundles = bundleGraph.getBundles();
 
   let bundle = nullthrows(bundles.find(b => b.type === 'js'));
   let entryAsset = nullthrows(bundle.getMainEntry());

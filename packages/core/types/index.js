@@ -34,21 +34,23 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
-export type ParcelConfigFile = {|
+export type RawParcelConfigPipeline = Array<PackageName>;
+
+export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
-  resolvers?: Array<PackageName>,
-  transforms?: {[Glob]: Array<PackageName>, ...},
+  resolvers?: RawParcelConfigPipeline,
+  transformers?: {[Glob]: RawParcelConfigPipeline, ...},
   bundler?: PackageName,
-  namers?: Array<PackageName>,
-  runtimes?: {[EnvironmentContext]: Array<PackageName>, ...},
+  namers?: RawParcelConfigPipeline,
+  runtimes?: {[EnvironmentContext]: RawParcelConfigPipeline, ...},
   packagers?: {[Glob]: PackageName, ...},
-  optimizers?: {[Glob]: Array<PackageName>, ...},
-  reporters?: Array<PackageName>,
-  validators?: {[Glob]: Array<PackageName>, ...},
+  optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
+  reporters?: RawParcelConfigPipeline,
+  validators?: {[Glob]: RawParcelConfigPipeline, ...},
 |};
 
 export type ResolvedParcelConfigFile = {|
-  ...ParcelConfigFile,
+  ...RawParcelConfig,
   +filePath: FilePath,
   +resolveFrom?: FilePath,
 |};
@@ -619,18 +621,20 @@ export interface BundleGraph {
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   getChildBundles(bundle: Bundle): Array<Bundle>;
+  getParentBundles(bundle: Bundle): Array<Bundle>;
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
+  getDependencyResolution(dependency: Dependency, bundle: Bundle): ?Asset;
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
   isAssetReferenced(asset: Asset): boolean;
-  isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
+  isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>,
+    startBundle?: Bundle,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
   getExternalDependencies(bundle: Bundle): Array<Dependency>;

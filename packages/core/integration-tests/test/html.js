@@ -59,7 +59,10 @@ describe('html', function() {
     ]);
 
     let files = await outputFS.readdir(distDir);
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -103,7 +106,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
 
     assert(/<link rel="canonical" href="\/index.html">/.test(html));
   });
@@ -128,7 +134,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(
       /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html,
@@ -156,9 +165,43 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(
       /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
+        html,
+      ),
+    );
+  });
+
+  it('should insert sibling bundles after doctype if no html', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css-doctype/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+      {
+        type: 'css',
+        assets: ['index.css'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(
+      /^\s*<!DOCTYPE html>\s*<link .*>\s*<script .*>\s*<\/script>\s*$/.test(
         html,
       ),
     );
@@ -192,7 +235,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
@@ -223,7 +269,10 @@ describe('html', function() {
       },
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
     assert(
       /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
         html,
@@ -543,6 +592,7 @@ describe('html', function() {
 
     const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
+      'utf8',
     );
     assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
   });

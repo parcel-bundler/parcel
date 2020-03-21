@@ -5,6 +5,7 @@ import type {
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
+import type {Expression} from '@babel/types';
 
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
@@ -193,13 +194,13 @@ function isInFalsyBranch(ancestors) {
   });
 }
 
-function evaluateExpression(node) {
+function evaluateExpression(node: Expression) {
   // Wrap the node in a standalone program so we can traverse it
-  node = types.file(types.program([types.expressionStatement(node)]));
+  let file = types.file(types.program([types.expressionStatement(node)]));
 
   // Find the first expression and evaluate it.
   let res = null;
-  traverse(node, {
+  traverse(file, {
     Expression(path) {
       res = path.evaluate();
       path.stop();

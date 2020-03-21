@@ -1,6 +1,6 @@
 // @flow strict-local
 import invariant from 'assert';
-import type {Bundle, ParcelOptions} from './types';
+import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import BundleGraph from './BundleGraph';
 import type {WorkerApi} from '@parcel/workers';
 
@@ -19,34 +19,61 @@ registerCoreWithSerializer();
 
 // Remove the workerApi type from the TransformationOpts and ValidationOpts types:
 // https://github.com/facebook/flow/issues/2835
-type TransformationOptsWithoutWorkerApi = $Diff<
-  TransformationOpts,
-  {|workerApi: mixed|},
->;
-type ValidationOptsWithoutWorkerApi = $Diff<
-  ValidationOpts,
-  {|workerApi: mixed|},
->;
+type WorkerTransformationOpts = {|
+  ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
+  optionsRef: number,
+  configRef: number,
+|};
+type WorkerValidationOpts = {|
+  ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
+  optionsRef: number,
+  configRef: number,
+|};
 
 export function runTransform(
   workerApi: WorkerApi,
-  opts: TransformationOptsWithoutWorkerApi,
+  opts: WorkerTransformationOpts,
 ) {
+  let {optionsRef, configRef, ...rest} = opts;
+  let options = ((workerApi.getSharedReference(
+    optionsRef,
+    // $FlowFixMe
+  ): any): ParcelOptions);
+  let processedConfig = ((workerApi.getSharedReference(
+    configRef,
+    // $FlowFixMe
+  ): any): ProcessedParcelConfig);
+  let config = new ParcelConfig(processedConfig, options.packageManager);
+
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    ...opts,
+    // $FlowFixMe
+    options,
+    config,
+    ...rest,
   }).run();
 }
 
-export function runValidate(
-  workerApi: WorkerApi,
-  opts: ValidationOptsWithoutWorkerApi,
-) {
+export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
+  let {optionsRef, configRef, ...rest} = opts;
+  let options = ((workerApi.getSharedReference(
+    optionsRef,
+    // $FlowFixMe
+  ): any): ParcelOptions);
+  let processedConfig = ((workerApi.getSharedReference(
+    configRef,
+    // $FlowFixMe
+  ): any): ProcessedParcelConfig);
+  let config = new ParcelConfig(processedConfig, options.packageManager);
+
   return new Validation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    ...opts,
+    // $FlowFixMe
+    options,
+    config,
+    ...rest,
   }).run();
 }
 
@@ -55,25 +82,36 @@ export function runPackage(
   {
     bundle,
     bundleGraphReference,
-    config,
+    configRef,
     cacheKeys,
-    options,
+    optionsRef,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    configRef: number,
     cacheKeys: {|
       content: string,
       map: string,
       info: string,
     |},
-    options: ParcelOptions,
+    optionsRef: number,
   |},
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
+  let options = ((workerApi.getSharedReference(
+    optionsRef,
+    // $FlowFixMe
+  ): any): ParcelOptions);
+  let processedConfig = ((workerApi.getSharedReference(
+    configRef,
+    // $FlowFixMe
+  ): any): ProcessedParcelConfig);
+  let config = new ParcelConfig(processedConfig, options.packageManager);
+
   return new PackagerRunner({
     config,
+    // $FlowFixMe
     options,
     report: reportWorker.bind(null, workerApi),
   }).getBundleInfo(bundle, bundleGraph, cacheKeys);
