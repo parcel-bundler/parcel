@@ -3,7 +3,8 @@
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {File, FilePath, Glob} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
-import type {NodeId} from './types';
+import type WorkerFarm from '@parcel/workers';
+import type {NodeId, ParcelOptions} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -269,9 +270,21 @@ export class RequestGraph extends Graph<
 
 export default class RequestTracker {
   graph: RequestGraph;
+  farm: WorkerFarm;
+  options: ParcelOptions;
 
-  constructor({graph}: {|graph: RequestGraph|}) {
+  constructor({
+    graph,
+    farm,
+    options,
+  }: {|
+    graph: RequestGraph,
+    farm: WorkerFarm,
+    options: ParcelOptions,
+  |}) {
     this.graph = graph || new RequestGraph();
+    this.farm = farm;
+    this.options = options;
   }
 
   isTracked(id: string) {
@@ -356,14 +369,19 @@ export default class RequestTracker {
   }
 }
 
-type RequestRunnerOpts = {
-  tracker: RequestTracker,
-  ...
-};
+export type RequestRunnerOpts = {|tracker: RequestTracker|};
 
 export type RunRequestOpts = {|
   signal?: ?AbortSignal,
   parentId?: string,
+  extras?: mixed,
+|};
+
+export type StaticRunOpts = {|
+  farm: WorkerFarm,
+  options: ParcelOptions,
+  api: RequestRunnerAPI,
+  extras: mixed,
 |};
 
 export type RequestRunnerAPI = {|
@@ -388,25 +406,25 @@ export class RequestRunner<TRequest, TResult> {
     this.tracker = tracker;
   }
 
-  async runRequest(
-    requestDesc: TRequest,
-    {signal}: RunRequestOpts = {},
-  ): Promise<TResult | void> {
-    let id = this.generateRequestId(requestDesc);
+  async runRequest({
+    request,
+    signal,
+    extras,
+  }: {|
+    request: TRequest,
+    ...RunRequestOpts,
+  |}): Promise<TResult | void> {
+    let id = this.generateRequestId(request);
     try {
       let api = this.createAPI(id);
 
-      this.tracker.trackRequest({id, type: this.type, request: requestDesc});
+      let {farm, options} = this.tracker;
+      this.tracker.trackRequest({id, type: this.type, request: request});
       let result: TResult = this.tracker.hasValidResult(id)
         ? // $FlowFixMe
           (this.tracker.getRequestResult(id): any)
-        : await this.run(requestDesc, api);
+        : await this.run({request: request, api, farm, options, extras});
       assertSignalNotAborted(signal);
-      // Request may have been removed by a parent request
-      if (!this.tracker.isTracked(id)) {
-        return;
-      }
-      await this.onComplete(requestDesc, result, api);
       this.tracker.completeRequest(id);
 
       return result;
@@ -418,16 +436,10 @@ export class RequestRunner<TRequest, TResult> {
 
   // unused vars are used for types
   // eslint-disable-next-line no-unused-vars
-  run(request: TRequest, api: RequestRunnerAPI): Promise<TResult> {
+  run(obj: {|request: TRequest, ...StaticRunOpts|}): Promise<TResult> {
     throw new Error(
       `RequestRunner for type ${this.type} did not implement run()`,
     );
-  }
-
-  // unused vars are used for types
-  // eslint-disable-next-line no-unused-vars
-  onComplete(request: TRequest, result: TResult, api: RequestRunnerAPI) {
-    // Do nothing, this is defined for flow if extended classes implement this function
   }
 
   generateRequestId(request: TRequest) {

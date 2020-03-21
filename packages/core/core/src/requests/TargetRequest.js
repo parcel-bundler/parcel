@@ -1,5 +1,6 @@
-// @flow
-
+// @flow strict-local
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {FileSystem} from '@parcel/fs';
 import type {
   Engines,
   File,
@@ -8,29 +9,36 @@ import type {
   PackageTargetDescriptor,
   TargetDescriptor,
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {ParcelOptions, Target} from './types';
-import type {Diagnostic} from '@parcel/diagnostic';
+import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
+import type {Entry, ParcelOptions, Target} from '../types';
 
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
   getJSONSourceLocation,
 } from '@parcel/diagnostic';
-import {loadConfig, validateSchema} from '@parcel/utils';
-import {createEnvironment} from './Environment';
 import path from 'path';
+import {loadConfig, validateSchema} from '@parcel/utils';
+import {createEnvironment} from '../Environment';
+// $FlowFixMe
 import browserslist from 'browserslist';
+// $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
 import {
   COMMON_TARGET_DESCRIPTOR_SCHEMA,
   DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
-} from './TargetDescriptor.schema';
+} from '../TargetDescriptor.schema';
+import {RequestRunner} from '../RequestTracker';
 
-export type TargetResolveResult = {|
+type TargetResolveResult = {|
   targets: Array<Target>,
   files: Array<File>,
+|};
+
+type RunOpts = {|
+  request: Entry,
+  ...StaticRunOpts,
 |};
 
 const DEFAULT_DEVELOPMENT_ENGINES = {
@@ -51,7 +59,41 @@ const DEFAULT_PRODUCTION_ENGINES = {
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 
-export default class TargetResolver {
+export type TargetRequest = {|
+  id: string,
+  +type: 'target_request',
+  request: Entry,
+  result?: TargetResolveResult,
+|};
+
+// export default function createTargetRequest(opts: TargetResolverOpts) {
+//   return new TargetRequestRunner(opts);
+// }
+
+export default class TargetRequestRunner extends RequestRunner<
+  Entry,
+  TargetResolveResult,
+> {
+  constructor(opts: RequestRunnerOpts) {
+    super(opts);
+    this.type = 'target_request';
+  }
+
+  async run({request, api, options}: RunOpts) {
+    let targetResolver = new TargetResolver(options);
+    let result = await targetResolver.resolve(request.packagePath);
+
+    // Connect files like package.json that affect the target
+    // resolution so we invalidate when they change.
+    for (let file of result.files) {
+      api.invalidateOnFileUpdate(file.filePath);
+    }
+
+    return result;
+  }
+}
+
+export class TargetResolver {
   fs: FileSystem;
   options: ParcelOptions;
 
@@ -104,7 +146,7 @@ export default class TargetResolver {
             null,
             {targets: optionTargets},
           );
-          if (!distDir) {
+          if (distDir == null) {
             let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
             throw new ThrowableDiagnostic({
               diagnostic: {
@@ -234,7 +276,7 @@ export default class TargetResolver {
         '/engines',
         'Invalid engines in package.json',
       ) || {};
-    if (!pkgEngines.browsers) {
+    if (pkgEngines.browsers == null) {
       let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
       if (browserslistBrowsers) {
         pkgEngines = {
@@ -251,18 +293,18 @@ export default class TargetResolver {
     // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
     // the `main` and `module` targets refer to node, otherwise browser.
     let mainContext =
-      pkg.browser || pkgTargets.browser || (node && !browsers)
+      pkg.browser ?? pkgTargets.browser ?? (node != null && !browsers)
         ? 'node'
         : 'browser';
     let moduleContext =
-      pkg.browser || pkgTargets.browser ? 'browser' : mainContext;
+      pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
     let defaultEngines =
       this.options.defaultEngines ??
       (this.options.mode === 'production'
         ? DEFAULT_PRODUCTION_ENGINES
         : DEFAULT_DEVELOPMENT_ENGINES);
-    let context = browsers || !node ? 'browser' : 'node';
+    let context = browsers ?? !node ? 'browser' : 'node';
     if (context === 'browser' && pkgEngines.browsers == null) {
       pkgEngines = {
         ...pkgEngines,
@@ -384,7 +426,7 @@ export default class TargetResolver {
               message: `Invalid distPath for target "${targetName}"`,
               origin: '@parcel/core',
               language: 'json',
-              filePath: pkgFilePath || undefined,
+              filePath: pkgFilePath ?? undefined,
               codeFrame: {
                 code: contents,
                 codeHighlights: generateJSONCodeHighlights(contents, [
@@ -534,7 +576,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
   // Without this, an assertion is thrown much later after naming the bundles and finding duplicates.
   let targetsByPath: Map<string, Array<string>> = new Map();
   for (let target of targets.values()) {
-    if (target.distEntry) {
+    if (target.distEntry != null) {
       let distPath = path.join(target.distDir, target.distEntry);
       if (!targetsByPath.has(distPath)) {
         targetsByPath.set(distPath, []);
@@ -545,7 +587,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
 
   let diagnostics: Array<Diagnostic> = [];
   for (let [targetPath, targetNames] of targetsByPath) {
-    if (targetNames.length > 1 && pkgContents && pkgFilePath) {
+    if (targetNames.length > 1 && pkgContents != null && pkgFilePath != null) {
       diagnostics.push({
         message: `Multiple targets have the same destination path "${path.relative(
           path.dirname(pkgFilePath),

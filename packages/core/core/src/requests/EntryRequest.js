@@ -1,16 +1,64 @@
-// @flow
+// @flow strict-local
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath, File} from '@parcel/types';
-import type {Entry, ParcelOptions} from './types';
-import path from 'path';
-import {isGlob, glob} from '@parcel/utils';
+import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
+import type {Entry, ParcelOptions} from '../types';
 
-export type EntryResult = {|
+import {isGlob, glob} from '@parcel/utils';
+import path from 'path';
+import {RequestRunner} from '../RequestTracker';
+
+export type EntryRequest = {|
+  id: string,
+  +type: 'entry_request',
+  request: FilePath,
+  result?: EntryResult,
+|};
+
+type EntryResult = {|
   entries: Array<Entry>,
   files: Array<File>,
 |};
 
-export class EntryResolver {
+type RunOpts = {|
+  request: FilePath,
+  ...StaticRunOpts,
+|};
+
+// export default function createEntryRequest(opts: EntryRequestOpts) {
+//   return new EntryRequestRunner(opts);
+// }
+
+export default class EntryRequestRunner extends RequestRunner<
+  FilePath,
+  EntryResult,
+> {
+  constructor(opts: RequestRunnerOpts) {
+    super(opts);
+    this.type = 'entry_request';
+  }
+
+  async run({request, api, options}: RunOpts) {
+    let entryResolver = new EntryResolver(options);
+    let result = await entryResolver.resolveEntry(request);
+
+    // Connect files like package.json that affect the entry
+    // resolution so we invalidate when they change.
+    for (let file of result.files) {
+      api.invalidateOnFileUpdate(file.filePath);
+    }
+
+    // If the entry specifier is a glob, add a glob node so
+    // we invalidate when a new file matches.
+    if (isGlob(request)) {
+      api.invalidateOnFileCreate(request);
+    }
+
+    return result;
+  }
+}
+
+class EntryResolver {
   fs: FileSystem;
 
   constructor(options: ParcelOptions) {

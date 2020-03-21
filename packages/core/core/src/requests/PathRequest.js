@@ -1,32 +1,72 @@
-// @flow
-
-import type {AssetRequestDesc, Dependency, ParcelOptions} from './types';
+// @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type ParcelConfig from './ParcelConfig';
+import type ParcelConfig from '../ParcelConfig';
+import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
+import type {AssetRequestDesc, Dependency, ParcelOptions} from '../types';
 
-import {PluginLogger} from '@parcel/logger';
-import {relatifyPath} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {PluginLogger} from '@parcel/logger';
+import {escapeMarkdown, relatifyPath} from '@parcel/utils';
 import path from 'path';
 import URL from 'url';
+import {report} from '../ReporterRunner';
+import {RequestRunner} from '../RequestTracker';
+import PublicDependency from '../public/Dependency';
+import PluginOptions from '../public/PluginOptions';
 
-import {report} from './ReporterRunner';
-import PublicDependency from './public/Dependency';
-import PluginOptions from './public/PluginOptions';
+type DependencyResult = AssetRequestDesc | null | void;
 
-import {escapeMarkdown} from '@parcel/utils';
+export type DepPathRequest = {|
+  id: string,
+  +type: 'dep_path_request',
+  request: Dependency,
+  result?: DependencyResult,
+|};
 
-type Opts = {|
+type RunOpts = {|
+  request: Dependency,
+  ...StaticRunOpts,
+|};
+
+// export default function createPathRequest(opts: DepPathRequestOpts) {
+//   return new DepPathRequestRunner(opts);
+// }
+
+export default class DepPathRequestRunner extends RequestRunner<
+  Dependency,
+  DependencyResult,
+> {
+  constructor(opts: RequestRunnerOpts) {
+    super(opts);
+    this.type = 'dep_path_request';
+  }
+
+  async run({request, api, options, extras}: RunOpts) {
+    // $FlowFixMe
+    let {config}: {|config: ParcelConfig|} = (extras: any);
+    let resolverRunner = new ResolverRunner({options, config});
+    let assetGroup = await resolverRunner.resolve(request);
+
+    // ? Should this happen if asset is deferred?
+    if (assetGroup != null) {
+      api.invalidateOnFileDelete(assetGroup.filePath);
+    }
+
+    return assetGroup;
+  }
+}
+
+type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
 |};
 
-export default class ResolverRunner {
+export class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
 
-  constructor({config, options}: Opts) {
+  constructor({config, options}: ResolverRunnerOpts) {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
@@ -38,7 +78,7 @@ export default class ResolverRunner {
       origin: '@parcel/core',
     };
 
-    if (dependency.loc && dependency.sourcePath) {
+    if (dependency.loc && dependency.sourcePath != null) {
       diagnostic.filePath = dependency.sourcePath;
       diagnostic.codeFrame = {
         code: await this.options.inputFS.readFile(
@@ -97,7 +137,7 @@ export default class ResolverRunner {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
-      if (!pipeline) {
+      if (pipeline == null) {
         pipeline = 'url';
       }
     }
@@ -116,7 +156,7 @@ export default class ResolverRunner {
           return null;
         }
 
-        if (result && result.filePath) {
+        if (result?.filePath != null) {
           return {
             filePath: result.filePath,
             sideEffects: result.sideEffects,
@@ -139,14 +179,16 @@ export default class ResolverRunner {
       return null;
     }
 
-    let dir = dependency.sourcePath
-      ? escapeMarkdown(
-          relatifyPath(this.options.projectRoot, dependency.sourcePath),
-        )
-      : '';
+    let dir =
+      dependency.sourcePath != null
+        ? escapeMarkdown(
+            relatifyPath(this.options.projectRoot, dependency.sourcePath),
+          )
+        : '';
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
+    // $FlowFixMe
     let err: any = await this.getThrowableDiagnostic(
       dependency,
       `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,

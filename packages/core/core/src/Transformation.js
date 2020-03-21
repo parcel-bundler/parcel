@@ -28,7 +28,8 @@ import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
-import ResolverRunner from './ResolverRunner';
+// TODO: eventually call path request as sub requests
+import {ResolverRunner} from './requests/PathRequest';
 import {
   Asset,
   MutableAsset,

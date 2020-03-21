@@ -1,28 +1,86 @@
-// @flow
+// @flow strict-local
 import type {
   FilePath,
   RawParcelConfig,
   ResolvedParcelConfigFile,
   PackageName,
 } from '@parcel/types';
+import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
 import type {
+  ExtendableParcelConfigPipeline,
   ParcelOptions,
   ProcessedParcelConfig,
-  ExtendableParcelConfigPipeline,
-} from './types';
+} from '../types';
 
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+// $FlowFixMe
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
-import ParcelConfig from './ParcelConfig';
-import ParcelConfigSchema from './ParcelConfig.schema';
+import {RequestRunner} from '../RequestTracker';
+import ParcelConfig from '../ParcelConfig';
+import ParcelConfigSchema from '../ParcelConfig.schema';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
-export default async function loadParcelConfig(options: ParcelOptions) {
+type ConfigAndRef = {|
+  config: ProcessedParcelConfig,
+  configRef: number,
+|};
+
+type RunOpts = {|
+  request: null,
+  ...StaticRunOpts,
+|};
+
+// export default function createParcelConfigRequest(
+//   opts: ParcelConfigRequestOpts,
+// ) {
+//   return new ParcelConfigRequestRunner(opts);
+// }
+
+export default class ParcelConfigRequestRunner extends RequestRunner<
+  null,
+  ConfigAndRef,
+> {
+  disposeConfigRef: () => Promise<mixed>;
+
+  constructor(opts: RequestRunnerOpts) {
+    super(opts);
+    this.type = 'parcel_config_request';
+  }
+
+  async run({api, options, farm}: RunOpts): Promise<ConfigAndRef> {
+    let {config, extendedFiles} = await loadParcelConfig(options);
+    let processedConfig = config.getConfig();
+    let {ref, dispose} = await farm.createSharedReference(processedConfig);
+    this.disposeConfigRef && (await this.disposeConfigRef());
+    this.disposeConfigRef = dispose;
+
+    api.invalidateOnFileUpdate(config.filePath);
+    api.invalidateOnFileDelete(config.filePath);
+
+    for (let filePath of extendedFiles) {
+      api.invalidateOnFileUpdate(filePath);
+      api.invalidateOnFileDelete(filePath);
+    }
+
+    if (config.filePath === options.defaultConfig?.filePath) {
+      api.invalidateOnFileCreate('**/.parcelrc');
+    }
+
+    // Need to do this because of reinstantiate the shared reference
+    api.invalidateOnStartup();
+
+    let result = {config: processedConfig, configRef: ref};
+    api.storeResult(result);
+    return result;
+  }
+}
+
+export async function loadParcelConfig(options: ParcelOptions) {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -55,7 +113,7 @@ export async function resolveParcelConfig(options: ParcelOptions) {
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
   ]);
-  if (!configPath) {
+  if (configPath == null) {
     return null;
   }
 
@@ -108,6 +166,7 @@ export async function readAndProcessConfigChain(
 function processPipeline(
   pipeline: ?Array<PackageName>,
   filePath: FilePath,
+  //$FlowFixMe
 ): any {
   if (pipeline) {
     return pipeline.map(pkg => {
@@ -122,11 +181,14 @@ function processPipeline(
 }
 
 function processMap(
+  // $FlowFixMe
   map: ?ConfigMap<any, any>,
   filePath: FilePath,
+  // $FlowFixMe
 ): ConfigMap<any, any> | typeof undefined {
   if (!map) return undefined;
 
+  // $FlowFixMe
   let res: ConfigMap<any, any> = {};
   for (let k in map) {
     if (typeof map[k] === 'string') {
@@ -151,12 +213,13 @@ export function processConfig(
     resolveFrom: configFile.resolveFrom,
     resolvers: processPipeline(configFile.resolvers, configFile.filePath),
     transformers: processMap(configFile.transformers, configFile.filePath),
-    bundler: configFile.bundler
-      ? {
-          packageName: configFile.bundler,
-          resolveFrom: configFile.filePath,
-        }
-      : undefined,
+    bundler:
+      configFile.bundler != null
+        ? {
+            packageName: configFile.bundler,
+            resolveFrom: configFile.filePath,
+          }
+        : undefined,
     namers: processPipeline(configFile.namers, configFile.filePath),
     runtimes: processMap(configFile.runtimes, configFile.filePath),
     packagers: processMap(configFile.packagers, configFile.filePath),
@@ -187,7 +250,7 @@ export async function processConfigChain(
   );
 
   let extendedFiles: Array<FilePath> = [];
-  if (configFile.extends) {
+  if (configFile.extends != null) {
     let exts = Array.isArray(configFile.extends)
       ? configFile.extends
       : [configFile.extends];
@@ -293,6 +356,7 @@ function isSubdirectory(child, parent) {
 export function mergePipelines(
   base: ?ExtendableParcelConfigPipeline,
   ext: ?ExtendableParcelConfigPipeline,
+  // $FlowFixMe
 ): any {
   if (!ext) {
     return base || [];
@@ -308,7 +372,7 @@ export function mergePipelines(
         );
       }
 
-      ext = [
+      return [
         ...ext.slice(0, spreadIndex),
         ...(base || []),
         ...ext.slice(spreadIndex + 1),
@@ -335,15 +399,17 @@ export function mergeMaps<K, V>(
   // Add the extension options first so they have higher precedence in the output glob map
   let res: ConfigMap<K, V> = {};
   for (let k in ext) {
-    // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
+    //$FlowFixMe Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
     let key: K = (k: any);
-    res[key] = merger && base[key] ? merger(base[key], ext[key]) : ext[key];
+    res[key] =
+      merger && base[key] != null ? merger(base[key], ext[key]) : ext[key];
   }
 
   // Add base options that aren't defined in the extension
   for (let k in base) {
+    // $FlowFixMe
     let key: K = (k: any);
-    if (!res[key]) {
+    if (res[key] == null) {
       res[key] = base[key];
     }
   }
