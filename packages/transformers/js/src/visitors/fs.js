@@ -31,12 +31,7 @@ import {errorToDiagnostic} from '@parcel/diagnostic';
 const bufferTemplate = template.expression<
   {|CONTENT: StringLiteral|},
   CallExpression,
->('Buffer(CONTENT, "base64")');
-
-const atobTemplate = template.expression<
-  {|CONTENT: StringLiteral|},
-  CallExpression,
->('atob(CONTENT)');
+>('Buffer.from(CONTENT, "base64")');
 
 export default ({
   AssignmentExpression(path) {
@@ -69,18 +64,11 @@ export default ({
 
         let replacementNode;
         if (Buffer.isBuffer(res)) {
-          let str = t.stringLiteral(res.toString('base64'));
-          if (asset.env.isNode()) {
-            replacementNode = bufferTemplate({
-              CONTENT: str,
-            });
-          } else {
-            replacementNode = atobTemplate({
-              CONTENT: str,
-            });
-          }
+          replacementNode = bufferTemplate({
+            CONTENT: t.stringLiteral(res.toString('base64')),
+          });
         } else {
-          // $FlowFixMe it is a string
+          invariant(typeof res === 'string');
           replacementNode = t.stringLiteral(res);
         }
 
