@@ -1,8 +1,12 @@
 // @flow strict-local
 
 import type {ModuleRequest} from './types';
+import type {FilePath} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+import {resolveConfig} from '@parcel/utils';
 
 export function npmSpecifierFromModuleRequest(
   moduleRequest: ModuleRequest,
@@ -22,4 +26,58 @@ export function moduleRequestsFromDependencyMap(dependencyMap: {|
       range,
     };
   });
+}
+
+export async function getConflictingLocalDependencies(
+  fs: FileSystem,
+  name: string,
+  local: FilePath,
+): Promise<?{|json: string, filePath: FilePath, fields: Array<string>|}> {
+  let pkgPath = await resolveConfig(fs, local, ['package.json']);
+  if (pkgPath == null) {
+    return;
+  }
+
+  let pkgStr = await fs.readFile(pkgPath, 'utf8');
+  let pkg;
+  try {
+    pkg = JSON.parse(pkgStr);
+  } catch (e) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        filePath: pkgPath,
+        message: 'Failed to parse package.json',
+        origin: '@parcel/package-manager',
+      },
+    });
+  }
+
+  if (typeof pkg !== 'object' || pkg == null) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        filePath: pkgPath,
+        message: 'Expected package.json contents to be an object.',
+        origin: '@parcel/package-manager',
+      },
+    });
+  }
+
+  let fields = [];
+  for (let field of ['dependencies', 'devDependencies', 'peerDependencies']) {
+    if (
+      typeof pkg[field] === 'object' &&
+      pkg[field] != null &&
+      pkg[field][name] != null
+    ) {
+      fields.push(field);
+    }
+  }
+
+  if (fields.length > 0) {
+    return {
+      filePath: pkgPath,
+      json: pkgStr,
+      fields,
+    };
+  }
 }
