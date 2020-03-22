@@ -992,7 +992,10 @@ describe('sourcemaps', function() {
 
     let map = mapData.map;
     assert.equal(map.file, 'index.js.map');
-    assert.deepEqual(map.sources, ['index.js']);
+    assert.deepEqual(map.sources, [
+      'index.js',
+      '../../../../../transformers/js/src/helpers.js',
+    ]);
     assert.equal(map.sourcesContent[0], sourceContent);
   });
 
@@ -1023,6 +1026,9 @@ describe('sourcemaps', function() {
 
     let map = mapUrlData.map;
     assert.equal(map.file, 'index.js.map');
-    assert.deepEqual(map.sources, ['index.js']);
+    assert.deepEqual(map.sources, [
+      'index.js',
+      '../../../../../transformers/js/src/helpers.js',
+    ]);
   });
 });

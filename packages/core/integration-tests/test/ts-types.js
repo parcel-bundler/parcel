@@ -11,7 +11,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts'],
+        assets: ['helpers.js', 'index.ts'],
       },
       {
         type: 'ts',
@@ -40,7 +40,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'file.ts', 'namespace.ts'],
+        assets: ['index.ts', 'file.ts', 'namespace.ts', 'helpers.js'],
       },
       {
         type: 'ts',
@@ -81,7 +81,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.ts', 'message.ts', 'other.ts', 'test.ts'],
+        assets: ['helpers.js', 'index.ts', 'message.ts', 'other.ts', 'test.ts'],
       },
       {
         type: 'ts',
@@ -122,7 +122,7 @@ describe('typescript types', function() {
     assertBundles(b, [
       {
         type: 'js',
-        assets: ['index.tsx', 'other.tsx'],
+        assets: ['index.tsx', 'other.tsx', 'helpers.js'],
       },
       {
         type: 'ts',

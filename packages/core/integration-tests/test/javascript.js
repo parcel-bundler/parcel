@@ -204,7 +204,13 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'main.js',
-        assets: ['_empty.js', 'browser.js', 'index.js', 'main.js'],
+        assets: [
+          '_empty.js',
+          'browser.js',
+          'helpers.js',
+          'index.js',
+          'main.js',
+        ],
       },
     ]);
 
@@ -224,7 +230,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'main.js',
-        assets: ['main.js'],
+        assets: ['helpers.js', 'main.js'],
       },
     ]);
 
@@ -344,7 +350,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: ['index.js'],
+        assets: ['helpers.js', 'index.js'],
       },
     ]);
   });
@@ -682,6 +688,7 @@ describe('javascript', function() {
           'lodash.js',
           'bundle-url.js',
           'get-worker-url.js',
+          'helpers.js',
           'JSRuntime.js',
           'bundle-manifest.js',
           'JSRuntime.js',
@@ -703,7 +710,7 @@ describe('javascript', function() {
         assets: ['worker-b.js'],
       },
       {
-        assets: ['lodash.js'],
+        assets: ['helpers.js', 'lodash.js'],
       },
     ]);
 
@@ -741,7 +748,7 @@ describe('javascript', function() {
         assets: ['worker.js'],
       },
       {
-        assets: ['lodash.js'],
+        assets: ['lodash.js', 'helpers.js'],
       },
     ]);
 
@@ -774,7 +781,7 @@ describe('javascript', function() {
         ],
       },
       {
-        assets: ['local.js', 'JSRuntime.js'],
+        assets: ['local.js', 'JSRuntime.js', 'helpers.js'],
       },
       {
         assets: ['test.txt'],
@@ -798,6 +805,7 @@ describe('javascript', function() {
           'index.js',
           'bundle-url.js',
           'cacheLoader.js',
+          'helpers.js',
           'js-loader.js',
           'JSRuntime.js',
           'bundle-manifest.js',
@@ -923,7 +931,7 @@ describe('javascript', function() {
     );
     assertBundles(b, [
       {
-        assets: ['c.js', 'common.js'],
+        assets: ['c.js', 'common.js', 'helpers.js'],
       },
       {
         name: 'b.js',
@@ -945,6 +953,7 @@ describe('javascript', function() {
           'bundle-url.js',
           'common.js',
           'cacheLoader.js',
+          'helpers.js',
           'js-loader.js',
           'JSRuntime.js',
           'bundle-manifest.js',
@@ -967,6 +976,7 @@ describe('javascript', function() {
           'index.js',
           'bundle-url.js',
           'cacheLoader.js',
+          'helpers.js',
           'js-loader.js',
           'JSRuntime.js',
           'JSRuntime.js',
@@ -1136,7 +1146,7 @@ describe('javascript', function() {
 
     assertBundles(b, [
       {
-        assets: ['a.js', 'b.js', 'c.js'],
+        assets: ['a.js', 'b.js', 'c.js', 'helpers.js'],
       },
     ]);
 
@@ -1412,7 +1422,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'browser.js',
-        assets: ['browser.js', 'browser-module.js'],
+        assets: ['browser.js', 'browser-module.js', 'helpers.js'],
       },
     ]);
 
@@ -1573,7 +1583,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'main-field.js',
-        assets: ['main-field.js', 'main.js'],
+        assets: ['main-field.js', 'main.js', 'helpers.js'],
       },
     ]);
 
@@ -2043,6 +2053,7 @@ describe('javascript', function() {
           'JSRuntime.js',
           'bundle-url.js',
           'cacheLoader.js',
+          'helpers.js',
           'js-loader.js',
           'bundle-manifest.js',
           'JSRuntime.js',
@@ -2078,11 +2089,11 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'a.js',
-        assets: ['a.js', 'lodash.js'],
+        assets: ['a.js', 'helpers.js', 'lodash.js'],
       },
       {
         name: 'b.js',
-        assets: ['b.js', 'lodash.js'],
+        assets: ['b.js', 'helpers.js', 'lodash.js'],
       },
     ]);
   });

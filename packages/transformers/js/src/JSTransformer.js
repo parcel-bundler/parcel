@@ -7,10 +7,10 @@ import collectDependencies from './visitors/dependencies';
 import processVisitor from './visitors/process';
 import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
+import modulesVisitor from './visitors/modules';
 import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
-import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
@@ -80,6 +80,7 @@ export default new Transformer({
     }
 
     let ast = asset.ast;
+    let wasDirty = ast.isDirty;
     let code = await asset.getCode();
 
     // Inline process/environment variables
@@ -136,16 +137,9 @@ export default new Transformer({
       hoist(asset);
     } else if (asset.meta.isES6Module) {
       // Convert ES6 modules to CommonJS
-      let res = await babelCore.transformFromAstAsync(ast.program, code, {
-        code: false,
-        ast: true,
-        filename: asset.filePath,
-        babelrc: false,
-        configFile: false,
-        plugins: [require('@babel/plugin-transform-modules-commonjs')],
-      });
+      ast.isDirty = wasDirty;
+      traverse(ast.program, modulesVisitor, null, {asset});
 
-      ast.program = res.ast;
       ast.isDirty = true;
     }
 
