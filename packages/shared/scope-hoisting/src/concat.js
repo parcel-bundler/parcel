@@ -9,13 +9,14 @@ import * as t from '@babel/types';
 import {
   isArrayPattern,
   isExpressionStatement,
+  isForInStatement,
+  isForOfStatement,
+  isForStatement,
   isIdentifier,
   isObjectPattern,
   isProgram,
   isStringLiteral,
-  isForInStatement,
-  isForOfStatement,
-  isForStatement,
+  isVariableDeclaration,
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import {simple as walkSimple} from '@parcel/babylon-walk';
