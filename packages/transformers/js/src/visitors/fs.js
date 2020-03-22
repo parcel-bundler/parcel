@@ -29,9 +29,9 @@ import invariant from 'assert';
 import {errorToDiagnostic} from '@parcel/diagnostic';
 
 const bufferTemplate = template.expression<
-  {|CONTENT: StringLiteral, ENC: StringLiteral|},
+  {|CONTENT: StringLiteral|},
   CallExpression,
->('Buffer(CONTENT, ENC)');
+>('Buffer.from(CONTENT, "base64")');
 
 export default ({
   AssignmentExpression(path) {
@@ -66,10 +66,9 @@ export default ({
         if (Buffer.isBuffer(res)) {
           replacementNode = bufferTemplate({
             CONTENT: t.stringLiteral(res.toString('base64')),
-            ENC: t.stringLiteral('base64'),
           });
         } else {
-          // $FlowFixMe it is a string
+          invariant(typeof res === 'string');
           replacementNode = t.stringLiteral(res);
         }
 
