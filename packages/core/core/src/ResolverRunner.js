@@ -5,6 +5,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
+import {relatifyPath} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
 import URL from 'url';
@@ -34,7 +35,7 @@ export default class ResolverRunner {
   async getThrowableDiagnostic(dependency: Dependency, message: string) {
     let diagnostic: Diagnostic = {
       message,
-      origin: '@parcel/resolver-default',
+      origin: '@parcel/core',
     };
 
     if (dependency.loc && dependency.sourcePath) {
@@ -101,6 +102,7 @@ export default class ResolverRunner {
       }
     }
 
+    let errors: Array<ThrowableDiagnostic> = [];
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -124,9 +126,12 @@ export default class ResolverRunner {
           };
         }
       } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, resolver.name),
-        });
+        // Add error to error map, we'll append these to the standard error if we can't resolve the asset
+        errors.push(
+          new ThrowableDiagnostic({
+            diagnostic: errorToDiagnostic(e, resolver.name),
+          }),
+        );
       }
     }
 
@@ -135,13 +140,24 @@ export default class ResolverRunner {
     }
 
     let dir = dependency.sourcePath
-      ? escapeMarkdown(path.dirname(dependency.sourcePath))
-      : '<none>';
+      ? escapeMarkdown(
+          relatifyPath(this.options.projectRoot, dependency.sourcePath),
+        )
+      : '';
+
+    let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
     let err: any = await this.getThrowableDiagnostic(
       dependency,
-      `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`,
+      `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );
+
+    // Merge resolver errors
+    if (errors.length) {
+      for (let error of errors) {
+        err.diagnostics.push(...error.diagnostics);
+      }
+    }
 
     err.code = 'MODULE_NOT_FOUND';
 
