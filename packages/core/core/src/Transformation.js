@@ -43,6 +43,7 @@ type PostProcessFunc = (
 
 export type TransformationOpts = {|
   options: ParcelOptions,
+  config: ParcelConfig,
   report: ReportFn,
   request: AssetRequestDesc,
   workerApi: WorkerApi,
@@ -64,9 +65,16 @@ export default class Transformation {
   parcelConfig: ParcelConfig;
   report: ReportFn;
 
-  constructor({report, request, options, workerApi}: TransformationOpts) {
+  constructor({
+    report,
+    request,
+    options,
+    config,
+    workerApi,
+  }: TransformationOpts) {
     this.configRequests = [];
-    this.configLoader = new ConfigLoader(options);
+    this.configLoader = new ConfigLoader({options, config});
+    this.parcelConfig = config;
     this.options = options;
     this.report = report;
     this.request = request;
@@ -94,6 +102,7 @@ export default class Transformation {
     });
 
     let asset = await this.loadAsset();
+
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
@@ -172,6 +181,7 @@ export default class Transformation {
 
     let assets =
       initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
+
     if (!initialCacheEntry) {
       await this.writeToCache(initialAssetCacheKey, assets, pipeline.configs);
     }
@@ -346,15 +356,10 @@ export default class Transformation {
     let configs = new Map();
 
     let config = await this.loadConfig(configRequest);
-    let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(result, this.options.packageManager);
-
-    // A little hacky
-    this.parcelConfig = parcelConfig;
 
     configs.set('parcel', config);
 
-    let transformers = await parcelConfig.getTransformers(
+    let transformers = await this.parcelConfig.getTransformers(
       filePath,
       pipelineName,
     );
@@ -380,10 +385,7 @@ export default class Transformation {
       configs,
       options: this.options,
       resolverRunner: new ResolverRunner({
-        config: new ParcelConfig(
-          nullthrows(nullthrows(configs.get('parcel')).result),
-          this.options.packageManager,
-        ),
+        config: this.parcelConfig,
         options: this.options,
       }),
 

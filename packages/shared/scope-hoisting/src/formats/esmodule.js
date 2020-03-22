@@ -7,15 +7,18 @@ import type {
   PluginOptions,
   Symbol,
 } from '@parcel/types';
+import type {NodePath} from '@babel/traverse';
+import type {Program} from '@babel/types';
 import type {ExternalModule} from '../types';
+
 import * as t from '@babel/types';
-import {relativeBundlePath} from '@parcel/utils';
+import {isImportDeclaration, isVariableDeclaration} from '@babel/types';
 import nullthrows from 'nullthrows';
-import invariant from 'assert';
 import {relative} from 'path';
+import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {assertString} from '../utils';
+import {assertString, getName, getIdentifier} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -23,7 +26,10 @@ export function generateBundleImports(
   assets: Set<Asset>,
 ) {
   let specifiers = [...assets].map(asset => {
-    let id = t.identifier(assertString(asset.meta.exportsIdentifier));
+    let id = asset.meta.shouldWrap
+      ? getIdentifier(asset, 'init')
+      : t.identifier(assertString(asset.meta.exportsIdentifier));
+
     return t.importSpecifier(id, id);
   });
 
@@ -82,11 +88,12 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: any,
+  path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
 ) {
-  let exportedIdentifiers = new Map();
+  // maps the bundles's export symbols to the bindings
+  let exportedIdentifiers = new Map<Symbol, Symbol>();
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
@@ -116,13 +123,15 @@ export function generateExports(
         rename(path.scope, exportSymbol, path.scope.generateUid(exportSymbol));
       }
 
-      exportedIdentifiers.set(symbol, exportSymbol);
+      exportedIdentifiers.set(exportSymbol, symbol);
     }
   }
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.exportsIdentifier;
-    invariant(typeof exportsId === 'string');
+    let exportsId = asset.meta.shouldWrap
+      ? getName(asset, 'init')
+      : assertString(asset.meta.exportsIdentifier);
+
     exportedIdentifiers.set(exportsId, exportsId);
   }
 
@@ -134,43 +143,51 @@ export function generateExports(
         return;
       }
 
+      let {node} = path;
+
       let bindingIdentifiers = path.getBindingIdentifierPaths(false, true);
-      let ids = Object.keys(bindingIdentifiers);
+      let ids: Array<string> = Object.keys(bindingIdentifiers);
       if (ids.length === 0) {
         return;
       }
+      ids.sort();
 
-      let exportedIds = ids.filter(
-        id =>
-          exportedIdentifiers.has(id) &&
-          exportedIdentifiers.get(id) !== 'default',
+      let exportedIdentifiersFiltered = [...exportedIdentifiers.entries()]
+        .filter(
+          ([exportSymbol, symbol]) =>
+            exportSymbol !== 'default' && ids.includes(symbol),
+        )
+        .sort(([, a], [, b]) => (a > b ? -1 : a < b ? 1 : 0));
+      let exportedSymbolsBindings = exportedIdentifiersFiltered.map(
+        ([, symbol]) => symbol,
       );
-      let defaultExport = ids.find(
-        id => exportedIdentifiers.get(id) === 'default',
+      let exportedSymbols = exportedIdentifiersFiltered.map(
+        ([exportSymbol]) => exportSymbol,
       );
+
+      let defaultExport = exportedIdentifiers.get('default');
+      if (!ids.includes(defaultExport)) {
+        defaultExport = null;
+      }
 
       // If all exports in the binding are named exports, export the entire declaration.
       // Also rename all of the identifiers to their exported name.
-      if (exportedIds.length === ids.length && !path.isImportDeclaration()) {
-        path.replaceWith(t.exportNamedDeclaration(path.node, []));
-        for (let id of exportedIds) {
-          let exportName = nullthrows(exportedIdentifiers.get(id));
-          rename(path.scope, id, exportName);
-          exported.add(exportName);
-        }
-
-        // If there is only a default export, export the entire declaration.
-      } else if (
-        ids.length === 1 &&
-        defaultExport &&
-        !path.isVariableDeclaration() &&
+      if (
+        areArraysStrictlyEqual(ids, exportedSymbolsBindings) &&
         !path.isImportDeclaration()
       ) {
-        path.replaceWith(t.exportDefaultDeclaration(path.node));
+        path.replaceWith(t.exportNamedDeclaration(path.node, []));
+        for (let sym of exportedSymbols) {
+          let id = nullthrows(exportedIdentifiers.get(sym));
+          id = replacements.get(id) || id;
+          rename(path.scope, id, sym);
+          replacements.set(id, sym);
+          exported.add(sym);
+        }
 
-        // Otherwise, add export statements after for each identifier.
-      } else {
+        // If the default export is part of the declaration, add it as well
         if (defaultExport) {
+          defaultExport = replacements.get(defaultExport) || defaultExport;
           let binding = path.scope.getBinding(defaultExport);
           let insertPath = path;
           if (binding && !binding.constant) {
@@ -178,30 +195,66 @@ export function generateExports(
               binding.constantViolations[binding.constantViolations.length - 1];
           }
 
-          insertPath.insertAfter(
+          let [decl] = insertPath.insertAfter(
             t.exportDefaultDeclaration(t.identifier(defaultExport)),
           );
+          binding?.reference(decl.get('declaration'));
         }
 
-        if (exportedIds.length > 0) {
-          let specifiers = [];
-          for (let id of exportedIds) {
-            let exportName = nullthrows(exportedIdentifiers.get(id));
-            rename(path.scope, id, exportName);
-            exported.add(exportName);
-            specifiers.push(
-              t.exportSpecifier(
-                t.identifier(exportName),
-                t.identifier(exportName),
-              ),
-            );
+        // If there is only a default export, export the entire declaration.
+      } else if (
+        ids.length === 1 &&
+        defaultExport &&
+        !isVariableDeclaration(node) &&
+        !isImportDeclaration(node)
+      ) {
+        // $FlowFixMe
+        path.replaceWith(t.exportDefaultDeclaration(node));
+
+        // Otherwise, add export statements after for each identifier.
+      } else {
+        if (defaultExport) {
+          defaultExport = replacements.get(defaultExport) || defaultExport;
+          let binding = path.scope.getBinding(defaultExport);
+          let insertPath = path;
+          if (binding && !binding.constant) {
+            insertPath =
+              binding.constantViolations[binding.constantViolations.length - 1];
           }
 
-          path.insertAfter(t.exportNamedDeclaration(null, specifiers));
+          let [decl] = insertPath.insertAfter(
+            t.exportDefaultDeclaration(t.identifier(defaultExport)),
+          );
+          binding?.reference(decl.get('declaration'));
+        }
+
+        if (exportedSymbols.length > 0) {
+          let [decl] = path.insertAfter(t.exportNamedDeclaration(null, []));
+          for (let sym of exportedSymbols) {
+            let id = nullthrows(exportedIdentifiers.get(sym));
+            id = replacements.get(id) || id;
+            rename(path.scope, id, sym);
+            replacements.set(id, sym);
+
+            exported.add(sym);
+            let [spec] = decl.unshiftContainer('specifiers', [
+              t.exportSpecifier(t.identifier(sym), t.identifier(sym)),
+            ]);
+            path.scope.getBinding(sym)?.reference(spec.get('local'));
+          }
         }
       }
     },
   });
 
   return exported;
+}
+
+function areArraysStrictlyEqual<T>(a: Array<T>, b: Array<T>) {
+  return (
+    a.length === b.length &&
+    a.every(function(a_v, i) {
+      return a_v === b[i];
+    })
+  );
 }
