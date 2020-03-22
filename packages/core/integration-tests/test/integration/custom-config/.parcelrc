@@ -1,6 +1,6 @@
 {
   "extends": "@parcel/config-default",
   "transformers": {
-    "*.js": ["parcel-transformer-mock"]
+    "*.js": ["parcel-transformer-do-nothing"]
   }
 }
