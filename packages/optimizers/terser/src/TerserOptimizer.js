@@ -49,9 +49,13 @@ export default new Optimizer({
     }
 
     let sourceMap = null;
-    if (result.map) {
+    if (result.map && typeof result.map !== 'string') {
       sourceMap = new SourceMap();
-      sourceMap.addRawMappings(result.map.mappings, result.map.sources, result.map.names || []);
+      sourceMap.addRawMappings(
+        result.map.mappings,
+        result.map.sources,
+        result.map.names || [],
+      );
     }
 
     return {contents: nullthrows(result.code), map: sourceMap};
