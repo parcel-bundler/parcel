@@ -332,10 +332,9 @@ const WRAP_MODULE_VISITOR = {
       } else {
         path.remove();
       }
+    } else {
+      path.skip();
     }
-  },
-  Function(path) {
-    path.skip();
   },
   FunctionDeclaration(path, {fns}) {
     fns.push(path.node);
@@ -356,7 +355,7 @@ const WRAP_MODULE_VISITOR = {
     );
     path.skip();
   },
-  ClassExpression(path) {
+  'Function|Class|Expression'(path) {
     path.skip();
   },
 };
