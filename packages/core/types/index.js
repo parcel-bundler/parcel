@@ -307,7 +307,6 @@ export interface BaseAsset {
   +filePath: FilePath;
   +id: string;
   +meta: Meta;
-  +isASTDirty: boolean;
   +isIsolated: boolean;
   +isInline: boolean;
   +isSplittable: ?boolean;
@@ -342,15 +341,15 @@ export interface MutableAsset extends BaseAsset {
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  setMap(?SourceMap): void;
-  setCode(string): void;
-  setBuffer(Buffer): void;
-  setStream(Readable): void;
-  setAST(AST): void;
   addIncludedFile(file: File): void;
-  addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  isASTDirty(): boolean;
+  setAST(AST): void;
+  setBuffer(Buffer): void;
+  setCode(string): void;
   setEnvironment(opts: EnvironmentOpts): void;
+  setMap(?SourceMap): void;
+  setStream(Readable): void;
 }
 
 export interface Asset extends BaseAsset {

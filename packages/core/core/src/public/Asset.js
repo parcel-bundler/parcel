@@ -88,10 +88,6 @@ class BaseAsset {
     return this.#asset.value.meta;
   }
 
-  get isASTDirty(): boolean {
-    return this.#asset.isASTDirty;
-  }
-
   get isIsolated(): boolean {
     return this.#asset.value.isIsolated;
   }
@@ -240,8 +236,12 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File) {
-    return this.#asset.addIncludedFile(file);
+  addIncludedFile(file: File): void {
+    this.#asset.addIncludedFile(file);
+  }
+
+  isASTDirty(): boolean {
+    return this.#asset.isASTDirty;
   }
 
   setBuffer(buffer: Buffer): void {

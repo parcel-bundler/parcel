@@ -84,7 +84,7 @@ export default new Transformer({
       return [asset];
     }
 
-    let code = asset.isASTDirty ? null : await asset.getCode();
+    let code = asset.isASTDirty() ? null : await asset.getCode();
 
     // Inline process/environment variables
     if (
