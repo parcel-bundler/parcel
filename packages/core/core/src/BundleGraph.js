@@ -253,7 +253,7 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferencedByAssetType(asset: Asset, type: string): boolean {
+  isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean {
     let referringBundles = new Set(
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),

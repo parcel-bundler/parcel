@@ -86,7 +86,7 @@ export default new Transformer({
 
     let code = asset.isASTDirty ? null : await asset.getCode();
 
-    // Inline process/ environment variables
+    // Inline process/environment variables
     if (
       (!asset.env.isNode() && (code == null || ENV_RE.test(code))) ||
       (asset.env.isBrowser() && (code == null || BROWSER_RE.test(code)))
@@ -100,25 +100,9 @@ export default new Transformer({
       });
     }
 
-    // Collect dependencies
-    if (code == null || canHaveDependencies(code)) {
-      walkAncestor(ast.program, collectDependencies, {asset, ast, options});
-    }
-
-    // If there's a hashbang, remove it and store it on the asset meta.
-    // During packaging, if this is the entry asset, it will be prepended to the
-    // packaged output.
-    if (ast.program.program.interpreter != null) {
-      asset.meta.interpreter = ast.program.program.interpreter.value;
-      delete ast.program.program.interpreter;
-    }
-
     if (!asset.env.isNode()) {
-      // Inline fs calls
-      let fsDep = asset
-        .getDependencies()
-        .find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && (code == null || FS_RE.test(code))) {
+      // Inline fs calls, run before globals to also collect Buffer
+      if (code == null || FS_RE.test(code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
         let pkg = await asset.getPackage();
@@ -138,6 +122,19 @@ export default new Transformer({
         asset.meta.globals = new Map();
         walkAncestor(ast.program, insertGlobals, asset);
       }
+    }
+
+    // Collect dependencies
+    if (code == null || canHaveDependencies(code)) {
+      walkAncestor(ast.program, collectDependencies, {asset, ast, options});
+    }
+
+    // If there's a hashbang, remove it and store it on the asset meta.
+    // During packaging, if this is the entry asset, it will be prepended to the
+    // packaged output.
+    if (ast.program.program.interpreter != null) {
+      asset.meta.interpreter = ast.program.program.interpreter.value;
+      delete ast.program.program.interpreter;
     }
 
     if (asset.env.scopeHoist) {
