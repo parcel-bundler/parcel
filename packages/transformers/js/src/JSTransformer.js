@@ -1,19 +1,16 @@
 // @flow
 
 import semver from 'semver';
-import generate from '@babel/generator';
 import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
 import processVisitor from './visitors/process';
 import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
-import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
-import {relativeUrl} from '@parcel/utils';
-import SourceMap from '@parcel/source-map';
+import {generate, parse} from '@parcel/babel-ast-utils';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -53,22 +50,11 @@ export default new Transformer({
       return null;
     }
 
-    let sourceFilename: string = relativeUrl(
-      options.projectRoot,
-      asset.filePath,
-    );
-
-    return {
-      type: 'babel',
-      version: '7.0.0',
-      program: parse(code, {
-        sourceFilename,
-        allowReturnOutsideFunction: true,
-        strictMode: false,
-        sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
-      }),
-    };
+    return parse({
+      asset,
+      code,
+      options,
+    });
   },
 
   async transform({asset, options, logger}) {
@@ -165,43 +151,6 @@ export default new Transformer({
   },
 
   generate({asset, ast, options}) {
-    let sourceFileName: string = relativeUrl(
-      options.projectRoot,
-      asset.filePath,
-    );
-
-    let generated = generate(
-      ast.program,
-      {
-        sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName,
-      },
-      '',
-    );
-
-    let res = {
-      code: generated.code,
-      map:
-        generated.rawMappings != null
-          ? new SourceMap(generated.rawMappings, {
-              [sourceFileName]: null,
-            })
-          : null,
-    };
-
-    res.code = generateGlobals(asset) + res.code;
-    return res;
+    return generate({asset, ast, options});
   },
 });
-
-function generateGlobals(asset) {
-  let code = '';
-  if (asset.meta.globals && asset.meta.globals.size > 0) {
-    code =
-      Array.from(asset.meta.globals.values())
-        .map(g => (g ? g.code : ''))
-        .join('\n') + '\n';
-  }
-  delete asset.meta.globals;
-  return code;
-}

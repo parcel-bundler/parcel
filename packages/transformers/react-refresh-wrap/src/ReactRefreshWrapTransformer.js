@@ -4,11 +4,8 @@ import type {StringLiteral, Statement} from '@babel/types';
 
 import semver from 'semver';
 import path from 'path';
+import {generate, parse} from '@parcel/babel-ast-utils';
 import {Transformer} from '@parcel/plugin';
-import {relativeUrl} from '@parcel/utils';
-import SourceMap from '@parcel/source-map';
-import generate from '@babel/generator';
-import {parse} from '@babel/parser';
 import template from '@babel/template';
 import * as t from '@babel/types';
 
@@ -52,18 +49,11 @@ export default new Transformer({
       return null;
     }
 
-    let code = await asset.getCode();
-    return {
-      type: 'babel',
-      version: '7.0.0',
-      program: parse(code, {
-        sourceFilename: this.name,
-        allowReturnOutsideFunction: true,
-        strictMode: false,
-        sourceType: 'module',
-        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
-      }),
-    };
+    return parse({
+      asset,
+      code: await asset.getCode(),
+      options,
+    });
   },
 
   async transform({asset, options}) {
@@ -94,43 +84,6 @@ export default new Transformer({
   },
 
   generate({asset, ast, options}) {
-    let sourceFileName: string = relativeUrl(
-      options.projectRoot,
-      asset.filePath,
-    );
-
-    let generated = generate(
-      ast.program,
-      {
-        sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName,
-      },
-      '',
-    );
-
-    let res = {
-      code: generated.code,
-      map:
-        generated.rawMappings != null
-          ? new SourceMap(generated.rawMappings, {
-              [sourceFileName]: null,
-            })
-          : null,
-    };
-
-    res.code = generateGlobals(asset) + res.code;
-    return res;
+    return generate({asset, ast, options});
   },
 });
-
-function generateGlobals(asset) {
-  let code = '';
-  if (asset.meta.globals && asset.meta.globals.size > 0) {
-    code =
-      Array.from(asset.meta.globals.values())
-        .map(g => (g ? g.code : ''))
-        .join('\n') + '\n';
-  }
-  delete asset.meta.globals;
-  return code;
-}

@@ -1,14 +1,10 @@
 // @flow strict-local
 
+import {generate, babelErrorEnhancer} from '@parcel/babel-ast-utils';
 import {Transformer} from '@parcel/plugin';
-import SourceMap from '@parcel/source-map';
-// $FlowFixMe
-import generate from '@babel/generator';
 import semver from 'semver';
 import babel7 from './babel7';
-import {relativeUrl} from '@parcel/utils';
 import {load, preSerialize, postDeserialize} from './config';
-import {babelErrorEnhancer} from './babelErrorUtils';
 
 export default new Transformer({
   async loadConfig({config, options, logger}) {
@@ -48,26 +44,7 @@ export default new Transformer({
     }
   },
 
-  async generate({asset, ast, options}) {
-    let sourceFileName: string = relativeUrl(
-      options.projectRoot,
-      asset.filePath,
-    );
-
-    try {
-      let generated = generate(ast.program, {
-        sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName,
-      });
-
-      return {
-        code: generated.code,
-        map: new SourceMap(generated.rawMappings ?? undefined, {
-          [sourceFileName]: null,
-        }),
-      };
-    } catch (e) {
-      throw await babelErrorEnhancer(e, asset);
-    }
+  generate({asset, ast, options}) {
+    return generate({asset, ast, options});
   },
 });
