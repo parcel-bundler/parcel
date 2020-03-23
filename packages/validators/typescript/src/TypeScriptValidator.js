@@ -13,6 +13,8 @@ import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
+let timerNum = 0;
+
 let langServiceCache: {
   [configHash: string]: {|
     configHost: ParseConfigHost,
@@ -35,8 +37,8 @@ export default new Validator({
     options,
     resolveConfigWithPath,
   }): Promise<Array<?ValidateResult>> {
-    // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
-    let assetsToValidate: Array<{|configHash: string, asset: Asset|}> = [];
+    // Build a collection that of all the LanguageServices related to files that just changed.
+    let programsToValidate: Set<string> = new Set();
     await Promise.all(
       assets.map(async asset => {
         let config = await getConfig(asset, options, resolveConfigWithPath);
@@ -49,25 +51,28 @@ export default new Validator({
         // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
         langServiceCache[configHash].host.invalidate(asset.filePath);
 
-        assetsToValidate.push({configHash, asset});
+        programsToValidate.add(configHash);
       }),
     );
 
-    // Ask typescript to analyze all changed files and translate the results into ValidatorResult objects.
+    // Ask typescript to analyze all changed programs and translate the results into ValidatorResult objects.
     let validatorResults: Array<?ValidateResult> = [];
-    assetsToValidate.forEach(({configHash, asset}) => {
+    programsToValidate.forEach(configHash => {
       // Make sure that the filesystem being used by the LanguageServiceHost and ParseConfigHost is up-to-date.
       // (This could change in the context of re-running tests, and probably also for other reasons).
       langServiceCache[configHash].host.fs = options.inputFS;
       langServiceCache[configHash].configHost.fs = options.inputFS;
 
-      const diagnostics = langServiceCache[
-        configHash
-      ].service.getSemanticDiagnostics(asset.filePath);
+      let program = langServiceCache[configHash].service.getProgram();
+      if (!program) return;
 
-      validatorResults.push(
-        getValidateResultFromDiagnostics(asset, diagnostics),
-      );
+      let filesToCheck = program.getSourceFiles();
+      filesToCheck.forEach(sourceFile => {
+        let diagnostics = program.getSemanticDiagnostics(sourceFile);
+        validatorResults.push(
+          getValidateResultFromDiagnostics(sourceFile.fileName, diagnostics),
+        );
+      });
     });
 
     return validatorResults;
@@ -130,8 +135,8 @@ async function tryCreateLanguageService(
 
 /** Translates semantic diagnostics (from TypeScript) into a ValidateResult that Parcel understands. */
 function getValidateResultFromDiagnostics(
-  asset: Asset,
-  diagnostics: Diagnostic[],
+  filePath: string,
+  diagnostics: $ReadOnlyArray<Diagnostic>,
 ): ValidateResult {
   let validatorResult = {
     warnings: [],
@@ -140,7 +145,7 @@ function getValidateResultFromDiagnostics(
 
   if (diagnostics.length > 0) {
     for (let diagnostic of diagnostics) {
-      let filename = asset.filePath;
+      let filename = filePath;
       let {file} = diagnostic;
 
       let diagnosticMessage =
