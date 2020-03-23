@@ -52,9 +52,7 @@ export function generateBundleImports(
   for (let asset of assets) {
     statements.push(
       IMPORT_TEMPLATE({
-        IDENTIFIER: asset.meta.shouldWrap
-          ? getIdentifier(asset, 'init')
-          : t.identifier(assertString(asset.meta.exportsIdentifier)),
+        IDENTIFIER: getIdentifier(asset, 'init'),
         ASSET_ID: t.stringLiteral(asset.id),
       }),
     );
@@ -79,9 +77,7 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.shouldWrap
-      ? getName(asset, 'init')
-      : assertString(asset.meta.exportsIdentifier);
+    let exportsId = getName(asset, 'init');
     exported.add(exportsId);
 
     statements.push(

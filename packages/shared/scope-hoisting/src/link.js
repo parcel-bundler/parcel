@@ -51,6 +51,12 @@ const DEFAULT_INTEROP_TEMPLATE = template.statement<
 const THROW_TEMPLATE = template.statement<{|MODULE: StringLiteral|}, Statement>(
   '$parcel$missingModule(MODULE);',
 );
+const FAKE_INIT_TEMPLATE = template.statement<
+  {|INIT: Identifier, EXPORTS: Identifier|},
+  Statement,
+>(`function INIT(){
+  return EXPORTS;
+}`);
 
 export function link({
   bundle,
@@ -314,11 +320,7 @@ export function link({
       invariant(imported.assets != null);
       imported.assets.add(mod);
 
-      if (mod.meta.shouldWrap) {
-        return t.callExpression(getIdentifier(mod, 'init'), []);
-      } else {
-        return t.identifier(assertString(mod.meta.exportsIdentifier));
-      }
+      return t.callExpression(getIdentifier(mod, 'init'), []);
     }
   }
 
@@ -601,6 +603,21 @@ export function link({
           path.unshiftContainer('body', imports);
           path.scope.crawl();
         }
+
+        // Insert fake init functions that will be imported in other bundles,
+        // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
+        // not in the current bundle:
+        path.pushContainer(
+          'body',
+          [...referencedAssets]
+            .filter(a => !a.meta.shouldWrap)
+            .map(a => {
+              return FAKE_INIT_TEMPLATE({
+                INIT: getIdentifier(a, 'init'),
+                EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
+              });
+            }),
+        );
 
         // Generate exports
         let exported = format.generateExports(
