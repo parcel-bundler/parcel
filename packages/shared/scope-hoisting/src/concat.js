@@ -1,7 +1,14 @@
 // @flow
 
 import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
-import type {CallExpression, Identifier, Statement} from '@babel/types';
+import type {
+  CallExpression,
+  Identifier,
+  ClassDeclaration,
+  Node,
+  Statement,
+  VariableDeclaration,
+} from '@babel/types';
 
 import {parse as babelParse} from '@babel/parser';
 import path from 'path';
@@ -18,8 +25,7 @@ import {
   isStringLiteral,
   isVariableDeclaration,
 } from '@babel/types';
-import traverse from '@babel/traverse';
-import {simple as walkSimple} from '@parcel/babylon-walk';
+import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
 import {PromiseQueue} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
@@ -133,12 +139,12 @@ async function processAsset(bundle: Bundle, asset: Asset) {
   let code = await asset.getCode();
   let statements: Array<Statement> = parse(code, asset.filePath);
 
-  if (statements[0]) {
-    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
-  }
-
   if (asset.meta.shouldWrap) {
     statements = wrapModule(asset, statements);
+  }
+
+  if (statements[0]) {
+    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
   }
 
   return [asset.id, statements];
@@ -276,7 +282,7 @@ function findRequires(
   bundle: Bundle,
   bundleGraph: BundleGraph,
   asset: Asset,
-  ast: mixed,
+  ast: Node,
 ): Array<Asset> {
   let result = [];
   walkSimple(ast, FIND_REQUIRES_VISITOR, {asset, bundle, bundleGraph, result});
@@ -287,11 +293,16 @@ function findRequires(
 // Toplevel var/let/const declarations, function declarations and all `var` declarations
 // in a non-function scope need to be hoisted.
 const WRAP_MODULE_VISITOR = {
-  noScope: true,
   VariableDeclaration(path, {decls}) {
-    let {node, parent} = path;
+    // $FlowFixMe
+    let {node, parent} = (path: {|node: VariableDeclaration, parent: Node|});
+    let isParentForX =
+      isForInStatement(parent, {left: node}) ||
+      isForOfStatement(parent, {left: node});
+    let isParentFor = isForStatement(parent, {init: node});
+
     if (node.kind === 'var' || isProgram(path.parent)) {
-      let replace = [];
+      let replace: Array<any> = [];
       for (let decl of node.declarations) {
         let {id, init} = decl;
         if (isObjectPattern(id) || isArrayPattern(id)) {
@@ -307,41 +318,33 @@ const WRAP_MODULE_VISITOR = {
           invariant(t.isIdentifier(id));
         }
 
-        if (
-          isForInStatement(parent, {left: node}) ||
-          isForOfStatement(parent, {left: node})
-        ) {
-          invariant(!init);
+        if (isParentForX) {
           replace.push(id);
         } else if (init) {
-          if (isForStatement(parent, {init: node})) {
-            replace.push(t.assignmentExpression('=', id, init));
-          } else {
-            replace.push(
-              t.expressionStatement(t.assignmentExpression('=', id, init)),
-            );
-          }
+          replace.push(t.assignmentExpression('=', id, init));
         }
       }
 
-      if (replace.length > 1) {
-        path.replaceWithMultiple(replace).forEach(p => p.skip());
-      } else if (replace.length == 1) {
-        path.replaceWith(replace[0]);
-        path.skip();
+      if (replace.length > 0) {
+        let n = replace.length > 1 ? t.sequenceExpression(replace) : replace[0];
+        if (!(isParentFor || isParentForX)) {
+          n = t.expressionStatement(n);
+        }
+
+        path.replaceWith(n);
       } else {
         path.remove();
       }
-    } else {
-      path.skip();
     }
+    path.skip();
   },
   FunctionDeclaration(path, {fns}) {
     fns.push(path.node);
     path.remove();
   },
   ClassDeclaration(path, {decls}) {
-    let {node} = path;
+    // $FlowFixMe
+    let {node} = (path: {|node: ClassDeclaration|});
     let {id} = node;
     invariant(isIdentifier(id));
 
@@ -355,8 +358,11 @@ const WRAP_MODULE_VISITOR = {
     );
     path.skip();
   },
-  'Function|Class|Expression'(path) {
+  'Function|Class'(path) {
     path.skip();
+  },
+  shouldSkip(node) {
+    return t.isExpression(node);
   },
 };
 
@@ -364,7 +370,7 @@ function wrapModule(asset: Asset, statements) {
   let decls = [];
   let fns = [];
   let program = t.program(statements);
-  traverse(t.file(program), WRAP_MODULE_VISITOR, null, {decls, fns});
+  traverse(program, WRAP_MODULE_VISITOR, {decls, fns});
 
   let executed = getName(asset, 'executed');
   decls.push(

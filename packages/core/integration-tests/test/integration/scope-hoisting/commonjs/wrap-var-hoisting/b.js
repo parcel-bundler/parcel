@@ -1,4 +1,5 @@
 for(var BigIntSupported in [0, 1]){}
+for (var i = 0, len = 100; i < len; ++i) {}
 
 if (BigIntSupported) {
 	var bigIntValue = () => true;
