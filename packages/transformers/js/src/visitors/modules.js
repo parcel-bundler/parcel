@@ -98,39 +98,39 @@ export default ({
           }
         }
       }
+    }
 
-      // Add helpers if needed
-      if (namespaceName || defaultName) {
-        addHelpers(path, opts);
-      }
+    // Add helpers if needed
+    if (namespaceName || defaultName) {
+      addHelpers(path, opts);
+    }
 
-      // Create interop namespace variable if needed
-      if (namespaceName) {
-        path.scope.push({
-          id: t.identifier(namespaceName),
-          init: t.callExpression(
-            t.memberExpression(
-              t.identifier(nullthrows(opts.helpersId)),
-              t.identifier('namespace'),
-            ),
-            [t.identifier(name)],
+    // Create interop namespace variable if needed
+    if (namespaceName) {
+      path.scope.push({
+        id: t.identifier(namespaceName),
+        init: t.callExpression(
+          t.memberExpression(
+            t.identifier(nullthrows(opts.helpersId)),
+            t.identifier('namespace'),
           ),
-        });
-      }
+          [t.identifier(name)],
+        ),
+      });
+    }
 
-      // Create interop default variable if needed
-      if (defaultName) {
-        path.scope.push({
-          id: t.identifier(defaultName),
-          init: t.callExpression(
-            t.memberExpression(
-              t.identifier(nullthrows(opts.helpersId)),
-              t.identifier('interopDefault'),
-            ),
-            [t.identifier(name)],
+    // Create interop default variable if needed
+    if (defaultName) {
+      path.scope.push({
+        id: t.identifier(defaultName),
+        init: t.callExpression(
+          t.memberExpression(
+            t.identifier(nullthrows(opts.helpersId)),
+            t.identifier('interopDefault'),
           ),
-        });
-      }
+          [t.identifier(name)],
+        ),
+      });
     }
 
     path.remove();
