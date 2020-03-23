@@ -342,7 +342,7 @@ export interface MutableAsset extends BaseAsset {
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
-  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  addURLDependency(url: string, opts: ?$Shape<DependencyOptions>): string;
   isASTDirty(): boolean;
   setAST(AST): void;
   setBuffer(Buffer): void;

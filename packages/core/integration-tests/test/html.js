@@ -10,6 +10,7 @@ import {
   inputFS,
   outputFS,
   overlayFS,
+  ncp,
 } from '@parcel/test-utils';
 import path from 'path';
 
@@ -1229,34 +1230,33 @@ describe('html', function() {
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
-    const fixtureDir = path.join(
-      __dirname,
-      'integration/html-inline-js-require',
+    // copy into memory fs
+    await ncp(
+      path.join(__dirname, '/integration/html-inline-js-require'),
+      path.join(__dirname, '/html-inline-js-require'),
     );
-    await overlayFS.mkdirp(fixtureDir);
 
-    let b = await bundler(path.join(fixtureDir, 'index.html'), {
-      disableCache: false,
-      distDir,
-      inputFS: overlayFS,
-    });
+    let b = await bundler(
+      path.join(__dirname, '/html-inline-js-require/index.html'),
+      {
+        inputFS: overlayFS,
+        disableCache: false,
+      },
+    );
 
     subscription = await b.watch();
     await getNextBuild(b);
 
-    let html = await overlayFS.readFile(
-      path.join(distDir, 'index.html'),
-      'utf8',
-    );
+    let html = await outputFS.readFile('/dist/index.html', 'utf8');
     assert(html.includes("console.log('test')"));
 
     await overlayFS.writeFile(
-      path.join(fixtureDir, 'test.js'),
+      path.join(__dirname, '/html-inline-js-require/test.js'),
       'console.log("foo")',
     );
     await getNextBuild(b);
 
-    html = await overlayFS.readFile(path.join(distDir, 'index.html'), 'utf8');
+    html = await outputFS.readFile('/dist/index.html', 'utf8');
     assert(html.includes('console.log("foo")'));
   });
 

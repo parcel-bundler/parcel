@@ -5,7 +5,7 @@
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "webmanifest:*": ["@parcel/transformer-webmanifest"],
-    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
@@ -52,8 +52,7 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
-    "*.jsonld": "@parcel/packager-raw-url",
-    "*.webmanifest": "@parcel/packager-string",
+    "*.{jsonld,webmanifest}": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

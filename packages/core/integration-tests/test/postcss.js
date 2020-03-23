@@ -1,13 +1,14 @@
 import assert from 'assert';
 import path from 'path';
 import {
-  assertBundles,
   bundle,
+  run,
+  assertBundles,
   distDir,
   inputFS,
   outputFS,
   overlayFS,
-  run,
+  ncp,
 } from '@parcel/test-utils';
 import {
   NodePackageManager,
@@ -236,37 +237,42 @@ describe('postcss', () => {
   });
 
   it('should automatically install postcss plugins if needed', async () => {
-    let fixtureDir = path.join(
-      __dirname,
-      'integration/postcss-autoinstall/npm',
+    await outputFS.rimraf(path.join(__dirname, '/input'));
+    await ncp(
+      path.join(__dirname, '/integration/postcss-autoinstall/npm'),
+      path.join(__dirname, '/input'),
     );
-    await overlayFS.mkdirp(fixtureDir);
 
     let packageInstaller = new MockPackageInstaller();
     packageInstaller.register(
       'postcss-test',
       inputFS,
-      path.join(__dirname, 'integration/postcss-autoinstall/postcss-test'),
+      path.join(__dirname, '/integration/postcss-autoinstall/postcss-test'),
     );
 
     // The package manager uses an overlay filesystem, which performs writes to
     // an in-memory fs and reads first from memory, then falling back to the real fs.
     let packageManager = new NodePackageManager(overlayFS, packageInstaller);
 
-    await bundle(path.join(fixtureDir, 'index.css'), {
-      distDir,
-      inputFS: overlayFS,
+    await bundle(path.join(__dirname, '/input/index.css'), {
+      inputFS: outputFS,
       packageManager,
     });
 
     // cssnext was installed
     let pkg = JSON.parse(
-      await outputFS.readFile(path.join(fixtureDir, 'package.json'), 'utf8'),
+      await outputFS.readFile(
+        path.join(__dirname, '/input/package.json'),
+        'utf8',
+      ),
     );
     assert(pkg.devDependencies['postcss-test']);
 
     // postcss-test is applied
-    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(
+      path.join(outputFS.cwd(), 'dist', 'index.css'),
+      'utf8',
+    );
     assert(css.includes('background: green'));
 
     // Increase the timeout for just this test. It takes a while with npm.

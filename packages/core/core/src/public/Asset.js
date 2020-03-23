@@ -284,7 +284,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.setAST(ast);
   }
 
-  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {
+  addURLDependency(url: string, opts: ?$Shape<DependencyOptions>): string {
     return this.addDependency({
       moduleSpecifier: url,
       isURL: true,

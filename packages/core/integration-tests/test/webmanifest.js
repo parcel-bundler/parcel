@@ -15,7 +15,6 @@ describe('webmanifest', function() {
         assets: ['index.html'],
       },
       {
-        name: 'manifest.webmanifest',
         type: 'webmanifest',
         assets: ['manifest.webmanifest'],
       },
@@ -48,7 +47,6 @@ describe('webmanifest', function() {
         assets: ['index.html'],
       },
       {
-        name: 'manifest.webmanifest',
         type: 'webmanifest',
         assets: ['manifest.json'],
       },
@@ -136,14 +134,13 @@ describe('webmanifest', function() {
   });
 
   it('should throw on missing dependency', async function() {
-    let manifestPath = path.join(
-      __dirname,
-      '/integration/webmanifest-not-found/manifest.json',
-    );
+    let manifestPathRelative =
+      './integration/webmanifest-not-found/manifest.json';
+    let manifestPath = path.join(__dirname, manifestPathRelative);
     let manifest = await inputFS.readFileSync(manifestPath, 'utf8');
 
-    let message = `Cannot find module 'icon.png' from '${escapeMarkdown(
-      path.dirname(manifestPath),
+    let message = `Failed to resolve 'icon.png' from '${escapeMarkdown(
+      manifestPathRelative,
     )}'`;
 
     await assert.rejects(
@@ -173,6 +170,13 @@ describe('webmanifest', function() {
             },
             message,
             filePath: manifestPath,
+            origin: '@parcel/core',
+          },
+          {
+            hints: [],
+            message: `Cannot load file './icon.png' in '${path.dirname(
+              manifestPathRelative,
+            )}'.`,
             origin: '@parcel/resolver-default',
           },
         ],
