@@ -67,6 +67,8 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   let usedExports = getUsedExports(bundle, bundleGraph);
 
+  // Node: for each asset, the order of `$parcel$require` calls and the corresponding
+  // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
       if (shouldExcludeAsset(asset, usedExports)) {
@@ -87,7 +89,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       let statementIndices: Map<string, number> = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
-        if (isExpressionStatement(statement)) {
+        if (
+          isVariableDeclaration(statement) ||
+          isExpressionStatement(statement)
+        ) {
           for (let depAsset of findRequires(
             bundle,
             bundleGraph,
