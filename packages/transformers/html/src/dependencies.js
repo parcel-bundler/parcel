@@ -131,9 +131,7 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
         isDirty = true;
         return node;
       } else if (attrs.rel === 'manifest') {
-        attrs.href = asset.addURLDependency(`webmanifest:${attrs.href}`, {
-          isEntry: true,
-        });
+        attrs.href = asset.addURLDependency(`webmanifest:${attrs.href}`);
         isDirty = true;
         return node;
       }
