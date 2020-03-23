@@ -18,7 +18,7 @@ import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {assertString, getName, getIdentifier} from '../utils';
+import {getName, getIdentifier} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
