@@ -385,10 +385,10 @@ export default class SourceMap {
   |}): Promise<string> {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
-    let sources = [];
+    let sources = new Set();
     this.eachMapping(mapping => {
       if (mapping.source != null) {
-        sources.push(mapping.source);
+        sources.add(mapping.source);
       }
       generator.addMapping(mapping);
     });
