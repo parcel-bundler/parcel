@@ -431,18 +431,32 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>,
 ) => Promise<FilePath | null>;
 
+type ResolveConfigWithPathFn = (
+  configNames: Array<FilePath>,
+  assetFilePath: string,
+) => Promise<FilePath | null>;
+
 export type ValidateResult = {|
   warnings: Array<Diagnostic>,
   errors: Array<Diagnostic>,
 |};
 
-export type Validator = {|
-  validate({|
+export type DedicatedThreadValidator = {|
+  validateAll: ({|
+    assets: Asset[],
+    resolveConfigWithPath: ResolveConfigWithPathFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<?ValidateResult>>,
+|};
+
+export type MultiThreadValidator = {|
+  validate: ({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<ValidateResult | void>,
+  |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
@@ -450,6 +464,8 @@ export type Validator = {|
     logger: PluginLogger,
   |}) => Async<ConfigResult | void>,
 |};
+
+export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
   // TODO: deprecate getConfig

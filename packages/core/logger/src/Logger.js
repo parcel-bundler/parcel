@@ -178,6 +178,7 @@ export function unpatchConsole() {
   // Skip if console isn't patched...
   if (!consolePatched) return;
 
+  /* eslint-disable no-console */
   // $FlowFixMe
   console.log = INTERNAL_ORIGINAL_CONSOLE.log;
 
@@ -193,6 +194,7 @@ export function unpatchConsole() {
   // $FlowFixMe
   console.error = INTERNAL_ORIGINAL_CONSOLE.error;
 
+  /* eslint-enable no-console */
   consolePatched = false;
 }
 
