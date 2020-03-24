@@ -34,6 +34,9 @@ import TargetRequestRunner from './requests/TargetRequestRunner';
 import AssetRequestRunner from './requests/AssetRequestRunner';
 import DepPathRequestRunner from './requests/DepPathRequestRunner';
 
+import Validation from './Validation';
+import {report} from './ReporterRunner';
+
 import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
@@ -249,15 +252,30 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async validate(): Promise<void> {
-    let promises = this.assetRequests
+    let trackedRequestsDesc = this.assetRequests
       .filter(request => this.requestTracker.isTracked(request.id))
-      .map(({request}) =>
-        this.runValidate({
-          request,
-          optionsRef: this.optionsRef,
-          configRef: this.configRef,
-        }),
-      );
+      .map(({request}) => request);
+
+    // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
+    let promises = trackedRequestsDesc.map(request =>
+      this.runValidate({
+        requests: [request],
+        optionsRef: this.optionsRef,
+        configRef: this.configRef,
+      }),
+    );
+
+    // Schedule validations on the main thread for all validation plugins that implement "validateAll".
+    promises.push(
+      new Validation({
+        requests: trackedRequestsDesc,
+        options: this.options,
+        config: this.config,
+        report,
+        dedicatedThread: true,
+      }).run(),
+    );
+
     this.assetRequests = [];
     await Promise.all(promises);
   }
