@@ -22,10 +22,10 @@ for (const filePath of jsFiles) {
         'babel-plugin-module-resolver',
         {
           alias: {
-            '^@parcel/(.*)': x =>
-              x[1] === 'watcher'
-                ? '@parcel/watcher'
-                : '@atlassian/parcel-' + x[1],
+            '^@parcel/(.*)': ([packageName, matched]) =>
+              shouldReplace(packageName)
+                ? '@atlassian/parcel-' + matched
+                : packageName,
           },
         },
       ],
