@@ -1517,3 +1517,17 @@ export default new Validator({
   }
 });
 ```
+Some validators (such as `@parcel/validator-typescript`) may wish to maintain a project-wide cache for efficiency. For these cases, it is appropriate to use a different interface where parcel hands _all_ changed files to the validator at the same time:
+
+```js
+import {Validator} from '@parcel/plugin';
+
+export default new Validator({
+  async validateAll({assets}) {
+    // ...
+    throw error;
+  }
+});
+```
+
+If your plugin implements `validateAll`, Parcel will make sure to always invoke this method on the same thread (so that your cache state is accessible).

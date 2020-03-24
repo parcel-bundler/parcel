@@ -18,6 +18,7 @@
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.15",
     "@parcel/ts-utils": "^2.0.0-frontbucket.12",
-    "@parcel/utils": "^2.0.0-frontbucket.15"
+    "@parcel/utils": "^2.0.0-frontbucket.15",
+    "@parcel/types": "^2.0.0-frontbucket.15"
   }
 }

@@ -17,6 +17,7 @@
   "dependencies": {
     "@parcel/node-libs-browser": "^2.0.0-frontbucket.0",
     "@parcel/utils": "^2.0.0-frontbucket.15",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.12",
     "micromatch": "^3.0.4",
     "nullthrows": "^1.1.1"
   }
