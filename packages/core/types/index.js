@@ -316,11 +316,12 @@ export interface BaseAsset {
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
 
+  getAST(): Promise<?AST>;
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
-  getAST(): Promise<?AST>;
+  getMapBuffer(): Promise<?Buffer>;
   getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(

@@ -70,11 +70,11 @@ export default new Packager({
     bundle.traverse(node => {
       if (node.type === 'asset') {
         queue.add(async () => {
-          let [code, map] = await Promise.all([
+          let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            node.value.getMap(),
+            node.value.getMapBuffer(),
           ]);
-          return {code, map};
+          return {code, mapBuffer};
         });
       }
     });
@@ -125,7 +125,8 @@ export default new Packager({
           }
         }
 
-        let output = results[i].code || '';
+        let {code, mapBuffer} = results[i];
+        let output = code || '';
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
@@ -136,16 +137,18 @@ export default new Packager({
 
         if (options.sourceMaps) {
           let lineCount = countLines(output);
-          let assetMap =
-            results[i].map ??
-            SourceMap.generateEmptyMap(
+          if (mapBuffer) {
+            map.addBufferMappings(mapBuffer, lineOffset);
+          } else {
+            map.addEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
-              lineCount,
+              output,
+              lineOffset,
             );
+          }
 
-          map.addMap(assetMap, lineOffset);
           lineOffset += lineCount + 1;
         }
         i++;

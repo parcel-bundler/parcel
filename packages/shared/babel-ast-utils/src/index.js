@@ -52,13 +52,14 @@ export async function generate({
     throw await babelErrorEnhancer(e, asset);
   }
 
+  let map = null;
+  if (generated.rawMappings) {
+    map = new SourceMap();
+    map.addIndexedMappings(generated.rawMappings);
+  }
+
   return {
     code: generated.code,
-    map:
-      generated.rawMappings != null
-        ? new SourceMap(generated.rawMappings, {
-            [sourceFileName]: null,
-          })
-        : null,
+    map,
   };
 }

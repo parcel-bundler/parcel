@@ -70,11 +70,14 @@ export function generate(
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
+  let map = null;
+  if (options.sourceMaps && rawMappings != null) {
+    map = new SourceMap();
+    map.addIndexedMappings(rawMappings);
+  }
+
   return {
     contents: code,
-    map:
-      options.sourceMaps && rawMappings != null
-        ? new SourceMap(rawMappings)
-        : null,
+    map,
   };
 }

@@ -107,7 +107,7 @@ type InternalAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
   content?: ?(Blob | Promise<Buffer>),
-  map?: ?SourceMap,
+  mapBuffer?: ?Buffer,
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
@@ -117,7 +117,7 @@ export default class InternalAsset {
   value: Asset;
   options: ParcelOptions;
   content: ?(Blob | Promise<Buffer>);
-  map: ?SourceMap;
+  mapBuffer: ?Buffer;
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
@@ -127,7 +127,7 @@ export default class InternalAsset {
     value,
     options,
     content,
-    map,
+    mapBuffer,
     ast,
     isASTDirty,
     idBase,
@@ -135,7 +135,7 @@ export default class InternalAsset {
     this.value = value;
     this.options = options;
     this.content = content;
-    this.map = map;
+    this.mapBuffer = mapBuffer;
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
@@ -150,19 +150,21 @@ export default class InternalAsset {
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
       this.content = null;
-      this.map = null;
+      this.mapBuffer = null;
     }
 
     let size = 0;
-    let contentKey = this.getCacheKey('content' + pipelineKey);
-    let mapKey = this.getCacheKey('map' + pipelineKey);
+    let contentKey =
+      this.content == null ? null : this.getCacheKey('content' + pipelineKey);
+    let mapKey =
+      this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
     let astKey =
       this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
-      this.content == null
+      contentKey == null
         ? Promise.resolve()
         : this.options.cache.setStream(
             contentKey,
@@ -172,9 +174,9 @@ export default class InternalAsset {
               }),
             ),
           ),
-      this.map == null
+      this.mapBuffer == null || mapKey == null
         ? Promise.resolve()
-        : this.options.cache.set(mapKey, this.map),
+        : this.options.cache.setBlob(mapKey, this.mapBuffer),
       astKey == null
         ? Promise.resolve()
         : this.options.cache.setBlob(
@@ -229,7 +231,7 @@ export default class InternalAsset {
     });
 
     this.content = code;
-    this.map = map;
+    let mapBuffer = (this.mapBuffer = map?.toBuffer());
 
     // Store the results in the cache so we can avoid generating again next time
     await Promise.all([
@@ -237,9 +239,9 @@ export default class InternalAsset {
         nullthrows(this.value.contentKey),
         this.getStream(),
       ),
-      this.map == null
+      mapBuffer == null
         ? Promise.resolve()
-        : this.options.cache.set(nullthrows(this.value.mapKey), this.map),
+        : this.options.cache.setBlob(nullthrows(this.value.mapKey), mapBuffer),
     ]);
   }
 
@@ -320,10 +322,10 @@ export default class InternalAsset {
     this.clearAST();
   }
 
-  async getMap(): Promise<?SourceMap> {
-    if (this.value.mapKey != null && this.map == null) {
+  async getMapBuffer(): Promise<?Buffer> {
+    if (this.value.mapKey != null && this.mapBuffer == null) {
       try {
-        this.map = await this.options.cache.get(this.value.mapKey);
+        this.mapBuffer = await this.options.cache.getBlob(this.value.mapKey);
       } catch (err) {
         if (err.code === 'ENOENT' && this.value.astKey != null) {
           await this.generateFromAST();
@@ -333,11 +335,23 @@ export default class InternalAsset {
       }
     }
 
-    return this.map;
+    return this.mapBuffer;
+  }
+
+  async getMap(): Promise<?SourceMap> {
+    let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
+    if (mapBuffer) {
+      // Get sourcemap from flatbuffer
+      let map = new SourceMap();
+      map.addBufferMappings(mapBuffer);
+      return map;
+    }
   }
 
   setMap(map: ?SourceMap): void {
-    this.map = map;
+    if (map) {
+      this.mapBuffer = map.toBuffer();
+    }
   }
 
   async getAST(): Promise<?AST> {
@@ -451,7 +465,7 @@ export default class InternalAsset {
       content,
       ast: result.ast,
       isASTDirty: result.ast === this.ast ? this.isASTDirty : true,
-      map: result.map,
+      mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
     });
 

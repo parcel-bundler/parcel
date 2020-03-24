@@ -297,7 +297,7 @@ export default class Transformation {
             if (asset.isASTDirty) {
               let output = await generate(asset);
               asset.content = output.code;
-              asset.map = output.map;
+              asset.mapBuffer = output.map?.toBuffer();
             }
 
             asset.clearAST();
@@ -539,7 +539,7 @@ async function runTransformer(
   ) {
     let output = await pipeline.generate(asset);
     asset.content = output.code;
-    asset.map = output.map;
+    asset.mapBuffer = output.map?.toBuffer();
   }
 
   // Parse if there is no AST available from a previous transform.
@@ -631,7 +631,7 @@ function normalizeAssets(
         type: result.type,
         content: await internalAsset.content,
         ast: internalAsset.ast,
-        map: internalAsset.map,
+        mapBuffer: internalAsset.mapBuffer,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
         includedFiles: result.getIncludedFiles(),
