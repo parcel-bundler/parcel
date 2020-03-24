@@ -18,7 +18,7 @@ import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {getName, getIdentifier} from '../utils';
+import {assertString, getName, getIdentifier} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -26,7 +26,10 @@ export function generateBundleImports(
   assets: Set<Asset>,
 ) {
   let specifiers = [...assets].map(asset => {
-    let id = getIdentifier(asset, 'init');
+    let id = asset.meta.shouldWrap
+      ? getIdentifier(asset, 'init')
+      : t.identifier(assertString(asset.meta.exportsIdentifier));
+
     return t.importSpecifier(id, id);
   });
 
@@ -125,7 +128,10 @@ export function generateExports(
   }
 
   for (let asset of referencedAssets) {
-    let exportsId = getName(asset, 'init');
+    let exportsId = asset.meta.shouldWrap
+      ? getName(asset, 'init')
+      : assertString(asset.meta.exportsIdentifier);
+
     exportedIdentifiers.set(exportsId, exportsId);
   }
 
