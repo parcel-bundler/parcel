@@ -24,6 +24,7 @@ const COMMIT = process.env.BITBUCKET_COMMIT;
 const analytics = {
   identify: (data: {|[string]: mixed|}) => {
     if (process.env.ANALYTICS_DEBUG != null) {
+      // eslint-disable-next-line no-console
       console.log('analytics:identify', data);
     }
 
@@ -45,6 +46,7 @@ const analytics = {
     };
 
     if (process.env.ANALYTICS_DEBUG != null) {
+      // eslint-disable-next-line no-console
       console.log('analytics:track', eventType, eventProperties);
     }
 
