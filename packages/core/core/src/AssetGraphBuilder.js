@@ -66,7 +66,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   depPathRequestRunner: DepPathRequestRunner;
   assetRequestRunner: AssetRequestRunner;
   configRequestRunner: ParcelConfigRequestRunner;
-  assetRequests: Array<AssetRequestDesc>;
+  assetRequests: Array<AssetRequest>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
   rejected: Map<string, mixed>;
@@ -249,13 +249,15 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async validate(): Promise<void> {
-    let promises = this.assetRequests.map(request =>
-      this.runValidate({
-        request,
-        optionsRef: this.optionsRef,
-        configRef: this.configRef,
-      }),
-    );
+    let promises = this.assetRequests
+      .filter(request => this.requestTracker.isTracked(request.id))
+      .map(({request}) =>
+        this.runValidate({
+          request,
+          optionsRef: this.optionsRef,
+          configRef: this.configRef,
+        }),
+      );
     this.assetRequests = [];
     await Promise.all(promises);
   }
@@ -282,7 +284,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       case 'dep_path_request':
         return this.depPathRequestRunner.runRequest(request.request, runOpts);
       case 'asset_request': {
-        this.assetRequests.push(request.request);
+        this.assetRequests.push(request);
         let result = await this.assetRequestRunner.runRequest(
           request.request,
           runOpts,
