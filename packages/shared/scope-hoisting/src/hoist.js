@@ -284,27 +284,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
     if (path.node.name === 'global' && !path.scope.hasBinding('global')) {
       path.replaceWith(t.identifier('$parcel$global'));
-      if (asset.meta.globals) {
-        asset.meta.globals.delete('global');
-      }
-    }
-
-    let globals = asset.meta.globals;
-    if (!globals) {
-      return;
-    }
-
-    let globalCode = globals.get(path.node.name);
-    if (globalCode) {
-      let [decl] = path.scope
-        .getProgramParent()
-        .path.unshiftContainer('body', [
-          template.statement<null, Statement>(globalCode.code)(),
-        ]);
-
-      path.requeue(decl);
-
-      globals.delete(path.node.name);
     }
   },
 

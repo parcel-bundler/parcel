@@ -1,5 +1,8 @@
 // @flow
 
+import type {GlobalsMap} from './visitors/globals';
+
+import template from '@babel/template';
 import semver from 'semver';
 import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
@@ -86,6 +89,7 @@ export default new Transformer({
       });
     }
 
+    let isASTDirty;
     if (!asset.env.isNode()) {
       // Inline fs calls, run before globals to also collect Buffer
       if (code == null || FS_RE.test(code)) {
@@ -105,8 +109,17 @@ export default new Transformer({
 
       // Insert node globals
       if (code == null || GLOBAL_RE.test(code)) {
-        asset.meta.globals = new Map();
-        walkAncestor(ast.program, insertGlobals, asset);
+        let globals: GlobalsMap = new Map();
+        walkAncestor(ast.program, insertGlobals, {asset, globals});
+
+        if (globals.size > 0) {
+          ast.program.program.body.unshift(
+            ...[...globals.values()]
+              .filter(Boolean)
+              .map(({code}) => template.statement(code)()),
+          );
+          isASTDirty = true;
+        }
       }
     }
 
@@ -121,6 +134,11 @@ export default new Transformer({
     if (ast.program.program.interpreter != null) {
       asset.meta.interpreter = ast.program.program.interpreter.value;
       delete ast.program.program.interpreter;
+      isASTDirty = true;
+    }
+
+    if (isASTDirty) {
+      asset.setAST(ast);
     }
 
     if (asset.env.scopeHoist) {

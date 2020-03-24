@@ -53,7 +53,7 @@ export async function generate({
   }
 
   return {
-    code: generateGlobals(asset) + generated.code,
+    code: generated.code,
     map:
       generated.rawMappings != null
         ? new SourceMap(generated.rawMappings, {
@@ -61,16 +61,4 @@ export async function generate({
           })
         : null,
   };
-}
-
-function generateGlobals(asset) {
-  let code = '';
-  if (asset.meta.globals && asset.meta.globals.size > 0) {
-    code =
-      Array.from(asset.meta.globals.values())
-        .map(g => (g ? g.code : ''))
-        .join('\n') + '\n';
-  }
-  delete asset.meta.globals;
-  return code;
 }
