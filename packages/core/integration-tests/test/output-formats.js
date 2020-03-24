@@ -670,7 +670,8 @@ describe('output formats', function() {
       );
     });
 
-    it('should support async split bundles for workers', async function() {
+    // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+    it.skip('should support async split bundles for workers', async function() {
       let b = await bundle(
         path.join(
           __dirname,
