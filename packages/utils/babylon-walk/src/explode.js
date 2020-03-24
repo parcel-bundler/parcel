@@ -61,10 +61,9 @@ export default function explode(visitor) {
 
     let deprecratedKey = t.DEPRECATED_KEYS[nodeType];
     if (deprecratedKey) {
-      console.trace(
+      throw new Error(
         `Visitor defined for ${nodeType} but it has been renamed to ${deprecratedKey}`,
       );
-      aliases = [deprecratedKey];
     }
 
     if (!aliases) continue;
