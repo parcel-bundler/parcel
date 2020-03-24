@@ -121,7 +121,7 @@ export default class InternalAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
-  isGenerating: boolean;
+  generatingPromise: ?Promise<void>;
 
   constructor({
     value,
@@ -139,7 +139,6 @@ export default class InternalAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
-    this.isGenerating = false;
   }
 
   /*
@@ -198,12 +197,15 @@ export default class InternalAsset {
   }
 
   async generateFromAST() {
-    if (this.isGenerating) {
-      throw new Error('Cannot call asset.getCode() from while generating');
+    if (this.generatingPromise == null) {
+      this.generatingPromise = this._generateFromAST();
     }
 
-    this.isGenerating = true;
+    await this.generatingPromise;
+    return this.content || '';
+  }
 
+  async _generateFromAST() {
     let ast = await this.getAST();
     if (ast == null) {
       throw new Error('Asset has no AST');
@@ -239,9 +241,6 @@ export default class InternalAsset {
         ? Promise.resolve()
         : this.options.cache.set(nullthrows(this.value.mapKey), this.map),
     ]);
-
-    this.isGenerating = false;
-    return this.content || '';
   }
 
   ensureContent() {

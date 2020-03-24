@@ -69,10 +69,13 @@ export default new Packager({
     let queue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        queue.add(async () => ({
-          code: await node.value.getCode(),
-          map: await node.value.getMap(),
-        }));
+        queue.add(async () => {
+          let [code, map] = await Promise.all([
+            node.value.getCode(),
+            node.value.getMap(),
+          ]);
+          return {code, map};
+        });
       }
     });
 
