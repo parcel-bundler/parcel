@@ -89,7 +89,7 @@ type InternalAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
   content?: Blob,
-  map?: ?SourceMap,
+  mapBuffer?: ?Buffer,
   ast?: ?AST,
   idBase?: ?string,
 |};
@@ -98,7 +98,7 @@ export default class InternalAsset {
   value: Asset;
   options: ParcelOptions;
   content: Blob;
-  map: ?SourceMap;
+  mapBuffer: ?Buffer;
   ast: ?AST;
   idBase: ?string;
 
@@ -106,14 +106,14 @@ export default class InternalAsset {
     value,
     options,
     content,
-    map,
+    mapBuffer,
     ast,
     idBase,
   }: InternalAssetOptions) {
     this.value = value;
     this.options = options;
     this.content = content || '';
-    this.map = map;
+    this.mapBuffer = mapBuffer;
     this.ast = ast;
     this.idBase = idBase;
   }
@@ -153,11 +153,12 @@ export default class InternalAsset {
           }),
         ),
       ),
-      this.map == null
+      this.mapBuffer == null
         ? Promise.resolve()
-        : this.options.cache.set(
+        : this.options.cache.setBlob(
             this.getCacheKey('map' + pipelineKey),
-            this.map,
+            // $FlowFixMe strange that this occurs
+            this.mapBuffer,
           ),
     ]);
     this.value.contentKey = contentKey;
@@ -213,16 +214,31 @@ export default class InternalAsset {
     this.content = stream;
   }
 
-  async getMap(): Promise<?SourceMap> {
-    if (this.value.mapKey != null) {
-      this.map = await this.options.cache.get(this.value.mapKey);
+  async getMapBuffer(): Promise<?Buffer> {
+    if (!this.mapBuffer && this.value.mapKey != null) {
+      this.mapBuffer = await this.options.cache.getBlob(this.value.mapKey);
     }
 
-    return this.map;
+    return this.mapBuffer;
+  }
+
+  async getMap(): Promise<?SourceMap> {
+    if (!this.mapBuffer) {
+      await this.getMapBuffer();
+    }
+
+    if (this.mapBuffer) {
+      // Get sourcemap from flatbuffer
+      let map = new SourceMap();
+      map.addBufferMappings(this.mapBuffer);
+      return map;
+    }
   }
 
   setMap(map: ?SourceMap): void {
-    this.map = map;
+    if (map) {
+      this.mapBuffer = map.toBuffer();
+    }
   }
 
   getCacheKey(key: string): string {
@@ -312,7 +328,7 @@ export default class InternalAsset {
       options: this.options,
       content,
       ast: result.ast,
-      map: result.map,
+      mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
     });
 
