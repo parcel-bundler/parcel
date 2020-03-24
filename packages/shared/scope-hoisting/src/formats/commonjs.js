@@ -131,10 +131,7 @@ export function generateBundleImports(
   scope: Scope,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
-    let id = asset.meta.shouldWrap
-      ? getIdentifier(asset, 'init')
-      : t.identifier(assertString(asset.meta.exportsIdentifier));
-
+    let id = getIdentifier(asset, 'init');
     return t.objectProperty(id, id, false, true);
   });
 
@@ -302,25 +299,14 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    if (asset.meta.shouldWrap) {
-      let id = getIdentifier(asset, 'init');
-      exported.add(id.name);
-      statements.push(
-        EXPORT_TEMPLATE({
-          NAME: id,
-          IDENTIFIER: id,
-        }),
-      );
-    } else {
-      let exportsId = assertString(asset.meta.exportsIdentifier);
-      exported.add(exportsId);
-      statements.push(
-        EXPORT_TEMPLATE({
-          NAME: t.identifier(exportsId),
-          IDENTIFIER: t.identifier(exportsId),
-        }),
-      );
-    }
+    let id = getIdentifier(asset, 'init');
+    exported.add(id.name);
+    statements.push(
+      EXPORT_TEMPLATE({
+        NAME: id,
+        IDENTIFIER: id,
+      }),
+    );
   }
 
   let entry = bundle.getMainEntry();
