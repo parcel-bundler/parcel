@@ -1317,6 +1317,9 @@ describe('javascript', function() {
     let output = await run(b);
     assert.ok(output.toString().indexOf('process.browser') === -1);
     assert.equal(output(), true);
+    // Running the bundled code has the side effect of setting process.browser = true, which can mess
+    // up the instantiation of typescript.sys within validator-typescript, so we want to reset it.
+    process.browser = undefined;
   });
 
   it.skip('should support adding implicit dependencies', async function() {

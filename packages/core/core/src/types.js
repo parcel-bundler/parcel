@@ -352,7 +352,7 @@ export type TransformationOpts = {|
 |};
 
 export type ValidationOpts = {|
-  request: AssetRequestDesc,
+  requests: AssetRequestDesc[],
   optionsRef: number,
   configRef: number,
 |};
