@@ -77,7 +77,7 @@ export default class ParcelConfig {
     );
   }
 
-  getConfig() {
+  getConfig(): ProcessedParcelConfig {
     return {
       filePath: this.filePath,
       resolvers: this.resolvers,
