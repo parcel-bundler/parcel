@@ -896,7 +896,6 @@ describe('output formats', function() {
         'utf8',
       );
 
-      console.log(dist1);
       let exportName = dist1.match(/export function\s*([a-z0-9$]+)\(\)/)[1];
       assert(exportName);
 
