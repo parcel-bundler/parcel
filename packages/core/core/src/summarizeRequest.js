@@ -28,43 +28,48 @@ async function isFilePathSource(fs: FileSystem, filePath: FilePath) {
   );
 }
 
-async function summarizeDiskRequest(
+function summarizeDiskRequest(
   fs: FileSystem,
   req: AssetRequestDesc,
 ): Promise<{|content: Blob, hash: string, size: number|}> {
-  let code = req.code;
-  let content: Blob;
-  let hash: string;
-  let size: number;
-  if (code == null) {
-    // As an optimization for the common case of source code, while we read in
-    // data to compute its md5 and size, buffer its contents in memory.
-    // This avoids reading the data now, and then again during transformation.
-    // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
-    // lazily read it at a later point.
-    content = Buffer.from([]);
-    size = 0;
-    hash = await md5FromReadableStream(
-      fs.createReadStream(req.filePath).pipe(
-        new TapStream(buf => {
-          size += buf.length;
-          if (content instanceof Buffer) {
-            if (size > BUFFER_LIMIT) {
-              // if buffering this content would put this over BUFFER_LIMIT, replace
-              // it with a stream
-              content = fs.createReadStream(req.filePath);
-            } else {
-              content = Buffer.concat([content, buf]);
-            }
-          }
-        }),
-      ),
-    );
-  } else {
-    content = code;
-    hash = md5FromString(code);
-    size = Buffer.from(code).length;
-  }
+  return new Promise((resolve, reject) => {
+    let code = req.code;
+    let content: Blob;
+    let hash: string;
+    let size: number;
+    if (code == null) {
+      // As an optimization for the common case of source code, while we read in
+      // data to compute its md5 and size, buffer its contents in memory.
+      // This avoids reading the data now, and then again during transformation.
+      // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
+      // lazily read it at a later point.
+      content = Buffer.from([]);
+      size = 0;
 
-  return {content, hash, size};
+      let stream = fs.createReadStream(req.filePath);
+      stream.on('error', reject);
+
+      md5FromReadableStream(
+        stream.pipe(
+          new TapStream(buf => {
+            size += buf.length;
+            if (content instanceof Buffer) {
+              if (size > BUFFER_LIMIT) {
+                // if buffering this content would put this over BUFFER_LIMIT, replace
+                // it with a stream
+                content = fs.createReadStream(req.filePath);
+              } else {
+                content = Buffer.concat([content, buf]);
+              }
+            }
+          }),
+        ),
+      ).then(hash => resolve({content, hash, size}), reject);
+    } else {
+      content = code;
+      hash = md5FromString(code);
+      size = Buffer.from(code).length;
+      resolve({content, hash, size});
+    }
+  });
 }
