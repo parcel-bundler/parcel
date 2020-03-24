@@ -175,10 +175,14 @@ export default new Transformer({
       );
 
       res.code = generated.code;
+
+      let map = null;
+      if (generated.rawMappings) {
+        map = new SourceMap();
+        map.addIndexedMappings(generated.rawMappings);
+      }
       // $FlowFixMe...
-      res.map = new SourceMap(generated.rawMappings, {
-        [sourceFileName]: null,
-      });
+      res.map = map;
     }
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {

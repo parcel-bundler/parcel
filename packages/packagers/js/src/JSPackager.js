@@ -65,7 +65,7 @@ export default new Packager({
     bundle.traverse(node => {
       if (node.type === 'asset') {
         codeQueue.add(() => node.value.getCode());
-        mapQueue.add(() => node.value.getMap());
+        mapQueue.add(() => node.value.getMapBuffer());
       }
     });
 
@@ -126,16 +126,18 @@ export default new Packager({
 
         if (options.sourceMaps) {
           let lineCount = countLines(output);
-          let assetMap =
-            maps[i] ??
-            SourceMap.generateEmptyMap(
+          if (maps[i]) {
+            map.addBufferMappings(maps[i], lineOffset);
+          } else {
+            map.addEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
-              lineCount,
+              output,
+              lineOffset,
             );
+          }
 
-          map.addMap(assetMap, lineOffset);
           lineOffset += lineCount + 1;
         }
         i++;
