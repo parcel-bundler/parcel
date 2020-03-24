@@ -24,6 +24,27 @@ describe('resolver', function() {
     assert.strictEqual(output.default, 1234);
   });
 
+  it('should fall back to index.js if the resolved `main` file does not exist', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-index-fallback/incorrect-entry.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 42);
+  });
+
+  it('should fall back to index.js if there is no `main` field at all', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-index-fallback/no-entry.js'),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 42);
+  });
+
   it('should throw an error on Webpack loader imports', async function() {
     let didThrow = false;
     try {
@@ -103,7 +124,7 @@ describe('resolver', function() {
 
       assert.equal(
         e.diagnostics[1].message,
-        `Could not load './indeax.js' from module 'invalid-module' found in package.json#main`,
+        `Could not load './entryx.js' from module 'invalid-module' found in package.json#main`,
       );
 
       assert.deepEqual(e.diagnostics[1].codeFrame.codeHighlights[0], {
@@ -111,7 +132,7 @@ describe('resolver', function() {
           column: 25,
           line: 4,
         },
-        message: "'./indeax.js' does not exist, did you mean './index.js'?'",
+        message: "'./entryx.js' does not exist, did you mean './entry.js'?'",
         start: {
           column: 13,
           line: 4,

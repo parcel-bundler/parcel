@@ -27,7 +27,6 @@ export default new Optimizer({
 
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
-      warnings: true,
       ...userConfig?.config,
       compress: {
         ...userConfig?.config?.compress,
@@ -50,8 +49,13 @@ export default new Optimizer({
     }
 
     let sourceMap = null;
-    if (result.map) {
-      sourceMap = await SourceMap.fromRawSourceMap(result.map);
+    if (result.map && typeof result.map !== 'string') {
+      sourceMap = new SourceMap();
+      sourceMap.addRawMappings(
+        result.map.mappings,
+        result.map.sources,
+        result.map.names || [],
+      );
     }
 
     return {contents: nullthrows(result.code), map: sourceMap};

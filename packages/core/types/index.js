@@ -317,6 +317,7 @@ export interface BaseAsset {
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
+  getMapBuffer(): Promise<?Buffer>;
   getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
