@@ -119,6 +119,7 @@ export type Asset = {|
   astKey: ?string,
   astGenerator: ?ASTGenerator,
   symbols: Map<Symbol, Symbol>,
+  exportedSymbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
   uniqueKey?: ?string,
   configPath?: FilePath,

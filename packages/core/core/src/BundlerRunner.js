@@ -119,6 +119,18 @@ export default class BundlerRunner {
     assertSignalNotAborted(signal);
     await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
+    try {
+      await bundler.propagate({
+        bundleGraph: new BundleGraph(internalBundleGraph, this.options),
+        options: this.pluginOptions,
+        logger: new PluginLogger({origin: this.config.getBundlerName()}),
+      });
+    } catch (e) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+      });
+    }
+
     if (cacheKey != null) {
       await this.options.cache.set(cacheKey, internalBundleGraph);
     }

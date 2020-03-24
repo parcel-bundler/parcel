@@ -1,6 +1,6 @@
 // @flow
 
-import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
+import type {Bundle, Asset, BundleGraph} from '@parcel/types';
 import type {CallExpression, Identifier, Statement} from '@babel/types';
 
 import {parse as babelParse} from '@babel/parser';
@@ -39,24 +39,8 @@ type TraversalContext = {|
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let queue = new PromiseQueue({maxConcurrent: 32});
-  bundle.traverse((node, shouldWrap) => {
-    switch (node.type) {
-      case 'dependency':
-        // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
-        if (shouldWrap || node.value.meta.shouldWrap) {
-          let resolved = bundleGraph.getDependencyResolution(
-            node.value,
-            bundle,
-          );
-          if (resolved) {
-            resolved.meta.shouldWrap = true;
-          }
-          return true;
-        }
-        break;
-      case 'asset':
-        queue.add(() => processAsset(bundle, node.value));
-    }
+  bundle.traverseAssets(asset => {
+    queue.add(() => processAsset(bundle, asset));
   });
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
@@ -65,13 +49,11 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
-  let usedExports = getUsedExports(bundle, bundleGraph);
-
   // Node: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldExcludeAsset(asset, usedExports)) {
+      if (shouldExcludeAsset(asset)) {
         return context;
       }
 
@@ -81,7 +63,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      if (!context || shouldExcludeAsset(asset, usedExports)) {
+      if (!context || shouldExcludeAsset(asset)) {
         return;
       }
 
@@ -158,82 +140,11 @@ function parse(code, filename) {
   return ast.program.body;
 }
 
-function getUsedExports(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
-): Map<string, Set<Symbol>> {
-  let usedExports: Map<string, Set<Symbol>> = new Map();
-
-  let entry = bundle.getMainEntry();
-  if (entry) {
-    for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
-      if (symbol) {
-        markUsed(asset, symbol);
-      }
-    }
-  }
-
-  bundle.traverseAssets(asset => {
-    for (let dep of bundleGraph.getDependencies(asset)) {
-      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
-      if (!resolvedAsset) {
-        continue;
-      }
-
-      for (let [symbol, identifier] of dep.symbols) {
-        if (identifier === '*') {
-          continue;
-        }
-
-        if (symbol === '*') {
-          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
-            resolvedAsset,
-          )) {
-            if (symbol) {
-              markUsed(asset, symbol);
-            }
-          }
-        }
-
-        markUsed(resolvedAsset, symbol);
-      }
-    }
-
-    // If the asset is referenced by another bundle, include all exports.
-    if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
-      markUsed(asset, '*');
-      for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
-        if (symbol) {
-          markUsed(a, symbol);
-        }
-      }
-    }
-  });
-
-  function markUsed(asset, symbol) {
-    let resolved = bundleGraph.resolveSymbol(asset, symbol);
-
-    let used = usedExports.get(resolved.asset.id);
-    if (!used) {
-      used = new Set();
-      usedExports.set(resolved.asset.id, used);
-    }
-
-    used.add(resolved.exportSymbol);
-  }
-
-  return usedExports;
-}
-
-function shouldExcludeAsset(
-  asset: Asset,
-  usedExports: Map<string, Set<Symbol>>,
-) {
+function shouldExcludeAsset(asset: Asset) {
   return (
     asset.sideEffects === false &&
     !asset.meta.isCommonJS &&
-    (!usedExports.has(asset.id) ||
-      nullthrows(usedExports.get(asset.id)).size === 0)
+    asset.exportedSymbols.size === 0
   );
 }
 

@@ -39,6 +39,12 @@ type BundleGraphEdgeTypes =
   // Using this type prevents referenced assets from being traversed normally.
   | 'references';
 
+type ResolvedSymbol = {|
+  asset: Asset,
+  exportSymbol: Symbol,
+  symbol: ?Symbol,
+|};
+
 export default class BundleGraph {
   // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
   // property so it is possible to reach in and mutate the graph without invalidating these hashes.
@@ -178,13 +184,13 @@ export default class BundleGraph {
 
   getDependencyAssets(dependency: Dependency): Array<Asset> {
     let dependencyNode = nullthrows(this._graph.getNode(dependency.id));
-    return this._graph
-      .getNodesConnectedFrom(dependencyNode)
-      .filter(node => node.type === 'asset')
-      .map(node => {
-        invariant(node.type === 'asset');
-        return node.value;
-      });
+    let assets = [];
+    this.traverseContents((node, _, traverse) => {
+      if (node.type === 'dependency') {
+        if (node.id !== dependency.id) traverse.skipChildren();
+      } else assets.push(node.value);
+    }, dependencyNode);
+    return assets;
   }
 
   getDependencyResolution(dep: Dependency, bundle?: Bundle): ?Asset {
@@ -204,6 +210,7 @@ export default class BundleGraph {
           firstAsset;
 
     // If a resolution still hasn't been found, return the first referenced asset.
+    // TODO still will never work?
     if (resolved == null) {
       this._graph.traverse(
         (node, _, traversal) => {
@@ -401,11 +408,13 @@ export default class BundleGraph {
 
   traverseContents<TContext>(
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
+    startNode?: BundleGraphNode,
   ): ?TContext {
     return this._graph.filteredTraverse(
       node =>
         node.type === 'asset' || node.type === 'dependency' ? node : null,
       visit,
+      startNode,
     );
   }
 
@@ -527,7 +536,7 @@ export default class BundleGraph {
     );
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol) {
+  resolveSymbol(asset: Asset, symbol: Symbol): ResolvedSymbol {
     let identifier = asset.symbols.get(symbol);
     if (symbol === '*') {
       return {asset, exportSymbol: '*', symbol: identifier};
@@ -584,11 +593,39 @@ export default class BundleGraph {
     return {asset, exportSymbol: symbol, symbol: identifier};
   }
 
-  getExportedSymbols(asset: Asset) {
+  // all symbols that this asset is (in)directly exporting
+  getSymbols(asset: Asset): Array<ResolvedSymbol> {
     let symbols = [];
 
     for (let symbol of asset.symbols.keys()) {
       symbols.push(this.resolveSymbol(asset, symbol));
+    }
+
+    let deps = this.getDependencies(asset);
+    for (let dep of deps) {
+      if (dep.symbols.get('*') === '*') {
+        let resolved = nullthrows(this.getDependencyResolution(dep));
+        let exported = this.getSymbols(resolved).filter(
+          s => s.exportSymbol !== 'default',
+        );
+        symbols.push(...exported);
+      }
+    }
+
+    return symbols;
+  }
+
+  // the used symbols that this asset is exporting
+  getExportedSymbols(asset: Asset): Array<ResolvedSymbol> {
+    let symbols = [];
+
+    for (let [exportSymbol, symbol] of asset.exportedSymbols) {
+      //TODO ?
+      if (exportSymbol === '*') {
+        symbols.push({asset: asset, exportSymbol, symbol});
+      } else {
+        symbols.push(this.resolveSymbol(asset, exportSymbol));
+      }
     }
 
     let deps = this.getDependencies(asset);

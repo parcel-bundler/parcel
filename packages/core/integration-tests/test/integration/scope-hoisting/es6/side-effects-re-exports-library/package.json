@@ -1,4 +1,4 @@
 {
-    "main": "build.js",
+    "main": "dist/index.js",
     "sideEffects": false
 }

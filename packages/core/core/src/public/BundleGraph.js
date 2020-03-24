@@ -6,7 +6,7 @@ import type {
   BundleGraph as IBundleGraph,
   BundleGroup,
   Dependency as IDependency,
-  GraphTraversalCallback,
+  GraphVisitor,
   Symbol,
   SymbolResolution,
 } from '@parcel/types';
@@ -182,6 +182,15 @@ export default class BundleGraph implements IBundleGraph {
     };
   }
 
+  getSymbols(asset: IAsset): Array<SymbolResolution> {
+    let res = this.#graph.getSymbols(assetToInternalAsset(asset).value);
+    return res.map(e => ({
+      asset: assetFromValue(e.asset, this.#options),
+      exportSymbol: e.exportSymbol,
+      symbol: e.symbol,
+    }));
+  }
+
   getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
     let res = this.#graph.getExportedSymbols(assetToInternalAsset(asset).value);
     return res.map(e => ({
@@ -192,7 +201,7 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<IBundle, TContext>,
+    visit: GraphVisitor<IBundle, TContext>,
     startBundle?: IBundle,
   ): ?TContext {
     return this.#graph.traverseBundles(

@@ -54,8 +54,13 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isDeferred) parts.push('deferred');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+      label +=
+        '\n' + [...node.value.symbols].map(([a, b]) => `${a}:${b}`).join(', ');
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
+      label +=
+        '\n' +
+        [...node.value.exportedSymbols].map(([a, b]) => `${a}:${b}`).join(', ');
     } else if (node.type === 'asset_group') {
       if (node.deferred) label += '(deferred)';
     } else if (node.type === 'file') {

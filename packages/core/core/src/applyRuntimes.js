@@ -15,7 +15,11 @@ import type PluginOptions from './public/PluginOptions';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
+import AssetGraph, {nodeFromAssetGroup, nodeFromDep} from './AssetGraph';
+import {createDependency} from './Dependency';
+import {dependencyToInternalDependency} from './public/Dependency';
+import {environmentToInternalEnvironment} from './public/Environment';
+import {targetToInternalTarget} from './public/Target';
 import BundleGraph from './public/BundleGraph';
 import {removeAssetGroups} from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
@@ -27,7 +31,8 @@ import {HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 type RuntimeConnection = {|
   bundle: InternalBundle,
   assetRequest: AssetRequestDesc,
-  dependency: ?Dependency,
+  dependencyFrom: ?Dependency,
+  dependencyReplace: ?Dependency,
   isEntry: ?boolean,
 |};
 
@@ -60,7 +65,13 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+          for (let {
+            code,
+            dependencyFrom,
+            dependencyReplace,
+            filePath,
+            isEntry,
+          } of runtimeAssets) {
             let assetRequest = {
               code,
               filePath,
@@ -69,7 +80,8 @@ export default async function applyRuntimes({
             connections.push({
               bundle,
               assetRequest,
-              dependency: dependency,
+              dependencyFrom,
+              dependencyReplace,
               isEntry,
             });
             let hashRefs = code.match(HASH_REF_REGEX) ?? [];
@@ -100,7 +112,13 @@ export default async function applyRuntimes({
   // the node to it.
   bundleGraph._graph.merge(runtimesGraph);
 
-  for (let {bundle, assetRequest, dependency, isEntry} of connections) {
+  for (let {
+    bundle,
+    assetRequest,
+    dependencyFrom,
+    dependencyReplace,
+    isEntry,
+  } of connections) {
     let assetGroupNode = nodeFromAssetGroup(assetRequest);
     let assetGroupAssets = runtimesAssetGraph.getNodesConnectedFrom(
       assetGroupNode,
@@ -147,15 +165,53 @@ export default async function applyRuntimes({
       bundle.entryAssetIds.unshift(runtimeNode.id);
     }
 
-    if (dependency == null) {
-      // Verify this asset won't become an island
-      assert(
-        bundleGraph._graph.getNodesConnectedTo(runtimeNode).length > 0,
-        'Runtime must have an inbound dependency or be an entry',
-      );
-    } else {
-      bundleGraph._graph.addEdge(dependency.id, runtimeNode.id);
+    if (dependencyFrom != null) {
+      bundleGraph._graph.addEdge(dependencyFrom.id, runtimeNode.id);
     }
+
+    if (dependencyReplace != null) {
+      let [dst] = bundleGraph._graph.getNodesConnectedFrom(
+        nodeFromDep(dependencyToInternalDependency(dependencyReplace)),
+      );
+      dependencyToInternalDependency(dependencyReplace).isAsync = false;
+
+      bundleGraph._graph.removeEdge(dependencyReplace.id, dst.id);
+
+      let newDep = bundleGraph._graph.addNode(
+        nodeFromDep(
+          createDependency({
+            sourceAssetId: runtimeNode.id,
+            sourcePath: runtimeNode.value.filePath,
+            moduleSpecifier: dependencyReplace.moduleSpecifier,
+            env: environmentToInternalEnvironment(dependencyReplace.env),
+            target:
+              // $FlowFixMe
+              dependencyReplace.target &&
+              targetToInternalTarget(dependencyReplace.target),
+            isAsync: dependencyReplace.isAsync,
+            isEntry: dependencyReplace.isEntry,
+            isOptional: dependencyReplace.isOptional,
+            isURL: dependencyReplace.isURL,
+            isWeak: dependencyReplace.isWeak,
+            // $FlowFixMe
+            loc: dependencyReplace.loc,
+            meta: dependencyReplace.meta,
+            symbols: dependencyReplace.symbols,
+            pipeline: dependencyReplace.pipeline,
+          }),
+        ),
+      );
+      bundleGraph._graph.addEdge(bundle.id, newDep.id, 'contains');
+      bundleGraph._graph.addEdge(dependencyReplace.id, runtimeNode.id);
+      bundleGraph._graph.addEdge(runtimeNode.id, newDep.id);
+      bundleGraph._graph.addEdge(newDep.id, dst.id);
+    }
+
+    // Verify this asset won't become an island
+    assert(
+      bundleGraph._graph.getNodesConnectedTo(runtimeNode).length > 0,
+      'Runtime must have an inbound dependency or be an entry',
+    );
   }
 
   for (let {from, to} of bundleReferences) {

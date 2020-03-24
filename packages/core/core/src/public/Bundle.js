@@ -8,10 +8,10 @@ import type {
   BundleTraversable,
   Environment as IEnvironment,
   FilePath,
+  GraphVisitor,
   NamedBundle as INamedBundle,
   Stats,
   Target as ITarget,
-  GraphVisitor,
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
 

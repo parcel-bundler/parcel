@@ -16,8 +16,12 @@ import type {
 
 import * as t from '@babel/types';
 import {
+  isCallExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
+  isFunction,
+  isObjectPattern,
+  isObjectProperty,
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isExpression,
@@ -35,7 +39,12 @@ import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import rename from './renamer';
-import {getName, getIdentifier, getExportIdentifier} from './utils';
+import {
+  getName,
+  getIdentifier,
+  getExportIdentifier,
+  isUnusedValue,
+} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -447,8 +456,34 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
-      dep.meta.isCommonJS = true;
-      dep.symbols.set('*', getName(asset, 'require', source));
+      if (!isUnusedValue(path)) {
+        let {parent} = path;
+        if (
+          isMemberExpression(parent, {object: path.node}) &&
+          isIdentifier(parent.property, {name: 'then'}) &&
+          isCallExpression(path.parentPath.parent, {
+            callee: parent,
+          }) &&
+          path.parentPath.parent.arguments.length === 1 &&
+          isFunction(path.parentPath.parent.arguments[0]) &&
+          // $FlowFixMe
+          path.parentPath.parent.arguments[0].params.length === 1 &&
+          isObjectPattern(path.parentPath.parent.arguments[0].params[0]) &&
+          path.parentPath.parent.arguments[0].params[0].properties.every(
+            p => isObjectProperty(p) && isIdentifier(p.key),
+          )
+        ) {
+          for (let imported of path.parentPath.parent.arguments[0].params[0].properties.map(
+            // $FlowFixMe
+            ({key}) => key.name,
+          )) {
+            dep.symbols.set(imported, getName(asset, 'import', imported));
+          }
+        } else {
+          dep.meta.isCommonJS = true;
+          dep.symbols.set('*', getName(asset, 'require', source));
+        }
+      }
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.

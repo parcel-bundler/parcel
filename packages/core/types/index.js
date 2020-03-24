@@ -312,6 +312,7 @@ export interface BaseAsset {
   +isSource: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
+  +exportedSymbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
@@ -651,9 +652,10 @@ export interface BundleGraph {
   isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
+  getSymbols(asset: Asset): Array<SymbolResolution>;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<Bundle, TContext>,
+    visit: GraphVisitor<Bundle, TContext>,
     startBundle?: Bundle,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
@@ -685,6 +687,11 @@ export type Bundler = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
+  propagate({|
+    bundleGraph: BundleGraph,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}): Async<void>,
 |};
 
 export type Namer = {|
@@ -699,7 +706,8 @@ export type Namer = {|
 export type RuntimeAsset = {|
   +filePath: FilePath,
   +code: string,
-  +dependency?: Dependency,
+  +dependencyFrom?: Dependency,
+  +dependencyReplace?: Dependency,
   +isEntry?: boolean,
 |};
 

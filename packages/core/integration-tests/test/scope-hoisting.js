@@ -448,10 +448,7 @@ describe('scope hoisting', function() {
       );
 
       let contents = await outputFS.readFile(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-library/build.js',
-        ),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('console.log'));

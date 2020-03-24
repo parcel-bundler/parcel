@@ -112,6 +112,10 @@ class BaseAsset {
     return this.#asset.value.symbols;
   }
 
+  get exportedSymbols(): Map<Symbol, Symbol> {
+    return this.#asset.value.exportedSymbols;
+  }
+
   get uniqueKey(): ?string {
     return this.#asset.value.uniqueKey;
   }

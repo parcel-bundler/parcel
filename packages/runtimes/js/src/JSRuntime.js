@@ -77,7 +77,7 @@ export default new Runtime({
       );
     }
 
-    let assets = [];
+    let assets: Array<RuntimeAsset> = [];
     for (let dependency of bundleGraph.getExternalDependencies(bundle)) {
       let bundleGroup = bundleGraph.resolveExternalDependency(dependency);
       if (bundleGroup == null) {
@@ -89,7 +89,7 @@ export default new Runtime({
             code: `module.exports = ${JSON.stringify(
               dependency.moduleSpecifier,
             )}`,
-            dependency,
+            dependencyFrom: dependency,
           });
         }
         continue;
@@ -102,7 +102,7 @@ export default new Runtime({
         assets.push({
           filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
-          dependency,
+          dependencyFrom: dependency,
         });
 
         continue;
@@ -190,7 +190,7 @@ export default new Runtime({
         assets.push({
           filePath: __filename,
           code: `module.exports = ${loaders};`,
-          dependency,
+          dependencyReplace: dependency,
         });
       } else {
         assert(externalBundles.length === 1);
@@ -209,7 +209,6 @@ export default new Runtime({
         isEntry: true,
       });
     }
-
     return assets;
   },
 });
@@ -237,14 +236,14 @@ function getURLRuntime(
     return {
       filePath: __filename,
       code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
-      dependency,
+      dependencyFrom: dependency,
     };
   }
 
   return {
     filePath: __filename,
     code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
-    dependency,
+    dependencyFrom: dependency,
   };
 }
 

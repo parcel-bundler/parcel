@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Asset, Bundle, MutableBundleGraph} from '@parcel/types';
+import type {Asset, Bundle, MutableBundleGraph, Symbol} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
@@ -270,6 +270,53 @@ export default new Bundler({
       deduplicateBundle(bundleGraph, sharedBundle);
     }
   },
+  propagate({bundleGraph}) {
+    // TODO put this in a separate plugin
+
+    let usedExports: Map<string, Set<Symbol>> = new Map();
+    let processedDeps = new Set<string>();
+    bundleGraph.traverseBundles({
+      enter(bundle) {
+        setUsedExports(usedExports, processedDeps, bundle, bundleGraph);
+      },
+      exit(bundle) {
+        bundle.traverse((node, shouldWrap) => {
+          switch (node.type) {
+            case 'dependency':
+              // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
+              if (shouldWrap || Boolean(node.value.meta.shouldWrap)) {
+                let resolved = bundleGraph.getDependencyResolution(
+                  node.value,
+                  bundle,
+                );
+                if (resolved) {
+                  resolved.meta.shouldWrap = true;
+                }
+                return true;
+              }
+              break;
+            case 'asset': {
+              let assetUsedExports = usedExports.get(node.value.id);
+              if (assetUsedExports) {
+                let wildcardUsed = assetUsedExports.has('*');
+                if (wildcardUsed) {
+                  let assetExports = node.value.meta.exportsIdentifier;
+                  invariant(typeof assetExports === 'string');
+                  node.value.exportedSymbols.set('*', assetExports);
+                }
+                for (let [symbol, id] of node.value.symbols) {
+                  if (assetUsedExports.has(symbol)) {
+                    node.value.exportedSymbols.set(symbol, id);
+                  }
+                }
+              }
+              break;
+            }
+          }
+        });
+      },
+    });
+  },
 });
 
 function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
@@ -296,4 +343,92 @@ function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
       }
     }
   });
+}
+
+// ----------------------------------------------------------
+
+function setUsedExports(
+  usedExports,
+  processedDeps,
+  bundle,
+  bundleGraph,
+): Map<string, Set<Symbol>> {
+  bundle.traverseAssets(asset => {
+    // TODO Entry assets should export eveything?!
+    for (let dep of bundleGraph.getIncomingDependencies(asset)) {
+      if (processedDeps.has(dep.id)) continue;
+      if (dep.isEntry) {
+        processedDeps.add(dep.id);
+        for (let {asset: symbolAsset, exportSymbol} of bundleGraph.getSymbols(
+          asset,
+        )) {
+          if (exportSymbol != null) {
+            markUsed(symbolAsset, exportSymbol);
+            markUsedEntry(asset, exportSymbol); // mark in the asset itself because it is an entry
+          }
+        }
+      }
+    }
+
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      if (processedDeps.has(dep.id)) continue;
+      processedDeps.add(dep.id);
+
+      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
+      if (!resolvedAsset) {
+        continue;
+      }
+      for (let [symbol, identifier] of dep.symbols) {
+        if (identifier === '*') {
+          continue;
+        }
+
+        if (symbol === '*') {
+          for (let {asset: symbolAsset, exportSymbol} of bundleGraph.getSymbols(
+            resolvedAsset,
+          )) {
+            if (exportSymbol != null) {
+              markUsed(symbolAsset, exportSymbol);
+            }
+          }
+        }
+
+        markUsed(resolvedAsset, symbol);
+      }
+    }
+
+    // // If the asset is referenced by another bundle, include all exports.
+    // if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
+    //   markUsed(asset, '*');
+    //   for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
+    //     if (symbol != null) {
+    //       markUsed(a, symbol);
+    //     }
+    //   }
+    // }
+  });
+
+  // TODO merge these two functions
+  function markUsedEntry(asset, symbol) {
+    let used = usedExports.get(asset.id);
+    if (!used) {
+      used = new Set();
+      usedExports.set(asset.id, used);
+    }
+
+    used.add(symbol);
+  }
+
+  function markUsed(asset, symbol) {
+    let resolved = bundleGraph.resolveSymbol(asset, symbol);
+    let used = usedExports.get(resolved.asset.id);
+    if (!used) {
+      used = new Set();
+      usedExports.set(resolved.asset.id, used);
+    }
+
+    used.add(resolved.exportSymbol);
+  }
+
+  return usedExports;
 }

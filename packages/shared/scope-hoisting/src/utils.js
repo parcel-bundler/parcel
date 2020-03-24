@@ -1,7 +1,10 @@
 // @flow
 import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+import type {NodePath} from '@babel/traverse';
+import type {Node} from '@babel/types';
 
 import * as t from '@babel/types';
+import {isExpressionStatement, isSequenceExpression} from '@babel/types';
 import invariant from 'assert';
 
 export function getName(
@@ -66,4 +69,15 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
 export function assertString(v: mixed): string {
   invariant(typeof v === 'string');
   return v;
+}
+
+export function isUnusedValue(path: NodePath<Node>) {
+  let {parent} = path;
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      ((Array.isArray(path.container) &&
+        path.key !== path.container.length - 1) ||
+        isUnusedValue(path.parentPath)))
+  );
 }
