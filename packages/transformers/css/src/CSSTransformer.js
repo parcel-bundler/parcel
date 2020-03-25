@@ -1,6 +1,7 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
+import type {Container, Node} from 'postcss';
 
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isURL} from '@parcel/utils';
@@ -32,21 +33,20 @@ export default new Transformer({
     }
 
     let code = await asset.getCode();
-    if (!canHaveDependencies(asset.filePath, code)) {
+    if (code != null && !canHaveDependencies(asset.filePath, code)) {
       return null;
     }
 
     return {
       type: 'postcss',
       version: '7.0.0',
-      isDirty: false,
       program: postcss.parse(code, {
         from: asset.filePath,
       }),
     };
   },
 
-  transform({asset}) {
+  async transform({asset}) {
     // Normalize the asset's environment so that properties that only affect JS don't cause CSS to be duplicated.
     // For example, with ESModule and CommonJS targets, only a single shared CSS bundle should be produced.
     asset.setEnvironment({
@@ -63,14 +63,15 @@ export default new Transformer({
       asset.isSplittable = true;
     }
 
-    let ast = asset.ast;
     // Check for `hasDependencies` being false here as well, as it's possible
     // another transformer (such as PostCSSTransformer) has already parsed an
     // ast and CSSTransformer's parse was never called.
+    let ast = await asset.getAST();
     if (!ast || asset.meta.hasDependencies === false) {
       return [asset];
     }
 
+    let isDirty = false;
     ast.program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
@@ -125,13 +126,13 @@ export default new Transformer({
         rule.remove();
         // }
       }
-      ast.isDirty = true;
+      isDirty = true;
     });
 
     ast.program.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
-        let isDirty = false;
+        let isDeclDirty = false;
 
         parsed.walk(node => {
           if (
@@ -140,36 +141,61 @@ export default new Transformer({
             node.nodes.length > 0 &&
             !node.nodes[0].value.startsWith('#') // IE's `behavior: url(#default#VML)`
           ) {
-            node.nodes[0].value = asset.addURLDependency(node.nodes[0].value, {
+            let url = asset.addURLDependency(node.nodes[0].value, {
               loc: createDependencyLocation(
                 decl.source.start,
                 node.nodes[0].value,
               ),
             });
-            isDirty = true;
+            isDeclDirty = node.nodes[0].value !== url;
+            node.nodes[0].value = url;
           }
         });
 
-        if (isDirty) {
+        if (isDeclDirty) {
           decl.value = parsed.toString();
-          ast.isDirty = true;
+          isDirty = true;
         }
       }
     });
 
+    if (isDirty) {
+      asset.setAST(ast);
+    }
+
     return [asset];
   },
 
-  async generate({asset}) {
-    let code;
-    if (!asset.ast || !asset.ast.isDirty) {
-      code = await asset.getCode();
-    } else {
-      code = '';
-      postcss.stringify(asset.ast.program, c => {
-        code += c;
-      });
+  generate({ast}) {
+    let root = ast.program;
+
+    // $FlowFixMe
+    if (Object.getPrototypeOf(ast.program) === Object.prototype) {
+      root = postcss.root(ast.program);
+      let convert = (parent: Container, node: Node, index: number) => {
+        let type = node.type === 'atrule' ? 'atRule' : node.type;
+        let result = postcss[type](node);
+        result.parent = parent;
+        if (parent) {
+          parent.nodes[index] = result;
+        }
+
+        if (result.walk) {
+          // $FlowFixMe
+          const container = (result: Container);
+          container.each((node, index) => {
+            convert(container, node, index);
+          });
+        }
+      };
+
+      root.each((node, index) => convert(root, node, index));
     }
+
+    let code = '';
+    postcss.stringify(root, c => {
+      code += c;
+    });
 
     return {
       code,
