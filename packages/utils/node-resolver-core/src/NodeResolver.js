@@ -6,6 +6,8 @@ import type {
   ResolveResult,
   Environment,
 } from '@parcel/types';
+
+import invariant from 'assert';
 import path from 'path';
 import {isGlob, fuzzySearch, relatifyPath} from '@parcel/utils';
 import ThrowableDiagnostic, {
@@ -22,6 +24,10 @@ type Options = {|
   options: PluginOptions,
   extensions: Array<string>,
   mainFields: Array<string>,
+|};
+type ResolvedFile = {|
+  path: string,
+  pkg: InternalPackageJSON | null,
 |};
 
 type Aliases =
@@ -380,7 +386,7 @@ export default class NodeResolver {
     extensions: Array<string>,
     env: Environment,
     parentdir: string,
-  ) {
+  ): Promise<?ResolvedFile> {
     // Find a package.json file in the current package.
     let pkg = await this.findPackage(path.dirname(filename));
 
@@ -513,7 +519,7 @@ export default class NodeResolver {
     extensions: Array<string>,
     env: Environment,
     pkg?: InternalPackageJSON | null,
-  |}) {
+  |}): Promise<?ResolvedFile> {
     let failedEntry;
     try {
       pkg = await this.readPackage(dir);
@@ -548,6 +554,18 @@ export default class NodeResolver {
       }
     } catch (e) {
       if (failedEntry && pkg) {
+        // If loading the entry failed, try to load an index file, and fall back
+        // to it if it exists.
+        let indexFallback = await this.loadAsFile({
+          file: path.join(dir, 'index'),
+          extensions,
+          env,
+          pkg,
+        });
+        if (indexFallback != null) {
+          return indexFallback;
+        }
+
         let fileSpecifier = relatifyPath(dir, failedEntry.filename);
         let alternatives = await this.findAlternativeFiles(
           fileSpecifier,
@@ -648,10 +666,7 @@ export default class NodeResolver {
         entry => entry && entry.filename && typeof entry.filename === 'string',
       )
       .map(entry => {
-        // This will never happen, it's just to help out flow?
-        if (!entry || typeof entry.filename !== 'string') {
-          throw new Error('Invalid package.json entry.');
-        }
+        invariant(entry != null && typeof entry.filename === 'string');
 
         // Current dir refers to an index file
         if (entry.filename === '.' || entry.filename === './') {
@@ -675,7 +690,7 @@ export default class NodeResolver {
     extensions: Array<string>,
     env: Environment,
     pkg: InternalPackageJSON | null,
-  |}) {
+  |}): Promise<?ResolvedFile> {
     // Try all supported extensions
     for (let f of await this.expandFile(file, extensions, env, pkg)) {
       if (await this.isFile(f)) {

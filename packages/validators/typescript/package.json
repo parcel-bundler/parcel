@@ -18,6 +18,7 @@
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.3.1",
     "@parcel/ts-utils": "^2.0.0-alpha.3.1",
-    "@parcel/utils": "^2.0.0-alpha.3.1"
+    "@parcel/utils": "^2.0.0-alpha.3.1",
+    "@parcel/types": "^2.0.0-alpha.3.1"
   }
 }

@@ -165,8 +165,9 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
-    return Promise.resolve(this.readFileSync(filePath, encoding));
+  // eslint-disable-next-line require-await
+  async readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
+    return this.readFileSync(filePath, encoding);
   }
 
   readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
@@ -205,8 +206,9 @@ export class MemoryFS implements FileSystem {
     return file.stat();
   }
 
-  stat(filePath: FilePath) {
-    return Promise.resolve(this.statSync(filePath));
+  // eslint-disable-next-line require-await
+  async stat(filePath: FilePath) {
+    return this.statSync(filePath);
   }
 
   readdirSync(dir: FilePath, opts?: ReaddirOptions): any {
@@ -249,8 +251,9 @@ export class MemoryFS implements FileSystem {
     return res;
   }
 
-  readdir(dir: FilePath, opts?: ReaddirOptions): Promise<any> {
-    return Promise.resolve(this.readdirSync(dir, opts));
+  // eslint-disable-next-line require-await
+  async readdir(dir: FilePath, opts?: ReaddirOptions): Promise<any> {
+    return this.readdirSync(dir, opts);
   }
 
   async unlink(filePath: FilePath) {
@@ -450,8 +453,9 @@ export class MemoryFS implements FileSystem {
     return this._normalizePath(filePath);
   }
 
-  realpath(filePath: FilePath) {
-    return Promise.resolve(this.realpathSync(filePath));
+  // eslint-disable-next-line require-await
+  async realpath(filePath: FilePath) {
+    return this.realpathSync(filePath);
   }
 
   async symlink(target: FilePath, path: FilePath) {
@@ -470,8 +474,9 @@ export class MemoryFS implements FileSystem {
     return this.files.has(filePath) || this.dirs.has(filePath);
   }
 
-  exists(filePath: FilePath) {
-    return Promise.resolve(this.existsSync(filePath));
+  // eslint-disable-next-line require-await
+  async exists(filePath: FilePath) {
+    return this.existsSync(filePath);
   }
 
   _triggerEvent(event: Event) {
