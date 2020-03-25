@@ -718,10 +718,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: PluginOptions,
     logger: PluginLogger,
-    getInlineBundleContents: (
-      Bundle,
-      BundleGraph,
-    ) => Async<{|contents: Blob, map: ?SourceMap|}>,
+    getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
     getSourceMapReference: (map: SourceMap) => Promise<string> | string,
   |}): Async<BundleResult>,
 |};

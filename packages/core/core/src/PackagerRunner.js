@@ -186,7 +186,7 @@ export default class PackagerRunner {
     bundleGraph: InternalBundleGraph,
   ): Promise<{|
     contents: Blob,
-    map: ?(Readable | string),
+    map: ?string,
   |}> {
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
@@ -221,16 +221,16 @@ export default class PackagerRunner {
       bundle,
     });
 
-    // $FlowFixMe
     let packager = await this.config.getPackager(bundle.filePath);
     try {
       return await packager.plugin.package({
         bundle,
         bundleGraph: new BundleGraph(bundleGraph, this.options),
-        getSourceMapReference: map => this.getSourceMapReference(bundle, map),
+        getSourceMapReference: (map: SourceMap) =>
+          this.getSourceMapReference(bundle, map),
         options: this.pluginOptions,
         logger: new PluginLogger({origin: packager.name}),
-        getInlineBundleContents: (
+        getInlineBundleContents: async (
           bundle: BundleType,
           bundleGraph: BundleGraphType,
         ) => {
@@ -240,10 +240,12 @@ export default class PackagerRunner {
             );
           }
 
-          return this.getBundleResult(
+          let res = await this.getBundleResult(
             bundleToInternalBundle(bundle),
             bundleGraphToInternalBundleGraph(bundleGraph),
           );
+
+          return {contents: res.contents};
         },
       });
     } catch (e) {
