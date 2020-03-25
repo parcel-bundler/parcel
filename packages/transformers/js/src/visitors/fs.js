@@ -63,7 +63,6 @@ export default ({
         filename = Path.resolve(filename);
         res = fs.readFileSync(filename, ...args);
       } catch (_err) {
-        // $FlowFixMe yes it is an error
         let err: Error = _err;
 
         if (err instanceof NodeNotEvaluatedError) {
@@ -78,6 +77,7 @@ export default ({
         }
 
         // Add location info so we log a code frame with the error
+        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
         err.loc =
           path.node.arguments.length > 0
             ? path.node.arguments[0].loc?.start

@@ -38,7 +38,6 @@ export function detectRealCores(): number {
 let cores;
 export default function getCores(bypassCache?: boolean = false) {
   // Do not re-run commands if we already have the count...
-  // $FlowFixMe
   if (cores && !bypassCache) {
     return cores;
   }

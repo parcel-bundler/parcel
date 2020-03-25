@@ -442,7 +442,6 @@ export default class InternalAsset {
         includedFiles: new Map(this.value.includedFiles),
         meta: {
           ...this.value.meta,
-          // $FlowFixMe
           ...result.meta,
         },
         pipeline:

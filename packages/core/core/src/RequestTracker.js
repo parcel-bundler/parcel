@@ -72,12 +72,13 @@ export class RequestGraph extends Graph<
 
   // $FlowFixMe
   static deserialize(opts: SerializedRequestGraph) {
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
-    // $FlowFixMe
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
     return deserialized;
   }
 
