@@ -138,7 +138,10 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     bundleGraphReference: number,
-  ): Promise<{|...BundleInfo, cacheKeys: CacheKeyMap|}> {
+  ): Promise<{|
+    ...BundleInfo,
+    cacheKeys: CacheKeyMap,
+  |}> {
     let start = Date.now();
 
     let cacheKey = await this.getCacheKey(bundle, bundleGraph);
@@ -181,7 +184,10 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
+  ): Promise<{|
+    contents: Blob,
+    map: ?(Readable | string),
+  |}> {
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
       bundle,
@@ -195,6 +201,13 @@ export default class PackagerRunner {
       contents: res.contents,
       map,
     };
+  }
+
+  getSourceMapReference(bundle: NamedBundle, map: SourceMap) {
+    return bundle.isInline ||
+      (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+      ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+      : path.basename(bundle.filePath) + '.map';
   }
 
   async package(
@@ -214,12 +227,7 @@ export default class PackagerRunner {
       return await packager.plugin.package({
         bundle,
         bundleGraph: new BundleGraph(bundleGraph, this.options),
-        getSourceMapReference: map => {
-          return bundle.isInline ||
-            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-            : path.basename(bundle.filePath) + '.map';
-        },
+        getSourceMapReference: map => this.getSourceMapReference(bundle, map),
         options: this.pluginOptions,
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: (
@@ -273,6 +281,7 @@ export default class PackagerRunner {
           bundle,
           contents: optimized.contents,
           map: optimized.map,
+          getSourceMapReference: map => this.getSourceMapReference(bundle, map),
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
         });

@@ -733,6 +733,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
   |}): Async<BundleResult>,
 |};
 
