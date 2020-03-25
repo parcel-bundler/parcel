@@ -9,6 +9,7 @@ import type {
 } from '@parcel/watcher';
 
 import fs from 'fs';
+import {rename as gracefulRename, renameSync} from 'graceful-fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
@@ -21,6 +22,7 @@ import packageJSON from '../package.json';
 // require('fs').promises
 
 const realpath = promisify(fs.realpath);
+const rename = promisify(gracefulRename);
 
 export class NodeFS implements FileSystem {
   readFile = promisify(fs.readFile);
@@ -44,7 +46,7 @@ export class NodeFS implements FileSystem {
   createWriteStream(filePath: string, options: any): WriteStream {
     let tmpFilePath = getTempFilePath(filePath);
     let stream = fs.createWriteStream(tmpFilePath, options);
-    stream.on('finish', () => fs.renameSync(tmpFilePath, filePath));
+    stream.on('finish', () => renameSync(tmpFilePath, filePath));
     return stream;
   }
 
@@ -60,7 +62,7 @@ export class NodeFS implements FileSystem {
       // $FlowFixMe
       options,
     );
-    await fs.promises.rename(tmpFilePath, filePath);
+    await rename(tmpFilePath, filePath);
   }
 
   readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
