@@ -722,12 +722,8 @@ export type Packager = {|
       Bundle,
       BundleGraph,
     ) => Async<{|contents: Blob, map: ?SourceMap|}>,
-  |}): Async<BundleResult>,
-  postProcess?: ({|
-    contents: Blob,
-    map: ?SourceMap,
     getSourceMapReference: (map: SourceMap) => Promise<string> | string,
-  |}) => Async<{|contents: Blob, map: ?SourceMap|}>,
+  |}): Async<BundleResult>,
 |};
 
 export type Optimizer = {|
