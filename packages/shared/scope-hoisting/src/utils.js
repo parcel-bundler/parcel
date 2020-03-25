@@ -1,6 +1,9 @@
 // @flow
 import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+import type {NodePath, Scope} from '@babel/traverse';
+import type {Identifier, Node} from '@babel/types';
 
+import {simple as walkSimple} from '@parcel/babylon-walk';
 import * as t from '@babel/types';
 import invariant from 'assert';
 
@@ -107,4 +110,44 @@ export function hasAsyncDescendant(
 export function assertString(v: mixed): string {
   invariant(typeof v === 'string');
   return v;
+}
+
+const DereferenceVisitor = {
+  Identifier(node: Identifier, scope: Scope) {
+    dereferenceIdentifier(node, scope);
+  },
+};
+
+// updates bindings in path.scope.getProgramParent()
+export function pathDereference(path: NodePath<Node>) {
+  walkSimple(path.node, DereferenceVisitor, path.scope.getProgramParent());
+}
+
+// like path.remove(), but updates bindings in path.scope.getProgramParent()
+export function pathRemove(path: NodePath<Node>) {
+  pathDereference(path);
+  path.remove();
+}
+
+function dereferenceIdentifier(node, scope) {
+  let binding = scope.getBinding(node.name);
+  if (binding) {
+    let i = binding.referencePaths.findIndex(v => v.node === node);
+    if (i >= 0) {
+      binding.dereference();
+      binding.referencePaths.splice(i, 1);
+      return;
+    }
+
+    let j = binding.constantViolations.findIndex(v =>
+      Object.values(v.getBindingIdentifiers()).includes(node),
+    );
+    if (j >= 0) {
+      binding.constantViolations.splice(j, 1);
+      if (binding.constantViolations.length == 0) {
+        binding.constant = true;
+      }
+      return;
+    }
+  }
 }

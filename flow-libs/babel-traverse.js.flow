@@ -381,7 +381,7 @@ declare module "@babel/traverse" {
     isDescendant(NodePath<Node>): boolean;
 
     remove(): void;
-    replaceWith<U: Node>(U): NodePath<U>;
+    replaceWith<U: Node>(U): $ReadOnlyArray<NodePath<U>>;
     replaceWithMultiple<U: Node>(Array<U>): $ReadOnlyArray<NodePath<U>>;
     insertBefore<U: Node>(
       Array<U> | U
