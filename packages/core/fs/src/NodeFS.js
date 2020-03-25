@@ -44,7 +44,7 @@ export class NodeFS implements FileSystem {
   createWriteStream(filePath: string, options: any): WriteStream {
     let tmpFilePath = getTempFilePath(filePath);
     let stream = fs.createWriteStream(tmpFilePath, options);
-    stream.on('finish', () => fs.renameSync(tmpFilePath, filePath));
+    stream.on('close', () => fs.renameSync(tmpFilePath, filePath));
     return stream;
   }
 
