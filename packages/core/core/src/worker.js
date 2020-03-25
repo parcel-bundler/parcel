@@ -48,7 +48,6 @@ export function runTransform(
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    // $FlowFixMe
     options,
     config,
     ...rest,
@@ -70,7 +69,6 @@ export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
   return new Validation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    // $FlowFixMe
     options,
     config,
     ...rest,
@@ -111,7 +109,6 @@ export function runPackage(
 
   return new PackagerRunner({
     config,
-    // $FlowFixMe
     options,
     report: reportWorker.bind(null, workerApi),
   }).getBundleInfo(bundle, bundleGraph, cacheKeys);
