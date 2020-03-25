@@ -382,8 +382,6 @@ export class BuildError extends ThrowableDiagnostic {
   }
 }
 
-export {default as Asset} from './InternalAsset';
-
 export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({
     ...options,
