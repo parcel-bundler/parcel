@@ -1,13 +1,10 @@
-// @flow
+// @flow strict-local
 
+import {generate, babelErrorEnhancer} from '@parcel/babel-ast-utils';
 import {Transformer} from '@parcel/plugin';
-import SourceMap from '@parcel/source-map';
-import generate from '@babel/generator';
 import semver from 'semver';
 import babel7 from './babel7';
-import {relativeUrl} from '@parcel/utils';
 import {load, preSerialize, postDeserialize} from './config';
-import {babelErrorEnhancer} from './babelErrorUtils';
 
 export default new Transformer({
   async loadConfig({config, options, logger}) {
@@ -30,16 +27,14 @@ export default new Transformer({
     // TODO: come up with a better name
     try {
       if (config?.config) {
-        if (asset.meta.babelPlugins && Array.isArray(asset.meta.babelPlugins)) {
+        if (
+          asset.meta.babelPlugins != null &&
+          Array.isArray(asset.meta.babelPlugins)
+        ) {
           // $FlowFixMe
-          asset.ast = await babel7(
-            asset,
-            options,
-            config,
-            asset.meta.babelPlugins,
-          );
+          await babel7(asset, options, config, asset.meta.babelPlugins);
         } else {
-          asset.ast = await babel7(asset, options, config);
+          await babel7(asset, options, config);
         }
       }
 
@@ -49,31 +44,7 @@ export default new Transformer({
     }
   },
 
-  async generate({asset, options}) {
-    let sourceFileName: string = relativeUrl(
-      options.projectRoot,
-      asset.filePath,
-    );
-
-    try {
-      // $FlowFixMe: figure out how to make AST required in generate method
-      let generated = generate(asset.ast.program, {
-        sourceMaps: options.sourceMaps,
-        sourceFileName: sourceFileName,
-      });
-
-      let map = null;
-      if (generated.rawMappings) {
-        map = new SourceMap();
-        map.addIndexedMappings(generated.rawMappings);
-      }
-
-      return {
-        code: generated.code,
-        map,
-      };
-    } catch (e) {
-      throw await babelErrorEnhancer(e, asset);
-    }
+  generate({asset, ast, options}) {
+    return generate({asset, ast, options});
   },
 });

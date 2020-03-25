@@ -128,8 +128,14 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 }
 
 async function processAsset(bundle: Bundle, asset: Asset) {
-  let code = await asset.getCode();
-  let statements: Array<Statement> = parse(code, asset.filePath);
+  let statements: Array<Statement>;
+  if (asset.astGenerator && asset.astGenerator.type === 'babel') {
+    let ast = await asset.getAST();
+    statements = nullthrows(ast).program.program.body;
+  } else {
+    let code = await asset.getCode();
+    statements = parse(code, asset.filePath);
+  }
 
   if (statements[0]) {
     t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);

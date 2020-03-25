@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  ASTGenerator,
   BuildMode,
   BundleGroup,
   Engines,
@@ -108,16 +109,20 @@ export type Asset = {|
   isInline: boolean,
   isSplittable: ?boolean,
   isSource: boolean,
-  outputHash: string,
   env: Environment,
   meta: Meta,
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
+  outputHash: ?string,
   pipeline: ?string,
+  astKey: ?string,
+  astGenerator: ?ASTGenerator,
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
   uniqueKey?: ?string,
+  configPath?: FilePath,
+  plugin?: ?PackageName,
 |};
 
 export type ParcelOptions = {|
