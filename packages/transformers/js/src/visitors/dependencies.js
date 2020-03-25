@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  AST,
   DependencyOptions,
   MutableAsset,
   PluginOptions,
@@ -11,11 +12,10 @@ import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {hasBinding, morph} from './utils';
-import invariant from 'assert';
 
 type Visitor = (
   node: any,
-  {|asset: MutableAsset, options: PluginOptions|},
+  {|asset: MutableAsset, ast: AST, options: PluginOptions|},
   ancestors: Array<any>,
 ) => void;
 
@@ -44,7 +44,7 @@ export default ({
   },
 
   CallExpression: {
-    enter(node, {asset}, ancestors) {
+    enter(node, {asset, ast}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isRequire =
@@ -58,8 +58,7 @@ export default ({
       if (isRequire) {
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
-        invariant(asset.ast);
-        let isAsync = isRequireAsync(ancestors, node, asset.ast);
+        let isAsync = isRequireAsync(ancestors, node, asset, ast);
         addDependency(asset, args[0], {isOptional, isAsync});
         return;
       }
@@ -78,12 +77,11 @@ export default ({
         addDependency(asset, args[0], {isAsync: true});
 
         node.callee = types.identifier('require');
-        invariant(asset.ast);
-        asset.ast.isDirty = true;
+        asset.setAST(ast);
         return;
       }
     },
-    exit(node, {asset}, ancestors) {
+    exit(node, {asset, ast}, ancestors) {
       if (node.type !== 'CallExpression') {
         // It's possible this node has been morphed into another type
         return;
@@ -100,7 +98,7 @@ export default ({
       if (isRegisterServiceWorker) {
         // Treat service workers as an entry point so filenames remain consistent across builds.
         // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-        addURLDependency(asset, args[0], {
+        addURLDependency(asset, ast, args[0], {
           isEntry: true,
           env: {context: 'service-worker'},
         });
@@ -108,14 +106,12 @@ export default ({
       }
 
       let isImportScripts =
-        (asset.env.context === 'web-worker' ||
-          asset.env.context === 'service-worker') &&
-        callee.name === 'importScripts';
+        asset.env.isWorker() && callee.name === 'importScripts';
 
       if (isImportScripts) {
         for (let arg of args) {
           if (types.isStringLiteral(arg)) {
-            addURLDependency(asset, arg);
+            addURLDependency(asset, ast, arg);
           }
         }
         return;
@@ -124,7 +120,7 @@ export default ({
   },
 
   NewExpression: {
-    exit(node, {asset}, ancestors) {
+    exit(node, {asset, ast}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isWebWorker =
@@ -145,7 +141,7 @@ export default ({
             isModule = prop.value.value === 'module';
         }
 
-        addURLDependency(asset, args[0], {
+        addURLDependency(asset, ast, args[0], {
           env: {
             context: 'web-worker',
             outputFormat:
@@ -199,7 +195,7 @@ function evaluateExpression(node: Expression) {
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
 //   2. Rollup - new Promise(function (resolve) { resolve(require(...)) })
 //   3. Parcel - Promise.resolve(require(...))
-function isRequireAsync(ancestors, requireNode, ast) {
+function isRequireAsync(ancestors, requireNode, asset, ast) {
   let parent = ancestors[ancestors.length - 2];
 
   // Promise.resolve().then(() => require('foo'))
@@ -254,7 +250,7 @@ function isRequireAsync(ancestors, requireNode, ast) {
       );
 
       morph(functionParent, replacement);
-      ast.isDirty = true;
+      asset.setAST(ast);
     }
 
     return true;
@@ -316,6 +312,7 @@ function addDependency(
 
 function addURLDependency(
   asset: MutableAsset,
+  ast: AST,
   node,
   opts: $Shape<DependencyOptions> = {},
 ) {
@@ -331,6 +328,5 @@ function addURLDependency(
       types.stringLiteral(url),
     ]),
   );
-  invariant(asset.ast);
-  asset.ast.isDirty = true;
+  asset.setAST(ast);
 }
