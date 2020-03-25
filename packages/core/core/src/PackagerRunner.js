@@ -179,22 +179,47 @@ export default class PackagerRunner {
   }
 
   async getBundleResult(
-    internalBundle: InternalBundle,
+    bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
+    let packaged = await this.package(bundle, bundleGraph);
+    let res = await this.optimize(
+      bundle,
+      bundleGraph,
+      packaged.contents,
+      packaged.map,
+    );
+
+    let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+    return {
+      contents: res.contents,
+      map,
+    };
+  }
+
+  async package(
+    internalBundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+  ): Promise<BundleResult> {
     let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
       bundle,
     });
-    // $FlowFixMe idk why this breaks
-    let packager = await this.config.getPackager(nullthrows(bundle.filePath));
 
+    // $FlowFixMe
+    let packager = await this.config.getPackager(bundle.filePath);
     try {
-      let packaged = await packager.plugin.package({
+      return await packager.plugin.package({
         bundle,
         bundleGraph: new BundleGraph(bundleGraph, this.options),
+        getSourceMapReference: map => {
+          return bundle.isInline ||
+            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
+            : path.basename(bundle.filePath) + '.map';
+        },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: (
@@ -213,41 +238,6 @@ export default class PackagerRunner {
           );
         },
       });
-
-      let res = await this.optimize(
-        internalBundle,
-        bundleGraph,
-        packaged.contents,
-        packaged.map,
-      );
-
-      if (packager.plugin.postProcess) {
-        res = await packager.plugin.postProcess({
-          contents: res.contents,
-          map: res.map,
-          getSourceMapReference: map => {
-            if (
-              bundle.isInline ||
-              (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-            ) {
-              return this.generateSourceMap(
-                bundleToInternalBundle(bundle),
-                map,
-              );
-            } else {
-              return path.basename(bundle.filePath) + '.map';
-            }
-          },
-        });
-      }
-
-      return {
-        contents: res.contents,
-        map:
-          !bundle.isInline && res.map
-            ? await this.generateSourceMap(internalBundle, res.map)
-            : null,
-      };
     } catch (e) {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, packager.name),
