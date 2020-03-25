@@ -2127,9 +2127,6 @@ describe('javascript', function() {
   it('should inline binary content as url-encoded base64 and mime type with `data-url:*` imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/data-url/binary.js'),
-      {
-        outputFS: inputFS,
-      },
     );
 
     assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
