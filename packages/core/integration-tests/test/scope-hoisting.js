@@ -7,7 +7,6 @@ import {
   outputFS,
   overlayFS,
   assertBundles,
-  distDir,
   getNextBuild,
 } from '@parcel/test-utils';
 
@@ -526,7 +525,7 @@ describe('scope hoisting', function() {
     });
 
     it('removes deferred reexports when imported from multiple asssets', async function() {
-      await bundle(
+      let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/side-effects-re-exports-multiple/a.js',
@@ -534,7 +533,7 @@ describe('scope hoisting', function() {
       );
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
 
@@ -677,6 +676,24 @@ describe('scope hoisting', function() {
       assert.deepEqual(await output, 4);
     });
 
+    it('supports importing a namespace from a wrapped module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-wrapped/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$parcel$exportWildcard'));
+
+      let output = await run(b);
+      assert.deepEqual(await output, 1);
+    });
+
     it('removes unused exports', async function() {
       let b = await bundle(
         path.join(
@@ -689,7 +706,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('foo'));
@@ -709,7 +726,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 9);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(/output=9/.test(contents));
@@ -729,7 +746,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 3);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('method'));
@@ -809,7 +826,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(!/bar/.test(contents));
@@ -853,6 +870,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('concats commonjs modules in the correct order', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/concat-order/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports default imports of commonjs modules', async function() {
       let b = await bundle(
         path.join(
@@ -863,6 +892,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 2);
+    });
+
+    it('concats modules with inserted globals in the correct order', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/concat-order-globals/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'foobar');
     });
 
     it('supports named imports of commonjs modules', async function() {
@@ -1057,6 +1098,54 @@ describe('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
+    it('bails out exports access resolving if it is accessed freely (exports assign)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/exports-assign.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
+    it('bails out exports access resolving if it is accessed freely (exports define)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/exports-define.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
+    it('bails out exports access resolving if it is accessed freely (module.exports assign)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/module-exports-assign.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
+    it('bails out exports access resolving if it is accessed freely (module.exports define)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/module-exports-define.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 5);
+    });
+
     it('builds commonjs modules that assigns to exports before module.exports', async function() {
       let b = await bundle(
         path.join(
@@ -1151,6 +1240,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, {exports: {foo: 2}});
+    });
+
+    it('should call init for wrapped modules when codesplitting', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-module-codesplit/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
     });
 
     it('should wrap modules that non-statically access `module`', async function() {
@@ -1475,7 +1576,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await outputFS.readFile(
-        path.join(distDir, 'a.js'),
+        b.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('foo'));
@@ -1544,6 +1645,30 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output.__esModule, true);
       assert.equal(output.default, 2);
+    });
+
+    it('should export the same values for interop shared modules in main and child bundle', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module-code-split/main.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output.default, 'bar:bar');
+    });
+
+    it('should export the same values for interop shared modules in main and child bundle if shared bundle is deep nested', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module-code-split-intermediate/main.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output.default, 'bar:bar');
     });
 
     it('should support assigning to exports from inside a function', async function() {
@@ -1637,6 +1762,9 @@ describe('scope hoisting', function() {
           'index.js',
           'js-loader.js',
           'JSRuntime.js',
+          'bundle-manifest.js',
+          'JSRuntime.js',
+          'relative-path.js',
         ],
       },
       {
@@ -1716,5 +1844,20 @@ describe('scope hoisting', function() {
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+  });
+
+  // Mirrors the equivalent test in javascript.js
+  it('should insert global variables when needed', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals/scope-hoisting.js'),
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output(), {
+      dir: path.join(__dirname, '/integration/globals'),
+      file: path.join(__dirname, '/integration/globals/index.js'),
+      buf: Buffer.from('browser').toString('base64'),
+      global: true,
+    });
   });
 });

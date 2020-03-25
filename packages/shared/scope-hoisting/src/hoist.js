@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {
   ExportNamedDeclaration,
@@ -74,17 +74,13 @@ const TYPEOF = {
   require: 'function',
 };
 
-export function hoist(asset: MutableAsset) {
-  if (
-    !asset.ast ||
-    asset.ast.type !== 'babel' ||
-    asset.ast.version !== '7.0.0'
-  ) {
+export function hoist(asset: MutableAsset, ast: AST) {
+  if (ast.type !== 'babel' || ast.version !== '7.0.0') {
     throw new Error('Asset does not have a babel AST');
   }
 
-  asset.ast.isDirty = true;
-  traverse(asset.ast.program, VISITOR, null, asset);
+  traverse(ast.program, VISITOR, null, asset);
+  asset.setAST(ast);
 }
 
 const VISITOR: Visitor<MutableAsset> = {
@@ -144,6 +140,39 @@ const VISITOR: Visitor<MutableAsset> = {
             asset.meta.isCommonJS = true;
             shouldWrap = true;
             path.stop();
+          }
+
+          // We must disable resolving $..$exports.foo if `exports`
+          // is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            node.name === 'exports' &&
+            (!isMemberExpression(parent) ||
+              !(isIdentifier(parent.property) && !parent.computed) ||
+              isStringLiteral(parent.property)) &&
+            !path.scope.hasBinding('exports') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            asset.meta.isCommonJS = true;
+            asset.meta.resolveExportsBailedOut = true;
+          }
+        },
+
+        MemberExpression(path) {
+          let {node, parent} = path;
+
+          // We must disable resolving $..$exports.foo if `exports`
+          // is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            t.matchesPattern(node, 'module.exports') &&
+            (!isMemberExpression(parent) ||
+              !(isIdentifier(parent.property) && !parent.computed) ||
+              isStringLiteral(parent.property)) &&
+            !path.scope.hasBinding('module') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            asset.meta.resolveExportsBailedOut = true;
           }
         },
       });
@@ -255,27 +284,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
     if (path.node.name === 'global' && !path.scope.hasBinding('global')) {
       path.replaceWith(t.identifier('$parcel$global'));
-      if (asset.meta.globals) {
-        asset.meta.globals.delete('global');
-      }
-    }
-
-    let globals = asset.meta.globals;
-    if (!globals) {
-      return;
-    }
-
-    let globalCode = globals.get(path.node.name);
-    if (globalCode) {
-      let [decl] = path.scope
-        .getProgramParent()
-        .path.unshiftContainer('body', [
-          template.statement<null, Statement>(globalCode.code)(),
-        ]);
-
-      path.requeue(decl);
-
-      globals.delete(path.node.name);
     }
   },
 
@@ -321,11 +329,11 @@ const VISITOR: Visitor<MutableAsset> = {
     //   }
     // }
 
-    if (path.scope.hasBinding('exports')) {
-      return;
-    }
-
-    if (isIdentifier(left) && left.name === 'exports') {
+    if (
+      isIdentifier(left) &&
+      left.name === 'exports' &&
+      !path.scope.hasBinding('exports')
+    ) {
       path.scope.getProgramParent().setData('cjsExportsReassigned', true);
       path
         .get<NodePath<LVal>>('left')
@@ -337,7 +345,10 @@ const VISITOR: Visitor<MutableAsset> = {
     // This allows us to remove the CommonJS export object completely in many cases.
     if (
       isMemberExpression(left) &&
-      isIdentifier(left.object, {name: 'exports'}) &&
+      ((isIdentifier(left.object, {name: 'exports'}) &&
+        !path.scope.hasBinding('exports')) ||
+        (t.matchesPattern(left.object, 'module.exports') &&
+          !path.scope.hasBinding('module'))) &&
       ((isIdentifier(left.property) && !left.computed) ||
         isStringLiteral(left.property))
     ) {
@@ -371,12 +382,16 @@ const VISITOR: Visitor<MutableAsset> = {
         } else {
           scope.push({id: t.clone(identifier)});
           path.insertBefore(
-            t.assignmentExpression('=', t.clone(identifier), right),
+            t.expressionStatement(
+              t.assignmentExpression('=', t.clone(identifier), right),
+            ),
           );
         }
       } else {
         path.insertBefore(
-          t.assignmentExpression('=', t.clone(identifier), right),
+          t.expressionStatement(
+            t.assignmentExpression('=', t.clone(identifier), right),
+          ),
         );
       }
 

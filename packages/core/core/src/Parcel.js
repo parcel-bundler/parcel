@@ -23,7 +23,6 @@ import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
@@ -83,11 +82,7 @@ export default class Parcel {
     );
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
-
-    let {config} = await loadParcelConfig(
-      path.join(resolvedOptions.inputFS.cwd(), 'index'),
-      resolvedOptions,
-    );
+    let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = config;
     this.#farm =
       this.#initialOptions.workerFarm ??
@@ -100,6 +95,9 @@ export default class Parcel {
     let {ref: optionsRef} = await this.#farm.createSharedReference(
       resolvedOptions,
     );
+    let {ref: configRef} = await this.#farm.createSharedReference(
+      config.getConfig(),
+    );
 
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
@@ -109,7 +107,6 @@ export default class Parcel {
         name: 'MainAssetGraph',
         options: resolvedOptions,
         optionsRef,
-        config,
         entries: resolvedOptions.entries,
         workerFarm: this.#farm,
       }),
@@ -117,7 +114,6 @@ export default class Parcel {
         name: 'RuntimesAssetGraph',
         options: resolvedOptions,
         optionsRef,
-        config,
         workerFarm: this.#farm,
       }),
     ]);
@@ -140,6 +136,7 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
       optionsRef,
+      configRef,
       report,
     });
 
@@ -255,11 +252,9 @@ export default class Parcel {
       if (options.profile) {
         await this.#farm.startProfile();
       }
-
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
         signal,
       );
@@ -356,17 +351,11 @@ export default class Parcel {
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = this.#assetGraphBuilder.getWatcherOptions();
-
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
-      (err, _events) => {
+      (err, events) => {
         if (err) {
           this.#watchEvents.emit({error: err});
-          return;
-        }
-
-        let events = _events.filter(e => !e.path.includes('.cache'));
-        if (!events.length) {
           return;
         }
 

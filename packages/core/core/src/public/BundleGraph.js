@@ -54,9 +54,10 @@ export default class BundleGraph implements IBundleGraph {
     internalBundleGraphToBundleGraph.get(options).set(graph, this);
   }
 
-  getDependencyResolution(dep: IDependency): ?Asset {
+  getDependencyResolution(dep: IDependency, bundle: IBundle): ?Asset {
     let resolution = this.#graph.getDependencyResolution(
       dependencyToInternalDependency(dep),
+      bundleToInternalBundle(bundle),
     );
     if (resolution) {
       return assetFromValue(resolution, this.#options);
@@ -131,8 +132,8 @@ export default class BundleGraph implements IBundleGraph {
     return this.#graph.isAssetReferenced(assetToInternalAsset(asset).value);
   }
 
-  isAssetReferencedByAssetType(asset: IAsset, type: string): boolean {
-    return this.#graph.isAssetReferencedByAssetType(
+  isAssetReferencedByAnotherBundleOfType(asset: IAsset, type: string): boolean {
+    return this.#graph.isAssetReferencedByAnotherBundleOfType(
       assetToInternalAsset(asset).value,
       type,
     );
@@ -163,6 +164,12 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
+  getParentBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getParentBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
   resolveSymbol(asset: IAsset, symbol: Symbol): SymbolResolution {
     let res = this.#graph.resolveSymbol(
       assetToInternalAsset(asset).value,
@@ -186,12 +193,14 @@ export default class BundleGraph implements IBundleGraph {
 
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<IBundle, TContext>,
+    startBundle?: IBundle,
   ): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
         bundle => new Bundle(bundle, this.#graph, this.#options),
         visit,
       ),
+      startBundle == null ? undefined : bundleToInternalBundle(startBundle),
     );
   }
 
