@@ -894,6 +894,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('concats modules with inserted globals in the correct order', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/concat-order-globals/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'foobar');
+    });
+
     it('supports named imports of commonjs modules', async function() {
       let b = await bundle(
         path.join(
@@ -1837,5 +1849,20 @@ describe('scope hoisting', function() {
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+  });
+
+  // Mirrors the equivalent test in javascript.js
+  it('should insert global variables when needed', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals/scope-hoisting.js'),
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output(), {
+      dir: path.join(__dirname, '/integration/globals'),
+      file: path.join(__dirname, '/integration/globals/index.js'),
+      buf: Buffer.from('browser').toString('base64'),
+      global: true,
+    });
   });
 });
