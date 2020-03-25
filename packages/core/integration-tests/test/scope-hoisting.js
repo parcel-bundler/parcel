@@ -1332,20 +1332,19 @@ describe('scope hoisting', function() {
     });
 
     it("doesn't support require.resolve calls", async function() {
-      try {
-        /* let b =  */ await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/commonjs/require-resolve/a.js',
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/commonjs/require-resolve/a.js',
+            ),
           ),
-        );
-        assert.fail();
-      } catch (e) {
-        assert.equal(
-          e.message,
-          "`require.resolve` calls for modules or assets aren't supported with scope hoisting",
-        );
-      }
+        {
+          message:
+            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+        },
+      );
     });
 
     it('supports require.resolve calls for excluded modules', async function() {
@@ -1701,7 +1700,6 @@ describe('scope hoisting', function() {
     });
 
     it('should support wrapping array destructuring declarations', async function() {
-      this.timeout(90000);
       let b = await bundle(
         path.join(
           __dirname,
