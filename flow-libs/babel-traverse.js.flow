@@ -755,7 +755,7 @@ declare module "@babel/traverse" {
         exit?: VisitorFunc<N, S>
       |};
 
-  declare export type Visitor<S> = {|
+  declare export type Visitor<S> = {
     noScope?: boolean,
     blacklist?: Array<string>,
     shouldSkip?: (NodePath<Node>) => boolean,
@@ -1042,5 +1042,7 @@ declare module "@babel/traverse" {
     RegexLiteral?: SingleVisitor<RegexLiteral, S>,
     RestProperty?: SingleVisitor<RestProperty, S>,
     SpreadProperty?: SingleVisitor<SpreadProperty, S>,
-  |};
+    [string]: SingleVisitor<Node, S>,
+    ...
+  };
 }

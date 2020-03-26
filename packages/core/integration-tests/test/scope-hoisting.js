@@ -1230,6 +1230,32 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('should hoist all vars in the scope', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-var-hoisting/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      assert(contents.split('f1_var').length - 1, 1);
+      assert(contents.split('f2_var').length - 1, 1);
+      assert(contents.split('f3_var').length - 1, 1);
+      assert(contents.split('f4_var').length - 1, 1);
+      assert(contents.split('c1_var').length - 1, 1);
+      assert(contents.split('c2_var').length - 1, 1);
+      assert(contents.split('BigIntSupported').length - 1, 4);
+      assert(contents.split('inner_let').length - 1, 2);
+
+      let output = await run(b);
+      assert.equal(output, true);
+    });
+
     it('should wrap modules that access `module` as a free variable', async function() {
       let b = await bundle(
         path.join(
@@ -1862,5 +1888,16 @@ describe('scope hoisting', function() {
       buf: Buffer.from('browser').toString('base64'),
       global: true,
     });
+  });
+
+  it('should be able to named import a reexported namespace in an async bundle', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/async-named-import-ns-reexport/index.js',
+      ),
+    );
+
+    assert.deepEqual(await (await run(b)).default, [42, 42, 42, 42]);
   });
 });

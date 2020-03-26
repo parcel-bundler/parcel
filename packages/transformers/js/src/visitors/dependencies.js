@@ -6,18 +6,23 @@ import type {
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Expression} from '@babel/types';
+import type {Expression, Node} from '@babel/types';
+import type {Visitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
+import {
+  isArrowFunctionExpression,
+  isCallExpression,
+  isIfStatement,
+  isMemberExpression,
+  isReturnStatement,
+  isIdentifier,
+  isNewExpression,
+  isFunction,
+} from '@babel/types';
 import traverse from '@babel/traverse';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
 import {hasBinding, morph} from './utils';
-
-type Visitor = (
-  node: any,
-  {|asset: MutableAsset, ast: AST, options: PluginOptions|},
-  ancestors: Array<any>,
-) => void;
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -170,15 +175,18 @@ export default ({
       }
     },
   },
-}: {
-  [key: string]: Visitor | {|enter?: Visitor, exit?: Visitor|},
-  ...,
-});
+}: Visitors<
+  (
+    any,
+    {|asset: MutableAsset, ast: AST, options: PluginOptions|},
+    Array<Node>,
+  ) => void,
+>);
 
 function isInFalsyBranch(ancestors) {
   // Check if any ancestors are if statements
   return ancestors.some((node, index) => {
-    if (types.isIfStatement(node)) {
+    if (isIfStatement(node)) {
       let res = evaluateExpression(node.test);
       if (res && res.confident) {
         // If the test is truthy, exclude the dep if it is in the alternate branch.
@@ -219,8 +227,8 @@ function isRequireAsync(ancestors, requireNode, asset, ast) {
   let functionParent = getFunctionParent(ancestors);
   if (
     functionParent &&
-    types.isCallExpression(functionParent) &&
-    types.isMemberExpression(functionParent.callee) &&
+    isCallExpression(functionParent) &&
+    isMemberExpression(functionParent.callee) &&
     functionParent.callee.property.name === 'then' &&
     isPromiseResolve(functionParent.callee.object)
   ) {
@@ -231,10 +239,7 @@ function isRequireAsync(ancestors, requireNode, asset, ast) {
     //   Promise.resolve().then(() => __importStar(require('./foo')));
     // This is transformed into:
     //   Promise.resolve().then(() => require('./foo')).then(res => __importStar(res));
-    if (
-      !types.isArrowFunctionExpression(parent) &&
-      !types.isReturnStatement(parent)
-    ) {
+    if (!isArrowFunctionExpression(parent) && !isReturnStatement(parent)) {
       // Replace the original `require` call with a reference to a variable
       let requireClone = types.clone(requireNode);
       let v = types.identifier(
@@ -244,10 +249,11 @@ function isRequireAsync(ancestors, requireNode, asset, ast) {
 
       // Add the variable as a param to the parent function
       let fn = functionParent.arguments[0];
+      // $FlowFixMe
       fn.params[0] = v;
 
       // Replace original function with only the require call
-      functionParent.arguments[0] = types.isArrowFunctionExpression(fn)
+      functionParent.arguments[0] = isArrowFunctionExpression(fn)
         ? types.arrowFunctionExpression([], requireClone)
         : types.functionExpression(
             null,
@@ -272,6 +278,7 @@ function isRequireAsync(ancestors, requireNode, asset, ast) {
   }
 
   // Promise.resolve(require('foo'))
+  // $FlowFixMe
   if (isPromiseResolve(parent) && parent.arguments[0] === requireNode) {
     return true;
   }
@@ -281,13 +288,15 @@ function isRequireAsync(ancestors, requireNode, asset, ast) {
   // new Promise(function (resolve) { resolve(require('foo')) })
   if (
     functionParent &&
-    types.isCallExpression(parent) &&
-    types.isIdentifier(parent.callee) &&
-    types.isNewExpression(functionParent) &&
-    types.isIdentifier(functionParent.callee) &&
+    isCallExpression(parent) &&
+    isIdentifier(parent.callee) &&
+    isNewExpression(functionParent) &&
+    isIdentifier(functionParent.callee) &&
     functionParent.callee.name === 'Promise' &&
-    types.isFunction(functionParent.arguments[0]) &&
-    types.isIdentifier(functionParent.arguments[0].params[0]) &&
+    isFunction(functionParent.arguments[0]) &&
+    // $FlowFixMe
+    isIdentifier(functionParent.arguments[0].params[0]) &&
+    // $FlowFixMe
     parent.callee.name === functionParent.arguments[0].params[0].name
   ) {
     return true;
@@ -296,9 +305,10 @@ function isRequireAsync(ancestors, requireNode, asset, ast) {
 
 function isPromiseResolve(node) {
   return (
-    types.isCallExpression(node) &&
-    types.isMemberExpression(node.callee) &&
-    types.isIdentifier(node.callee.object) &&
+    isCallExpression(node) &&
+    isMemberExpression(node.callee) &&
+    isIdentifier(node.callee.object) &&
+    isIdentifier(node.callee.property) &&
     node.callee.object.name === 'Promise' &&
     node.callee.property.name === 'resolve'
   );
