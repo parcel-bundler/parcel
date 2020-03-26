@@ -717,12 +717,9 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
     logger: PluginLogger,
-    getInlineBundleContents: (
-      Bundle,
-      BundleGraph,
-    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+    getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
   |}): Async<BundleResult>,
 |};
 
@@ -733,6 +730,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
   |}): Async<BundleResult>,
 |};
 

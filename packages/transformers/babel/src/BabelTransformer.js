@@ -31,7 +31,6 @@ export default new Transformer({
           asset.meta.babelPlugins != null &&
           Array.isArray(asset.meta.babelPlugins)
         ) {
-          // $FlowFixMe
           await babel7(asset, options, config, asset.meta.babelPlugins);
         } else {
           await babel7(asset, options, config);
