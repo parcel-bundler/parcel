@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {
@@ -22,10 +22,10 @@ import {
   isStringLiteral,
   isVariableDeclarator,
 } from '@babel/types';
+import invariant from 'assert';
 import Path from 'path';
 import fs from 'fs';
 import template from '@babel/template';
-import invariant from 'assert';
 import {errorToDiagnostic} from '@parcel/diagnostic';
 
 const bufferTemplate = template.expression<
@@ -47,40 +47,22 @@ export default ({
     }
   },
 
-  CallExpression(path, {asset, logger}) {
+  CallExpression(path, {asset, logger, ast}) {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.filePath),
         __filename: Path.basename(asset.filePath),
       };
+      let filename, res, args;
 
       try {
-        let [filename, ...args] = (path
+        [filename, ...args] = (path
           .get('arguments')
           .map(arg => evaluate(arg, vars)): Array<string>);
 
         filename = Path.resolve(filename);
-        let res = fs.readFileSync(filename, ...args);
-
-        let replacementNode;
-        if (Buffer.isBuffer(res)) {
-          replacementNode = bufferTemplate({
-            CONTENT: t.stringLiteral(res.toString('base64')),
-          });
-        } else {
-          invariant(typeof res === 'string');
-          replacementNode = t.stringLiteral(res);
-        }
-
-        asset.addIncludedFile({
-          filePath: filename,
-        });
-
-        path.replaceWith(replacementNode);
-        invariant(asset.ast);
-        asset.ast.isDirty = true;
+        res = fs.readFileSync(filename, ...args);
       } catch (_err) {
-        // $FlowFixMe yes it is an error
         let err: Error = _err;
 
         if (err instanceof NodeNotEvaluatedError) {
@@ -91,18 +73,39 @@ export default ({
           delete err.stack;
 
           logger.warn(errorToDiagnostic(err));
-        } else {
-          // Add location info so we log a code frame with the error
-          err.loc =
-            path.node.arguments.length > 0
-              ? path.node.arguments[0].loc?.start
-              : path.node.loc?.start;
-          throw err;
+          return;
         }
+
+        // Add location info so we log a code frame with the error
+        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
+        err.loc =
+          path.node.arguments.length > 0
+            ? path.node.arguments[0].loc?.start
+            : path.node.loc?.start;
+        throw err;
       }
+
+      let replacementNode;
+      if (Buffer.isBuffer(res)) {
+        invariant(res != null);
+        replacementNode = bufferTemplate({
+          CONTENT: t.stringLiteral(res.toString('base64')),
+        });
+      } else {
+        invariant(typeof res === 'string');
+        replacementNode = t.stringLiteral(res);
+      }
+
+      invariant(filename != null);
+      asset.addIncludedFile({
+        filePath: filename,
+      });
+
+      path.replaceWith(replacementNode);
+      asset.setAST(ast); // mark dirty
     }
   },
-}: Visitor<{|asset: MutableAsset, logger: PluginLogger|}>);
+}: Visitor<{|asset: MutableAsset, ast: AST, logger: PluginLogger|}>);
 
 function isRequire(node, name, method) {
   // e.g. require('fs').readFileSync

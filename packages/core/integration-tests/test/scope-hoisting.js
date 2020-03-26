@@ -1230,6 +1230,32 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('should hoist all vars in the scope', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-var-hoisting/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      assert(contents.split('f1_var').length - 1, 1);
+      assert(contents.split('f2_var').length - 1, 1);
+      assert(contents.split('f3_var').length - 1, 1);
+      assert(contents.split('f4_var').length - 1, 1);
+      assert(contents.split('c1_var').length - 1, 1);
+      assert(contents.split('c2_var').length - 1, 1);
+      assert(contents.split('BigIntSupported').length - 1, 4);
+      assert(contents.split('inner_let').length - 1, 2);
+
+      let output = await run(b);
+      assert.equal(output, true);
+    });
+
     it('should wrap modules that access `module` as a free variable', async function() {
       let b = await bundle(
         path.join(
@@ -1331,32 +1357,36 @@ describe('scope hoisting', function() {
       assert.equal(output.require, 'function');
     });
 
-    it('supports require.resolve calls', async function() {
+    it("doesn't support require.resolve calls", async function() {
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/commonjs/require-resolve/a.js',
+            ),
+          ),
+        {
+          message:
+            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+        },
+      );
+    });
+
+    it('supports require.resolve calls for excluded modules', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/require-resolve/a.js',
+          '/integration/scope-hoisting/commonjs/require-resolve-excluded/a.js',
         ),
       );
 
-      let entryBundle;
-      b.traverseBundles((bundle, ctx, traversal) => {
-        if (bundle.isEntry) {
-          entryBundle = bundle;
-          traversal.stop();
-        }
+      let output = await run(b, {
+        require: {
+          resolve: () => 'my-resolved-fs',
+        },
       });
-
-      let asset;
-      entryBundle.traverseAssets((a, ctx, traversal) => {
-        if (a.filePath.endsWith('b.js')) {
-          asset = a;
-          traversal.stop();
-        }
-      });
-
-      let output = await run(b);
-      assert.equal(output, asset.id);
+      assert.deepEqual(output, 'my-resolved-fs');
     });
 
     it('supports requiring a re-exported ES6 import', async function() {
@@ -1696,7 +1726,6 @@ describe('scope hoisting', function() {
     });
 
     it('should support wrapping array destructuring declarations', async function() {
-      this.timeout(90000);
       let b = await bundle(
         path.join(
           __dirname,
@@ -1844,5 +1873,20 @@ describe('scope hoisting', function() {
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+  });
+
+  // Mirrors the equivalent test in javascript.js
+  it('should insert global variables when needed', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals/scope-hoisting.js'),
+    );
+
+    let output = await run(b);
+    assert.deepEqual(output(), {
+      dir: path.join(__dirname, '/integration/globals'),
+      file: path.join(__dirname, '/integration/globals/index.js'),
+      buf: Buffer.from('browser').toString('base64'),
+      global: true,
+    });
   });
 });

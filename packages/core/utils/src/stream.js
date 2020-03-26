@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import {Readable} from 'stream';
+import {Readable, PassThrough} from 'stream';
 import type {Blob} from '@parcel/types';
 
 export function measureStreamLength(stream: Readable): Promise<number> {
@@ -41,4 +41,34 @@ export function blobToStream(blob: Blob): Readable {
   }
 
   return readableFromStringOrBuffer(blob);
+}
+
+export function streamFromPromise(promise: Promise<Blob>): Readable {
+  const stream = new PassThrough();
+  promise.then(blob => {
+    if (blob instanceof Readable) {
+      blob.pipe(stream);
+    } else {
+      stream.end(blob);
+    }
+  });
+
+  return stream;
+}
+
+export function fallbackStream(
+  stream: Readable,
+  fallback: () => Readable,
+): Readable {
+  const res = new PassThrough();
+  stream.on('error', err => {
+    if (err.code === 'ENOENT') {
+      fallback().pipe(res);
+    } else {
+      res.emit('error', err);
+    }
+  });
+
+  stream.pipe(res);
+  return res;
 }

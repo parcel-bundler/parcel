@@ -17,6 +17,7 @@ import type {
 import invariant from 'assert';
 import crypto from 'crypto';
 import {md5FromObject} from '@parcel/utils';
+import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
@@ -99,7 +100,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   // $FlowFixMe
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let res = new AssetGraph(opts);
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     res.incompleteNodeIds = opts.incompleteNodeIds;
     res.hash = opts.hash;
     return res;
@@ -107,6 +110,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   // $FlowFixMe
   serialize(): SerializedAssetGraph {
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     return {
       ...super.serialize(),
       incompleteNodeIds: this.incompleteNodeIds,
@@ -333,7 +337,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // TODO: sort??
     this.traverse(node => {
       if (node.type === 'asset') {
-        hash.update(node.value.outputHash);
+        hash.update(nullthrows(node.value.outputHash));
       } else if (node.type === 'dependency' && node.value.target) {
         hash.update(JSON.stringify(node.value.target));
       }
