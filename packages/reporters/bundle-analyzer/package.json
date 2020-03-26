@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-bundle-analyzer",
-  "version": "2.0.0-frontbucket.6",
+  "version": "2.0.0-frontbucket.7",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,11 +16,11 @@
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.16",
-    "@parcel/utils": "^2.0.0-frontbucket.16",
+    "@parcel/plugin": "^2.0.0-frontbucket.17",
+    "@parcel/utils": "^2.0.0-frontbucket.17",
     "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "@parcel/types": "^2.0.0-frontbucket.16"
+    "@parcel/types": "^2.0.0-frontbucket.17"
   }
 }
