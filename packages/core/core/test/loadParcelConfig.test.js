@@ -83,9 +83,9 @@ describe('loadParcelConfig', () => {
     it('should require pipeline to be an array', () => {
       assert.throws(() => {
         validateConfigFile(
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
             resolvers: '123',
           },
           '.parcelrc',
@@ -111,7 +111,6 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
             resolvers: ['parcel-foo-bar'],
           },
           '.parcelrc',
@@ -123,7 +122,6 @@ describe('loadParcelConfig', () => {
       validateConfigFile(
         {
           filePath: '.parcelrc',
-          // $FlowFixMe
           resolvers: ['parcel-resolver-test'],
         },
         '.parcelrc',
@@ -134,7 +132,6 @@ describe('loadParcelConfig', () => {
       validateConfigFile(
         {
           filePath: '.parcelrc',
-          // $FlowFixMe
           resolvers: ['parcel-resolver-test', '...'],
         },
         '.parcelrc',
@@ -172,9 +169,9 @@ describe('loadParcelConfig', () => {
     it('should require extends to be a string or array of strings', () => {
       assert.throws(() => {
         validateConfigFile(
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
             extends: 2,
           },
           '.parcelrc',

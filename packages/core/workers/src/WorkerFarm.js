@@ -289,7 +289,6 @@ export default class WorkerFarm extends EventEmitter {
       }
     } else {
       // ESModule default interop
-      // $FlowFixMe
       if (mod.__esModule && !mod[method] && mod.default) {
         mod = mod.default;
       }

@@ -618,7 +618,7 @@ describe('output formats', function() {
         .getBundles()
         .find(b => b.name.startsWith('async1') && !index.includes(b.name));
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-      assert(shared.includes('export var $'));
+      assert(shared.includes('export function $'));
 
       let async1 = await outputFS.readFile(
         b
@@ -859,8 +859,7 @@ describe('output formats', function() {
       assert(!entry.includes('Promise.all')); // not needed - esmodules will wait for shared bundle
 
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-
-      assert(shared.includes('export var $'));
+      assert(shared.includes('export function $'));
 
       let async1 = await outputFS.readFile(async1Bundle.filePath, 'utf8');
       assert(
@@ -897,7 +896,7 @@ describe('output formats', function() {
         'utf8',
       );
 
-      let exportName = dist1.match(/export var ([a-z0-9$]+) =/)[1];
+      let exportName = dist1.match(/export function\s*([a-z0-9$]+)\(\)/)[1];
       assert(exportName);
 
       assert.equal(
@@ -928,11 +927,11 @@ describe('output formats', function() {
         b.getBundles().find(b => b.type === 'js').filePath,
         'utf8',
       );
+
+      let lines = dist.trim('\n').split('\n');
       assert(
-        dist
-          .split('\n')
-          .pop()
-          .startsWith('export default'),
+        // The last line is a sourcemap comment -- test the second-to-last line
+        lines[lines.length - 2].startsWith('export default'),
       );
     });
   });

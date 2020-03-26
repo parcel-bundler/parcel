@@ -1,20 +1,20 @@
 // @flow
-import semver from 'semver';
+import type {FilePath, PackageName, Semver} from '@parcel/types';
+import type {PackageManager} from '@parcel/package-manager';
 
+import semver from 'semver';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
-import type {FilePath, PackageName} from '@parcel/types';
-import type {PackageManager} from '@parcel/package-manager';
 import nullthrows from 'nullthrows';
 
 const PARCEL_VERSION = require('../package.json').version;
 
-export default async function loadPlugin(
+export default async function loadPlugin<T>(
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
   autoinstall: boolean,
-) {
+): Promise<{|plugin: T, version: Semver|}> {
   let {resolved, pkg} = await packageManager.resolve(
     pluginName,
     `${resolveFrom}/index`,

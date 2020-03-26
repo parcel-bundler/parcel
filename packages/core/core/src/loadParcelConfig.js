@@ -82,7 +82,6 @@ function processPipeline(
   filePath: FilePath,
 ): any {
   if (pipeline) {
-    // $FlowFixMe
     return pipeline.map(pkg => {
       if (pkg === '...') return pkg;
 

@@ -101,15 +101,15 @@ export default class ParcelConfig {
     };
   }
 
-  loadPlugin(
+  loadPlugin<T>(
     node: ParcelPluginNode,
-  ): Promise<{|plugin: any, version: Semver|}> {
+  ): Promise<{|plugin: T, version: Semver|}> {
     let plugin = this.pluginCache.get(node.packageName);
     if (plugin) {
       return plugin;
     }
 
-    plugin = loadPlugin(
+    plugin = loadPlugin<T>(
       this.packageManager,
       node.packageName,
       node.resolveFrom,
@@ -131,7 +131,7 @@ export default class ParcelConfig {
   > {
     return Promise.all(
       plugins.map(async p => {
-        let {plugin, version} = await this.loadPlugin(p);
+        let {plugin, version} = await this.loadPlugin<T>(p);
         return {
           name: p.packageName,
           plugin,
@@ -223,7 +223,7 @@ export default class ParcelConfig {
       throw new Error('No bundler specified in .parcelrc config');
     }
 
-    return this.loadPlugin(this.bundler);
+    return this.loadPlugin<Bundler>(this.bundler);
   }
 
   getNamers() {
@@ -273,7 +273,7 @@ export default class ParcelConfig {
   |}> {
     let packager = this._getPackagerNode(filePath);
 
-    let {plugin, version} = await this.loadPlugin(packager);
+    let {plugin, version} = await this.loadPlugin<Packager>(packager);
     return {
       name: packager.packageName,
       version,

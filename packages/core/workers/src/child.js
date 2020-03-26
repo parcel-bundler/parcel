@@ -189,6 +189,7 @@ export class Child {
       ...request,
       type: 'request',
       child: this.childId,
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       awaitResponse,
       resolve: () => {},
       reject: () => {},
