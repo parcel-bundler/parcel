@@ -153,7 +153,7 @@ export function link({
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
       node = addBundleImport(originalModule, path);
-      return node ? interop(originalModule, symbol, path, node) : null;
+      return node ? interop(originalModule, originalName, path, node) : null;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
