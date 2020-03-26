@@ -59,6 +59,7 @@ export default function extractInlineAssets(
         }
 
         if (!node.attrs) {
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           node.attrs = {};
         }
 
@@ -108,6 +109,7 @@ export default function extractInlineAssets(
 
       parts.push({
         type: 'css',
+        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
         code: node.attrs.style,
         uniqueKey: parcelKey,
         isIsolated: true,

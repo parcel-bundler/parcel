@@ -658,7 +658,6 @@ export default class NodeResolver {
 
         return {
           field,
-          // $FlowFixMe
           filename: pkg[field],
         };
       })

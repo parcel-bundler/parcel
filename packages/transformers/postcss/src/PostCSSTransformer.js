@@ -145,6 +145,7 @@ export default new Transformer({
       });
     }
 
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let {messages, root} = await postcss(config.plugins).process(
       ast.program,
       config,
@@ -157,7 +158,6 @@ export default new Transformer({
     });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        // $FlowFixMe merely a convention
         msg = (msg: {|
           type: 'dependency',
           plugin: string,
