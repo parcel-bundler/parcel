@@ -1,5 +1,7 @@
+// @flow
 // Copied from babel-traverse, but with virtual types handling removed
 // https://github.com/babel/babel/blob/07b3dc18a09f2217b38a3a63c8613add6df1b47d/packages/babel-traverse/src/visitors.js
+import type {Visitors, VisitorsExploded} from './index';
 
 // import * as messages from 'babel-messages';
 import * as t from '@babel/types';
@@ -19,8 +21,10 @@ import clone from 'lodash.clone';
  * * `enter` and `exit` functions are wrapped in arrays, to ease merging of
  *   visitors
  */
-export default function explode(visitor) {
+export default function explode<T>(visitor: Visitors<T>): VisitorsExploded<T> {
+  // $FlowFixMe
   if (visitor._exploded) return visitor;
+  // $FlowFixMe
   visitor._exploded = true;
 
   // normalise pipes
@@ -87,10 +91,11 @@ export default function explode(visitor) {
     ensureCallbackArrays(visitor[nodeType]);
   }
 
+  // $FlowFixMe
   return visitor;
 }
 
-export function verify(visitor) {
+export function verify(visitor: any) {
   if (visitor._verified) return;
 
   if (typeof visitor === 'function') {
@@ -147,7 +152,7 @@ function validateVisitorMethods(path, val) {
   }
 }
 
-function ensureEntranceObjects(obj) {
+function ensureEntranceObjects(obj: any) {
   for (let key in obj) {
     if (shouldIgnoreKey(key)) continue;
 
@@ -158,7 +163,7 @@ function ensureEntranceObjects(obj) {
   }
 }
 
-function ensureCallbackArrays(obj) {
+function ensureCallbackArrays(obj: any) {
   if (obj.enter && !Array.isArray(obj.enter)) obj.enter = [obj.enter];
   if (obj.exit && !Array.isArray(obj.exit)) obj.exit = [obj.exit];
 }
@@ -177,7 +182,7 @@ function shouldIgnoreKey(key) {
   return false;
 }
 
-function mergePair(dest, src) {
+function mergePair(dest: any, src: any) {
   for (let key in src) {
     dest[key] = [].concat(dest[key] || [], src[key]);
   }

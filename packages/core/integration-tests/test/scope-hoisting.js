@@ -1230,6 +1230,32 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('should hoist all vars in the scope', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-var-hoisting/a.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+
+      assert(contents.split('f1_var').length - 1, 1);
+      assert(contents.split('f2_var').length - 1, 1);
+      assert(contents.split('f3_var').length - 1, 1);
+      assert(contents.split('f4_var').length - 1, 1);
+      assert(contents.split('c1_var').length - 1, 1);
+      assert(contents.split('c2_var').length - 1, 1);
+      assert(contents.split('BigIntSupported').length - 1, 4);
+      assert(contents.split('inner_let').length - 1, 2);
+
+      let output = await run(b);
+      assert.equal(output, true);
+    });
+
     it('should wrap modules that access `module` as a free variable', async function() {
       let b = await bundle(
         path.join(
