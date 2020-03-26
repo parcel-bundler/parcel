@@ -22,7 +22,7 @@ const {findProjects, exec} = require('./common');
 //  all projects { [dirname]: package }
 let projects = findProjects(rootDir);
 //  all project names
-let names = new Set(Object.values(projects).map(package => package.name));
+let names = new Set(Object.values(projects).map(pack => pack.name));
 //  first link all projects
 let count = 0;
 for (let path in projects) {
@@ -32,9 +32,9 @@ for (let path in projects) {
 count = 0;
 // then link to eachother
 for (let path in projects) {
-  let package = projects[path];
+  let pack = projects[path];
   console.log(`${++count}/${names.size} link ${path}`);
-  for (let dep in package.dependencies || {}) {
+  for (let dep in pack.dependencies || {}) {
     if (names.has(dep)) {
       exec(`yarn link ${dep}`, path);
     }

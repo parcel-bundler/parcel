@@ -19,7 +19,7 @@ const {findProjects, exec} = require('./common');
 //  all projects { [dirname]: package }
 let projects = findProjects(rootDir);
 //  all project names
-let names = new Set(Object.values(projects).map(package => package.name));
+let names = new Set(Object.values(projects).map(pack => pack.name));
 //  clean all project node_modules folders.
 let count = 0;
 for (let path in projects) {
