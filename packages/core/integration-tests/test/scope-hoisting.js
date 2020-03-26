@@ -1889,4 +1889,15 @@ describe('scope hoisting', function() {
       global: true,
     });
   });
+
+  it('should be able to named import a reexported namespace in an async bundle', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/async-named-import-ns-reexport/index.js',
+      ),
+    );
+
+    assert.deepEqual(await (await run(b)).default, [42, 42, 42, 42]);
+  });
 });
