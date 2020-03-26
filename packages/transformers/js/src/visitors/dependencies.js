@@ -63,6 +63,21 @@ export default ({
         return;
       }
 
+      let isRequireResolve =
+        types.isMemberExpression(callee) &&
+        types.matchesPattern(callee, 'require.resolve') &&
+        args.length === 1 &&
+        types.isStringLiteral(args[0]) &&
+        !hasBinding(ancestors, 'require') &&
+        !isInFalsyBranch(ancestors);
+
+      if (isRequireResolve) {
+        let isOptional =
+          ancestors.some(a => types.isTryStatement(a)) || undefined;
+        addDependency(asset, args[0], {isOptional});
+        return;
+      }
+
       let isDynamicImport =
         callee.type === 'Import' &&
         args.length === 1 &&
