@@ -3,6 +3,7 @@
 import type {Bundle, BundleGraph} from '@parcel/types';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -46,9 +47,14 @@ export default new Packager({
     if (bundle.env.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link({bundle, bundleGraph, ast, options});
+
+      let {contents, map} = generate(bundleGraph, bundle, ast, options);
       return replaceReferences({
-        contents: generate(bundleGraph, bundle, ast).contents,
-        map: null,
+        contents:
+          contents +
+          '\n' +
+          (await getSourceMapSuffix(getSourceMapReference, map)),
+        map,
       });
     }
 
@@ -60,16 +66,20 @@ export default new Packager({
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
-    let codeQueue = new PromiseQueue({maxConcurrent: 32});
-    let mapQueue = new PromiseQueue({maxConcurrent: 32});
+    let queue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        codeQueue.add(() => node.value.getCode());
-        mapQueue.add(() => node.value.getMapBuffer());
+        queue.add(async () => {
+          let [code, mapBuffer] = await Promise.all([
+            node.value.getCode(),
+            node.value.getMapBuffer(),
+          ]);
+          return {code, mapBuffer};
+        });
       }
     });
 
-    let [code, maps] = await Promise.all([codeQueue.run(), mapQueue.run()]);
+    let results = await queue.run();
 
     let assets = '';
     let i = 0;
@@ -115,7 +125,8 @@ export default new Packager({
           }
         }
 
-        let output = code[i] || '';
+        let {code, mapBuffer} = results[i];
+        let output = code || '';
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
@@ -126,8 +137,8 @@ export default new Packager({
 
         if (options.sourceMaps) {
           let lineCount = countLines(output);
-          if (maps[i]) {
-            map.addBufferMappings(maps[i], lineOffset);
+          if (mapBuffer) {
+            map.addBufferMappings(mapBuffer, lineOffset);
           } else {
             map.addEmptyMap(
               path
@@ -165,23 +176,18 @@ export default new Packager({
         'null' +
         ')' +
         '\n\n' +
-        '//# sourceMappingURL=' +
-        (await getSourceMapReference(map)) +
-        '\n',
+        (await getSourceMapSuffix(getSourceMapReference, map)),
       map,
     });
   },
 });
 
 function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
-  let interpreter: ?string = null;
-  if (isEntry(bundle, bundleGraph)) {
-    let entries = bundle.getEntryAssets();
-    let entryAsset = entries[entries.length - 1];
-    // $FlowFixMe
-    interpreter = bundle.target.env.isBrowser()
-      ? null
-      : entryAsset.meta.interpreter;
+  let interpreter: ?string;
+  if (isEntry(bundle, bundleGraph) && !bundle.target.env.isBrowser()) {
+    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+    invariant(_interpreter == null || typeof _interpreter === 'string');
+    interpreter = _interpreter;
   }
 
   let importScripts = '';
@@ -202,4 +208,15 @@ function isEntry(bundle: Bundle, bundleGraph: BundleGraph): boolean {
   return (
     !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
   );
+}
+
+async function getSourceMapSuffix(
+  getSourceMapReference: SourceMap => Promise<string> | string,
+  map: ?SourceMap,
+): Promise<string> {
+  if (map == null) {
+    return '';
+  }
+
+  return '//# sourceMappingURL=' + (await getSourceMapReference(map)) + '\n';
 }
