@@ -163,7 +163,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 12);
     });
 
-    it('supports namespace imports of excluded reexporting assets (sideEffects: false)', async function() {
+    it('supports namespace imports of theoretically excluded reexporting assets (sideEffects: false)', async function() {
       let b = await bundle(
         path.join(
           __dirname,

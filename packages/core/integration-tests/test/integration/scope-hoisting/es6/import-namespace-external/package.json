@@ -1,5 +1,5 @@
 {
-    "default": "build.js",
+    "default": "dist/index.js",
     "targets": {
         "default": {
             "context": "node"
