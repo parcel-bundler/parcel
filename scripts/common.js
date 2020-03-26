@@ -14,8 +14,8 @@ exports.findProjects = function findProjects(rootDir, files = {}) {
     if (stats && stats.isDirectory()) {
       let packagePath = np.join(projectPath, 'package.json');
       if (fs.existsSync(packagePath)) {
-        let package = JSON.parse(fs.readFileSync(packagePath).toString());
-        files[projectPath] = package;
+        let pack = JSON.parse(fs.readFileSync(packagePath).toString());
+        files[projectPath] = pack;
       } else {
         findProjects(projectPath, files);
       }
