@@ -44,7 +44,6 @@ export default new Optimizer({
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    // $FlowFixMe this is a flow bug...
     let result = minify(contents, config);
 
     if (result.error) {
