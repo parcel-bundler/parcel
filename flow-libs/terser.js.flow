@@ -148,7 +148,7 @@ declare module 'terser' {
     safari10?: boolean,
     toplevel?: boolean,
     warnings?: boolean,
-    sourceMap?: SourceMapOptions,
+    sourceMap?: false | SourceMapOptions,
   |};
 
   declare type RawSourceMap = {|
