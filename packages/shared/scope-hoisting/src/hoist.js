@@ -16,6 +16,7 @@ import type {
 
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
@@ -93,7 +94,6 @@ const VISITOR: Visitor<MutableAsset> = {
       path.scope.crawl();
 
       let shouldWrap = false;
-      let resolveExportsBailedOut = false;
       path.traverse({
         CallExpression(path) {
           // If we see an `eval` call, wrap the module in a function.
@@ -148,6 +148,7 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             node.name === 'exports' &&
+            !isAssignmentExpression(parent, {left: node}) &&
             (!isMemberExpression(parent) ||
               !(isIdentifier(parent.property) && !parent.computed) ||
               isStringLiteral(parent.property)) &&
@@ -155,7 +156,7 @@ const VISITOR: Visitor<MutableAsset> = {
             !path.scope.getData('shouldWrap')
           ) {
             asset.meta.isCommonJS = true;
-            resolveExportsBailedOut = true;
+            asset.meta.resolveExportsBailedOut = true;
           }
         },
 
@@ -167,28 +168,24 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             t.matchesPattern(node, 'module.exports') &&
+            !isAssignmentExpression(parent, {left: node}) &&
             (!isMemberExpression(parent) ||
               !(isIdentifier(parent.property) && !parent.computed) ||
               isStringLiteral(parent.property)) &&
             !path.scope.hasBinding('module') &&
             !path.scope.getData('shouldWrap')
           ) {
-            resolveExportsBailedOut = true;
+            asset.meta.resolveExportsBailedOut = true;
           }
         },
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
       path.scope.setData('cjsExportsReassigned', false);
-      path.scope.setData('resolveExportsBailedOut', resolveExportsBailedOut);
     },
 
     exit(path, asset: MutableAsset) {
       let scope = path.scope;
-
-      if (scope.getData('resolveExportsBailedOut')) {
-        asset.symbols.clear();
-      }
 
       if (scope.getData('shouldWrap')) {
         if (asset.meta.isES6Module) {

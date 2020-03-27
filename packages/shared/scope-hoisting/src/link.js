@@ -120,6 +120,14 @@ export function link({
   });
 
   function resolveSymbol(inputAsset, inputSymbol: Symbol) {
+    if (inputAsset.meta.resolveExportsBailedOut) {
+      return {
+        asset: inputAsset,
+        symbol: inputSymbol,
+        identifier: undefined,
+      };
+    }
+
     let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,
@@ -144,8 +152,8 @@ export function link({
       originalModule,
       originalName,
     );
-    let node;
 
+    let node;
     if (identifier) {
       node = findSymbol(path, identifier);
     }
