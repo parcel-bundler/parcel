@@ -1969,12 +1969,6 @@ describe('scope hoisting', function() {
       .sort((a, b) => b.stats.size - a.stats.size)[0];
     let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
     assert(contents.includes(`parcelRequire =`));
-
-    let mainBundle = b
-      .getBundles()
-      .find(b => b.type === 'js' && b.name.startsWith('html-shared'));
-    contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
-    assert(contents.includes(`parcelRequire =`));
   });
 
   it('does not include prelude if child bundles are isolated', async function() {
@@ -2028,5 +2022,107 @@ describe('scope hoisting', function() {
     );
 
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/sync-async/same-bundle-scope-hoisting.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-bundle-scope-hoisting.js',
+        assets: [
+          'same-bundle-scope-hoisting.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await await run(b), [42, 42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/sync-async/same-ancestry-scope-hoisting.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-ancestry-scope-hoisting.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'dep.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+          'same-ancestry-scope-hoisting.js',
+        ],
+      },
+      {
+        assets: ['get-dep.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await run(b), [42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
+    let b = await bundle(
+      [
+        'same-bundle-scope-hoisting.js',
+        'get-dep-scope-hoisting.js',
+      ].map(entry => path.join(__dirname, '/integration/sync-async/', entry)),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['dep.js'],
+      },
+      {
+        name: 'same-bundle-scope-hoisting.js',
+        assets: [
+          'same-bundle-scope-hoisting.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        name: 'get-dep-scope-hoisting.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-dep-scope-hoisting.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let sameBundle = bundles.find(
+      b => b.name === 'same-bundle-scope-hoisting.js',
+    );
+    let getDep = bundles.find(b => b.name === 'get-dep-scope-hoisting.js');
+
+    assert.deepEqual(await runBundle(sameBundle), [42, 42, 42]);
+    assert.deepEqual(await runBundle(getDep), 42);
   });
 });
