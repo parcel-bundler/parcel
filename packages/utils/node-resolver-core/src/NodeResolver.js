@@ -883,13 +883,13 @@ export default class NodeResolver {
       splitOn = name.indexOf(path.sep, splitOn + 1);
     }
     if (splitOn < 0) {
-      return [name, undefined];
+      return [name.replace(/\\/g, '/'), undefined];
+    } else {
+      return [
+        name.substring(0, splitOn).replace(/\\/g, '/'),
+        name.substring(splitOn + 1) || undefined,
+      ];
     }
-
-    return [
-      name.substring(0, splitOn),
-      name.substring(splitOn + 1) || undefined,
-    ];
   }
 
   hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON): boolean {
