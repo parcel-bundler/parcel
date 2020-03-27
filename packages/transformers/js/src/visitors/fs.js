@@ -2,12 +2,7 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import type {Visitor, NodePath} from '@babel/traverse';
-import type {
-  CallExpression,
-  Node,
-  ObjectProperty,
-  StringLiteral,
-} from '@babel/types';
+import type {CallExpression, Node, StringLiteral} from '@babel/types';
 
 import * as t from '@babel/types';
 import {
@@ -166,8 +161,8 @@ function referencesImport(path: NodePath<CallExpression>, name, method) {
   let bindingNode: Node = bindingPath.getData('__require') || bindingPath.node;
   let parent: Node = bindingPath.parent;
 
-  // e.g. import fs from 'fs';
   if (isImportDeclaration(parent)) {
+    // e.g. import fs from 'fs';
     let {node: bindingPathNode} = bindingPath;
     if (
       isImportSpecifier(bindingPathNode) &&
@@ -177,12 +172,11 @@ function referencesImport(path: NodePath<CallExpression>, name, method) {
     }
 
     return parent.source.value === name;
-
-    // e.g. var fs = require('fs');
   } else if (
     isVariableDeclarator(bindingNode) ||
     isAssignmentExpression(bindingNode)
   ) {
+    // e.g. var ... = require('fs');
     let left = isVariableDeclarator(bindingNode)
       ? bindingNode.id
       : bindingNode.left;
@@ -190,15 +184,17 @@ function referencesImport(path: NodePath<CallExpression>, name, method) {
       ? bindingNode.init
       : bindingNode.right;
 
-    // e.g. var {readFileSync} = require('fs');
     if (isObjectPattern(left)) {
+      // e.g. var {readFileSync} = require('fs');
       invariant(isIdentifier(callee));
-      let prop: ?ObjectProperty = (left.properties.map(p => {
-        invariant(isObjectProperty(p));
-        return p;
-      }): Array<ObjectProperty>).find(
-        p => isIdentifier(p.value) && p.value.name === callee.name,
+      let prop = left.properties.find(
+        p =>
+          isObjectProperty(p) &&
+          isIdentifier(p.value) &&
+          p.value.name === callee.name,
       );
+      invariant(!prop || isObjectProperty(prop));
+
       if (!prop || prop.key.name !== method) {
         return false;
       }
