@@ -8,7 +8,7 @@ import SourceMap from '@parcel/source-map';
 import path from 'path';
 
 export default new Optimizer({
-  async optimize({contents, map, bundle, options}) {
+  async optimize({contents, map, bundle, options, getSourceMapReference}) {
     if (!bundle.env.minify) {
       return {contents, map};
     }
@@ -49,6 +49,7 @@ export default new Optimizer({
     }
 
     let sourceMap = null;
+    let minifiedContents: string = nullthrows(result.code);
     if (result.map && typeof result.map !== 'string') {
       sourceMap = new SourceMap();
       sourceMap.addRawMappings(
@@ -56,8 +57,10 @@ export default new Optimizer({
         result.map.sources,
         result.map.names || [],
       );
+      let sourcemapReference: string = await getSourceMapReference(sourceMap);
+      minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
     }
 
-    return {contents: nullthrows(result.code), map: sourceMap};
+    return {contents: minifiedContents, map: sourceMap};
   },
 });

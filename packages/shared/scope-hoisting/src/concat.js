@@ -79,7 +79,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldExcludeAsset(asset, usedExports)) {
+      if (shouldExcludeAsset(bundleGraph, asset, usedExports)) {
         return context;
       }
 
@@ -89,7 +89,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       };
     },
     exit(asset, context) {
-      if (!context || shouldExcludeAsset(asset, usedExports)) {
+      if (!context || shouldExcludeAsset(bundleGraph, asset, usedExports)) {
         return;
       }
 
@@ -234,6 +234,7 @@ function getUsedExports(
 }
 
 function shouldExcludeAsset(
+  bundleGraph: BundleGraph,
   asset: Asset,
   usedExports: Map<string, Set<Symbol>>,
 ) {
@@ -241,7 +242,11 @@ function shouldExcludeAsset(
     asset.sideEffects === false &&
     !asset.meta.isCommonJS &&
     (!usedExports.has(asset.id) ||
-      nullthrows(usedExports.get(asset.id)).size === 0)
+      nullthrows(usedExports.get(asset.id)).size === 0) &&
+    !bundleGraph.getIncomingDependencies(asset).find(d =>
+      // Don't exclude assets that was imported as a wildcard
+      d.symbols.has('*'),
+    )
   );
 }
 

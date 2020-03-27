@@ -27,8 +27,6 @@ export default async function babel7(
         autoinstall: options.autoinstall,
       });
 
-  let sourceFilename: string = relativeUrl(options.projectRoot, asset.filePath);
-
   let config = {
     ...babelOptions.config,
     plugins: additionalPlugins.concat(babelOptions.config.plugins),
@@ -39,7 +37,7 @@ export default async function babel7(
     configFile: false,
     parserOpts: {
       ...babelOptions.config.parserOpts,
-      sourceFilename,
+      sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
@@ -53,13 +51,15 @@ export default async function babel7(
   };
 
   let ast = await asset.getAST();
-  let code = await asset.getCode();
-
   let res;
   if (ast) {
-    res = babel.transformFromAstSync(ast.program, code, config);
+    res = await babel.transformFromAstAsync(
+      ast.program,
+      asset.isASTDirty() ? undefined : await asset.getCode(),
+      config,
+    );
   } else {
-    res = babel.transformSync(code, config);
+    res = await babel.transformAsync(await asset.getCode(), config);
   }
 
   if (res.ast) {
