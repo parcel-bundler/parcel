@@ -34,14 +34,17 @@ export default new Optimizer({
           bundle.env.outputFormat === 'esmodule' ||
           bundle.env.outputFormat === 'commonjs',
       },
-      sourceMap: {
-        filename: path.relative(options.projectRoot, bundle.filePath),
-        asObject: true,
-        content: originalMap,
-      },
+      sourceMap: options.sourceMaps
+        ? {
+            filename: path.relative(options.projectRoot, bundle.filePath),
+            asObject: true,
+            content: originalMap,
+          }
+        : false,
       module: bundle.env.outputFormat === 'esmodule',
     };
 
+    // $FlowFixMe this is a flow bug...
     let result = minify(contents, config);
 
     if (result.error) {
