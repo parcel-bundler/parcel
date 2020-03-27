@@ -58,7 +58,9 @@ export default new Optimizer({
         result.map.names || [],
       );
       let sourcemapReference: string = await getSourceMapReference(sourceMap);
-      minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
+      if (sourcemapReference) {
+        minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
+      }
     }
 
     return {contents: minifiedContents, map: sourceMap};

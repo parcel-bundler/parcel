@@ -204,10 +204,18 @@ export default class PackagerRunner {
   }
 
   getSourceMapReference(bundle: NamedBundle, map: SourceMap) {
-    return bundle.isInline ||
-      (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-      ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-      : path.basename(bundle.filePath) + '.map';
+    if (this.options.sourceMaps) {
+      if (
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+      ) {
+        return this.generateSourceMap(bundleToInternalBundle(bundle), map);
+      } else {
+        return path.basename(bundle.filePath) + '.map';
+      }
+    } else {
+      return '';
+    }
   }
 
   async package(

@@ -218,5 +218,10 @@ async function getSourceMapSuffix(
     return '';
   }
 
-  return '//# sourceMappingURL=' + (await getSourceMapReference(map)) + '\n';
+  let sourcemapReference = await getSourceMapReference(map);
+  if (sourcemapReference) {
+    return '//# sourceMappingURL=' + sourcemapReference + '\n';
+  } else {
+    return '';
+  }
 }
