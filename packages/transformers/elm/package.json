@@ -1,0 +1,26 @@
+{
+  "name": "@parcel/transformer-elm",
+  "version": "2.0.0-alpha.3.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/ElmTransformer.js",
+  "source": "src/ElmTransformer.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
+    "command-exists": "^1.2.8",
+    "node-elm-compiler": "^5.0.4",
+    "elm-hot": "^1.1.4",
+    "terser": "^4.6.7",
+    "cross-spawn": "^7.0.1"
+  }
+}
