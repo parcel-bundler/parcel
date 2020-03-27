@@ -100,7 +100,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   // $FlowFixMe
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let res = new AssetGraph(opts);
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     res.incompleteNodeIds = opts.incompleteNodeIds;
     res.hash = opts.hash;
     return res;
@@ -108,6 +110,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   // $FlowFixMe
   serialize(): SerializedAssetGraph {
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     return {
       ...super.serialize(),
       incompleteNodeIds: this.incompleteNodeIds,

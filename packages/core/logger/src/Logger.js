@@ -47,7 +47,6 @@ class Logger {
   }
 
   error(input: Diagnostifiable, realOrigin?: string): void {
-    // $FlowFixMe origin is undefined on PluginInputDiagnostic
     let diagnostic = anyToDiagnostic(input);
     if (typeof realOrigin === 'string') {
       diagnostic = Array.isArray(diagnostic)
@@ -130,7 +129,6 @@ export class PluginLogger {
       | DiagnosticWithoutOrigin
       | Array<DiagnosticWithoutOrigin>,
   ): void {
-    // $FlowFixMe it should work, don't really wanna mess with the types of logger.error though...
     logger.error(input, this.origin);
   }
 

@@ -6,6 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
+  Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
@@ -138,7 +139,10 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     bundleGraphReference: number,
-  ): Promise<{|...BundleInfo, cacheKeys: CacheKeyMap|}> {
+  ): Promise<{|
+    ...BundleInfo,
+    cacheKeys: CacheKeyMap,
+  |}> {
     let start = Date.now();
 
     let cacheKey = await this.getCacheKey(bundle, bundleGraph);
@@ -181,7 +185,10 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
+  ): Promise<{|
+    contents: Blob,
+    map: ?string,
+  |}> {
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
       bundle,
@@ -195,6 +202,21 @@ export default class PackagerRunner {
       contents: res.contents,
       map,
     };
+  }
+
+  getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
+    if (map && this.options.sourceMaps) {
+      if (
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+      ) {
+        return this.generateSourceMap(bundleToInternalBundle(bundle), map);
+      } else {
+        return path.basename(bundle.filePath) + '.map';
+      }
+    } else {
+      return null;
+    }
   }
 
   async package(
@@ -214,14 +236,11 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph(bundleGraph, this.options),
         getSourceMapReference: map => {
-          return bundle.isInline ||
-            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-            : path.basename(bundle.filePath) + '.map';
+          return this.getSourceMapReference(bundle, map);
         },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: packager.name}),
-        getInlineBundleContents: (
+        getInlineBundleContents: async (
           bundle: BundleType,
           bundleGraph: BundleGraphType,
         ) => {
@@ -231,10 +250,12 @@ export default class PackagerRunner {
             );
           }
 
-          return this.getBundleResult(
+          let res = await this.getBundleResult(
             bundleToInternalBundle(bundle),
             bundleGraphToInternalBundleGraph(bundleGraph),
           );
+
+          return {contents: res.contents};
         },
       });
     } catch (e) {
@@ -272,6 +293,9 @@ export default class PackagerRunner {
           bundle,
           contents: optimized.contents,
           map: optimized.map,
+          getSourceMapReference: map => {
+            return this.getSourceMapReference(bundle, map);
+          },
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
         });

@@ -51,6 +51,10 @@ const DEFAULT_INTEROP_TEMPLATE = template.statement<
 const THROW_TEMPLATE = template.statement<{|MODULE: StringLiteral|}, Statement>(
   '$parcel$missingModule(MODULE);',
 );
+const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
+  {|ID: StringLiteral|},
+  Expression,
+>('require.resolve(ID)');
 const FAKE_INIT_TEMPLATE = template.statement<
   {|INIT: Identifier, EXPORTS: Identifier|},
   Statement,
@@ -149,7 +153,7 @@ export function link({
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
       node = addBundleImport(originalModule, path);
-      return node ? interop(originalModule, symbol, path, node) : null;
+      return node ? interop(originalModule, originalName, path, node) : null;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
@@ -446,8 +450,25 @@ export function link({
             .getDependencies(mapped)
             .find(dep => dep.moduleSpecifier === source.value),
         );
-        let mod = nullthrows(bundleGraph.getDependencyResolution(dep, bundle));
-        path.replaceWith(t.valueToNode(mod.id));
+        if (!bundleGraph.getDependencyResolution(dep, bundle)) {
+          // was excluded from bundling (e.g. includeNodeModules = false)
+
+          if (bundle.env.outputFormat !== 'commonjs') {
+            // TODO add loc information once available
+            throw new Error(
+              "`require.resolve` calls for excluded assets are only supported with outputFormat = 'commonjs'",
+            );
+          }
+
+          path.replaceWith(
+            REQUIRE_RESOLVE_CALL_TEMPLATE({ID: t.stringLiteral(source.value)}),
+          );
+        } else {
+          // TODO add loc information once available
+          throw new Error(
+            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+          );
+        }
       }
     },
     VariableDeclarator: {
