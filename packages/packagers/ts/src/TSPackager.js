@@ -15,7 +15,7 @@ export default new Packager({
     let map = await assets[0].getMap();
     if (map) {
       let sourcemapReference = await getSourceMapReference(map);
-      if (sourcemapReference) {
+      if (sourcemapReference != null) {
         code += '\n//# sourceMappingURL=' + sourcemapReference + '\n';
       }
     }
