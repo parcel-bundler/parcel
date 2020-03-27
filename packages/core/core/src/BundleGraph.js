@@ -37,7 +37,8 @@ type BundleGraphEdgeTypes =
   | 'bundle'
   // Indicates that the asset a dependency references is contained in another bundle.
   // Using this type prevents referenced assets from being traversed normally.
-  | 'references';
+  | 'references'
+  | 'internal_async';
 
 export default class BundleGraph {
   // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
@@ -97,6 +98,65 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency) {
+    if (!dependency.isAsync) {
+      throw new Error('Expected an async dependency');
+    }
+
+    this._graph.addEdge(bundle.id, dependency.id, 'internal_async');
+    this.removeExternalDependency(bundle, dependency);
+  }
+
+  getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
+    return this._graph
+      .getNodesConnectedTo(
+        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
+        'bundle',
+      )
+      .filter(node => node.type === 'bundle')
+      .map(node => {
+        invariant(node.type === 'bundle');
+        return node.value;
+      });
+  }
+
+  resolveExternalDependency(
+    dependency: Dependency,
+    bundle?: Bundle,
+  ): ?(
+    | {|type: 'bundle_group', value: BundleGroup|}
+    | {|type: 'asset', value: Asset|}
+  ) {
+    if (
+      bundle != null &&
+      this._graph.hasEdge(bundle.id, dependency.id, 'internal_async')
+    ) {
+      let resolved = this.getDependencyResolution(dependency, bundle);
+      if (resolved == null) {
+        return;
+      } else {
+        return {
+          type: 'asset',
+          value: resolved,
+        };
+      }
+    }
+
+    let node = this._graph
+      .getNodesConnectedFrom(nullthrows(this._graph.getNode(dependency.id)))
+      .find(node => node.type === 'bundle_group');
+
+    if (node == null) {
+      return;
+    }
+
+    invariant(node.type === 'bundle_group');
+    return {
+      type: 'bundle_group',
+      value: node.value,
+    };
+  }
+
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
@@ -127,24 +187,7 @@ export default class BundleGraph {
       }
 
       if (node.type === 'dependency') {
-        for (let bundleGroupNode of this._graph
-          .getNodesConnectedFrom(node)
-          .filter(node => node.type === 'bundle_group')) {
-          let inboundDependencies = this._graph
-            .getNodesConnectedTo(bundleGroupNode)
-            .filter(node => node.type === 'dependency');
-
-          // If every inbound dependency to this bundle group does not belong to this bundle,
-          // then the connection between this bundle and the group is safe to remove.
-          if (
-            inboundDependencies.every(
-              depNode =>
-                !this._graph.hasEdge(bundle.id, depNode.id, 'contains'),
-            )
-          ) {
-            this._graph.removeEdge(bundle.id, bundleGroupNode.id, 'bundle');
-          }
-        }
+        this.removeExternalDependency(bundle, node.value);
       }
     }, nullthrows(this._graph.getNode(asset.id)));
 
@@ -154,6 +197,33 @@ export default class BundleGraph {
     }
 
     this._bundleContentHashes.delete(bundle.id);
+  }
+
+  removeExternalDependency(bundle: Bundle, dependency: Dependency) {
+    for (let bundleGroupNode of this._graph
+      .getNodesConnectedFrom(nullthrows(this._graph.getNode(dependency.id)))
+      .filter(node => node.type === 'bundle_group')) {
+      let inboundDependencies = this._graph
+        .getNodesConnectedTo(bundleGroupNode)
+        .filter(node => node.type === 'dependency')
+        .map(node => {
+          invariant(node.type === 'dependency');
+          return node.value;
+        });
+
+      // If every inbound dependency to this bundle group does not belong to this bundle,
+      // or the dependency is internal to the bundle, then the connection between
+      // this bundle and the group is safe to remove.
+      if (
+        inboundDependencies.every(
+          dependency =>
+            !this.bundleHasDependency(bundle, dependency) ||
+            this._graph.hasEdge(bundle.id, dependency.id, 'internal_async'),
+        )
+      ) {
+        this._graph.removeEdge(bundle.id, bundleGroupNode.id, 'bundle');
+      }
+    }
   }
 
   createAssetReference(dependency: Dependency, asset: Asset): void {
@@ -167,6 +237,19 @@ export default class BundleGraph {
     return this._graph
       .getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),
+        'contains',
+      )
+      .filter(node => node.type === 'bundle')
+      .map(node => {
+        invariant(node.type === 'bundle');
+        return node.value;
+      });
+  }
+
+  findBundlesWithDependency(dependency: Dependency): Array<Bundle> {
+    return this._graph
+      .getNodesConnectedTo(
+        nullthrows(this._graph.getNode(dependency.id)),
         'contains',
       )
       .filter(node => node.type === 'bundle')

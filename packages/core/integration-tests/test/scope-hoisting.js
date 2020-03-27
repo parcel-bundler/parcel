@@ -4,6 +4,7 @@ import {
   bundle as _bundle,
   bundler as _bundler,
   run,
+  runBundle,
   outputFS,
   overlayFS,
   assertBundles,

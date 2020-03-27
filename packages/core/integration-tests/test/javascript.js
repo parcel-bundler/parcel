@@ -351,12 +351,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/workers/index.js'),
-      {
-        outputFS: inputFS,
-      },
-    );
+    let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 
     assertBundles(b, [
       {
@@ -405,9 +400,9 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
+          'JSRuntime.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -684,8 +679,8 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
           'JSRuntime.js',
+          'bundle-manifest.js',
           'relative-path.js',
         ],
       },

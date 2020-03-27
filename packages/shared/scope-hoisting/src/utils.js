@@ -63,6 +63,31 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
   );
 }
 
+export function hasAsyncDescendant(
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+): boolean {
+  let _hasAsyncDescendant = false;
+  bundleGraph.traverseBundles((b, _, actions) => {
+    if (b.id === bundle.id) {
+      return;
+    }
+
+    if (b.env.context !== bundle.env.context || b.type !== 'js') {
+      actions.skipChildren();
+      return;
+    }
+
+    if (b.getMainEntry()) {
+      _hasAsyncDescendant = true;
+      actions.stop();
+      return;
+    }
+  }, bundle);
+
+  return _hasAsyncDescendant;
+}
+
 export function assertString(v: mixed): string {
   invariant(typeof v === 'string');
   return v;
