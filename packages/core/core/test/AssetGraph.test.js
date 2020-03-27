@@ -7,7 +7,7 @@ import AssetGraph, {
   nodeFromEntryFile,
 } from '../src/AssetGraph';
 import {createDependency} from '../src/Dependency';
-import {createAsset} from '../src/InternalAsset';
+import {createAsset} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
 
 const DEFAULT_ENV = createEnvironment({

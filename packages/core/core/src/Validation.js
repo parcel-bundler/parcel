@@ -15,7 +15,8 @@ import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
-import InternalAsset, {createAsset} from './InternalAsset';
+import UncommittedAsset from './UncommittedAsset';
+import {createAsset} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
@@ -34,7 +35,7 @@ export type ValidationOpts = {|
 |};
 
 export default class Validation {
-  allAssets: {[validatorName: string]: InternalAsset[], ...} = {};
+  allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};
   dedicatedThread: boolean;
   configRequests: Array<ConfigRequestDesc>;
@@ -176,7 +177,7 @@ export default class Validation {
     }
   }
 
-  async loadAsset(request: AssetRequestDesc): Promise<InternalAsset> {
+  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
     let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
@@ -191,7 +192,7 @@ export default class Validation {
         : path
             .relative(this.options.projectRoot, filePath)
             .replace(/[\\/]+/g, '/');
-    return new InternalAsset({
+    return new UncommittedAsset({
       idBase,
       value: createAsset({
         idBase,
