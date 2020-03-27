@@ -93,6 +93,7 @@ const VISITOR: Visitor<MutableAsset> = {
       path.scope.crawl();
 
       let shouldWrap = false;
+      let resolveExportsBailedOut = false;
       path.traverse({
         CallExpression(path) {
           // If we see an `eval` call, wrap the module in a function.
@@ -154,7 +155,7 @@ const VISITOR: Visitor<MutableAsset> = {
             !path.scope.getData('shouldWrap')
           ) {
             asset.meta.isCommonJS = true;
-            asset.meta.resolveExportsBailedOut = true;
+            resolveExportsBailedOut = true;
           }
         },
 
@@ -172,17 +173,22 @@ const VISITOR: Visitor<MutableAsset> = {
             !path.scope.hasBinding('module') &&
             !path.scope.getData('shouldWrap')
           ) {
-            asset.meta.resolveExportsBailedOut = true;
+            resolveExportsBailedOut = true;
           }
         },
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
       path.scope.setData('cjsExportsReassigned', false);
+      path.scope.setData('resolveExportsBailedOut', resolveExportsBailedOut);
     },
 
     exit(path, asset: MutableAsset) {
       let scope = path.scope;
+
+      if (scope.getData('resolveExportsBailedOut')) {
+        asset.symbols.clear();
+      }
 
       if (scope.getData('shouldWrap')) {
         if (asset.meta.isES6Module) {

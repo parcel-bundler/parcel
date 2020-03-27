@@ -138,8 +138,8 @@ export function link({
     return {asset: asset, symbol: exportSymbol, identifier};
   }
 
-  // path is an Identifier that directly imports originalName from originalModule
-  function replaceExportNode(originalModule, originalName, path) {
+  // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
+  function replaceImportNode(originalModule, originalName, path) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
@@ -549,7 +549,7 @@ export function link({
         }
 
         let asset = exportsMap.get(object.name);
-        if (!asset || asset.meta.resolveExportsBailedOut) {
+        if (!asset) {
           return;
         }
 
@@ -582,7 +582,7 @@ export function link({
           node = t.objectExpression([]);
         } else {
           let [asset, symbol] = imported;
-          node = replaceExportNode(asset, symbol, path);
+          node = replaceImportNode(asset, symbol, path);
 
           // If the export does not exist, replace with an empty object.
           if (!node) {
