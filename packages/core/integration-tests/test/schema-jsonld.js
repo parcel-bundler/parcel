@@ -1,8 +1,6 @@
 import {
   bundle,
-  assertBundles, 
-  run,
-  removeDistDirectory,
+  assertBundles,
   distDir,
   outputFS,
 } from '@parcel/test-utils';
@@ -16,8 +14,9 @@ function getPathToFile(relativePathToFile){
 let pathToIndex = getPathToFile('/integration/schema-jsonld/index.html');
 
 async function getBundleFile() {
+  await bundle(pathToIndex);
   let pathToOutputFile = path.join(distDir, 'index.html');
-  return await outputFS.readFile(pathToOutputFile, 'utf-8');
+  return outputFS.readFile(pathToOutputFile, 'utf-8');
 }
 
 describe('jsonld', function() {
@@ -52,8 +51,6 @@ describe('jsonld', function() {
   });
 
   it('Should output the original json back into the index.html file inside the script tag', async function() {
-    let b = await bundle(pathToIndex);
-
     let v1JSONLDOutputInsideScriptTag = {
       "@context": "http://schema.org",
       "@type": "LocalBusiness",

@@ -21,14 +21,14 @@ const SCHEMA_ATTRS = [
 ];
 
 export default new Transformer({
-  async transform({ asset, config, logger, options, resolve }) {
+  async transform({ asset }) {
     
     let rawCode = await asset.getCode();
     // allowing any recieved jsonld to be in json5 format
     let jsonCode = json5.parse(rawCode);
     
     let parser = new JSONLDParser(asset);
-    parser.parse(jsonCode);
+    jsonCode = parser.parse(jsonCode);
 
     // json should be injected back into the html page
     asset.type = 'html';
@@ -46,7 +46,7 @@ class JSONLDParser {
   }
 
   parse(jsonld) {
-    jsonld = this.extractUrlsFrom(jsonld);
+    return this.extractUrlsFrom(jsonld);
   }
 
   extractUrlsFrom(data) {
@@ -63,7 +63,7 @@ class JSONLDParser {
     Object
     .keys(jsonObject)
     .filter(k => SCHEMA_ATTRS.includes(k))
-    .forEach((k, i, arr) => {
+    .forEach(k => {
       let value = jsonObject[k];
       jsonObject[k] = this.extractUrlsFrom(value);
     });
