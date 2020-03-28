@@ -1,9 +1,28 @@
-import { bundle, assertBundles } from '@parcel/test-utils';
-var assert = require('assert');
+import {
+  bundle,
+  assertBundles, 
+  run,
+  removeDistDirectory,
+  distDir,
+  outputFS,
+} from '@parcel/test-utils';
+import assert from 'assert';
+import path from 'path';
+
+function getPathToFile(relativePathToFile){
+  return path.join(__dirname, relativePathToFile);
+}
+
+let pathToIndex = getPathToFile('/integration/schema-jsonld/index.html');
+
+async function getBundleFile() {
+  let pathToOutputFile = path.join(distDir, 'index.html');
+  return await outputFS.readFile(pathToOutputFile, 'utf-8');
+}
 
 describe('jsonld', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
+    let b = await bundle(pathToIndex, {
       production: true,
       publicURL: 'https://place.holder/',
     });
@@ -33,10 +52,7 @@ describe('jsonld', function() {
   });
 
   it('Should output the original json back into the index.html file inside the script tag', async function() {
-    let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
-      production: true,
-      publicURL: 'https://place.holder/',
-    });
+    let b = await bundle(pathToIndex);
 
     let v1JSONLDOutputInsideScriptTag = {
       "@context": "http://schema.org",
@@ -55,8 +71,20 @@ describe('jsonld', function() {
     };
 
     // I need to assert that the current (v2) output is the same as the v1 output
-    // aka, is there a test util that can be used to grab onto the transformed output?
+    // is there a better way to do this?    
     
-    assert.ok(false);
+    let file = await getBundleFile();
+    var pat = /<script type="application\/ld\+json">(.*?)<\/script>/g;
+    let matches = [...file.matchAll(pat)].map(m => {
+      //console.log(m);
+      return { result: m[0], firstGroup: m[1] };
+    });
+    //console.log(matches);
+
+    let actual = matches[0].firstGroup;
+    let expected = JSON.stringify(v1JSONLDOutputInsideScriptTag);
+    
+    assert(pat.test(file));
+    assert.deepEqual(actual, expected);
   });
 });
