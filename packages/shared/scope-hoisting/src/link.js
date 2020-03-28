@@ -120,18 +120,18 @@ export function link({
   });
 
   function resolveSymbol(inputAsset, inputSymbol: Symbol) {
-    if (inputAsset.meta.resolveExportsBailedOut) {
-      return {
-        asset: inputAsset,
-        symbol: inputSymbol,
-        identifier: undefined,
-      };
-    }
-
     let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,
     );
+    if (asset.meta.resolveExportsBailedOut) {
+      return {
+        asset: asset,
+        symbol: exportSymbol,
+        identifier: undefined,
+      };
+    }
+
     let identifier = symbol;
 
     // If this is a wildcard import, resolve to the exports object.
