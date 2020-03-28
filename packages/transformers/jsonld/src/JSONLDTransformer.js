@@ -34,9 +34,9 @@ export default new Transformer({
     //asset.isInline = true;
     //asset.meta.inlineType = 'string';
 
-    asset.type = 'jsonld';
+    asset.type = 'html';
     // setting it to jsonCode since the parser updates asset paths
-    asset.setCode(JSON.stringify(JSON.stringify(jsonCode)));
+    asset.setCode(JSON.stringify(jsonCode));
     return [asset];
   }
 });

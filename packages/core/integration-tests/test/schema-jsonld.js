@@ -37,7 +37,7 @@ describe('jsonld', function() {
         assets: ['other.css']
       },
       {
-        type: 'jsonld',
+        type: 'html', //this is the jsonld asset
         assets: ['index.html']
       },
       {
@@ -63,26 +63,21 @@ describe('jsonld', function() {
       "openingHours": "Mo,Tu,We,Th,Fr 09:00-17:00",
       "logo": {
           "@type": "ImageObject",
-          "url": "images/logo.png",
+          "url": "/logo.75ab4307.png",
           "width": 180,
           "height": 120
         },
-      "image": ["images/image.jpeg", "images/image.jpeg"]
-    };
-
-    // I need to assert that the current (v2) output is the same as the v1 output
-    // is there a better way to do this?    
+      "image": ["/image.ba250946.jpeg", "/image.ba250946.jpeg"]
+    }; 
     
     let file = await getBundleFile();
     var pat = /<script type="application\/ld\+json">(.*?)<\/script>/g;
     let matches = [...file.matchAll(pat)].map(m => {
-      //console.log(m);
       return { result: m[0], firstGroup: m[1] };
     });
-    //console.log(matches);
 
-    let actual = matches[0].firstGroup;
-    let expected = JSON.stringify(v1JSONLDOutputInsideScriptTag);
+    let actual = JSON.parse(matches[0].firstGroup);
+    let expected = v1JSONLDOutputInsideScriptTag;
     
     assert(pat.test(file));
     assert.deepEqual(actual, expected);
