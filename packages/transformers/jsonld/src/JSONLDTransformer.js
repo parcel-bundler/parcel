@@ -2,6 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 import json5 from 'json5';
+import { isURL, urlJoin } from '@parcel/utils';
 
 // A list of all attributes in a schema that may produce a dependency
 // Based on https://schema.org/ImageObject
@@ -22,24 +23,26 @@ const SCHEMA_ATTRS = [
 
 export default new Transformer({
   async transform({ asset, config, logger, options, resolve }) {
-    /// allowing any recieved jsonld to be json5
+    // allowing any recieved jsonld to be in json5 format
     let rawCode = await asset.getCode();
     let jsonCode = json5.parse(rawCode);
-    console.log(jsonCode);
 
+    /* console.log(jsonCode);
     console.log(config);
     console.log(options);
-    console.log(JSON.stringify({ asset, config, logger, options, resolve }));
-
-    let parser = new JSONLDParser(asset);
-    let collectedUrls = parser.parse(jsonCode);
-    console.log(collectedUrls);
+    console.log(JSON.stringify({ asset, config, logger, options, resolve })); */
     
-    let stringified = JSON.stringify(jsonCode);
-    let output = JSON.stringify(stringified);
-
-    asset.type = 'js';
-    asset.setCode(`JSON.parse(${output})`);
+    console.log(jsonCode);
+    let parser = new JSONLDParser(asset);
+    console.log("parsing....");
+    parser.parse(jsonCode);
+    console.log("done");
+    console.log(jsonCode);
+    
+    // this will send the jsonld to the JSONTransformer
+    asset.type = 'json';
+    // setting it to jsonCode since the parser updates asset paths
+    asset.setCode(JSON.stringify(jsonCode));
     return [asset];
   },
 });
@@ -47,32 +50,23 @@ export default new Transformer({
 class JSONLDParser {
   asset;
   publicURL;
-  urls;
   constructor(asset){
-    this.asset = asset;
-    this.publicURL = "";
-    this.urls = [];
+    this.asset = asset;    
+    this.publicURL = ""; // unable to figure out where I can get this from
   }
 
   parse(jsonld) {
-    this.extractUrlsFrom(jsonld);
-    return this.urls;
+    jsonld = this.extractUrlsFrom(jsonld);
   }
 
   extractUrlsFrom(data) {
-    if(!data) return;
+    if(!data) return null;
     
-    if (typeof data === 'string') {
-      this.transformString(data);
-      return;
-    }
+    if (typeof data === 'string') return this.transformString(data);
 
-    if(Array.isArray(data)) {
-      this.iterateThroughArray(data);
-      return;
-    }
+    if(Array.isArray(data)) return this.iterateThroughArray(data);
 
-    this.iterateThroughObject(data);
+    return this.iterateThroughObject(data);
   }
 
   iterateThroughObject(jsonObject) {
@@ -83,8 +77,11 @@ class JSONLDParser {
       let value = jsonObject[k];
       console.log(`found key: ${k}`);      
       console.log(value);
-      this.extractUrlsFrom(value);
+      // updating the path to the asset
+      jsonObject[k] = this.extractUrlsFrom(value);
     });
+
+    return jsonObject;
   }
 
   iterateThroughArray(jsonArray) {
@@ -93,19 +90,21 @@ class JSONLDParser {
     .forEach(i => {
       let value = jsonArray[i];
       console.log(value);
-      this.extractUrlsFrom(value);
+      jsonArray[i] = this.extractUrlsFrom(value);
     });
+
+    return jsonArray;
   }
 
   transformString(value) {
     let assetPath = this.asset.addURLDependency(value, {});
-    //let url = `${this.publicURL}/${value}`;
-    //this.urls.push(url);
-    /* let assetPath = this.asset.addURLDependency(currentValue);
-    if (!isURL(assetPath)) {
+    console.log(assetPath);
+
+    /* if (!isURL(assetPath)) {
       // paths aren't allowed, values must be urls
       assetPath = urlJoin(this.publicURL, assetPath);
-    }
-    schema[schemaKey] = assetPath; */
+    } */
+    
+    return assetPath;
   }
 }
