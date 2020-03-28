@@ -296,7 +296,7 @@ export function generateExports(
   options: PluginOptions,
 ) {
   let exported = new Set<Symbol>();
-  let statements = [];
+  let statements: Array<ExpressionStatement> = [];
 
   for (let asset of referencedAssets) {
     let id = getIdentifier(asset, 'init');
@@ -324,6 +324,8 @@ export function generateExports(
           init && isObjectExpression(init) && init.properties.length === 0;
         if (binding.constant && isEmptyObject) {
           for (let path of binding.referencePaths) {
+            // This is never a ExportNamedDeclaration
+            invariant(isIdentifier(path.node));
             path.node.name = 'exports';
           }
 
@@ -383,7 +385,7 @@ export function generateExports(
             IDENTIFIER: t.identifier(symbol),
           }),
         );
-        binding.reference(stmt.get('expression.right'));
+        binding.reference(stmt.get<NodePath<Identifier>>('expression.right'));
 
         // Exports other than the default export are live bindings. Insert an assignment
         // after each constant violation so this remains true.
@@ -395,13 +397,20 @@ export function generateExports(
                 IDENTIFIER: t.identifier(symbol),
               }),
             );
-            binding.reference(stmt.get('expression.right'));
+            binding.reference(
+              stmt.get<NodePath<Identifier>>('expression.right'),
+            );
           }
         }
       }
     }
   }
 
-  path.pushContainer('body', statements);
+  let stmts = path.pushContainer('body', statements);
+  for (let stmt of stmts) {
+    let id = stmt.get<NodePath<Identifier>>('expression.right');
+    nullthrows(path.scope.getBinding(id.node.name)).reference(id);
+  }
+
   return exported;
 }

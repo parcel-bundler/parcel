@@ -663,7 +663,6 @@ export function link({
           replacements,
           options,
         );
-        path.scope.crawl();
 
         treeShake(path.scope, exported);
       },

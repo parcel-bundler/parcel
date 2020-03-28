@@ -299,7 +299,7 @@ declare module "@babel/traverse" {
       | FunctionDeclaration
       | ModuleSpecifier
     >;
-    referencePaths: Array<NodePath<Identifier>>;
+    referencePaths: Array<NodePath<Identifier | ExportDefaultDeclaration | ExportNamedDeclaration>>;
     constantViolations: Array<
       NodePath<AssignmentExpression | UpdateExpression>
     >;
@@ -309,7 +309,7 @@ declare module "@babel/traverse" {
     referenced: boolean;
     references: number;
     constant: boolean;
-    reference(NodePath<Identifier>): void;
+    reference(NodePath<Identifier | ExportDefaultDeclaration | ExportNamedDeclaration>): void;
     reassign(NodePath<AssignmentExpression | UpdateExpression>): void;
     dereference(): void;
   }
