@@ -11,10 +11,11 @@ import type {ExternalModule, ExternalBundle} from './types';
 import type {
   Expression,
   File,
+  FunctionDeclaration,
   Identifier,
   LVal,
-  Statement,
   ObjectProperty,
+  Statement,
   StringLiteral,
   VariableDeclaration,
 } from '@babel/types';
@@ -57,7 +58,7 @@ const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
 >('require.resolve(ID)');
 const FAKE_INIT_TEMPLATE = template.statement<
   {|INIT: Identifier, EXPORTS: Identifier|},
-  Statement,
+  FunctionDeclaration,
 >(`function INIT(){
   return EXPORTS;
 }`);
@@ -632,14 +633,17 @@ export function link({
           }
         }
 
-        if (imports.length > 0 || referencedAssets.size > 0) {
+        if (imports.length > 0) {
           // Add import statements and update scope to collect references
           path.unshiftContainer('body', imports);
+          path.scope.crawl();
+        }
 
+        if (referencedAssets.size > 0) {
           // Insert fake init functions that will be imported in other bundles,
           // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
           // not in the current bundle:
-          path.pushContainer(
+          let decls = path.pushContainer(
             'body',
             [...referencedAssets]
               .filter(a => !a.meta.shouldWrap)
@@ -650,8 +654,41 @@ export function link({
                 });
               }),
           );
+          for (let decl of decls) {
+            path.scope.registerDeclaration(decl);
+            let returnId = decl.get<NodePath<Identifier>>(
+              'body.body.0.argument',
+            );
+            nullthrows(path.scope.getBinding(returnId.node.name)).reference(
+              returnId,
+            );
+          }
+        }
 
-          path.scope.crawl();
+        if (referencedAssets.size > 0) {
+          // Insert fake init functions that will be imported in other bundles,
+          // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
+          // not in the current bundle.
+          let decls = path.pushContainer(
+            'body',
+            ([...referencedAssets]: Array<Asset>)
+              .filter(a => !a.meta.shouldWrap)
+              .map(a => {
+                return FAKE_INIT_TEMPLATE({
+                  INIT: getIdentifier(a, 'init'),
+                  EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
+                });
+              }),
+          );
+          for (let decl of decls) {
+            path.scope.registerDeclaration(decl);
+            let returnId = decl.get<NodePath<Identifier>>(
+              'body.body.0.argument',
+            );
+            nullthrows(path.scope.getBinding(returnId.node.name)).reference(
+              returnId,
+            );
+          }
         }
 
         // Generate exports
