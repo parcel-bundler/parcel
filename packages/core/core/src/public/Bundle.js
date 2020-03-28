@@ -19,7 +19,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
-import {assetToInternalAsset, assetFromValue} from './Asset';
+import {assetToAssetValue, assetFromValue} from './Asset';
 import {mapVisitor} from '../Graph';
 import Environment from './Environment';
 import Dependency from './Dependency';
@@ -120,7 +120,7 @@ export class Bundle implements IBundle {
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
-      assetToInternalAsset(asset).value,
+      assetToAssetValue(asset),
     );
   }
 

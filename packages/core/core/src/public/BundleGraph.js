@@ -17,7 +17,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
-import {assetFromValue, assetToInternalAsset, Asset} from './Asset';
+import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
@@ -66,7 +66,7 @@ export default class BundleGraph implements IBundleGraph {
 
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
-      .getIncomingDependencies(assetToInternalAsset(asset).value)
+      .getIncomingDependencies(assetToAssetValue(asset))
       .map(dep => new Dependency(dep));
   }
 
@@ -115,7 +115,7 @@ export default class BundleGraph implements IBundleGraph {
 
   getDependencies(asset: IAsset): Array<IDependency> {
     return this.#graph
-      .getDependencies(assetToInternalAsset(asset).value)
+      .getDependencies(assetToAssetValue(asset))
       .map(dep => new Dependency(dep));
   }
 
@@ -124,17 +124,17 @@ export default class BundleGraph implements IBundleGraph {
     invariant(internalNode != null && internalNode.type === 'bundle');
     return this.#graph.isAssetInAncestorBundles(
       internalNode.value,
-      assetToInternalAsset(asset).value,
+      assetToAssetValue(asset),
     );
   }
 
   isAssetReferenced(asset: IAsset): boolean {
-    return this.#graph.isAssetReferenced(assetToInternalAsset(asset).value);
+    return this.#graph.isAssetReferenced(assetToAssetValue(asset));
   }
 
   isAssetReferencedByAnotherBundleOfType(asset: IAsset, type: string): boolean {
     return this.#graph.isAssetReferencedByAnotherBundleOfType(
-      assetToInternalAsset(asset).value,
+      assetToAssetValue(asset),
       type,
     );
   }
@@ -171,10 +171,7 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   resolveSymbol(asset: IAsset, symbol: Symbol): SymbolResolution {
-    let res = this.#graph.resolveSymbol(
-      assetToInternalAsset(asset).value,
-      symbol,
-    );
+    let res = this.#graph.resolveSymbol(assetToAssetValue(asset), symbol);
     return {
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: res.exportSymbol,
@@ -183,7 +180,7 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
-    let res = this.#graph.getExportedSymbols(assetToInternalAsset(asset).value);
+    let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
@@ -206,7 +203,7 @@ export default class BundleGraph implements IBundleGraph {
 
   findBundlesWithAsset(asset: IAsset): Array<IBundle> {
     return this.#graph
-      .findBundlesWithAsset(assetToInternalAsset(asset).value)
+      .findBundlesWithAsset(assetToAssetValue(asset))
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 }
