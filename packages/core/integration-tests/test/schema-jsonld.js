@@ -71,15 +71,16 @@ describe('jsonld', function() {
     }; 
     
     let file = await getBundleFile();
-    var pat = /<script type="application\/ld\+json">(.*?)<\/script>/g;
-    let matches = [...file.matchAll(pat)].map(m => {
-      return { result: m[0], firstGroup: m[1] };
+    let regex = new RegExp(/<\s*script \s*type="application\/ld\+json"\s*>.*<\/\s*script\s*>/gm);
+    
+    let matches = regex.exec(file).map(m => {
+      // removes script html tags to extract the json object in between them
+      return m.replace(/<\/?\s*script( \w+=".*"\s*)*\s*>/g,'');
     });
 
-    let actual = JSON.parse(matches[0].firstGroup);
+    let actual = JSON.parse(matches[0]);
     let expected = v1JSONLDOutputInsideScriptTag;
     
-    assert(pat.test(file));
     assert.deepEqual(actual, expected);
   });
 });
