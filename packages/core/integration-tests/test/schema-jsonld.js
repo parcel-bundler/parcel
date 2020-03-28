@@ -1,26 +1,33 @@
-import {bundle, assertBundleTree} from '@parcel/test-utils';
+import { bundle, assertBundles } from '@parcel/test-utils';
 
-describe('schema ld+json', function() {
+describe('jsonld', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
     let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
       production: true,
       publicURL: 'https://place.holder/',
     });
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'jpeg',
-        },
-        {
-          type: 'png',
-        },
-        {
-          type: 'css',
-        },
-      ],
-    });
+    
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['other.css']
+      },
+      {
+        type: 'js',
+        assets: ['index.html']
+      },
+      {
+        type: 'png',
+        assets: ['logo.png']
+      },
+      {
+        type: 'jpeg',
+        assets: ['image.jpeg']
+      }
+    ]);
   });
 });
