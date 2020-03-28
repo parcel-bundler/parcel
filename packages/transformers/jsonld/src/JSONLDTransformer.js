@@ -27,12 +27,16 @@ export default new Transformer({
     // allowing any recieved jsonld to be in json5 format
     let jsonCode = json5.parse(rawCode);
     
-    let parser = new JSONLDParser(asset);    
+    let parser = new JSONLDParser(asset);
+    parser.parse(jsonCode);
     
-    // this will send the jsonld to the JSONTransformer
-    asset.type = 'json';
+    // should these be used to tell the transformer that the output is meant to be placed back into the index.html file?
+    //asset.isInline = true;
+    //asset.meta.inlineType = 'string';
+
+    asset.type = 'jsonld';
     // setting it to jsonCode since the parser updates asset paths
-    asset.setCode(JSON.stringify(jsonCode));
+    asset.setCode(JSON.stringify(JSON.stringify(jsonCode)));
     return [asset];
   }
 });
@@ -64,6 +68,7 @@ class JSONLDParser {
     .filter(k => SCHEMA_ATTRS.includes(k))
     .forEach((k, i, arr) => {
       let value = jsonObject[k];
+      //this.extractUrlsFrom(value);
       jsonObject[k] = this.extractUrlsFrom(value);
     });
 
@@ -75,6 +80,7 @@ class JSONLDParser {
     .keys(jsonArray)
     .forEach(i => {
       let value = jsonArray[i];
+      //this.extractUrlsFrom(value);
       jsonArray[i] = this.extractUrlsFrom(value);
     });
 
