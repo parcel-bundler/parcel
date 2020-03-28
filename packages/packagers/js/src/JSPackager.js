@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph, Async} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -211,12 +211,13 @@ function isEntry(bundle: Bundle, bundleGraph: BundleGraph): boolean {
 }
 
 async function getSourceMapSuffix(
-  getSourceMapReference: SourceMap => Promise<string> | string,
+  getSourceMapReference: (?SourceMap) => Async<?string>,
   map: ?SourceMap,
 ): Promise<string> {
-  if (map == null) {
+  let sourcemapReference = await getSourceMapReference(map);
+  if (sourcemapReference != null) {
+    return '//# sourceMappingURL=' + sourcemapReference + '\n';
+  } else {
     return '';
   }
-
-  return '//# sourceMappingURL=' + (await getSourceMapReference(map)) + '\n';
 }
