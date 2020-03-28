@@ -29,11 +29,8 @@ export default new Transformer({
     
     let parser = new JSONLDParser(asset);
     parser.parse(jsonCode);
-    
-    // should these be used to tell the transformer that the output is meant to be placed back into the index.html file?
-    //asset.isInline = true;
-    //asset.meta.inlineType = 'string';
 
+    // json should be injected back into the html page
     asset.type = 'html';
     // setting it to jsonCode since the parser updates asset paths
     asset.setCode(JSON.stringify(jsonCode));
@@ -68,7 +65,6 @@ class JSONLDParser {
     .filter(k => SCHEMA_ATTRS.includes(k))
     .forEach((k, i, arr) => {
       let value = jsonObject[k];
-      //this.extractUrlsFrom(value);
       jsonObject[k] = this.extractUrlsFrom(value);
     });
 
@@ -80,7 +76,6 @@ class JSONLDParser {
     .keys(jsonArray)
     .forEach(i => {
       let value = jsonArray[i];
-      //this.extractUrlsFrom(value);
       jsonArray[i] = this.extractUrlsFrom(value);
     });
 

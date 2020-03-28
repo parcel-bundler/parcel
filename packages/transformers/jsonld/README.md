@@ -27,9 +27,8 @@ Transformers get mapped to asset types through a config file located [here](http
 
 - [✔️] port code that adds dependencies found in the attribute list
 - [✔️] the asset paths in the jsonld object should be updated with the new asset paths returned from `asset.addURLDependency()`
-- [❌] resolve all issues (3/4)
 - [✔️] remove `console.logs()`
-- [❌] write unit tests or run existing integration test
+- [✔️] write unit tests or run existing integration test
     - integration tests can be run locally with the following command: `yarn workspace @parcel/integration-tests test`
     - even better, target the integration test for the jsonld transformer: `yarn workspace @parcel/integration-tests test -g jsonld`
 
