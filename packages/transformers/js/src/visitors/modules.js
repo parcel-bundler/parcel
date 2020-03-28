@@ -15,7 +15,7 @@ type Opts = {|
 export default ({
   Program(path, opts) {
     // If the AST is dirty from prior Babel transforms, crawl to ensure the scope is up to date
-    if (nullthrows(opts.asset.ast).isDirty) {
+    if (opts.asset.isASTDirty()) {
       path.scope.crawl();
     }
   },

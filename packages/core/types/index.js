@@ -252,8 +252,7 @@ export type SourceLocation = {|
 
 export type Meta = {
   [string]: JSONValue,
-  globals?: Map<string, ?{code: string, deps?: Array<string>, ...}>,
-  ...
+  ...,
 };
 
 export type Symbol = string;
@@ -296,8 +295,12 @@ export type File = {|
   +hash?: string,
 |};
 
+export type ASTGenerator = {|
+  type: string,
+  version: string,
+|};
+
 export interface BaseAsset {
-  +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
   +filePath: FilePath;
@@ -311,11 +314,14 @@ export interface BaseAsset {
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
+  +astGenerator: ?ASTGenerator;
 
+  getAST(): Promise<?AST>;
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
+  getMapBuffer(): Promise<?Buffer>;
   getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
@@ -329,25 +335,24 @@ export interface BaseAsset {
 }
 
 export interface MutableAsset extends BaseAsset {
-  ast: ?AST;
   isIsolated: boolean;
   isInline: boolean;
   isSplittable: ?boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  setMap(?SourceMap): void;
-  setCode(string): void;
-  setBuffer(Buffer): void;
-  setStream(Readable): void;
   addIncludedFile(file: File): void;
-  addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  isASTDirty(): boolean;
+  setAST(AST): void;
+  setBuffer(Buffer): void;
+  setCode(string): void;
   setEnvironment(opts: EnvironmentOpts): void;
+  setMap(?SourceMap): void;
+  setStream(Readable): void;
 }
 
 export interface Asset extends BaseAsset {
-  +outputHash: string;
   +stats: Stats;
 }
 
@@ -393,7 +398,7 @@ export type Stats = {|
 |};
 
 export type GenerateOutput = {|
-  +code: string,
+  +code: Blob,
   +map?: ?SourceMap,
 |};
 
@@ -403,7 +408,7 @@ export interface TransformerResult {
   +type: string;
   +code?: string;
   +map?: ?SourceMap;
-  +content?: Blob;
+  +content?: ?Blob;
   +ast?: ?AST;
   +dependencies?: $ReadOnlyArray<DependencyOptions>;
   +includedFiles?: $ReadOnlyArray<File>;
@@ -427,18 +432,32 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>,
 ) => Promise<FilePath | null>;
 
+type ResolveConfigWithPathFn = (
+  configNames: Array<FilePath>,
+  assetFilePath: string,
+) => Promise<FilePath | null>;
+
 export type ValidateResult = {|
   warnings: Array<Diagnostic>,
   errors: Array<Diagnostic>,
 |};
 
-export type Validator = {|
-  validate({|
+export type DedicatedThreadValidator = {|
+  validateAll: ({|
+    assets: Asset[],
+    resolveConfigWithPath: ResolveConfigWithPathFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<?ValidateResult>>,
+|};
+
+export type MultiThreadValidator = {|
+  validate: ({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<ValidateResult | void>,
+  |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
@@ -446,6 +465,8 @@ export type Validator = {|
     logger: PluginLogger,
   |}) => Async<ConfigResult | void>,
 |};
+
+export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
   // TODO: deprecate getConfig
@@ -489,9 +510,8 @@ export type Transformer = {|
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
+    asset: Asset,
+    ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
@@ -697,12 +717,9 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: PluginOptions,
-    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
     logger: PluginLogger,
-    getInlineBundleContents: (
-      Bundle,
-      BundleGraph,
-    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+    getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+    getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
 
@@ -713,6 +730,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
 

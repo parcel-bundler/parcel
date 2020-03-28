@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  ASTGenerator,
   BuildMode,
   BundleGroup,
   Engines,
@@ -99,6 +100,7 @@ export type Dependency = {|
 
 export type Asset = {|
   id: string,
+  committed: boolean,
   hash: ?string,
   filePath: FilePath,
   type: string,
@@ -108,16 +110,20 @@ export type Asset = {|
   isInline: boolean,
   isSplittable: ?boolean,
   isSource: boolean,
-  outputHash: string,
   env: Environment,
   meta: Meta,
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
+  outputHash: ?string,
   pipeline: ?string,
+  astKey: ?string,
+  astGenerator: ?ASTGenerator,
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
-  uniqueKey?: ?string,
+  uniqueKey: ?string,
+  configPath?: FilePath,
+  plugin: ?PackageName,
 |};
 
 export type ParcelOptions = {|
@@ -352,7 +358,7 @@ export type TransformationOpts = {|
 |};
 
 export type ValidationOpts = {|
-  request: AssetRequestDesc,
+  requests: AssetRequestDesc[],
   optionsRef: number,
   configRef: number,
 |};

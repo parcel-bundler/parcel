@@ -1,6 +1,6 @@
 // @flow
 
-import type {MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {
   ExportNamedDeclaration,
@@ -16,6 +16,7 @@ import type {
 
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
@@ -74,17 +75,13 @@ const TYPEOF = {
   require: 'function',
 };
 
-export function hoist(asset: MutableAsset) {
-  if (
-    !asset.ast ||
-    asset.ast.type !== 'babel' ||
-    asset.ast.version !== '7.0.0'
-  ) {
+export function hoist(asset: MutableAsset, ast: AST) {
+  if (ast.type !== 'babel' || ast.version !== '7.0.0') {
     throw new Error('Asset does not have a babel AST');
   }
 
-  asset.ast.isDirty = true;
-  traverse(asset.ast.program, VISITOR, null, asset);
+  traverse(ast.program, VISITOR, null, asset);
+  asset.setAST(ast);
 }
 
 const VISITOR: Visitor<MutableAsset> = {
@@ -151,6 +148,7 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             node.name === 'exports' &&
+            !isAssignmentExpression(parent, {left: node}) &&
             (!isMemberExpression(parent) ||
               !(isIdentifier(parent.property) && !parent.computed) ||
               isStringLiteral(parent.property)) &&
@@ -170,6 +168,7 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             t.matchesPattern(node, 'module.exports') &&
+            !isAssignmentExpression(parent, {left: node}) &&
             (!isMemberExpression(parent) ||
               !(isIdentifier(parent.property) && !parent.computed) ||
               isStringLiteral(parent.property)) &&
@@ -288,27 +287,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
     if (path.node.name === 'global' && !path.scope.hasBinding('global')) {
       path.replaceWith(t.identifier('$parcel$global'));
-      if (asset.meta.globals) {
-        asset.meta.globals.delete('global');
-      }
-    }
-
-    let globals = asset.meta.globals;
-    if (!globals) {
-      return;
-    }
-
-    let globalCode = globals.get(path.node.name);
-    if (globalCode) {
-      let [decl] = path.scope
-        .getProgramParent()
-        .path.unshiftContainer('body', [
-          template.statement<null, Statement>(globalCode.code)(),
-        ]);
-
-      path.requeue(decl);
-
-      globals.delete(path.node.name);
     }
   },
 
@@ -407,12 +385,16 @@ const VISITOR: Visitor<MutableAsset> = {
         } else {
           scope.push({id: t.clone(identifier)});
           path.insertBefore(
-            t.assignmentExpression('=', t.clone(identifier), right),
+            t.expressionStatement(
+              t.assignmentExpression('=', t.clone(identifier), right),
+            ),
           );
         }
       } else {
         path.insertBefore(
-          t.assignmentExpression('=', t.clone(identifier), right),
+          t.expressionStatement(
+            t.assignmentExpression('=', t.clone(identifier), right),
+          ),
         );
       }
 

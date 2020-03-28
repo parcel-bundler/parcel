@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import {Optimizer} from '@parcel/plugin';
-// $FlowFixMe this is untyped
 import postcss from 'postcss';
 // $FlowFixMe this is untyped
 import cssnano from 'cssnano';
