@@ -13,6 +13,8 @@ Transformers get mapped to asset types through a config file located [here](http
 - Parsing and collecting dependencies 
     - the old code seems to only care about image dependencies -- won't jsonld lead to other kinds of media dependencies?
 - Rewriting urls to dependencies
+    - the old asset path should be replaced by the number returned from `asset.addURLDependency()`
+    - that number will be replaced by the new asset path further down the pipeline
 - Compiling back to JSON
     - this part should be handled by the JSONTransformer by setting `asset.type = "json"`
 
@@ -21,22 +23,13 @@ Transformers get mapped to asset types through a config file located [here](http
 - implementation [JSONLDAsset.js](https://github.com/parcel-bundler/parcel/blob/1.x/src/assets/JSONLDAsset.js)
 - test [schema-jsonld.js](https://github.com/parcel-bundler/parcel/blob/v2/packages/core/integration-tests/test/schema-jsonld.js)
 
-#### issues 🐛
-
-- the jsonld is not outputting the json data back into the built index.html file in the proper format
-    - the data injected into the index.html isn't a pure json object but is wrapped in JS code
-- unable to get the `publicURL` config option from the available objects passed into the transform object
-    - `--public-url https://place.holder/` is being passed to the `parcel build` command, however, logs do not show it appearing anywhere
-- the `asset.addURLDependency()` is returning a number, which causes `urlJoin()` to throw an error
-    - this logic is ported directly from v1 code, so it seems that the addURLDependency has changed what it returns for v2 changes??
-
 #### to do 📓
 
-- port code that adds dependencies found in the attribute list ✔️
-- the asset paths in the jsonld object should be updated with the new asset paths returned from `asset.addURLDependency()` ✔️
-- resolve all issues (0/3)
-- remove `console.logs()`
-- write unit tests or run existing integration test
+- [✔️] port code that adds dependencies found in the attribute list
+- [✔️] the asset paths in the jsonld object should be updated with the new asset paths returned from `asset.addURLDependency()`
+- [❌] resolve all issues (2/4)
+- [✔️] remove `console.logs()`
+- [❌] write unit tests or run existing integration test
 
 ## Relevant Projects
 
