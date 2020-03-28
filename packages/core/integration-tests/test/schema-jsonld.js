@@ -1,6 +1,6 @@
 import {bundle, assertBundleTree} from '@parcel/test-utils';
 
-describe.skip('schema ld+json', function() {
+describe('schema ld+json', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
     let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
       production: true,
