@@ -1248,6 +1248,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
+    it('bails out imported exports access resolving if it is accessed freely (exports reexport)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/exports-access-bailout/exports-assign-reexport-entry.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [5, 5]);
+    });
+
     it('builds commonjs modules that assigns to exports before module.exports', async function() {
       let b = await bundle(
         path.join(
