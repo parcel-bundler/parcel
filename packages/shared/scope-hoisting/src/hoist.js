@@ -16,6 +16,7 @@ import type {
 
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
@@ -147,6 +148,7 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             node.name === 'exports' &&
+            !isAssignmentExpression(parent, {left: node}) &&
             (!isMemberExpression(parent) ||
               !(isIdentifier(parent.property) && !parent.computed) ||
               isStringLiteral(parent.property)) &&
@@ -166,6 +168,7 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             t.matchesPattern(node, 'module.exports') &&
+            !isAssignmentExpression(parent, {left: node}) &&
             (!isMemberExpression(parent) ||
               !(isIdentifier(parent.property) && !parent.computed) ||
               isStringLiteral(parent.property)) &&
