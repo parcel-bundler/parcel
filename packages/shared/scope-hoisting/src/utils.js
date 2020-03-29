@@ -197,3 +197,45 @@ export function removeReplaceBinding(
     binding.kind = newKind;
   }
 }
+
+export function verifyScopeState(scope: Scope) {
+  let oldBindings = scope.bindings;
+  scope.crawl();
+  let newBindings = scope.bindings;
+
+  invariant(
+    Object.keys(oldBindings).length === Object.keys(newBindings).length,
+  );
+  for (let name of Object.keys(newBindings)) {
+    invariant(newBindings[name], name);
+    let {
+      scope: aScope,
+      constantViolations: aConstantViolations,
+      referencePaths: aReferencePaths,
+      identifier: aId,
+      path: aPath,
+      ...a
+    } = oldBindings[name];
+    let {
+      scope: bScope,
+      constantViolations: bConstantViolations,
+      referencePaths: bReferencePaths,
+      identifier: bId,
+      path: bPath,
+      ...b
+    } = newBindings[name];
+    invariant(aPath === bPath, name);
+    invariant(aId === bId, name);
+    invariant(aScope === bScope, name);
+    invariant.deepStrictEqual(a, b, name);
+
+    invariant(aConstantViolations.length === bConstantViolations.length, name);
+    for (let p of bConstantViolations) {
+      invariant(aConstantViolations.indexOf(p) >= 0, name);
+    }
+    invariant(aReferencePaths.length === bReferencePaths.length, name);
+    for (let p of bReferencePaths) {
+      invariant(aReferencePaths.indexOf(p) >= 0, name);
+    }
+  }
+}

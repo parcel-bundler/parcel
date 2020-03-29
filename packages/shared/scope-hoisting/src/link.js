@@ -649,6 +649,10 @@ export function link({
           }
         }
 
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
+        }
+
         if (referencedAssets.size > 0) {
           // Insert fake init functions that will be imported in other bundles,
           // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
@@ -684,6 +688,10 @@ export function link({
           replacements,
           options,
         );
+
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
+        }
 
         treeShake(path.scope, exported);
       },

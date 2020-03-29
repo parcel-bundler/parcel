@@ -30,7 +30,7 @@ import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {getName, removeReplaceBinding} from '../utils';
+import {getName, removeReplaceBinding, verifyScopeState} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -120,7 +120,7 @@ export function generateExports(
   bundleGraph: BundleGraph,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
-  path: NodePath<Program>,
+  programPath: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
 ) {
@@ -151,8 +151,15 @@ export function generateExports(
 
       // If there is an existing binding with the exported name (e.g. an import),
       // rename it so we can use the name for the export instead.
-      if (path.scope.hasBinding(exportSymbol) && exportSymbol !== symbol) {
-        rename(path.scope, exportSymbol, path.scope.generateUid(exportSymbol));
+      if (
+        programPath.scope.hasBinding(exportSymbol) &&
+        exportSymbol !== symbol
+      ) {
+        rename(
+          programPath.scope,
+          exportSymbol,
+          programPath.scope.generateUid(exportSymbol),
+        );
       }
 
       exportedIdentifiers.set(exportSymbol, symbol);
@@ -166,7 +173,7 @@ export function generateExports(
 
   let exported = new Set<Symbol>();
 
-  path.traverse({
+  programPath.traverse({
     Declaration(path) {
       if (path.isExportDeclaration() || path.parentPath.isExportDeclaration()) {
         return;
@@ -210,7 +217,13 @@ export function generateExports(
         // We don't update the references in `node` itself (e.g. init), because this statement
         // will never be removed and therefore the shaking doesn't need correct
         // information. All existing references in `node` are "dead" but will also never be removed.
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(programPath.scope);
+        }
         let [decl] = path.replaceWith(t.exportNamedDeclaration(node, []));
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          programPath.scope.crawl();
+        }
 
         for (let sym of exportedSymbols) {
           let id = nullthrows(exportedIdentifiers.get(sym));
@@ -251,7 +264,13 @@ export function generateExports(
         // We don't update the references in `node` itself (e.g. function body), because this statement
         // will never be removed and therefore the shaking doesn't need correct
         // information. All existing references in `node` are "dead" but will also never be removed.
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(programPath.scope);
+        }
         let [decl] = path.replaceWith(t.exportDefaultDeclaration(node));
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          programPath.scope.crawl();
+        }
         binding.path = decl.get<
           NodePath<FunctionDeclaration | ClassDeclaration>,
         >('declaration');
