@@ -34,11 +34,13 @@ export default new Optimizer({
           bundle.env.outputFormat === 'esmodule' ||
           bundle.env.outputFormat === 'commonjs',
       },
-      sourceMap: {
-        filename: path.relative(options.projectRoot, bundle.filePath),
-        asObject: true,
-        content: originalMap,
-      },
+      sourceMap: options.sourceMaps
+        ? {
+            filename: path.relative(options.projectRoot, bundle.filePath),
+            asObject: true,
+            content: originalMap,
+          }
+        : false,
       module: bundle.env.outputFormat === 'esmodule',
     };
 
@@ -57,8 +59,10 @@ export default new Optimizer({
         result.map.sources,
         result.map.names || [],
       );
-      let sourcemapReference: string = await getSourceMapReference(sourceMap);
-      minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
+      let sourcemapReference = await getSourceMapReference(sourceMap);
+      if (sourcemapReference) {
+        minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
+      }
     }
 
     return {contents: minifiedContents, map: sourceMap};
