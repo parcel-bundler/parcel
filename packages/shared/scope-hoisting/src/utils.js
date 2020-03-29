@@ -1,11 +1,22 @@
 // @flow
 import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
-import type {NodePath, Scope} from '@babel/traverse';
-import type {Identifier, Node} from '@babel/types';
+import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
+import type {
+  ClassDeclaration,
+  FunctionDeclaration,
+  Identifier,
+  ImportDefaultSpecifier,
+  ImportNamespaceSpecifier,
+  ImportSpecifier,
+  Node,
+  VariableDeclarator,
+} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import * as t from '@babel/types';
+import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -149,5 +160,40 @@ function dereferenceIdentifier(node, scope) {
       }
       return;
     }
+  }
+}
+
+export function removeReplaceBinding(
+  scope: Scope,
+  name: string,
+  newPath: NodePath<
+    | VariableDeclarator
+    | ClassDeclaration
+    | FunctionDeclaration
+    | ImportSpecifier
+    | ImportDefaultSpecifier
+    | ImportNamespaceSpecifier,
+  >,
+  newKind?: VariableDeclarationKind,
+) {
+  let binding = nullthrows(scope.getBinding(name));
+  let path = binding.path;
+  let {node, parent} = path;
+  invariant(
+    isVariableDeclarator(node) && isVariableDeclaration(parent) && !node.init,
+  );
+
+  // `path.remove()`ing a declaration also removes the corresponding binding. But we want to keep
+  // the binding and only replace the declaration. path._remove() merely removes the node in the AST.
+  // $FlowFixMe
+  path._remove();
+  if (parent.declarations.length === 0) {
+    path.parentPath.remove();
+  }
+
+  binding.path = newPath;
+  binding.identifier = newPath.getBindingIdentifiers()[name];
+  if (newKind) {
+    binding.kind = newKind;
   }
 }

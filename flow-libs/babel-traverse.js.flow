@@ -284,7 +284,7 @@ declare module "@babel/traverse" {
                 RestProperty,
                 SpreadProperty } from "@babel/types";
 
-  declare type VariableDeclarationKind =
+  declare export type VariableDeclarationKind =
     | "var"
     | "let"
     | "const"
@@ -330,7 +330,7 @@ declare module "@babel/traverse" {
     getOwnBinding(name: string): ?Binding;
     getBindingIdentifier(name: string): ?Identifier;
     getOwnBindingIdentifier(name: string): ?Identifier;
-    hasOwnBinding(name: string): ?Binding;
+    hasOwnBinding(name: string): boolean;
     hasBinding(name: string, noGlobals?: boolean): boolean;
     parentHasBinding(name: string, noGlobals?: boolean): boolean;
     removeBinding(name: string): void;
