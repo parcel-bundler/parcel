@@ -250,10 +250,7 @@ export type SourceLocation = {|
   |},
 |};
 
-export type Meta = {
-  [string]: JSONValue,
-  ...,
-};
+export type Meta = JSONObject;
 
 export type Symbol = string;
 
@@ -398,31 +395,31 @@ export type Stats = {|
 |};
 
 export type GenerateOutput = {|
-  +code: Blob,
+  +content: Blob,
   +map?: ?SourceMap,
 |};
 
 export type Blob = string | Buffer | Readable;
 
-export interface TransformerResult {
-  +type: string;
-  +code?: string;
-  +map?: ?SourceMap;
-  +content?: ?Blob;
-  +ast?: ?AST;
-  +dependencies?: $ReadOnlyArray<DependencyOptions>;
-  +includedFiles?: $ReadOnlyArray<File>;
-  +isIsolated?: boolean;
-  +isInline?: boolean;
-  +isSplittable?: boolean;
-  +isSource?: boolean;
-  +env?: EnvironmentOpts;
-  +meta?: Meta;
-  +pipeline?: ?string;
-  +symbols?: Map<Symbol, Symbol>;
-  +sideEffects?: boolean;
-  +uniqueKey?: ?string;
-}
+export type TransformerResult = {|
+  +ast?: ?AST,
+  +content?: ?Blob,
+  +dependencies?: $ReadOnlyArray<DependencyOptions>,
+  +env?: EnvironmentOpts,
+  +filePath?: FilePath,
+  +includedFiles?: $ReadOnlyArray<File>,
+  +isInline?: boolean,
+  +isIsolated?: boolean,
+  +isSource?: boolean,
+  +isSplittable?: boolean,
+  +map?: ?SourceMap,
+  +meta?: Meta,
+  +pipeline?: ?string,
+  +sideEffects?: boolean,
+  +symbols?: Map<Symbol, Symbol>,
+  +type: string,
+  +uniqueKey?: ?string,
+|};
 
 export type Async<T> = T | Promise<T>;
 
