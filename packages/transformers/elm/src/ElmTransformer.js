@@ -78,6 +78,8 @@ function minifyElmOutput(source) {
   // Based on: http://elm-lang.org/0.19.0/optimize
   let result = minify(source, {
     compress: {
+      keep_fargs: false,
+      passes: 2,
       pure_funcs: [
         'F2',
         'F3',
@@ -97,14 +99,12 @@ function minifyElmOutput(source) {
         'A9',
       ],
       pure_getters: true,
-      keep_fargs: false,
-      unsafe_comps: true,
       unsafe: true,
+      unsafe_comps: true,
     },
+    mangle: true,
+    rename: false,
   });
-
-  if (result.error) throw result.error;
-  result = minify(result.code, {mangle: true});
 
   if (result.error) throw result.error;
   return result.code;
