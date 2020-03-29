@@ -17,16 +17,15 @@ const SCHEMA_ATTRS = [
   'thumbnailUrl',
   'video',
   'contentUrl',
-  'url'
+  'url',
 ];
 
 export default new Transformer({
-  async transform({ asset }) {
-    
+  async transform({asset}) {
     let rawCode = await asset.getCode();
     // allowing any recieved jsonld to be in json5 format
     let jsonCode = json5.parse(rawCode);
-    
+
     let parser = new JSONLDParser(asset);
     jsonCode = parser.parse(jsonCode);
 
@@ -35,14 +34,14 @@ export default new Transformer({
     // setting it to jsonCode since the parser updates asset paths
     asset.setCode(JSON.stringify(jsonCode));
     return [asset];
-  }
+  },
 });
 
 class JSONLDParser {
   asset;
 
   constructor(asset) {
-    this.asset = asset;    
+    this.asset = asset;
   }
 
   parse(jsonld) {
@@ -50,31 +49,28 @@ class JSONLDParser {
   }
 
   extractUrlsFrom(data) {
-    if(!data) return null;
-    
+    if (!data) return null;
+
     if (typeof data === 'string') return this.transformString(data);
 
-    if(Array.isArray(data)) return this.iterateThroughArray(data);
+    if (Array.isArray(data)) return this.iterateThroughArray(data);
 
     return this.iterateThroughObject(data);
   }
 
   iterateThroughObject(jsonObject) {
-    Object
-    .keys(jsonObject)
-    .filter(k => SCHEMA_ATTRS.includes(k))
-    .forEach(k => {
-      let value = jsonObject[k];
-      jsonObject[k] = this.extractUrlsFrom(value);
-    });
+    Object.keys(jsonObject)
+      .filter(k => SCHEMA_ATTRS.includes(k))
+      .forEach(k => {
+        let value = jsonObject[k];
+        jsonObject[k] = this.extractUrlsFrom(value);
+      });
 
     return jsonObject;
   }
 
   iterateThroughArray(jsonArray) {
-    Object
-    .keys(jsonArray)
-    .forEach(i => {
+    Object.keys(jsonArray).forEach(i => {
       let value = jsonArray[i];
       jsonArray[i] = this.extractUrlsFrom(value);
     });
