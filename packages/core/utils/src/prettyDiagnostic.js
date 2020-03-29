@@ -1,10 +1,12 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {FileSystem} from '@parcel/fs';
 
 import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
 import chalk from 'chalk';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 export type AnsiDiagnosticResult = {|
   message: string,
@@ -13,9 +15,10 @@ export type AnsiDiagnosticResult = {|
   hints: Array<string>,
 |};
 
-export default function prettyDiagnostic(
+export default async function prettyDiagnostic(
   diagnostic: Diagnostic,
-): AnsiDiagnosticResult {
+  inputFS: ?FileSystem,
+): Promise<AnsiDiagnosticResult> {
   let {
     origin,
     message,
@@ -41,21 +44,27 @@ export default function prettyDiagnostic(
       ? codeFrame.codeHighlights
       : [codeFrame.codeHighlights];
 
-    let formattedCodeFrame = formatCodeFrame(codeFrame.code, highlights, {
-      useColor: true,
-      syntaxHighlighting: true,
-      language:
-        // $FlowFixMe sketchy null checks do not matter here...
-        language || (filePath ? path.extname(filePath).substr(1) : undefined),
-    });
+    let code =
+      codeFrame.code ??
+      (inputFS && (await inputFS.readFile(nullthrows(filePath), 'utf8')));
 
-    result.codeframe +=
-      typeof filePath !== 'string'
-        ? ''
-        : chalk.underline(
-            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
-          );
-    result.codeframe += formattedCodeFrame;
+    if (code != null) {
+      let formattedCodeFrame = formatCodeFrame(code, highlights, {
+        useColor: true,
+        syntaxHighlighting: true,
+        language:
+          // $FlowFixMe sketchy null checks do not matter here...
+          language || (filePath ? path.extname(filePath).substr(1) : undefined),
+      });
+
+      result.codeframe +=
+        typeof filePath !== 'string'
+          ? ''
+          : chalk.underline(
+              `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
+            );
+      result.codeframe += formattedCodeFrame;
+    }
   }
 
   if (Array.isArray(hints) && hints.length) {
