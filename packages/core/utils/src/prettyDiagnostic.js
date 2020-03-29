@@ -38,7 +38,7 @@ export default async function prettyDiagnostic(
     message:
       mdAnsi(`**${origin ?? 'unknown'}**: `) +
       (skipFormatting ? message : mdAnsi(message)),
-    stack: stack ?? filePath ?? '',
+    stack: '',
     codeframe: '',
     hints: [],
   };
@@ -70,6 +70,12 @@ export default async function prettyDiagnostic(
             );
       result.codeframe += formattedCodeFrame;
     }
+  }
+
+  if (stack != null) {
+    result.stack = stack;
+  } else if (filePath != null && result.codeframe == null) {
+    result.stack = filePath;
   }
 
   if (Array.isArray(hints) && hints.length) {

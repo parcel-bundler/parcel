@@ -19,6 +19,8 @@ declare class BabelNodeCommentLine extends BabelNodeComment {
 }
 
 declare class BabelNodeSourceLocation {
+  filename: ?string;
+
   start: {|
     line: number;
     column: number;

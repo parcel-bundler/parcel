@@ -310,22 +310,36 @@ describe('scope hoisting', function() {
     });
 
     it('excludes default when re-exporting a module', async function() {
-      let threw = false;
-      try {
-        await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/re-export-exclude-default/a.js',
-          ),
-        );
-      } catch (err) {
-        threw = true;
-        assert(
-          err.diagnostics[0].message.endsWith("b.js does not export 'default'"),
-        );
-      }
-
-      assert(threw);
+      let message = path.normalize(
+        "test/integration/scope-hoisting/es6/re-export-exclude-default/b.js does not export 'default'",
+      );
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
+      );
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 3,
+                  column: 11,
+                },
+                end: {
+                  line: 3,
+                  column: 11,
+                },
+              },
+            },
+          },
+        ],
+      });
     });
 
     it('supports multiple exports of the same variable', async function() {
@@ -1548,7 +1562,12 @@ describe('scope hoisting', function() {
       assert.equal(output.require, 'function');
     });
 
-    it("doesn't support require.resolve calls", async function() {
+    it("doesn't support require.resolve calls for included assets", async function() {
+      let message =
+        "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting";
+      let source = path.normalize(
+        '/integration/scope-hoisting/commonjs/require-resolve/a.js',
+      );
       await assert.rejects(
         () =>
           bundle(
@@ -1558,8 +1577,31 @@ describe('scope hoisting', function() {
             ),
           ),
         {
-          message:
-            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+          message,
+        },
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: {
+                  start: {
+                    line: 3,
+                    column: 11,
+                  },
+                  end: {
+                    line: 3,
+                    column: 11,
+                  },
+                },
+              },
+            },
+          ],
         },
       );
     });

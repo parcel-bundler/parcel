@@ -11,8 +11,10 @@ import type {
   Node,
   VariableDeclarator,
 } from '@babel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
 import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
@@ -238,4 +240,33 @@ export function verifyScopeState(scope: Scope) {
       invariant(aReferencePaths.indexOf(p) >= 0, name);
     }
   }
+}
+
+export function getThrowableDiagnosticForNode(
+  message: string,
+  filePath: string,
+  node: Node,
+) {
+  let diagnostic: Diagnostic = {
+    message,
+    filePath: filePath,
+    language: 'js',
+  };
+  if (node.loc) {
+    diagnostic.codeFrame = {
+      codeHighlights: {
+        start: {
+          line: node.loc.start.line,
+          column: node.loc.start.column + 1,
+        },
+        // These two cancel out:
+        // - Babel's columns are exclusive, ours are inclusive
+        // - Babel has 0-based columns, ours are 1-based
+        end: node.loc.end,
+      },
+    };
+  }
+  return new ThrowableDiagnostic({
+    diagnostic,
+  });
 }

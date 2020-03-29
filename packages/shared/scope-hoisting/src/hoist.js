@@ -464,12 +464,12 @@ const VISITOR: Visitor<MutableAsset> = {
     }
 
     if (t.matchesPattern(callee, 'require.resolve')) {
-      path.replaceWith(
-        REQUIRE_RESOLVE_CALL_TEMPLATE({
-          ID: t.stringLiteral(asset.id),
-          SOURCE: arg,
-        }),
-      );
+      let replacement = REQUIRE_RESOLVE_CALL_TEMPLATE({
+        ID: t.stringLiteral(asset.id),
+        SOURCE: arg,
+      });
+      replacement.loc = path.node.loc;
+      path.replaceWith(replacement);
     }
   },
 
@@ -601,6 +601,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
         asset.symbols.set(exported.name, id.name);
 
+        id.loc = specifier.loc;
         path.insertAfter(
           EXPORT_ASSIGN_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),

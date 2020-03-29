@@ -35,7 +35,13 @@ import {
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import {assertString, getName, getIdentifier, verifyScopeState} from './utils';
+import {
+  assertString,
+  getName,
+  getIdentifier,
+  getThrowableDiagnosticForNode,
+  verifyScopeState,
+} from './utils';
 import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template.statement<
@@ -172,7 +178,11 @@ export function link({
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
       let relativePath = relative(options.inputFS.cwd(), mod.filePath);
-      throw new Error(`${relativePath} does not export '${symbol}'`);
+      throw getThrowableDiagnosticForNode(
+        `${relativePath} does not export '${symbol}'`,
+        nullthrows(path.node.loc?.filename),
+        path.node,
+      );
     }
 
     // If it is CommonJS, look for an exports object.
@@ -464,11 +474,11 @@ export function link({
         );
         if (!bundleGraph.getDependencyResolution(dep, bundle)) {
           // was excluded from bundling (e.g. includeNodeModules = false)
-
           if (bundle.env.outputFormat !== 'commonjs') {
-            // TODO add loc information once available
-            throw new Error(
-              "`require.resolve` calls for excluded assets are only supported with outputFormat = 'commonjs'",
+            throw getThrowableDiagnosticForNode(
+              "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
+              mapped.filePath,
+              path.node,
             );
           }
 
@@ -476,9 +486,10 @@ export function link({
             REQUIRE_RESOLVE_CALL_TEMPLATE({ID: t.stringLiteral(source.value)}),
           );
         } else {
-          // TODO add loc information once available
-          throw new Error(
+          throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+            mapped.filePath,
+            path.node,
           );
         }
       }
