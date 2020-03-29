@@ -1,21 +1,30 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import commandExists from 'command-exists';
+import {sync as commandExists} from 'command-exists';
 import path from 'path';
+import fs from 'fs';
 import spawn from 'cross-spawn';
 import elm from 'node-elm-compiler';
 import {inject as injectElmHMR} from 'elm-hot';
 import {minify} from 'terser';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default new Transformer({
   async getConfig({asset, options}) {
-    const localResolve = moduleName =>
-      options.packageManager.resolve(moduleName, asset.filePath, {
-        autoInstall: options.autoinstall,
-      });
+    const installPackage = async name => {
+      if (!options.autoinstall) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: `Denpendency '${name}' is not installed and autoinstall is turned off. Either install dependency manually or enable autoinstall`,
+            origin: '@parcel/package-manager',
+          },
+        });
+      }
 
-    const pathToElmBin = await pathToElm(localResolve);
+      return options.packageManager.install([{name}], asset.filePath);
+    };
+    const pathToElmBin = await pathToElm(options.projectRoot, installPackage);
     await ensureElmJson(asset, pathToElmBin);
 
     return {
@@ -45,10 +54,15 @@ export default new Transformer({
   },
 });
 
-async function pathToElm(localResolve, pathResolve) {
-  return !commandExists('elm')
-    ? pathResolve(await localResolve('elm'), 'bin/elm')
-    : undefined;
+async function pathToElm(root, installPackage) {
+  if (!commandExists('elm')) {
+    const p = path.resolve(root, 'node_modules/elm/bin/elm');
+
+    if (!fs.existsSync(p)) await installPackage('elm');
+    return p;
+  }
+
+  return undefined; // use globally installed elm
 }
 
 async function ensureElmJson(asset, pathToElmBin) {
