@@ -8,6 +8,7 @@ export default async function generateCertificate(
   fs: FileSystem,
   cacheDir: string,
   host: ?string,
+  ip: ?string,
 ) {
   let certDirectory = cacheDir;
 
@@ -71,7 +72,7 @@ export default async function generateCertificate(
     },
     {
       type: 7, // IP
-      ip: '127.0.0.1',
+      ip: ip ? ip : '127.0.0.1',
     },
   ];
 

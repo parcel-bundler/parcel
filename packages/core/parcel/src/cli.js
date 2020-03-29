@@ -98,6 +98,10 @@ let serve = program
     'set the host to listen on, defaults to listening on all interfaces',
   )
   .option(
+    '--ip <ip>',
+    'set the ip the certificate should match against, defaults to 127.0.0.1 (useful for local networks)',
+  )
+  .option(
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
   )
@@ -271,7 +275,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let serve = false;
   if (command.name() === 'serve') {
-    let {port = 1234, host, publicUrl} = command;
+    let {port = 1234, host, ip, publicUrl} = command;
     port = await getPort({port, host});
 
     if (command.port && port !== command.port) {
@@ -285,6 +289,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
       https,
       port,
       host,
+      ip,
       publicUrl,
     };
   }

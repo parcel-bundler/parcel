@@ -18,6 +18,7 @@ type CreateHTTPServerOpts = {|
   cacheDir: FilePath,
   listener?: (mixed, mixed) => void,
   host?: string,
+  ip?: string,
 |};
 
 export type HTTPServer = HTTPOnlyServer | HTTPSServer;
@@ -39,6 +40,7 @@ export async function createHTTPServer(
         options.outputFS,
         options.cacheDir,
         options.host,
+        options.ip,
       ),
       options.listener,
     );

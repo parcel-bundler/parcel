@@ -127,6 +127,7 @@ console.log("Hello World");
     - [`--target [name]`](#--target-name)
     - [`--open, -o [browser]`](#--open--o-browser)
     - [`--host <host>`](#--host-host)
+    - [`--ip <ip>`](#--ip-ip)
     - [`--port <port>, -p`](#--port-port--p)
     - [`--https`](#--https)
       - [`--cert <path>`](#--cert-path)
@@ -297,6 +298,10 @@ browser you want to open, otherwise it will use your default browser.
 #### `--host <host>`
 
 Configure the host to serve assets on. The default is to listen on all interfaces.
+
+#### `--ip <ip>`
+
+Set the ip the certificate should match against, defaults to 127.0.0.1 (useful for local networks)
 
 #### `--port <port>, -p`
 
