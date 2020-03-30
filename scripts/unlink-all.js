@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // unlinks all packages and deletes their node_modules folders
-
+/* eslint-disable no-console */
 let args = process.argv.slice(2);
 if (args.length < 1) {
   console.log(
