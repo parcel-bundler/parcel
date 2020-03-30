@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const fs = require('fs');
 const np = require('path');
 const child_process = require('child_process');
