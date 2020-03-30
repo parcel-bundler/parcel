@@ -27,7 +27,8 @@ import type {Asset as AssetValue, ParcelOptions} from '../types';
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
-import InternalAsset from '../InternalAsset';
+import UncommittedAsset from '../UncommittedAsset';
+import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 
 const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
@@ -36,32 +37,43 @@ const assetValueToMutableAsset: WeakMap<
   MutableAsset,
 > = new WeakMap();
 
-const _assetToInternalAsset: WeakMap<
+const _assetToAssetValue: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
-  InternalAsset,
+  AssetValue,
 > = new WeakMap();
 
-export function assetToInternalAsset(
-  asset: IAsset | IMutableAsset,
-): InternalAsset {
-  return nullthrows(_assetToInternalAsset.get(asset));
+const _mutableAssetToUncommittedAsset: WeakMap<
+  IMutableAsset,
+  UncommittedAsset,
+> = new WeakMap();
+
+export function assetToAssetValue(asset: IAsset | IMutableAsset): AssetValue {
+  return nullthrows(_assetToAssetValue.get(asset));
+}
+
+export function mutableAssetToUncommittedAsset(
+  mutableAsset: IMutableAsset,
+): UncommittedAsset {
+  return nullthrows(_mutableAssetToUncommittedAsset.get(mutableAsset));
 }
 
 export function assetFromValue(value: AssetValue, options: ParcelOptions) {
   return new Asset(
-    new InternalAsset({
-      value,
-      options,
-    }),
+    value.committed
+      ? new CommittedAsset(value, options)
+      : new UncommittedAsset({
+          value,
+          options,
+        }),
   );
 }
 
 class BaseAsset {
-  #asset; // InternalAsset
+  #asset; // CommittedAsset | UncommittedAsset
 
-  constructor(asset: InternalAsset) {
+  constructor(asset: CommittedAsset | UncommittedAsset) {
     this.#asset = asset;
-    _assetToInternalAsset.set(this, asset);
+    _assetToAssetValue.set(this, asset.value);
   }
 
   get id(): string {
@@ -170,7 +182,7 @@ class BaseAsset {
 export class Asset extends BaseAsset implements IAsset {
   #asset; // InternalAsset
 
-  constructor(asset: InternalAsset) {
+  constructor(asset: CommittedAsset | UncommittedAsset) {
     let existing = assetValueToAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -189,7 +201,7 @@ export class Asset extends BaseAsset implements IAsset {
 export class MutableAsset extends BaseAsset implements IMutableAsset {
   #asset; // InternalAsset
 
-  constructor(asset: InternalAsset) {
+  constructor(asset: UncommittedAsset) {
     let existing = assetValueToMutableAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -198,6 +210,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     super(asset);
     this.#asset = asset;
     assetValueToMutableAsset.set(asset.value, this);
+    _mutableAssetToUncommittedAsset.set(this, asset);
   }
 
   setMap(map: ?SourceMap): void {

@@ -62,7 +62,7 @@ describe('fs', function() {
       assert.equal(output, 'hello');
     });
 
-    it.skip('should inline a file with fs require destructure', async function() {
+    it('should inline a file with fs require destructure', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-destructure/index.js'),
       );
