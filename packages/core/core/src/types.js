@@ -100,6 +100,7 @@ export type Dependency = {|
 
 export type Asset = {|
   id: string,
+  committed: boolean,
   hash: ?string,
   filePath: FilePath,
   type: string,
@@ -120,9 +121,9 @@ export type Asset = {|
   astGenerator: ?ASTGenerator,
   symbols: Map<Symbol, Symbol>,
   sideEffects: boolean,
-  uniqueKey?: ?string,
+  uniqueKey: ?string,
   configPath?: FilePath,
-  plugin?: ?PackageName,
+  plugin: ?PackageName,
 |};
 
 export type ParcelOptions = {|

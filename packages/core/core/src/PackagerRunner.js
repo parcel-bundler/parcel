@@ -6,6 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
+  Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
@@ -203,11 +204,19 @@ export default class PackagerRunner {
     };
   }
 
-  getSourceMapReference(bundle: NamedBundle, map: SourceMap) {
-    return bundle.isInline ||
-      (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-      ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-      : path.basename(bundle.filePath) + '.map';
+  getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
+    if (map && this.options.sourceMaps) {
+      if (
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+      ) {
+        return this.generateSourceMap(bundleToInternalBundle(bundle), map);
+      } else {
+        return path.basename(bundle.filePath) + '.map';
+      }
+    } else {
+      return null;
+    }
   }
 
   async package(
@@ -226,8 +235,9 @@ export default class PackagerRunner {
       return await packager.plugin.package({
         bundle,
         bundleGraph: new BundleGraph(bundleGraph, this.options),
-        getSourceMapReference: (map: SourceMap) =>
-          this.getSourceMapReference(bundle, map),
+        getSourceMapReference: map => {
+          return this.getSourceMapReference(bundle, map);
+        },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: async (
@@ -283,7 +293,9 @@ export default class PackagerRunner {
           bundle,
           contents: optimized.contents,
           map: optimized.map,
-          getSourceMapReference: map => this.getSourceMapReference(bundle, map),
+          getSourceMapReference: map => {
+            return this.getSourceMapReference(bundle, map);
+          },
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
         });
