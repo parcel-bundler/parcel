@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+/* eslint-disable no-console */
 // links all packages that are interdependent within a directory recursively.
 let args = process.argv.slice(2);
 if (args.length < 1) {
