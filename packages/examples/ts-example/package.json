@@ -1,6 +1,6 @@
 {
   "name": "@parcel/ts-example",
-  "version": "2.0.0-frontbucket.19",
+  "version": "2.0.0-frontbucket.20",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.12",
-    "@parcel/core": "^2.0.0-frontbucket.18"
+    "@parcel/core": "^2.0.0-frontbucket.19"
   },
   "main": "dist/main.js",
   "module": "dist/module.js",
