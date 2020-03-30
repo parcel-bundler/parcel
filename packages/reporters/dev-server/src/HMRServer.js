@@ -73,7 +73,7 @@ export default class HMRServer {
 
   async emitError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
     let renderedDiagnostics = await Promise.all(
-      diagnostics.map(d => prettyDiagnostic(d, options.inputFS)),
+      diagnostics.map(d => prettyDiagnostic(d, options)),
     );
 
     // store the most recent error so we can notify new connections

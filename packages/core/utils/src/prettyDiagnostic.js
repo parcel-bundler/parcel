@@ -1,6 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {FileSystem} from '@parcel/fs';
+import type {PluginOptions} from '@parcel/types';
 
 import formatCodeFrame from '@parcel/codeframe';
 import mdAnsi from '@parcel/markdown-ansi';
@@ -17,7 +17,7 @@ export type AnsiDiagnosticResult = {|
 
 export default async function prettyDiagnostic(
   diagnostic: Diagnostic,
-  inputFS: ?FileSystem,
+  options?: PluginOptions,
 ): Promise<AnsiDiagnosticResult> {
   let {
     origin,
@@ -29,6 +29,10 @@ export default async function prettyDiagnostic(
     language,
     skipFormatting,
   } = diagnostic;
+
+  if (filePath != null && options && !path.isAbsolute(filePath)) {
+    filePath = path.join(options.projectRoot, filePath);
+  }
 
   let result = {
     message:
@@ -46,7 +50,8 @@ export default async function prettyDiagnostic(
 
     let code =
       codeFrame.code ??
-      (inputFS && (await inputFS.readFile(nullthrows(filePath), 'utf8')));
+      (options &&
+        (await options.inputFS.readFile(nullthrows(filePath), 'utf8')));
 
     if (code != null) {
       let formattedCodeFrame = formatCodeFrame(code, highlights, {

@@ -137,7 +137,7 @@ async function writeDiagnostic(
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints} = await prettyDiagnostic(
       diagnostic,
-      options.inputFS,
+      options,
     );
     message = chalk[color](message);
 

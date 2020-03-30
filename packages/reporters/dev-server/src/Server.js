@@ -90,7 +90,7 @@ export default class Server extends EventEmitter {
     this.pending = false;
     this.errors = await Promise.all(
       diagnostics.map(async d => {
-        let ansiDiagnostic = await prettyDiagnostic(d, options.inputFS);
+        let ansiDiagnostic = await prettyDiagnostic(d, options);
 
         return {
           message: ansiHtml(ansiDiagnostic.message),
