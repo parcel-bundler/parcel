@@ -360,6 +360,7 @@ export default class Transformation {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
       hash: a.value.hash,
+      uniqueKey: a.value.uniqueKey,
     }));
 
     return md5FromObject({
