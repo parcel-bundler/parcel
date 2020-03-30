@@ -12,7 +12,7 @@ console.log(message);
 // const message = require('./message');
 // const fs = require('fs');
 
-// console.log(message); // eslint-disable-line no-console
+// console.log(message);
 // console.log(fs.readFileSync(__dirname + '/test.txt', 'utf8'));
 
 // class Test {}

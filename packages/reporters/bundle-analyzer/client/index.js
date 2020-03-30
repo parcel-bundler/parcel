@@ -61,7 +61,7 @@ let foamtree = new CarrotSearchFoamTree({
   },
   onGroupClick(e) {
     this.zoom(e.group);
-  }
+  },
 });
 
 visualization.addEventListener('mousemove', e => {
@@ -72,7 +72,7 @@ visualization.addEventListener('mousemove', e => {
   tooltip.style.transform = translate3d(
     visualization.clientLeft + e.clientX,
     visualization.clientTop + e.clientY,
-    0
+    0,
   );
 });
 
@@ -80,7 +80,7 @@ window.addEventListener(
   'resize',
   debounce(() => {
     foamtree.resize();
-  }, 100)
+  }, 100),
 );
 
 function debounce(fn, delay) {

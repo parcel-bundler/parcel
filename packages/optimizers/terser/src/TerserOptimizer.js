@@ -8,7 +8,7 @@ import SourceMap from '@parcel/source-map';
 import path from 'path';
 
 export default new Optimizer({
-  async optimize({contents, map, bundle, options}) {
+  async optimize({contents, map, bundle, options, getSourceMapReference}) {
     if (!bundle.env.minify) {
       return {contents, map};
     }
@@ -27,7 +27,6 @@ export default new Optimizer({
 
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
-      warnings: true,
       ...userConfig?.config,
       compress: {
         ...userConfig?.config?.compress,
@@ -35,11 +34,13 @@ export default new Optimizer({
           bundle.env.outputFormat === 'esmodule' ||
           bundle.env.outputFormat === 'commonjs',
       },
-      sourceMap: {
-        filename: path.relative(options.projectRoot, bundle.filePath),
-        asObject: true,
-        content: originalMap,
-      },
+      sourceMap: options.sourceMaps
+        ? {
+            filename: path.relative(options.projectRoot, bundle.filePath),
+            asObject: true,
+            content: originalMap,
+          }
+        : false,
       module: bundle.env.outputFormat === 'esmodule',
     };
 
@@ -50,10 +51,20 @@ export default new Optimizer({
     }
 
     let sourceMap = null;
-    if (result.map) {
-      sourceMap = await SourceMap.fromRawSourceMap(result.map);
+    let minifiedContents: string = nullthrows(result.code);
+    if (result.map && typeof result.map !== 'string') {
+      sourceMap = new SourceMap();
+      sourceMap.addRawMappings(
+        result.map.mappings,
+        result.map.sources,
+        result.map.names || [],
+      );
+      let sourcemapReference = await getSourceMapReference(sourceMap);
+      if (sourcemapReference) {
+        minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
+      }
     }
 
-    return {contents: nullthrows(result.code), map: sourceMap};
+    return {contents: minifiedContents, map: sourceMap};
   },
 });

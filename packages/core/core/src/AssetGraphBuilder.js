@@ -69,7 +69,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   depPathRequestRunner: DepPathRequestRunner;
   assetRequestRunner: AssetRequestRunner;
   configRequestRunner: ParcelConfigRequestRunner;
-  assetRequests: Array<AssetRequestDesc>;
+  assetRequests: Array<AssetRequest>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
   rejected: Map<string, mixed>;
@@ -243,6 +243,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     let changedAssets = this.changedAssets;
@@ -252,18 +253,23 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async validate(): Promise<void> {
+    let trackedRequestsDesc = this.assetRequests
+      .filter(request => this.requestTracker.isTracked(request.id))
+      .map(({request}) => request);
+
     // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
-    let promises = this.assetRequests.map(request =>
+    let promises = trackedRequestsDesc.map(request =>
       this.runValidate({
         requests: [request],
         optionsRef: this.optionsRef,
         configRef: this.configRef,
       }),
     );
+
     // Schedule validations on the main thread for all validation plugins that implement "validateAll".
     promises.push(
       new Validation({
-        requests: this.assetRequests,
+        requests: trackedRequestsDesc,
         options: this.options,
         config: this.config,
         report,
@@ -296,7 +302,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       case 'dep_path_request':
         return this.depPathRequestRunner.runRequest(request.request, runOpts);
       case 'asset_request': {
-        this.assetRequests.push(request.request);
+        this.assetRequests.push(request);
         let result = await this.assetRequestRunner.runRequest(
           request.request,
           runOpts,

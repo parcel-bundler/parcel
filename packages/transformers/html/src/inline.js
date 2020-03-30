@@ -1,11 +1,10 @@
 // @flow strict-local
 
-import type {MutableAsset, TransformerResult} from '@parcel/types';
+import type {AST, MutableAsset, TransformerResult} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
-import nullthrows from 'nullthrows';
 
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
@@ -18,8 +17,8 @@ const SCRIPT_TYPES = {
 
 export default function extractInlineAssets(
   asset: MutableAsset,
+  ast: AST,
 ): Array<TransformerResult> {
-  let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
   let key = 0;
 
@@ -60,6 +59,7 @@ export default function extractInlineAssets(
         }
 
         if (!node.attrs) {
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           node.attrs = {};
         }
 
@@ -80,6 +80,7 @@ export default function extractInlineAssets(
 
         // insert parcelId to allow us to retrieve node during packaging
         node.attrs['data-parcel-key'] = parcelKey;
+        asset.setAST(ast); // mark dirty
 
         asset.addDependency({
           moduleSpecifier: parcelKey,
@@ -108,6 +109,7 @@ export default function extractInlineAssets(
 
       parts.push({
         type: 'css',
+        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
         code: node.attrs.style,
         uniqueKey: parcelKey,
         isIsolated: true,

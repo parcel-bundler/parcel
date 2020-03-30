@@ -13,8 +13,6 @@ import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import {LanguageServiceHost, ParseConfigHost} from '@parcel/ts-utils';
 
-let timerNum = 0;
-
 let langServiceCache: {
   [configHash: string]: {|
     configHost: ParseConfigHost,
