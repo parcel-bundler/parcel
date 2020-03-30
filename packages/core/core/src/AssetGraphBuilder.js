@@ -276,6 +276,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         dedicatedThread: true,
       }).run(),
     );
+
     this.assetRequests = [];
     await Promise.all(promises);
   }
