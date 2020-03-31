@@ -10,11 +10,9 @@ let hmrServers: Map<number, HMRServer> = new Map();
 export default new Reporter({
   async report({event, options, logger}) {
     let {serve, hot: hmr} = options;
-    let server = serve ? servers.get(serve.port) : undefined,
-      hmrServer =
-        hmr && typeof hmr.port === 'number'
-          ? hmrServers.get(hmr.port)
-          : undefined;
+    let server = serve ? servers.get(serve.port) : undefined;
+    let hmrPort = (hmr && hmr.port) || (serve && serve.port);
+    let hmrServer = hmrPort ? hmrServers.get(hmrPort) : undefined;
     switch (event.type) {
       case 'watchStart': {
         if (serve) {
@@ -100,9 +98,9 @@ export default new Reporter({
       case 'buildFailure':
         // On buildFailure watchStart sometimes has not been called yet
         // do not throw an additional warning here
-        if (!server) return;
-
-        server.buildError(event.diagnostics);
+        if (server) {
+          server.buildError(event.diagnostics);
+        }
         if (hmrServer) {
           hmrServer.emitError(event.diagnostics);
         }
