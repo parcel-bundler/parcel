@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, MutableAsset, SourceLocation} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {
   ExportNamedDeclaration,
@@ -36,7 +36,12 @@ import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import rename from './renamer';
-import {getName, getIdentifier, getExportIdentifier} from './utils';
+import {
+  convertBabelLoc,
+  getName,
+  getIdentifier,
+  getExportIdentifier,
+} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -459,12 +464,12 @@ const VISITOR: Visitor<MutableAsset> = {
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
-      path.replaceWith(
-        REQUIRE_CALL_TEMPLATE({
-          ID: t.stringLiteral(asset.id),
-          SOURCE: t.stringLiteral(arg.value),
-        }),
-      );
+      let replacement = REQUIRE_CALL_TEMPLATE({
+        ID: t.stringLiteral(asset.id),
+        SOURCE: t.stringLiteral(arg.value),
+      });
+      replacement.loc = path.node.loc;
+      path.replaceWith(replacement);
     }
 
     if (t.matchesPattern(callee, 'require.resolve')) {
@@ -663,12 +668,12 @@ function addImport(
   path: NodePath<ImportDeclaration | ExportNamedDeclaration>,
 ) {
   // Replace with a $parcel$require call so we know where to insert side effects.
-  let requireStmt = t.expressionStatement(
-    REQUIRE_CALL_TEMPLATE({
-      ID: t.stringLiteral(asset.id),
-      SOURCE: t.stringLiteral(nullthrows(path.node.source).value),
-    }),
-  );
+  let replacement = REQUIRE_CALL_TEMPLATE({
+    ID: t.stringLiteral(asset.id),
+    SOURCE: t.stringLiteral(nullthrows(path.node.source).value),
+  });
+  replacement.loc = path.node.loc;
+  let requireStmt = t.expressionStatement(replacement);
 
   // Hoist the call to the top of the file.
   let lastImport = path.scope.getData('hoistedImport');
@@ -779,15 +784,4 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
   } else {
     return getExportsIdentifier(asset, scope);
   }
-}
-
-function convertBabelLoc(loc): ?SourceLocation {
-  if (!loc || !loc.filename) return null;
-
-  let {filename, start, end} = loc;
-  return {
-    filePath: filename,
-    start,
-    end,
-  };
 }

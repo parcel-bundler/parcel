@@ -18,7 +18,7 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {NodePath} from '@babel/traverse';
-import type {ExternalModule} from '../types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
 import {
@@ -140,8 +140,7 @@ function generateDestructuringAssignment(
 
 export function generateBundleImports(
   from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {

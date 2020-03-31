@@ -15,7 +15,7 @@ import type {
   ImportDeclaration,
   Program,
 } from '@babel/types';
-import type {ExternalModule} from '../types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
 import {
@@ -38,8 +38,7 @@ import {
 
 export function generateBundleImports(
   from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
   let specifiers = [...assets].map(asset => {

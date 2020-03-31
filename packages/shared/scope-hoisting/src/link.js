@@ -38,6 +38,7 @@ import traverse from '@babel/traverse';
 import treeShake from './shake';
 import {
   assertString,
+  convertBabelLoc,
   getName,
   getIdentifier,
   getThrowableDiagnosticForNode,
@@ -187,7 +188,7 @@ export function link({
       let relativePath = relative(options.projectRoot, mod.filePath);
       throw getThrowableDiagnosticForNode(
         `${relativePath} does not export '${symbol}'`,
-        depLoc?.filePath ?? nullthrows(path.node.loc?.filename),
+        depLoc?.filePath ?? path.node.loc?.filename,
         depLoc,
       );
     }
@@ -290,6 +291,7 @@ export function link({
         source: dep.moduleSpecifier,
         specifiers: new Map(),
         isCommonJS: !!dep.meta.isCommonJS,
+        loc: convertBabelLoc(path.node.loc),
       };
 
       importedFiles.set(dep.moduleSpecifier, importedFile);
@@ -364,6 +366,7 @@ export function link({
       imported = {
         bundle: importedBundle,
         assets: new Set(),
+        loc: convertBabelLoc(path.node.loc),
       };
       importedFiles.set(filePath, imported);
     }
@@ -635,12 +638,7 @@ export function link({
 
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            format.generateBundleImports(
-              bundle,
-              file.bundle,
-              file.assets,
-              path,
-            );
+            format.generateBundleImports(bundle, file, path);
           } else {
             format.generateExternalImport(bundle, file, path);
           }

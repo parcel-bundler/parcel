@@ -1,5 +1,11 @@
 // @flow
-import type {Asset, Bundle, BundleGraph, MutableAsset} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  MutableAsset,
+  SourceLocation,
+} from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
   ClassDeclaration,
@@ -12,6 +18,7 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -244,7 +251,7 @@ export function verifyScopeState(scope: Scope) {
 
 export function getThrowableDiagnosticForNode(
   message: string,
-  filePath: string,
+  filePath: ?string,
   loc: ?{
     +start: {|
       +line: number,
@@ -259,9 +266,12 @@ export function getThrowableDiagnosticForNode(
 ) {
   let diagnostic: Diagnostic = {
     message,
-    filePath: filePath,
     language: 'js',
   };
+
+  if (filePath) {
+    diagnostic.filePath = filePath;
+  }
   if (loc) {
     diagnostic.codeFrame = {
       codeHighlights: {
@@ -279,4 +289,15 @@ export function getThrowableDiagnosticForNode(
   return new ThrowableDiagnostic({
     diagnostic,
   });
+}
+
+export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
+  if (!loc || !loc.filename) return null;
+
+  let {filename, start, end} = loc;
+  return {
+    filePath: filename,
+    start,
+    end,
+  };
 }

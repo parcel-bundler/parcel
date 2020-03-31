@@ -1537,6 +1537,20 @@ declare type BabelNodeTSTypeElement = BabelNodeTSCallSignatureDeclaration | Babe
 declare type BabelNodeTSType = BabelNodeTSAnyKeyword | BabelNodeTSBooleanKeyword | BabelNodeTSBigIntKeyword | BabelNodeTSNeverKeyword | BabelNodeTSNullKeyword | BabelNodeTSNumberKeyword | BabelNodeTSObjectKeyword | BabelNodeTSStringKeyword | BabelNodeTSSymbolKeyword | BabelNodeTSUndefinedKeyword | BabelNodeTSUnknownKeyword | BabelNodeTSVoidKeyword | BabelNodeTSThisType | BabelNodeTSFunctionType | BabelNodeTSConstructorType | BabelNodeTSTypeReference | BabelNodeTSTypePredicate | BabelNodeTSTypeQuery | BabelNodeTSTypeLiteral | BabelNodeTSArrayType | BabelNodeTSTupleType | BabelNodeTSOptionalType | BabelNodeTSRestType | BabelNodeTSUnionType | BabelNodeTSIntersectionType | BabelNodeTSConditionalType | BabelNodeTSInferType | BabelNodeTSParenthesizedType | BabelNodeTSTypeOperator | BabelNodeTSIndexedAccessType | BabelNodeTSMappedType | BabelNodeTSLiteralType | BabelNodeTSExpressionWithTypeArguments | BabelNodeTSImportType;
 
 declare module "@babel/types" {
+  declare export type SourceLocation = {|
+    filename: ?string;
+
+    start: {|
+      line: number;
+      column: number;
+    |};
+
+    end: {|
+      line: number;
+      column: number;
+    |};
+  |}
+
   declare export {
     BabelNode as Node,
     BabelNodeArrayExpression as ArrayExpression,
