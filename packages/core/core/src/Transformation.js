@@ -301,7 +301,7 @@ export default class Transformation {
           .map(async asset => {
             if (asset.isASTDirty) {
               let output = await generate(asset);
-              asset.content = output.code;
+              asset.content = output.content;
               asset.mapBuffer = output.map?.toBuffer();
             }
 
@@ -546,7 +546,7 @@ async function runTransformer(
     pipeline.generate
   ) {
     let output = await pipeline.generate(asset);
-    asset.content = output.code;
+    asset.content = output.content;
     asset.mapBuffer = output.map?.toBuffer();
   }
 
@@ -636,19 +636,19 @@ function normalizeAssets(
 
       let internalAsset = mutableAssetToUncommittedAsset(result);
       return {
-        type: result.type,
-        content: await internalAsset.content,
         ast: internalAsset.ast,
-        mapBuffer: internalAsset.mapBuffer,
+        content: await internalAsset.content,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
+        env: internalAsset.value.env,
+        filePath: result.filePath,
         includedFiles: result.getIncludedFiles(),
-        // $FlowFixMe
-        env: result.env,
-        isIsolated: result.isIsolated,
         isInline: result.isInline,
-        pipeline: internalAsset.value.pipeline,
+        isIsolated: result.isIsolated,
+        map: internalAsset.map,
         meta: result.meta,
+        pipeline: internalAsset.value.pipeline,
+        type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
       };
     }),

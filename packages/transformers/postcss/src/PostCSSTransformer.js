@@ -188,7 +188,7 @@ export default new Transformer({
       assets.push({
         type: 'js',
         filePath: asset.filePath + '.js',
-        code,
+        content: code,
       });
     }
     return assets;
@@ -201,7 +201,7 @@ export default new Transformer({
     });
 
     return {
-      code,
+      content: code,
     };
   },
 });
