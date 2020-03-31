@@ -1,1 +1,1 @@
-output = require.resolve('fs');
+module.exports = require.resolve('fs');
