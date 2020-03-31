@@ -24,6 +24,7 @@ type DependencyOpts = {|
   meta?: Meta,
   target?: Target,
   symbols?: Map<Symbol, Symbol>,
+  symbolsLocs?: Map<Symbol, SourceLocation>,
   pipeline?: ?string,
 |};
 
@@ -48,6 +49,7 @@ export function createDependency(opts: DependencyOpts): Dependency {
     isDeferred: false,
     meta: opts.meta || {},
     symbols: opts.symbols || new Map(),
+    symbolsLocs: opts.symbolsLocs || new Map(),
   };
 }
 

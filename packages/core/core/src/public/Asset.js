@@ -21,6 +21,7 @@ import type {
   PackageJSON,
   Stats,
   Symbol as ISymbol,
+  SourceLocation,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -127,8 +128,12 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): Map<ISymbol, ISymbol> {
+  get symbols(): $ReadOnlyMap<ISymbol, ISymbol> {
     return this.#asset.value.symbols;
+  }
+
+  get symbolsLocs(): $ReadOnlyMap<ISymbol, SourceLocation> {
+    return this.#asset.value.symbolsLocs;
   }
 
   get uniqueKey(): ?string {
@@ -262,6 +267,18 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   addIncludedFile(file: File): void {
     this.#asset.addIncludedFile(file);
+  }
+
+  setSymbol(exportSymbol: ISymbol, symbol: ISymbol, loc: ?SourceLocation) {
+    this.#asset.value.symbols.set(exportSymbol, symbol);
+    if (loc) {
+      this.#asset.value.symbolsLocs.set(exportSymbol, loc);
+    }
+  }
+
+  clearSymbols() {
+    this.#asset.value.symbols.clear();
+    this.#asset.value.symbolsLocs.clear();
   }
 
   isASTDirty(): boolean {

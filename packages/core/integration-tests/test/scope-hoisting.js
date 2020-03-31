@@ -310,12 +310,12 @@ describe('scope hoisting', function() {
     });
 
     it('excludes default when re-exporting a module', async function() {
-      let message = path.normalize(
-        "test/integration/scope-hoisting/es6/re-export-exclude-default/b.js does not export 'default'",
-      );
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
       );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+      )} does not export 'default'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -328,12 +328,12 @@ describe('scope hoisting', function() {
             codeFrame: {
               codeHighlights: {
                 start: {
-                  line: 3,
-                  column: 11,
+                  line: 1,
+                  column: 8,
                 },
                 end: {
-                  line: 3,
-                  column: 11,
+                  line: 1,
+                  column: 8,
                 },
               },
             },

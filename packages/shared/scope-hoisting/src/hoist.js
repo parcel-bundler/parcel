@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset, SourceLocation} from '@parcel/types';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {
   ExportNamedDeclaration,
@@ -201,7 +201,7 @@ const VISITOR: Visitor<MutableAsset> = {
           ]),
         );
 
-        asset.symbols.clear();
+        asset.clearSymbols();
         asset.meta.isCommonJS = true;
         asset.meta.isES6Module = false;
       } else {
@@ -249,7 +249,7 @@ const VISITOR: Visitor<MutableAsset> = {
       let exportsId = getExportsIdentifier(asset, path.scope);
       path.replaceWith(exportsId);
       asset.meta.isCommonJS = true;
-      asset.symbols.set('*', exportsId.name);
+      asset.setSymbol('*', exportsId.name, convertBabelLoc(path.node.loc));
 
       if (!path.scope.hasBinding(exportsId.name)) {
         path.scope
@@ -315,7 +315,7 @@ const VISITOR: Visitor<MutableAsset> = {
     // ) {
     //   let exportsId = getExportsIdentifier(asset, path.scope);
     //   asset.meta.isCommonJS = true;
-    //   asset.symbols.set('*', exportsId.name);
+    //   asset.setSymbol('*', exportsId.name);
 
     //   if (
     //     path.scope === path.scope.getProgramParent() &&
@@ -370,7 +370,7 @@ const VISITOR: Visitor<MutableAsset> = {
       // Otherwise, assign to the existing export binding.
       let scope = path.scope.getProgramParent();
       if (!scope.hasBinding(identifier.name)) {
-        asset.symbols.set(name, identifier.name);
+        asset.setSymbol(name, identifier.name, convertBabelLoc(path.node.loc));
 
         // If in the program scope, create a variable declaration and initialize with the exported value.
         // Otherwise, declare the variable in the program scope, and assign to it here.
@@ -451,7 +451,11 @@ const VISITOR: Visitor<MutableAsset> = {
       }
 
       dep.meta.isCommonJS = true;
-      dep.symbols.set('*', getName(asset, 'require', source));
+      dep.setSymbol(
+        '*',
+        getName(asset, 'require', source),
+        convertBabelLoc(path.node.loc),
+      );
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -499,7 +503,7 @@ const VISITOR: Visitor<MutableAsset> = {
         if (existing) {
           id.name = existing;
         } else {
-          dep.symbols.set(imported, id.name);
+          dep.setSymbol(imported, id.name, convertBabelLoc(specifier.loc));
         }
       }
       rename(path.scope, specifier.local.name, id.name);
@@ -510,7 +514,7 @@ const VISITOR: Visitor<MutableAsset> = {
   },
 
   ExportDefaultDeclaration(path, asset: MutableAsset) {
-    let {declaration} = path.node;
+    let {declaration, loc} = path.node;
     let identifier = getExportIdentifier(asset, 'default');
     let name: ?string;
     if (
@@ -558,7 +562,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
 
     if (!asset.symbols.has('default')) {
-      asset.symbols.set('default', identifier.name);
+      asset.setSymbol('default', identifier.name, convertBabelLoc(loc));
     }
   },
 
@@ -591,15 +595,17 @@ const VISITOR: Visitor<MutableAsset> = {
             id.name = existing;
           } else {
             // this will merge with the existing dependency
+            let loc = convertBabelLoc(specifier.loc);
             asset.addDependency({
               moduleSpecifier: dep.moduleSpecifier,
               symbols: new Map([[imported, id.name]]),
+              symbolsLocs: new Map(loc ? [[imported, loc]] : []),
               isWeak: true,
             });
           }
         }
 
-        asset.symbols.set(exported.name, id.name);
+        asset.setSymbol(exported.name, id.name, convertBabelLoc(specifier.loc));
 
         id.loc = specifier.loc;
         path.insertAfter(
@@ -639,7 +645,7 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
-      dep.symbols.set('*', '*');
+      dep.setSymbol('*', '*', convertBabelLoc(path.node.loc));
     }
 
     path.replaceWith(
@@ -699,7 +705,11 @@ function addExport(asset: MutableAsset, path, local, exported) {
     : [path];
 
   if (!asset.symbols.has(exported.name)) {
-    asset.symbols.set(exported.name, identifier.name);
+    asset.setSymbol(
+      exported.name,
+      identifier.name,
+      convertBabelLoc(exported.loc),
+    );
   }
 
   rename(scope, local.name, identifier.name);
@@ -769,4 +779,15 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
   } else {
     return getExportsIdentifier(asset, scope);
   }
+}
+
+function convertBabelLoc(loc): ?SourceLocation {
+  if (!loc || !loc.filename) return null;
+
+  let {filename, start, end} = loc;
+  return {
+    filePath: filename,
+    start,
+    end,
+  };
 }

@@ -18,7 +18,7 @@ declare class BabelNodeCommentLine extends BabelNodeComment {
   type: "CommentLine";
 }
 
-declare class BabelNodeSourceLocation {
+declare type BabelNodeSourceLocation = {|
   filename: ?string;
 
   start: {|
@@ -30,7 +30,7 @@ declare class BabelNodeSourceLocation {
     line: number;
     column: number;
   |};
-}
+|}
 
 declare class BabelNode {
   leadingComments?: Array<BabelNodeComment>;

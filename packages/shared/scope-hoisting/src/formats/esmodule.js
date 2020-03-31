@@ -28,9 +28,13 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {getName, removeReplaceBinding, verifyScopeState} from '../utils';
+import {
+  getName,
+  removeReplaceBinding,
+  getThrowableDiagnosticForNode,
+  verifyScopeState,
+} from '../utils';
 
 export function generateBundleImports(
   from: Bundle,
@@ -128,18 +132,20 @@ export function generateExports(
   let exportedIdentifiers = new Map<Symbol, Symbol>();
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
-      entry,
-    )) {
+    for (let {
+      exportSymbol,
+      symbol,
+      asset,
+      loc,
+    } of bundleGraph.getExportedSymbols(entry)) {
       if (symbol == null) {
-        let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `${relativePath} does not export '${exportSymbol}'`,
-            filePath: entry.filePath,
-            // TODO: add codeFrame when AST from transformers is reused
-          },
-        });
+        // Reexport that couldn't be resolved
+        let relativePath = relative(options.projectRoot, asset.filePath);
+        throw getThrowableDiagnosticForNode(
+          `${relativePath} does not export '${exportSymbol}'`,
+          entry.filePath,
+          loc,
+        );
       }
 
       symbol = replacements.get(symbol) || symbol;

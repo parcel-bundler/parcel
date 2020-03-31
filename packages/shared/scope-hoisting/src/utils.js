@@ -1,5 +1,5 @@
 // @flow
-import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, MutableAsset} from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
   ClassDeclaration,
@@ -245,24 +245,34 @@ export function verifyScopeState(scope: Scope) {
 export function getThrowableDiagnosticForNode(
   message: string,
   filePath: string,
-  node: Node,
+  loc: ?{
+    +start: {|
+      +line: number,
+      +column: number,
+    |},
+    +end: {|
+      +line: number,
+      +column: number,
+    |},
+    ...
+  },
 ) {
   let diagnostic: Diagnostic = {
     message,
     filePath: filePath,
     language: 'js',
   };
-  if (node.loc) {
+  if (loc) {
     diagnostic.codeFrame = {
       codeHighlights: {
         start: {
-          line: node.loc.start.line,
-          column: node.loc.start.column + 1,
+          line: loc.start.line,
+          column: loc.start.column + 1,
         },
-        // These two cancel out:
-        // - Babel's columns are exclusive, ours are inclusive
-        // - Babel has 0-based columns, ours are 1-based
-        end: node.loc.end,
+        // - Babel's columns are exclusive, ours are inclusive (column - 1)
+        // - Babel has 0-based columns, ours are 1-based (column + 1)
+        // = +-0
+        end: loc.end,
       },
     };
   }

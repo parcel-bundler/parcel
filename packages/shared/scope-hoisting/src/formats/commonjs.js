@@ -34,12 +34,12 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 import {
   assertString,
   getIdentifier,
   getName,
+  getThrowableDiagnosticForNode,
   removeReplaceBinding,
 } from '../utils';
 
@@ -422,18 +422,20 @@ export function generateExports(
         }
       }
     } else {
-      for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
-        entry,
-      )) {
+      for (let {
+        exportSymbol,
+        symbol,
+        asset,
+        loc,
+      } of bundleGraph.getExportedSymbols(entry)) {
         if (!symbol) {
-          let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-          throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `${relativePath} does not export '${exportSymbol}'`,
-              filePath: entry.filePath,
-              // TODO: add codeFrames (actual and reexporting asset) when AST from transformers is reused
-            },
-          });
+          // Reexport that couldn't be resolved
+          let relativePath = relative(options.projectRoot, asset.filePath);
+          throw getThrowableDiagnosticForNode(
+            `${relativePath} does not export '${exportSymbol}'`,
+            entry.filePath,
+            loc,
+          );
         }
 
         let hasReplacement = replacements.get(symbol);
