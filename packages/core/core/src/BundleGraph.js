@@ -22,6 +22,7 @@ import crypto from 'crypto';
 import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
+import Environment from './public/Environment';
 import {getBundleGroupId} from './utils';
 import Graph, {mapVisitor} from './Graph';
 
@@ -336,7 +337,11 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean {
+  isAssetReferencedByAnotherBundleOfType(
+    bundle: Bundle,
+    asset: Asset,
+    type: string,
+  ): boolean {
     let referringBundles = new Set(
       this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),
@@ -355,7 +360,14 @@ export default class BundleGraph {
           return this._graph
             .getNodesConnectedTo(node, 'contains')
             .filter(node => node.type === 'bundle')
-            .some(b => !referringBundles.has(b));
+            .some(b => {
+              invariant(b.type === 'bundle');
+              return (
+                !referringBundles.has(b) &&
+                new Environment(bundle.env).isIsolated() ===
+                  new Environment(b.value.env).isIsolated()
+              );
+            });
         }),
       node => {
         invariant(node.type === 'dependency');

@@ -50,7 +50,6 @@ type TraversalContext = {|
   children: AssetASTMap,
 |};
 
-// eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
@@ -214,7 +213,9 @@ function getUsedExports(
     }
 
     // If the asset is referenced by another bundle, include all exports.
-    if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
+    if (
+      bundleGraph.isAssetReferencedByAnotherBundleOfType(bundle, asset, 'js')
+    ) {
       markUsed(asset, '*');
       for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
         if (symbol) {
