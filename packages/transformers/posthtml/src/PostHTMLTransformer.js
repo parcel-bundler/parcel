@@ -77,7 +77,7 @@ export default new Transformer({
 
   generate({ast}) {
     return {
-      code: render(ast.program),
+      content: render(ast.program),
     };
   },
 });

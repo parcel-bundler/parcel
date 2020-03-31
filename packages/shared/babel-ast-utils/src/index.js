@@ -59,7 +59,7 @@ export async function generate({
   }
 
   return {
-    code: generated.code,
+    content: generated.code,
     map,
   };
 }
