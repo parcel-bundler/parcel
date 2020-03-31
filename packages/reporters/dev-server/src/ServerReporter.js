@@ -9,73 +9,90 @@ let servers: Map<number, Server> = new Map();
 let hmrServers: Map<number, HMRServer> = new Map();
 export default new Reporter({
   async report({event, options, logger}) {
-    let serve = options.serve;
-    if (!serve) return;
-
-    let server = servers.get(serve.port);
-    let hmrServer = hmrServers.get(serve.port);
+    let {serve, hot: hmr} = options;
+    let server = serve ? servers.get(serve.port) : undefined,
+      hmrServer =
+        hmr && typeof hmr.port === 'number'
+          ? hmrServers.get(hmr.port)
+          : undefined;
     switch (event.type) {
       case 'watchStart': {
-        // If there's already a server when watching has just started, something
-        // is wrong.
-        if (server) {
-          return logger.warn({
-            message: 'Trying to create the devserver but it already exists.',
-          });
-        }
+        if (serve) {
+          // If there's already a server when watching has just started, something
+          // is wrong.
+          if (server) {
+            return logger.warn({
+              message: 'Trying to create the devserver but it already exists.',
+            });
+          }
 
-        let serverOptions = {
-          ...serve,
-          projectRoot: options.projectRoot,
-          cacheDir: options.cacheDir,
-          distDir: path.join(options.cacheDir, 'dist'),
-          // Override the target's publicUrl as that is likely meant for production.
-          // This could be configurable in the future.
-          publicUrl: serve.publicUrl ?? '/',
-          inputFS: options.inputFS,
-          outputFS: options.outputFS,
-          logger,
-        };
-
-        server = new Server(serverOptions);
-        servers.set(serve.port, server);
-        const devServer = await server.start();
-
-        if (options.hot) {
-          let hmrServerOptions = {
-            devServer,
+          let serverOptions = {
+            ...serve,
+            projectRoot: options.projectRoot,
+            cacheDir: options.cacheDir,
+            distDir: path.join(options.cacheDir, 'dist'),
+            // Override the target's publicUrl as that is likely meant for production.
+            // This could be configurable in the future.
+            publicUrl: serve.publicUrl ?? '/',
+            inputFS: options.inputFS,
+            outputFS: options.outputFS,
             logger,
           };
-          const hmrServer = new HMRServer(hmrServerOptions);
-          hmrServers.set(serve.port, hmrServer);
-          hmrServer.start();
+
+          server = new Server(serverOptions);
+          servers.set(serve.port, server);
+          const devServer = await server.start();
+
+          if (hmr && (hmr.port === serve.port || hmr === true)) {
+            let hmrServerOptions = {
+              devServer,
+              logger,
+            };
+            hmrServer = new HMRServer(hmrServerOptions);
+            hmrServers.set(serve.port, hmrServer);
+            hmrServer.start();
+            return;
+          }
         }
 
+        if (hmr && typeof hmr.port === 'number') {
+          let hmrServerOptions = {
+            port: hmr.port,
+            logger,
+          };
+          hmrServer = new HMRServer(hmrServerOptions);
+          hmrServers.set(hmr.port, hmrServer);
+          hmrServer.start();
+        }
         break;
       }
       case 'watchEnd':
-        if (!server) {
-          return logger.warn({
-            message: 'Could not shutdown devserver because it does not exist.',
-          });
+        if (serve) {
+          if (!server) {
+            return logger.warn({
+              message:
+                'Could not shutdown devserver because it does not exist.',
+            });
+          }
+          await server.stop();
+          servers.delete(server.options.port);
         }
-
-        if (hmrServer) {
+        if (hmr && hmrServer) {
           hmrServer.stop();
+          hmrServers.delete(hmrServer.wss.options.port);
         }
-        await server.stop();
-        servers.delete(serve.port);
-        hmrServers.delete(serve.port);
         break;
       case 'buildSuccess':
-        if (!server) {
-          return logger.warn({
-            message:
-              'Could not send success event to devserver because it does not exist.',
-          });
-        }
+        if (serve) {
+          if (!server) {
+            return logger.warn({
+              message:
+                'Could not send success event to devserver because it does not exist.',
+            });
+          }
 
-        server.buildSuccess(event.bundleGraph);
+          server.buildSuccess(event.bundleGraph);
+        }
         if (hmrServer) {
           hmrServer.emitUpdate(event);
         }

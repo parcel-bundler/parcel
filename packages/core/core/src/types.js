@@ -144,7 +144,7 @@ export type ParcelOptions = {|
   sourceMaps: boolean,
   publicUrl: string,
   distDir: ?FilePath,
-  hot: boolean,
+  hot: {|port: number|} | boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
