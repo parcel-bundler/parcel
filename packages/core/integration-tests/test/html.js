@@ -783,6 +783,35 @@ describe('html', function() {
     ]);
   });
 
+  it('should process inline element styles', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-inline-styles-element/index.html',
+      ),
+      {disableCache: false},
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
+        type: 'css',
+        assets: ['index.html'],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+  });
+
   it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
