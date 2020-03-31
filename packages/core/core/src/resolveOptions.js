@@ -79,7 +79,6 @@ export default async function resolveOptions(
       initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
       ...initialOptions.env,
-      // $FlowFixMe
       ...(await loadDotEnv(
         initialOptions.env ?? {},
         inputFS,

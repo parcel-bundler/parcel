@@ -569,7 +569,8 @@ export default class BundleGraph {
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
       if (dep.symbols.get('*') === '*' && symbol !== 'default') {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
+        let resolved = this.getDependencyResolution(dep);
+        if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol);
         if (result.symbol != null) {
           return {
@@ -594,7 +595,8 @@ export default class BundleGraph {
     let deps = this.getDependencies(asset);
     for (let dep of deps) {
       if (dep.symbols.get('*') === '*') {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
+        let resolved = this.getDependencyResolution(dep);
+        if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved).filter(
           s => s.exportSymbol !== 'default',
         );
@@ -614,7 +616,11 @@ export default class BundleGraph {
     let hash = crypto.createHash('md5');
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
-      hash.update([asset.outputHash, asset.filePath].join(':'));
+      hash.update(
+        [asset.outputHash, asset.filePath, asset.type, asset.uniqueKey].join(
+          ':',
+        ),
+      );
     });
 
     let hashHex = hash.digest('hex');

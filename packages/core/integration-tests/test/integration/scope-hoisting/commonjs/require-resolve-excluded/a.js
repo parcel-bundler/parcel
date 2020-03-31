@@ -1,0 +1,1 @@
+output = require.resolve('fs');

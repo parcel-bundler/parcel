@@ -3,6 +3,7 @@
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
+import {relativeUrl} from '@parcel/utils';
 
 import {BABEL_RANGE} from './constants';
 import packageJson from '../package.json';
@@ -34,6 +35,7 @@ export default async function babel7(
     configFile: false,
     parserOpts: {
       ...babelOptions.config.parserOpts,
+      sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
@@ -46,21 +48,23 @@ export default async function babel7(
     },
   };
 
-  let code = await asset.getCode();
-
+  let ast = await asset.getAST();
   let res;
-  if (asset.ast) {
-    res = babel.transformFromAstSync(asset.ast.program, code, config);
+  if (ast) {
+    res = await babel.transformFromAstAsync(
+      ast.program,
+      asset.isASTDirty() ? undefined : await asset.getCode(),
+      config,
+    );
   } else {
-    res = babel.transformSync(code, config);
+    res = await babel.transformAsync(await asset.getCode(), config);
   }
 
   if (res.ast) {
-    return {
+    asset.setAST({
       type: 'babel',
       version: '7.0.0',
       program: res.ast,
-      isDirty: true,
-    };
+    });
   }
 }

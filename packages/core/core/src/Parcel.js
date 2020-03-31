@@ -260,7 +260,9 @@ export default class Parcel {
       );
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(bundleGraph);
@@ -389,8 +391,6 @@ export class BuildError extends ThrowableDiagnostic {
     this.name = 'BuildError';
   }
 }
-
-export {default as Asset} from './InternalAsset';
 
 export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({
