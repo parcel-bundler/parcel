@@ -33,10 +33,16 @@ import nullthrows from 'nullthrows';
 import {assertString, getName, getIdentifier, needsPrelude} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8');
+const HELPERS = parse(
+  fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8'),
+  HELPERS_PATH,
+);
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8');
+const PRELUDE = parse(
+  fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
+  PRELUDE_PATH,
+);
 
 type AssetASTMap = Map<string, Array<Statement>>;
 type TraversalContext = {|
@@ -68,9 +74,9 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   });
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
-  let result = [...parse(HELPERS, HELPERS_PATH)];
+  let result = [...HELPERS];
   if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...parse(PRELUDE, PRELUDE_PATH));
+    result.unshift(...PRELUDE);
   }
 
   let usedExports = getUsedExports(bundle, bundleGraph);
@@ -139,7 +145,7 @@ async function processAsset(bundle: Bundle, asset: Asset) {
   let statements: Array<Statement>;
   if (asset.astGenerator && asset.astGenerator.type === 'babel') {
     let ast = await asset.getAST();
-    statements = nullthrows(ast).program.program.body;
+    statements = t.cloneNode(nullthrows(ast).program.program).body;
   } else {
     let code = await asset.getCode();
     statements = parse(code, asset.filePath);
