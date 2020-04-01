@@ -119,10 +119,11 @@ export function link({
     }
   });
 
-  function resolveSymbol(inputAsset, inputSymbol: Symbol) {
+  function resolveSymbol(inputAsset, inputSymbol: Symbol, bundle) {
     let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,
+      bundle,
     );
     if (asset.meta.resolveExportsBailedOut) {
       return {
@@ -151,6 +152,7 @@ export function link({
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
+      bundle,
     );
 
     let node;
@@ -160,8 +162,8 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
-      node = addBundleImport(originalModule, path);
-      return node ? interop(originalModule, originalName, path, node) : null;
+      node = addBundleImport(mod, path);
+      return node ? interop(mod, symbol, path, node) : null;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
