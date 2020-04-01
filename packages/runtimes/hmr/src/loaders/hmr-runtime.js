@@ -27,12 +27,12 @@ var checkedAssets, assetsToAccept, acceptedAssets;
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = location.origin.startsWith('http')
-    ? location.hostname
-    : 'localhost';
-  var port = location.port ? ':' + location.port : ':1234';
+  var hostname = __PARCEL_HMR_HOST || location.hostname;
+  var port = __PARCEL_HMR_PORT || location.port;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + port + '/');
+  var ws = new WebSocket(
+    protocol + '://' + hostname + (port ? ':' + port : '') + '/',
+  );
   ws.onmessage = function(event) {
     checkedAssets = {};
     assetsToAccept = [];

@@ -75,6 +75,8 @@ var hmrOptions = {
     parseInt,
     1234,
   ],
+  '--host <host>':
+    'set the host to listen on, defaults to listening on all interfaces',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
@@ -93,10 +95,6 @@ let serve = program
   .command('serve [input...]')
   .description('starts a development server')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .option(
-    '--host <host>',
-    'set the host to listen on, defaults to listening on all interfaces',
-  )
   .option(
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
@@ -180,9 +178,10 @@ async function run(entries: Array<string>, command: any) {
     packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename)
-      ).resolved,
+      filePath: (await packageManager.resolve(
+        '@parcel/config-default',
+        __filename,
+      )).resolved,
     },
     patchConsole: true,
     ...(await normalizeOptions(command)),
@@ -295,7 +294,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port};
+    hmr = {port, host: host != null ? host : 'localhost'};
+    process.env.HMR_PORT = port;
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
