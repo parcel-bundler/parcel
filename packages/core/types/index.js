@@ -190,7 +190,7 @@ export type InitialParcelOptions = {|
   +sourceMaps?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +hot?: boolean,
+  +hot?: {|port: number|} | boolean,
   +serve?: ServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -213,7 +213,7 @@ export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: boolean;
+  +hot: {|port: number|} | boolean;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;
