@@ -1,9 +1,10 @@
 // @flow
 
 import {Reporter} from '@parcel/plugin';
-import Server from './Server';
-import HMRServer from './HMRServer';
 import path from 'path';
+import nullthrows from 'nullthrows';
+import HMRServer from './HMRServer';
+import Server from './Server';
 
 let servers: Map<number, Server> = new Map();
 let hmrServers: Map<number, HMRServer> = new Map();
@@ -79,6 +80,9 @@ export default new Reporter({
           hmrServer.stop();
           hmrServers.delete(hmrServer.wss.options.port);
         }
+        break;
+      case 'buildStart':
+        nullthrows(server).buildStart();
         break;
       case 'buildSuccess':
         if (serve) {

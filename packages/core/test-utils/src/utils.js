@@ -199,15 +199,22 @@ export async function run(
   }
 
   if (opts.require !== false) {
-    if (ctx.parcelRequire) {
-      // $FlowFixMe
-      return ctx.parcelRequire(entryAsset.id);
-    } else if (ctx.output) {
-      return ctx.output;
-    }
-    if (ctx.module) {
-      // $FlowFixMe
-      return ctx.module.exports;
+    switch (bundle.env.outputFormat) {
+      case 'global':
+        if (bundle.env.scopeHoist) {
+          return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
+        } else if (ctx.parcelRequire) {
+          // $FlowFixMe
+          return ctx.parcelRequire(entryAsset.id);
+        }
+        return;
+      case 'commonjs':
+        invariant(typeof ctx.module === 'object' && ctx.module != null);
+        return ctx.module.exports;
+      default:
+        throw new Error(
+          'Unable to run bundle with outputFormat ' + bundle.env.outputFormat,
+        );
     }
   }
 
