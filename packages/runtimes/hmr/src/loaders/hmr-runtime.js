@@ -1,4 +1,4 @@
-/* global __PARCEL_BUNDLE_ID, __PARCEL_HMR_ENV_HASH */
+/* global __PARCEL_HMR_HOST, __PARCEL_HMR_PORT, __PARCEL_BUNDLE_ID, __PARCEL_HMR_ENV_HASH */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 
