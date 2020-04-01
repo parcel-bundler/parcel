@@ -188,7 +188,9 @@ export function restoreDeserializedObject(object: any) {
       let ctor = nameToCtor.get(value.$$type);
       if (ctor == null) {
         throw new Error(
-          `Expected constructor ${value.$$type} to be registered with serializer to deserialize`,
+          `Expected constructor ${
+            value.$$type
+          } to be registered with serializer to deserialize`,
         );
       }
 

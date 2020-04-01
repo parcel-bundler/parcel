@@ -851,7 +851,9 @@ describe('output formats', function() {
         // async import both bundles in parallel for performance
         assert(
           entry.includes(
-            `import("./" + "${sharedBundle.name}"), import("./" + "${bundle.name}");`,
+            `import("./" + "${sharedBundle.name}"), import("./" + "${
+              bundle.name
+            }");`,
           ),
         );
       }

@@ -87,7 +87,9 @@ async function installPeerDependencies(
       if (!semver.satisfies(pkg.version, range)) {
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
+            message: `Could not install the peer dependency "${name}" for "${
+              module.name
+            }", installed version ${pkg.version} is incompatible with ${range}`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
             language: 'json',
@@ -176,10 +178,7 @@ export function _addToInstallQueue(
           }
         }),
       )
-      .then(
-        () => {},
-        () => {},
-      );
+      .then(() => {}, () => {});
   }
 
   return queue.run();

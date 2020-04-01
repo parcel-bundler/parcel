@@ -41,7 +41,9 @@ export default new Validator({
 
         let diagnostic = {
           origin: '@parcel/validator-eslint',
-          message: `ESLint found **${result.errorCount}** __errors__ and **${result.warningCount}** __warnings__.`,
+          message: `ESLint found **${result.errorCount}** __errors__ and **${
+            result.warningCount
+          }** __warnings__.`,
           filePath: asset.filePath,
           codeFrame: codeframe,
         };

@@ -53,7 +53,9 @@ export default function prettyDiagnostic(
       typeof filePath !== 'string'
         ? ''
         : chalk.underline(
-            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
+            `${filePath}:${highlights[0].start.line}:${
+              highlights[0].start.column
+            }\n`,
           );
     result.codeframe += formattedCodeFrame;
   }

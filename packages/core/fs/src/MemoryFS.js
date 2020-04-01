@@ -661,10 +661,9 @@ class WriteStream extends Writable {
   }
 
   _final(callback: (error?: Error) => void) {
-    this.fs.writeFile(this.filePath, this.buffer, this.options).then(
-      () => callback(),
-      err => callback(err),
-    );
+    this.fs
+      .writeFile(this.filePath, this.buffer, this.options)
+      .then(() => callback(), err => callback(err));
   }
 
   get bytesWritten() {
