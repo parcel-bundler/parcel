@@ -40,7 +40,7 @@ export default new Transformer({
     return [
       {
         type: 'js',
-        code: transpiled.outputText,
+        content: transpiled.outputText,
       },
     ];
   },
