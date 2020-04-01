@@ -647,7 +647,11 @@ export interface BundleGraph {
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>,
