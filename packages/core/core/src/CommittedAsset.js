@@ -37,11 +37,11 @@ export default class CommittedAsset {
         return this.options.cache.getStream(this.value.contentKey);
       } else if (this.value.astKey != null) {
         return streamFromPromise(
-          generateFromAST(this).then(({code}) => {
-            if (!(code instanceof Readable)) {
-              this.content = Promise.resolve(code);
+          generateFromAST(this).then(({content}) => {
+            if (!(content instanceof Readable)) {
+              this.content = Promise.resolve(content);
             }
-            return code;
+            return content;
           }),
         );
       } else {
