@@ -148,7 +148,7 @@ export default new Transformer({
     return [
       {
         type: 'ts',
-        code,
+        content: code,
         map: sourceMap,
         includedFiles,
       },

@@ -53,6 +53,13 @@ export async function load(
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot,
     babelrcRoots,
+    envName:
+      options.env.BABEL_ENV ??
+      options.env.NODE_ENV ??
+      (options.mode === 'production' || options.mode === 'development'
+        ? options.mode
+        : null) ??
+      'development',
   });
 
   // loadPartialConfig returns null when the file should explicitly not be run through babel (ignore/exclude)

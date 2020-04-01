@@ -157,10 +157,10 @@ describe('scope hoisting', function() {
       );
       assert(match);
       let [, id] = match;
-      assert(contents.includes(`output = ${id}.add(10, 2);`));
+      assert(contents.includes(`default = ${id}.add(10, 2);`));
 
       let output = await run(b);
-      assert.deepEqual(output, 12);
+      assert.deepEqual(output.default, 12);
     });
 
     it('supports namespace imports of theoretically excluded reexporting assets (sideEffects: false)', async function() {
@@ -310,8 +310,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.equal(await output.default, 5);
+      assert.equal(await run(b), 5);
     });
 
     it('supports nested dynamic imports', async function() {
@@ -322,8 +321,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.equal(await output.default, 123);
+      assert.equal(await run(b), 123);
     });
 
     it('should not export function arguments', async function() {
@@ -401,8 +399,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.deepEqual(await output, 6);
+      assert.deepEqual(await run(b), 6);
     });
 
     it('supports exporting an import', async function() {
@@ -687,8 +684,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.deepEqual(await output, 581);
+      assert.deepEqual(await run(b), 581);
     });
 
     it('missing exports should be replaced with an empty object', async function() {
@@ -711,8 +707,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.deepEqual(await output, 4);
+      assert.deepEqual(await run(b), 4);
     });
 
     it('supports importing a namespace from a wrapped module', async function() {
@@ -1378,8 +1373,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.deepEqual(output, {exports: {foo: 2}});
+      assert.deepEqual(await run(b), {exports: {foo: 2}});
     });
 
     it('should call init for wrapped modules when codesplitting', async function() {
@@ -1390,8 +1384,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.deepEqual(output, 2);
+      assert.deepEqual(await run(b), 2);
     });
 
     it('should wrap modules that non-statically access `module`', async function() {
@@ -1799,8 +1792,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.equal(await output.default, 'bar:bar');
+      assert.equal(await run(b), 'bar:bar');
     });
 
     it('should export the same values for interop shared modules in main and child bundle if shared bundle is deep nested', async function() {
@@ -1811,8 +1803,7 @@ describe('scope hoisting', function() {
         ),
       );
 
-      let output = await run(b);
-      assert.equal(await output.default, 'bar:bar');
+      assert.equal(await run(b), 'bar:bar');
     });
 
     it('should support assigning to exports from inside a function', async function() {
@@ -1916,7 +1907,7 @@ describe('scope hoisting', function() {
       },
     ]);
 
-    let output = (await run(b)).default;
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 'Imported: foobar');
   });
@@ -2012,6 +2003,6 @@ describe('scope hoisting', function() {
       ),
     );
 
-    assert.deepEqual(await (await run(b)).default, [42, 42, 42, 42]);
+    assert.deepEqual(await run(b), [42, 42, 42, 42]);
   });
 });
