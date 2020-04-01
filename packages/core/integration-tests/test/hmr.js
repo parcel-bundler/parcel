@@ -202,7 +202,7 @@ describe('hmr', function() {
           port,
           host: 'localhost',
         },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -235,7 +235,7 @@ describe('hmr', function() {
           port,
           host: 'localhost',
         },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });

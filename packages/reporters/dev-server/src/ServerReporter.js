@@ -44,6 +44,7 @@ export default new Reporter({
 
           if (hmr && (hmr.port === serve.port || hmr === true)) {
             let hmrServerOptions = {
+              port: serve.port,
               devServer,
               logger,
             };

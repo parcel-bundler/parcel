@@ -81,7 +81,7 @@ export default async function resolveOptions(
     mode,
     minify,
     autoinstall: initialOptions.autoinstall ?? true,
-    hot: initialOptions.hot ?? false,
+    hot: initialOptions.hot ?? null,
     serve: initialOptions.serve ?? false,
     disableCache: initialOptions.disableCache ?? false,
     killWorkers: initialOptions.killWorkers ?? true,

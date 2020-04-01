@@ -292,7 +292,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = false;
+  let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
     hmr = {port, host: host != null ? host : 'localhost'};
     process.env.HMR_PORT = port;
