@@ -22,6 +22,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import ConfigLoader from './ConfigLoader';
@@ -99,6 +100,8 @@ export default class Transformation {
     assets: Array<AssetValue>,
     configRequests: Array<ConfigRequestAndResult>,
   |}> {
+    await initSourcemaps;
+
     this.report({
       type: 'buildProgress',
       phase: 'transforming',
