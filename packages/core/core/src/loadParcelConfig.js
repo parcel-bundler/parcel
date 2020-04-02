@@ -250,10 +250,11 @@ function getResolveFrom(options: ParcelOptions) {
   return path.join(dir, 'index');
 }
 
-function isSubdirectory(child: FilePath, parent: FilePath) {
-  if (child === parent) return false;
-  const parentTokens = parent.split(path.sep).filter(i => i.length);
-  return parentTokens.every((t, i) => child.split(path.sep)[i] === t);
+function isSubdirectory(child, parent) {
+  const relative = path.relative(parent, child);
+  return (
+    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+  );
 }
 
 export function mergePipelines(
