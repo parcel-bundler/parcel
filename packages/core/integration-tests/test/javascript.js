@@ -2454,4 +2454,59 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, [3, 5]);
   });
+
+  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      ['index.js', 'value.js'].map(basename =>
+        path.join(__dirname, '/integration/sync-entry-shared', basename),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {name: 'value.js', assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.equal(await (await run(b)).default, 43);
+  });
+
+  it('can run an async bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/async-entry-shared/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [42, 43]);
+  });
 });
