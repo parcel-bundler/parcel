@@ -2,7 +2,6 @@
 
 import {Reporter} from '@parcel/plugin';
 import path from 'path';
-import nullthrows from 'nullthrows';
 import HMRServer from './HMRServer';
 import Server from './Server';
 
@@ -83,7 +82,9 @@ export default new Reporter({
         }
         break;
       case 'buildStart':
-        nullthrows(server).buildStart();
+        if (server) {
+          server.buildStart();
+        }
         break;
       case 'buildSuccess':
         if (serve) {
