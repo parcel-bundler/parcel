@@ -4,8 +4,10 @@ import {
   bundle,
   bundler,
   assertBundles,
+  inputFS,
   outputFS,
   ncp,
+  run,
   overlayFS,
   getNextBuild,
 } from '@parcel/test-utils';
@@ -553,5 +555,23 @@ describe('monorepos', function() {
       'utf8',
     );
     assert(contents.includes('import "./pkg-b.cjs.css"'));
+  });
+
+  it('should search for .parcelrc at cwd in monorepos', async () => {
+    let fixture = path.join(
+      __dirname,
+      '/integration/parcelrc-monorepo/app/index.js',
+    );
+
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(path.dirname(fixture));
+
+    try {
+      let b = await bundle(fixture);
+
+      assert.equal((await run(b)).default, '<svg></svg>\n');
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
   });
 });
