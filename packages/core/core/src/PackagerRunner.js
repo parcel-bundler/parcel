@@ -22,6 +22,7 @@ import {
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
 import nullthrows from 'nullthrows';
@@ -189,6 +190,8 @@ export default class PackagerRunner {
     contents: Blob,
     map: ?string,
   |}> {
+    await initSourcemaps;
+
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
       bundle,
@@ -343,6 +346,11 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
+    let isInlineMap =
+      bundle.isInline ||
+      (bundle.target.sourceMap && bundle.target.sourceMap.inline);
+
+    // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
       fs: this.options.inputFS,
@@ -351,9 +359,7 @@ export default class PackagerRunner {
         ? url.format(url.parse(sourceRoot + '/'))
         : undefined,
       inlineSources,
-      inlineMap:
-        bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline),
+      format: isInlineMap ? 'inline' : 'string',
     });
   }
 
