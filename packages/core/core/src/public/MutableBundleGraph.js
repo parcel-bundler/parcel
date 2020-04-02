@@ -229,6 +229,12 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     }
   }
 
+  getSiblingBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getSiblingBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
   traverse<TContext>(
     visit: GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext {
