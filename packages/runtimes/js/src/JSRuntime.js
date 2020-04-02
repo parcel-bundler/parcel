@@ -255,7 +255,11 @@ function getLoaderRuntimes({
     }
 
     if (bundle.env.outputFormat === 'global') {
-      loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}'))`;
+      loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}')${
+        // In global output with scope hoisting, functions return exports are
+        // always returned. Otherwise, the exports are returned.
+        bundle.env.scopeHoist ? '()' : ''
+      })`;
     }
 
     assets.push({
