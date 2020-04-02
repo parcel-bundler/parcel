@@ -152,9 +152,7 @@ export default new Runtime({
 
                 loader = nullthrows(
                   loaders.IMPORT_POLYFILL,
-                  `No import() polyfill available for context '${
-                    bundle.env.context
-                  }'`,
+                  `No import() polyfill available for context '${bundle.env.context}'`,
                 );
               } else if (
                 to.type === 'js' &&
@@ -186,9 +184,7 @@ export default new Runtime({
         }
 
         if (bundle.env.outputFormat === 'global') {
-          loaders += `.then(() => parcelRequire('${
-            bundleGroup.entryAssetId
-          }'))`;
+          loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}'))`;
         }
 
         assets.push({

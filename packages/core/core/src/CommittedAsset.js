@@ -152,8 +152,7 @@ export default class CommittedAsset {
       parse?: boolean,
     |},
   ): Promise<ConfigResult | null> {
-    const result = await getConfig(this, filePaths, options)?.config;
-    return result;
+    return (await getConfig(this, filePaths, options))?.config;
   }
 
   getPackage(): Promise<PackageJSON | null> {

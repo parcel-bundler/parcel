@@ -579,9 +579,7 @@ export default class NodeResolver {
         );
         throw new ThrowableDiagnostic({
           diagnostic: {
-            message: `Could not load '${fileSpecifier}' from module '${
-              pkg.name
-            }' found in package.json#${failedEntry.field}`,
+            message: `Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
             language: 'json',
             filePath: pkg.pkgfile,
             codeFrame: {

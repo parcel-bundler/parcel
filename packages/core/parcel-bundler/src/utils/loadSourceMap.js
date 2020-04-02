@@ -52,9 +52,7 @@ async function loadSourceMap(asset) {
               return result;
             } catch (err) {
               logger.warn(
-                `Could not load source file "${source}" in source map of "${
-                  asset.relativeName
-                }".`,
+                `Could not load source file "${source}" in source map of "${asset.relativeName}".`,
               );
             }
           }),

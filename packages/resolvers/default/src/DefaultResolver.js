@@ -11,9 +11,7 @@ export default new Resolver({
   resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
       throw new Error(
-        `The import path: ${
-          dependency.moduleSpecifier
-        } is using webpack specific loader import syntax, which isn't supported by Parcel.`,
+        `The import path: ${dependency.moduleSpecifier} is using webpack specific loader import syntax, which isn't supported by Parcel.`,
       );
     }
 

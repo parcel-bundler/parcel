@@ -53,9 +53,9 @@ describe.skip('detect directory changes', function() {
 
       let bundle = await b.bundle();
 
-      let childBundleNames = Array.from(bundle.childBundles.values()).map(
-        bundle => Path.basename(bundle.name),
-      );
+      let childBundleNames = Array.from(
+        bundle.childBundles.values(),
+      ).map(bundle => Path.basename(bundle.name));
 
       assert(childBundleNames.includes('index.js'));
       assert(childBundleNames.includes('app.js'));
