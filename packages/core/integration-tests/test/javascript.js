@@ -2411,4 +2411,47 @@ describe('javascript', function() {
     assert.deepEqual(await (await runBundle(sameBundle)).default, [42, 42, 42]);
     assert.deepEqual(await (await runBundle(getDep)).default, 42);
   });
+
+  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-exports-for-sibling-descendant/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['wraps.js', 'lodash.js'],
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['child.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['grandchild.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 5]);
+  });
 });

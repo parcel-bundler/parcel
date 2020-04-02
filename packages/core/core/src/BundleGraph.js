@@ -22,7 +22,6 @@ import crypto from 'crypto';
 import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
-import Environment from './public/Environment';
 import {getBundleGroupId} from './utils';
 import Graph, {mapVisitor} from './Graph';
 
@@ -337,48 +336,69 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferencedByAnotherBundleOfType(
+  isAssetReferencedByDependant(
     bundle: Bundle,
     asset: Asset,
-    type: string,
+    visitedBundles: Set<Bundle> = new Set(),
   ): boolean {
-    let referringBundles = new Set(
-      this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(asset.id)),
-        'contains',
-      ),
-    );
-
-    // is `asset` referenced by a dependency from an asset of `type`
-    return flatMap(
-      this._graph
-        .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
-        .filter(node => {
-          // Does this dependency belong to a bundle that does not include the
-          // asset it resolves to? If so, this asset is needed by a bundle but
-          // does not belong to it.
-          return this._graph
-            .getNodesConnectedTo(node, 'contains')
-            .filter(node => node.type === 'bundle')
-            .some(b => {
-              invariant(b.type === 'bundle');
-              return (
-                !referringBundles.has(b) &&
-                new Environment(bundle.env).isIsolated() ===
-                  new Environment(b.value.env).isIsolated()
-              );
-            });
-        }),
-      node => {
+    let dependencies = this._graph
+      .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
+      .filter(node => node.type === 'dependency')
+      .map(node => {
         invariant(node.type === 'dependency');
-        return this._graph.getNodesConnectedTo(node, null);
-      },
-    )
-      .filter(node => node.type === 'asset')
-      .some(node => {
-        invariant(node.type === 'asset');
-        return node.value.type === type;
+        return node.value;
       });
+
+    const bundleHasReference = (bundle: Bundle) => {
+      return (
+        !this.bundleHasAsset(bundle, asset) &&
+        dependencies.some(dependency =>
+          this.bundleHasDependency(bundle, dependency),
+        )
+      );
+    };
+
+    let isReferenced = false;
+    this.traverseBundles((descendant, _, actions) => {
+      if (visitedBundles.has(descendant)) {
+        actions.skipChildren();
+        return;
+      }
+
+      visitedBundles.add(descendant);
+      if (
+        descendant.type !== bundle.type ||
+        descendant.env.context !== bundle.env.context
+      ) {
+        actions.skipChildren();
+        return;
+      }
+
+      if (descendant !== bundle && bundleHasReference(descendant)) {
+        isReferenced = true;
+        actions.stop();
+        return;
+      }
+
+      let similarSiblings = this.getSiblingBundles(descendant).filter(
+        sibling =>
+          sibling.type === bundle.type &&
+          sibling.env.context === bundle.env.context,
+      );
+      if (
+        similarSiblings.some(
+          sibling =>
+            bundleHasReference(sibling) ||
+            this.isAssetReferencedByDependant(sibling, asset, visitedBundles),
+        )
+      ) {
+        isReferenced = true;
+        actions.stop();
+        return;
+      }
+    }, bundle);
+
+    return isReferenced;
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
@@ -608,6 +628,10 @@ export default class BundleGraph {
 
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
     return this._graph.hasEdge(bundle.id, asset.id, 'contains');
+  }
+
+  bundleHasDependency(bundle: Bundle, dependency: Dependency): boolean {
+    return this._graph.hasEdge(bundle.id, dependency.id, 'contains');
   }
 
   filteredTraverse<TValue, TContext>(

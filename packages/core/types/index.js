@@ -665,11 +665,7 @@ export interface BundleGraph {
   getDependencyResolution(dependency: Dependency, bundle: Bundle): ?Asset;
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
   isAssetReferenced(asset: Asset): boolean;
-  isAssetReferencedByAnotherBundleOfType(
-    bundle: Bundle,
-    asset: Asset,
-    type: string,
-  ): boolean;
+  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(
     asset: Asset,

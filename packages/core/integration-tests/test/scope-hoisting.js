@@ -2126,4 +2126,47 @@ describe('scope hoisting', function() {
     assert.deepEqual(await runBundle(sameBundle), [42, 42, 42]);
     assert.deepEqual(await runBundle(getDep), 42);
   });
+
+  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-exports-for-sibling-descendant/scope-hoisting.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['wraps.js', 'lodash.js'],
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['child.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['grandchild.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        name: 'scope-hoisting.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'scope-hoisting.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await run(b), [3, 5]);
+  });
 });

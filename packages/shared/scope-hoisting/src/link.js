@@ -114,9 +114,7 @@ export function link({
       }
     }
 
-    if (
-      bundleGraph.isAssetReferencedByAnotherBundleOfType(bundle, asset, 'js')
-    ) {
+    if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
       referencedAssets.add(asset);
     }
   });
@@ -389,10 +387,9 @@ export function link({
           if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
             let name = assertString(mod.meta.exportsIdentifier);
 
-            let isReferenced = bundleGraph.isAssetReferencedByAnotherBundleOfType(
+            let isReferenced = bundleGraph.isAssetReferencedByDependant(
               bundle,
               mod,
-              'js',
             );
             let isValueUsed = !isUnusedValue(path);
             if (isValueUsed || isReferenced) {
