@@ -36,6 +36,8 @@ export type GlobMap<T> = {[Glob]: T, ...};
 
 export type RawParcelConfigPipeline = Array<PackageName>;
 
+export type HMROptions = {port?: number, host?: string, ...};
+
 export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: RawParcelConfigPipeline,
@@ -190,7 +192,7 @@ export type InitialParcelOptions = {|
   +sourceMaps?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +hot?: boolean,
+  +hot?: ?HMROptions,
   +serve?: ServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -213,7 +215,7 @@ export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: boolean;
+  +hot: ?HMROptions;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;
