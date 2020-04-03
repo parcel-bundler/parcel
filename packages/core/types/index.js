@@ -36,6 +36,8 @@ export type GlobMap<T> = {[Glob]: T, ...};
 
 export type RawParcelConfigPipeline = Array<PackageName>;
 
+export type HMROptions = {port?: number, host?: string, ...};
+
 export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: RawParcelConfigPipeline,
@@ -190,7 +192,7 @@ export type InitialParcelOptions = {|
   +sourceMaps?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +hot?: boolean,
+  +hot?: ?HMROptions,
   +serve?: ServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -213,7 +215,7 @@ export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: boolean;
+  +hot: ?HMROptions;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;
@@ -647,7 +649,11 @@ export interface BundleGraph {
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>,

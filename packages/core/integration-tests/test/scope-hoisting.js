@@ -199,6 +199,30 @@ describe('scope hoisting', function() {
       assert.equal(output, 15);
     });
 
+    it('can import from a different bundle via a re-export', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['operational', 'ui']);
+    });
+
+    it('can import from a different bundle via a re-export (sideEffects: false)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary-side-effects/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['operational', 'ui']);
+    });
+
     it('supports importing all exports re-exported from multiple modules deep', async function() {
       let b = await bundle(
         path.join(

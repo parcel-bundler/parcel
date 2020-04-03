@@ -170,8 +170,16 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  resolveSymbol(asset: IAsset, symbol: Symbol): SymbolResolution {
-    let res = this.#graph.resolveSymbol(assetToAssetValue(asset), symbol);
+  resolveSymbol(
+    asset: IAsset,
+    symbol: Symbol,
+    boundary: ?IBundle,
+  ): SymbolResolution {
+    let res = this.#graph.resolveSymbol(
+      assetToAssetValue(asset),
+      symbol,
+      boundary ? bundleToInternalBundle(boundary) : null,
+    );
     return {
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: res.exportSymbol,
