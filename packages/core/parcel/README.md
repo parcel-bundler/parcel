@@ -221,7 +221,7 @@ web technologies like HTML, CSS, and JavaScript, to lower level languages like
 Rust, and anything that compiles to WebAssembly (WASM), to assets like images,
 fonts, videos, and more.
 
-Parcel makes your code portable, you can build your code for different
+Parcel makes your code portable. You can build your code for different
 environments, for the web for your server, or for an app. You can even build
 multiple targets at once and have them live update as you make changes.
 
@@ -777,7 +777,7 @@ them through optimizing transforms.
 ### Asset Graph
 
 During the resolving and transforming phases, Parcel discovers all the assets
-in your app or program. Every asset can have it's own dependencies on other
+in your app or program. Every asset can have its own dependencies on other
 assets which Parcel will pull in.
 
 The data structure that represents all of these assets and their dependencies
