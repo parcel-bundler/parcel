@@ -945,13 +945,12 @@ let childEnvironment = {...parentEnvironment, browserContext: 'service-worker'};
 
 ### Caching
 
-Parcel will create a `/node_modules/.cache/parcel` directory
-
-The top-level directory will be filled with directories with two letters, which
-are the start of a hash which is finished by the names of the JSON files inside.
+Parcel will create a `/.parcel-cache` directory. It will be filled with
+directories with two letters, which are the start of a hash which is finished
+by the names of the JSON files inside.
 
 ```
-/node_modules/.cache/parcel/
+/.parcel-cache
   /00/
     213debd8ddd45819b79a3a974ed487.json
     40ae9b581afc53841307a4b3c2463d.json
@@ -964,7 +963,7 @@ are the start of a hash which is finished by the names of the JSON files inside.
 ```
 
 It follows this weird structure in order to avoid too many files being created
-in a single directory which degrades file system performance.
+in a single directory, which degrades file system performance.
 
 ## Asset Resolution
 
