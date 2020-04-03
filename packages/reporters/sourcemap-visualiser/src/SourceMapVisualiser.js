@@ -1,4 +1,6 @@
 // @flow
+/* global globalThis:readonly */
+
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {Reporter} from '@parcel/plugin';
@@ -6,6 +8,9 @@ import {relativePath} from '@parcel/utils';
 
 export default (new Reporter({
   async report({event, options, logger}) {
+    // $FlowFixMe
+    if (process.browser && !globalThis.PARCEL_SOURCEMAP_VISUALIZER) return;
+
     if (event.type === 'buildSuccess') {
       let bundles = [];
       for (let bundle of event.bundleGraph.getBundles()) {
@@ -56,14 +61,20 @@ export default (new Reporter({
         }
       }
 
-      await options.outputFS.writeFile(
-        path.join(options.projectRoot, 'sourcemap-info.json'),
-        JSON.stringify(bundles),
-      );
+      // $FlowFixMe
+      if (process.browser) {
+        // $FlowFixMe
+        globalThis.PARCEL_SOURCEMAP_VISUALIZER(bundles);
+      } else {
+        await options.outputFS.writeFile(
+          path.join(options.projectRoot, 'sourcemap-info.json'),
+          JSON.stringify(bundles),
+        );
 
-      logger.log({
-        message: `Goto https://sourcemap-visualiser.now.sh/ and upload the generated sourcemap-info.json file to visualise and debug the sourcemaps.`,
-      });
+        logger.log({
+          message: `Goto https://sourcemap-visualiser.now.sh/ and upload the generated sourcemap-info.json file to visualise and debug the sourcemaps.`,
+        });
+      }
     }
   },
 }): Reporter);

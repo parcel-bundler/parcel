@@ -2,10 +2,11 @@
 
 import type {Blob} from '@parcel/types';
 
+import {Buffer} from 'buffer';
 import {bufferStream} from '../';
 import {Readable} from 'stream';
 
-export function blobToBuffer(blob: Blob): Promise<Buffer> {
+export function blobToBuffer(blob: Blob): Promise<typeof Buffer> {
   if (blob instanceof Readable) {
     return bufferStream(blob);
   } else if (blob instanceof Buffer) {
@@ -21,6 +22,7 @@ export async function blobToString(blob: Blob): Promise<string> {
   } else if (blob instanceof Buffer) {
     return blob.toString();
   } else {
+    // $FlowFixMe ???
     return blob;
   }
 }

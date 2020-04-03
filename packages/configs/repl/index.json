@@ -1,0 +1,38 @@
+{
+  "bundler": "@parcel/bundler-default",
+  "transformers": {
+    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
+    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-babel",
+      "@parcel/transformer-js"
+    ],
+    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
+    "*.{htm,html}": [
+      "@parcel/transformer-posthtml",
+      "@parcel/transformer-html"
+    ],
+    "url:*": ["@parcel/transformer-raw"]
+  },
+  "namers": ["@parcel/namer-default"],
+  "runtimes": {
+    "browser": ["@parcel/runtime-js"],
+    "service-worker": ["@parcel/runtime-js"],
+    "web-worker": ["@parcel/runtime-js"],
+    "node": ["@parcel/runtime-js"]
+  },
+  "optimizers": {
+    "*.js": ["@parcel/optimizer-terser"]
+  },
+  "packagers": {
+    "*.html": "@parcel/packager-html",
+    "*.css": "@parcel/packager-css",
+    "*.js": "@parcel/packager-js",
+    "*": "@parcel/packager-raw"
+  },
+  "resolvers": ["@parcel/resolver-default"],
+  "reporters": [
+    "@parcel/reporter-json",
+    "@parcel/reporter-sourcemap-visualiser"
+  ]
+}

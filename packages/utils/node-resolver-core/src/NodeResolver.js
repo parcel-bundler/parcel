@@ -25,7 +25,7 @@ import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
 
-const EMPTY_SHIM = require.resolve('./_empty');
+const EMPTY_SHIM = '/_empty.js'; //require.resolve('./_empty');
 
 type InternalPackageJSON = PackageJSON & {pkgdir: string, pkgfile: string, ...};
 type Options = {|

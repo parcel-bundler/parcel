@@ -1,4 +1,5 @@
 const semver = require('semver');
+const presetEnv = require('@babel/preset-env');
 
 const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-alpha.1.1';
 
@@ -19,7 +20,7 @@ module.exports = function parcelBabelPresetEnv(api, opts) {
     return {
       presets: [
         [
-          '@babel/preset-env',
+          presetEnv,
           {
             modules: false,
             targets: JSON.parse(targets),

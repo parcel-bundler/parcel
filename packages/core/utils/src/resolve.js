@@ -36,6 +36,19 @@ export async function resolve(
     basedir: string,
   |},
 ): Promise<ResolveResult> {
+  if (id.startsWith('@parcel/') && id !== '@parcel/watcher') {
+    return {
+      resolved: id,
+      pkg: {
+        name: id,
+        version: '2.0.0-repl',
+        engines: {
+          parcel: '2.0.0-repl',
+        },
+      },
+    };
+  }
+
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
     // Yarn patches resolve automatically in a non-linked setup
     let pnp;

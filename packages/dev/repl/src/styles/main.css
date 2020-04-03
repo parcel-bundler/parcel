@@ -1,0 +1,32 @@
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+header {
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+
+  background: #21374b;
+  color: #e7dacb;
+  font-family: 'Gill Sans', 'Avenir Next', Avenir, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+header a {
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 15px;
+  text-decoration: none;
+  color: inherit;
+}
+
+header a > * {
+  margin-right: 5px;
+}

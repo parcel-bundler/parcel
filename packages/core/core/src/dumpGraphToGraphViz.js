@@ -1,4 +1,5 @@
 // @flow
+/* global globalThis:readonly */
 
 import type {Environment} from './types';
 
@@ -6,6 +7,7 @@ import type Graph from './Graph';
 import type {AssetGraphNode, BundleGraphNode} from './types';
 
 import path from 'path';
+import {Graph as GraphVizGraph} from 'graphviz/lib/deps/graph';
 
 const COLORS = {
   root: 'gray',
@@ -24,24 +26,33 @@ const TYPE_COLORS = {
   sibling: 'green',
 };
 
-export default async function dumpGraphToGraphViz(
+export default function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
   name: string,
-): Promise<void> {
+): void {
   if (
-    process.env.PARCEL_BUILD_ENV === 'production' ||
-    process.env.PARCEL_DUMP_GRAPHVIZ == null ||
-    // $FlowFixMe
-    process.env.PARCEL_DUMP_GRAPHVIZ == false
+    !(
+      /* $FlowFixMe*/ (
+        (process.browser && globalThis.PARCEL_DUMP_GRAPHVIZ?.mode != null) ||
+        (process.env.PARCEL_BUILD_ENV !== 'production' &&
+          process.env.PARCEL_DUMP_GRAPHVIZ != null &&
+          // $FlowFixMe
+          process.env.PARCEL_DUMP_GRAPHVIZ != false)
+      )
+    )
   ) {
     return;
   }
-  let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
+  // $FlowFixMe
+  let detailedSymbols = globalThis.PARCEL_DUMP_GRAPHVIZ?.mode === 'symbols';
 
-  const graphviz = require('graphviz');
-  const tempy = require('tempy');
-  let g = graphviz.digraph('G');
+  // const graphviz = require('graphviz');
+  // const tempy = require('tempy');
+  // let g = graphviz.digraph('G');
+  let g = new GraphVizGraph(null, 'G');
+  g.type = 'digraph';
+
   let nodes = Array.from(graph.nodes.values());
   for (let node of nodes) {
     let n = g.addNode(node.id);
@@ -131,10 +142,17 @@ export default async function dumpGraphToGraphViz(
       gEdge.set('color', color);
     }
   }
-  let tmp = tempy.file({name: `${name}.png`});
-  await g.output('png', tmp);
-  // eslint-disable-next-line no-console
-  console.log('Dumped', tmp);
+  // $FlowFixMe
+  if (process.browser) {
+    // $FlowFixMe
+    globalThis.PARCEL_DUMP_GRAPHVIZ(name, g.to_dot());
+  } else {
+    // const tempy = require('tempy');
+    // let tmp = tempy.file({name: `${name}.png`});
+    // await g.output('png', tmp);
+    // eslint-disable-next-line no-console
+    // console.log('Dumped', tmp);
+  }
 }
 
 function getEnvDescription(env: Environment) {

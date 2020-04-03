@@ -43,5 +43,10 @@
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",
     "random-int": "^1.0.0"
+  },
+  "browser": {
+    "./src/generateCertificate.js": false,
+    "./src/http-server.js": false,
+    "./src/prettyDiagnostic.js": false
   }
 }

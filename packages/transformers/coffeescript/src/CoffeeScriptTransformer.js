@@ -1,11 +1,15 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
-import coffee from 'coffeescript';
 import {relativeUrl} from '@parcel/utils';
 
 export default (new Transformer({
   async transform({asset, options}) {
+    let coffee = await options.packageManager.require(
+      'coffeescript',
+      asset.filePath,
+    );
+
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
       asset.filePath,

@@ -35,14 +35,15 @@
     "base-x": "^3.0.8",
     "browserslist": "^4.6.6",
     "clone": "^2.1.1",
-    "dotenv": "^7.0.0",
     "dotenv-expand": "^5.1.0",
+    "dotenv": "^7.0.0",
     "json-source-map": "^0.6.1",
     "json5": "^1.0.1",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
+    "querystring": "^0.2.0",
     "semver": "^5.4.1",
-    "querystring": "^0.2.0"
+    "teleport-javascript": "^1.0.0"
   },
   "devDependencies": {
     "graphviz": "^0.0.9",

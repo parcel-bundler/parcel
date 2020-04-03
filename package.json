@@ -63,5 +63,9 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
+  },
+  "browser": {
+    "@parcel/watcher": false,
+    "open": false
   }
 }

@@ -12,7 +12,10 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {findAlternativeNodeModules, resolveConfig} from '@parcel/utils';
 import path from 'path';
-import {version as PARCEL_VERSION} from '../package.json';
+
+import {version as _PARCEL_VERSION} from '../package.json';
+// $FlowFixMe
+const PARCEL_VERSION = process.browser ? '2.0.0-repl' : _PARCEL_VERSION;
 
 export default async function loadPlugin<T>(
   fs: FileSystem,

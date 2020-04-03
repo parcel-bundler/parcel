@@ -16,13 +16,14 @@ export function isGlobMatch(filePath: FilePath, glob: Glob): any {
   return isMatch(filePath, normalizeSeparators(glob));
 }
 
+/*
 export function globSync(
   p: FilePath,
   options: FastGlobOptions<FilePath>,
 ): Array<FilePath> {
   return fastGlob.sync(normalizeSeparators(p), options);
 }
-
+*/
 export function glob(
   p: FilePath,
   fs: FileSystem,

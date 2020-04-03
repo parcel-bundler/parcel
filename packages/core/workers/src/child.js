@@ -12,6 +12,7 @@ import type {
 import type {Async, IDisposable} from '@parcel/types';
 import type {SharedReference, WorkerApi} from './WorkerFarm';
 
+import * as worker from '@parcel/core/src/worker.js';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
@@ -94,8 +95,7 @@ export class Child {
   }
 
   childInit(module: string, childId: number): void {
-    // $FlowFixMe this must be dynamic
-    this.module = require(module);
+    this.module = worker;
     this.childId = childId;
   }
 

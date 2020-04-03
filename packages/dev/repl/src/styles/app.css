@@ -1,0 +1,225 @@
+.no-scroll {
+  overflow: hidden;
+}
+
+#app {
+  padding: 0.6em;
+  padding-top: 0.2em;
+
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.column {
+  width: 50%;
+}
+.column:not(:first-child) {
+  padding-left: 0.4em;
+}
+.column:not(:last-child) {
+  padding-right: 0.4em;
+}
+.column > * {
+  margin: 0.5em 0;
+  width: 100%;
+}
+
+@media (max-width: 45rem) {
+  #app {
+    flex-direction: column;
+  }
+  .column {
+    width: 100%;
+    padding: 0 !important;
+  }
+  .column:first-child {
+    border-bottom: 4px solid #ddd;
+  }
+  .notes {
+    display: none;
+  }
+}
+
+button {
+  background-color: #ddd;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  padding: 2px 8px;
+}
+button:enabled {
+  background-color: #ddd;
+  cursor: pointer;
+}
+button:enabled:active {
+  background-color: #bbb;
+}
+
+.file {
+  border: 0.15em solid #ddd;
+  transition: border-color 0.3s;
+}
+
+.file > hr {
+  border: 1px solid currentColor;
+  color: #ddd;
+}
+
+.file > * {
+  width: 100%;
+}
+.file > .header {
+  display: flex;
+  padding: 0.3em;
+  border-bottom: inherit;
+}
+.file > .header > .filename {
+  border: none;
+  font-size: 1em;
+  flex: 1;
+  min-width: 0;
+}
+.file > .header > .filename:focus {
+  outline: none;
+}
+.file > .header > .setEntry {
+  margin-left: auto;
+}
+.file > .header > .remove {
+  margin-left: 0.3em;
+}
+.file > .header > .outputSize {
+  margin-left: auto;
+}
+
+.file > .content .CodeMirror {
+  height: auto;
+}
+.column > button {
+  width: 100%;
+  font-size: 1em;
+  padding: 0.4em;
+}
+
+.overlay-backdrop {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.5);
+}
+.overlay {
+  background: white;
+  height: 100%;
+}
+
+/* LEFT COLUMN */
+
+.column > .presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.column > .presets > span {
+  padding: 0.1em 0.2em;
+}
+.column > .presets > select {
+  font-size: inherit;
+  flex: 0.5;
+}
+
+.file.warning {
+  border-color: orange;
+}
+.file.error {
+  border-color: #ed5a5a;
+}
+
+.file.packageJson {
+  opacity: 0.6;
+}
+
+.start {
+  filter: brightness(80%);
+}
+
+input[type='text'],
+select {
+  padding: 0.1em 0.2em;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+}
+.options > label {
+  padding: 0.3em;
+  display: block;
+}
+.options > label > *:not(:first-child) {
+  float: right;
+}
+.options > label input[type='text'],
+.options > label select {
+  font-size: 0.9em;
+}
+.options > label > input[type='text'],
+.options > label > select {
+  width: 50%;
+}
+.notes {
+  padding: 0.3em;
+  padding-right: 0.2em;
+}
+
+/* RIGHT COLUMN */
+
+.column > .gettingStarted {
+  padding: 3em 0.3em;
+  text-align: center;
+}
+
+.column > .loadState {
+  padding: 0.4em;
+  text-align: center;
+  transition: background-color 0.3s;
+}
+.column > .loadState.loading {
+  background-color: orange;
+}
+.column > .loadState.ready {
+  background-color: #5cb35f;
+}
+
+.column > .output {
+  width: 50%;
+}
+
+.file.build-error > .content {
+  white-space: pre;
+  font-family: monospace;
+  overflow-y: scroll;
+
+  color: red;
+
+  padding: 0.3em;
+}
+
+iframe.preview {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.cm-lintRange.cm-lintRange-error {
+  background: none !important;
+  text-decoration-line: underline;
+  text-decoration-color: red;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.1em;
+}

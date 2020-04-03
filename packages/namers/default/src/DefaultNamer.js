@@ -131,7 +131,7 @@ function nameFromContent(
       name = path.basename(entryFilePath);
     }
 
-    return name;
+    return name || 'bundle';
   }
 }
 

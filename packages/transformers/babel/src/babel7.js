@@ -20,12 +20,14 @@ export default async function babel7(
 ): Promise<?AST> {
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
-  let babel = babelOptions.internal
-    ? bundledBabelCore
-    : await options.packageManager.require('@babel/core', asset.filePath, {
-        range: BABEL_RANGE,
-        autoinstall: options.autoinstall,
-      });
+  let babel =
+    // $FlowFixMe
+    babelOptions.internal || process.browser
+      ? bundledBabelCore
+      : await options.packageManager.require('@babel/core', asset.filePath, {
+          range: BABEL_RANGE,
+          autoinstall: options.autoinstall,
+        });
 
   let config = {
     ...babelOptions.config,

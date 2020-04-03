@@ -28,5 +28,10 @@
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"
+  },
+  "browser": {
+    "./src/cpuCount.js": false,
+    "./src/process/ProcessWorker.js": false,
+    "./src/threads/ThreadsWorker.js": false
   }
 }

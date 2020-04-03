@@ -4,22 +4,26 @@ module.exports = () => ({
       require('@babel/preset-env'),
       {
         modules: false,
-        targets: {
-          node: 10,
-        },
+        targets: 'Chrome 75',
       },
     ],
-    require('@babel/preset-react'),
     require('@babel/preset-flow'),
   ],
   plugins: [
     require('@babel/plugin-proposal-class-properties'),
     require('@babel/plugin-proposal-nullish-coalescing-operator'),
     require('@babel/plugin-proposal-optional-chaining'),
+    // [
+    //   require('@babel/plugin-transform-modules-commonjs'),
+    //   {
+    //     lazy: () => process.env.NODE_ENV !== 'test',
+    //   },
+    // ],
     [
-      require('@babel/plugin-transform-modules-commonjs'),
+      require('@babel/plugin-transform-react-jsx'),
       {
-        lazy: () => process.env.NODE_ENV !== 'test',
+        pragma: 'h',
+        pragmaFrag: 'Fragment',
       },
     ],
   ],

@@ -31,15 +31,29 @@ export async function load(
     return;
   }
 
-  let resolved = await options.packageManager.resolve(
-    '@babel/core',
-    config.searchPath,
-    {range: BABEL_RANGE, autoinstall: options.autoinstall},
-  );
-  let babelCore = await options.packageManager.require(
-    resolved.resolved,
-    config.searchPath,
-  );
+  // $FlowFixMe
+  let babelVersion = process.browser
+    ? '7.12.10'
+    : nullthrows(
+        (
+          await options.packageManager.resolve(
+            '@babel/core',
+            config.searchPath,
+            {
+              range: BABEL_RANGE,
+              autoinstall: options.autoinstall,
+            },
+          )
+        ).pkg,
+      ).version;
+  // $FlowFixMe
+  let babelCore = process.browser
+    ? bundledBabelCore
+    : await options.packageManager.require('@babel/core', config.searchPath, {
+        range: BABEL_RANGE,
+        autoinstall: options.autoinstall,
+      });
+
   let babelOptions = {
     filename: config.searchPath,
     cwd: options.projectRoot,
@@ -53,13 +67,14 @@ export async function load(
   };
 
   // Only add the showIgnoredFiles option if babel is new enough, otherwise it will throw on unknown option.
-  if (semver.satisfies(nullthrows(resolved.pkg).version, '^7.12.0')) {
+  if (semver.satisfies(babelVersion, '^7.12.0')) {
     // $FlowFixMe
     babelOptions.showIgnoredFiles = true;
   }
 
   let partialConfig: ?{|
     [string]: any,
+    // $FlowFixMe
   |} = await babelCore.loadPartialConfigAsync(babelOptions);
 
   // Invalidate when any babel config file is added.
@@ -278,22 +293,30 @@ async function definePluginDependencies(config) {
   let configItems = [...babelConfig.presets, ...babelConfig.plugins];
   await Promise.all(
     configItems.map(async configItem => {
-      let pkg = nullthrows(
-        await config.getConfigFrom(configItem.file.resolved, ['package.json'], {
-          parse: true,
-        }),
-      ).contents;
-      config.addDevDependency(pkg.name, pkg.version);
+      if (configItem.file) {
+        let pkg = nullthrows(
+          await config.getConfigFrom(
+            configItem.file.resolved,
+            ['package.json'],
+            {
+              parse: true,
+            },
+          ),
+        ).contents;
+        config.addDevDependency(pkg.name, pkg.version);
+      }
     }),
   );
 }
 
 export async function postDeserialize(config: Config, options: PluginOptions) {
-  let babelCore = config.result.internal
-    ? bundledBabelCore
-    : await options.packageManager.require('@babel/core', config.searchPath, {
-        autoinstall: options.autoinstall,
-      });
+  let babelCore =
+    // $FlowFixMe
+    config.result.internal || process.browser
+      ? bundledBabelCore
+      : await options.packageManager.require('@babel/core', config.searchPath, {
+          autoinstall: options.autoinstall,
+        });
 
   config.result.config.presets = await Promise.all(
     config.result.config.presets.map(async configItem => {

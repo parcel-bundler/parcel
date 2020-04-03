@@ -25,6 +25,72 @@ import {getConflictingLocalDependencies} from './utils';
 import {installPackage} from './installPackage';
 import pkg from '../package.json';
 
+import bundlerDefault from '@parcel/bundler-default';
+import namerDefault from '@parcel/namer-default';
+import optimizerTerser from '@parcel/optimizer-terser';
+import packagerCss from '@parcel/packager-css';
+import packagerHtml from '@parcel/packager-html';
+import packagerJs from '@parcel/packager-js';
+import packagerRaw from '@parcel/packager-raw';
+import reporterJson from '@parcel/reporter-json';
+import resolverDefault from '@parcel/resolver-default';
+import resolverSourcemapVisualizser from '@parcel/reporter-sourcemap-visualiser';
+import runtimeJs from '@parcel/runtime-js';
+import transformerBabel from '@parcel/transformer-babel';
+import transformerCss from '@parcel/transformer-css';
+import transformerHtml from '@parcel/transformer-html';
+import transformerInlineString from '@parcel/transformer-inline-string';
+import transformerJs from '@parcel/transformer-js';
+import transformerJson from '@parcel/transformer-json';
+import transformerPostcss from '@parcel/transformer-postcss';
+import transformerPosthtml from '@parcel/transformer-posthtml';
+import transformerRaw from '@parcel/transformer-raw';
+
+const BUILTINS = {
+  '@parcel/bundler-default': bundlerDefault,
+  '@parcel/namer-default': namerDefault,
+  '@parcel/optimizer-terser': optimizerTerser,
+  '@parcel/packager-css': packagerCss,
+  '@parcel/packager-html': packagerHtml,
+  '@parcel/packager-js': packagerJs,
+  '@parcel/packager-raw': packagerRaw,
+  '@parcel/reporter-json': reporterJson,
+  '@parcel/reporter-sourcemap-visualiser': resolverSourcemapVisualizser,
+  '@parcel/resolver-default': resolverDefault,
+  '@parcel/runtime-js': runtimeJs,
+  '@parcel/transformer-babel': transformerBabel,
+  '@parcel/transformer-css': transformerCss,
+  '@parcel/transformer-html': transformerHtml,
+  '@parcel/transformer-inline-string': transformerInlineString,
+  '@parcel/transformer-js': transformerJs,
+  '@parcel/transformer-json': transformerJson,
+  '@parcel/transformer-postcss': transformerPostcss,
+  '@parcel/transformer-posthtml': transformerPosthtml,
+  '@parcel/transformer-raw': transformerRaw,
+};
+
+// const BUILTINS = {
+//   '@parcel/bundler-default': import('@parcel/bundler-default'),
+//   '@parcel/namer-default': import('@parcel/namer-default'),
+//   '@parcel/optimizer-terser': import('@parcel/optimizer-terser'),
+//   '@parcel/packager-css': import('@parcel/packager-css'),
+//   '@parcel/packager-html': import('@parcel/packager-html'),
+//   '@parcel/packager-js': import('@parcel/packager-js'),
+//   '@parcel/packager-raw': import('@parcel/packager-raw'),
+//   '@parcel/reporter-json': import('@parcel/reporter-json'),
+//   '@parcel/resolver-default': import('@parcel/resolver-default'),
+//   '@parcel/runtime-js': import('@parcel/runtime-js'),
+//   '@parcel/transformer-babel': import('@parcel/transformer-babel'),
+//   '@parcel/transformer-css': import('@parcel/transformer-css'),
+//   '@parcel/transformer-html': import('@parcel/transformer-html'),
+//   '@parcel/transformer-inline-string': import('@parcel/transformer-inline-string'),
+//   '@parcel/transformer-js': import('@parcel/transformer-js'),
+//   '@parcel/transformer-json': import('@parcel/transformer-json'),
+//   '@parcel/transformer-postcss': import('@parcel/transformer-postcss'),
+//   '@parcel/transformer-posthtml': import('@parcel/transformer-posthtml'),
+//   '@parcel/transformer-raw': import('@parcel/transformer-raw'),
+// };
+
 // This implements a package manager for Node by monkey patching the Node require
 // algorithm so that it uses the specified FileSystem instead of the native one.
 // It also handles installing packages when they are required if not already installed.
@@ -71,10 +137,20 @@ export class NodePackageManager implements PackageManager {
   }
 
   load(resolved: FilePath, from: FilePath): any {
+    // $FlowFixMe
+    if (resolved in BUILTINS) {
+      return BUILTINS[resolved];
+    }
+
     if (!path.isAbsolute(resolved)) {
-      // Node builtin module
       // $FlowFixMe
-      return require(resolved);
+      if (process.browser) {
+        throw new Error(`Cannot require '${resolved}' in the browser`);
+      } else {
+        // Node builtin module
+        // $FlowFixMe
+        return require(resolved);
+      }
     }
 
     let filePath = this.fs.realpathSync(resolved);
@@ -122,7 +198,10 @@ export class NodePackageManager implements PackageManager {
       try {
         resolved = await resolve(this.fs, name, {
           basedir,
-          extensions: Object.keys(Module._extensions),
+          // $FlowFixMe
+          extensions: process.browser
+            ? ['.js', '.json']
+            : Object.keys(Module._extensions),
         });
       } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall !== true) {

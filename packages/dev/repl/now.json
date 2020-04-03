@@ -1,0 +1,16 @@
+{
+  "alias": "parcel2-repl.now.sh",
+  "version": 2,
+  "builds": [{"src": "./dist/**", "use": "@now/static"}],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/$1",
+      "headers": {
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin"
+      }
+    }
+  ]
+}

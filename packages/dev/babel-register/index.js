@@ -12,7 +12,10 @@ require('@babel/register')({
   ],
   only: [path.join(__dirname, '../../..')],
   presets: [parcelBabelPreset],
-  plugins: [require('./babel-plugin-module-translate')],
+  plugins: [
+    require('./babel-plugin-module-translate'),
+    require('@babel/plugin-transform-modules-commonjs').default,
+  ],
 });
 
 // This adds the registration to the Node args, which are passed

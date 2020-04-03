@@ -1,13 +1,31 @@
 // @flow strict-local
+/* global globalThis:readonly */
 import type {BuildProgressEvent, LogEvent} from '@parcel/types';
 import type {BuildMetrics} from '@parcel/utils';
 
 import {Reporter} from '@parcel/plugin';
 import {generateBuildMetrics} from '@parcel/utils';
 
+const logWriter = makeWriter(console.log);
+const errorWriter = makeWriter(console.error);
+
 /* eslint-disable no-console */
-const writeToStdout = makeWriter(console.log);
-const writeToStderr = makeWriter(console.error);
+const writeToStdout = (d, filter) => {
+  // $FlowFixMe
+  if (globalThis.PARCEL_JSON_LOGGER_STDOUT) {
+    globalThis.PARCEL_JSON_LOGGER_STDOUT(d, filter);
+  } else {
+    logWriter(d, filter);
+  }
+};
+const writeToStderr = (d, filter) => {
+  // $FlowFixMe
+  if (globalThis.PARCEL_JSON_LOGGER_STDOUT) {
+    globalThis.PARCEL_JSON_LOGGER_STDERR(d, filter);
+  } else {
+    errorWriter(d[0].message, filter);
+  }
+};
 /* eslint-enable no-console */
 
 const LOG_LEVELS = {
@@ -33,7 +51,7 @@ export default (new Reporter({
       case 'buildFailure':
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.error) {
           writeToStderr(
-            {type: 'buildFailure', message: event.diagnostics[0].message},
+            {type: 'buildFailure', message: event.diagnostics},
             logLevelFilter,
           );
         }

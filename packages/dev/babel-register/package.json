@@ -9,6 +9,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "dependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.8.3",
     "@babel/register": "^7.4.4",
     "@parcel/babel-preset": "2.0.0-beta.1",
     "resolve": "^1.12.0"

@@ -1,5 +1,22 @@
 // @flow
-import v8 from 'v8';
+import * as teleport from 'teleport-javascript';
+import {Buffer} from 'buffer';
+
+export let serializeRaw: (any) => typeof Buffer = (v) => Buffer.from(teleport.stringify(v)),
+  deserializeRaw: (typeof Buffer) => any = (v) => teleport.parse(v.toString('utf8'));
+
+// $FlowFixMe
+if (!process.browser) {
+  try {
+    const v8 = require('v8');
+    // $FlowFixMe - flow doesn't know about this method yet
+    serializeRaw = v8.serialize;
+    // $FlowFixMe - flow doesn't know about this method yet
+    deserializeRaw = v8.deserialize;
+  } catch (_) {
+    // NOOP
+  }
+}
 
 const nameToCtor: Map<string, Class<*>> = new Map();
 const ctorToName: Map<Class<*>, string> = new Map();
@@ -53,7 +70,8 @@ function shallowCopy(object: any) {
 function isBuffer(object) {
   return (
     object.buffer instanceof ArrayBuffer ||
-    object.buffer instanceof SharedArrayBuffer
+    (typeof SharedArrayBuffer !== 'undefined' &&
+      object.buffer instanceof SharedArrayBuffer)
   );
 }
 
@@ -218,14 +236,12 @@ export function restoreDeserializedObject(object: any): any {
   });
 }
 
-export function serialize(object: any): Buffer {
+export function serialize(object: any): typeof Buffer {
   let mapped = prepareForSerialization(object);
-  // $FlowFixMe - flow doesn't know about this method yet
-  return v8.serialize(mapped);
+  return serializeRaw(mapped);
 }
 
-export function deserialize(buffer: Buffer): any {
-  // $FlowFixMe - flow doesn't know about this method yet
-  let obj = v8.deserialize(buffer);
+export function deserialize(buffer: typeof Buffer): any {
+  let obj = deserializeRaw(buffer);
   return restoreDeserializedObject(obj);
 }
