@@ -612,6 +612,51 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(config.optimizers, defaultConfig.optimizers || {});
       assert.deepEqual(config.reporters, defaultConfig.reporters || []);
     });
+
+    it('should emit a codeframe when a malformed .parcelrc was found', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-malformed',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      let pos = {
+        line: 2,
+        column: 14,
+      };
+
+      // $FlowFixMe
+      await assert.rejects(
+        () => readAndProcessConfigChain(configFilePath, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Failed to parse .parcelrc',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    message: "JSON5: invalid character 'b' at 2:14",
+                    start: pos,
+                    end: pos,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        // e => {
+        //   console.log(e);
+        //   return true;
+        // },
+      );
+    });
   });
 
   describe('resolve', () => {
