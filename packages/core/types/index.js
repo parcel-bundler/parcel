@@ -74,6 +74,7 @@ export interface Target {
   +distDir: FilePath;
   +env: Environment;
   +sourceMap: ?TargetSourceMapOptions;
+  +stableEntries: boolean;
   +name: string;
   +publicUrl: string;
   +loc: ?SourceLocation;
@@ -99,6 +100,7 @@ export type PackageTargetDescriptor = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +sourceMap?: TargetSourceMapOptions,
+  +stableEntries?: boolean,
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,

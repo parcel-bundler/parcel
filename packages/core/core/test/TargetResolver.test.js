@@ -253,6 +253,7 @@ describe('TargetResolver', () => {
               scopeHoist: false,
             },
             sourceMap: undefined,
+            stableEntries: undefined,
             loc: {
               filePath: path.join(
                 COMMON_TARGETS_IGNORE_FIXTURE_PATH,
@@ -331,6 +332,7 @@ describe('TargetResolver', () => {
               scopeHoist: false,
             },
             sourceMap: undefined,
+            stableEntries: undefined,
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -363,6 +365,7 @@ describe('TargetResolver', () => {
               scopeHoist: false,
             },
             sourceMap: undefined,
+            stableEntries: undefined,
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {

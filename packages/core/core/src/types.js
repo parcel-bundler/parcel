@@ -74,6 +74,7 @@ export type Target = {|
   distDir: FilePath,
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
+  stableEntries?: boolean,
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,

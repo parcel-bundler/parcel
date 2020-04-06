@@ -1,6 +1,4 @@
 {
   "name": "some-project-with-babel",
-  "version": "1.0.0",
-  "//": "Atlassian: use a node enviornment to prevent entry hashing",
-  "main": "dist/index.js"
+  "version": "1.0.0"
 }

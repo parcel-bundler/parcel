@@ -91,7 +91,9 @@ export default new Namer({
     //      `index.css`.
     let name = nameFromContent(mainBundle, options.rootDir);
     if (
-      (options.mode === 'production' && bundle.env.context === 'browser') ||
+      (!bundle.target.stableEntries &&
+        options.mode === 'production' &&
+        bundle.env.context === 'browser') ||
       !bundle.isEntry
     ) {
       name += '.' + bundle.hashReference;
