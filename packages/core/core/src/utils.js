@@ -10,7 +10,7 @@ import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {

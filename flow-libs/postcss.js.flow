@@ -4,7 +4,8 @@
 // Derived from the PostCSS docs available at
 // http://api.postcss.org/postcss.html.
 
-import type {SourceMapGenerator} from 'source-map';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import typeof {SourceMapGenerator} from 'source-map';
 
 declare module 'postcss' {
   declare type NodeCallback = (Node, number) => false | void;

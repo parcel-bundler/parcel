@@ -2,7 +2,7 @@
 
 import {Optimizer} from '@parcel/plugin';
 import postcss from 'postcss';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import cssnano from 'cssnano';
 
 export default new Optimizer({
@@ -17,8 +17,16 @@ export default new Optimizer({
       );
     }
 
+    const results = await postcss([cssnano]).process(contents, {
+      from: bundle.filePath,
+      map: {inline: false},
+    });
+
+    console.log('MAP', results.map.constructor);
+
     return {
-      contents: (await postcss([cssnano]).process(contents)).css,
+      contents: results.css,
+      map: results.map,
     };
   },
 });
