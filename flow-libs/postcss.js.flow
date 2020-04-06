@@ -24,20 +24,23 @@ declare module 'postcss' {
   declare interface Root extends Container {}
 
   declare class Processor {
-    process(css: string | Result, opts?: processOptions): Promise<Result>;
+    process(
+      css: string | Result | Root,
+      opts?: ProcessOptions,
+    ): Promise<Result>;
   }
 
-  declare type ProcessOptions = {|
-    from?: string,
-    to?: string,
-    map?: MapOptions,
-    parser?: parser,
-    stringifier?: stringifier,
-    syntax?: {|
+  declare type ProcessOptions = $Shape<{|
+    from: string,
+    to: string,
+    map: MapOptions,
+    parser: parser,
+    stringifier: stringifier,
+    syntax: {|
       parser: parser,
       stringifier: stringifier,
     |},
-  |};
+  |}>;
 
   declare type MapOptions = {|
     inline?: boolean,

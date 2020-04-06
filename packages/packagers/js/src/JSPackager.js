@@ -136,7 +136,6 @@ export default new Packager({
         wrapped += ']';
 
         if (options.sourceMaps) {
-          let lineCount = countLines(output);
           if (mapBuffer) {
             map.addBufferMappings(mapBuffer, lineOffset);
           } else {
@@ -149,7 +148,7 @@ export default new Packager({
             );
           }
 
-          lineOffset += lineCount + 1;
+          lineOffset += countLines(output) + 1;
         }
         i++;
       }
