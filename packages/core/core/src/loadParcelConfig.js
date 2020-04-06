@@ -10,7 +10,9 @@ import type {
   ProcessedParcelConfig,
   ExtendableParcelConfigPipeline,
 } from './types';
+
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
@@ -71,9 +73,35 @@ export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
 ) {
-  let config: RawParcelConfig = parse(
-    await options.inputFS.readFile(configPath),
-  );
+  let contents = await options.inputFS.readFile(configPath, 'utf8');
+  let config: RawParcelConfig;
+  try {
+    config = parse(contents);
+  } catch (e) {
+    let pos = {
+      line: e.lineNumber,
+      column: e.columnNumber,
+    };
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: 'Failed to parse .parcelrc',
+        origin: '@parcel/core',
+
+        filePath: configPath,
+        language: 'json5',
+        codeFrame: {
+          code: contents,
+          codeHighlights: [
+            {
+              start: pos,
+              end: pos,
+              message: e.message,
+            },
+          ],
+        },
+      },
+    });
+  }
   return processConfigChain(config, configPath, options);
 }
 
@@ -250,10 +278,11 @@ function getResolveFrom(options: ParcelOptions) {
   return path.join(dir, 'index');
 }
 
-function isSubdirectory(child: FilePath, parent: FilePath) {
-  if (child === parent) return false;
-  const parentTokens = parent.split(path.sep).filter(i => i.length);
-  return parentTokens.every((t, i) => child.split(path.sep)[i] === t);
+function isSubdirectory(child, parent) {
+  const relative = path.relative(parent, child);
+  return (
+    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+  );
 }
 
 export function mergePipelines(
