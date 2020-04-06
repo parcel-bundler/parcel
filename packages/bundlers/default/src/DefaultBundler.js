@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {Asset, Bundle, MutableBundleGraph} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGroup,
+  MutableBundleGraph,
+} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
@@ -53,6 +58,7 @@ export default new Bundler({
             dependency,
             nullthrows(dependency.target ?? context?.bundleGroup?.target),
           );
+
           let bundleByType: Map<string, Bundle> = new Map();
 
           for (let asset of assets) {
@@ -268,6 +274,49 @@ export default new Bundler({
       }
 
       deduplicateBundle(bundleGraph, sharedBundle);
+    }
+
+    // Step 4: Mark async dependencies on assets that are already available in
+    // the bundle as internally resolvable. This removes the dependency between
+    // the bundle and the bundle group providing that asset. If all connections
+    // to that bundle group are removed, remove that bundle group.
+    let asyncBundleGroups: Set<BundleGroup> = new Set();
+    bundleGraph.traverse(node => {
+      if (
+        node.type !== 'dependency' ||
+        node.value.isEntry ||
+        !node.value.isAsync
+      ) {
+        return;
+      }
+
+      let dependency = node.value;
+      let resolution = bundleGraph.getDependencyResolution(dependency);
+      if (resolution == null) {
+        return;
+      }
+
+      let externalResolution = bundleGraph.resolveExternalDependency(
+        dependency,
+      );
+      invariant(externalResolution?.type === 'bundle_group');
+      asyncBundleGroups.add(externalResolution.value);
+
+      for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
+        if (
+          bundle.hasAsset(resolution) ||
+          bundleGraph.isAssetInAncestorBundles(bundle, resolution)
+        ) {
+          bundleGraph.internalizeAsyncDependency(bundle, dependency);
+        }
+      }
+    });
+
+    // Remove any bundle groups that no longer have any parent bundles.
+    for (let bundleGroup of asyncBundleGroups) {
+      if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
+        bundleGraph.removeBundleGroup(bundleGroup);
+      }
     }
   },
 });
