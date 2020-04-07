@@ -45,7 +45,12 @@ export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
 
   return (
     isEntry(bundle, bundleGraph) &&
+    // If this bundle has an async descendant, it will use the JSRuntime,
+    // which uses parcelRequire. It's also possible that the descendant needs
+    // to register exports for its own descendants.
     (hasAsyncDescendant(bundle, bundleGraph) ||
+      // If an asset in this bundle is referenced, this bundle will use
+      //`parcelRequire.register` to register the asset.
       isReferenced(bundle, bundleGraph))
   );
 }

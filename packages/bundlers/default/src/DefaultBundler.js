@@ -160,14 +160,60 @@ export default new Bundler({
   },
 
   optimize({bundleGraph}) {
-    // Step 2: remove assets that are duplicated in a parent bundle
+    // Step 2: Remove asset graphs that begin with entries to other bundles.
+    bundleGraph.traverseBundles(bundle => {
+      if (bundle.isInline || !bundle.isSplittable) {
+        return;
+      }
+
+      let mainEntry = bundle.getMainEntry();
+      if (mainEntry == null) {
+        return;
+      }
+
+      let siblings = bundleGraph
+        .getSiblingBundles(bundle)
+        .filter(sibling => !sibling.isInline);
+      let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
+        containingBundle =>
+          containingBundle.id !== bundle.id &&
+          // Don't add to BundleGroups for entry bundles, as that would require
+          // another entry bundle depending on these conditions, making it difficult
+          // to predict and reference.
+          !containingBundle.isEntry &&
+          !containingBundle.isInline &&
+          containingBundle.isSplittable,
+      );
+
+      for (let candidate of candidates) {
+        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+          candidate,
+        );
+        if (
+          Array.from(bundleGroups).every(
+            group =>
+              bundleGraph.getBundlesInBundleGroup(group).length <
+              OPTIONS.maxParallelRequests,
+          )
+        ) {
+          bundleGraph.removeAssetGraphFromBundle(mainEntry, candidate);
+          for (let bundleGroup of bundleGroups) {
+            for (let bundleToAdd of [bundle, ...siblings]) {
+              bundleGraph.addBundleToBundleGroup(bundleToAdd, bundleGroup);
+            }
+          }
+        }
+      }
+    });
+
+    // Step 3: Remove assets that are duplicated in a parent bundle.
     bundleGraph.traverseBundles({
       exit(bundle) {
         deduplicateBundle(bundleGraph, bundle);
       },
     });
 
-    // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
+    // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
     let candidateBundles: Map<
       string,
@@ -189,7 +235,15 @@ export default new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
-        .filter(b => !b.isEntry && b.isSplittable);
+        .filter(b => {
+          let mainEntry = b.getMainEntry();
+
+          return (
+            !b.isEntry &&
+            b.isSplittable &&
+            (mainEntry == null || mainEntry.id !== asset.id)
+          );
+        });
 
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
@@ -276,7 +330,7 @@ export default new Bundler({
       deduplicateBundle(bundleGraph, sharedBundle);
     }
 
-    // Step 4: Mark async dependencies on assets that are already available in
+    // Step 5: Mark async dependencies on assets that are already available in
     // the bundle as internally resolvable. This removes the dependency between
     // the bundle and the bundle group providing that asset. If all connections
     // to that bundle group are removed, remove that bundle group.
