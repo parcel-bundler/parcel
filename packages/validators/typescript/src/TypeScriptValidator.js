@@ -36,7 +36,7 @@ export default new Validator({
     resolveConfigWithPath,
   }): Promise<Array<?ValidateResult>> {
     // Build a collection that of all the LanguageServices related to files that just changed.
-    let programsToValidate: Set<string> = new Set();
+    let servicesToValidate: Set<string> = new Set();
     await Promise.all(
       assets.map(async asset => {
         let config = await getConfig(asset, options, resolveConfigWithPath);
@@ -49,13 +49,13 @@ export default new Validator({
         // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
         langServiceCache[configHash].host.invalidate(asset.filePath);
 
-        programsToValidate.add(configHash);
+        servicesToValidate.add(configHash);
       }),
     );
 
     // Ask typescript to analyze all changed programs and translate the results into ValidatorResult objects.
     let validatorResults: Array<?ValidateResult> = [];
-    programsToValidate.forEach(configHash => {
+    servicesToValidate.forEach(configHash => {
       // Make sure that the filesystem being used by the LanguageServiceHost and ParseConfigHost is up-to-date.
       // (This could change in the context of re-running tests, and probably also for other reasons).
       langServiceCache[configHash].host.fs = options.inputFS;
