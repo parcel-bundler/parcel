@@ -632,26 +632,27 @@ export function link({
           }
         }
 
-        if (imports.length > 0) {
+        if (imports.length > 0 || referencedAssets.size > 0) {
           // Add import statements and update scope to collect references
           path.unshiftContainer('body', imports);
+
+          // Insert fake init functions that will be imported in other bundles,
+          // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
+          // not in the current bundle:
+          path.pushContainer(
+            'body',
+            [...referencedAssets]
+              .filter(a => !a.meta.shouldWrap)
+              .map(a => {
+                return FAKE_INIT_TEMPLATE({
+                  INIT: getIdentifier(a, 'init'),
+                  EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
+                });
+              }),
+          );
+
           path.scope.crawl();
         }
-
-        // Insert fake init functions that will be imported in other bundles,
-        // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
-        // not in the current bundle:
-        path.pushContainer(
-          'body',
-          [...referencedAssets]
-            .filter(a => !a.meta.shouldWrap)
-            .map(a => {
-              return FAKE_INIT_TEMPLATE({
-                INIT: getIdentifier(a, 'init'),
-                EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
-              });
-            }),
-        );
 
         // Generate exports
         let exported = format.generateExports(
