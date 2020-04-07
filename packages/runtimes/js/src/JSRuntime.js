@@ -161,6 +161,28 @@ export default new Runtime({
                 return `Promise.resolve(require("./" + ${relativePathExpr}))`;
               }
 
+              let bundlesToPreload = getBundlesToPreload(to, bundleGraph);
+              if (bundlesToPreload.length > 0) {
+                let preloadCode = bundlesToPreload
+                  .map(
+                    preloadBundle =>
+                      `require('./loaders/browser/preload-loader')(${getRelativePathExpr(
+                        bundle,
+                        preloadBundle,
+                      )});`,
+                  )
+                  .join();
+
+                return `
+                  new Promise((resolve, reject) => {
+                    ${preloadCode}
+                    require(${JSON.stringify(
+                      loader,
+                    )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}).then(resolve, reject)
+                  })
+                `;
+              }
+
               return `require(${JSON.stringify(
                 loader,
               )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
@@ -195,6 +217,19 @@ export default new Runtime({
       } else {
         assert(externalBundles.length === 1);
         assets.push(getURLRuntime(dependency, bundle, externalBundles[0]));
+      }
+
+      for (let externalBundle of externalBundles) {
+        if (externalBundle.pipeline === 'prefetch') {
+          assets.push({
+            filePath: __filename,
+            code: `require('./loaders/browser/prefetch-loader')(${getRelativePathExpr(
+              bundle,
+              externalBundle,
+            )})`,
+            isEntry: true,
+          });
+        }
       }
     }
 
@@ -290,4 +325,22 @@ function shouldUseRuntimeManifest(bundle: Bundle): boolean {
 
 function getPublicBundleId(bundle: Bundle): string {
   return bundle.id.slice(-16);
+}
+
+function getBundlesToPreload(bundle, bundleGraph) {
+  let bundlesToPreload = [];
+  for (let dep of bundleGraph.getExternalDependencies(bundle)) {
+    let bundleGroup = bundleGraph.resolveExternalDependency(dep);
+    if (bundleGroup != null) {
+      let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+
+      for (let bundle of bundlesInGroup) {
+        if (bundle.pipeline === 'preload') {
+          bundlesToPreload.push(bundle);
+        }
+      }
+    }
+  }
+
+  return bundlesToPreload;
 }

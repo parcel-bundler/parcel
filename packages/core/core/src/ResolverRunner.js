@@ -75,13 +75,7 @@ export default class ResolverRunner {
     ) {
       [pipeline, filePath] = dependency.moduleSpecifier.split(':');
       if (!validPipelines.has(pipeline)) {
-        if (dep.isURL) {
-          // This may be a url protocol or scheme rather than a pipeline, such as
-          // `url('http://example.com/foo.png')`
-          return null;
-        } else {
-          throw new Error(`Unknown pipeline ${pipeline}.`);
-        }
+        return null;
       }
     } else {
       if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {

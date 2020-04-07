@@ -89,11 +89,6 @@ export default ({
         types.isStringLiteral(args[0]);
 
       if (isDynamicImport) {
-        // Ignore dynamic imports of fully specified urls
-        if (isURL(args[0].value)) {
-          return;
-        }
-
         addDependency(asset, args[0], {isAsync: true});
 
         node.callee = types.identifier('require');
