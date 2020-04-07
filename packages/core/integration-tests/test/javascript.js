@@ -4,6 +4,7 @@ import {
   bundle,
   bundler,
   run,
+  runBundle,
   assertBundles,
   ncp,
   overlayFS,
@@ -350,12 +351,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/workers/index.js'),
-      {
-        outputFS: inputFS,
-      },
-    );
+    let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 
     assertBundles(b, [
       {
@@ -404,9 +400,9 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
+          'JSRuntime.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -683,8 +679,8 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
           'JSRuntime.js',
+          'bundle-manifest.js',
           'relative-path.js',
         ],
       },
@@ -2321,5 +2317,141 @@ describe('javascript', function() {
 
     let res = await run(b);
     assert((await res.default()).startsWith('/resource'));
+  });
+
+  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async/same-bundle.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-bundle.js',
+        assets: [
+          'same-bundle.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-ancestry.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'dep.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+          'same-ancestry.js',
+        ],
+      },
+      {
+        assets: ['get-dep.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
+    let b = await bundle(
+      ['same-bundle.js', 'get-dep.js'].map(entry =>
+        path.join(__dirname, '/integration/sync-async/', entry),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['dep.js'],
+      },
+      {
+        name: 'same-bundle.js',
+        assets: [
+          'same-bundle.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        name: 'get-dep.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-dep.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let sameBundle = bundles.find(b => b.name === 'same-bundle.js');
+    let getDep = bundles.find(b => b.name === 'get-dep.js');
+
+    assert.deepEqual(await (await runBundle(sameBundle)).default, [42, 42, 42]);
+    assert.deepEqual(await (await runBundle(getDep)).default, 42);
+  });
+
+  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-exports-for-sibling-descendant/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['wraps.js', 'lodash.js'],
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['child.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['grandchild.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 5]);
   });
 });

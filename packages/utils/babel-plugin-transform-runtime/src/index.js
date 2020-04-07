@@ -13,19 +13,16 @@ module.exports = function parcelPluginTransformRuntime(api, opts, dirname) {
     typeof version === 'string' &&
     semver.satisfies(version, COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER)
   ) {
-    let targets = api.caller(caller => {
-      return caller && caller.targets;
-    });
     let outputFormat = api.caller(caller => {
-      return caller && caller.env;
+      return caller && caller.outputFormat;
     });
-    if (typeof targets !== 'string') {
-      throw new Error('Expected targets to be a string');
+    if (typeof outputFormat !== 'string' && outputFormat !== undefined) {
+      throw new Error('Expected outputFormat to be a string');
     }
 
     return pluginTransformRuntime(
       api,
-      {useESModules: outputFormat === 'esmodule', ...opts},
+      {...opts, useESModules: outputFormat === 'esmodule'},
       dirname,
     );
   }
