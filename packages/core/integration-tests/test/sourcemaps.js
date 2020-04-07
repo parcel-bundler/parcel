@@ -524,48 +524,35 @@ describe('sourcemaps', function() {
     );
   });
 
-  it.skip('should create a valid sourcemap as a child of a CSS bundle', async function() {
+  it('should create a valid sourcemap as a child of a CSS bundle', async function() {
     async function test(minify) {
-      let b = await bundle(
-        path.join(__dirname, '/integration/sourcemap-css/style.css'),
-        {minify: true},
+      let inputFilePath = path.join(
+        __dirname,
+        '/integration/sourcemap-css/style.css',
       );
 
-      await assertBundleTree(b, {
-        name: 'style.css',
-        assets: ['style.css'],
-        childBundles: [
-          {
-            name: 'style.css.map',
-            type: 'map',
-          },
-        ],
-      });
+      await bundle(inputFilePath, {minify});
+      let distDir = path.join(__dirname, '../dist/');
+      let filename = path.join(distDir, 'style.css');
+      let raw = await outputFS.readFile(filename, 'utf8');
+      let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+      if (!mapUrlData) {
+        throw new Error('Could not load map');
+      }
+      let map = mapUrlData.map;
 
-      let input = await inputFS.readFile(
-        path.join(__dirname, '/integration/sourcemap-css/style.css'),
-        'utf8',
-      );
-      let raw = await outputFS.readFile(
-        path.join(__dirname, '/dist/style.css'),
-        'utf8',
-      );
-      let map = JSON.parse(
-        await outputFS.readFile(
-          path.join(__dirname, '/dist/style.css.map'),
-          'utf8',
-        ),
-      );
+      assert.equal(map.file, 'style.css.map');
+      assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
+      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
-      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert.equal(
-        map.sourceRoot,
-        path.normalize('../integration/sourcemap-css'),
-      );
+      let sourceMap = new SourceMap();
+      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
 
-      let sourceMap = await new SourceMap().addMap(map);
-      assert.equal(Object.keys(sourceMap.sources).length, 1);
-      assert.equal(sourceMap.sources['style.css'], input);
+      let input = await inputFS.readFile(inputFilePath, 'utf-8');
+
+      let mapData = sourceMap.getMap();
+      assert.equal(Object.keys(mapData.sources).length, 1);
+      assert.deepEqual(mapData.sources, ['style.css']);
 
       checkSourceMapping({
         map: sourceMap,
@@ -590,71 +577,61 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it.skip('should create a valid sourcemap for a CSS bundle with imports', async function() {
+  it('should create a valid sourcemap for a CSS bundle with imports', async function() {
     async function test(minify) {
-      let b = await bundle(
-        path.join(__dirname, '/integration/sourcemap-css-import/style.css'),
-        {minify},
+      let inputFilePath = path.join(
+        __dirname,
+        '/integration/sourcemap-css-import/style.css',
       );
 
-      await assertBundleTree(b, {
-        name: 'style.css',
-        assets: ['style.css', 'other-style.css', 'another-style.css'],
-        childBundles: [
-          {
-            name: 'style.css.map',
-            type: 'map',
-          },
-        ],
-      });
+      await bundle(inputFilePath, {minify});
+      let distDir = path.join(__dirname, '../dist/');
+      let filename = path.join(distDir, 'style.css');
+      let raw = await outputFS.readFile(filename, 'utf8');
+      let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+      if (!mapUrlData) {
+        throw new Error('Could not load map');
+      }
+      let map = mapUrlData.map;
 
-      let style = await inputFS.readFile(
-        path.join(__dirname, '/integration/sourcemap-css-import/style.css'),
-        'utf8',
-      );
+      assert.equal(map.file, 'style.css.map');
+      assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
+      assert.equal(map.sourceRoot, '/__parcel_source_root/');
+
+      let sourceMap = new SourceMap();
+      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+
+      let style = await inputFS.readFile(inputFilePath, 'utf-8');
       let otherStyle = await inputFS.readFile(
         path.join(
           __dirname,
           '/integration/sourcemap-css-import/other-style.css',
         ),
-        'utf8',
+        'utf-8',
       );
       let anotherStyle = await inputFS.readFile(
         path.join(
           __dirname,
           '/integration/sourcemap-css-import/another-style.css',
         ),
-        'utf8',
-      );
-      let raw = await outputFS.readFile(
-        path.join(__dirname, '/dist/style.css'),
-        'utf8',
-      );
-      let map = JSON.parse(
-        await outputFS.readFile(
-          path.join(__dirname, '/dist/style.css.map'),
-          'utf8',
-        ),
+        'utf-8',
       );
 
-      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert.equal(
-        map.sourceRoot,
-        path.normalize('../integration/sourcemap-css-import'),
-      );
-
-      let sourceMap = await new SourceMap().addMap(map);
-      assert.equal(Object.keys(sourceMap.sources).length, 3);
-      assert.equal(sourceMap.sources['style.css'], style);
-      assert.equal(sourceMap.sources['other-style.css'], otherStyle);
-      assert.equal(sourceMap.sources['another-style.css'], anotherStyle);
+      let mapData = sourceMap.getMap();
+      assert.equal(Object.keys(mapData.sources).length, 3);
+      assert.deepEqual(mapData.sources, [
+        'other-style.css',
+        'another-style.css',
+        // TODO: Is this a bug?
+        'test/integration/sourcemap-css-import/style.css',
+      ]);
 
       checkSourceMapping({
         map: sourceMap,
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: 'style.css',
+        sourcePath: 'test/integration/sourcemap-css-import/style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -663,7 +640,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'background-color',
-        sourcePath: 'style.css',
+        sourcePath: 'test/integration/sourcemap-css-import/style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -708,48 +685,34 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it.skip('should create a valid sourcemap for a SASS asset', async function() {
+  it('should create a valid sourcemap for a SASS asset', async function() {
     async function test(minify) {
-      let b = await bundle(
-        path.join(__dirname, '/integration/sourcemap-sass/style.scss'),
-        {minify},
+      let inputFilePath = path.join(
+        __dirname,
+        '/integration/sourcemap-sass/style.scss',
       );
 
-      await assertBundleTree(b, {
-        name: 'style.css',
-        assets: ['style.scss'],
-        childBundles: [
-          {
-            name: 'style.css.map',
-            type: 'map',
-          },
-        ],
-      });
+      await bundle(inputFilePath, {minify});
+      let distDir = path.join(__dirname, '../dist/');
+      let filename = path.join(distDir, 'style.css');
+      let raw = await outputFS.readFile(filename, 'utf8');
+      let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+      if (!mapUrlData) {
+        throw new Error('Could not load map');
+      }
+      let map = mapUrlData.map;
 
-      let input = await inputFS.readFile(
-        path.join(__dirname, '/integration/sourcemap-sass/style.scss'),
-        'utf8',
-      );
-      let raw = await inputFS.readFile(
-        path.join(__dirname, '/dist/style.css'),
-        'utf8',
-      );
-      let map = JSON.parse(
-        await outputFS.readFile(
-          path.join(__dirname, '/dist/style.css.map'),
-          'utf8',
-        ),
-      );
+      assert.equal(map.file, 'style.css.map');
+      assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
+      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
-      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert.equal(
-        map.sourceRoot,
-        path.normalize('../integration/sourcemap-sass'),
-      );
+      let sourceMap = new SourceMap();
+      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
 
-      let sourceMap = await new SourceMap().addMap(map);
-      assert.equal(Object.keys(sourceMap.sources).length, 1);
-      assert.equal(sourceMap.sources['style.scss'], input);
+      let input = await inputFS.readFile(inputFilePath, 'utf-8');
+      let mapData = sourceMap.getMap();
+      assert.equal(Object.keys(mapData.sources).length, 1);
+      assert.deepEqual(mapData.sources, ['style.scss']);
 
       checkSourceMapping({
         map: sourceMap,
