@@ -56,4 +56,8 @@ export default class Target implements ITarget {
   get loc() {
     return this.#target.loc;
   }
+
+  get stableEntries() {
+    return this.#target.stableEntries !== false;
+  }
 }

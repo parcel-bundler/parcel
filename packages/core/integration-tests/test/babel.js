@@ -120,10 +120,7 @@ describe('babel', function() {
       mode: 'production',
       defaultEngines: null,
       minify: false,
-      // ATLASSIAN: use a node context instead to avoid entry hashing
-      targets: {default: {engines: {node: '0.10'}, distDir}},
     });
-
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
@@ -309,8 +306,6 @@ describe('babel', function() {
   it('should support compiling with babel using babel.config.js config', async function() {
     await bundle(
       path.join(__dirname, '/integration/babel-config-js/src/index.js'),
-      // ATLASSIAN: use a node context instead to avoid entry hashing
-      {targets: {default: {engines: {node: '0.10'}, distDir}}},
     );
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -517,14 +512,7 @@ describe('babel', function() {
         );
 
       build();
-      // ATLASSIAN: read the manifest to find the hashed entry
-      let manifest = JSON.parse(
-        await fs.readFile(path.join(distDir, 'parcel-manifest.json'), 'utf8'),
-      );
-      let file = await fs.readFile(
-        path.join(distDir, manifest['index.js'][0]),
-        'utf8',
-      );
+      let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(file.includes('hello there'));
 
@@ -542,14 +530,7 @@ describe('babel', function() {
       );
 
       build();
-      // ATLASSIAN: read the manifest to find the hashed entry
-      manifest = JSON.parse(
-        await fs.readFile(path.join(distDir, 'parcel-manifest.json'), 'utf8'),
-      );
-      file = await fs.readFile(
-        path.join(distDir, manifest['index.js'][0]),
-        'utf8',
-      );
+      file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!file.includes('REPLACE_ME'));
       assert(!file.includes('hello there'));
       assert(file.includes('something different'));
