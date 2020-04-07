@@ -88,7 +88,7 @@ export default function extractInlineAssets(
 
         parts.push({
           type,
-          code: value,
+          content: value,
           uniqueKey: parcelKey,
           isIsolated: true,
           isInline: true,
@@ -102,15 +102,15 @@ export default function extractInlineAssets(
     }
 
     // Process inline style attributes.
-    if (node.attrs && node.attrs.style) {
+    let style = node.attrs?.style;
+    if (style != null) {
       asset.addDependency({
         moduleSpecifier: parcelKey,
       });
 
       parts.push({
         type: 'css',
-        // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-        code: node.attrs.style,
+        content: style,
         uniqueKey: parcelKey,
         isIsolated: true,
         isInline: true,
