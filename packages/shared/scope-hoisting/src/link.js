@@ -673,9 +673,11 @@ export function link({
             let returnId = decl.get<NodePath<Identifier>>(
               'body.body.0.argument',
             );
-            nullthrows(path.scope.getBinding(returnId.node.name)).reference(
-              returnId,
-            );
+
+            // TODO Somehow deferred/excluded assets are referenced, causing this function to
+            // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
+            // But a asset that isn't here should never be referenced in the first place.
+            path.scope.getBinding(returnId.node.name)?.reference(returnId);
           }
         }
 
