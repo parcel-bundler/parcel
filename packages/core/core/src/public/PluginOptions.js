@@ -6,6 +6,7 @@ import type {
   LogLevel,
   PluginOptions as IPluginOptions,
   ServerOptions,
+  HMROptions,
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type {PackageManager} from '@parcel/package-manager';
@@ -45,7 +46,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.env;
   }
 
-  get hot(): boolean {
+  get hot(): ?HMROptions {
     return this.#options.hot;
   }
 

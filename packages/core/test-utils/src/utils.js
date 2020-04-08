@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  Bundle,
   BuildEvent,
   BundleGraph,
   FilePath,
@@ -148,14 +149,13 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
   });
 }
 
-export async function run(
-  bundleGraph: BundleGraph,
-  globals: mixed,
-  opts: {require?: boolean, ...} = {},
-): Promise<mixed> {
-  let bundles = bundleGraph.getBundles();
+type RunOpts = {require?: boolean, ...};
 
-  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
+export async function runBundle(
+  bundle: Bundle,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
   let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 
@@ -199,19 +199,36 @@ export async function run(
   }
 
   if (opts.require !== false) {
-    if (ctx.parcelRequire) {
-      // $FlowFixMe
-      return ctx.parcelRequire(entryAsset.id);
-    } else if (ctx.output) {
-      return ctx.output;
-    }
-    if (ctx.module) {
-      // $FlowFixMe
-      return ctx.module.exports;
+    switch (bundle.env.outputFormat) {
+      case 'global':
+        if (bundle.env.scopeHoist) {
+          return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
+        } else if (ctx.parcelRequire) {
+          // $FlowFixMe
+          return ctx.parcelRequire(entryAsset.id);
+        }
+        return;
+      case 'commonjs':
+        invariant(typeof ctx.module === 'object' && ctx.module != null);
+        return ctx.module.exports;
+      default:
+        throw new Error(
+          'Unable to run bundle with outputFormat ' + bundle.env.outputFormat,
+        );
     }
   }
 
   return ctx;
+}
+
+export function run(
+  bundleGraph: BundleGraph,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
+  let bundles = bundleGraph.getBundles();
+  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
+  return runBundle(bundle, globals, opts);
 }
 
 export function assertBundles(

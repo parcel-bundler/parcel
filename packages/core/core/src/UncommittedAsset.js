@@ -264,7 +264,7 @@ export default class UncommittedAsset {
     plugin: PackageName,
     configPath: FilePath,
   ): UncommittedAsset {
-    let content = result.content ?? result.code ?? null;
+    let content = result.content ?? null;
 
     let asset = new UncommittedAsset({
       value: createAsset({

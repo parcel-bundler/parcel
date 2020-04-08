@@ -18,7 +18,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   projectRoot: '',
   lockFile: undefined,
   autoinstall: false,
-  hot: false,
+  hot: undefined,
   serve: false,
   mode: 'development',
   scopeHoist: false,

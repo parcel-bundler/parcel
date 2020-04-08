@@ -29,6 +29,10 @@ const EXPORT_TEMPLATE = template.statement<
   {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
   Statement,
 >('parcelRequire.register(ASSET_ID, IDENTIFIER)');
+const EXPORT_FN_TEMPLATE = template.statement<
+  {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
+  Statement,
+>('parcelRequire.register(ASSET_ID, function() { return IDENTIFIER; })');
 const IMPORTSCRIPTS_TEMPLATE = template.statement<
   {|BUNDLE: StringLiteral|},
   Statement,
@@ -97,7 +101,9 @@ export function generateExports(
     exported.add(exportsId);
 
     statements.push(
-      EXPORT_TEMPLATE({
+      // Export a function returning the exports, as other cases of global output
+      // register init functions.
+      EXPORT_FN_TEMPLATE({
         ASSET_ID: t.stringLiteral(entry.id),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),

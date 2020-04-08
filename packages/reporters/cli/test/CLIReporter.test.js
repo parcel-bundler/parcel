@@ -17,7 +17,7 @@ const EMPTY_OPTIONS = {
   projectRoot: '',
   lockFile: undefined,
   autoinstall: false,
-  hot: false,
+  hot: undefined,
   serve: false,
   mode: 'development',
   scopeHoist: false,
