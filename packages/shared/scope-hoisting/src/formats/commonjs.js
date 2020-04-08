@@ -34,35 +34,45 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 import {assertString, getIdentifier} from '../utils';
 
-const REQUIRE_TEMPLATE: ({|
-  BUNDLE: Expression,
-  // $FlowFixMe
-|}) => Expression = template.expression('require(BUNDLE)');
-const EXPORT_TEMPLATE: ({|
-  NAME: Identifier,
-  IDENTIFIER: Expression,
-  // $FlowFixMe
-|}) => ExpressionStatement = template.statement('exports.NAME = IDENTIFIER;');
-const MODULE_EXPORTS_TEMPLATE: ({|
-  IDENTIFIER: Expression,
-  // $FlowFixMe
-|}) => ExpressionStatement = template.statement('module.exports = IDENTIFIER;');
-const INTEROP_TEMPLATE: ({|
-  MODULE: Expression,
-  // $FlowFixMe
-|}) => Expression = template.expression('$parcel$interopDefault(MODULE)');
-const ASSIGN_TEMPLATE: ({|
-  SPECIFIERS: LVal,
-  MODULE: Expression,
-  // $FlowFixMe
-|}) => VariableDeclaration = template.statement('var SPECIFIERS = MODULE;');
-const NAMESPACE_TEMPLATE: ({|
-  NAMESPACE: Expression,
-  MODULE: Expression,
-  // $FlowFixMe
-|}) => Expression = template.expression(
-  '$parcel$exportWildcard(NAMESPACE, MODULE)',
-);
+const REQUIRE_TEMPLATE = template.expression<
+  {|
+    BUNDLE: Expression,
+  |},
+  Expression,
+>('require(BUNDLE)');
+const EXPORT_TEMPLATE = template.statement<
+  {|
+    NAME: Identifier,
+    IDENTIFIER: Expression,
+  |},
+  ExpressionStatement,
+>('exports.NAME = IDENTIFIER;');
+const MODULE_EXPORTS_TEMPLATE = template.statement<
+  {|
+    IDENTIFIER: Expression,
+  |},
+  ExpressionStatement,
+>('module.exports = IDENTIFIER;');
+const INTEROP_TEMPLATE = template.expression<
+  {|
+    MODULE: Expression,
+  |},
+  Expression,
+>('$parcel$interopDefault(MODULE)');
+const ASSIGN_TEMPLATE = template.statement<
+  {|
+    SPECIFIERS: LVal,
+    MODULE: Expression,
+  |},
+  VariableDeclaration,
+>('var SPECIFIERS = MODULE;');
+const NAMESPACE_TEMPLATE = template.expression<
+  {|
+    NAMESPACE: Expression,
+    MODULE: Expression,
+  |},
+  Expression,
+>('$parcel$exportWildcard(NAMESPACE, MODULE)');
 
 // List of engines that support object destructuring syntax
 const DESTRUCTURING_ENGINES = {
@@ -121,10 +131,7 @@ export function generateBundleImports(
   scope: Scope,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
-    let id = asset.meta.shouldWrap
-      ? getIdentifier(asset, 'init')
-      : t.identifier(assertString(asset.meta.exportsIdentifier));
-
+    let id = getIdentifier(asset, 'init');
     return t.objectProperty(id, id, false, true);
   });
 
@@ -292,25 +299,14 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    if (asset.meta.shouldWrap) {
-      let id = getIdentifier(asset, 'init');
-      exported.add(id.name);
-      statements.push(
-        EXPORT_TEMPLATE({
-          NAME: id,
-          IDENTIFIER: id,
-        }),
-      );
-    } else {
-      let exportsId = assertString(asset.meta.exportsIdentifier);
-      exported.add(exportsId);
-      statements.push(
-        EXPORT_TEMPLATE({
-          NAME: t.identifier(exportsId),
-          IDENTIFIER: t.identifier(exportsId),
-        }),
-      );
-    }
+    let id = getIdentifier(asset, 'init');
+    exported.add(id.name);
+    statements.push(
+      EXPORT_TEMPLATE({
+        NAME: id,
+        IDENTIFIER: id,
+      }),
+    );
   }
 
   let entry = bundle.getMainEntry();
@@ -357,7 +353,8 @@ export function generateExports(
           });
         }
 
-        symbol = replacements.get(symbol) || symbol;
+        let hasReplacement = replacements.get(symbol);
+        symbol = hasReplacement ?? symbol;
 
         // If there is an existing binding with the exported name (e.g. an import),
         // rename it so we can use the name for the export instead.
@@ -370,28 +367,35 @@ export function generateExports(
         }
 
         let binding = nullthrows(path.scope.getBinding(symbol));
-        let id = !t.isValidIdentifier(exportSymbol)
-          ? path.scope.generateUid(exportSymbol)
-          : exportSymbol;
-        rename(path.scope, symbol, id);
+        if (!hasReplacement) {
+          let id = !t.isValidIdentifier(exportSymbol)
+            ? path.scope.generateUid(exportSymbol)
+            : exportSymbol;
+          // rename only once, avoid having to update `replacements` transitively
+          rename(path.scope, symbol, id);
+          replacements.set(symbol, id);
+          symbol = id;
+        }
 
-        binding.path.getStatementParent().insertAfter(
+        let [stmt] = binding.path.getStatementParent().insertAfter(
           EXPORT_TEMPLATE({
             NAME: t.identifier(exportSymbol),
-            IDENTIFIER: t.identifier(id),
+            IDENTIFIER: t.identifier(symbol),
           }),
         );
+        binding.reference(stmt.get('expression.right'));
 
         // Exports other than the default export are live bindings. Insert an assignment
         // after each constant violation so this remains true.
         if (exportSymbol !== 'default') {
           for (let path of binding.constantViolations) {
-            path.insertAfter(
+            let [stmt] = path.insertAfter(
               EXPORT_TEMPLATE({
                 NAME: t.identifier(exportSymbol),
-                IDENTIFIER: t.identifier(id),
+                IDENTIFIER: t.identifier(symbol),
               }),
             );
+            binding.reference(stmt.get('expression.right'));
           }
         }
       }

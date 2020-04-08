@@ -37,6 +37,7 @@ declare class BabelNode {
   start: ?number;
   end: ?number;
   loc: ?BabelNodeSourceLocation;
+  +type: string;
 }
 
 declare class BabelNodeArrayExpression extends BabelNode {
@@ -2410,4 +2411,9 @@ declare module "@babel/types" {
   declare export function isVar(node: BabelNode): boolean;
   declare export function matchesPattern(node: ?BabelNode, match: string | Array<string>, allowPartial?: boolean): boolean;
   declare export function validate(n: BabelNode, key: string, value: mixed): void;
+
+  declare export var TYPES: Array<string>;
+  declare export var VISITOR_KEYS: {[string]: string, ...};
+  declare export var FLIPPED_ALIAS_KEYS: {[string]: Array<string>, ...};
+  declare export var DEPRECATED_KEYS: {[string]: string, ...};
 }

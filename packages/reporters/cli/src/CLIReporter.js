@@ -141,12 +141,9 @@ function writeDiagnostic(
       writeOut(codeframe, isError);
     }
 
-    if (hints.length) {
-      writeOut(chalk.blue.bold(`${emoji.info} Hints:`));
-    }
-
+    // Write hints
     for (let hint of hints) {
-      writeOut(chalk.blue.bold(`- ${hint}`));
+      writeOut(chalk.blue.bold(hint));
     }
   }
 }

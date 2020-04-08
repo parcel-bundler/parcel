@@ -29,6 +29,10 @@ const EXPORT_TEMPLATE = template.statement<
   {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
   Statement,
 >('parcelRequire.register(ASSET_ID, IDENTIFIER)');
+const EXPORT_FN_TEMPLATE = template.statement<
+  {|IDENTIFIER: Identifier, ASSET_ID: StringLiteral|},
+  Statement,
+>('parcelRequire.register(ASSET_ID, function() { return IDENTIFIER; })');
 const IMPORTSCRIPTS_TEMPLATE = template.statement<
   {|BUNDLE: StringLiteral|},
   Statement,
@@ -52,9 +56,7 @@ export function generateBundleImports(
   for (let asset of assets) {
     statements.push(
       IMPORT_TEMPLATE({
-        IDENTIFIER: asset.meta.shouldWrap
-          ? getIdentifier(asset, 'init')
-          : t.identifier(assertString(asset.meta.exportsIdentifier)),
+        IDENTIFIER: getIdentifier(asset, 'init'),
         ASSET_ID: t.stringLiteral(asset.id),
       }),
     );
@@ -79,9 +81,7 @@ export function generateExports(
   let statements = [];
 
   for (let asset of referencedAssets) {
-    let exportsId = asset.meta.shouldWrap
-      ? getName(asset, 'init')
-      : assertString(asset.meta.exportsIdentifier);
+    let exportsId = getName(asset, 'init');
     exported.add(exportsId);
 
     statements.push(
@@ -101,7 +101,9 @@ export function generateExports(
     exported.add(exportsId);
 
     statements.push(
-      EXPORT_TEMPLATE({
+      // Export a function returning the exports, as other cases of global output
+      // register init functions.
+      EXPORT_FN_TEMPLATE({
         ASSET_ID: t.stringLiteral(entry.id),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),

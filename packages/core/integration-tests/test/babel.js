@@ -345,6 +345,29 @@ describe('babel', function() {
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
   });
 
+  it('should support multitarget builds using a custom babel config with @parcel/babel-plugin-transform-runtime', async function() {
+    let fixtureDir = path.join(
+      __dirname,
+      '/integration/babel-config-js-multitarget-transform-runtime',
+    );
+
+    await bundle(path.join(fixtureDir, 'src/index.js'), {
+      mode: 'production',
+      minify: false,
+    });
+
+    let [main, esmodule] = await Promise.all([
+      outputFS.readFile(path.join(fixtureDir, 'dist/main.js'), 'utf8'),
+      outputFS.readFile(path.join(fixtureDir, 'dist/module.js'), 'utf8'),
+    ]);
+
+    assert(main.includes('"@babel/runtime/helpers/objectSpread2"'));
+
+    assert(esmodule.includes('"@babel/runtime/helpers/esm/objectSpread2"'));
+
+    await outputFS.rimraf(path.join(fixtureDir, 'dist'));
+  });
+
   it('should support building with default babel config when running parcel globally', async function() {
     let tmpDir = tempy.directory();
     let distDir = path.join(tmpDir, 'dist');
@@ -453,6 +476,7 @@ describe('babel', function() {
       let cacheDir = path.resolve(fixtureDir, '.parcel-cache');
       await fs.rimraf(distDir);
       await fs.rimraf(cacheDir);
+      await fs.rimraf(path.resolve(fixtureDir, './node_modules/.cache'));
 
       let build = () =>
         spawnSync(
@@ -496,6 +520,7 @@ describe('babel', function() {
       );
       let distDir = path.resolve(inputDir, './dist');
       await fs.ncp(path.join(fixtureDir), inputDir);
+      await fs.rimraf(path.join(__dirname, '.parcel-cache'));
 
       let build = () =>
         spawnSync(

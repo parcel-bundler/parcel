@@ -118,8 +118,9 @@ export default new Transformer({
       return [asset];
     }
 
-    let ast = nullthrows(asset.ast);
-    if (COMPOSES_RE.test(await asset.getCode())) {
+    let ast = nullthrows(await asset.getAST());
+    let code = asset.isASTDirty() ? null : await asset.getCode();
+    if (code == null || COMPOSES_RE.test(code)) {
       ast.program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
         if (decl.prop === 'composes' && importPath != null) {
@@ -144,15 +145,19 @@ export default new Transformer({
       });
     }
 
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let {messages, root} = await postcss(config.plugins).process(
       ast.program,
       config,
     );
     ast.program = root;
-    ast.isDirty = true;
+    asset.setAST({
+      type: 'postcss',
+      version: '7.0.0',
+      program: root,
+    });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        // $FlowFixMe merely a convention
         msg = (msg: {|
           type: 'dependency',
           plugin: string,
@@ -183,22 +188,20 @@ export default new Transformer({
       assets.push({
         type: 'js',
         filePath: asset.filePath + '.js',
-        code,
+        content: code,
       });
     }
     return assets;
   },
 
-  generate({asset}) {
-    let ast = nullthrows(asset.ast);
-
+  generate({ast}) {
     let code = '';
     postcss.stringify(ast.program, c => {
       code += c;
     });
 
     return {
-      code,
+      content: code,
     };
   },
 });

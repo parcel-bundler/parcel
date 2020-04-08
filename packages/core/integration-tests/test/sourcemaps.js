@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import os from 'os';
-import SourceMap from 'parcel-bundler/src/SourceMap';
+import SourceMap from '@parcel/source-map';
 import {
   bundle,
   run,
@@ -40,13 +40,14 @@ function checkSourceMapping({
   );
   let sourcePosition = indexToLineCol(source, source.indexOf(str));
 
-  let index = map.findClosestGenerated(
+  let mapping = map.findClosestMapping(
     generatedPosition.line,
     generatedPosition.column,
   );
 
-  let mapping = map.mappings[index];
   assert(mapping, "no mapping for '" + str + "'" + msg);
+
+  let mapData = map.getMap();
 
   let generatedDiff = {
     line: generatedPosition.line - mapping.generated.line,
@@ -62,7 +63,7 @@ function checkSourceMapping({
     {
       line: computedSourcePosition.line,
       column: computedSourcePosition.column,
-      source: mapping.source,
+      source: mapData.sources[mapping.source],
     },
     {
       line: sourcePosition.line,
@@ -97,11 +98,10 @@ describe('sourcemaps', function() {
       'sourceRoot should be the project root mounted to dev server.',
     );
 
-    let sourceMap = await new SourceMap().addMap(map);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = 'index.js';
-    assert.equal(Object.keys(sourceMap.sources).length, 1);
-    assert.strictEqual(sourceMap.sources[sourcePath], null);
 
     checkSourceMapping({
       map: sourceMap,
@@ -151,11 +151,13 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = await new SourceMap().addMap(map);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = 'index.js';
-    assert.equal(Object.keys(sourceMap.sources).length, 1);
-    assert.strictEqual(sourceMap.sources[sourcePath], null);
+    let mapData = sourceMap.getMap();
+    assert.equal(Object.keys(mapData.sources).length, 1);
+
     assert(
       await inputFS.exists(path.resolve(distDir + sourceRoot + sourcePath)),
       'combining sourceRoot and sources object should resolve to the original file',
@@ -207,11 +209,12 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = await new SourceMap().addMap(map);
-    assert.equal(Object.keys(sourceMap.sources).length, 3);
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    let mapData = sourceMap.getMap();
+    assert.equal(Object.keys(mapData.sources).length, 3);
 
-    for (let source of Object.keys(sourceMap.sources)) {
-      assert.strictEqual(sourceMap.sources[source], null);
+    for (let source of mapData.sources) {
       assert(
         await inputFS.exists(path.resolve(distDir + sourceRoot + source)),
         'combining sourceRoot and sources object should resolve to the original file',
@@ -262,6 +265,100 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'return a + b',
+      sourcePath: 'utils/util.js',
+    });
+  });
+
+  it('should create a valid sourcemap for a minified js bundle with requires', async function() {
+    let sourceDir = path.join(
+      __dirname,
+      '/integration/sourcemap-nested-minified/',
+    );
+    let sourceFilename = path.join(sourceDir, '/index.js');
+    await bundle(sourceFilename, {
+      minify: true,
+    });
+
+    let distDir = path.join(
+      __dirname,
+      '/integration/sourcemap-nested-minified/dist/',
+    );
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+
+    let map = mapUrlData.map;
+    let sourceRoot = map.sourceRoot;
+    assert.equal(
+      sourceRoot,
+      '../',
+      'sourceRoot should be the root of the source files, relative to the output directory.',
+    );
+
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    let mapData = sourceMap.getMap();
+    assert.equal(Object.keys(mapData.sources).length, 3);
+
+    for (let source of mapData.sources) {
+      assert(
+        await inputFS.exists(path.resolve(distDir + sourceRoot + source)),
+        'combining sourceRoot and sources object should resolve to the original file',
+      );
+    }
+
+    let inputs = [
+      await inputFS.readFile(sourceFilename, 'utf8'),
+      await inputFS.readFile(path.join(sourceDir, 'local.js'), 'utf8'),
+      await inputFS.readFile(path.join(sourceDir, 'utils/util.js'), 'utf8'),
+    ];
+
+    // TODO: Figure out a way to tests these without relying on generatedStr as much
+    checkSourceMapping({
+      map: sourceMap,
+      source: inputs[0],
+      generated: raw,
+      str: 'const local',
+      generatedStr: 'const t',
+      sourcePath: 'index.js',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: inputs[0],
+      generated: raw,
+      str: 'local.a',
+      generatedStr: 't.a',
+      sourcePath: 'index.js',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: inputs[1],
+      generated: raw,
+      str: 'exports.a',
+      generatedStr: 'o.a',
+      sourcePath: 'local.js',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: inputs[2],
+      generated: raw,
+      str: 'exports.count = function(a, b) {',
+      generatedStr: 'o.count=function(e,n){',
+      sourcePath: 'utils/util.js',
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: inputs[2],
+      generated: raw,
+      str: 'return a + b',
+      generatedStr: 'return e+n',
       sourcePath: 'utils/util.js',
     });
   });
@@ -320,37 +417,6 @@ describe('sourcemaps', function() {
     let output = await run(b);
     assert.equal(typeof output.env, 'function');
     assert.equal(output.env(), process.env.NODE_ENV);
-  });
-
-  it.skip('should create a valid sourcemap for a minified js bundle with requires', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-nested-minified/index.js'),
-      {
-        minify: true,
-      },
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.js', 'util.js'],
-      childBundles: [
-        {
-          name: 'index.js.map',
-          type: 'map',
-        },
-      ],
-    });
-
-    // let raw = await outputFS.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
-    let map = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.js.map'),
-      'utf8',
-    );
-    assert.equal(JSON.parse(map).sources.length, 3);
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 14);
   });
 
   it.skip('should load existing sourcemaps of libraries', async function() {

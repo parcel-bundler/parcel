@@ -70,6 +70,13 @@ const commonOptions = {
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
+  '-p, --port <port>': [
+    'set the port to serve on. defaults to 1234',
+    value => parseInt(value, 10),
+    1234,
+  ],
+  '--host <host>':
+    'set the host to listen on, defaults to listening on all interfaces',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
@@ -87,16 +94,7 @@ function applyOptions(cmd, options) {
 let serve = program
   .command('serve [input...]')
   .description('starts a development server')
-  .option(
-    '-p, --port <port>',
-    'set the port to serve on. defaults to 1234',
-    parseInt,
-  )
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .option(
-    '--host <host>',
-    'set the host to listen on, defaults to listening on all interfaces',
-  )
   .option(
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
@@ -270,8 +268,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  if (command.name() === 'serve') {
-    let {port = 1234, host, publicUrl} = command;
+  let {port, host} = command;
+  if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
     if (command.port && port !== command.port) {
@@ -280,6 +278,10 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
     }
+  }
+
+  if (command.name() === 'serve') {
+    let {publicUrl} = command;
 
     serve = {
       https,
@@ -289,9 +291,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = false;
+  let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = true;
+    hmr = {port, host: host != null ? host : 'localhost'};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';

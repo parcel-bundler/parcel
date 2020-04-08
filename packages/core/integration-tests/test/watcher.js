@@ -75,37 +75,35 @@ describe('watcher', function() {
   });
 
   it('should rebuild on a config file change', async function() {
-    await ncp(path.join(__dirname, 'integration/custom-config'), inputDir);
+    let inDir = path.join(__dirname, 'integration/parcelrc-custom');
+    let outDir = path.join(inDir, 'dist');
+
+    await ncp(path.join(__dirname, 'integration/parcelrc-custom'), inDir);
     await ncp(
       path.dirname(require.resolve('@parcel/config-default')),
-      path.join(inputDir, 'node_modules', '@parcel', 'config-default'),
+      path.join(inDir, 'node_modules', '@parcel', 'config-default'),
     );
-    let copyPath = path.join(inputDir, 'configCopy');
-    let configPath = path.join(inputDir, '.parcelrc');
-
-    let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: overlayFS,
+    let copyPath = path.join(inDir, 'configCopy');
+    let configPath = path.join(inDir, '.parcelrc');
+    let b = bundler(path.join(inDir, 'index.js'), {
+      inputFS: outputFS,
       targets: {
         main: {
-          engines: {
-            node: '^4.0.0',
-          },
-          distDir,
+          distDir: outDir,
         },
       },
     });
-
     subscription = await b.watch();
     await getNextBuild(b);
     let distFile = await outputFS.readFile(
-      path.join(distDir, 'index.js'),
+      path.join(outDir, 'index.js'),
       'utf8',
     );
-    assert(!distFile.includes('() => null'));
+    assert(distFile.includes('() => null'));
     await outputFS.copyFile(copyPath, configPath);
     await getNextBuild(b);
-    distFile = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(distFile.includes('() => null'));
+    distFile = await outputFS.readFile(path.join(outDir, 'index.js'), 'utf8');
+    assert(distFile.includes('TRANSFORMED CODE'));
   });
 
   it('should rebuild properly when a dependency is removed', async function() {

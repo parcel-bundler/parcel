@@ -31,7 +31,7 @@ export async function resolveConfig(
   filepath = await fs.realpath(path.dirname(filepath));
 
   // Don't traverse above the module root
-  if (filepath === root || path.basename(filepath) === 'node_modules') {
+  if (path.basename(filepath) === 'node_modules') {
     return null;
   }
 
@@ -40,6 +40,10 @@ export async function resolveConfig(
     if ((await fs.exists(file)) && (await fs.stat(file)).isFile()) {
       return file;
     }
+  }
+
+  if (filepath === root) {
+    return null;
   }
 
   return resolveConfig(fs, filepath, filenames, opts);

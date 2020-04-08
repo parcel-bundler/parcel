@@ -40,7 +40,6 @@ export default new Packager({
     return replaceInlineReferences({
       bundle,
       bundleGraph,
-      // $FlowFixMe
       contents: replaceURLReferences({
         bundle,
         bundleGraph,

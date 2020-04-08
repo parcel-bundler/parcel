@@ -83,9 +83,9 @@ describe('loadParcelConfig', () => {
     it('should require pipeline to be an array', () => {
       assert.throws(() => {
         validateConfigFile(
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
             resolvers: '123',
           },
           '.parcelrc',
@@ -111,7 +111,6 @@ describe('loadParcelConfig', () => {
         validateConfigFile(
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
             resolvers: ['parcel-foo-bar'],
           },
           '.parcelrc',
@@ -123,7 +122,6 @@ describe('loadParcelConfig', () => {
       validateConfigFile(
         {
           filePath: '.parcelrc',
-          // $FlowFixMe
           resolvers: ['parcel-resolver-test'],
         },
         '.parcelrc',
@@ -134,7 +132,6 @@ describe('loadParcelConfig', () => {
       validateConfigFile(
         {
           filePath: '.parcelrc',
-          // $FlowFixMe
           resolvers: ['parcel-resolver-test', '...'],
         },
         '.parcelrc',
@@ -172,9 +169,9 @@ describe('loadParcelConfig', () => {
     it('should require extends to be a string or array of strings', () => {
       assert.throws(() => {
         validateConfigFile(
+          // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
           {
             filePath: '.parcelrc',
-            // $FlowFixMe
             extends: 2,
           },
           '.parcelrc',
@@ -613,19 +610,64 @@ describe('loadParcelConfig', () => {
       assert.deepEqual(config.optimizers, defaultConfig.optimizers || {});
       assert.deepEqual(config.reporters, defaultConfig.reporters || []);
     });
+
+    it('should emit a codeframe when a malformed .parcelrc was found', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-malformed',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      let pos = {
+        line: 2,
+        column: 14,
+      };
+
+      // $FlowFixMe
+      await assert.rejects(
+        () => readAndProcessConfigChain(configFilePath, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Failed to parse .parcelrc',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    message: "JSON5: invalid character 'b' at 2:14",
+                    start: pos,
+                    end: pos,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        // e => {
+        //   console.log(e);
+        //   return true;
+        // },
+      );
+    });
   });
 
   describe('resolve', () => {
     it('should return null if there is no .parcelrc file found', async () => {
-      let resolved = await resolveParcelConfig(__dirname, DEFAULT_OPTIONS);
+      let resolved = await resolveParcelConfig(DEFAULT_OPTIONS);
       assert.equal(resolved, null);
     });
 
     it('should resolve a config if a .parcelrc file is found', async () => {
-      let resolved = await resolveParcelConfig(
-        path.join(__dirname, 'fixtures', 'config', 'subfolder'),
-        DEFAULT_OPTIONS,
-      );
+      let resolved = await resolveParcelConfig({
+        ...DEFAULT_OPTIONS,
+        projectRoot: path.join(__dirname, 'fixtures', 'config', 'subfolder'),
+      });
 
       assert(resolved !== null);
     });

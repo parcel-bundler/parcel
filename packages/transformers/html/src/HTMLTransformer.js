@@ -23,16 +23,17 @@ export default new Transformer({
     };
   },
 
-  transform({asset}) {
+  async transform({asset}) {
     // Handle .htm
     asset.type = 'html';
-    collectDependencies(asset);
-    return [asset, ...extractInlineAssets(asset)];
+    let ast = nullthrows(await asset.getAST());
+    collectDependencies(asset, ast);
+    return [asset, ...extractInlineAssets(asset, ast)];
   },
 
-  generate({asset}) {
+  generate({ast}) {
     return {
-      code: render(nullthrows(asset.ast).program),
+      content: render(ast.program),
     };
   },
 });
