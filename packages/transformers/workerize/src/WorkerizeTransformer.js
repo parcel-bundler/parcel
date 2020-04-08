@@ -19,7 +19,7 @@ export default new Transformer({
       return [
         {
           type: 'js',
-          code: generatedCode,
+          content: generatedCode,
           uniqueKey: 'workerize-main-stub',
         },
       ];
@@ -28,7 +28,7 @@ export default new Transformer({
       asset.setCode(generatedCode);
       let secondAsset = {
         type: 'js',
-        code,
+        content: code,
         uniqueKey: 'workerize-original-worker',
         isInline: false,
       };
