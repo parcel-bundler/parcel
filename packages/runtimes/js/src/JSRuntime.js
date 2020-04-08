@@ -1,11 +1,11 @@
 // @flow strict-local
 
 import type {
-  Bundle,
   BundleGraph,
   BundleGroup,
   Dependency,
   Environment,
+  NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
 
@@ -255,7 +255,9 @@ function getLoaderRuntimes({
     }
 
     if (bundle.env.outputFormat === 'global') {
-      loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}')${
+      loaders += `.then(() => parcelRequire('${
+        bundleGraph.getAssetById(bundleGroup.entryAssetId).publicId
+      }')${
         // In global output with scope hoisting, functions return exports are
         // always returned. Otherwise, the exports are returned.
         bundle.env.scopeHoist ? '()' : ''
@@ -272,7 +274,7 @@ function getLoaderRuntimes({
   return assets;
 }
 
-function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+function isNewContext(bundle: NamedBundle, bundleGraph: BundleGraph): boolean {
   return (
     bundle.isEntry ||
     bundleGraph
@@ -306,7 +308,7 @@ function getURLRuntime(
 }
 
 function getRegisterCode(
-  entryBundle: Bundle,
+  entryBundle: NamedBundle,
   bundleGraph: BundleGraph,
 ): string {
   let idToName = {};
@@ -315,7 +317,7 @@ function getRegisterCode(
       return;
     }
 
-    idToName[getPublicBundleId(bundle)] = nullthrows(bundle.name);
+    idToName[bundle.publicId] = nullthrows(bundle.name);
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       // New contexts have their own manifests, so there's no need to continue.
@@ -330,21 +332,17 @@ function getRegisterCode(
   );
 }
 
-function getRelativePathExpr(from: Bundle, to: Bundle): string {
+function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
     return `require('./relative-path')(${JSON.stringify(
-      getPublicBundleId(from),
-    )}, ${JSON.stringify(getPublicBundleId(to))})`;
+      from.publicId,
+    )}, ${JSON.stringify(to.publicId)})`;
   }
 
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
-function shouldUseRuntimeManifest(bundle: Bundle): boolean {
+function shouldUseRuntimeManifest(bundle: NamedBundle): boolean {
   let env = bundle.env;
   return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
-}
-
-function getPublicBundleId(bundle: Bundle): string {
-  return bundle.id.slice(-16);
 }

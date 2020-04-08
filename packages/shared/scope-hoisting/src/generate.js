@@ -48,7 +48,7 @@ export function generate(
     statements = isAsync
       ? [
           REGISTER_TEMPLATE({
-            ID: t.stringLiteral(nullthrows(entry).id),
+            ID: t.stringLiteral(nullthrows(entry).publicId),
             STATEMENTS: statements,
           }),
         ]

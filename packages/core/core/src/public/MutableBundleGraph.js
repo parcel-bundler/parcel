@@ -34,7 +34,7 @@ const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
 export default class MutableBundleGraph implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
-  #bundlePublicIds = new Map<string, string>();
+  #bundlePublicIds = new Set<string>();
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     let existing = internalMutableBundleGraphToMutableBundleGraph
@@ -169,10 +169,17 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
         target.distDir,
     );
+
+    let existing = this.#graph._graph.getNode(bundleId);
+    if (existing != null) {
+      invariant(existing.type === 'bundle');
+      return Bundle.get(existing.value, this.#graph, this.#options);
+    }
+
     let publicId = getPublicId(bundleId, existing =>
       this.#bundlePublicIds.has(existing),
     );
-    this.#bundlePublicIds.set(bundleId, publicId);
+    this.#bundlePublicIds.add(publicId);
 
     let bundleNode = {
       type: 'bundle',
@@ -193,6 +200,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         target,
         name: null,
         displayName: null,
+        publicId,
         stats: {size: 0, time: 0},
       },
     };

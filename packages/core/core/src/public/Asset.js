@@ -196,6 +196,10 @@ export class Asset extends BaseAsset implements IAsset {
   get stats(): Stats {
     return this.#asset.value.stats;
   }
+
+  get publicId(): string {
+    return nullthrows(this.#asset.value.publicId);
+  }
 }
 
 export class MutableAsset extends BaseAsset implements IMutableAsset {

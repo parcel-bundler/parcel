@@ -21,6 +21,7 @@ describe('Public Bundle', () => {
       filePath: null,
       name: null,
       displayName: null,
+      publicId: null,
       pipeline: null,
       isEntry: null,
       isInline: null,
@@ -36,6 +37,8 @@ describe('Public Bundle', () => {
 
     bundleGraph = new BundleGraph({
       graph: new Graph(),
+      assetPublicIds: new Set(),
+      publicIdByAssetId: new Map(),
       bundleContentHashes: new Map(),
     });
   });

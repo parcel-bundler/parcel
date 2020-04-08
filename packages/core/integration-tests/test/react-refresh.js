@@ -53,7 +53,7 @@ describe('react-refresh', function() {
     );
     window.eval(await fs.readFile(nullthrows(bundle.filePath), 'utf8'));
     // ReactDOM.render
-    window.parcelRequire(bundle.getMainEntry().id).default();
+    window.parcelRequire(bundle.getMainEntry().publicId).default();
 
     let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
       /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,

@@ -352,6 +352,7 @@ export interface MutableAsset extends BaseAsset {
 }
 
 export interface Asset extends BaseAsset {
+  +publicId: string;
   +stats: Stats;
 }
 
@@ -602,6 +603,7 @@ export interface Bundle {
 }
 
 export interface NamedBundle extends Bundle {
+  +publicId: string;
   +filePath: FilePath;
   +name: string;
   +displayName: string;
@@ -648,12 +650,13 @@ export interface MutableBundleGraph {
 }
 
 export interface BundleGraph {
-  getBundles(): Array<Bundle>;
+  getAssetById(string): Asset;
+  getBundles(): Array<NamedBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  getChildBundles(bundle: Bundle): Array<Bundle>;
-  getParentBundles(bundle: Bundle): Array<Bundle>;
-  getSiblingBundles(bundle: Bundle): Array<Bundle>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<NamedBundle>;
+  getChildBundles(bundle: Bundle): Array<NamedBundle>;
+  getParentBundles(bundle: Bundle): Array<NamedBundle>;
+  getSiblingBundles(bundle: Bundle): Array<NamedBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   resolveExternalDependency(
@@ -675,10 +678,10 @@ export interface BundleGraph {
   ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<Bundle, TContext>,
+    visit: GraphTraversalCallback<NamedBundle, TContext>,
     startBundle?: Bundle,
   ): ?TContext;
-  findBundlesWithAsset(Asset): Array<Bundle>;
+  findBundlesWithAsset(Asset): Array<NamedBundle>;
 }
 
 export type BundleResult = {|
