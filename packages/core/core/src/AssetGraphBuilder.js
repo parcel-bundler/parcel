@@ -374,7 +374,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
     let request = this.getCorrespondingRequest(node);
-    if (request != null) {
+    if (request != null && this.requestTracker.isTracked(request.id)) {
       this.requestTracker.untrackRequest(request.id);
     }
   }

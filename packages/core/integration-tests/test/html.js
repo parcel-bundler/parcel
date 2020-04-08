@@ -1016,16 +1016,16 @@ describe('html', function() {
       {production: true, scopeHoist: true},
     );
 
-    // a.html should point to a CSS bundle containing a.css and b.css.
-    // It should not point to the bundle for b.css from b.html.
+    // a.html should point to a CSS bundle containing a.css as well as
+    // reuse the b.css bundle from b.html.
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(
       html.match(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/g).length,
       1,
     );
     assert.equal(
-      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g),
-      null,
+      html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
+      1,
     );
 
     let css = await outputFS.readFile(
@@ -1033,7 +1033,7 @@ describe('html', function() {
       'utf8',
     );
     assert(css.includes('.a'));
-    assert(css.includes('.b'));
+    assert(!css.includes('.b'));
 
     // b.html should point to a CSS bundle containing only b.css
     // It should not point to the bundle containing a.css from a.html

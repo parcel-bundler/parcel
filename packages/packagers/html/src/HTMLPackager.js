@@ -2,6 +2,7 @@
 import type {Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
+import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
 import {replaceURLReferences, urlJoin} from '@parcel/utils';
@@ -31,13 +32,25 @@ export default new Packager({
     let asset = assets[0];
     let code = await asset.getCode();
 
+    let dependencies = [];
+    bundle.traverse(node => {
+      if (node.type === 'dependency') {
+        dependencies.push(node.value);
+      }
+    });
+
     // Insert references to sibling bundles. For example, a <script> tag in the original HTML
     // may import CSS files. This will result in a sibling bundle in the same bundle group as the
     // JS. This will be inserted as a <link> element into the HTML here.
-    let bundleGroups = bundleGraph
-      .getExternalDependencies(bundle)
-      .map(dependency => bundleGraph.resolveExternalDependency(dependency))
-      .filter(Boolean);
+    let bundleGroups = dependencies
+      .map(dependency =>
+        bundleGraph.resolveExternalDependency(dependency, bundle),
+      )
+      .filter(resolved => resolved != null && resolved.type === 'bundle_group')
+      .map(resolved => {
+        invariant(resolved != null && resolved.type === 'bundle_group');
+        return resolved.value;
+      });
     let bundles = bundleGroups.reduce((p, bundleGroup) => {
       let bundles = bundleGraph
         .getBundlesInBundleGroup(bundleGroup)
