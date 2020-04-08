@@ -114,15 +114,16 @@ export function link({
       }
     }
 
-    if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
+    if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
       referencedAssets.add(asset);
     }
   });
 
-  function resolveSymbol(inputAsset, inputSymbol: Symbol) {
+  function resolveSymbol(inputAsset, inputSymbol: Symbol, bundle) {
     let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,
+      bundle,
     );
     if (asset.meta.resolveExportsBailedOut) {
       return {
@@ -151,6 +152,7 @@ export function link({
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
+      bundle,
     );
 
     let node;
@@ -160,8 +162,8 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
-      node = addBundleImport(originalModule, path);
-      return node ? interop(originalModule, originalName, path, node) : null;
+      node = addBundleImport(mod, path);
+      return node ? interop(mod, symbol, path, node) : null;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
@@ -385,9 +387,9 @@ export function link({
           if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
             let name = assertString(mod.meta.exportsIdentifier);
 
-            let isReferenced = bundleGraph.isAssetReferencedByAnotherBundleOfType(
+            let isReferenced = bundleGraph.isAssetReferencedByDependant(
+              bundle,
               mod,
-              'js',
             );
             let isValueUsed = !isUnusedValue(path);
             if (isValueUsed || isReferenced) {
@@ -630,26 +632,27 @@ export function link({
           }
         }
 
-        if (imports.length > 0) {
+        if (imports.length > 0 || referencedAssets.size > 0) {
           // Add import statements and update scope to collect references
           path.unshiftContainer('body', imports);
+
+          // Insert fake init functions that will be imported in other bundles,
+          // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
+          // not in the current bundle:
+          path.pushContainer(
+            'body',
+            [...referencedAssets]
+              .filter(a => !a.meta.shouldWrap)
+              .map(a => {
+                return FAKE_INIT_TEMPLATE({
+                  INIT: getIdentifier(a, 'init'),
+                  EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
+                });
+              }),
+          );
+
           path.scope.crawl();
         }
-
-        // Insert fake init functions that will be imported in other bundles,
-        // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
-        // not in the current bundle:
-        path.pushContainer(
-          'body',
-          [...referencedAssets]
-            .filter(a => !a.meta.shouldWrap)
-            .map(a => {
-              return FAKE_INIT_TEMPLATE({
-                INIT: getIdentifier(a, 'init'),
-                EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
-              });
-            }),
-        );
 
         // Generate exports
         let exported = format.generateExports(
