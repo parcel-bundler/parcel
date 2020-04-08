@@ -33,7 +33,7 @@ import {
   isStringLiteral,
 } from '@babel/types';
 import traverse from '@babel/traverse';
-import treeShake from './shake';
+// import treeShake from './shake';
 import {assertString, getName, getIdentifier} from './utils';
 import OutputFormats from './formats/index.js';
 
@@ -169,7 +169,13 @@ export function link({
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
       let relativePath = relative(options.inputFS.cwd(), mod.filePath);
-      throw new Error(`${relativePath} does not export '${symbol}'`);
+      // ATLASSIAN: Warn and return an empty object expression for unresolvable
+      // imports.
+      // TODO: Figure out why these identifiers are referenced.
+      // eslint-disable-next-line no-console
+      console.warn(`${relativePath} does not export '${symbol}'`);
+      // throw new Error(`${relativePath} does not export '${symbol}'`);
+      return t.objectExpression([]);
     }
 
     // If it is CommonJS, look for an exports object.
@@ -651,10 +657,14 @@ export function link({
               }),
           );
 
+          // ATLASSIAN: Clear traverse's scope cache prior to generating exports.
+          traverse.cache.clearScope();
           path.scope.crawl();
         }
 
         // Generate exports
+        // ATLASSIAN: Disable treeShaking for now. This is used below.
+        // eslint-disable-next-line no-unused-vars
         let exported = format.generateExports(
           bundleGraph,
           bundle,
@@ -664,7 +674,8 @@ export function link({
           options,
         );
 
-        treeShake(path.scope, exported);
+        // ATLASSIAN: Disable treeShaking for now.
+        // treeShake(path.scope, exported);
       },
     },
   });

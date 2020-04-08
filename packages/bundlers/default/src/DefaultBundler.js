@@ -162,7 +162,8 @@ export default new Bundler({
   optimize({bundleGraph}) {
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
-      if (bundle.isInline || !bundle.isSplittable) {
+      // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+      if (bundle.isInline || !bundle.isSplittable || bundle.env.isIsolated()) {
         return;
       }
 
@@ -182,7 +183,9 @@ export default new Bundler({
           // to predict and reference.
           !containingBundle.isEntry &&
           !containingBundle.isInline &&
-          containingBundle.isSplittable,
+          containingBundle.isSplittable &&
+          // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+          !containingBundle.env.isIsolated(),
       );
 
       for (let candidate of candidates) {
