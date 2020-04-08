@@ -27,6 +27,7 @@ import type {
   ConfigResult,
   OutputFormat,
   TargetDescriptor,
+  HMROptions,
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -74,6 +75,7 @@ export type Target = {|
   distDir: FilePath,
   env: Environment,
   sourceMap?: TargetSourceMapOptions,
+  stableEntries?: boolean,
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
@@ -144,7 +146,7 @@ export type ParcelOptions = {|
   sourceMaps: boolean,
   publicUrl: string,
   distDir: ?FilePath,
-  hot: boolean,
+  hot: ?HMROptions,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,

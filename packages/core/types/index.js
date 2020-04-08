@@ -36,6 +36,8 @@ export type GlobMap<T> = {[Glob]: T, ...};
 
 export type RawParcelConfigPipeline = Array<PackageName>;
 
+export type HMROptions = {port?: number, host?: string, ...};
+
 export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: RawParcelConfigPipeline,
@@ -74,6 +76,7 @@ export interface Target {
   +distDir: FilePath;
   +env: Environment;
   +sourceMap: ?TargetSourceMapOptions;
+  +stableEntries: boolean;
   +name: string;
   +publicUrl: string;
   +loc: ?SourceLocation;
@@ -99,6 +102,7 @@ export type PackageTargetDescriptor = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +sourceMap?: TargetSourceMapOptions,
+  +stableEntries?: boolean,
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
@@ -190,7 +194,7 @@ export type InitialParcelOptions = {|
   +sourceMaps?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +hot?: boolean,
+  +hot?: ?HMROptions,
   +serve?: ServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -214,7 +218,7 @@ export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: boolean;
+  +hot: ?HMROptions;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;
@@ -251,10 +255,7 @@ export type SourceLocation = {|
   |},
 |};
 
-export type Meta = {
-  [string]: JSONValue,
-  ...,
-};
+export type Meta = JSONObject;
 
 export type Symbol = string;
 
@@ -399,31 +400,31 @@ export type Stats = {|
 |};
 
 export type GenerateOutput = {|
-  +code: Blob,
+  +content: Blob,
   +map?: ?SourceMap,
 |};
 
 export type Blob = string | Buffer | Readable;
 
-export interface TransformerResult {
-  +type: string;
-  +code?: string;
-  +map?: ?SourceMap;
-  +content?: ?Blob;
-  +ast?: ?AST;
-  +dependencies?: $ReadOnlyArray<DependencyOptions>;
-  +includedFiles?: $ReadOnlyArray<File>;
-  +isIsolated?: boolean;
-  +isInline?: boolean;
-  +isSplittable?: boolean;
-  +isSource?: boolean;
-  +env?: EnvironmentOpts;
-  +meta?: Meta;
-  +pipeline?: ?string;
-  +symbols?: Map<Symbol, Symbol>;
-  +sideEffects?: boolean;
-  +uniqueKey?: ?string;
-}
+export type TransformerResult = {|
+  +ast?: ?AST,
+  +content?: ?Blob,
+  +dependencies?: $ReadOnlyArray<DependencyOptions>,
+  +env?: EnvironmentOpts,
+  +filePath?: FilePath,
+  +includedFiles?: $ReadOnlyArray<File>,
+  +isInline?: boolean,
+  +isIsolated?: boolean,
+  +isSource?: boolean,
+  +isSplittable?: boolean,
+  +map?: ?SourceMap,
+  +meta?: Meta,
+  +pipeline?: ?string,
+  +sideEffects?: boolean,
+  +symbols?: Map<Symbol, Symbol>,
+  +type: string,
+  +uniqueKey?: ?string,
+|};
 
 export type Async<T> = T | Promise<T>;
 
@@ -622,13 +623,25 @@ export interface MutableBundleGraph {
   createBundle(CreateBundleOpts): Bundle;
   createBundleGroup(Dependency, Target): BundleGroup;
   findBundlesWithAsset(Asset): Array<Bundle>;
+  findBundlesWithDependency(Dependency): Array<Bundle>;
   getDependencyAssets(Dependency): Array<Asset>;
   getDependencyResolution(Dependency): ?Asset;
+  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
   getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getTotalSize(Asset): number;
   isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  removeBundleGroup(bundleGroup: BundleGroup): void;
+  resolveExternalDependency(
+    dependency: Dependency,
+    bundle?: Bundle,
+  ): ?(
+    | {|type: 'bundle_group', value: BundleGroup|}
+    | {|type: 'asset', value: Asset|}
+  );
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
   traverse<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
@@ -647,20 +660,29 @@ export interface BundleGraph {
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
+  resolveExternalDependency(
+    dependency: Dependency,
+    bundle: Bundle,
+  ): ?(
+    | {|type: 'bundle_group', value: BundleGroup|}
+    | {|type: 'asset', value: Asset|}
+  );
   getDependencyResolution(dependency: Dependency, bundle: Bundle): ?Asset;
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
   isAssetReferenced(asset: Asset): boolean;
-  isAssetReferencedByAnotherBundleOfType(asset: Asset, type: string): boolean;
+  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>,
     startBundle?: Bundle,
   ): ?TContext;
   findBundlesWithAsset(Asset): Array<Bundle>;
-  getExternalDependencies(bundle: Bundle): Array<Dependency>;
-  resolveExternalDependency(dependency: Dependency): ?BundleGroup;
 }
 
 export type BundleResult = {|

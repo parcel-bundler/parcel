@@ -32,6 +32,10 @@ export default new Reporter({
     await Promise.all(
       Array.from(entryBundlesByTarget).map(
         async ([, {target, entryBundles}]) => {
+          if (target.stableEntries) {
+            return;
+          }
+
           let manifest = {};
           for (let entryBundle of entryBundles) {
             let mainEntry = entryBundle.getMainEntry();

@@ -62,12 +62,7 @@ describe('hmr', function() {
     it('should emit an HMR update for the file that changed', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -96,12 +91,7 @@ describe('hmr', function() {
     it('should emit an HMR update for all new dependencies along with the changed file', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -126,12 +116,7 @@ describe('hmr', function() {
     it('should emit an HMR error on bundle failure', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -158,12 +143,7 @@ describe('hmr', function() {
     it('should emit an HMR error to new connections after a bundle failure', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -185,12 +165,7 @@ describe('hmr', function() {
     it('should emit an HMR update after error has been resolved', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
-        serve: {
-          https: false,
-          port,
-          host: 'localhost',
-        },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -227,7 +202,7 @@ describe('hmr', function() {
           port,
           host: 'localhost',
         },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
@@ -260,7 +235,7 @@ describe('hmr', function() {
           port,
           host: 'localhost',
         },
-        hot: true,
+        hot: {port},
         inputFS: overlayFS,
         config,
       });
