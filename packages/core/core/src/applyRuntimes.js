@@ -7,7 +7,6 @@ import type {
   NodeId,
   ParcelOptions,
 } from './types';
-import type InternalBundleGraph from './BundleGraph';
 import type AssetGraphBuilder from './AssetGraphBuilder';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
@@ -17,7 +16,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
-import {removeAssetGroups} from './BundleGraph';
+import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
@@ -94,11 +93,12 @@ export default async function applyRuntimes({
     connections,
   );
 
-  let runtimesGraph = removeAssetGroups(runtimesAssetGraph);
+  let runtimesGraph = InternalBundleGraph.fromAssetGraph(runtimesAssetGraph);
 
   // merge the transformed asset into the bundle's graph, and connect
   // the node to it.
-  bundleGraph._graph.merge(runtimesGraph);
+  // $FlowFixMe
+  bundleGraph._graph.merge(runtimesGraph._graph);
 
   for (let {bundle, assetRequest, dependency, isEntry} of connections) {
     let assetGroupNode = nodeFromAssetGroup(assetRequest);
@@ -110,15 +110,17 @@ export default async function applyRuntimes({
     invariant(runtimeNode.type === 'asset');
 
     let duplicatedAssetIds: Set<NodeId> = new Set();
-    runtimesGraph.traverse((node, _, actions) => {
+    runtimesGraph._graph.traverse((node, _, actions) => {
       if (node.type !== 'dependency') {
         return;
       }
 
-      let assets = runtimesGraph.getNodesConnectedFrom(node).map(assetNode => {
-        invariant(assetNode.type === 'asset');
-        return assetNode.value;
-      });
+      let assets = runtimesGraph._graph
+        .getNodesConnectedFrom(node)
+        .map(assetNode => {
+          invariant(assetNode.type === 'asset');
+          return assetNode.value;
+        });
 
       for (let asset of assets) {
         if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
@@ -128,7 +130,7 @@ export default async function applyRuntimes({
       }
     }, runtimeNode);
 
-    runtimesGraph.traverse((node, _, actions) => {
+    runtimesGraph._graph.traverse((node, _, actions) => {
       if (node.type === 'asset' || node.type === 'dependency') {
         if (duplicatedAssetIds.has(node.id)) {
           actions.skipChildren();

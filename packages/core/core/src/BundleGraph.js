@@ -59,6 +59,45 @@ export default class BundleGraph {
     this._bundleContentHashes = bundleContentHashes || new Map();
   }
 
+  static fromAssetGraph(assetGraph: AssetGraph): BundleGraph {
+    let graph = new Graph<BundleGraphNode, BundleGraphEdgeTypes>();
+
+    let rootNode = assetGraph.getRootNode();
+    invariant(rootNode != null && rootNode.type === 'root');
+    graph.setRootNode(rootNode);
+
+    let assetGroupIds = new Set();
+    for (let [, node] of assetGraph.nodes) {
+      // Don't copy over asset groups into the bundle graph.
+      if (node.type === 'asset_group') {
+        assetGroupIds.add(node.id);
+      } else {
+        graph.addNode(node);
+      }
+    }
+
+    for (let edge of assetGraph.getAllEdges()) {
+      let fromIds;
+      if (assetGroupIds.has(edge.from)) {
+        fromIds = [...assetGraph.inboundEdges.get(edge.from).get(null)];
+      } else {
+        fromIds = [edge.from];
+      }
+
+      for (let from of fromIds) {
+        if (assetGroupIds.has(edge.to)) {
+          for (let to of assetGraph.outboundEdges.get(edge.to).get(null)) {
+            graph.addEdge(from, to);
+          }
+        } else {
+          graph.addEdge(from, edge.to);
+        }
+      }
+    }
+
+    return new BundleGraph({graph});
+  }
+
   static deserialize(opts: {|
     _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
     _bundleContentHashes: Map<string, string>,
@@ -775,44 +814,4 @@ export default class BundleGraph {
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
   }
-}
-
-export function removeAssetGroups(
-  assetGraph: AssetGraph,
-): Graph<BundleGraphNode> {
-  let graph = new Graph<BundleGraphNode>();
-
-  let rootNode = assetGraph.getRootNode();
-  invariant(rootNode != null && rootNode.type === 'root');
-  graph.setRootNode(rootNode);
-
-  let assetGroupIds = new Set();
-  for (let [, node] of assetGraph.nodes) {
-    if (node.type === 'asset_group') {
-      assetGroupIds.add(node.id);
-    } else {
-      graph.addNode(node);
-    }
-  }
-
-  for (let edge of assetGraph.getAllEdges()) {
-    let fromIds;
-    if (assetGroupIds.has(edge.from)) {
-      fromIds = [...assetGraph.inboundEdges.get(edge.from).get(null)];
-    } else {
-      fromIds = [edge.from];
-    }
-
-    for (let from of fromIds) {
-      if (assetGroupIds.has(edge.to)) {
-        for (let to of assetGraph.outboundEdges.get(edge.to).get(null)) {
-          graph.addEdge(from, to);
-        }
-      } else {
-        graph.addEdge(from, edge.to);
-      }
-    }
-  }
-
-  return graph;
 }
