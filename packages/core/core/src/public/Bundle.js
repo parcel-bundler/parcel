@@ -117,6 +117,10 @@ export class Bundle implements IBundle {
     return this.#bundle.stats;
   }
 
+  get pipeline(): ?string {
+    return this.#bundle.pipeline;
+  }
+
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
