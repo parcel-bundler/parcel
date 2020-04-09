@@ -30,6 +30,10 @@ export default class PluginOptions implements IPluginOptions {
     parcelOptionsToPluginOptions.set(options, this);
   }
 
+  get instanceId(): string {
+    return this.#options.instanceId;
+  }
+
   get mode(): BuildMode {
     return this.#options.mode;
   }
