@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  Bundle,
   BuildEvent,
   BundleGraph,
   FilePath,
@@ -148,14 +149,13 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
   });
 }
 
-export async function run(
-  bundleGraph: BundleGraph,
-  globals: mixed,
-  opts: {require?: boolean, ...} = {},
-): Promise<mixed> {
-  let bundles = bundleGraph.getBundles();
+type RunOpts = {require?: boolean, ...};
 
-  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
+export async function runBundle(
+  bundle: Bundle,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
   let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 
@@ -219,6 +219,16 @@ export async function run(
   }
 
   return ctx;
+}
+
+export function run(
+  bundleGraph: BundleGraph,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
+  let bundles = bundleGraph.getBundles();
+  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
+  return runBundle(bundle, globals, opts);
 }
 
 export function assertBundles(
