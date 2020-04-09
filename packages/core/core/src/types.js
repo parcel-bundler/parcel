@@ -158,6 +158,8 @@ export type ParcelOptions = {|
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
+
+  instanceId: string,
 |};
 
 export type NodeId = string;

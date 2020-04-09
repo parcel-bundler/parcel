@@ -11,10 +11,11 @@ import type {ExternalModule, ExternalBundle} from './types';
 import type {
   Expression,
   File,
+  FunctionDeclaration,
   Identifier,
   LVal,
-  Statement,
   ObjectProperty,
+  Statement,
   StringLiteral,
   VariableDeclaration,
 } from '@babel/types';
@@ -34,7 +35,7 @@ import {
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import {assertString, getName, getIdentifier} from './utils';
+import {assertString, getName, getIdentifier, verifyScopeState} from './utils';
 import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template.statement<
@@ -57,7 +58,7 @@ const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
 >('require.resolve(ID)');
 const FAKE_INIT_TEMPLATE = template.statement<
   {|INIT: Identifier, EXPORTS: Identifier|},
-  Statement,
+  FunctionDeclaration,
 >(`function INIT(){
   return EXPORTS;
 }`);
@@ -307,6 +308,17 @@ export function link({
       }
 
       specifiers.set(imported, renamed);
+
+      if (!programScope.hasOwnBinding(renamed)) {
+        // add binding so we can track the scope
+        let [decl] = programScope.path.unshiftContainer(
+          'body',
+          t.variableDeclaration('var', [
+            t.variableDeclarator(t.identifier(renamed)),
+          ]),
+        );
+        programScope.registerDeclaration(decl);
+      }
     }
 
     return specifiers.get('*');
@@ -334,7 +346,18 @@ export function link({
       invariant(imported.assets != null);
       imported.assets.add(mod);
 
-      return t.callExpression(getIdentifier(mod, 'init'), []);
+      let initIdentifier = getIdentifier(mod, 'init');
+
+      let program = path.scope.getProgramParent().path;
+      if (!program.scope.hasOwnBinding(initIdentifier.name)) {
+        // add binding so we can track the scope
+        let [decl] = program.unshiftContainer('body', [
+          t.variableDeclaration('var', [t.variableDeclarator(initIdentifier)]),
+        ]);
+        program.scope.registerDeclaration(decl);
+      }
+
+      return t.callExpression(initIdentifier, []);
     }
   }
 
@@ -613,35 +636,30 @@ export function link({
         // Recrawl to get all bindings.
         path.scope.crawl();
 
-        // Insert imports for external bundles
-        let imports = [];
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            imports.push(
-              ...format.generateBundleImports(
-                bundle,
-                file.bundle,
-                file.assets,
-                path.scope,
-              ),
+            format.generateBundleImports(
+              bundle,
+              file.bundle,
+              file.assets,
+              path,
             );
           } else {
-            imports.push(
-              ...format.generateExternalImport(bundle, file, path.scope),
-            );
+            format.generateExternalImport(bundle, file, path);
           }
         }
 
-        if (imports.length > 0 || referencedAssets.size > 0) {
-          // Add import statements and update scope to collect references
-          path.unshiftContainer('body', imports);
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
+        }
 
+        if (referencedAssets.size > 0) {
           // Insert fake init functions that will be imported in other bundles,
           // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
-          // not in the current bundle:
-          path.pushContainer(
+          // not in the current bundle.
+          let decls = path.pushContainer(
             'body',
-            [...referencedAssets]
+            ([...referencedAssets]: Array<Asset>)
               .filter(a => !a.meta.shouldWrap)
               .map(a => {
                 return FAKE_INIT_TEMPLATE({
@@ -650,8 +668,17 @@ export function link({
                 });
               }),
           );
+          for (let decl of decls) {
+            path.scope.registerDeclaration(decl);
+            let returnId = decl.get<NodePath<Identifier>>(
+              'body.body.0.argument',
+            );
 
-          path.scope.crawl();
+            // TODO Somehow deferred/excluded assets are referenced, causing this function to
+            // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
+            // But a asset that isn't here should never be referenced in the first place.
+            path.scope.getBinding(returnId.node.name)?.reference(returnId);
+          }
         }
 
         // Generate exports
@@ -663,6 +690,10 @@ export function link({
           replacements,
           options,
         );
+
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
+        }
 
         treeShake(path.scope, exported);
       },
