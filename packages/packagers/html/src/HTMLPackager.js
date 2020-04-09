@@ -14,7 +14,7 @@ const metadataContent = new Set([
   'link',
   'meta',
   'noscript',
-  'script',
+  // 'script', retain script order (somewhat)
   'style',
   'template',
   'title',
@@ -182,15 +182,8 @@ function insertBundleReferences(siblingBundles, tree) {
 }
 
 function addBundlesToTree(bundles, tree) {
-  const head = find(tree, 'head');
-  if (head) {
-    const content = head.content || (head.content = []);
-    content.push(...bundles);
-    return;
-  }
-
-  const html = find(tree, 'html');
-  const content = html ? html.content || (html.content = []) : tree;
+  const main = find(tree, 'head') || find(tree, 'html');
+  const content = main ? main.content || (main.content = []) : tree;
   const index = findBundleInsertIndex(content);
 
   content.splice(index, 0, ...bundles);
@@ -214,9 +207,9 @@ function findBundleInsertIndex(content) {
   //   - The document element, in the form of an html element.
   //   - Any number of comments and ASCII whitespace.
   //
-  // -> Insert before first non-metadata element; if none was found, after the doctype
+  // -> Insert before first non-metadata (or script) element; if none was found, after the doctype
 
-  let doctypeIndex = 0;
+  let doctypeIndex;
   for (let index = 0; index < content.length; index++) {
     const node = content[index];
     if (node && node.tag && !metadataContent.has(node.tag)) {
@@ -230,5 +223,5 @@ function findBundleInsertIndex(content) {
     }
   }
 
-  return doctypeIndex + 1;
+  return doctypeIndex ? doctypeIndex + 1 : 0;
 }
