@@ -14,7 +14,7 @@ const metadataContent = new Set([
   'link',
   'meta',
   'noscript',
-  // 'script', retain script order (somewhat)
+  // 'script', // retain script order (somewhat)
   'style',
   'template',
   'title',
