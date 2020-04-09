@@ -7,6 +7,7 @@ import type {
   BundleGroup,
   Dependency as IDependency,
   GraphTraversalCallback,
+  NamedBundle as INamedBundle,
   Symbol,
   SymbolResolution,
 } from '@parcel/types';
@@ -18,7 +19,7 @@ import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
-import {Bundle, bundleToInternalBundle} from './Bundle';
+import {NamedBundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
 
@@ -76,10 +77,10 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
-  getSiblingBundles(bundle: IBundle): Array<IBundle> {
+  getSiblingBundles(bundle: IBundle): Array<INamedBundle> {
     return this.#graph
       .getSiblingBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
   }
 
   resolveExternalDependency(
@@ -139,28 +140,28 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<INamedBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
   }
 
-  getBundles(): Array<IBundle> {
+  getBundles(): Array<INamedBundle> {
     return this.#graph
       .getBundles()
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
   }
 
-  getChildBundles(bundle: IBundle): Array<IBundle> {
+  getChildBundles(bundle: IBundle): Array<INamedBundle> {
     return this.#graph
       .getChildBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
   }
 
-  getParentBundles(bundle: IBundle): Array<IBundle> {
+  getParentBundles(bundle: IBundle): Array<INamedBundle> {
     return this.#graph
       .getParentBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
   }
 
   resolveSymbol(
@@ -190,21 +191,21 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<IBundle, TContext>,
+    visit: GraphTraversalCallback<INamedBundle, TContext>,
     startBundle?: IBundle,
   ): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
-        bundle => new Bundle(bundle, this.#graph, this.#options),
+        bundle => new NamedBundle(bundle, this.#graph, this.#options),
         visit,
       ),
       startBundle == null ? undefined : bundleToInternalBundle(startBundle),
     );
   }
 
-  findBundlesWithAsset(asset: IAsset): Array<IBundle> {
+  findBundlesWithAsset(asset: IAsset): Array<INamedBundle> {
     return this.#graph
       .findBundlesWithAsset(assetToAssetValue(asset))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
   }
 }

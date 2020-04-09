@@ -171,7 +171,7 @@ function getLoaderRuntimes({
   bundleGroup,
   bundleGraph,
 }: {|
-  bundle: Bundle,
+  bundle: NamedBundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
   bundleGraph: BundleGraph,
@@ -286,8 +286,8 @@ function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
 
 function getURLRuntime(
   dependency: Dependency,
-  from: Bundle,
-  to: Bundle,
+  from: NamedBundle,
+  to: NamedBundle,
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to);
   if (dependency.meta.webworker === true) {
