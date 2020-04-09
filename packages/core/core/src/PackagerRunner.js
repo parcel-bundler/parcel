@@ -226,7 +226,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -274,7 +274,7 @@ export default class PackagerRunner {
     contents: Blob,
     map?: ?SourceMap,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     let optimizers = await this.config.getOptimizers(
       bundle.filePath,
       internalBundle.pipeline,
@@ -444,7 +444,7 @@ export default class PackagerRunner {
 
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
+    let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
     let writeOptions = publicBundle.env.isBrowser()
       ? undefined
       : {

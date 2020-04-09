@@ -80,7 +80,7 @@ export default class BundleGraph implements IBundleGraph {
   getSiblingBundles(bundle: IBundle): Array<INamedBundle> {
     return this.#graph
       .getSiblingBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
+      .map(bundle => NamedBundle.get(bundle, this.#graph, this.#options));
   }
 
   resolveExternalDependency(
@@ -143,25 +143,25 @@ export default class BundleGraph implements IBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<INamedBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
+      .map(bundle => NamedBundle.get(bundle, this.#graph, this.#options));
   }
 
   getBundles(): Array<INamedBundle> {
     return this.#graph
       .getBundles()
-      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
+      .map(bundle => NamedBundle.get(bundle, this.#graph, this.#options));
   }
 
   getChildBundles(bundle: IBundle): Array<INamedBundle> {
     return this.#graph
       .getChildBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
+      .map(bundle => NamedBundle.get(bundle, this.#graph, this.#options));
   }
 
   getParentBundles(bundle: IBundle): Array<INamedBundle> {
     return this.#graph
       .getParentBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
+      .map(bundle => NamedBundle.get(bundle, this.#graph, this.#options));
   }
 
   resolveSymbol(
@@ -196,7 +196,7 @@ export default class BundleGraph implements IBundleGraph {
   ): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
-        bundle => new NamedBundle(bundle, this.#graph, this.#options),
+        bundle => NamedBundle.get(bundle, this.#graph, this.#options),
         visit,
       ),
       startBundle == null ? undefined : bundleToInternalBundle(startBundle),
@@ -206,6 +206,6 @@ export default class BundleGraph implements IBundleGraph {
   findBundlesWithAsset(asset: IAsset): Array<INamedBundle> {
     return this.#graph
       .findBundlesWithAsset(assetToAssetValue(asset))
-      .map(bundle => new NamedBundle(bundle, this.#graph, this.#options));
+      .map(bundle => NamedBundle.get(bundle, this.#graph, this.#options));
   }
 }

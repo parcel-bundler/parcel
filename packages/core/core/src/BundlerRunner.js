@@ -166,7 +166,7 @@ export default class BundlerRunner {
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
-    let bundle = new Bundle(internalBundle, internalBundleGraph, this.options);
+    let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
 
     for (let namer of namers) {

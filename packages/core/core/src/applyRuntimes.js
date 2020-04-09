@@ -51,7 +51,7 @@ export default async function applyRuntimes({
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
-          bundle: new NamedBundle(bundle, bundleGraph, options),
+          bundle: NamedBundle.get(bundle, bundleGraph, options),
           bundleGraph: new BundleGraph(bundleGraph, options),
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),

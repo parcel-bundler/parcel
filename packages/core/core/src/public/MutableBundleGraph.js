@@ -20,7 +20,7 @@ import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
-import {getBundleGroupId} from '../utils';
+import {getBundleGroupId, getPublicId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
@@ -34,6 +34,7 @@ const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
 export default class MutableBundleGraph implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
+  #bundlePublicIds = new Map<string, string>();
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     let existing = internalMutableBundleGraphToMutableBundleGraph
@@ -116,9 +117,14 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
     for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      this.#graph._graph.removeById(bundle.id);
+      this.removeBundle(bundle);
     }
     this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
+  }
+
+  removeBundle(bundle: IBundle): void {
+    this.#graph._graph.removeById(bundle.id);
+    this.#bundlePublicIds.delete(bundle.id);
   }
 
   resolveExternalDependency(
@@ -163,6 +169,11 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
         target.distDir,
     );
+    let publicId = getPublicId(bundleId, existing =>
+      this.#bundlePublicIds.has(existing),
+    );
+    this.#bundlePublicIds.set(bundleId, publicId);
+
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
@@ -191,7 +202,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     if (opts.entryAsset) {
       this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
     }
-    return new Bundle(bundleNode.value, this.#graph, this.#options);
+    return Bundle.get(bundleNode.value, this.#graph, this.#options);
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
@@ -232,7 +243,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   getSiblingBundles(bundle: IBundle): Array<IBundle> {
     return this.#graph
       .getSiblingBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
   traverse<TContext>(
@@ -259,13 +270,13 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   findBundlesWithAsset(asset: IAsset): Array<IBundle> {
     return this.#graph
       .findBundlesWithAsset(assetToAssetValue(asset))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
   findBundlesWithDependency(dependency: IDependency): Array<IBundle> {
     return this.#graph
       .findBundlesWithDependency(dependencyToInternalDependency(dependency))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
@@ -277,13 +288,13 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getParentBundlesOfBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
   getTotalSize(asset: IAsset): number {
@@ -307,7 +318,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   traverseBundles<TContext>(visit: GraphVisitor<IBundle, TContext>): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
-        bundle => new Bundle(bundle, this.#graph, this.#options),
+        bundle => Bundle.get(bundle, this.#graph, this.#options),
         visit,
       ),
     );

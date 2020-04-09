@@ -53,7 +53,7 @@ export default class ReporterRunner {
         invariant(bundleGraph instanceof BundleGraph);
         this.report({
           ...event,
-          bundle: new NamedBundle(event.bundle, bundleGraph, this.options),
+          bundle: NamedBundle.get(event.bundle, bundleGraph, this.options),
         });
         return;
       }

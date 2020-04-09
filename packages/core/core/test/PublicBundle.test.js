@@ -34,20 +34,23 @@ describe('Public Bundle', () => {
       stats: {size: 0, time: 0},
     };
 
-    bundleGraph = new BundleGraph({graph: new Graph()});
+    bundleGraph = new BundleGraph({
+      graph: new Graph(),
+      bundleContentHashes: new Map(),
+    });
   });
 
   it('returns the same public Bundle given an internal bundle', () => {
     assert.equal(
-      new Bundle(internalBundle, bundleGraph, DEFAULT_OPTIONS),
-      new Bundle(internalBundle, bundleGraph, DEFAULT_OPTIONS),
+      Bundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
+      Bundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
     );
   });
 
   it('returns the same public NamedBundle given an internal bundle', () => {
     assert.equal(
-      new NamedBundle(internalBundle, bundleGraph, DEFAULT_OPTIONS),
-      new NamedBundle(internalBundle, bundleGraph, DEFAULT_OPTIONS),
+      NamedBundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
+      NamedBundle.get(internalBundle, bundleGraph, DEFAULT_OPTIONS),
     );
   });
 });
