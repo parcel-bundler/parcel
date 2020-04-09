@@ -4,7 +4,7 @@ import assert from 'assert';
 import {Bundle, NamedBundle} from '../src/public/Bundle';
 import BundleGraph from '../src/BundleGraph';
 import {createEnvironment} from '../src/Environment';
-import {DEFAULT_OPTIONS} from './utils';
+import {DEFAULT_OPTIONS} from './test-utils';
 import Graph from '../src/Graph';
 
 describe('Public Bundle', () => {

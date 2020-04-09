@@ -13,7 +13,7 @@ import {
   processConfig,
 } from '../src/loadParcelConfig';
 import {validatePackageName} from '../src/ParcelConfig.schema';
-import {DEFAULT_OPTIONS} from './utils';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {

@@ -4,7 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
-import {DEFAULT_OPTIONS} from './utils';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 import TargetResolver from '../src/TargetResolver';
 
