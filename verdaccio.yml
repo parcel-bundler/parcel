@@ -16,6 +16,12 @@ packages:
     unpublish: $authenticated
     proxy: npmjs
 
+  '@parcel/source-map':
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+
   '@parcel/*':
     access: $all
     publish: $all
