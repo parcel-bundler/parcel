@@ -258,7 +258,11 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async validate(): Promise<void> {
     let trackedRequestsDesc = this.assetRequests
-      .filter(request => this.requestTracker.isTracked(request.id))
+      .filter(
+        request =>
+          this.requestTracker.isTracked(request.id) &&
+          this.config.getValidatorNames(request.request.filePath).length > 0,
+      )
       .map(({request}) => request);
 
     // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
@@ -269,6 +273,11 @@ export default class AssetGraphBuilder extends EventEmitter {
         configRef: this.configRef,
       }),
     );
+
+    // Skip sending validation requests if no validators were no validators configured
+    if (trackedRequestsDesc.length === 0) {
+      return;
+    }
 
     // Schedule validations on the main thread for all validation plugins that implement "validateAll".
     promises.push(
