@@ -651,10 +651,6 @@ describe('loadParcelConfig', () => {
             },
           ],
         },
-        // e => {
-        //   console.log(e);
-        //   return true;
-        // },
       );
     });
   });
