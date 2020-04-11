@@ -280,9 +280,9 @@ export default class Parcel {
         buildTime: Date.now() - startTime,
       };
 
-      await this.#assetGraphBuilder.validate();
-
       await this.#reporterRunner.report(event);
+
+      await this.#assetGraphBuilder.validate();
 
       return event;
     } catch (e) {
