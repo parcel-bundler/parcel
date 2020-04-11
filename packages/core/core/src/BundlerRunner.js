@@ -77,7 +77,7 @@ export default class BundlerRunner {
       this.options,
     );
 
-    let bundler = await this.config.getBundler();
+    let {plugin: bundler} = await this.config.getBundler();
 
     try {
       await bundler.bundle({
@@ -128,16 +128,12 @@ export default class BundlerRunner {
   }
 
   async getCacheKey(assetGraph: AssetGraph) {
-    let bundler = this.config.getBundlerName();
-    let {pkg} = await this.options.packageManager.resolve(
-      `${bundler}/package.json`,
-      `${this.config.filePath}/index`, // TODO: is this right?
-    );
+    let name = this.config.getBundlerName();
+    let {version} = await this.config.getBundler();
 
-    let version = nullthrows(pkg).version;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
-      bundler,
+      name,
       version,
       hash: assetGraph.getHash(),
     });
@@ -160,7 +156,12 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|name: string, plugin: Namer, resolveFrom: FilePath|}>,
+    namers: Array<{|
+      name: string,
+      version: string,
+      plugin: Namer,
+      resolveFrom: FilePath,
+    |}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {

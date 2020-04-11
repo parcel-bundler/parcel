@@ -106,7 +106,11 @@ async function tryCreateLanguageService(
   options: PluginOptions,
 ): Promise<void> {
   if (config.tsconfig && !langServiceCache[config.configHash]) {
-    let ts = await options.packageManager.require('typescript', asset.filePath);
+    let ts = await options.packageManager.require(
+      'typescript',
+      asset.filePath,
+      {autoinstall: options.autoinstall},
+    );
 
     // In order to prevent race conditions where we accidentally create two language services for the same config,
     // we need to re-check the cache to see if a service has been created while we were awaiting 'ts'.

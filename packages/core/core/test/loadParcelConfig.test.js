@@ -472,6 +472,7 @@ describe('loadParcelConfig', () => {
           },
         },
         DEFAULT_OPTIONS.packageManager,
+        false,
       );
 
       let ext = {
@@ -536,6 +537,7 @@ describe('loadParcelConfig', () => {
           reporters: [],
         },
         DEFAULT_OPTIONS.packageManager,
+        false,
       );
 
       // $FlowFixMe
