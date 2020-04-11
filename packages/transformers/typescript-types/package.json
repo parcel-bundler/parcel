@@ -23,5 +23,8 @@
   },
   "devDependencies": {
     "typescript": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

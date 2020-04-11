@@ -172,7 +172,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     // This should not be necessary once sub requests are supported
     if (configRef !== this.configRef) {
       this.configRef = configRef;
-      this.config = new ParcelConfig(config, this.options.packageManager);
+      this.config = new ParcelConfig(
+        config,
+        this.options.packageManager,
+        this.options.autoinstall,
+      );
       let {
         requestTracker: tracker,
         options,

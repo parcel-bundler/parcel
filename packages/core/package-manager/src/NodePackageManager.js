@@ -16,7 +16,7 @@ import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
 import nativeFS from 'fs';
-// $FlowFixMe
+// $FlowFixMe this is untyped
 import Module from 'module';
 import path from 'path';
 import semver from 'semver';
@@ -55,7 +55,7 @@ export class NodePackageManager implements PackageManager {
   async require(
     name: ModuleSpecifier,
     from: FilePath,
-    opts: ?{|range?: SemverRange, autoInstall?: boolean|},
+    opts: ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
   ) {
     let {resolved} = await this.resolve(name, from, opts);
     return this.load(resolved, from);
@@ -109,7 +109,7 @@ export class NodePackageManager implements PackageManager {
   async resolve(
     name: ModuleSpecifier,
     from: FilePath,
-    options?: ?{|range?: string, autoInstall?: boolean|},
+    options?: ?{|range?: string, autoinstall?: boolean, saveDev?: boolean|},
   ) {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
@@ -121,7 +121,7 @@ export class NodePackageManager implements PackageManager {
           extensions: Object.keys(Module._extensions),
         });
       } catch (e) {
-        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoInstall === false) {
+        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall === false) {
           throw e;
         }
 
@@ -132,10 +132,12 @@ export class NodePackageManager implements PackageManager {
         );
 
         if (conflicts == null) {
-          await this.install([{name, range: options?.range}], from);
+          await this.install([{name, range: options?.range}], from, {
+            saveDev: options?.saveDev ?? true,
+          });
           return this.resolve(name, from, {
             ...options,
-            autoInstall: false,
+            autoinstall: false,
           });
         }
 
@@ -169,11 +171,11 @@ export class NodePackageManager implements PackageManager {
             from,
           );
 
-          if (conflicts == null && options?.autoInstall !== false) {
+          if (conflicts == null && options?.autoinstall !== false) {
             await this.install([{name, range}], from);
             return this.resolve(name, from, {
               ...options,
-              autoInstall: false,
+              autoinstall: false,
             });
           } else if (conflicts != null) {
             throw new ThrowableDiagnostic({

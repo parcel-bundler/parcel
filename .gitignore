@@ -18,3 +18,4 @@ yarn-debug.log*
 yarn-error.log*
 tmp
 parcel-bundle-reports
+.verdaccio_storage
