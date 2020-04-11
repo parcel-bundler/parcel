@@ -2,10 +2,12 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {
+  Asset as IAsset,
   AssetRequestDesc,
   ConfigRequestDesc,
   ParcelOptions,
   ReportFn,
+  ValidationRequest,
 } from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
 
@@ -29,9 +31,10 @@ export type ValidationOpts = {|
    */
   dedicatedThread?: boolean,
   options: ParcelOptions,
-  requests: AssetRequestDesc[],
+  requests: ValidationRequest[],
   report: ReportFn,
   workerApi?: WorkerApi,
+  getAllDependentAssets?: (assetGraphNodeId: string) => Array<IAsset>,
 |};
 
 export default class Validation {
@@ -40,16 +43,18 @@ export default class Validation {
   dedicatedThread: boolean;
   configRequests: Array<ConfigRequestDesc>;
   configLoader: ConfigLoader;
+  getAllDependentAssets: (assetGraphNodeId: string) => Array<IAsset>;
   impactfulOptions: $Shape<ParcelOptions>;
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
   report: ReportFn;
-  requests: AssetRequestDesc[];
+  requests: ValidationRequest[];
   workerApi: ?WorkerApi;
 
   constructor({
     config,
     dedicatedThread,
+    getAllDependentAssets,
     options,
     requests,
     report,
@@ -57,6 +62,13 @@ export default class Validation {
   }: ValidationOpts) {
     this.configLoader = new ConfigLoader({options, config});
     this.dedicatedThread = dedicatedThread ?? false;
+    // ANDREW_TODO: figure out the right way to handle the case where getAllDependentAssets is not defined.
+    // eslint-disable-next-line no-unused-vars
+    this.getAllDependentAssets =
+      getAllDependentAssets ??
+      ((_assetGraphNodeId: string) => {
+        return [];
+      });
     this.options = options;
     this.parcelConfig = config;
     this.report = report;
@@ -78,6 +90,7 @@ export default class Validation {
             if (plugin.validateAll && this.dedicatedThread) {
               let validatorResults = await plugin.validateAll({
                 assets: assets.map(asset => new Asset(asset)),
+                getAllDependentAssets: this.getAllDependentAssets,
                 options: pluginOptions,
                 logger: validatorLogger,
                 resolveConfigWithPath: (
@@ -137,13 +150,13 @@ export default class Validation {
   async buildAssetsAndValidators() {
     // Figure out what validators need to be run, and group the assets by the relevant validators.
     await Promise.all(
-      this.requests.map(async request => {
+      this.requests.map(async ({request, assetGraphNodeId}) => {
         this.report({
           type: 'validation',
           filePath: request.filePath,
         });
 
-        let asset = await this.loadAsset(request);
+        let asset = await this.loadAsset(request, assetGraphNodeId);
 
         let validators = await this.parcelConfig.getValidators(
           request.filePath,
@@ -177,7 +190,10 @@ export default class Validation {
     }
   }
 
-  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
+  async loadAsset(
+    request: AssetRequestDesc,
+    assetGraphNodeId: string,
+  ): Promise<UncommittedAsset> {
     let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
@@ -207,6 +223,7 @@ export default class Validation {
         },
         sideEffects: sideEffects,
       }),
+      assetGraphNodeId,
       options: this.options,
       content,
     });

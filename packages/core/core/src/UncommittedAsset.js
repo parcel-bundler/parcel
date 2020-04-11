@@ -36,6 +36,7 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
+  assetGraphNodeId?: string,
 |};
 
 export default class UncommittedAsset {
@@ -47,6 +48,7 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
+  assetGraphNodeId: ?string;
 
   constructor({
     value,
@@ -56,6 +58,7 @@ export default class UncommittedAsset {
     ast,
     isASTDirty,
     idBase,
+    assetGraphNodeId,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -64,6 +67,7 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
+    this.assetGraphNodeId = assetGraphNodeId;
   }
 
   /*

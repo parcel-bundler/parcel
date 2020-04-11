@@ -196,6 +196,11 @@ export class Asset extends BaseAsset implements IAsset {
   get stats(): Stats {
     return this.#asset.value.stats;
   }
+
+  get assetGraphNodeId(): ?string {
+    // $FlowFixMe ANDREW_TODO: This is a really hacky way of passing around assetGraphNodeId
+    return this.#asset.assetGraphNodeId ?? undefined;
+  }
 }
 
 export class MutableAsset extends BaseAsset implements IMutableAsset {

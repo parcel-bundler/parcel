@@ -7,8 +7,10 @@ import type {
   Asset,
   AssetGraphNode,
   AssetRequestDesc,
+  Dependency,
   ParcelOptions,
   ValidationOpts,
+  ValidationRequest,
 } from './types';
 import type {RunRequestOpts} from './RequestTracker';
 import type {EntryRequest} from './requests/EntryRequestRunner';
@@ -16,6 +18,7 @@ import type {TargetRequest} from './requests/TargetRequestRunner';
 import type {AssetRequest} from './requests/AssetRequestRunner';
 import type {DepPathRequest} from './requests/DepPathRequestRunner';
 
+import invariant from 'assert';
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -252,13 +255,55 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
+  /** Fetches things that depend on a given assetGraph node. */
+  getDependents = (assetGraphNodeId: string): Array<Dependency> => {
+    let node = this.assetGraph.getNode(assetGraphNodeId);
+    if (!node) {
+      throw new Error('Asset not found');
+    }
+
+    let dependents = this.assetGraph.getNodesConnectedTo(node).map(node => {
+      invariant(node.type === 'dependency');
+      return node.value;
+    });
+
+    return dependents;
+  };
+
+  /** For a given node (e.g. a dependency), finds all related assets (unpacking any asset_groups along the way). */
+  getAssetsRecursive = (nodeId: string): Array<Asset> => {
+    let dependencyNode = nullthrows(this.assetGraph.getNode(nodeId));
+    let connectedNodes = this.assetGraph.getNodesConnectedTo(dependencyNode);
+
+    return connectedNodes.reduce<Array<Asset>>((assets, node) => {
+      if (node.type === 'asset') {
+        assets.push(node.value);
+      } else if (node.type === 'asset_group') {
+        assets.push(...this.getAssetsRecursive(node.id));
+      }
+      return assets;
+    }, []);
+  };
+
+  /** Recursively fetches all assets that depend (through any chain) on a given asset. */
+  getAllDependentAssets = (assetGraphNodeId: string): Array<Asset> => {
+    let allDependentAssets: Map<string, Asset> = new Map();
+    this.getDependents(assetGraphNodeId).forEach(dependent => {
+      this.getAssetsRecursive(dependent.id).forEach(asset => {
+        allDependentAssets.set(asset.id, asset);
+      });
+    });
+    return Array.from(allDependentAssets.values());
+  };
+
   async validate(): Promise<void> {
-    let trackedRequestsDesc = this.assetRequests
+    // ANDREW_TODO: ValidationRequests is a hack - need to find a better way to pass around assetGraphNodeId.
+    let validationRequests: ValidationRequest[] = this.assetRequests
       .filter(request => this.requestTracker.isTracked(request.id))
-      .map(({request}) => request);
+      .map(({request, assetGraphNodeId}) => ({request, assetGraphNodeId}));
 
     // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
-    let promises = trackedRequestsDesc.map(request =>
+    let promises = validationRequests.map(request =>
       this.runValidate({
         requests: [request],
         optionsRef: this.optionsRef,
@@ -269,11 +314,12 @@ export default class AssetGraphBuilder extends EventEmitter {
     // Schedule validations on the main thread for all validation plugins that implement "validateAll".
     promises.push(
       new Validation({
-        requests: trackedRequestsDesc,
+        requests: validationRequests,
         options: this.options,
         config: this.config,
         report,
         dedicatedThread: true,
+        getAllDependentAssets: this.getAllDependentAssets,
       }).run(),
     );
 
@@ -350,6 +396,8 @@ export default class AssetGraphBuilder extends EventEmitter {
           type,
           request: node.value,
           id: generateRequestId(type, node.value),
+          // ANDREW_TODO: this seems like a hacky way to pass around the assetGraphNodeId
+          assetGraphNodeId: node.id,
         };
       }
     }

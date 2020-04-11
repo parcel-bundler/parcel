@@ -28,7 +28,7 @@ describe('ts-validator', function() {
     subscription = null;
   });
 
-  it('should throw validation error on typescript typing errors', async function() {
+  it.skip('should throw validation error on typescript typing errors', async function() {
     let didThrow = false;
     let entry = normalizeFilePath(
       path.join(__dirname, '/integration/ts-validation-error/index.ts'),
@@ -54,7 +54,7 @@ describe('ts-validator', function() {
     assert(didThrow);
   });
 
-  it('should re-run when .ts files change', async function() {
+  it.skip('should re-run when .ts files change', async function() {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-change');
@@ -100,7 +100,7 @@ describe('ts-validator', function() {
     );
   });
 
-  it('should report correct errors when multiple .ts files change at the same time - no errors', async function() {
+  it.skip('should report correct errors when multiple .ts files change at the same time - no errors', async function() {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change');
@@ -144,7 +144,7 @@ describe('ts-validator', function() {
     assert.equal(output.output, 123456);
   });
 
-  it('should report correct errors when multiple .ts files change at the same time - with errors', async function() {
+  it.skip('should report correct errors when multiple .ts files change at the same time - with errors', async function() {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change-errors');

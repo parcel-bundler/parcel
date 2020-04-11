@@ -34,6 +34,7 @@ export default new Validator({
     assets,
     options,
     resolveConfigWithPath,
+    getAllDependentAssets,
   }): Promise<Array<?ValidateResult>> {
     // Build a collection that of all the LanguageServices related to files that just changed.
     let servicesToValidate: Set<string> = new Set();
@@ -41,6 +42,17 @@ export default new Validator({
       assets.map(async asset => {
         let config = await getConfig(asset, options, resolveConfigWithPath);
         let {configHash} = config;
+
+        // ANDREW_TODO: consider ways to guarantee that getAllDependents is defined.
+        let dependentAssets =
+          typeof asset.assetGraphNodeId === 'string' && getAllDependentAssets
+            ? getAllDependentAssets(asset.assetGraphNodeId)
+            : [];
+        console.log(
+          `Validating asset: ${asset.filePath} id: ${asset.assetGraphNodeId ??
+            'undefined'} with these dependents`,
+          dependentAssets,
+        );
 
         // Create a languageService/host in the cache for the configuration if it doesn't already exist.
         await tryCreateLanguageService(config, asset, options);

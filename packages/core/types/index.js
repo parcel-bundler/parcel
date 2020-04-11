@@ -354,6 +354,8 @@ export interface MutableAsset extends BaseAsset {
 
 export interface Asset extends BaseAsset {
   +stats: Stats;
+  // ANDREW_TODO: this is really hacky. It's currently necessary because Validate/ValidateAll take type Asset.
+  +assetGraphNodeId?: ?string;
 }
 
 export interface Config {
@@ -448,6 +450,8 @@ export type DedicatedThreadValidator = {|
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
+    // $FlowFixMe ANDREW_TODO: need to understand why there are two different 'Asset' interfaces in this file v. packages/core/core/types.ts
+    getAllDependentAssets: (assetGraphNodeId: string) => Array<any>,
   |}) => Async<Array<?ValidateResult>>,
 |};
 
