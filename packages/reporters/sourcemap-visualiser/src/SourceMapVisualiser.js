@@ -22,7 +22,7 @@ export default new Reporter({
                 let sourceContent = '';
                 try {
                   sourceContent = await options.inputFS.readFile(
-                    path.join(options.projectRoot, s),
+                    path.resolve(options.projectRoot, s),
                     'utf-8',
                   );
                 } catch (e) {
