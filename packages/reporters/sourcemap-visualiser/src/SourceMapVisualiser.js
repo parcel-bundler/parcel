@@ -1,5 +1,6 @@
 // @flow
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {Reporter} from '@parcel/plugin';
 import {relatifyPath} from '@parcel/utils';
 
@@ -44,9 +45,8 @@ export default new Reporter({
               mappings: map.mappings,
               names: map.names,
               sources: mappedSources,
-              // $FlowFixMe
               content: await options.outputFS.readFile(
-                bundle.filePath,
+                nullthrows(bundle.filePath),
                 'utf-8',
               ),
             });
