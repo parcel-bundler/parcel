@@ -49,8 +49,6 @@ export default new Reporter({
         options.projectRoot,
       );
 
-      console.log(bundles);
-
       let metrics = {
         phaseTimings: value.timings,
         buildTime: event.buildTime,
