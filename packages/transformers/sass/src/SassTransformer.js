@@ -68,7 +68,9 @@ export default new Transformer({
 
   async transform({asset, options, config, logger}) {
     await warnAboutNodeSassBeingUnsupported(asset.filePath, logger);
-    let sass = await options.packageManager.require('sass', asset.filePath);
+    let sass = await options.packageManager.require('sass', asset.filePath, {
+      autoinstall: options.autoinstall,
+    });
     const sassRender = promisify(sass.render.bind(sass));
 
     let css;
