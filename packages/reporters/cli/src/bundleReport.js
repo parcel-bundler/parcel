@@ -2,7 +2,7 @@
 import type {BundleGraph, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
-import {generateBundleReport, prettifyTime} from '@parcel/utils';
+import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
 import filesize from 'filesize';
 import chalk from 'chalk';
 
@@ -23,8 +23,7 @@ export default async function bundleReport(
   projectRoot: FilePath,
 ) {
   // Get a list of bundles sorted by size
-  // $FlowFixMe not entirely sure why this fails?
-  let {bundles} = await generateBundleReport(bundleGraph, fs, projectRoot);
+  let {bundles} = await generateBuildMetrics(bundleGraph, fs, projectRoot);
   let rows = [];
 
   for (let bundle of bundles) {
@@ -46,11 +45,11 @@ export default async function bundleReport(
       ]);
     }
 
-    if (bundle.totalAssets > largestAssets.length) {
+    if (bundle.assets.length > largestAssets.length) {
       rows.push([
         '└── ' +
           chalk.dim(
-            `+ ${bundle.totalAssets - largestAssets.length} more assets`,
+            `+ ${bundle.assets.length - largestAssets.length} more assets`,
           ),
       ]);
     }

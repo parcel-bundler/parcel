@@ -21,7 +21,7 @@ export type BundleStats = {|
   assets: Array<AssetStats>,
 |};
 
-export type BundleReport = {|
+export type BuildMetrics = {|
   bundles: Array<BundleStats>,
 |};
 
@@ -136,11 +136,11 @@ async function createBundleStats(
   };
 }
 
-export default async function generateBundleReport(
+export default async function generateBuildMetrics(
   bundleGraph: BundleGraph,
   fs: FileSystem,
   projectRoot: FilePath,
-): Promise<BundleReport> {
+): Promise<BuildMetrics> {
   let bundles = bundleGraph
     .getBundles()
     .sort((a, b) => b.stats.size - a.stats.size)
