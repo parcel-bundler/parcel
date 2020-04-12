@@ -3,7 +3,6 @@ import {
   bundle,
   bundler,
   assertBundles,
-  assertBundleTree,
   removeDistDirectory,
   distDir,
   getNextBuild,
@@ -556,7 +555,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/webmanifest/index.html'),
     );
 
-    await assertBundleTree(b, {
+    assertBundles(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
@@ -580,7 +579,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-manifest/index.html'),
     );
 
-    await assertBundleTree(b, {
+    assertBundles(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
@@ -1136,6 +1135,41 @@ describe('html', function() {
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
     assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
+  });
+
+  it('should insert JS sibling bundle script tags in the correct order', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/interop-async/index.html',
+      ),
+      {production: true, scopeHoist: true},
+    );
+    let bundles = b.getBundles();
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let insertedBundles = [];
+    let regex = /<script (?:type="[^"]+" )?src="([^"]*)"><\/script>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      let bundle = bundles.find(
+        b => path.basename(b.filePath) === path.basename(match[1]),
+      );
+
+      insertedBundles.push(bundle);
+    }
+
+    assert.equal(insertedBundles.length, 3);
+
+    let js1 = await outputFS.readFile(insertedBundles[0].filePath, 'utf8');
+    let js2 = await outputFS.readFile(insertedBundles[1].filePath, 'utf8');
+
+    let id = js1.match(/parcelRequire\.register\("([a-f0-9]+)",/)[1];
+    assert(new RegExp(`parcelRequire\\("${id}"\\)`).test(js2));
   });
 
   it('should not point to unrelated sibling bundles', async function() {
