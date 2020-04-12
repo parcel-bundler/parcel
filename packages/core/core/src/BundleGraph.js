@@ -648,12 +648,13 @@ export default class BundleGraph {
 
   // Resolve the export `symbol` of `asset` to the source,
   // stopping at the first asset after leaving `bundle` (symbol is null in that case)
+  // If the symbol can't be found, then symbol is undefined
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
     if (boundary && !this.bundleHasAsset(boundary, asset)) {
       return {
         asset,
         exportSymbol: symbol,
-        symbol: undefined,
+        symbol: null,
       };
     }
 
@@ -701,7 +702,7 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
-        if (result.symbol != null) {
+        if (result.symbol !== undefined) {
           return {
             asset: result.asset,
             symbol: result.symbol,
