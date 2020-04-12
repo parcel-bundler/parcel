@@ -57,7 +57,7 @@ export default new Reporter({
             filePath: b.filePath,
             size: b.size,
             time: b.time,
-            largestAssets: b.assets,
+            largestAssets: b.assets.slice(0, 10),
             totalAssets: b.assets.length,
           };
         }),
