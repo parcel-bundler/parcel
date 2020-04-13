@@ -1,7 +1,8 @@
 // @flow
 
-import type {Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
 import type {
+  ArrayExpression,
   ExpressionStatement,
   File,
   Statement,
@@ -17,20 +18,42 @@ import * as t from '@babel/types';
 import template from '@babel/template';
 
 const REGISTER_TEMPLATE = template.statement<
-  {|ID: StringLiteral, STATEMENTS: Array<Statement>|},
+  {|
+    ID: StringLiteral,
+    REFERENCED_IDS: ArrayExpression,
+    STATEMENTS: Array<Statement>,
+  |},
   ExpressionStatement,
->('parcelRequire.registerBundle(ID, function () { STATEMENTS; })');
+>(`(function() {
+  function $parcel$bundleWrapper() {
+    if ($parcel$bundleWrapper._executed) return;
+    STATEMENTS;
+    $parcel$bundleWrapper._executed = true;
+  }
+  parcelRequire.registerBundle(ID, $parcel$bundleWrapper);
+  var $parcel$referencedAssets = REFERENCED_IDS;
+  for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
+    parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+  }
+})()`);
 const WRAPPER_TEMPLATE = template.statement<
   {|STATEMENTS: Array<Statement>|},
   ExpressionStatement,
 >('(function () { STATEMENTS; })()');
 
-export function generate(
+export function generate({
+  bundleGraph,
+  bundle,
+  ast,
+  referencedAssets,
+  options,
+}: {|
   bundleGraph: BundleGraph,
   bundle: Bundle,
   ast: File,
   options: PluginOptions,
-) {
+  referencedAssets: Set<Asset>,
+|}) {
   let interpreter;
   if (!bundle.target.env.isBrowser()) {
     let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
@@ -50,6 +73,9 @@ export function generate(
           REGISTER_TEMPLATE({
             ID: t.stringLiteral(nullthrows(entry).id),
             STATEMENTS: statements,
+            REFERENCED_IDS: t.arrayExpression(
+              [...referencedAssets].map(asset => t.stringLiteral(asset.id)),
+            ),
           }),
         ]
       : [WRAPPER_TEMPLATE({STATEMENTS: statements})];
