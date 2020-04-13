@@ -75,7 +75,7 @@ export function link({
   ast: File,
   options: PluginOptions,
   wrappedAssets: Set<string>,
-|}) {
+|}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
@@ -710,5 +710,5 @@ export function link({
     },
   });
 
-  return ast;
+  return {ast, referencedAssets};
 }
