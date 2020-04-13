@@ -8,6 +8,7 @@ export default new Transformer({
     const sugarss = await options.packageManager.require(
       'sugarss',
       asset.filePath,
+      {autoinstall: options.autoinstall},
     );
     const code = await asset.getCode();
     const {css} = await postcss().process(code, {

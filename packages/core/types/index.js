@@ -228,6 +228,7 @@ export interface PluginOptions {
   +inputFS: FileSystem;
   +outputFS: FileSystem;
   +packageManager: PackageManager;
+  +instanceId: string;
 }
 
 export type ServerOptions = {|

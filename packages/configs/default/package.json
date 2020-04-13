@@ -57,5 +57,8 @@
     "@parcel/transformer-typescript-types": "^2.0.0-frontbucket.20",
     "@parcel/transformer-workerize": "^2.0.0-frontbucket.24",
     "@parcel/transformer-yaml": "^2.0.0-frontbucket.19"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

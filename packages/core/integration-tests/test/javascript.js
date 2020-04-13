@@ -2509,4 +2509,43 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, [42, 43]);
   });
+
+  it('should display a codeframe on a Terser parse error', async () => {
+    let fixture = path.join(__dirname, 'integration/terser-codeframe/index.js');
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          minify: true,
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Name expected',
+            origin: '@parcel/optimizer-terser',
+            filePath: undefined,
+            language: 'js',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  message: 'Name expected',
+                  start: {
+                    column: 4,
+                    line: 1,
+                  },
+                  end: {
+                    column: 4,
+                    line: 1,
+                  },
+                },
+              ],
+            },
+            hints: ["It's likely that Terser doesn't support this syntax yet."],
+          },
+        ],
+      },
+    );
+  });
 });

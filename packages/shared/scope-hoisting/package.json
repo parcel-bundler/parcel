@@ -23,7 +23,7 @@
     "@babel/types": "^7.3.3",
     "@parcel/babylon-walk": "^2.0.0-frontbucket.2",
     "@parcel/diagnostic": "^2.0.0-frontbucket.12",
-    "@parcel/source-map": "^2.0.0-alpha.4.6",
+    "@parcel/source-map": "^2.0.0-alpha.4.9",
     "@parcel/utils": "^2.0.0-frontbucket.18",
     "nullthrows": "^1.1.1"
   }

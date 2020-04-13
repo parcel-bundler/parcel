@@ -7,6 +7,7 @@ export default new Transformer({
     const toml = await options.packageManager.require(
       '@iarna/toml',
       asset.filePath,
+      {autoinstall: options.autoinstall},
     );
     asset.type = 'js';
     asset.setCode(

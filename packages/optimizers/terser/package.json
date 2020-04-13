@@ -16,10 +16,14 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
+    "@parcel/diagnostic": "^2.0.0-frontbucket.12",
     "@parcel/plugin": "^2.0.0-frontbucket.19",
-    "@parcel/source-map": "^2.0.0-alpha.4.6",
+    "@parcel/source-map": "^2.0.0-alpha.4.9",
     "@parcel/utils": "^2.0.0-frontbucket.18",
     "nullthrows": "^1.1.1",
     "terser": "^4.3.0"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

@@ -7,8 +7,8 @@ import type {
   PluginOptions,
   Symbol,
 } from '@parcel/types';
-import type {NodePath, Scope} from '@babel/traverse';
-import type {Node, Program} from '@babel/types';
+import type {NodePath} from '@babel/traverse';
+import type {Program} from '@babel/types';
 
 export type ExternalModule = {|
   source: ModuleSpecifier,
@@ -26,13 +26,13 @@ export type OutputFormat = {|
     from: Bundle,
     bundle: Bundle,
     assets: Set<Asset>,
-    scope: Scope,
-  ): Array<Node>,
+    path: NodePath<Program>,
+  ): void,
   generateExternalImport(
     bundle: Bundle,
     external: ExternalModule,
-    scope: Scope,
-  ): Array<Node>,
+    path: NodePath<Program>,
+  ): void,
   generateExports(
     bundleGraph: BundleGraph,
     bundle: Bundle,

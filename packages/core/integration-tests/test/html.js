@@ -273,8 +273,9 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
+
     assert(
-      /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
+      /^<link rel="stylesheet" href="[/\\]html-css-optional-elements\.[a-f0-9]+\.css">\s*<script src="[/\\]other\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
@@ -988,6 +989,132 @@ describe('html', function() {
     assert(html.includes('<script type="module">'));
     assert(html.includes('.add(1, 2)'));
     assert(html.includes('.add(2, 3)'));
+  });
+
+  it('inserts sibling bundles into html in the correct order (no head)', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-shared/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['async.js'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-worker-url.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let lodashSibling = path.basename(
+      b
+        .getChildBundles(b.getBundles().find(v => v.isEntry))
+        .find(v => v.getEntryAssets().length === 0).filePath,
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let insertedBundles = [];
+    let regex = /<script (?:type="[^"]+" )?src="([^"]*)"><\/script>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      insertedBundles.push(path.basename(match[1]));
+    }
+
+    assert.equal(insertedBundles.length, 2);
+    assert.equal(insertedBundles[0], lodashSibling);
+  });
+
+  it('inserts sibling bundles into html in the correct order (head)', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-shared-head/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['async.js'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-worker-url.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let lodashSibling = path.basename(
+      b
+        .getChildBundles(b.getBundles().find(v => v.isEntry))
+        .find(v => v.getEntryAssets().length === 0).filePath,
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let insertedBundles = [];
+    let regex = /<script (?:type="[^"]+" )?src="([^"]*)"><\/script>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      insertedBundles.push(path.basename(match[1]));
+    }
+
+    assert.equal(insertedBundles.length, 2);
+    assert.equal(insertedBundles[0], lodashSibling);
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {

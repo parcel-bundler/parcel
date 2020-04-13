@@ -1,8 +1,22 @@
 // @flow
 import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
+import type {
+  ClassDeclaration,
+  FunctionDeclaration,
+  Identifier,
+  ImportDefaultSpecifier,
+  ImportNamespaceSpecifier,
+  ImportSpecifier,
+  Node,
+  VariableDeclarator,
+} from '@babel/types';
 
+import {simple as walkSimple} from '@parcel/babylon-walk';
 import * as t from '@babel/types';
+import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -107,4 +121,121 @@ export function hasAsyncDescendant(
 export function assertString(v: mixed): string {
   invariant(typeof v === 'string');
   return v;
+}
+
+const DereferenceVisitor = {
+  Identifier(node: Identifier, scope: Scope) {
+    dereferenceIdentifier(node, scope);
+  },
+};
+
+// updates bindings in path.scope.getProgramParent()
+export function pathDereference(path: NodePath<Node>) {
+  walkSimple(path.node, DereferenceVisitor, path.scope.getProgramParent());
+}
+
+// like path.remove(), but updates bindings in path.scope.getProgramParent()
+export function pathRemove(path: NodePath<Node>) {
+  pathDereference(path);
+  path.remove();
+}
+
+function dereferenceIdentifier(node, scope) {
+  let binding = scope.getBinding(node.name);
+  if (binding) {
+    let i = binding.referencePaths.findIndex(v => v.node === node);
+    if (i >= 0) {
+      binding.dereference();
+      binding.referencePaths.splice(i, 1);
+      return;
+    }
+
+    let j = binding.constantViolations.findIndex(v =>
+      Object.values(v.getBindingIdentifiers()).includes(node),
+    );
+    if (j >= 0) {
+      binding.constantViolations.splice(j, 1);
+      if (binding.constantViolations.length == 0) {
+        binding.constant = true;
+      }
+      return;
+    }
+  }
+}
+
+export function removeReplaceBinding(
+  scope: Scope,
+  name: string,
+  newPath: NodePath<
+    | VariableDeclarator
+    | ClassDeclaration
+    | FunctionDeclaration
+    | ImportSpecifier
+    | ImportDefaultSpecifier
+    | ImportNamespaceSpecifier,
+  >,
+  newKind?: VariableDeclarationKind,
+) {
+  let binding = nullthrows(scope.getBinding(name));
+  let path = binding.path;
+  let {node, parent} = path;
+  invariant(
+    isVariableDeclarator(node) && isVariableDeclaration(parent) && !node.init,
+  );
+
+  // `path.remove()`ing a declaration also removes the corresponding binding. But we want to keep
+  // the binding and only replace the declaration. path._remove() merely removes the node in the AST.
+  // $FlowFixMe
+  path._remove();
+  if (parent.declarations.length === 0) {
+    path.parentPath.remove();
+  }
+
+  binding.path = newPath;
+  binding.identifier = newPath.getBindingIdentifiers()[name];
+  if (newKind) {
+    binding.kind = newKind;
+  }
+}
+
+export function verifyScopeState(scope: Scope) {
+  let oldBindings = scope.bindings;
+  scope.crawl();
+  let newBindings = scope.bindings;
+
+  invariant(
+    Object.keys(oldBindings).length === Object.keys(newBindings).length,
+  );
+  for (let name of Object.keys(newBindings)) {
+    invariant(newBindings[name], name);
+    let {
+      scope: aScope,
+      constantViolations: aConstantViolations,
+      referencePaths: aReferencePaths,
+      identifier: aId,
+      path: aPath,
+      ...a
+    } = oldBindings[name];
+    let {
+      scope: bScope,
+      constantViolations: bConstantViolations,
+      referencePaths: bReferencePaths,
+      identifier: bId,
+      path: bPath,
+      ...b
+    } = newBindings[name];
+    invariant(aPath === bPath, name);
+    invariant(aId === bId, name);
+    invariant(aScope === bScope, name);
+    invariant.deepStrictEqual(a, b, name);
+
+    invariant(aConstantViolations.length === bConstantViolations.length, name);
+    for (let p of bConstantViolations) {
+      invariant(aConstantViolations.indexOf(p) >= 0, name);
+    }
+    invariant(aReferencePaths.length === bReferencePaths.length, name);
+    for (let p of bReferencePaths) {
+      invariant(aReferencePaths.indexOf(p) >= 0, name);
+    }
+  }
 }
