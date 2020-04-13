@@ -68,11 +68,13 @@ export function link({
   bundleGraph,
   ast,
   options,
+  wrappedAssets,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   ast: File,
   options: PluginOptions,
+  wrappedAssets: Set<string>,
 |}) {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
@@ -448,7 +450,7 @@ export function link({
             // We need to wrap the module in a function when a require
             // call happens inside a non top-level scope, e.g. in a
             // function, if statement, or conditional expression.
-            if (mod.meta.shouldWrap) {
+            if (wrappedAssets.has(mod.id)) {
               node = t.callExpression(getIdentifier(mod, 'init'), []);
             }
             // Replace with nothing if the require call's result is not used.
@@ -660,7 +662,7 @@ export function link({
           let decls = path.pushContainer(
             'body',
             ([...referencedAssets]: Array<Asset>)
-              .filter(a => !a.meta.shouldWrap)
+              .filter(a => !wrappedAssets.has(a.id))
               .map(a => {
                 return FAKE_INIT_TEMPLATE({
                   INIT: getIdentifier(a, 'init'),

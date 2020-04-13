@@ -45,8 +45,9 @@ export default new Packager({
 
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
-      let ast = await concat(bundle, bundleGraph);
-      ast = link({bundle, bundleGraph, ast, options});
+      let wrappedAssets = new Set<string>();
+      let ast = await concat(bundle, bundleGraph, wrappedAssets);
+      ast = link({bundle, bundleGraph, ast, options, wrappedAssets});
 
       let {contents, map} = generate(bundleGraph, bundle, ast, options);
       return replaceReferences({
