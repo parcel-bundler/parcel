@@ -7,7 +7,6 @@ import type {
   ConfigRequestDesc,
   ParcelOptions,
   ReportFn,
-  ValidationRequest,
 } from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
 
@@ -32,7 +31,7 @@ export type ValidationOpts = {|
    */
   dedicatedThread?: boolean,
   options: ParcelOptions,
-  requests: ValidationRequest[],
+  requests: AssetRequestDesc[],
   report: ReportFn,
   workerApi?: WorkerApi,
   getAllDependentAssets?: (assetGraphNodeId: string) => Array<IAsset>,
@@ -49,7 +48,7 @@ export default class Validation {
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
   report: ReportFn;
-  requests: ValidationRequest[];
+  requests: AssetRequestDesc[];
   workerApi: ?WorkerApi;
 
   constructor({
@@ -151,7 +150,7 @@ export default class Validation {
   async buildAssetsAndValidators() {
     // Figure out what validators need to be run, and group the assets by the relevant validators.
     await Promise.all(
-      this.requests.map(async ({request}) => {
+      this.requests.map(async request => {
         this.report({
           type: 'validation',
           filePath: request.filePath,

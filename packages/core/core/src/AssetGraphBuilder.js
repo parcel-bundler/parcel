@@ -10,7 +10,6 @@ import type {
   Dependency,
   ParcelOptions,
   ValidationOpts,
-  ValidationRequest,
 } from './types';
 import type {RunRequestOpts} from './RequestTracker';
 import type {EntryRequest} from './requests/EntryRequestRunner';
@@ -297,13 +296,12 @@ export default class AssetGraphBuilder extends EventEmitter {
   };
 
   async validate(): Promise<void> {
-    // ANDREW_TODO: ValidationRequests is a hack - need to find a better way to pass around assetGraphNodeId.
-    let validationRequests: ValidationRequest[] = this.assetRequests
+    let trackedRequestsDesc = this.assetRequests
       .filter(request => this.requestTracker.isTracked(request.id))
-      .map(({request, assetGraphNodeId}) => ({request, assetGraphNodeId}));
+      .map(({request}) => request);
 
     // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
-    let promises = validationRequests.map(request =>
+    let promises = trackedRequestsDesc.map(request =>
       this.runValidate({
         requests: [request],
         optionsRef: this.optionsRef,
@@ -314,7 +312,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     // Schedule validations on the main thread for all validation plugins that implement "validateAll".
     promises.push(
       new Validation({
-        requests: validationRequests,
+        requests: trackedRequestsDesc,
         options: this.options,
         config: this.config,
         report,
@@ -396,8 +394,6 @@ export default class AssetGraphBuilder extends EventEmitter {
           type,
           request: node.value,
           id: generateRequestId(type, node.value),
-          // ANDREW_TODO: this seems like a hacky way to pass around the assetGraphNodeId
-          assetGraphNodeId: node.id,
         };
       }
     }

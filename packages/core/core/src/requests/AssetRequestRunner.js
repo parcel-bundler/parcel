@@ -16,7 +16,6 @@ import {RequestRunner, generateRequestId} from '../RequestTracker';
 export type AssetRequest = {|
   id: string,
   +type: 'asset_request',
-  assetGraphNodeId: string,
   request: AssetRequestDesc,
   result?: AssetRequestResult,
 |};

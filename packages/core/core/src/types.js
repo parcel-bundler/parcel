@@ -201,12 +201,6 @@ export type AssetRequestResult = {|
   configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
 |};
 
-// ANDREW_TODO: this is a really hacky way to pass around an assetGraphNodeId
-export type ValidationRequest = {|
-  request: AssetRequestDesc,
-  assetGraphNodeId: string,
-|};
-
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
@@ -368,7 +362,7 @@ export type TransformationOpts = {|
 |};
 
 export type ValidationOpts = {|
-  requests: ValidationRequest[],
+  requests: AssetRequestDesc[],
   optionsRef: number,
   configRef: number,
 |};
