@@ -285,7 +285,8 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    it('excludes default when re-exporting a module', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('excludes default when re-exporting a module', async function() {
       let threw = false;
       try {
         await bundle(
@@ -736,7 +737,8 @@ describe('scope hoisting', function() {
       assert.deepEqual(await run(b), 4);
     });
 
-    it('supports importing a namespace from a wrapped module', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('supports importing a namespace from a wrapped module', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -769,7 +771,8 @@ describe('scope hoisting', function() {
       });
     });
 
-    it('removes unused exports', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('removes unused exports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -788,7 +791,8 @@ describe('scope hoisting', function() {
       assert(!contents.includes('bar'));
     });
 
-    it('removes unused function exports when minified', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('removes unused function exports when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -808,7 +812,8 @@ describe('scope hoisting', function() {
       assert(!/.-./.test(contents));
     });
 
-    it('removes unused transpiled classes using terser when minified', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('removes unused transpiled classes using terser when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -889,7 +894,8 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
-    it('should shake pure property assignments', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('should shake pure property assignments', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1461,7 +1467,8 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    it('supports module object properties', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('supports module object properties', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1727,7 +1734,8 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {b: {}});
     });
 
-    it('removes unused exports', async function() {
+    // ATLASSIAN: Unskip when treeshaking is used again
+    it.skip('removes unused exports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
