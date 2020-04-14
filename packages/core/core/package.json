@@ -1,6 +1,6 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.0-frontbucket.21",
+  "version": "2.0.0-frontbucket.22",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -22,9 +22,9 @@
     "@parcel/fs": "^2.0.0-frontbucket.20",
     "@parcel/logger": "^2.0.0-frontbucket.14",
     "@parcel/package-manager": "^2.0.0-frontbucket.20",
-    "@parcel/plugin": "^2.0.0-frontbucket.20",
+    "@parcel/plugin": "^2.0.0-frontbucket.21",
     "@parcel/source-map": "^2.0.0-alpha.4.9",
-    "@parcel/types": "^2.0.0-frontbucket.20",
+    "@parcel/types": "^2.0.0-frontbucket.21",
     "@parcel/utils": "^2.0.0-frontbucket.19",
     "@parcel/workers": "^2.0.0-frontbucket.19",
     "abortcontroller-polyfill": "^1.1.9",
