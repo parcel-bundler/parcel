@@ -32,7 +32,7 @@ export default new Reporter({
       [...bundlesByTarget.entries()].map(async ([targetName, bundles]) => {
         await options.outputFS.writeFile(
           path.join(reportsDir, `${targetName}-stats.json`),
-          JSON.stringify(getBundleStats(bundles), null, 2),
+          JSON.stringify(getBundleStats(bundles, options), null, 2),
         );
         await options.outputFS.writeFile(
           path.join(reportsDir, `${targetName}.html`),
@@ -110,12 +110,18 @@ function getBundleData(
   };
 }
 
-function getBundleStats(bundles: Array<Bundle>) {
+function getBundleStats(bundles: Array<Bundle>, options: PluginOptions) {
   return {
-    assets: bundles.map(({displayName, stats: {size}}) => ({
-      name: displayName,
-      size,
-    })),
+    assets: bundles.map(bundle => {
+      return {
+        name: bundle.displayName,
+        size: bundle.stats.size,
+        entryAsset: path.relative(
+          options.projectRoot,
+          nullthrows(bundle.getMainEntry()?.filePath),
+        ),
+      };
+    }),
   };
 }
 
