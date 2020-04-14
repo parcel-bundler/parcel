@@ -12,13 +12,12 @@ export default new Packager({
     });
 
     assert.equal(assets.length, 1, 'Raw bundles must only contain one asset');
-    return {
-      contents: replaceURLReferences({
-        bundle,
-        bundleGraph,
-        contents: await assets[0].getCode(),
-        relative: false,
-      }).contents,
-    };
+    let {contents} = replaceURLReferences({
+      bundle,
+      bundleGraph,
+      contents: await assets[0].getCode(),
+      relative: false,
+    });
+    return {contents};
   },
 });
