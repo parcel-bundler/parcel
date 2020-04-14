@@ -285,7 +285,9 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    it('excludes default when re-exporting a module', async function() {
+    // ATLASSIAN: Warn and return an empty object expression for unresolvable
+    // imports.
+    it.skip('excludes default when re-exporting a module', async function() {
       let threw = false;
       try {
         await bundle(
@@ -1471,7 +1473,9 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    it('supports module object properties', async function() {
+    // ATLASSIAN: Don't inline `require` as `'function'` -- this confuses
+    // browserify-built bundles like Bitbucket connect-js.
+    it.skip('supports module object properties', async function() {
       let b = await bundle(
         path.join(
           __dirname,
