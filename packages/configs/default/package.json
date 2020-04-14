@@ -24,6 +24,7 @@
     "@parcel/packager-html": "^2.0.0-alpha.3.1",
     "@parcel/packager-js": "^2.0.0-alpha.3.1",
     "@parcel/packager-raw": "^2.0.0-alpha.3.1",
+    "@parcel/packager-raw-url": "^2.0.0-alpha.3.1",
     "@parcel/packager-ts": "^2.0.0-alpha.3.1",
     "@parcel/reporter-bundle-analyzer": "^2.0.0-alpha.3.1",
     "@parcel/reporter-cli": "^2.0.0-alpha.3.1",
