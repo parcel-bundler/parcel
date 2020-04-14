@@ -8,8 +8,7 @@ const bundle = (name, opts = {}) =>
 
 describe('output formats', function() {
   describe('commonjs', function() {
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support commonjs output (exports)', async function() {
+    it('should support commonjs output (exports)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs/exports.js'),
       );
@@ -21,8 +20,7 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 5);
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support commonjs output (module.exports)', async function() {
+    it('should support commonjs output (module.exports)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs/module-exports.js'),
       );
@@ -33,8 +31,7 @@ describe('output formats', function() {
       assert.equal(await run(b), 5);
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support commonjs output from esmodule input', async function() {
+    it('should support commonjs output from esmodule input', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-commonjs/a.js'),
       );
@@ -75,8 +72,7 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 3);
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support commonjs output with external modules (named import)', async function() {
+    it('should support commonjs output with external modules (named import)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/commonjs-external/named.js'),
       );
@@ -414,8 +410,7 @@ describe('output formats', function() {
   });
 
   describe('esmodule', function() {
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support esmodule output (named export)', async function() {
+    it('should support esmodule output (named export)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm/named.js'),
       );
@@ -426,8 +421,7 @@ describe('output formats', function() {
       assert(dist.includes('export const bar = foo + 3'));
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support esmodule output (default identifier)', async function() {
+    it('should support esmodule output (default identifier)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm/default-value.js'),
       );
@@ -824,8 +818,7 @@ describe('output formats', function() {
       assert(!async.includes('.css"'));
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should support building esmodules with split bundles', async function() {
+    it('should support building esmodules with split bundles', async function() {
       let b = await bundle(
         path.join(
           __dirname,

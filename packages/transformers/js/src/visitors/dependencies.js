@@ -21,7 +21,7 @@ import {
   isFunction,
 } from '@babel/types';
 import traverse from '@babel/traverse';
-import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
+import {md5FromString, createDependencyLocation} from '@parcel/utils';
 import {hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];

@@ -285,7 +285,8 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
+    // ATLASSIAN: Warn and return an empty object expression for unresolvable
+    // imports.
     it.skip('excludes default when re-exporting a module', async function() {
       let threw = false;
       try {
@@ -737,8 +738,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(await run(b), 4);
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('supports importing a namespace from a wrapped module', async function() {
+    it('supports importing a namespace from a wrapped module', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -771,8 +771,7 @@ describe('scope hoisting', function() {
       });
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('removes unused exports', async function() {
+    it('removes unused exports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -791,8 +790,7 @@ describe('scope hoisting', function() {
       assert(!contents.includes('bar'));
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('removes unused function exports when minified', async function() {
+    it('removes unused function exports when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -812,8 +810,7 @@ describe('scope hoisting', function() {
       assert(!/.-./.test(contents));
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('removes unused transpiled classes using terser when minified', async function() {
+    it('removes unused transpiled classes using terser when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -894,8 +891,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('should shake pure property assignments', async function() {
+    it('should shake pure property assignments', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -910,8 +906,7 @@ describe('scope hoisting', function() {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert(!/bar/.test(contents));
-      assert(!/displayName/.test(contents));
+      assert(!contents.includes('exports.bar ='));
     });
 
     it('should correctly rename references to default exported classes', async function() {
@@ -935,6 +930,17 @@ describe('scope hoisting', function() {
       );
       let output = await run(b);
       assert.deepEqual(output.foo, 'bar');
+    });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
     });
   });
 
@@ -1467,7 +1473,8 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
+    // ATLASSIAN: Don't inline `require` as `'function'` -- this confuses
+    // browserify-built bundles like Bitbucket connect-js.
     it.skip('supports module object properties', async function() {
       let b = await bundle(
         path.join(
@@ -1734,8 +1741,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {b: {}});
     });
 
-    // ATLASSIAN: Unskip when treeshaking is used again
-    it.skip('removes unused exports', async function() {
+    it('removes unused exports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1886,6 +1892,17 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, [4, 2]);
+    });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
     });
   });
 
