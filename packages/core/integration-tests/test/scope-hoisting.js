@@ -3,6 +3,7 @@ import path from 'path';
 import {
   bundle as _bundle,
   bundler as _bundler,
+  distDir,
   run,
   runBundle,
   outputFS,
@@ -2168,5 +2169,97 @@ describe('scope hoisting', function() {
     ]);
 
     assert.deepEqual(await run(b), [3, 5]);
+  });
+
+  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      ['index.js', 'value.js'].map(basename =>
+        path.join(__dirname, '/integration/sync-entry-shared', basename),
+      ),
+      {targets: {main: {context: 'node', distDir}}},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {name: 'value.js', assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.equal(await (await run(b)).default, 43);
+  });
+
+  it('can run an async bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/async-entry-shared/scope-hoisting.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'scope-hoisting.js',
+        assets: [
+          'scope-hoisting.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.deepEqual(await run(b), [42, 43]);
+  });
+
+  it('can run an async bundle that depends on a nonentry asset in a sibling', async () => {
+    let b = await bundle(
+      ['scope-hoisting.js', 'other-entry.js'].map(basename =>
+        path.join(
+          __dirname,
+          '/integration/async-entry-shared-sibling',
+          basename,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'scope-hoisting.js',
+        assets: [
+          'scope-hoisting.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'other-entry.js',
+        assets: [
+          'other-entry.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['a.js', 'value.js']},
+      {assets: ['b.js']},
+    ]);
+
+    assert.deepEqual(await run(b), 43);
   });
 });

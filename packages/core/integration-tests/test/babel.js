@@ -569,6 +569,7 @@ describe('babel', function() {
       let cacheDir = path.resolve(fixtureDir, '.parcel-cache');
       await fs.rimraf(distDir);
       await fs.rimraf(cacheDir);
+      await fs.rimraf(path.resolve(fixtureDir, './node_modules/.cache'));
 
       let build = () =>
         spawnSync(

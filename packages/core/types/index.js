@@ -225,6 +225,7 @@ export interface PluginOptions {
   +inputFS: FileSystem;
   +outputFS: FileSystem;
   +packageManager: PackageManager;
+  +instanceId: string;
 }
 
 export type ServerOptions = {|
@@ -625,6 +626,7 @@ export interface MutableBundleGraph {
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
   getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getSiblingBundles(bundle: Bundle): Array<Bundle>;
   getTotalSize(Asset): number;
   isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetGraphFromBundle(Asset, Bundle): void;

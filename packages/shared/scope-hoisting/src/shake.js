@@ -1,7 +1,7 @@
 // @flow
 import type {Symbol} from '@parcel/types';
 import type {NodePath, Scope} from '@babel/traverse';
-import type {Node} from '@babel/types';
+import type {Expression, Identifier, Node} from '@babel/types';
 
 import {
   isAssignmentExpression,
@@ -15,11 +15,12 @@ import {
   isVariableDeclarator,
 } from '@babel/types';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
+import {pathDereference, pathRemove} from './utils';
 
 /**
  * This is a small small implementation of dead code removal specialized to handle
- * removing unused exports. All other dead code removal happens in workers on each
- * individual file by babel-minify.
+ * removing unused exports.
  */
 export default function treeShake(
   scope: Scope,
@@ -32,8 +33,6 @@ export default function treeShake(
   do {
     removed = false;
 
-    // Recrawl to get all bindings.
-    scope.crawl();
     Object.keys(scope.bindings).forEach((name: string) => {
       let binding = getUnusedBinding(scope.path, name);
 
@@ -43,9 +42,9 @@ export default function treeShake(
       }
 
       // Remove the binding and all references to it.
-      binding.path.remove();
-      [...binding.referencePaths, ...binding.constantViolations].forEach(
-        remove,
+      pathRemove(binding.path);
+      [...binding.referencePaths, ...binding.constantViolations].forEach(p =>
+        remove(p, scope),
       );
 
       scope.removeBinding(name);
@@ -61,8 +60,12 @@ function getUnusedBinding(path, name) {
     return null;
   }
 
-  let pure = isPure(binding);
-  if (!binding.referenced && pure) {
+  if (!isPure(binding.path)) {
+    // declaration (~= init) isn't pure
+    return null;
+  }
+
+  if (!binding.referenced) {
     return binding;
   }
 
@@ -71,29 +74,27 @@ function getUnusedBinding(path, name) {
     path => !isExportAssignment(path) && !isWildcardDest(path),
   );
 
-  if (!bailout && pure) {
+  if (!bailout) {
     return binding;
   }
 
   return null;
 }
 
-function isPure(binding) {
-  if (
-    binding.path.isVariableDeclarator() &&
-    binding.path.get('id').isIdentifier()
-  ) {
-    let init = binding.path.get('init');
+function isPure(path) {
+  let {node} = path;
+  if (isVariableDeclarator(node) && isIdentifier(node.id)) {
+    let init = path.get<NodePath<Expression>>('init');
     return (
       init.isPure() ||
       init.isIdentifier() ||
       init.isThisExpression() ||
-      (isVariableDeclarator(binding.path.node) &&
-        isIdentifier(binding.path.node.id, {name: '$parcel$global'}))
+      (isVariableDeclarator(node) &&
+        isIdentifier(node.id, {name: '$parcel$global'}))
     );
   }
 
-  return binding.path.isPure();
+  return path.isPure();
 }
 
 function isExportAssignment(path) {
@@ -122,48 +123,56 @@ function isWildcardDest(path) {
   );
 }
 
-function remove(path: NodePath<Node>) {
+function remove(path: NodePath<Node>, scope: Scope) {
   let {node, parent} = path;
   if (isAssignmentExpression(node)) {
     let right;
     if (isSequenceExpression(parent) && parent.expressions.length === 1) {
+      // TODO missing test coverage
       // replace sequence expression with it's sole child
       path.parentPath.replaceWith(node);
-      remove(path.parentPath);
+      remove(path.parentPath, scope);
     } else if (
       //e.g. `exports.foo = bar;`, `bar` needs to be pure (an Identifier isn't ?!)
       isExpressionStatement(parent) &&
       ((right = path.get('right')).isPure() || right.isIdentifier())
     ) {
-      path.remove();
+      pathRemove(path);
     } else {
       // right side isn't pure
       path.replaceWith(node.right);
     }
   } else if (isExportAssignment(path)) {
-    remove(path.parentPath.parentPath);
+    remove(path.parentPath.parentPath, scope);
   } else if (isWildcardDest(path)) {
     let wildcard = path.parent;
     invariant(isCallExpression(wildcard));
     let src = wildcard.arguments[1];
 
     if (isCallExpression(src)) {
+      let {callee} = src;
+      invariant(isIdentifier(callee) && callee.name);
       // keep `$...$init()` call
-      path.parentPath.replaceWith(src);
+      pathDereference(path.parentPath);
+      let [expr] = path.parentPath.replaceWith<Expression>(src);
+      nullthrows(scope.getBinding(callee.name)).reference(
+        expr.get<NodePath<Identifier>>('callee'),
+      );
     } else {
       invariant(
         isIdentifier(src) ||
           (isObjectExpression(src) && src.properties.length === 0),
       );
-      remove(path.parentPath);
+      remove(path.parentPath, scope);
     }
   } else if (!path.removed) {
     if (isSequenceExpression(parent) && parent.expressions.length === 1) {
+      // TODO missing test coverage
       // replace sequence expression with it's sole child
       path.parentPath.replaceWith(node);
-      remove(path.parentPath);
+      remove(path.parentPath, scope);
     } else {
-      path.remove();
+      pathRemove(path);
     }
   }
 }

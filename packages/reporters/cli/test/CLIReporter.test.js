@@ -27,6 +27,7 @@ const EMPTY_OPTIONS = {
   sourceMaps: false,
   inputFS,
   outputFS,
+  instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
 };
 
