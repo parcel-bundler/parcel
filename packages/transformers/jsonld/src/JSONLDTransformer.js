@@ -26,8 +26,7 @@ export default new Transformer({
     // allowing any recieved jsonld to be in json5 format
     let jsonCode = json5.parse(rawCode);
 
-    let parser = new JSONLDParser(asset);
-    jsonCode = parser.parse(jsonCode);
+    jsonCode = extractUrlsFrom(jsonCode, asset);
 
     // json should be injected back into the html page
     asset.type = 'jsonld';
@@ -37,49 +36,35 @@ export default new Transformer({
   },
 });
 
-class JSONLDParser {
-  asset;
+function extractUrlsFrom(data, asset) {
+  if (!data) return null;
 
-  constructor(asset) {
-    this.asset = asset;
-  }
-
-  parse(jsonld) {
-    return this.extractUrlsFrom(jsonld);
-  }
-
-  extractUrlsFrom(data) {
-    if (!data) return null;
-
-    if (typeof data === 'string') return this.transformString(data);
-
-    if (Array.isArray(data)) return this.iterateThroughArray(data);
-
-    return this.iterateThroughObject(data);
-  }
-
-  iterateThroughObject(jsonObject) {
-    Object.keys(jsonObject)
-      .filter(k => SCHEMA_ATTRS.includes(k))
-      .forEach(k => {
-        let value = jsonObject[k];
-        jsonObject[k] = this.extractUrlsFrom(value);
-      });
-
-    return jsonObject;
-  }
-
-  iterateThroughArray(jsonArray) {
-    Object.keys(jsonArray).forEach(i => {
-      let value = jsonArray[i];
-      jsonArray[i] = this.extractUrlsFrom(value);
-    });
-
-    return jsonArray;
-  }
-
-  transformString(value) {
-    let assetPath = this.asset.addURLDependency(value, {});
+  if (typeof data === 'string') {
+    let assetPath = asset.addURLDependency(data, {});
     return assetPath;
   }
+
+  if (Array.isArray(data)) return iterateThroughArray(data, asset);
+
+  return iterateThroughObject(data, asset);
+}
+
+function iterateThroughObject(jsonObject, asset) {
+  Object.keys(jsonObject)
+    .filter(k => SCHEMA_ATTRS.includes(k))
+    .forEach(k => {
+      let value = jsonObject[k];
+      jsonObject[k] = extractUrlsFrom(value, asset);
+    });
+
+  return jsonObject;
+}
+
+function iterateThroughArray(jsonArray, asset) {
+  Object.keys(jsonArray).forEach(i => {
+    let value = jsonArray[i];
+    jsonArray[i] = extractUrlsFrom(value, asset);
+  });
+
+  return jsonArray;
 }
