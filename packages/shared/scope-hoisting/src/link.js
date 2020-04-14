@@ -690,8 +690,6 @@ export function link({
         }
 
         // Generate exports
-        // ATLASSIAN: Disable treeShaking for now. This is used below.
-        // eslint-disable-next-line no-unused-vars
         let exported = format.generateExports(
           bundleGraph,
           bundle,
