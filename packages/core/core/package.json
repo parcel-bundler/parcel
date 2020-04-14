@@ -23,7 +23,7 @@
     "@parcel/logger": "^2.0.0-frontbucket.14",
     "@parcel/package-manager": "^2.0.0-frontbucket.19",
     "@parcel/plugin": "^2.0.0-frontbucket.19",
-    "@parcel/source-map": "^2.0.0-alpha.4.6",
+    "@parcel/source-map": "^2.0.0-alpha.4.9",
     "@parcel/types": "^2.0.0-frontbucket.19",
     "@parcel/utils": "^2.0.0-frontbucket.18",
     "@parcel/workers": "^2.0.0-frontbucket.18",

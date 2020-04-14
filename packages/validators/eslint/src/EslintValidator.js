@@ -6,7 +6,11 @@ let cliEngine = null;
 
 export default new Validator({
   async validate({asset, options}) {
-    let eslint = await options.packageManager.require('eslint', asset.filePath);
+    let eslint = await options.packageManager.require(
+      'eslint',
+      asset.filePath,
+      {autoinstall: options.autoinstall},
+    );
     if (!cliEngine) {
       cliEngine = new eslint.CLIEngine({});
     }
