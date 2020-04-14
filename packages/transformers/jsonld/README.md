@@ -8,29 +8,25 @@ what is a "transformer"? from devon @ [parcel-2-is-here](https://medium.com/@dev
 
 Transformers get mapped to asset types through a config file located [here](https://github.com/parcel-bundler/parcel/blob/v2/packages/configs/default/index.json)
 
+## Transformer Developer Notes
+
+- tests for this transformer can be run with the following command: `npm run test`
+- before officially committing changes, run prettier on code e.g. `yarn prettier --write packages/core/integration-tests/test/schema-jsonld.js packages/transformers/jsonld/src/*`
+
 ## Feature Requirements
 
-- Parsing and collecting dependencies 
-    - the old code seems to only care about image dependencies -- won't jsonld lead to other kinds of media dependencies?
+- Parsing and collecting dependencies
+  - the old code seems to only care about image dependencies -- won't jsonld lead to other kinds of media dependencies?
 - Rewriting urls to dependencies
-    - the old asset path should be replaced by the number returned from `asset.addURLDependency()`
-    - that number will be replaced by the new asset path further down the pipeline
+  - the old asset path should be replaced by the number returned from `asset.addURLDependency()`
+  - that number will be replaced by the new asset path further down the pipeline
 - Compiling back to JSON
-    - this part should be handled by the JSONTransformer by setting `asset.type = "json"`
+  - this part should be handled by the JSONTransformer by setting `asset.type = "json"`
 
 ## parcel v1 code
 
 - implementation [JSONLDAsset.js](https://github.com/parcel-bundler/parcel/blob/1.x/src/assets/JSONLDAsset.js)
 - test [schema-jsonld.js](https://github.com/parcel-bundler/parcel/blob/v2/packages/core/integration-tests/test/schema-jsonld.js)
-
-#### to do 📓
-
-- [✔️] port code that adds dependencies found in the attribute list
-- [✔️] the asset paths in the jsonld object should be updated with the new asset paths returned from `asset.addURLDependency()`
-- [✔️] remove `console.logs()`
-- [✔️] write unit tests or run existing integration test
-    - integration tests can be run locally with the following command: `yarn workspace @parcel/integration-tests test`
-    - even better, target the integration test for the jsonld transformer: `yarn workspace @parcel/integration-tests test -g jsonld`
 
 ## Relevant Projects
 
