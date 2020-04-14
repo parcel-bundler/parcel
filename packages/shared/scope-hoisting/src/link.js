@@ -73,7 +73,7 @@ export function link({
   bundleGraph: BundleGraph,
   ast: File,
   options: PluginOptions,
-|}) {
+|}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
@@ -700,5 +700,5 @@ export function link({
     },
   });
 
-  return ast;
+  return {ast, referencedAssets};
 }
