@@ -237,10 +237,10 @@ function getLoaderRuntimes({
             let preloadCode = bundlesToPreload
               .map(
                 preloadBundle =>
-                  `require('./loaders/browser/preload-loader')(${getRelativePathExpr(
-                    bundle,
-                    preloadBundle,
-                  )});`,
+                  `require('./loaders/browser/preload-loader')(
+                    require('./bundle-url').getBundleURL() +
+                    ${getRelativePathExpr(bundle, preloadBundle)}
+                  );`,
               )
               .join();
 
@@ -295,10 +295,10 @@ function getLoaderRuntimes({
     if (externalBundle.pipeline === 'prefetch') {
       assets.push({
         filePath: __filename,
-        code: `require('./loaders/browser/prefetch-loader')(${getRelativePathExpr(
-          bundle,
-          externalBundle,
-        )})`,
+        code: `require('./loaders/browser/prefetch-loader')(
+          require('./bundle-url').getBundleURL() +
+          ${getRelativePathExpr(bundle, externalBundle)}
+        )`,
         isEntry: true,
       });
     }
