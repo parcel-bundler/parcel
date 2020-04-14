@@ -10,7 +10,7 @@
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
-    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.json5": ["@parcel/transformer-json5"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],

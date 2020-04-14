@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/transformer-json",
+  "name": "@parcel/transformer-json5",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
@@ -9,8 +9,8 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/JSONTransformer.js",
-  "source": "src/JSONTransformer.js",
+  "main": "lib/JSON5Transformer.js",
+  "source": "src/JSON5Transformer.js",
   "engines": {
     "parcel": "^2.0.0-alpha.1.1"
   },
