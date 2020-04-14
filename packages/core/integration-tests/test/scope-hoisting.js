@@ -201,7 +201,7 @@ describe('scope hoisting', function() {
       assert.equal(output, 15);
     });
 
-    it('can import from a different bundle via a re-export', async function() {
+    it('can import from a different bundle via a re-export (1)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -223,6 +223,30 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['operational', 'ui']);
+    });
+
+    it('can import from a different bundle via a re-export (2)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary2/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['foo', 'foo']);
+    });
+
+    it('can import from its own bundle with a split package', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary3/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [['a', 'b'], 'themed']);
     });
 
     it('supports importing all exports re-exported from multiple modules deep', async function() {
@@ -904,8 +928,7 @@ describe('scope hoisting', function() {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert(!/bar/.test(contents));
-      assert(!/displayName/.test(contents));
+      assert(!contents.includes('exports.bar ='));
     });
 
     it('should correctly rename references to default exported classes', async function() {
@@ -929,6 +952,17 @@ describe('scope hoisting', function() {
       );
       let output = await run(b);
       assert.deepEqual(output.foo, 'bar');
+    });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
     });
   });
 
@@ -1878,6 +1912,17 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, [4, 2]);
+    });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
     });
   });
 
