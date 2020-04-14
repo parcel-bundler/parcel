@@ -112,9 +112,10 @@ function getBundleData(
 
 function getBundleStats(bundles: Array<Bundle>) {
   return {
-    assets: bundles.map(({displayName, stats: {size}}) => ({
-      name: displayName,
-      size,
+    assets: bundles.map(bundle => ({
+      name: bundle.displayName,
+      size: bundle.stats.size,
+      entryAsset: bundle.getEntryAssets()[0].filePath,
     })),
   };
 }
