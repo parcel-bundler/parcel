@@ -36,23 +36,12 @@ export default new Validator({
     resolveConfigWithPath,
     getAllDependentAssets,
   }): Promise<Array<?ValidateResult>> {
-    // Build a collection that of all the LanguageServices related to files that just changed.
-    let servicesToValidate: Set<string> = new Set();
+    // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
+    let assetsToValidate: Array<{|configHash: string, assetPath: string|}> = [];
     await Promise.all(
       assets.map(async asset => {
         let config = await getConfig(asset, options, resolveConfigWithPath);
         let {configHash} = config;
-
-        // ANDREW_TODO: consider ways to guarantee that getAllDependents is defined.
-        let dependentAssets =
-          typeof asset.assetGraphNodeId === 'string' && getAllDependentAssets
-            ? getAllDependentAssets(asset.assetGraphNodeId)
-            : [];
-        console.log(
-          `Validating asset: ${asset.filePath} id: ${asset.assetGraphNodeId ??
-            'undefined'} with these dependents`,
-          dependentAssets,
-        );
 
         // Create a languageService/host in the cache for the configuration if it doesn't already exist.
         await tryCreateLanguageService(config, asset, options);
@@ -61,28 +50,37 @@ export default new Validator({
         // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
         langServiceCache[configHash].host.invalidate(asset.filePath);
 
-        servicesToValidate.add(configHash);
+        assetsToValidate.push({configHash, assetPath: asset.filePath});
+
+        // ANDREW_TODO: consider ways to guarantee that getAllDependents is defined.
+        // ANDREW_TODO: make sure all assets are checked when the program is created the first time (respecting typescript options).
+        let dependentAssets =
+          typeof asset.assetGraphNodeId === 'string' && getAllDependentAssets
+            ? getAllDependentAssets(asset.assetGraphNodeId)
+            : [];
+        dependentAssets.forEach(dependentAsset => {
+          assetsToValidate.push({
+            configHash,
+            assetPath: dependentAsset.filePath,
+          });
+        });
       }),
     );
 
     // Ask typescript to analyze all changed programs and translate the results into ValidatorResult objects.
     let validatorResults: Array<?ValidateResult> = [];
-    servicesToValidate.forEach(configHash => {
+    assetsToValidate.forEach(({configHash, assetPath}) => {
       // Make sure that the filesystem being used by the LanguageServiceHost and ParseConfigHost is up-to-date.
       // (This could change in the context of re-running tests, and probably also for other reasons).
       langServiceCache[configHash].host.fs = options.inputFS;
       langServiceCache[configHash].configHost.fs = options.inputFS;
 
-      let program = langServiceCache[configHash].service.getProgram();
-      if (!program) return;
-
-      let filesToCheck = program.getSourceFiles();
-      filesToCheck.forEach(sourceFile => {
-        let diagnostics = program.getSemanticDiagnostics(sourceFile);
-        validatorResults.push(
-          getValidateResultFromDiagnostics(sourceFile.fileName, diagnostics),
-        );
-      });
+      const diagnostics = langServiceCache[
+        configHash
+      ].service.getSemanticDiagnostics(assetPath);
+      validatorResults.push(
+        getValidateResultFromDiagnostics(assetPath, diagnostics),
+      );
     });
 
     return validatorResults;

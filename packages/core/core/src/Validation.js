@@ -22,6 +22,7 @@ import {createAsset} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
+import {md5FromObject} from '@parcel/utils';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -150,13 +151,13 @@ export default class Validation {
   async buildAssetsAndValidators() {
     // Figure out what validators need to be run, and group the assets by the relevant validators.
     await Promise.all(
-      this.requests.map(async ({request, assetGraphNodeId}) => {
+      this.requests.map(async ({request}) => {
         this.report({
           type: 'validation',
           filePath: request.filePath,
         });
 
-        let asset = await this.loadAsset(request, assetGraphNodeId);
+        let asset = await this.loadAsset(request);
 
         let validators = await this.parcelConfig.getValidators(
           request.filePath,
@@ -190,10 +191,8 @@ export default class Validation {
     }
   }
 
-  async loadAsset(
-    request: AssetRequestDesc,
-    assetGraphNodeId: string,
-  ): Promise<UncommittedAsset> {
+  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
+    let assetGraphNodeId = md5FromObject(request);
     let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
