@@ -929,6 +929,17 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output.foo, 'bar');
     });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
+    });
   });
 
   describe('commonjs', function() {
@@ -1878,6 +1889,17 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, [4, 2]);
     });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {
@@ -2168,17 +2190,6 @@ describe('scope hoisting', function() {
     ]);
 
     assert.deepEqual(await run(b), [3, 5]);
-  });
-
-  it('does not tree-shake assignments to unknown objects', async () => {
-    let b = await bundle(
-      path.join(
-        __dirname,
-        '/integration/scope-hoisting/es6/tree-shaking-no-unknown-objects/index.js',
-      ),
-    );
-
-    assert.equal(await run(b), 42);
   });
 
   it('can run an entry bundle whose entry asset is present in another bundle', async () => {

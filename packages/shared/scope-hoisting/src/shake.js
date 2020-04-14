@@ -61,8 +61,17 @@ function getUnusedBinding(path, name, exportsMap) {
     return null;
   }
 
-  if (!isPure(binding.path)) {
+  if (!isPure(binding)) {
     // declaration (~= init) isn't pure
+    return null;
+  }
+
+  if (hasSideEffects(binding)) {
+    // e.g.
+    //    let foo = {};
+    //    foo = window;
+    //    foo.xyz = 2;
+    //    console.log(window.xyz);
     return null;
   }
 
@@ -82,7 +91,8 @@ function getUnusedBinding(path, name, exportsMap) {
   return null;
 }
 
-function isPure(path) {
+function isPure(binding) {
+  let {path} = binding;
   let {node} = path;
   if (isVariableDeclarator(node) && isIdentifier(node.id)) {
     let init = path.get<NodePath<Expression>>('init');
@@ -96,6 +106,22 @@ function isPure(path) {
   }
 
   return path.isPure();
+}
+
+function hasSideEffects(binding) {
+  let {node} = binding.path;
+  if (isVariableDeclarator(node)) {
+    return !(
+      (!binding.referenced || isObjectExpression(node.init)) &&
+      (binding.constant ||
+        binding.constantViolations.every(
+          ({node}) =>
+            !isAssignmentExpression(node) || isObjectExpression(node.right),
+        ))
+    );
+  }
+
+  return false;
 }
 
 function isExportAssignment(path, exportsMap: Map<Symbol, Asset>) {
