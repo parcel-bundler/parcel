@@ -22,6 +22,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 
 import ConfigLoader from './ConfigLoader';
@@ -99,6 +100,8 @@ export default class Transformation {
     assets: Array<AssetValue>,
     configRequests: Array<ConfigRequestAndResult>,
   |}> {
+    await initSourcemaps;
+
     this.report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -122,7 +125,7 @@ export default class Transformation {
           throw new Error('request.meta.parcelConfigPath should be a string!');
         }
 
-        let plugin = await this.parcelConfig.loadPlugin({
+        let {plugin} = await this.parcelConfig.loadPlugin({
           packageName: request.plugin,
           resolveFrom,
         });
@@ -301,7 +304,7 @@ export default class Transformation {
           .map(async asset => {
             if (asset.isASTDirty) {
               let output = await generate(asset);
-              asset.content = output.code;
+              asset.content = output.content;
               asset.mapBuffer = output.map?.toBuffer();
             }
 
@@ -360,6 +363,7 @@ export default class Transformation {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
       hash: a.value.hash,
+      uniqueKey: a.value.uniqueKey,
     }));
 
     return md5FromObject({
@@ -545,7 +549,7 @@ async function runTransformer(
     pipeline.generate
   ) {
     let output = await pipeline.generate(asset);
-    asset.content = output.code;
+    asset.content = output.content;
     asset.mapBuffer = output.map?.toBuffer();
   }
 
@@ -635,19 +639,19 @@ function normalizeAssets(
 
       let internalAsset = mutableAssetToUncommittedAsset(result);
       return {
-        type: result.type,
-        content: await internalAsset.content,
         ast: internalAsset.ast,
-        mapBuffer: internalAsset.mapBuffer,
+        content: await internalAsset.content,
         // $FlowFixMe
         dependencies: [...internalAsset.value.dependencies.values()],
+        env: internalAsset.value.env,
+        filePath: result.filePath,
         includedFiles: result.getIncludedFiles(),
-        // $FlowFixMe
-        env: result.env,
-        isIsolated: result.isIsolated,
         isInline: result.isInline,
-        pipeline: internalAsset.value.pipeline,
+        isIsolated: result.isIsolated,
+        map: internalAsset.map,
         meta: result.meta,
+        pipeline: internalAsset.value.pipeline,
+        type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
       };
     }),

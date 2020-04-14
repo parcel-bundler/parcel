@@ -18,7 +18,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   projectRoot: '',
   lockFile: undefined,
   autoinstall: false,
-  hot: false,
+  hot: undefined,
   serve: false,
   mode: 'development',
   scopeHoist: false,
@@ -34,4 +34,5 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   cache,
   patchConsole: false,
   packageManager: new NodePackageManager(inputFS),
+  instanceId: 'test',
 };

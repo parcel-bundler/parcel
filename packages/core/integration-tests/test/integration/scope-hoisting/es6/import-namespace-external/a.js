@@ -1,3 +1,3 @@
 import * as lodash from "./b";
 
-output = lodash.add(10,2);
+export default lodash.add(10,2);

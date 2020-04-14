@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "sass": "^1.22.9"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

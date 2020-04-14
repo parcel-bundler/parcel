@@ -198,7 +198,7 @@ export default new Transformer({
     });
 
     return {
-      code,
+      content: code,
     };
   },
 });

@@ -6,7 +6,7 @@ import type {ParcelOptions} from './types';
 import {getRootDir} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
 import path from 'path';
-import {resolveConfig} from '@parcel/utils';
+import {resolveConfig, md5FromString} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
 import Cache from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -14,6 +14,13 @@ import {NodePackageManager} from '@parcel/package-manager';
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
+
+// Generate a unique instanceId, will change on every run of parcel
+function generateInstanceId(entries: Array<FilePath>): string {
+  return md5FromString(
+    `${entries.join(',')}-${Date.now()}-${Math.round(Math.random() * 100)}`,
+  );
+}
 
 export default async function resolveOptions(
   initialOptions: InitialParcelOptions,
@@ -81,7 +88,7 @@ export default async function resolveOptions(
     mode,
     minify,
     autoinstall: initialOptions.autoinstall ?? true,
-    hot: initialOptions.hot ?? false,
+    hot: initialOptions.hot ?? null,
     serve: initialOptions.serve ?? false,
     disableCache: initialOptions.disableCache ?? false,
     killWorkers: initialOptions.killWorkers ?? true,
@@ -106,5 +113,6 @@ export default async function resolveOptions(
     outputFS,
     cache,
     packageManager,
+    instanceId: generateInstanceId(entries),
   };
 }

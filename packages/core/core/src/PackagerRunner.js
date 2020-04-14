@@ -22,6 +22,7 @@ import {
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
 import nullthrows from 'nullthrows';
@@ -189,6 +190,8 @@ export default class PackagerRunner {
     contents: Blob,
     map: ?string,
   |}> {
+    await initSourcemaps;
+
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
       bundle,
@@ -343,6 +346,11 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
+    let isInlineMap =
+      bundle.isInline ||
+      (bundle.target.sourceMap && bundle.target.sourceMap.inline);
+
+    // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
       fs: this.options.inputFS,
@@ -351,37 +359,27 @@ export default class PackagerRunner {
         ? url.format(url.parse(sourceRoot + '/'))
         : undefined,
       inlineSources,
-      inlineMap:
-        bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline),
+      format: isInlineMap ? 'inline' : 'string',
     });
   }
 
-  getCacheKey(
+  async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): string {
+  ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
-    let packager = this.config.getPackagerName(filePath);
-    let optimizers = this.config.getOptimizerNames(filePath);
-    let deps = Promise.all(
-      [packager, ...optimizers].map(async pkg => {
-        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
-          `${pkg}/package.json`,
-          `${this.config.filePath}/index`,
-        );
-
-        let version = nullthrows(resolvedPkg).version;
-        return [pkg, version];
-      }),
-    );
+    let {version: packager} = await this.config.getPackager(filePath);
+    let optimizers = (
+      await this.config.getOptimizers(filePath)
+    ).map(({name, version}) => [name, version]);
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
-      deps,
+      packager,
+      optimizers,
       opts: {sourceMaps},
       hash: bundleGraph.getHash(bundle),
     });

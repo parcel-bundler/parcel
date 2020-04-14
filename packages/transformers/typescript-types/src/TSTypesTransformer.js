@@ -22,6 +22,7 @@ export default new Transformer({
     let ts: TypeScriptModule = await options.packageManager.require(
       'typescript',
       asset.filePath,
+      {autoinstall: options.autoinstall},
     );
 
     let opts: CompilerOptions = {
@@ -147,7 +148,7 @@ export default new Transformer({
     return [
       {
         type: 'ts',
-        code,
+        content: code,
         map: sourceMap,
         includedFiles,
       },

@@ -111,16 +111,17 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   }
 
   let pluginName = nullthrows(asset.value.plugin);
-  let plugin: Transformer = await loadPlugin(
+  let {plugin} = await loadPlugin<Transformer>(
     asset.options.packageManager,
     pluginName,
     nullthrows(asset.value.configPath),
+    asset.options.autoinstall,
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);
   }
 
-  let {code, map} = await plugin.generate({
+  let {content, map} = await plugin.generate({
     asset: new PublicAsset(asset),
     ast,
     options: new PluginOptions(asset.options),
@@ -132,17 +133,17 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   await Promise.all([
     asset.options.cache.setStream(
       nullthrows(asset.value.contentKey),
-      blobToStream(code),
+      blobToStream(content),
     ),
     mapBuffer != null &&
       asset.options.cache.setBlob(nullthrows(asset.value.mapKey), mapBuffer),
   ]);
 
   return {
-    code:
-      code instanceof Readable
+    content:
+      content instanceof Readable
         ? asset.options.cache.getStream(nullthrows(asset.value.contentKey))
-        : code,
+        : content,
     map,
   };
 }

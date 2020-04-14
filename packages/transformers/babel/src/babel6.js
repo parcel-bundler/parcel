@@ -12,6 +12,7 @@ export default async function babel6(
   let babel = await options.packageManager.require(
     'babel-core',
     asset.filePath,
+    {autoinstall: options.autoinstall},
   );
 
   let config = babelOptions.config;

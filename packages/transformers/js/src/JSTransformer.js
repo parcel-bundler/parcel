@@ -104,6 +104,7 @@ export default new Transformer({
           pkg.browser.fs === false;
 
         if (!ignore) {
+          traverse.cache.clearScope();
           traverse(ast.program, fsVisitor, null, {asset, logger, ast});
         }
       }
