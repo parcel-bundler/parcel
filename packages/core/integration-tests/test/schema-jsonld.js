@@ -1,5 +1,5 @@
 import {bundle, assertBundles, distDir, outputFS} from '@parcel/test-utils';
-import assert from 'assert';
+import {strict as assert} from 'assert';
 import path from 'path';
 
 function getPathToFile(relativePathToFile) {
