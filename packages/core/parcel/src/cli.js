@@ -47,10 +47,11 @@ if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
 
 program.version(version);
 
-// --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
+// --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --public-url, --log-level
 // --no-content-hash, --experimental-scope-hoisting, --detailed-report
 
 const commonOptions = {
+  '--global <variable>': 'expose your module through a global variable',,
   '--no-cache': 'disable the filesystem cache',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
