@@ -30,7 +30,7 @@ export default new Transformer({
     jsonCode = parser.parse(jsonCode);
 
     // json should be injected back into the html page
-    asset.type = 'html';
+    asset.type = 'jsonld';
     // setting it to jsonCode since the parser updates asset paths
     asset.setCode(JSON.stringify(jsonCode));
     return [asset];

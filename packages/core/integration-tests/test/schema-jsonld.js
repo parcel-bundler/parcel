@@ -31,7 +31,7 @@ describe('jsonld', function() {
         assets: ['other.css'],
       },
       {
-        type: 'html', //this is the jsonld asset
+        type: 'jsonld', //this is the jsonld asset
         assets: ['index.html'],
       },
       {
