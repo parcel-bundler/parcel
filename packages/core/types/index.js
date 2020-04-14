@@ -595,6 +595,7 @@ export interface Bundle {
   +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
+  +displayName: ?string;
   +stats: Stats;
   +pipeline: ?string;
   getEntryAssets(): Array<Asset>;

@@ -113,6 +113,10 @@ export class Bundle implements IBundle {
     return this.#bundle.name;
   }
 
+  get displayName(): ?string {
+    return this.#bundle.displayName;
+  }
+
   get stats(): Stats {
     return this.#bundle.stats;
   }
