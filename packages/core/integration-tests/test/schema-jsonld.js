@@ -1,5 +1,5 @@
 import {bundle, assertBundles, distDir, outputFS} from '@parcel/test-utils';
-import {strict as assert} from 'assert';
+import assert from 'assert';
 import path from 'path';
 
 function getPathToFile(relativePathToFile) {
@@ -72,8 +72,17 @@ describe('jsonld', function() {
     })[0];
 
     let actual = JSON.parse(firstMatch);
-    assert.match(actual.logo.url, /logo\.[a-f0-9]+\.png/);
-    assert.match(actual.image[0], /image\.[a-f0-9]+\.jpeg/);
-    assert.match(actual.image[1], /image\.[a-f0-9]+\.jpeg/);
+    match(actual.logo.url, /logo\.[a-f0-9]+\.png/);
+    match(actual.image[0], /image\.[a-f0-9]+\.jpeg/);
+    match(actual.image[1], /image\.[a-f0-9]+\.jpeg/);
   });
 });
+
+function match(test, pattern) {
+  let success = new RegExp(pattern).test(test);
+  if (success) {
+    assert.ok(`'${test}' matched the given pattern of '${pattern}'`);
+    return;
+  }
+  assert.fail(`'${test}' did not match the given pattern of '${pattern}'`);
+}
