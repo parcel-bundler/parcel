@@ -6,7 +6,7 @@ import type {
   BundleGraph as IBundleGraph,
   BundleGroup,
   Dependency as IDependency,
-  GraphTraversalCallback,
+  GraphVisitor,
   Symbol,
   SymbolResolution,
 } from '@parcel/types';
@@ -17,7 +17,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
-import {assetFromValue, assetToAssetValue, Asset} from './Asset';
+import {assetFromValue, assetToAssetValue} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
@@ -54,10 +54,10 @@ export default class BundleGraph implements IBundleGraph {
     internalBundleGraphToBundleGraph.get(options).set(graph, this);
   }
 
-  getDependencyResolution(dep: IDependency, bundle: IBundle): ?Asset {
+  getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
     let resolution = this.#graph.getDependencyResolution(
       dependencyToInternalDependency(dep),
-      bundleToInternalBundle(bundle),
+      bundle && bundleToInternalBundle(bundle),
     );
     if (resolution) {
       return assetFromValue(resolution, this.#options);
@@ -82,35 +82,28 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  getExternalDependencies(bundle: IBundle): Array<IDependency> {
-    let externalDependencies = [];
-    this.#graph.traverseBundle(bundleToInternalBundle(bundle), node => {
-      if (
-        node.type === 'dependency' &&
-        (this.#graph.getDependencyResolution(node.value) == null ||
-          this.#graph._graph
-            .getNodesConnectedFrom(node)
-            .find(node => node.type === 'bundle_group'))
-      ) {
-        externalDependencies.push(new Dependency(node.value));
-      }
-    });
-    return externalDependencies;
-  }
+  resolveExternalDependency(
+    dependency: IDependency,
+    bundle: ?IBundle,
+  ): ?(
+    | {|type: 'bundle_group', value: BundleGroup|}
+    | {|type: 'asset', value: IAsset|}
+  ) {
+    let resolved = this.#graph.resolveExternalDependency(
+      dependencyToInternalDependency(dependency),
+      bundle && bundleToInternalBundle(bundle),
+    );
 
-  resolveExternalDependency(dependency: IDependency): ?BundleGroup {
-    let node = this.#graph._graph
-      .getNodesConnectedFrom(
-        nullthrows(this.#graph._graph.getNode(dependency.id)),
-      )
-      .find(node => node.type === 'bundle_group');
-
-    if (node == null) {
+    if (resolved == null) {
       return;
+    } else if (resolved.type === 'bundle_group') {
+      return resolved;
     }
 
-    invariant(node.type === 'bundle_group');
-    return node.value;
+    return {
+      type: 'asset',
+      value: assetFromValue(resolved.value, this.#options),
+    };
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {
@@ -132,10 +125,10 @@ export default class BundleGraph implements IBundleGraph {
     return this.#graph.isAssetReferenced(assetToAssetValue(asset));
   }
 
-  isAssetReferencedByAnotherBundleOfType(asset: IAsset, type: string): boolean {
-    return this.#graph.isAssetReferencedByAnotherBundleOfType(
+  isAssetReferencedByDependant(bundle: IBundle, asset: IAsset): boolean {
+    return this.#graph.isAssetReferencedByDependant(
+      bundleToInternalBundle(bundle),
       assetToAssetValue(asset),
-      type,
     );
   }
 
@@ -197,8 +190,8 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<IBundle, TContext>,
-    startBundle?: IBundle,
+    visit: GraphVisitor<IBundle, TContext>,
+    startBundle: ?IBundle,
   ): ?TContext {
     return this.#graph.traverseBundles(
       mapVisitor(
@@ -212,6 +205,12 @@ export default class BundleGraph implements IBundleGraph {
   findBundlesWithAsset(asset: IAsset): Array<IBundle> {
     return this.#graph
       .findBundlesWithAsset(assetToAssetValue(asset))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
+  findBundlesWithDependency(dependency: IDependency): Array<IBundle> {
+    return this.#graph
+      .findBundlesWithDependency(dependencyToInternalDependency(dependency))
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 }

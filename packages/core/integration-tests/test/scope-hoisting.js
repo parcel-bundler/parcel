@@ -3,7 +3,9 @@ import path from 'path';
 import {
   bundle as _bundle,
   bundler as _bundler,
+  distDir,
   run,
+  runBundle,
   outputFS,
   overlayFS,
   assertBundles,
@@ -1969,12 +1971,6 @@ describe('scope hoisting', function() {
       .sort((a, b) => b.stats.size - a.stats.size)[0];
     let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
     assert(contents.includes(`parcelRequire =`));
-
-    let mainBundle = b
-      .getBundles()
-      .find(b => b.type === 'js' && b.name.startsWith('html-shared'));
-    contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
-    assert(contents.includes(`parcelRequire =`));
   });
 
   it('does not include prelude if child bundles are isolated', async function() {
@@ -2028,5 +2024,242 @@ describe('scope hoisting', function() {
     );
 
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/sync-async/same-bundle-scope-hoisting.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-bundle-scope-hoisting.js',
+        assets: [
+          'same-bundle-scope-hoisting.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await await run(b), [42, 42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/sync-async/same-ancestry-scope-hoisting.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-ancestry-scope-hoisting.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'dep.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+          'same-ancestry-scope-hoisting.js',
+        ],
+      },
+      {
+        assets: ['get-dep.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await run(b), [42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
+    let b = await bundle(
+      [
+        'same-bundle-scope-hoisting.js',
+        'get-dep-scope-hoisting.js',
+      ].map(entry => path.join(__dirname, '/integration/sync-async/', entry)),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['dep.js'],
+      },
+      {
+        name: 'same-bundle-scope-hoisting.js',
+        assets: [
+          'same-bundle-scope-hoisting.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        name: 'get-dep-scope-hoisting.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-dep-scope-hoisting.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let sameBundle = bundles.find(
+      b => b.name === 'same-bundle-scope-hoisting.js',
+    );
+    let getDep = bundles.find(b => b.name === 'get-dep-scope-hoisting.js');
+
+    assert.deepEqual(await runBundle(sameBundle), [42, 42, 42]);
+    assert.deepEqual(await runBundle(getDep), 42);
+  });
+
+  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-exports-for-sibling-descendant/scope-hoisting.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['wraps.js', 'lodash.js'],
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['child.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['grandchild.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        name: 'scope-hoisting.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'scope-hoisting.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await run(b), [3, 5]);
+  });
+
+  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      ['index.js', 'value.js'].map(basename =>
+        path.join(__dirname, '/integration/sync-entry-shared', basename),
+      ),
+      {targets: {main: {context: 'node', distDir}}},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {name: 'value.js', assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.equal(await (await run(b)).default, 43);
+  });
+
+  it('can run an async bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/async-entry-shared/scope-hoisting.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'scope-hoisting.js',
+        assets: [
+          'scope-hoisting.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.deepEqual(await run(b), [42, 43]);
+  });
+
+  it('can run an async bundle that depends on a nonentry asset in a sibling', async () => {
+    let b = await bundle(
+      ['scope-hoisting.js', 'other-entry.js'].map(basename =>
+        path.join(
+          __dirname,
+          '/integration/async-entry-shared-sibling',
+          basename,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'scope-hoisting.js',
+        assets: [
+          'scope-hoisting.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'other-entry.js',
+        assets: [
+          'other-entry.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['a.js', 'value.js']},
+      {assets: ['b.js']},
+    ]);
+
+    assert.deepEqual(await run(b), 43);
   });
 });

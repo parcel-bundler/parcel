@@ -11,10 +11,11 @@ import type {ExternalModule, ExternalBundle} from './types';
 import type {
   Expression,
   File,
+  FunctionDeclaration,
   Identifier,
   LVal,
-  Statement,
   ObjectProperty,
+  Statement,
   StringLiteral,
   VariableDeclaration,
 } from '@babel/types';
@@ -34,7 +35,7 @@ import {
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import {assertString, getName, getIdentifier} from './utils';
+import {assertString, getName, getIdentifier, verifyScopeState} from './utils';
 import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template.statement<
@@ -57,7 +58,7 @@ const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
 >('require.resolve(ID)');
 const FAKE_INIT_TEMPLATE = template.statement<
   {|INIT: Identifier, EXPORTS: Identifier|},
-  Statement,
+  FunctionDeclaration,
 >(`function INIT(){
   return EXPORTS;
 }`);
@@ -67,12 +68,14 @@ export function link({
   bundleGraph,
   ast,
   options,
+  wrappedAssets,
 }: {|
   bundle: Bundle,
   bundleGraph: BundleGraph,
   ast: File,
   options: PluginOptions,
-|}) {
+  wrappedAssets: Set<string>,
+|}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
@@ -114,7 +117,7 @@ export function link({
       }
     }
 
-    if (bundleGraph.isAssetReferencedByAnotherBundleOfType(asset, 'js')) {
+    if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
       referencedAssets.add(asset);
     }
   });
@@ -307,6 +310,17 @@ export function link({
       }
 
       specifiers.set(imported, renamed);
+
+      if (!programScope.hasOwnBinding(renamed)) {
+        // add binding so we can track the scope
+        let [decl] = programScope.path.unshiftContainer(
+          'body',
+          t.variableDeclaration('var', [
+            t.variableDeclarator(t.identifier(renamed)),
+          ]),
+        );
+        programScope.registerDeclaration(decl);
+      }
     }
 
     return specifiers.get('*');
@@ -334,7 +348,18 @@ export function link({
       invariant(imported.assets != null);
       imported.assets.add(mod);
 
-      return t.callExpression(getIdentifier(mod, 'init'), []);
+      let initIdentifier = getIdentifier(mod, 'init');
+
+      let program = path.scope.getProgramParent().path;
+      if (!program.scope.hasOwnBinding(initIdentifier.name)) {
+        // add binding so we can track the scope
+        let [decl] = program.unshiftContainer('body', [
+          t.variableDeclaration('var', [t.variableDeclarator(initIdentifier)]),
+        ]);
+        program.scope.registerDeclaration(decl);
+      }
+
+      return t.callExpression(initIdentifier, []);
     }
   }
 
@@ -387,9 +412,9 @@ export function link({
           if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
             let name = assertString(mod.meta.exportsIdentifier);
 
-            let isReferenced = bundleGraph.isAssetReferencedByAnotherBundleOfType(
+            let isReferenced = bundleGraph.isAssetReferencedByDependant(
+              bundle,
               mod,
-              'js',
             );
             let isValueUsed = !isUnusedValue(path);
             if (isValueUsed || isReferenced) {
@@ -425,7 +450,7 @@ export function link({
             // We need to wrap the module in a function when a require
             // call happens inside a non top-level scope, e.g. in a
             // function, if statement, or conditional expression.
-            if (mod.meta.shouldWrap) {
+            if (wrappedAssets.has(mod.id)) {
               node = t.callExpression(getIdentifier(mod, 'init'), []);
             }
             // Replace with nothing if the require call's result is not used.
@@ -613,45 +638,50 @@ export function link({
         // Recrawl to get all bindings.
         path.scope.crawl();
 
-        // Insert imports for external bundles
-        let imports = [];
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            imports.push(
-              ...format.generateBundleImports(
-                bundle,
-                file.bundle,
-                file.assets,
-                path.scope,
-              ),
+            format.generateBundleImports(
+              bundle,
+              file.bundle,
+              file.assets,
+              path,
             );
           } else {
-            imports.push(
-              ...format.generateExternalImport(bundle, file, path.scope),
-            );
+            format.generateExternalImport(bundle, file, path);
           }
         }
 
-        if (imports.length > 0) {
-          // Add import statements and update scope to collect references
-          path.unshiftContainer('body', imports);
-          path.scope.crawl();
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
         }
 
-        // Insert fake init functions that will be imported in other bundles,
-        // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
-        // not in the current bundle:
-        path.pushContainer(
-          'body',
-          [...referencedAssets]
-            .filter(a => !a.meta.shouldWrap)
-            .map(a => {
-              return FAKE_INIT_TEMPLATE({
-                INIT: getIdentifier(a, 'init'),
-                EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
-              });
-            }),
-        );
+        if (referencedAssets.size > 0) {
+          // Insert fake init functions that will be imported in other bundles,
+          // because `asset.meta.shouldWrap` isn't set in a packager if `asset` is
+          // not in the current bundle.
+          let decls = path.pushContainer(
+            'body',
+            ([...referencedAssets]: Array<Asset>)
+              .filter(a => !wrappedAssets.has(a.id))
+              .map(a => {
+                return FAKE_INIT_TEMPLATE({
+                  INIT: getIdentifier(a, 'init'),
+                  EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
+                });
+              }),
+          );
+          for (let decl of decls) {
+            path.scope.registerDeclaration(decl);
+            let returnId = decl.get<NodePath<Identifier>>(
+              'body.body.0.argument',
+            );
+
+            // TODO Somehow deferred/excluded assets are referenced, causing this function to
+            // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
+            // But a asset that isn't here should never be referenced in the first place.
+            path.scope.getBinding(returnId.node.name)?.reference(returnId);
+          }
+        }
 
         // Generate exports
         let exported = format.generateExports(
@@ -663,10 +693,14 @@ export function link({
           options,
         );
 
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
+        }
+
         treeShake(path.scope, exported);
       },
     },
   });
 
-  return ast;
+  return {ast, referencedAssets};
 }

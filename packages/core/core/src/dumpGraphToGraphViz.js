@@ -19,6 +19,7 @@ const COLORS = {
 const TYPE_COLORS = {
   bundle: 'blue',
   contains: 'grey',
+  internal_async: 'orange',
   references: 'red',
 };
 
