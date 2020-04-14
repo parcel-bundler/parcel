@@ -50,7 +50,11 @@ type TraversalContext = {|
   children: AssetASTMap,
 |};
 
-export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
+export async function concat(
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+  wrappedAssets: Set<string>,
+) {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
     switch (node.type) {
@@ -62,13 +66,13 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
             bundle,
           );
           if (resolved) {
-            resolved.meta.shouldWrap = true;
+            wrappedAssets.add(resolved.id);
           }
           return true;
         }
         break;
       case 'asset':
-        queue.add(() => processAsset(bundle, node.value));
+        queue.add(() => processAsset(bundle, node.value, wrappedAssets));
     }
   });
 
@@ -140,7 +144,11 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   return t.file(t.program(result));
 }
 
-async function processAsset(bundle: Bundle, asset: Asset) {
+async function processAsset(
+  bundle: Bundle,
+  asset: Asset,
+  wrappedAssets: Set<string>,
+) {
   let statements: Array<Statement>;
   if (asset.astGenerator && asset.astGenerator.type === 'babel') {
     let ast = await asset.getAST();
@@ -150,7 +158,7 @@ async function processAsset(bundle: Bundle, asset: Asset) {
     statements = parse(code, asset.filePath);
   }
 
-  if (asset.meta.shouldWrap) {
+  if (wrappedAssets.has(asset.id)) {
     statements = wrapModule(asset, statements);
   }
 
