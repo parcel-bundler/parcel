@@ -904,8 +904,7 @@ describe('scope hoisting', function() {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert(!/bar/.test(contents));
-      assert(!/displayName/.test(contents));
+      assert(!contents.includes('exports.bar ='));
     });
 
     it('should correctly rename references to default exported classes', async function() {
@@ -2169,6 +2168,17 @@ describe('scope hoisting', function() {
     ]);
 
     assert.deepEqual(await run(b), [3, 5]);
+  });
+
+  it('does not tree-shake assignments to unknown objects', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/tree-shaking-no-unknown-objects/index.js',
+      ),
+    );
+
+    assert.equal(await run(b), 42);
   });
 
   it('can run an entry bundle whose entry asset is present in another bundle', async () => {

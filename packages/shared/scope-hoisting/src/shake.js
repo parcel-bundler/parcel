@@ -34,6 +34,9 @@ export default function treeShake(
     removed = false;
 
     Object.keys(scope.bindings).forEach((name: string) => {
+      if (name.includes('foo')) {
+        debugger;
+      }
       let binding = getUnusedBinding(scope.path, name);
 
       // If it is not safe to remove the binding don't touch it.
