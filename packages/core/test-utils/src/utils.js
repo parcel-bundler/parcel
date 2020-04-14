@@ -507,3 +507,17 @@ function prepareNodeContext(filePath, globals) {
   ctx.global = ctx;
   return ctx;
 }
+
+export function shallowEqual(a, b) {
+  if (Object.keys(a).length !== Object.keys(b).length) {
+    return false;
+  }
+
+  for (let [key, value] of Object.entries(a)) {
+    if (!b.hasOwnProperty(key) || b[key] !== value) {
+      return false;
+    }
+  }
+
+  return true;
+}
