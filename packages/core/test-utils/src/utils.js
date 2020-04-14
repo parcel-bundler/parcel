@@ -508,7 +508,10 @@ function prepareNodeContext(filePath, globals) {
   return ctx;
 }
 
-export function shallowEqual(a, b) {
+export function shallowEqual(
+  a: $Shape<{|+[string]: mixed|}>,
+  b: $Shape<{|+[string]: mixed|}>,
+) {
   if (Object.keys(a).length !== Object.keys(b).length) {
     return false;
   }

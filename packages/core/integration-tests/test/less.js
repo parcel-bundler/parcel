@@ -108,7 +108,7 @@ describe('less', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert.equal(css, '');
+    assert.equal(css.trim(), '/*# sourceMappingURL=index.css.map */');
   });
 
   it('should support linking to assets with url() from less', async function() {
