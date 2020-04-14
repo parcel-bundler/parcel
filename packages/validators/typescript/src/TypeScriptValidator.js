@@ -52,8 +52,8 @@ export default new Validator({
 
         assetsToValidate.push({configHash, assetPath: asset.filePath});
 
-        // ANDREW_TODO: consider ways to guarantee that assetGraphNodeId is defined.
-        // ANDREW_TODO: make sure all assets are checked when the program is created the first time (respecting typescript options).
+        // ANDREW_TODO: consider ways to signal within flow that assetGraphNodeId will be defined (or a more graceful way of looking up dependents).
+        // ANDREW_TODO: make sure all assets (including library definitions) are checked when the language service is created the first time (if tsc "skipLibCheck" option is false).
         let dependentAssets =
           typeof asset.assetGraphNodeId === 'string'
             ? getAllDependentAssets(asset.assetGraphNodeId)

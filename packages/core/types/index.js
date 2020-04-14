@@ -354,7 +354,7 @@ export interface MutableAsset extends BaseAsset {
 
 export interface Asset extends BaseAsset {
   +stats: Stats;
-  // ANDREW_TODO: this is really hacky. It's currently necessary because Validate/ValidateAll take type Asset.
+  // ANDREW_TODO: this is really hacky. It's here because Validate/ValidateAll take type Asset, but we need to make sure we have a way of looking up that asset's dependencies (i.e. something to pass getAllDependentAssets).
   +assetGraphNodeId?: ?string;
 }
 
@@ -450,7 +450,7 @@ export type DedicatedThreadValidator = {|
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
-    // $FlowFixMe ANDREW_TODO: need to understand why there are two different 'Asset' interfaces in this file v. packages/core/core/types.ts
+    // $FlowFixMe ANDREW_TODO: need to understand why there are two different 'Asset' interfaces (in this file v. packages/core/core/types.ts). The implementation of getDependentAssets in AssetGraphBuilder will find Assets with the later type.
     getAllDependentAssets: (assetGraphNodeId: string) => Array<any>,
   |}) => Async<Array<?ValidateResult>>,
 |};
