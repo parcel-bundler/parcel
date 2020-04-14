@@ -991,7 +991,8 @@ describe('html', function() {
     assert(html.includes('.add(2, 3)'));
   });
 
-  it('inserts sibling bundles into html in the correct order (no head)', async function() {
+  // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+  it.skip('inserts sibling bundles into html in the correct order (no head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared/index.html'),
       {production: true, scopeHoist: true},
@@ -1054,7 +1055,8 @@ describe('html', function() {
     assert.equal(insertedBundles[0], lodashSibling);
   });
 
-  it('inserts sibling bundles into html in the correct order (head)', async function() {
+  // ATLASSIAN: Don't share across workers for now as worker-specific code is added
+  it.skip('inserts sibling bundles into html in the correct order (head)', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-shared-head/index.html'),
       {production: true, scopeHoist: true},
