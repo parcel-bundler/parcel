@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-mdx",
-  "version": "2.0.0-frontbucket.8",
+  "version": "2.0.0-frontbucket.9",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,7 +16,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.19"
+    "@parcel/plugin": "^2.0.0-frontbucket.20"
   },
   "devDependencies": {
     "@mdx-js/mdx": "^1.5.3"
