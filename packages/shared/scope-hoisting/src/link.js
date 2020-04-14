@@ -34,7 +34,7 @@ import {
   isStringLiteral,
 } from '@babel/types';
 import traverse from '@babel/traverse';
-// import treeShake from './shake';
+import treeShake from './shake';
 import {assertString, getName, getIdentifier, verifyScopeState} from './utils';
 import OutputFormats from './formats/index.js';
 
@@ -701,11 +701,11 @@ export function link({
           options,
         );
 
-        // ATLASSIAN: Disable treeShaking for now.
-        // if (process.env.PARCEL_BUILD_ENV !== 'production') {
-        //   verifyScopeState(path.scope);
-        // }
-        // treeShake(path.scope, exported);
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
+        }
+
+        treeShake(path.scope, exported, exportsMap);
       },
     },
   });
