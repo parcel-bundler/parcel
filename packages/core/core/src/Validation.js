@@ -10,6 +10,7 @@ import type {
 } from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
 
+import invariant from 'assert';
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
@@ -43,7 +44,7 @@ export default class Validation {
   dedicatedThread: boolean;
   configRequests: Array<ConfigRequestDesc>;
   configLoader: ConfigLoader;
-  getAllDependentAssets: (assetGraphNodeId: string) => Array<IAsset>;
+  getAllDependentAssets: ?(assetGraphNodeId: string) => Array<IAsset>;
   impactfulOptions: $Shape<ParcelOptions>;
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
@@ -62,13 +63,7 @@ export default class Validation {
   }: ValidationOpts) {
     this.configLoader = new ConfigLoader({options, config});
     this.dedicatedThread = dedicatedThread ?? false;
-    // ANDREW_TODO: figure out the right way to handle the case where getAllDependentAssets is not defined.
-    // eslint-disable-next-line no-unused-vars
-    this.getAllDependentAssets =
-      getAllDependentAssets ??
-      ((_assetGraphNodeId: string) => {
-        return [];
-      });
+    this.getAllDependentAssets = getAllDependentAssets;
     this.options = options;
     this.parcelConfig = config;
     this.report = report;
@@ -88,9 +83,14 @@ export default class Validation {
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
+              let {getAllDependentAssets} = this;
+              invariant(
+                getAllDependentAssets,
+                'If we invoking validateAll()-type validators, getDependentAssets must be defined.',
+              );
               let validatorResults = await plugin.validateAll({
                 assets: assets.map(asset => new Asset(asset)),
-                getAllDependentAssets: this.getAllDependentAssets,
+                getAllDependentAssets,
                 options: pluginOptions,
                 logger: validatorLogger,
                 resolveConfigWithPath: (

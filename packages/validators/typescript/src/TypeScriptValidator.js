@@ -52,10 +52,10 @@ export default new Validator({
 
         assetsToValidate.push({configHash, assetPath: asset.filePath});
 
-        // ANDREW_TODO: consider ways to guarantee that getAllDependents is defined.
+        // ANDREW_TODO: consider ways to guarantee that assetGraphNodeId is defined.
         // ANDREW_TODO: make sure all assets are checked when the program is created the first time (respecting typescript options).
         let dependentAssets =
-          typeof asset.assetGraphNodeId === 'string' && getAllDependentAssets
+          typeof asset.assetGraphNodeId === 'string'
             ? getAllDependentAssets(asset.assetGraphNodeId)
             : [];
         dependentAssets.forEach(dependentAsset => {
