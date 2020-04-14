@@ -695,7 +695,7 @@ export function link({
           verifyScopeState(path.scope);
         }
 
-        treeShake(path.scope, exported);
+        treeShake(path.scope, exported, exportsMap);
       },
     },
   });
