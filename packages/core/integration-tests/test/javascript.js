@@ -2559,4 +2559,49 @@ describe('javascript', function() {
       },
     );
   });
+
+  it('can run an async bundle that depends on a nonentry asset in a sibling', async () => {
+    let b = await bundle(
+      ['index.js', 'other-entry.js'].map(basename =>
+        path.join(
+          __dirname,
+          '/integration/async-entry-shared-sibling',
+          basename,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'other-entry.js',
+        assets: [
+          'other-entry.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['a.js', 'value.js']},
+      {assets: ['b.js']},
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, 43);
+  });
 });
