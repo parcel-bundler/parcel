@@ -2509,4 +2509,88 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, [42, 43]);
   });
+
+  it('should display a codeframe on a Terser parse error', async () => {
+    let fixture = path.join(__dirname, 'integration/terser-codeframe/index.js');
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          minify: true,
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Name expected',
+            origin: '@parcel/optimizer-terser',
+            filePath: undefined,
+            language: 'js',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  message: 'Name expected',
+                  start: {
+                    column: 4,
+                    line: 1,
+                  },
+                  end: {
+                    column: 4,
+                    line: 1,
+                  },
+                },
+              ],
+            },
+            hints: ["It's likely that Terser doesn't support this syntax yet."],
+          },
+        ],
+      },
+    );
+  });
+
+  it('can run an async bundle that depends on a nonentry asset in a sibling', async () => {
+    let b = await bundle(
+      ['index.js', 'other-entry.js'].map(basename =>
+        path.join(
+          __dirname,
+          '/integration/async-entry-shared-sibling',
+          basename,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'other-entry.js',
+        assets: [
+          'other-entry.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['a.js', 'value.js']},
+      {assets: ['b.js']},
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, 43);
+  });
 });

@@ -24,7 +24,7 @@ function checkSourceMapping({
 }) {
   assert(
     generated.indexOf(generatedStr) !== -1,
-    "'" + generatedStr + "' not in generated code",
+    "'" + generatedStr + "' not found in generated code",
   );
   assert(source.indexOf(str) !== -1, "'" + str + "' not in source code");
 
@@ -41,8 +41,6 @@ function checkSourceMapping({
 
   assert(mapping, "no mapping for '" + str + "'" + msg);
 
-  let mapData = map.getMap();
-
   let generatedDiff = {
     line: generatedPosition.line - mapping.generated.line,
     column: generatedPosition.column - mapping.generated.column,
@@ -57,14 +55,14 @@ function checkSourceMapping({
     {
       line: computedSourcePosition.line,
       column: computedSourcePosition.column,
-      source: mapData.sources[mapping.source],
+      source: mapping.source,
     },
     {
       line: sourcePosition.line,
       column: sourcePosition.column,
       source: sourcePath,
     },
-    "mapping '" + str + "' appears incorrect: " + msg,
+    "mapping '" + str + "' appears to be incorrect: " + msg,
   );
 }
 
