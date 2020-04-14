@@ -928,8 +928,7 @@ describe('scope hoisting', function() {
         b.getBundles()[0].filePath,
         'utf8',
       );
-      assert(!/bar/.test(contents));
-      assert(!/displayName/.test(contents));
+      assert(!contents.includes('exports.bar ='));
     });
 
     it('should correctly rename references to default exported classes', async function() {
@@ -953,6 +952,17 @@ describe('scope hoisting', function() {
       );
       let output = await run(b);
       assert.deepEqual(output.foo, 'bar');
+    });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
     });
   });
 
@@ -1902,6 +1912,17 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, [4, 2]);
+    });
+
+    it('does not tree-shake assignments to unknown objects', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/tree-shaking-no-unknown-objects/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 42);
     });
   });
 
