@@ -50,11 +50,19 @@ export default new Bundler({
         let dependency = node.value;
         let assets = bundleGraph.getDependencyAssets(dependency);
         let resolution = bundleGraph.getDependencyResolution(dependency);
+        let parentNode = context?.parentNode;
+
+        let isJSONinJS =
+          resolution &&
+          resolution.type === 'json' &&
+          parentNode &&
+          parentNode.type === 'asset' &&
+          parentNode.value.type === 'js';
 
         if (
           (dependency.isEntry && resolution) ||
           (dependency.isAsync && resolution) ||
-          resolution?.isIsolated ||
+          (!isJSONinJS && resolution?.isIsolated) ||
           resolution?.isInline
         ) {
           let bundleGroup = bundleGraph.createBundleGroup(
@@ -103,7 +111,12 @@ export default new Bundler({
         for (let asset of assets) {
           let siblings = siblingBundlesByAsset.get(asset.id);
 
-          if (parentAsset.type === asset.type) {
+          let assetType =
+            parentAsset.type === 'js' && asset.type === 'json'
+              ? 'js'
+              : asset.type;
+
+          if (parentAsset.type === assetType) {
             if (allSameType && siblings) {
               // If any sibling bundles were created for this asset or its subtree previously,
               // add them all to the current bundle group as well. This fixes cases where two entries
@@ -127,7 +140,7 @@ export default new Bundler({
             continue;
           }
 
-          let existingBundle = bundleByType.get(asset.type);
+          let existingBundle = bundleByType.get(assetType);
           if (existingBundle) {
             // If a bundle of this type has already been created in this group,
             // merge this subgraph into it.
@@ -204,7 +217,7 @@ export default new Bundler({
           candidate,
         );
         if (
-          Array.from(bundleGroups).every(
+          [...bundleGroups].every(
             group =>
               bundleGraph.getBundlesInBundleGroup(group).length <
               OPTIONS.maxParallelRequests,
@@ -305,7 +318,7 @@ export default new Bundler({
 
       // If all bundle groups have already met the max parallel request limit, then they cannot be split.
       if (
-        Array.from(bundleGroups).every(
+        [...bundleGroups].every(
           group =>
             bundleGraph.getBundlesInBundleGroup(group).length >=
             OPTIONS.maxParallelRequests,
