@@ -7,6 +7,7 @@ export default new Transformer({
     const yaml = await options.packageManager.require(
       'js-yaml',
       asset.filePath,
+      {autoinstall: options.autoinstall},
     );
     asset.type = 'js';
     asset.setCode(
