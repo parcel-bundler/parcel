@@ -185,7 +185,7 @@ export default new Packager({
         '},{},' +
         JSON.stringify(entries.map(asset => asset.id)) +
         ', ' +
-        'null' +
+        JSON.stringify(this.options.global || null) +
         ')' +
         '\n\n' +
         (await getSourceMapSuffix(getSourceMapReference, map)),

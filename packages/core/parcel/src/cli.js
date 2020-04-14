@@ -320,5 +320,6 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     env: {
       NODE_ENV: nodeEnv,
     },
+    global: command.global
   };
 }

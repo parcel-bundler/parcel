@@ -204,7 +204,7 @@ export type InitialParcelOptions = {|
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
-
+  +global: string
   // contentHash
   // throwErrors
   // global?
@@ -226,6 +226,7 @@ export interface PluginOptions {
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
+  +global: string
 }
 
 export type ServerOptions = {|
