@@ -45,11 +45,13 @@ export default new Packager({
 
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
+      let wrappedAssets = new Set<string>();
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat(bundle, bundleGraph),
+        ast: await concat(bundle, bundleGraph, wrappedAssets),
         options,
+        wrappedAssets,
       });
 
       let {contents, map} = generate({
