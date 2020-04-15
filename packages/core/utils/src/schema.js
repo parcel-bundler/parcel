@@ -2,7 +2,7 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-// $FlowFixMe untyped
+// flowlint-next-line untyped-import:off
 import levenshteinDistance from 'js-levenshtein';
 
 export type SchemaEntity =

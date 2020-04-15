@@ -192,6 +192,13 @@ export default class MutableBundleGraph extends BundleGraph
     );
   }
 
+  createBundleReference(from: IBundle, to: IBundle): void {
+    return this.#graph.createBundleReference(
+      bundleToInternalBundle(from),
+      bundleToInternalBundle(to),
+    );
+  }
+
   getDependencyAssets(dependency: IDependency): Array<IAsset> {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))

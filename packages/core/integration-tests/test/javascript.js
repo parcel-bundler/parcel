@@ -2099,15 +2099,17 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/bundle-text/index.js'),
     );
 
-    assert.equal(
-      (await run(b)).default,
-      `body {
+    assert(
+      (await run(b)).default.startsWith(
+        `body {
   background-color: #000000;
 }
 
 .svg-img {
   background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
-}`,
+}
+/*# sourceMappingURL=data:application/json;charset=utf-8;base64,`,
+      ),
     );
   });
 
