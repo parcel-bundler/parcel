@@ -201,7 +201,7 @@ describe('scope hoisting', function() {
       assert.equal(output, 15);
     });
 
-    it('can import from a different bundle via a re-export', async function() {
+    it('can import from a different bundle via a re-export (1)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -223,6 +223,30 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['operational', 'ui']);
+    });
+
+    it('can import from a different bundle via a re-export (2)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary2/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['foo', 'foo']);
+    });
+
+    it('can import from its own bundle with a split package', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary3/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [['a', 'b'], 'themed']);
     });
 
     it('supports importing all exports re-exported from multiple modules deep', async function() {

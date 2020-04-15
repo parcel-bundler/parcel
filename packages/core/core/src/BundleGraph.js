@@ -647,15 +647,9 @@ export default class BundleGraph {
   }
 
   // Resolve the export `symbol` of `asset` to the source,
-  // stopping at the first asset after leaving `bundle` (symbol is null in that case)
+  // stopping at the first asset after leaving `bundle` (symbol is nullish in that case)
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
-    if (boundary && !this.bundleHasAsset(boundary, asset)) {
-      return {
-        asset,
-        exportSymbol: symbol,
-        symbol: undefined,
-      };
-    }
+    let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols.get(symbol);
     if (symbol === '*') {
@@ -673,6 +667,11 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) {
           // External module.
+          break;
+        }
+
+        if (assetOutside) {
+          // We found the symbol, but `asset` is outside, return `asset` and the original symbol
           break;
         }
 
@@ -701,7 +700,12 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
-        if (result.symbol != null) {
+        if (result.symbol != undefined) {
+          if (assetOutside) {
+            // We found the symbol, but `asset` is outside, return `asset` and the original symbol
+            break;
+          }
+
           return {
             asset: result.asset,
             symbol: result.symbol,
