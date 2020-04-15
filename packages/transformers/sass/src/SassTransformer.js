@@ -1,25 +1,24 @@
 // @flow
+import type {FilePath} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {PluginLogger} from '@parcel/logger';
 
 import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
 import {dirname} from 'path';
 import {EOL} from 'os';
-import {NodeFS} from '@parcel/fs';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
-const fs = new NodeFS();
 
 let didWarnAboutNodeSass = false;
-
 async function warnAboutNodeSassBeingUnsupported(
-  filePath,
+  fs: FileSystem,
+  filePath: FilePath,
   logger: PluginLogger,
 ) {
   if (!didWarnAboutNodeSass) {
     try {
-      // TODO: replace this with the actual filesystem later
       await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
       logger.warn({
         origin: '@parcel/transformer-sass',
@@ -67,7 +66,11 @@ export default new Transformer({
   },
 
   async transform({asset, options, config, logger}) {
-    await warnAboutNodeSassBeingUnsupported(asset.filePath, logger);
+    await warnAboutNodeSassBeingUnsupported(
+      options.inputFS,
+      asset.filePath,
+      logger,
+    );
     let sass = await options.packageManager.require('sass', asset.filePath, {
       autoinstall: options.autoinstall,
     });
