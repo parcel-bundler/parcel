@@ -12,7 +12,7 @@ export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
 export {default as prettyDiagnostic} from './prettyDiagnostic';
 export {default as PromiseQueue} from './PromiseQueue';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 export {default as promisify} from './promisify';
 export {default as validateSchema} from './schema';
 export {default as TapStream} from './TapStream';
