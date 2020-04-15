@@ -767,7 +767,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it.skip('should create a valid sourcemap for a LESS asset', async function() {
+  it('should create a valid sourcemap for a LESS asset', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
@@ -792,8 +792,10 @@ describe('sourcemaps', function() {
       sourceMap.addRawMappings(map.mappings, map.sources, map.names);
 
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, 1);
-      assert.deepEqual(mapData.sources, ['style.less']);
+      assert.equal(mapData.sources.length, minify ? 2 : 1);
+      if (!minify) {
+        assert.deepEqual(mapData.sources, ['style.less']);
+      }
       let input = await inputFS.readFile(inputFilePath, 'utf-8');
 
       checkSourceMapping({
