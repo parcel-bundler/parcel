@@ -108,7 +108,7 @@ describe('less', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert.equal(css, '');
+    assert.equal(css.trim(), '/*# sourceMappingURL=index.css.map */');
   });
 
   it('should support linking to assets with url() from less', async function() {
@@ -215,5 +215,22 @@ describe('less', function() {
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.a'));
     assert(css.includes('.b'));
+  });
+
+  it('should ignore url() with IE behavior specifiers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-url-behavior/index.less'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.less'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url(#default#VML)'));
   });
 });

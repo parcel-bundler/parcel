@@ -329,8 +329,8 @@ describe('html', function() {
 
     // mergeStyles
     assert(
-      html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
+      html.match(
+        /<style>h1{color:red}div{font-size:20px}\n\/\*# sourceMappingURL=.*\*\/<\/style><style media="print">div{color:#00f}\n\/\*# sourceMappingURL=.*\*\/<\/style>/,
       ),
     );
 
@@ -834,7 +834,11 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(html.includes('<style>.index{color:#00f}</style>'));
+    assert(
+      html.match(
+        /<style>.index{color:#00f}\n\/\*# sourceMappingURL=.*<\/style>/,
+      ),
+    );
   });
 
   it('should process inline non-js scripts', async function() {
@@ -1159,8 +1163,8 @@ describe('html', function() {
       path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
-    assert(css.includes('.a'));
-    assert(!css.includes('.b'));
+    assert(css.includes('.a {'));
+    assert(!css.includes('.b {'));
 
     // b.html should point to a CSS bundle containing only b.css
     // It should not point to the bundle containing a.css from a.html
@@ -1178,8 +1182,8 @@ describe('html', function() {
       path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
-    assert(!css.includes('.a'));
-    assert(css.includes('.b'));
+    assert(!css.includes('.a {'));
+    assert(css.includes('.b {'));
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {

@@ -4,12 +4,14 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  Symbol,
+  Symbol as ISymbol,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 import Environment from './Environment';
 import Target from './Target';
 import nullthrows from 'nullthrows';
+
+const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const internalDependencyToDependency: WeakMap<
   InternalDependency,
@@ -37,6 +39,11 @@ export default class Dependency implements IDependency {
     this.#dep = dep;
     _dependencyToInternalDependency.set(this, dep);
     internalDependencyToDependency.set(dep, this);
+  }
+
+  // $FlowFixMe
+  [inspect]() {
+    return `Dependency(${String(this.sourcePath)} -> ${this.moduleSpecifier})`;
   }
 
   get id(): string {
@@ -98,7 +105,7 @@ export default class Dependency implements IDependency {
     return this.#dep.sourcePath;
   }
 
-  get symbols(): Map<Symbol, Symbol> {
+  get symbols(): Map<ISymbol, ISymbol> {
     return this.#dep.symbols;
   }
 
