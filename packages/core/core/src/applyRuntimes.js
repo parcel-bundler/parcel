@@ -22,7 +22,6 @@ import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
