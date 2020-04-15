@@ -29,6 +29,7 @@ export default new Bundler({
 
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
+    let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
     let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
@@ -41,6 +42,8 @@ export default new Bundler({
             bundleByType: context?.bundleByType,
             bundleGroupDependency: context?.bundleGroupDependency,
             parentNode: node,
+            parentBundle:
+              bundlesByEntryAsset.get(node.value) ?? context?.parentBundle,
           };
         }
 
@@ -70,6 +73,7 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
+            bundlesByEntryAsset.set(asset, bundle);
             siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
@@ -79,12 +83,15 @@ export default new Bundler({
             bundleByType,
             bundleGroupDependency: dependency,
             parentNode: node,
+            parentBundle: context?.parentBundle,
           };
         }
 
         invariant(context != null);
         invariant(context.parentNode.type === 'asset');
+        invariant(context.parentBundle != null);
         let parentAsset = context.parentNode.value;
+        let parentBundle = context.parentBundle;
         let bundleGroup = nullthrows(context.bundleGroup);
         let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
         let bundleByType = nullthrows(context.bundleByType);
@@ -136,7 +143,9 @@ export default new Bundler({
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
             bundleRoots.set(bundle, [asset]);
+            bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.createBundleReference(parentBundle, bundle);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
 
@@ -172,7 +181,7 @@ export default new Bundler({
       }
 
       let siblings = bundleGraph
-        .getSiblingBundles(bundle)
+        .getReferencedBundles(bundle)
         .filter(sibling => !sibling.isInline);
       let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
         containingBundle =>
