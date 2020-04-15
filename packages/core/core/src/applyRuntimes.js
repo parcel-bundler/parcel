@@ -45,7 +45,6 @@ export default async function applyRuntimes({
   runtimesBuilder: AssetGraphBuilder,
 |}): Promise<void> {
   let connections: Array<RuntimeConnection> = [];
-  let bundleReferences = [];
 
   for (let bundle of bundleGraph.getBundles()) {
     let runtimes = await config.getRuntimes(bundle.env.context);
@@ -72,13 +71,6 @@ export default async function applyRuntimes({
               dependency: dependency,
               isEntry,
             });
-            let hashRefs = code.match(HASH_REF_REGEX) ?? [];
-            for (let hashRef of hashRefs) {
-              bundleReferences.push({
-                from: bundle.id,
-                to: hashRef.slice(HASH_REF_PREFIX.length),
-              });
-            }
           }
         }
       } catch (e) {
@@ -156,10 +148,6 @@ export default async function applyRuntimes({
     } else {
       bundleGraph._graph.addEdge(dependency.id, runtimeNode.id);
     }
-  }
-
-  for (let {from, to} of bundleReferences) {
-    bundleGraph._graph.addEdge(from, to, 'references');
   }
 }
 
