@@ -645,7 +645,7 @@ describe('sourcemaps', function() {
         '/integration/sourcemap-sass/style.scss',
       );
 
-      await bundle(inputFilePath, {minify, patchConsole: false});
+      await bundle(inputFilePath, {minify});
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
