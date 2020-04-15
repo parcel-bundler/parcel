@@ -617,6 +617,7 @@ export interface MutableBundleGraph extends BundleGraph {
   addAssetGraphToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
+  createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   createBundleGroup(Dependency, Target): BundleGroup;
   getDependencyAssets(Dependency): Array<Asset>;
@@ -640,6 +641,7 @@ export interface BundleGraph {
   getChildBundles(bundle: Bundle): Array<Bundle>;
   getParentBundles(bundle: Bundle): Array<Bundle>;
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
+  getReferencedBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   resolveExternalDependency(

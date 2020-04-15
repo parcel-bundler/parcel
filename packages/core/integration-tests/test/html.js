@@ -1159,6 +1159,11 @@ describe('html', function() {
       1,
     );
 
+    // a.html should reference a.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g).length, 1);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
+
     let css = await outputFS.readFile(
       path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
       'utf8',
@@ -1177,6 +1182,11 @@ describe('html', function() {
       html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
       1,
     );
+
+    // b.html should reference b.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g), null);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g).length, 1);
 
     css = await outputFS.readFile(
       path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),

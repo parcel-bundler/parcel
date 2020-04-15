@@ -82,6 +82,12 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
+  getReferencedBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getReferencedBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
   resolveExternalDependency(
     dependency: IDependency,
     bundle: ?IBundle,
