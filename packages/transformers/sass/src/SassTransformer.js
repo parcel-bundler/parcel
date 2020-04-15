@@ -7,6 +7,7 @@ import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
 import {dirname} from 'path';
 import {EOL} from 'os';
+import SourceMap from '@parcel/source-map';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -36,7 +37,7 @@ async function warnAboutNodeSassBeingUnsupported(
 }
 
 export default new Transformer({
-  async getConfig({asset, resolve}) {
+  async getConfig({asset, resolve, options}) {
     let config = await asset.getConfig(['.sassrc', '.sassrc.js'], {
       packageKey: 'sass',
     });
@@ -62,6 +63,13 @@ export default new Transformer({
         ? config.indentedSyntax
         : asset.type === 'sass';
 
+    if (options.sourceMaps) {
+      config.sourceMap = true;
+      config.outFile = config.file;
+      config.omitSourceMapUrl = true;
+      config.sourceMapContents = false;
+    }
+
     return config;
   },
 
@@ -85,6 +93,17 @@ export default new Transformer({
         if (included !== asset.filePath) {
           asset.addIncludedFile({filePath: included});
         }
+      }
+
+      if (result.map != null) {
+        let map = new SourceMap();
+        let {mappings, sources, names} = JSON.parse(result.map);
+        map.addRawMappings(
+          mappings,
+          sources, // .map(s => path.relative(options.projectRoot, s)),
+          names,
+        );
+        asset.setMap(map);
       }
     } catch (err) {
       // Adapt the Error object for the reporter.

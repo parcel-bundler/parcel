@@ -638,14 +638,14 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it.skip('should create a valid sourcemap for a SASS asset', async function() {
+  it('should create a valid sourcemap for a SASS asset', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
         '/integration/sourcemap-sass/style.scss',
       );
 
-      await bundle(inputFilePath, {minify});
+      await bundle(inputFilePath, {minify, patchConsole: false});
       let distDir = path.join(__dirname, '../dist/');
       let filename = path.join(distDir, 'style.css');
       let raw = await outputFS.readFile(filename, 'utf8');
@@ -664,8 +664,8 @@ describe('sourcemaps', function() {
 
       let input = await inputFS.readFile(inputFilePath, 'utf-8');
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, 1);
-      assert.deepEqual(mapData.sources, ['style.scss']);
+      assert.equal(mapData.sources.length, minify ? 2 : 1);
+      assert.deepEqual(mapData.sources[0], 'style.scss');
 
       checkSourceMapping({
         map: sourceMap,
@@ -690,7 +690,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it.skip('should create a valid sourcemap when for a CSS asset importing SASS', async function() {
+  it('should create a valid sourcemap when for a CSS asset importing SASS', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
@@ -720,12 +720,13 @@ describe('sourcemaps', function() {
         'utf-8',
       );
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, 2);
-      assert.deepEqual(mapData.sources, [
-        'other.scss',
-        // TODO: Figure out why this happens?
+      assert.equal(mapData.sources.length, minify ? 3 : 2);
+      assert.deepEqual(mapData.sources[0], 'other.scss');
+      // TODO: Figure out why this happens?
+      assert.deepEqual(
+        mapData.sources[minify ? 2 : 1],
         'test/integration/sourcemap-sass-imported/style.css',
-      ]);
+      );
 
       checkSourceMapping({
         map: sourceMap,
@@ -793,9 +794,7 @@ describe('sourcemaps', function() {
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, minify ? 2 : 1);
-      if (!minify) {
-        assert.deepEqual(mapData.sources, ['style.less']);
-      }
+      assert.deepEqual(mapData.sources[0], 'style.less');
       let input = await inputFS.readFile(inputFilePath, 'utf-8');
 
       checkSourceMapping({
