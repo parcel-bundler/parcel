@@ -55,10 +55,14 @@ function urlPlugin({asset}) {
     install(less, pluginManager) {
       const visitor = new less.visitors.Visitor({
         visitUrl(node) {
-          node.value.value = asset.addURLDependency(
-            node.value.value,
-            node.currentFileInfo.filename,
-          );
+          if (
+            !node.value.value.startsWith('#') // IE's `behavior: url(#default#VML)`)
+          ) {
+            node.value.value = asset.addURLDependency(
+              node.value.value,
+              node.currentFileInfo.filename,
+            );
+          }
           return node;
         },
       });

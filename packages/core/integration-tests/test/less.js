@@ -216,4 +216,21 @@ describe('less', function() {
     assert(css.includes('.a'));
     assert(css.includes('.b'));
   });
+
+  it('should ignore url() with IE behavior specifiers', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-url-behavior/index.less'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.less'],
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('url(#default#VML)'));
+  });
 });
