@@ -218,9 +218,7 @@ export function link({
         );
         let parent;
         if (binding) {
-          parent = path.findParent(
-            p => getScopeBefore(p) === binding.scope && p.isStatement(),
-          );
+          parent = path.findParent(p => t.isProgram(p.parent));
         }
 
         if (!parent) {

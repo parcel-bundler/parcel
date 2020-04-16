@@ -942,6 +942,18 @@ describe('scope hoisting', function() {
 
       assert.equal(await run(b), 42);
     });
+
+    it('can conditionally reference an imported symbol and unconditionally reference it', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/conditional-import-reference/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'hello');
+    });
   });
 
   describe('commonjs', function() {
@@ -1903,6 +1915,18 @@ describe('scope hoisting', function() {
       );
 
       assert.equal(await run(b), 42);
+    });
+
+    it('can conditionally reference an imported symbol and unconditionally reference it', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/conditional-import-reference/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'hello');
     });
   });
 
