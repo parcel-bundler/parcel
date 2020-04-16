@@ -1,5 +1,4 @@
 // @flow
-
 import {Transformer} from '@parcel/plugin';
 import commandExists from 'command-exists';
 import path from 'path';
@@ -56,17 +55,17 @@ async function compileToString(asset, options, config) {
     cwd: config.cwd,
     debug: config.debug,
     optimize: config.optimize,
-    pathToElmBin,
+    pathToElm: pathToElmBin,
   };
   return elm.compileToString(asset.filePath, compileOptions);
 }
 
 async function pathToElm(root, installPackage) {
-  if (!(await commandExists('elm'))) {
-    const p = path.resolve(root, 'node_modules/elm/bin/elm');
+  if (!commandExists.sync('elm')) {
+    const elmBin = path.resolve(root, 'node_modules/elm/bin/elm');
 
-    if (!fs.existsSync(p)) await installPackage('elm/package.json');
-    return p;
+    if (!fs.existsSync(elmBin)) await installPackage('elm');
+    return elmBin;
   }
 
   return undefined; // use globally installed elm
