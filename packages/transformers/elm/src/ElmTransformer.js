@@ -1,7 +1,7 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import {sync as commandExists} from 'command-exists';
+import commandExists from 'command-exists';
 import path from 'path';
 import fs from 'fs';
 import spawn from 'cross-spawn';
@@ -12,53 +12,60 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default new Transformer({
   async getConfig({asset, options}) {
-    const installPackage = async name => {
-      if (!options.autoinstall) {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `Denpendency '${name}' is not installed and autoinstall is turned off. Either install dependency manually or enable autoinstall`,
-            origin: '@parcel/package-manager',
-          },
-        });
-      }
-
-      return options.packageManager.install([{name}], asset.filePath);
-    };
-    const pathToElmBin = await pathToElm(options.projectRoot, installPackage);
-    await ensureElmJson(asset, pathToElmBin);
-
     return {
       cwd: path.dirname(asset.filePath),
       debug: !(options.env.PARCE_ELM_NO_DEBUG || options.mode === 'production'),
       optimize: asset.env.minify,
-      pathToElm: pathToElmBin,
     };
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, options, config}) {
+    if (!config) return [asset];
+
     (await elm.findAllDependencies(asset.filePath)).forEach(filePath =>
       asset.addIncludedFile({filePath}),
     );
 
-    let code = await elm.compileToString(asset.filePath, config);
+    let code = await compileToString(asset, options, config);
     if (options.hot) code = injectElmHMR(code);
     if (config.optimize) code = minifyElmOutput(code);
 
-    return [
-      {
-        type: 'js',
-        dependencies: '',
-        code,
-      },
-    ];
+    asset.type = '.js';
+    asset.setCode(code);
+    return [asset];
   },
 });
 
+async function compileToString(asset, options, config) {
+  const installPackage = async name => {
+    if (!options.autoinstall) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Denpendency '${name}' is not installed and autoinstall is turned off. Either install dependency manually or enable autoinstall`,
+          origin: '@parcel/package-manager',
+        },
+      });
+    }
+
+    return options.packageManager.resolve(name, asset.filePath);
+  };
+  const pathToElmBin = await pathToElm(options.projectRoot, installPackage);
+  await ensureElmJson(asset, pathToElmBin);
+
+  const compileOptions = {
+    cwd: config.cwd,
+    debug: config.debug,
+    optimize: config.optimize,
+    pathToElmBin,
+  };
+  return elm.compileToString(asset.filePath, compileOptions);
+}
+
 async function pathToElm(root, installPackage) {
-  if (!commandExists('elm')) {
+  if (!(await commandExists('elm'))) {
     const p = path.resolve(root, 'node_modules/elm/bin/elm');
 
-    if (!fs.existsSync(p)) await installPackage('elm');
+    if (!fs.existsSync(p)) await installPackage('elm/package.json');
     return p;
   }
 
@@ -117,9 +124,8 @@ function minifyElmOutput(source) {
       unsafe_comps: true,
     },
     mangle: true,
-    rename: false,
   });
 
-  if (result.error) throw result.error;
-  return result.code;
+  if (result.code) return result.code;
+  throw result.error;
 }
