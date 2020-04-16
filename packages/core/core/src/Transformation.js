@@ -648,7 +648,7 @@ function normalizeAssets(
         includedFiles: result.getIncludedFiles(),
         isInline: result.isInline,
         isIsolated: result.isIsolated,
-        map: internalAsset.map,
+        map: await internalAsset.getMap(),
         meta: result.meta,
         pipeline: internalAsset.value.pipeline,
         type: result.type,
