@@ -271,6 +271,13 @@ describe('babel', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
+  it('should support compiling JSX in JS files with React aliased to Preact', async function() {
+    await bundle(path.join(__dirname, '/integration/jsx-react-alias/index.js'));
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
   it('should support compiling JSX in JS files with Preact dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-preact/index.js'));
 
