@@ -5,7 +5,7 @@ import type {PluginLogger} from '@parcel/logger';
 
 import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
-import {dirname} from 'path';
+import {dirname, join as joinPath} from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
 
@@ -65,7 +65,8 @@ export default new Transformer({
 
     if (options.sourceMaps) {
       config.sourceMap = true;
-      config.outFile = config.file;
+      // sources are created relative to the directory of outFile
+      config.outFile = joinPath(options.projectRoot, 'style.css.map');
       config.omitSourceMapUrl = true;
       config.sourceMapContents = false;
     }
