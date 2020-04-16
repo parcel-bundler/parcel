@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {Config, PluginOptions} from '@parcel/types';
 import path from 'path';
 
@@ -38,17 +38,23 @@ export default async function getJSXOptions(
     return null;
   }
 
-  // Find a dependency that we can map to a JSX pragma
-  const pkg = await config.getPackage();
-  const reactLib = Object.keys(JSX_PRAGMA).find(
-    libName =>
-      pkg &&
-      ((pkg.dependencies && pkg.dependencies[libName]) ||
-        (pkg.devDependencies && pkg.devDependencies[libName])),
-  );
+  let pkg = await config.getPackage();
+  let reactLib;
+  if (pkg?.alias && pkg.alias['react']) {
+    // e.g.: `{ alias: { "react": "preact/compat" } }`
+    reactLib = 'react';
+  } else {
+    // Find a dependency that we can map to a JSX pragma
+    reactLib = Object.keys(JSX_PRAGMA).find(
+      libName =>
+        pkg &&
+        ((pkg.dependencies && pkg.dependencies[libName]) ||
+          (pkg.devDependencies && pkg.devDependencies[libName])),
+    );
+  }
 
-  const pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
-  const pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
+  let pragma = reactLib ? JSX_PRAGMA[reactLib].pragma : undefined;
+  let pragmaFrag = reactLib ? JSX_PRAGMA[reactLib].pragmaFrag : undefined;
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
