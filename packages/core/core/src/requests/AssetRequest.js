@@ -10,9 +10,10 @@ import type {
   TransformationOpts,
 } from '../types';
 
+import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {RequestRunner, generateRequestId} from '../RequestTracker';
+import {Request, generateRequestId} from '../RequestTracker';
 
 export type AssetRequest = {|
   id: string,
@@ -43,37 +44,24 @@ function getRunTransform(
 
   handle = farm.createHandle('runTransform');
   return handle;
+  // ? Could this singleton cause problems
 }
 
-export default class AssetRequestRunner extends RequestRunner<
-  AssetRequestDesc,
-  AssetRequestResult,
-> {
-  runTransform: TransformationOpts => Promise<{|
-    assets: Array<Asset>,
-    configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
-  |}>;
-
-  constructor(opts: RequestRunnerOpts) {
-    super(opts);
-    this.type = 'asset_request';
-  }
-
-  async run({request, api, options, farm, extras}: RunOpts) {
-    api.invalidateOnFileUpdate(
-      await options.inputFS.realpath(request.filePath),
-    );
+export default new Request({
+  type: 'asset_request',
+  getId(input) {
+    // eslint-disable-next-line no-unused-vars
+    let {optionsRef, configRef, ...hashInput} = input;
+    return md5FromObject(hashInput);
+  },
+  async run({input, api, options, farm, graph}: RunOpts) {
+    api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
     let start = Date.now();
-
-    let {
-      optionsRef,
-      configRef,
-    }: // $FlowFixMe
-    {|optionsRef: number, configRef: number|} = (extras: any);
+    let {configRef, optionsRef, ...request} = input;
     let {assets, configRequests} = await getRunTransform(farm)({
-      request,
-      optionsRef,
       configRef,
+      optionsRef,
+      request,
     });
 
     let time = Date.now() - start;
@@ -89,7 +77,6 @@ export default class AssetRequestRunner extends RequestRunner<
     }
 
     // TODO: this should no longer be needed once we have ConfigRequestRunner
-    let graph = this.tracker.graph;
     let subrequestNodes = [];
     // Add config requests
     for (let {request, result} of configRequests) {
@@ -154,8 +141,6 @@ export default class AssetRequestRunner extends RequestRunner<
 
     api.replaceSubrequests(subrequestNodes);
 
-    // TODO: add includedFiles even if it failed so we can try a rebuild if those files change
-
     return assets;
-  }
-}
+  },
+});

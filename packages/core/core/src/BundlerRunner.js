@@ -64,6 +64,7 @@ export default class BundlerRunner {
       assertSignalNotAborted(signal);
 
       if (cachedBundleGraph) {
+        console.log('RETURNING CACHED BUNDLE GRAPH');
         return cachedBundleGraph;
       }
     }

@@ -22,7 +22,7 @@ type SerializedRequestGraph = {|
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
-export type Request = {|
+export type RequestBlah = {|
   id: string,
   +type: string,
   request: mixed,
@@ -277,14 +277,17 @@ export default class RequestTracker {
     graph,
     farm,
     options,
+    signal,
   }: {|
     graph: RequestGraph,
     farm: WorkerFarm,
     options: ParcelOptions,
+    signal: AbortSignal,
   |}) {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
+    this.signal = signal;
   }
 
   isTracked(id: string) {
@@ -295,7 +298,7 @@ export default class RequestTracker {
     return nullthrows(this.graph.getNode(id));
   }
 
-  trackRequest(request: Request) {
+  trackRequest(request: RequestBlah) {
     if (this.isTracked(request.id)) {
       return;
     }
@@ -367,6 +370,57 @@ export default class RequestTracker {
   ) {
     this.graph.replaceSubrequests(requestId, subrequestNodes);
   }
+
+  makeRequest(request) {
+    return async input => {
+      let id = this.generateRequestId(request, input);
+      try {
+        let api = this.createAPI(id);
+
+        this.trackRequest({id, type: request.type, request: input});
+        let result: TResult = this.hasValidResult(id)
+          ? // $FlowFixMe
+            (this.getRequestResult(id): any)
+          : await request.run({
+              input,
+              api,
+              farm: this.farm,
+              options: this.options,
+              graph: this.graph,
+            });
+        assertSignalNotAborted(this.signal);
+        this.completeRequest(id);
+
+        return result;
+      } catch (err) {
+        this.rejectRequest(id);
+        throw err;
+      }
+    };
+  }
+
+  createAPI(requestId: string): RequestRunnerAPI {
+    let api = {
+      invalidateOnFileCreate: glob =>
+        this.graph.invalidateOnFileCreate(requestId, glob),
+      invalidateOnFileDelete: filePath =>
+        this.graph.invalidateOnFileDelete(requestId, filePath),
+      invalidateOnFileUpdate: filePath =>
+        this.graph.invalidateOnFileUpdate(requestId, filePath),
+      invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
+      replaceSubrequests: subrequestNodes =>
+        this.graph.replaceSubrequests(requestId, subrequestNodes),
+      storeResult: result => {
+        this.storeResult(requestId, result);
+      },
+    };
+
+    return api;
+  }
+
+  generateRequestId(request, input) {
+    return `${request.type}:${request.getId(input)}`;
+  }
 }
 
 export type RequestRunnerOpts = {|tracker: RequestTracker|};
@@ -396,6 +450,14 @@ export type RequestRunnerAPI = {|
 
 export function generateRequestId(type: string, request: mixed) {
   return md5FromObject({type, request});
+}
+
+export class Request {
+  constructor({type, run, getId}) {
+    this.type = type;
+    this.run = run;
+    this.getId = getId;
+  }
 }
 
 export class RequestRunner<TRequest, TResult> {
