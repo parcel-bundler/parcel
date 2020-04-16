@@ -11,7 +11,7 @@ import {minify} from 'terser';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default new Transformer({
-  async getConfig({asset, options}) {
+  getConfig({asset, options}) {
     return {
       cwd: path.dirname(asset.filePath),
       debug: !(options.env.PARCE_ELM_NO_DEBUG || options.mode === 'production'),
@@ -37,7 +37,7 @@ export default new Transformer({
 });
 
 async function compileToString(asset, options, config) {
-  const installPackage = async name => {
+  const installPackage = name => {
     if (!options.autoinstall) {
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -81,7 +81,7 @@ async function ensureElmJson(asset, pathToElmBin) {
   }
 }
 
-async function createElmJson(pathToElmBin) {
+function createElmJson(pathToElmBin) {
   let elmProc = spawn(pathToElmBin || 'elm', ['init']);
   elmProc.stdin.write('y\n');
 
