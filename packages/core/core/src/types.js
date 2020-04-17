@@ -195,18 +195,23 @@ export type DependencyNode = {|
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
-export type AssetRequestDesc = {|
+export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
+  configRef: number,
+  optionsRef: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = AssetRequestDesc;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|configRef: number, optionsRef: number|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -225,7 +230,7 @@ export type DepPathRequestNode = {|
 export type AssetRequestNode = {|
   id: string,
   +type: 'asset_request',
-  value: AssetRequestDesc,
+  value: AssetRequestInput,
 |};
 
 export type EntrySpecifierNode = {|
@@ -363,13 +368,13 @@ export type BundleGroupNode = {|
 |};
 
 export type TransformationOpts = {|
-  request: AssetRequestDesc,
+  request: AssetGroup,
   optionsRef: number,
   configRef: number,
 |};
 
 export type ValidationOpts = {|
-  requests: AssetRequestDesc[],
+  requests: AssetGroup[],
   optionsRef: number,
   configRef: number,
 |};

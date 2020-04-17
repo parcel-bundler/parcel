@@ -2,7 +2,7 @@
 import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from '../ParcelConfig';
 import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
-import type {AssetRequestDesc, Dependency, ParcelOptions} from '../types';
+import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
@@ -14,7 +14,7 @@ import {RequestRunner} from '../RequestTracker';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 
-type DependencyResult = AssetRequestDesc | null | void;
+type DependencyResult = AssetGroup | null | void;
 
 export type DepPathRequest = {|
   id: string,
@@ -94,7 +94,7 @@ export class ResolverRunner {
     return new ThrowableDiagnostic({diagnostic});
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetRequestDesc> {
+  async resolve(dependency: Dependency): Promise<?AssetGroup> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',

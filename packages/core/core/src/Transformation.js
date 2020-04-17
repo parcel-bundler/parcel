@@ -10,7 +10,7 @@ import type {
 import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
-  AssetRequestDesc,
+  AssetRequestInput,
   Config,
   ConfigRequestDesc,
   ParcelOptions,
@@ -51,7 +51,7 @@ export type TransformationOpts = {|
   options: ParcelOptions,
   config: ParcelConfig,
   report: ReportFn,
-  request: AssetRequestDesc,
+  request: AssetRequestInput,
   workerApi: WorkerApi,
 |};
 
@@ -62,7 +62,7 @@ type ConfigRequestAndResult = {|
 |};
 
 export default class Transformation {
-  request: AssetRequestDesc;
+  request: AssetRequestInput;
   configLoader: ConfigLoader;
   configRequests: Array<ConfigRequestAndResult>;
   options: ParcelOptions;
@@ -154,7 +154,7 @@ export default class Transformation {
       size,
       hash,
       isSource: summarizedIsSource,
-    } = await summarizeRequest(this.options.inputFS, this.request);
+    } = await summarizeRequest(this.options.inputFS, {filePath, code});
 
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;

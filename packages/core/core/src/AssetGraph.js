@@ -76,9 +76,6 @@ export function nodeFromEntryFile(entry: Entry) {
   };
 }
 
-const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
-  new Map([...map].map(([key, val]) => [val, key]));
-
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;

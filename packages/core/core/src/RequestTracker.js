@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {File, FilePath, Glob} from '@parcel/types';
+import type {Async, File, FilePath, Glob} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {NodeId, ParcelOptions} from './types';
@@ -32,7 +32,7 @@ export type RequestBlah = {|
 type RequestNode = {|
   id: string,
   +type: 'request',
-  value: Request,
+  value: RequestBlah,
 |};
 type RequestGraphNode = RequestNode | FileNode | GlobNode;
 
@@ -54,7 +54,7 @@ const nodeFromGlob = (glob: Glob) => ({
   value: glob,
 });
 
-const nodeFromRequest = (request: Request) => ({
+const nodeFromRequest = (request: RequestBlah) => ({
   id: request.id,
   type: 'request',
   value: request,
@@ -114,7 +114,7 @@ export class RequestGraph extends Graph<
   }
 
   // TODO: deprecate
-  addRequest(request: Request) {
+  addRequest(request: RequestBlah) {
     let requestNode = nodeFromRequest(request);
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
@@ -130,7 +130,7 @@ export class RequestGraph extends Graph<
     return node;
   }
 
-  completeRequest(request: Request) {
+  completeRequest(request: RequestBlah) {
     this.invalidNodeIds.delete(request.id);
     this.incompleteNodeIds.delete(request.id);
   }
@@ -272,21 +272,24 @@ export default class RequestTracker {
   graph: RequestGraph;
   farm: WorkerFarm;
   options: ParcelOptions;
+  signal: ?AbortSignal;
 
   constructor({
     graph,
     farm,
     options,
-    signal,
   }: {|
     graph: RequestGraph,
     farm: WorkerFarm,
     options: ParcelOptions,
-    signal: AbortSignal,
   |}) {
     this.graph = graph || new RequestGraph();
     this.farm = farm;
     this.options = options;
+  }
+
+  // TODO: refactor (abortcontroller should be created by RequestTracker)
+  setSignal(signal?: AbortSignal) {
     this.signal = signal;
   }
 
@@ -354,7 +357,7 @@ export default class RequestTracker {
     return this.graph.invalidNodeIds.size > 0;
   }
 
-  getInvalidRequests(): Array<Request> {
+  getInvalidRequests(): Array<RequestBlah> {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
@@ -371,32 +374,42 @@ export default class RequestTracker {
     this.graph.replaceSubrequests(requestId, subrequestNodes);
   }
 
-  makeRequest(request) {
-    return async input => {
-      let id = this.generateRequestId(request, input);
-      try {
-        let api = this.createAPI(id);
+  async runRequest<
+    TInput,
+    TResult,
+    TRequest: {|
+      id: string,
+      +type: string,
+      run: (runInput: {|
+        input: TInput,
+        ...StaticRunOpts,
+      |}) => Promise<TResult>,
+      input: TInput,
+    |},
+  >(request: TRequest): Async<TResult> {
+    let id = request.id;
+    try {
+      let api = this.createAPI(id);
 
-        this.trackRequest({id, type: request.type, request: input});
-        let result: TResult = this.hasValidResult(id)
-          ? // $FlowFixMe
-            (this.getRequestResult(id): any)
-          : await request.run({
-              input,
-              api,
-              farm: this.farm,
-              options: this.options,
-              graph: this.graph,
-            });
-        assertSignalNotAborted(this.signal);
-        this.completeRequest(id);
+      this.trackRequest({id, type: request.type, request: request.input});
+      let result: TResult = this.hasValidResult(id)
+        ? // $FlowFixMe
+          (this.getRequestResult(id): any)
+        : await request.run({
+            input: request.input,
+            api,
+            farm: this.farm,
+            options: this.options,
+            graph: this.graph,
+          });
+      assertSignalNotAborted(this.signal);
+      this.completeRequest(id);
 
-        return result;
-      } catch (err) {
-        this.rejectRequest(id);
-        throw err;
-      }
-    };
+      return result;
+    } catch (err) {
+      this.rejectRequest(id);
+      throw err;
+    }
   }
 
   createAPI(requestId: string): RequestRunnerAPI {
@@ -413,13 +426,10 @@ export default class RequestTracker {
       storeResult: result => {
         this.storeResult(requestId, result);
       },
+      getId: () => requestId,
     };
 
     return api;
-  }
-
-  generateRequestId(request, input) {
-    return `${request.type}:${request.getId(input)}`;
   }
 }
 
@@ -435,7 +445,8 @@ export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RequestRunnerAPI,
-  extras: mixed,
+  extras?: mixed,
+  graph: RequestGraph,
 |};
 
 export type RequestRunnerAPI = {|
@@ -452,17 +463,10 @@ export function generateRequestId(type: string, request: mixed) {
   return md5FromObject({type, request});
 }
 
-export class Request {
-  constructor({type, run, getId}) {
-    this.type = type;
-    this.run = run;
-    this.getId = getId;
-  }
-}
-
 export class RequestRunner<TRequest, TResult> {
   type: string;
-  tracker: RequestTracker;
+  // $FlowFixMe RequestRunner will be removed during refactor
+  tracker: RequestTracker<any>;
 
   constructor({tracker}: RequestRunnerOpts) {
     this.tracker = tracker;
@@ -485,7 +489,14 @@ export class RequestRunner<TRequest, TResult> {
       let result: TResult = this.tracker.hasValidResult(id)
         ? // $FlowFixMe
           (this.tracker.getRequestResult(id): any)
-        : await this.run({request: request, api, farm, options, extras});
+        : await this.run({
+            request: request,
+            api,
+            farm,
+            options,
+            extras,
+            graph: this.tracker.graph,
+          });
       assertSignalNotAborted(signal);
       this.tracker.completeRequest(id);
 
