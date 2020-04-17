@@ -2322,7 +2322,6 @@ describe('scope hoisting', function() {
     let subscription = await b.watch();
 
     let bundleEvent = await getNextBuild(b);
-    console.log(1, bundleEvent);
     assert(bundleEvent.type === 'buildSuccess');
     let output = await run(bundleEvent.bundleGraph);
     assert.deepEqual(output, 'foo');
@@ -2334,7 +2333,6 @@ describe('scope hoisting', function() {
     );
 
     bundleEvent = await getNextBuild(b);
-    console.log(2, bundleEvent);
     assert(bundleEvent.type === 'buildSuccess');
     output = await run(bundleEvent.bundleGraph);
     assert.deepEqual(output, 'foobar');
