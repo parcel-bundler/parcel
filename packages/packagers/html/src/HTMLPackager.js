@@ -2,10 +2,11 @@
 import type {Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
+import {Readable} from 'stream';
 import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
-import {replaceURLReferences, urlJoin} from '@parcel/utils';
+import {bufferStream, replaceURLReferences, urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -135,7 +136,10 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = contents;
+      node.content = (contents instanceof Readable
+        ? await bufferStream(contents)
+        : contents
+      ).toString();
 
       if (bundle.env.outputFormat === 'esmodule') {
         node.attrs.type = 'module';
