@@ -179,8 +179,14 @@ function hmrApply(bundle, asset) {
   }
 
   if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, asset.depsByBundle[__PARCEL_BUNDLE_ID]];
+    if (asset.type === 'css') {
+      var newStyle = document.createElement('style');
+      newStyle.innerHTML = asset.output;
+      document.body.appendChild(newStyle);
+    } else {
+      var fn = new Function('require', 'module', 'exports', asset.output);
+      modules[asset.id] = [fn, asset.depsByBundle[__PARCEL_BUNDLE_ID]];
+    }
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
   }
