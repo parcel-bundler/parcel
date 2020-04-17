@@ -1170,6 +1170,9 @@ describe('html', function() {
 
     let id = js1.match(/parcelRequire\.register\("([a-f0-9]+)",/)[1];
     assert(new RegExp(`parcelRequire\\("${id}"\\)`).test(js2));
+
+    let output = await run(b);
+    assert.deepEqual(output, ['client', 'client', 'viewer']);
   });
 
   it('should not point to unrelated sibling bundles', async function() {
