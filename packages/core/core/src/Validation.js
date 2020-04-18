@@ -9,6 +9,7 @@ import type {
   ReportFn,
 } from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';
 import path from 'path';
@@ -80,6 +81,7 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
@@ -88,7 +90,7 @@ export default class Validation {
                 getAllDependentAssets,
                 'If we invoking validateAll()-type validators, getDependentAssets must be defined.',
               );
-              let validatorResults = await plugin.validateAll({
+              validatorResults = await plugin.validateAll({
                 assets: assets.map(asset => new Asset(asset)),
                 getAllDependentAssets,
                 options: pluginOptions,
@@ -103,9 +105,6 @@ export default class Validation {
                     configNames,
                   ),
               });
-              for (let validatorResult of validatorResults) {
-                this.handleResult(validatorResult);
-              }
             }
 
             // Otherwise, pass the assets one-at-a-time
@@ -126,17 +125,17 @@ export default class Validation {
                         ),
                     });
                   }
-
-                  let validatorResult = await plugin.validate({
+                  let result = await plugin.validate({
                     asset: new Asset(asset),
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
                   });
-                  this.handleResult(validatorResult);
+                  validatorResults.push(result);
                 }),
               );
             }
+            this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, validatorName),
@@ -174,19 +173,25 @@ export default class Validation {
     );
   }
 
-  handleResult(validatorResult: ?ValidateResult) {
-    if (validatorResult) {
-      let {warnings, errors} = validatorResult;
-
-      if (errors.length > 0) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errors,
-        });
+  handleResults(validatorResults: Array<?ValidateResult>) {
+    let warnings: Array<Diagnostic> = [];
+    let errors: Array<Diagnostic> = [];
+    validatorResults.forEach(result => {
+      if (result) {
+        warnings.push(...result.warnings);
+        errors.push(...result.errors);
       }
+    });
 
-      if (warnings.length > 0) {
-        logger.warn(warnings);
-      }
+    // ANDREW_TODO: we reversed the order here, so that warnings get logged even if an error is thrown. Is that a good idea?
+    if (warnings.length > 0) {
+      logger.warn(warnings);
+    }
+
+    if (errors.length > 0) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors,
+      });
     }
   }
 

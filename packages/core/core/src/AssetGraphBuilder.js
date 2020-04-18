@@ -258,43 +258,28 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
-  /** Fetches things that depend on a given assetGraph node. */
-  getDependents = (assetGraphNodeId: string): Array<Dependency> => {
+  getAllDependentAssets = (
+    assetGraphNodeId: string,
+    allDependentAssets?: Map<string, Asset> = new Map(),
+  ): Array<Asset> => {
     let node = this.assetGraph.getNode(assetGraphNodeId);
     if (!node) {
       throw new Error('Asset not found');
     }
-
-    let dependents = this.assetGraph.getNodesConnectedTo(node).map(node => {
-      invariant(node.type === 'dependency');
-      return node.value;
-    });
-
-    return dependents;
-  };
-
-  /** For a given node (e.g. a dependency), finds all related assets (unpacking any asset_groups along the way). */
-  getAssetsRecursive = (nodeId: string): Array<Asset> => {
-    let dependencyNode = nullthrows(this.assetGraph.getNode(nodeId));
-    let connectedNodes = this.assetGraph.getNodesConnectedTo(dependencyNode);
-
-    return connectedNodes.reduce<Array<Asset>>((assets, node) => {
-      if (node.type === 'asset') {
-        assets.push(node.value);
-      } else if (node.type === 'asset_group') {
-        assets.push(...this.getAssetsRecursive(node.id));
+    // ANDREW_TODO: this seems to make a _lot_ of recursive calls. Is there a way to make it more efficient?
+    this.assetGraph.getNodesConnectedTo(node).forEach(connectedNode => {
+      if (!allDependentAssets.has(connectedNode.id)) {
+        if (connectedNode.type === 'asset') {
+          allDependentAssets.set(connectedNode.id, connectedNode.value);
+        }
+        if (
+          connectedNode.type === 'dependency' ||
+          connectedNode.type === 'asset_group' ||
+          connectedNode.type === 'asset'
+        ) {
+          this.getAllDependentAssets(connectedNode.id, allDependentAssets);
+        }
       }
-      return assets;
-    }, []);
-  };
-
-  /** Recursively fetches all assets that depend (through any chain) on a given asset. */
-  getAllDependentAssets = (assetGraphNodeId: string): Array<Asset> => {
-    let allDependentAssets: Map<string, Asset> = new Map();
-    this.getDependents(assetGraphNodeId).forEach(dependent => {
-      this.getAssetsRecursive(dependent.id).forEach(asset => {
-        allDependentAssets.set(asset.id, asset);
-      });
     });
     return Array.from(allDependentAssets.values());
   };

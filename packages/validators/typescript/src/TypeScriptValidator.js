@@ -37,7 +37,13 @@ export default new Validator({
     getAllDependentAssets,
   }): Promise<Array<?ValidateResult>> {
     // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
-    let assetsToValidate: Array<{|configHash: string, assetPath: string|}> = [];
+    // This assumes that any given file can only have a single config.
+    // ANDREW_TODO: we are using a map here so that we can avoid duplicate validations (which are caused by getDepndencies also returning the base file). If we can improve getDependencies, we move back to a simple array.
+    let assetsToValidate = new Map<
+      /* filePath */ string,
+      /* configHash */ string,
+    >();
+
     await Promise.all(
       assets.map(async asset => {
         let config = await getConfig(asset, options, resolveConfigWithPath);
@@ -50,7 +56,7 @@ export default new Validator({
         // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
         langServiceCache[configHash].host.invalidate(asset.filePath);
 
-        assetsToValidate.push({configHash, assetPath: asset.filePath});
+        assetsToValidate.set(asset.filePath, configHash);
 
         // ANDREW_TODO: consider ways to signal within flow that assetGraphNodeId will be defined (or a more graceful way of looking up dependents).
         // ANDREW_TODO: make sure all assets (including library definitions) are checked when the language service is created the first time (if tsc "skipLibCheck" option is false).
@@ -59,17 +65,14 @@ export default new Validator({
             ? getAllDependentAssets(asset.assetGraphNodeId)
             : [];
         dependentAssets.forEach(dependentAsset => {
-          assetsToValidate.push({
-            configHash,
-            assetPath: dependentAsset.filePath,
-          });
+          assetsToValidate.set(dependentAsset.filePath, configHash);
         });
       }),
     );
 
     // Ask typescript to analyze all changed programs and translate the results into ValidatorResult objects.
     let validatorResults: Array<?ValidateResult> = [];
-    assetsToValidate.forEach(({configHash, assetPath}) => {
+    assetsToValidate.forEach((configHash, assetPath) => {
       // Make sure that the filesystem being used by the LanguageServiceHost and ParseConfigHost is up-to-date.
       // (This could change in the context of re-running tests, and probably also for other reasons).
       langServiceCache[configHash].host.fs = options.inputFS;

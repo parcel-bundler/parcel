@@ -28,10 +28,14 @@ describe('ts-validator', function() {
     subscription = null;
   });
 
-  it('should throw validation error on typescript typing errors', async function() {
+  it('should throw validation error on typescript typing errors across multiple files', async function() {
+    // ANDREW_TODO: this seems to take a lot longer than it used to.
     let didThrow = false;
     let entry = normalizeFilePath(
       path.join(__dirname, '/integration/ts-validation-error/index.ts'),
+    );
+    let testFile = normalizeFilePath(
+      path.join(__dirname, '/integration/ts-validation-error/test.ts'),
     );
     try {
       await bundle(entry, {
@@ -40,13 +44,31 @@ describe('ts-validator', function() {
     } catch (e) {
       assert.equal(e.name, 'BuildError');
       assert(!!Array.isArray(e.diagnostics));
-      assert(!!e.diagnostics[0].codeFrame);
-      assert.equal(e.diagnostics[0].origin, '@parcel/validator-typescript');
+
+      assert(e.diagnostics.length === 2);
+
+      let entryDiagnostic = e.diagnostics.find(
+        diagnostic => diagnostic.filePath === entry,
+      );
+      assert(!!entryDiagnostic);
+      assert(!!entryDiagnostic.codeFrame);
+      assert.equal(entryDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
-        e.diagnostics[0].message,
+        entryDiagnostic.message,
+        `Argument of type '"a string"' is not assignable to parameter of type 'Params'.`,
+      );
+      assert.equal(entryDiagnostic.filePath, entry);
+
+      let testFileDiagnostic = e.diagnostics.find(
+        diagnostic => diagnostic.filePath === testFile,
+      );
+      assert(!!testFileDiagnostic);
+      assert(!!testFileDiagnostic.codeFrame);
+      assert.equal(testFileDiagnostic.origin, '@parcel/validator-typescript');
+      assert.equal(
+        testFileDiagnostic.message,
         `Property 'world' does not exist on type 'Params'.`,
       );
-      assert.equal(e.diagnostics[0].filePath, entry);
 
       didThrow = true;
     }
@@ -200,15 +222,29 @@ describe('ts-validator', function() {
     const inputDir = path.join(__dirname, '/ts-validator-dependencies-change');
     await outputFS.mkdirp(inputDir);
     await outputFS.writeFile(path.join(inputDir, '/tsconfig.json'), `{}`);
+    const entryFilePath = path.join(inputDir, '/index.ts');
     await outputFS.writeFile(
-      path.join(inputDir, '/index.ts'),
+      entryFilePath,
       `import { returnMessage } from "./returnMessage";
+      import { apiMessage } from "./apiConsumer";
       const message: string = "My Message!";
-      export const output = returnMessage(message);`,
+      export const output = returnMessage(message) + ' ' + apiMessage;`,
     );
     await outputFS.writeFile(
       path.join(inputDir, '/returnMessage.ts'),
       `export function returnMessage(message: string): string { return message; }`,
+    );
+    await outputFS.writeFile(
+      path.join(inputDir, '/api.ts'),
+      `import { returnMessage } from "./returnMessage";
+      export const api = { write: returnMessage };`,
+    );
+    const apiConsumerFilePath = path.join(inputDir, '/apiConsumer.ts');
+    await outputFS.writeFile(
+      apiConsumerFilePath,
+      `import { api } from "./api";
+      const message: string = "My API Message!";
+      export const apiMessage = api.write(message);`,
     );
     let b = bundler([path.join(inputDir, '/index.ts')], {
       inputFS: overlayFS,
@@ -219,7 +255,7 @@ describe('ts-validator', function() {
     let buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildSuccess');
     let output = await run(buildEvent.bundleGraph);
-    assert.equal(output.output, 'My Message!');
+    assert.equal(output.output, 'My Message! My API Message!');
 
     await outputFS.writeFile(
       path.join(inputDir, '/returnMessage.ts'),
@@ -228,10 +264,31 @@ describe('ts-validator', function() {
 
     buildEvent = await getNextBuild(b);
     assert.equal(buildEvent.type, 'buildFailure');
-    assert.equal(buildEvent.diagnostics.length, 1);
+    assert(!!Array.isArray(buildEvent.diagnostics));
+    assert.equal(buildEvent.diagnostics.length, 2);
+
+    let entryDiagnostic = buildEvent.diagnostics.find(
+      diagnostic => diagnostic.filePath === entryFilePath,
+    );
+    assert(!!entryDiagnostic);
+    assert(!!entryDiagnostic.codeFrame);
+    assert.equal(entryDiagnostic.origin, '@parcel/validator-typescript');
     assert.equal(
-      buildEvent.diagnostics[0].message,
+      entryDiagnostic.message,
+      "Argument of type 'string' is not assignable to parameter of type 'number'.",
+    );
+
+    let apiConsumerDiagnostic = buildEvent.diagnostics.find(
+      diagnostic => diagnostic.filePath === apiConsumerFilePath,
+    );
+    assert(!!apiConsumerDiagnostic);
+    assert(!!apiConsumerDiagnostic.codeFrame);
+    assert.equal(apiConsumerDiagnostic.origin, '@parcel/validator-typescript');
+    assert.equal(
+      apiConsumerDiagnostic.message,
       "Argument of type 'string' is not assignable to parameter of type 'number'.",
     );
   });
+
+  // ANDREW_TODO: make sure that two errors in the same file shows up correctly.
 });
