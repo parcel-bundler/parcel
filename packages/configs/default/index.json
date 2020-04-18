@@ -4,13 +4,14 @@
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
-    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+    "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
@@ -50,6 +51,7 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
+    "*.jsonld": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

@@ -233,6 +233,10 @@ export default class BundleGraph {
     }
   }
 
+  createBundleReference(from: Bundle, to: Bundle): void {
+    this._graph.addEdge(from.id, to.id, 'references');
+  }
+
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
     return this._graph
       .getNodesConnectedTo(
@@ -612,6 +616,23 @@ export default class BundleGraph {
     return siblings;
   }
 
+  getReferencedBundles(bundle: Bundle): Array<Bundle> {
+    let bundles = [];
+    this._graph.traverse(
+      (node, _, traversal) => {
+        if (node.type === 'bundle') {
+          bundles.push(node.value);
+          traversal.stop();
+        } else if (node.id !== bundle.id) {
+          traversal.skipChildren();
+        }
+      },
+      nullthrows(this._graph.getNode(bundle.id)),
+      'references',
+    );
+    return bundles;
+  }
+
   getIncomingDependencies(asset: Asset): Array<Dependency> {
     let node = this._graph.getNode(asset.id);
     if (!node) {
@@ -764,10 +785,7 @@ export default class BundleGraph {
   getHash(bundle: Bundle): string {
     let hash = crypto.createHash('md5');
     this.traverseBundles((childBundle, ctx, traversal) => {
-      if (
-        childBundle.id === bundle.id ||
-        (ctx?.parentBundle === bundle.id && childBundle.isInline)
-      ) {
+      if (childBundle.id === bundle.id || childBundle.isInline) {
         hash.update(this.getContentHash(childBundle));
       } else {
         hash.update(childBundle.id);

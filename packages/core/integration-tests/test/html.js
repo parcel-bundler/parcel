@@ -1159,6 +1159,11 @@ describe('html', function() {
       1,
     );
 
+    // a.html should reference a.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g).length, 1);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
+
     let css = await outputFS.readFile(
       path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
       'utf8',
@@ -1177,6 +1182,11 @@ describe('html', function() {
       html.match(/<link rel="stylesheet" href="\/b\.[a-z0-9]+\.css">/g).length,
       1,
     );
+
+    // b.html should reference b.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g), null);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g).length, 1);
 
     css = await outputFS.readFile(
       path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
@@ -1215,5 +1225,39 @@ describe('html', function() {
 
     html = await outputFS.readFile('/dist/index.html', 'utf8');
     assert(html.includes('console.log("foo")'));
+  });
+
+  it('should invalidate parent bundle when nested inline bundles change', async function() {
+    // copy into memory fs
+    await ncp(
+      path.join(__dirname, '/integration/html-inline-js-nested'),
+      path.join(__dirname, '/html-inline-js-nested'),
+    );
+
+    let b = await bundler(
+      path.join(__dirname, '/html-inline-js-nested/index.html'),
+      {
+        inputFS: overlayFS,
+        disableCache: false,
+      },
+    );
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(html.includes('module.exports = "hello world"'));
+    assert(html.includes('console.log'));
+
+    await overlayFS.writeFile(
+      path.join(__dirname, '/html-inline-js-nested/test.txt'),
+      'foo bar',
+    );
+    await getNextBuild(b);
+
+    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(!html.includes('module.exports = "hello world"'));
+    assert(html.includes('module.exports = "foo bar"'));
+    assert(html.includes('console.log'));
   });
 });

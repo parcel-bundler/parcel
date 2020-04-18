@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/packager-js",
+  "name": "@parcel/packager-raw-url",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
@@ -9,20 +9,14 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/JSPackager.js",
-  "source": "src/JSPackager.js",
+  "main": "lib/RawUrlPackager.js",
+  "source": "src/RawUrlPackager.js",
   "engines": {
     "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/scope-hoisting": "^2.0.0-alpha.3.1",
-    "@parcel/source-map": "2.0.0-alpha.4.9",
-    "@parcel/utils": "^2.0.0-alpha.3.1",
-    "nullthrows": "^1.1.1"
-  },
-  "peerDependencies": {
-    "@parcel/core": "^2.0.0-alpha.3.1"
+    "@parcel/utils": "^2.0.0-alpha.3.1"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/optimizer-cssnano",
+  "name": "@parcel/transformer-jsonld",
   "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "publishConfig": {
@@ -9,15 +9,17 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/CSSNanoOptimizer.js",
-  "source": "src/CSSNanoOptimizer.js",
+  "main": "lib/JSONLDTransformer.js",
+  "source": "src/JSONLDTransformer.js",
   "engines": {
     "parcel": "^2.0.0-alpha.1.1"
   },
+  "scripts": {
+    "test": "yarn workspace @parcel/integration-tests test -g jsonld"
+  },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/source-map": "2.0.0-alpha.4.9",
-    "cssnano": "^4.1.10",
-    "postcss": "^7.0.5"
+    "@parcel/types": "^2.0.0-alpha.3.1",
+    "json5": "^2.1.2"
   }
 }
