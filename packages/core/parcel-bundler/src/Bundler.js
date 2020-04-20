@@ -654,7 +654,7 @@ class Bundler extends EventEmitter {
 
         // If the common bundle's type matches the asset's, move the asset to the common bundle.
         // Otherwise, proceed with adding the asset to the new bundle below.
-        if (asset.parentBundle.type === commonBundle.type) {
+        if (commonBundle && asset.parentBundle.type === commonBundle.type) {
           this.moveAssetToBundle(asset, commonBundle);
           return;
         }
