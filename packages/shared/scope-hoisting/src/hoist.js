@@ -615,7 +615,7 @@ const VISITOR: Visitor<MutableAsset> = {
     } else if (declaration) {
       path.replaceWith(declaration);
 
-      if (isIdentifier(declaration.id)) {
+      if (declaration.id && isIdentifier(declaration.id)) {
         addExport(asset, path, declaration.id, declaration.id);
       } else {
         let identifiers = t.getBindingIdentifiers(declaration);

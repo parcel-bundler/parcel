@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, CodeSymbol} from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {
   ExpressionStatement,
@@ -72,7 +72,7 @@ export function generateExports(
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
 ) {
-  let exported = new Set<Symbol>();
+  let exported = new Set<CodeSymbol>();
   let statements: Array<ExpressionStatement> = [];
 
   for (let asset of referencedAssets) {

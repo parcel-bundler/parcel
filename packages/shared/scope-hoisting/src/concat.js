@@ -1,10 +1,10 @@
 // @flow
 
-import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
+import type {Asset, Bundle, BundleGraph, CodeSymbol} from '@parcel/types';
 import type {
   CallExpression,
-  Identifier,
   ClassDeclaration,
+  Identifier,
   Node,
   Statement,
   VariableDeclaration,
@@ -182,8 +182,8 @@ function parse(code, filename) {
 function getUsedExports(
   bundle: Bundle,
   bundleGraph: BundleGraph,
-): Map<string, Set<Symbol>> {
-  let usedExports: Map<string, Set<Symbol>> = new Map();
+): Map<string, Set<CodeSymbol>> {
+  let usedExports: Map<string, Set<CodeSymbol>> = new Map();
 
   let entry = bundle.getMainEntry();
   if (entry) {
@@ -249,7 +249,7 @@ function getUsedExports(
 function shouldExcludeAsset(
   bundleGraph: BundleGraph,
   asset: Asset,
-  usedExports: Map<string, Set<Symbol>>,
+  usedExports: Map<string, Set<CodeSymbol>>,
 ) {
   return (
     asset.sideEffects === false &&

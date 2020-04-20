@@ -3,7 +3,7 @@
 import type {
   BundleGroup,
   GraphVisitor,
-  Symbol,
+  CodeSymbol,
   TraversalActions,
 } from '@parcel/types';
 
@@ -669,7 +669,7 @@ export default class BundleGraph {
 
   // Resolve the export `symbol` of `asset` to the source,
   // stopping at the first asset after leaving `bundle` (symbol is nullish in that case)
-  resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
+  resolveSymbol(asset: Asset, symbol: CodeSymbol, boundary: ?Bundle) {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols.get(symbol);

@@ -5,7 +5,7 @@ import type {
   Bundle,
   BundleGraph,
   PluginOptions,
-  Symbol,
+  CodeSymbol,
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
@@ -77,10 +77,10 @@ export function link({
   wrappedAssets: Set<string>,
 |}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
-  let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
+  let replacements: Map<CodeSymbol, CodeSymbol> = new Map();
+  let imports: Map<CodeSymbol, ?[Asset, CodeSymbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
-  let exportsMap: Map<Symbol, Asset> = new Map();
+  let exportsMap: Map<CodeSymbol, Asset> = new Map();
 
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
@@ -122,7 +122,7 @@ export function link({
     }
   });
 
-  function resolveSymbol(inputAsset, inputSymbol: Symbol, bundle) {
+  function resolveSymbol(inputAsset, inputSymbol: CodeSymbol, bundle) {
     let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,

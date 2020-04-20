@@ -3,7 +3,7 @@ import type {
   SourceLocation,
   Meta,
   ModuleSpecifier,
-  Symbol,
+  CodeSymbol,
 } from '@parcel/types';
 import {md5FromObject} from '@parcel/utils';
 import type {Dependency, Environment, Target} from './types';
@@ -23,7 +23,7 @@ type DependencyOpts = {|
   env: Environment,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol>,
+  symbols?: Map<CodeSymbol, CodeSymbol>,
   pipeline?: ?string,
 |};
 

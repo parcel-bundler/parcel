@@ -4,8 +4,8 @@ import type {
   Asset,
   Bundle,
   BundleGraph,
+  CodeSymbol,
   PluginOptions,
-  Symbol,
 } from '@parcel/types';
 import type {
   Expression,
@@ -373,10 +373,10 @@ export function generateExports(
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
-  replacements: Map<Symbol, Symbol>,
+  replacements: Map<CodeSymbol, CodeSymbol>,
   options: PluginOptions,
 ) {
-  let exported = new Set<Symbol>();
+  let exported = new Set<CodeSymbol>();
   let statements: Array<ExpressionStatement> = [];
 
   for (let asset of referencedAssets) {

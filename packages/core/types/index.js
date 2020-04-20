@@ -10,10 +10,14 @@ import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
+/** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
+/** Plugin-specific config result, <code>any</code> */
 export type ConfigResult = _ConfigResult;
+/** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
+/** A JSON value */
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -23,6 +27,7 @@ export type JSONValue =
   | Array<JSONValue>
   | JSONObject;
 
+/** A JSON object (as in "map") */
 export type JSONObject = {[key: string]: JSONValue, ...};
 
 export type PackageName = string;
@@ -30,14 +35,17 @@ export type FilePath = string;
 export type Glob = string;
 export type Semver = string;
 export type SemverRange = string;
+/** See Dependency */
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T, ...};
 
+/** A pipeline as specified in the config -> T  */
 export type RawParcelConfigPipeline = Array<PackageName>;
 
 export type HMROptions = {port?: number, host?: string, ...};
 
+/** The format of .parcelrc  */
 export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: RawParcelConfigPipeline,
@@ -51,12 +59,14 @@ export type RawParcelConfig = {|
   validators?: {[Glob]: RawParcelConfigPipeline, ...},
 |};
 
+/** A .parcelrc where all package names are resolved */
 export type ResolvedParcelConfigFile = {|
   ...RawParcelConfig,
   +filePath: FilePath,
   +resolveFrom?: FilePath,
 |};
 
+/** Corresponds to <code>pkg#engines</code> */
 export type Engines = {
   +browsers?: string | Array<string>,
   +electron?: SemverRange,
@@ -65,12 +75,19 @@ export type Engines = {
   ...
 };
 
+/** Corresponds to <code>pkg#targets.*.sourceMap</code> */
 export type TargetSourceMapOptions = {|
   +sourceRoot?: string,
   +inline?: boolean,
   +inlineSources?: boolean,
 |};
 
+/**
+ * A parsed version of PackageTargetDescriptor
+ * @property distEntry The output filename of the entry
+ * @property distDir The output folder
+ * @property loc The location that created this Target
+ */
 export interface Target {
   +distEntry: ?FilePath;
   +distDir: FilePath;
@@ -81,6 +98,7 @@ export interface Target {
   +loc: ?SourceLocation;
 }
 
+/** In which environment the output should run (influces e.g. loaders) */
 export type EnvironmentContext =
   | 'browser'
   | 'web-worker'
@@ -89,7 +107,14 @@ export type EnvironmentContext =
   | 'electron-main'
   | 'electron-renderer';
 
+/** The JS module format for the bundle output */
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
+
+/**
+ * The format of <code>pkg#targets.*</code>
+ *
+ * See Environment and Target.
+ */
 export type PackageTargetDescriptor = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
@@ -106,11 +131,19 @@ export type PackageTargetDescriptor = {|
   +scopeHoist?: boolean,
 |};
 
+/**
+ * The target format when using the JS API.
+ *
+ * (Same as PackageTargetDescriptor, but <code>distDir</code> is required.)
+ */
 export type TargetDescriptor = {|
   ...PackageTargetDescriptor,
   +distDir: FilePath,
 |};
 
+/**
+ * This is used when creating an Environment (see that).
+ */
 export type EnvironmentOpts = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
@@ -124,11 +157,37 @@ export type EnvironmentOpts = {|
   +scopeHoist?: boolean,
 |};
 
+/**
+ * Example:
+ * <pre><code>
+ * {
+ *   edge: '76',
+ *   firefox: '67',
+ *   chrome: '63',
+ *   safari: '11.1',
+ *   opera: '50',
+ * }
+ * </code></pre>
+ */
 export type VersionMap = {
   [string]: string,
   ...,
 };
 
+/**
+ * Defines the environment in for the output bundle
+ * @property includeNodeModules Whether to include all/none packages \
+ *  (<code>true / false</code>), an array of package names to include, or an object \
+ *  (of a package is not specified, it's included).
+ * @property isLibrary Whether this is a library build (e.g. less loaders)
+ * @property minify Whether the output should be minified.
+ * @property scopeHoist Whether scope hoisting is enabled.
+ * @method isBrowser Whether <code>context</code> specifies a browser context
+ * @method isNode Whether <code>context</code> specifies a node context
+ * @method isElectron Whether <code>context</code> specifies an electron context
+ * @method isWorker Whether <code>context</code> specifies a worker context
+ * @method isIsolated Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles).
+ */
 export interface Environment {
   +context: EnvironmentContext;
   +engines: Engines;
@@ -149,10 +208,16 @@ export interface Environment {
   matchesEngines(minVersions: VersionMap): boolean;
 }
 
+/**
+ * Format of <code>pkg#dependencies</code>, <code>pkg#devDependencies</code>, <code>pkg#peerDependencies</code>
+ */
 type PackageDependencies = {|
   [PackageName]: Semver,
 |};
 
+/**
+ * Format of <code>package.json</code>
+ */
 export type PackageJSON = {
   name: PackageName,
   version: Semver,
@@ -240,7 +305,11 @@ export type HTTPSOptions = {|
   +key: FilePath,
 |};
 
-// Source locations are 1-based, meaning lines and columns start at 1
+/**
+ * Source locations are 1-based, meaning lines and columns start at 1
+ * @property start inclusive
+ * @property end exclusive, FIXME?
+ */
 export type SourceLocation = {|
   +filePath: string,
   +start: {|
@@ -253,10 +322,21 @@ export type SourceLocation = {|
   |},
 |};
 
+/**
+ * An object that plugins can write arbitatry data to.
+ */
 export type Meta = JSONObject;
 
-export type Symbol = string;
+/**
+ * An identifier in an asset (likely imported/exported).
+ */
+export type CodeSymbol = string;
 
+/**
+ * Usen when creating a Dependency, see that.
+ * @property env Is merged with the environment of the importer.
+ * @property target FIXME why can this overwritten? cross-target?
+ */
 export type DependencyOptions = {|
   +moduleSpecifier: ModuleSpecifier,
   +isAsync?: boolean,
@@ -268,9 +348,28 @@ export type DependencyOptions = {|
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: Map<CodeSymbol, CodeSymbol>,
 |};
 
+/**
+ * A Dependency denotes a connection between two assets \
+ * (likely some effect from the importee is expected - be it a side effect or a value is being imported).
+ *
+ * @property moduleSpecifier E.g. "lodash" in <code>import {add} from "lodash";</code>
+ * @property isAsync Whether the environment can load this natively (FIXME).
+ * @property isEntry Whether this should become a new entry (e.g. no hash).
+ * @property isOptional Whether the importer might expect an error when resolving failed.
+ * @property isURL Whether an URL is expected (rather than the language-specific behaviour).
+ * @property isWeak Whether this dependency does not provide any values for the importer itself.
+ * @property isDeferred Whether this dependency was never resolved because it was deemed unnecessary/unused (based on symbols).
+ * @property loc Used for error messages, the code location that caused this dependency.
+ * @property env the environment of the importee.
+ * @property target FIXME importer or importee?
+ * @property sourceAssetId used for error messages, the importer.
+ * @property sourcePath used for error messages, the importer.
+ * @property symbols a <code>Map&lt;export name of importee, placeholder in importer&gt;</code>.
+ * @property pipeline a named pipeline to be chosen (if the <code>moduleSpecifier</code> didn't specify one).
+ */
 export interface Dependency {
   +id: string;
   +moduleSpecifier: ModuleSpecifier;
@@ -286,7 +385,7 @@ export interface Dependency {
   +target: ?Target;
   +sourceAssetId: ?string;
   +sourcePath: ?string;
-  +symbols: Map<Symbol, Symbol>;
+  +symbols: Map<CodeSymbol, CodeSymbol>;
   +pipeline: ?string;
 }
 
@@ -300,6 +399,30 @@ export type ASTGenerator = {|
   version: string,
 |};
 
+/**
+ * An asset (usually represents one source file).
+ *
+ * @property The file system where the source is located.
+ * @property isIsolated Whether this asset should be put in a separate bundle. VERIFY
+ * @property isInline Whether this asset will/should later be inserted back into the importer.
+ * @property isSplittable FIXME
+ * @property isSource Whether this is asset is part of the users project (and not of an external dependencies).
+ * @property type Usually corresponds to the file extension
+ * @property symbols a <code>Map&lt;export name, identifier name;</code>
+ * @property sideEffects Whether this asset can be omitted if none if it's exports are being used (set by ResolveResult)
+ * @property uniqueKey In an inline asset, <code>id</code> might not be enough for a unique identification. FIXME
+ * @property astGenerator The type of the AST.
+ *
+ * @method getAST Returns to current AST. See notes in subclasses (Asset, MutableAsset).
+ * @method getCode Returns to current source code. See notes in MutableAsset.
+ * @method getBuffer Returns the contents as a buffer.
+ * @method getStream Returns the contents as a stream.
+ * @method getMap Returns the sourcemap (if existent).
+ * @method getMapBuffer A buffer representation of the sourcemap (if existent).
+ * @method getConfig Used to load config files, (looks in every parent folder until a module root) \
+ * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
+ * @method getPackage Returns the package.json this file belongs to.
+ */
 export interface BaseAsset {
   +env: Environment;
   +fs: FileSystem;
@@ -311,7 +434,7 @@ export interface BaseAsset {
   +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
-  +symbols: Map<Symbol, Symbol>;
+  +symbols: Map<CodeSymbol, CodeSymbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
@@ -334,6 +457,11 @@ export interface BaseAsset {
   getPackage(): Promise<PackageJSON | null>;
 }
 
+/**
+ * A somewhat modifiable version of BaseAsset (for transformers)
+ * @method getAST Returns <code>null</code> if there is no AST.
+ * @method getCode Throws if the AST is dirty (meaning: this won't implicity stringify the AST).
+ */
 export interface MutableAsset extends BaseAsset {
   isIsolated: boolean;
   isInline: boolean;
@@ -352,10 +480,34 @@ export interface MutableAsset extends BaseAsset {
   setStream(Readable): void;
 }
 
+/**
+ * @method getAST Throws if there is no AST.
+ */
 export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
+/**
+ * FIXME
+ *
+ * @property isSource
+ * @property searchPath
+ * @property result
+ * @property resolvedPath
+ *
+ * @method setResolvedPath FIXME
+ * @method setResult FIXME
+ * @method setResultHash FIXME
+ * @method addIncludedFile FIXME
+ * @method addDevDependency FIXME
+ * @method setWatchGlob FIXME
+ * @method getConfigFrom FIXME
+ * @method getConfig FIXME
+ * @method getPackage FIXME
+ * @method shouldRehydrate FIXME
+ * @method shouldReload FIXME
+ * @method shouldInvalidateOnStartup FIXME
+ */
 export interface Config {
   +isSource: boolean;
   +searchPath: FilePath;
@@ -404,6 +556,9 @@ export type GenerateOutput = {|
 
 export type Blob = string | Buffer | Readable;
 
+/**
+ * Will be used to generate a new BaseAsset, see that.
+ */
 export type TransformerResult = {|
   +ast?: ?AST,
   +content?: ?Blob,
@@ -419,7 +574,7 @@ export type TransformerResult = {|
   +meta?: Meta,
   +pipeline?: ?string,
   +sideEffects?: boolean,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: Map<CodeSymbol, CodeSymbol>,
   +type: string,
   +uniqueKey?: ?string,
 |};
@@ -468,6 +623,18 @@ export type MultiThreadValidator = {|
 
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
+/**
+ * The methods for a transformer plugin.
+ * @method getConfig (deprecated)
+ * @method loadConfig FIXME
+ * @method preSerializeConfig FIXME
+ * @method postDeserializeConfig FIXME
+ * @method canReuseAST Whether an AST from a previous transformer can be reused (to prevent double-parsing)
+ * @method parse Parse the contents into an ast
+ * @method transform Transform the asset and/or add new assets
+ * @method generate Stringify the AST
+ * @method postProcess FIXME what is this even for?
+ */
 export type Transformer = {|
   // TODO: deprecate getConfig
   getConfig?: ({|
@@ -524,17 +691,31 @@ export type Transformer = {|
   |}) => Async<Array<TransformerResult>>,
 |};
 
+/**
+ * Used to control a traversal
+ * @method skipChildren Skip the current node's children and continue the traversal if there are other nodes in the queue.
+ * @method stop Stop the traversal
+ */
 export interface TraversalActions {
   skipChildren(): void;
   stop(): void;
 }
 
+/**
+ * Essentially GraphTraversalCallback, but allows adding specific node enter and exit callbacks.
+ */
 export type GraphVisitor<TNode, TContext> =
   | GraphTraversalCallback<TNode, TContext>
   | {|
       enter?: GraphTraversalCallback<TNode, TContext>,
       exit?: GraphTraversalCallback<TNode, TContext>,
     |};
+
+/**
+ * A generic callback for graph traversals
+ * @param context The parent node's return value is passed as a parameter to the children's callback. \
+ * This can be used to propagate information from the parent to children (unlike a global variable).
+ */
 export type GraphTraversalCallback<TNode, TContext> = (
   node: TNode,
   context: ?TContext,
@@ -549,9 +730,18 @@ export type BundlerBundleGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
+/**
+ * Options for MutableBundleGraph's <code>createBundle</code>.
+ *
+ * If an <code>entryAsset</code> is provided, <code>uniqueKey</code> (for the bundle id),
+ * <code>type</code>, and <code>env</code> will be inferred from the <code>entryAsset</code>.
+ *
+ * If an <code>entryAsset</code> is not provided, <code>uniqueKey</code> (for the bundle id),
+ * <code>type</code>, and <code>env</code> must be provided.
+
+ * @property isSplittable defaults to <code>entryAsset.isSplittable</code> or <code>false</code>
+ */
 export type CreateBundleOpts =
-  // If an entryAsset is provided, a bundle id, type, and environment will be
-  // inferred from the entryAsset.
   | {|
       +uniqueKey?: string,
       +entryAsset: Asset,
@@ -562,8 +752,6 @@ export type CreateBundleOpts =
       +type?: ?string,
       +env?: ?Environment,
     |}
-  // If an entryAsset is not provided, a bundle id, type, and environment must
-  // be provided.
   | {|
       +uniqueKey: string,
       +entryAsset?: Asset,
@@ -575,12 +763,31 @@ export type CreateBundleOpts =
       +env: Environment,
     |};
 
+/**
+ * Specifies a symbol in an asset
+ * @property asset The Asset which exports the symbol.
+ * @property exportSymbol under which name the symbol is exported
+ * @property symbol The (global) identifier under which the symbol can be referenced.
+ */
 export type SymbolResolution = {|
   +asset: Asset,
-  +exportSymbol: Symbol | string,
-  +symbol: void | Symbol,
+  +exportSymbol: CodeSymbol | string,
+  +symbol: void | CodeSymbol,
 |};
 
+/**
+ * A Bundle (a collection of assets)
+ * @property hashReference Whether this value is inside <code>filePath</code> it will be replace with the real hash at the end.
+ * @property isEntry Whether this is an entry (e.g. should not be hashed).
+ * @property isInline Whether this bundle should be inlined into the parent bundle(s),
+ * @property isSplittable FIXME
+ * @property filePath The output filespath (if not inline), can contain <code>hashReference</code> before the optimizer ran.
+ *
+ * @method getEntryAssets Assets that run when the bundle is loaded (e.g. runtimes could be added). VERIFY
+ * @method getMainEntry The actual entry (which won't be a runtime), the same as the last entry in <code>getEntryAssets()</code>
+ * @method traverseAssets Traverses the assets in the bundle.
+ * @method traverse Traverses assets and dependencies (see BundleTraversable).
+ */
 export interface Bundle {
   +id: string;
   +hashReference: string;
@@ -602,38 +809,41 @@ export interface Bundle {
   ): ?TContext;
 }
 
+/**
+ * A Bundler that got named by a Namer
+ */
 export interface NamedBundle extends Bundle {
   +filePath: FilePath;
   +name: string;
   +displayName: string;
 }
 
+/**
+ * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together.
+ */
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
 |};
 
-export interface MutableBundleGraph extends BundleGraph {
-  addAssetGraphToBundle(Asset, Bundle): void;
-  addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset): void;
-  createBundleReference(Bundle, Bundle): void;
-  createBundle(CreateBundleOpts): Bundle;
-  createBundleGroup(Dependency, Target): BundleGroup;
-  getDependencyAssets(Dependency): Array<Asset>;
-  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
-  getTotalSize(Asset): number;
-  removeAssetGraphFromBundle(Asset, Bundle): void;
-  removeBundleGroup(bundleGroup: BundleGroup): void;
-  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-}
-
+/**
+ * A Graph that contains Bundle-s, Asset-s, Dependency-s, BundleGroup-s
+ * @method getChildBundles Child bundles are Bundles that might be loaded by an asset in the bundle
+ * @method getSiblingBundles See BundleGroup
+ * @method getReferencedBundles Bundles that are referenced (by filename)
+ * @method getDependencies Get the dependencies of the asset
+ * @method getIncomingDependencies Get the dependencies that require the asset
+ * @method resolveExternalDependency Returns undefined if the specified dependency was excluded or wasn't async \
+ * and otherwise the BundleGroup or Asset that the dependency resolves to. VERIFY
+ * @method getDependencyResolution Find out which asset the dependency resolved to.
+ * @method isAssetInAncestorBundles Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle.
+ * @method isAssetReferenced Whether the asset is referenced (the "references" edge)FIXME how? url/filename?
+ * @method isAssetReferencedByDependant Whether the asset is referenced by URL which could cause an import.
+ * @method resolveSymbol <code>asset</code> exports <code>symbol</code>, try to find the asset where the \
+ * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
+ * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
+ * @method getExportedSymbols Gets the symbols that are (transivitely) exported by the asset
+ */
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
@@ -660,7 +870,7 @@ export interface BundleGraph {
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(
     asset: Asset,
-    symbol: Symbol,
+    symbol: CodeSymbol,
     boundary: ?Bundle,
   ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<SymbolResolution>;
@@ -670,12 +880,48 @@ export interface BundleGraph {
   ): ?TContext;
 }
 
+/**
+ * A BundleGraph in the Bundler that can be modified
+ * @method addAssetGraphToBundle Add asset and all child nodes to the bundle VERIFY how??
+ * @method createAssetReference FIXME
+ * @method createBundleGroup Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s)
+ * @method getDependencyAssets FIXME a dependency can have multiple child nodes?
+ * @method removeAssetGraphFromBundle Remove all "contains" edges from the bundle to the nodes in the asset's subgraph.
+ * @method internalizeAsyncDependency Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>.
+ * @method traverse FIME difference to traverseContents?
+ * @method traverseContents FIXME
+ */
+export interface MutableBundleGraph extends BundleGraph {
+  addAssetGraphToBundle(Asset, Bundle): void;
+  addBundleToBundleGroup(Bundle, BundleGroup): void;
+  createAssetReference(Dependency, Asset): void;
+  createBundleReference(from: Bundle, to: Bundle): void;
+  createBundle(CreateBundleOpts): Bundle;
+  createBundleGroup(Dependency, Target): BundleGroup;
+  getDependencyAssets(Dependency): Array<Asset>;
+  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  getTotalSize(Asset): number;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
+  removeBundleGroup(bundleGroup: BundleGroup): void;
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
+  ): ?TContext;
+  traverseContents<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
+  ): ?TContext;
+}
+
 export type BundleResult = {|
   +contents: Blob,
   +ast?: AST,
   +map?: ?SourceMap,
 |};
 
+/**
+ * @property sideEffects Corresponds to BaseAsset's <code>sideEffects</code>.
+ * @property code A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from".
+ */
 export type ResolveResult = {|
   +filePath?: FilePath,
   +isExcluded?: boolean,
@@ -683,6 +929,11 @@ export type ResolveResult = {|
   +code?: string,
 |};
 
+/**
+ * Turns an asset graph into a BundleGraph.
+ *
+ * The two methods just run in series and are functionally identitical.
+ */
 export type Bundler = {|
   bundle({|
     bundleGraph: MutableBundleGraph,
@@ -696,6 +947,9 @@ export type Bundler = {|
   |}): Async<void>,
 |};
 
+/**
+ * @method name Return a filename/filepath for <code>bundle</code>.
+ */
 export type Namer = {|
   name({|
     bundle: Bundle,
@@ -705,6 +959,9 @@ export type Namer = {|
   |}): Async<?FilePath>,
 |};
 
+/**
+ * A "synthetic" asset that will be inserted into the bundle graph.
+ */
 export type RuntimeAsset = {|
   +filePath: FilePath,
   +code: string,
@@ -759,6 +1016,9 @@ export type ProgressLogEvent = {|
   +message: string,
 |};
 
+/**
+ * A log event with a rich diagnostic
+ */
 export type DiagnosticLogEvent = {|
   +type: 'log',
   +level: 'error' | 'warn' | 'info' | 'verbose',
@@ -773,41 +1033,65 @@ export type TextLogEvent = {|
 
 export type LogEvent = ProgressLogEvent | DiagnosticLogEvent | TextLogEvent;
 
+/**
+ * The build just started.
+ */
 export type BuildStartEvent = {|
   +type: 'buildStart',
 |};
 
+/**
+ * The build just started in watch mode.
+ */
 type WatchStartEvent = {|
   +type: 'watchStart',
 |};
 
+/**
+ * The build just ended in watch mode.
+ */
 type WatchEndEvent = {|
   +type: 'watchEnd',
 |};
 
+/**
+ * A new Dependency is being resolved.
+ */
 type ResolvingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'resolving',
   +dependency: Dependency,
 |};
 
+/**
+ * A new Asset is being transformed.
+ */
 type TransformingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'transforming',
   +filePath: FilePath,
 |};
 
+/**
+ * The BundleGraph is generated.
+ */
 type BundlingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'bundling',
 |};
 
+/**
+ * A new Bundle is being packaged.
+ */
 type PackagingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'packaging',
   +bundle: NamedBundle,
 |};
 
+/**
+ * A new Bundle is being optimized.
+ */
 type OptimizingProgressEvent = {|
   +type: 'buildProgress',
   +phase: 'optimizing',
@@ -821,6 +1105,9 @@ export type BuildProgressEvent =
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 
+/**
+ * The build was successful.
+ */
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
   +bundleGraph: BundleGraph,
@@ -828,6 +1115,9 @@ export type BuildSuccessEvent = {|
   +changedAssets: Map<string, Asset>,
 |};
 
+/**
+ * The build failed.
+ */
 export type BuildFailureEvent = {|
   +type: 'buildFailure',
   +diagnostics: Array<Diagnostic>,
@@ -835,6 +1125,9 @@ export type BuildFailureEvent = {|
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
+/**
+ * A new file is being validated.
+ */
 export type ValidationEvent = {|
   +type: 'validation',
   +filePath: FilePath,
@@ -850,6 +1143,9 @@ export type ReporterEvent =
   | WatchEndEvent
   | ValidationEvent;
 
+/**
+ * A build event listener
+ */
 export type Reporter = {|
   report({|
     event: ReporterEvent,

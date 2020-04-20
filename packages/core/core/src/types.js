@@ -22,7 +22,7 @@ import type {
   ServerOptions,
   SourceLocation,
   Stats,
-  Symbol,
+  CodeSymbol,
   TargetSourceMapOptions,
   ConfigResult,
   OutputFormat,
@@ -95,7 +95,7 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, Symbol>,
+  symbols: Map<CodeSymbol, CodeSymbol>,
   pipeline?: ?string,
 |};
 
@@ -120,7 +120,7 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: Map<Symbol, Symbol>,
+  symbols: Map<CodeSymbol, CodeSymbol>,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: FilePath,

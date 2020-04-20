@@ -4,7 +4,7 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  Symbol as ISymbol,
+  CodeSymbol,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 import Environment from './Environment';
@@ -105,7 +105,7 @@ export default class Dependency implements IDependency {
     return this.#dep.sourcePath;
   }
 
-  get symbols(): Map<ISymbol, ISymbol> {
+  get symbols(): Map<CodeSymbol, CodeSymbol> {
     return this.#dep.symbols;
   }
 

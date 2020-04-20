@@ -20,7 +20,7 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol as ISymbol,
+  CodeSymbol,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -127,7 +127,7 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): Map<ISymbol, ISymbol> {
+  get symbols(): Map<CodeSymbol, CodeSymbol> {
     return this.#asset.value.symbols;
   }
 

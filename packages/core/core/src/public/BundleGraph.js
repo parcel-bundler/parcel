@@ -7,7 +7,7 @@ import type {
   BundleGroup,
   Dependency as IDependency,
   GraphVisitor,
-  Symbol,
+  CodeSymbol,
   SymbolResolution,
 } from '@parcel/types';
 import type {ParcelOptions} from '../types';
@@ -171,7 +171,7 @@ export default class BundleGraph implements IBundleGraph {
 
   resolveSymbol(
     asset: IAsset,
-    symbol: Symbol,
+    symbol: CodeSymbol,
     boundary: ?IBundle,
   ): SymbolResolution {
     let res = this.#graph.resolveSymbol(

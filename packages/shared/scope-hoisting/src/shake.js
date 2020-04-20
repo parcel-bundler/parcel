@@ -1,5 +1,5 @@
 // @flow
-import type {Asset, Symbol} from '@parcel/types';
+import type {Asset, CodeSymbol} from '@parcel/types';
 import type {NodePath, Scope} from '@babel/traverse';
 import type {Expression, Identifier, Node} from '@babel/types';
 
@@ -24,8 +24,8 @@ import {pathDereference, pathRemove} from './utils';
  */
 export default function treeShake(
   scope: Scope,
-  exportedIdentifiers: Set<Symbol>,
-  exportsMap: Map<Symbol, Asset>,
+  exportedIdentifiers: Set<CodeSymbol>,
+  exportsMap: Map<CodeSymbol, Asset>,
 ) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
@@ -124,7 +124,7 @@ function hasSideEffects(binding) {
   return false;
 }
 
-function isExportAssignment(path, exportsMap: Map<Symbol, Asset>) {
+function isExportAssignment(path, exportsMap: Map<CodeSymbol, Asset>) {
   let {parent} = path;
   // match "path.foo = bar;", where path is a known exports identifier.
   if (
@@ -155,7 +155,7 @@ function isWildcardDest(path) {
 function remove(
   path: NodePath<Node>,
   scope: Scope,
-  exportsMap: Map<Symbol, Asset>,
+  exportsMap: Map<CodeSymbol, Asset>,
 ) {
   let {node, parent} = path;
   if (isAssignmentExpression(node)) {

@@ -9,7 +9,7 @@ import type {
   Meta,
   PackageName,
   Stats,
-  Symbol,
+  CodeSymbol,
   Transformer,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment} from './types';
@@ -47,7 +47,7 @@ type AssetOptions = {|
   outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
-  symbols?: Map<Symbol, Symbol>,
+  symbols?: Map<CodeSymbol, CodeSymbol>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,

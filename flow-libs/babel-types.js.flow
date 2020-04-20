@@ -440,7 +440,7 @@ declare class BabelNodeExportDefaultDeclaration extends BabelNode {
 
 declare class BabelNodeExportNamedDeclaration extends BabelNode {
   type: "ExportNamedDeclaration";
-  declaration?: ?any;
+  declaration?: ?BabelNodeDeclaration;
   specifiers: Array<BabelNodeExportSpecifier | BabelNodeExportDefaultSpecifier | BabelNodeExportNamespaceSpecifier>;
   source?: ?BabelNodeStringLiteral;
   exportKind?: ?"type" | "value";

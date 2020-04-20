@@ -5,14 +5,14 @@ import type {
   BundleGraph,
   ModuleSpecifier,
   PluginOptions,
-  Symbol,
+  CodeSymbol,
 } from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {Program} from '@babel/types';
 
 export type ExternalModule = {|
   source: ModuleSpecifier,
-  specifiers: Map<Symbol, Symbol>,
+  specifiers: Map<CodeSymbol, CodeSymbol>,
   isCommonJS: ?boolean,
 |};
 
@@ -38,7 +38,7 @@ export type OutputFormat = {|
     bundle: Bundle,
     referencedAssets: Set<Asset>,
     path: NodePath<Program>,
-    replacements: Map<Symbol, Symbol>,
+    replacements: Map<CodeSymbol, CodeSymbol>,
     options: PluginOptions,
-  ): Set<Symbol>,
+  ): Set<CodeSymbol>,
 |};

@@ -4,8 +4,8 @@ import type {
   Asset,
   Bundle,
   BundleGraph,
+  CodeSymbol,
   PluginOptions,
-  Symbol,
 } from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {
@@ -121,11 +121,11 @@ export function generateExports(
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   programPath: NodePath<Program>,
-  replacements: Map<Symbol, Symbol>,
+  replacements: Map<CodeSymbol, CodeSymbol>,
   options: PluginOptions,
 ) {
   // maps the bundles's export symbols to the bindings
-  let exportedIdentifiers = new Map<Symbol, Symbol>();
+  let exportedIdentifiers = new Map<CodeSymbol, CodeSymbol>();
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
@@ -171,7 +171,7 @@ export function generateExports(
     exportedIdentifiers.set(exportsId, exportsId);
   }
 
-  let exported = new Set<Symbol>();
+  let exported = new Set<CodeSymbol>();
 
   programPath.traverse({
     Declaration(path) {
@@ -190,7 +190,7 @@ export function generateExports(
 
       let exportedIdentifiersFiltered = ([
         ...exportedIdentifiers.entries(),
-      ]: Array<[Symbol, Symbol]>)
+      ]: Array<[CodeSymbol, CodeSymbol]>)
         .filter(
           ([exportSymbol, symbol]) =>
             exportSymbol !== 'default' && ids.includes(symbol),
