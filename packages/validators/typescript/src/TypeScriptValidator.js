@@ -38,7 +38,6 @@ export default new Validator({
   }): Promise<Array<?ValidateResult>> {
     // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
     // This assumes that any given file can only have a single config.
-    // ANDREW_TODO: we are using a map here so that we can avoid duplicate validations (which are caused by getDepndencies also returning the base file). If we can improve getDependencies, we move back to a simple array.
     let assetsToValidate = new Map<
       /* filePath */ string,
       /* configHash */ string,

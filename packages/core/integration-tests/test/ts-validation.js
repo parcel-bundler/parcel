@@ -289,6 +289,4 @@ describe('ts-validator', function() {
       "Argument of type 'string' is not assignable to parameter of type 'number'.",
     );
   });
-
-  // ANDREW_TODO: make sure that two errors in the same file shows up correctly.
 });
