@@ -172,6 +172,33 @@ function getParents(bundle, id) {
   return parents;
 }
 
+function updateLink(link) {
+  var newLink = link.cloneNode();
+  newLink.onload = function() {
+    if (link.parentNode !== null) {
+      link.parentNode.removeChild(link);
+    }
+  };
+  newLink.href = link.href.split('?')[0] + '?' + Date.now();
+  link.parentNode.insertBefore(newLink, link.nextSibling);
+}
+
+var cssTimeout = null;
+function reloadCSS() {
+  if (cssTimeout) {
+    return;
+  }
+
+  cssTimeout = setTimeout(function() {
+    var links = document.querySelectorAll('link[rel="stylesheet"]');
+    for (var i = 0; i < links.length; i++) {
+      updateLink(links[i]);
+    }
+
+    cssTimeout = null;
+  }, 50);
+}
+
 function hmrApply(bundle, asset) {
   var modules = bundle.modules;
   if (!modules) {
@@ -180,9 +207,7 @@ function hmrApply(bundle, asset) {
 
   if (modules[asset.id] || !bundle.parent) {
     if (asset.type === 'css') {
-      var newStyle = document.createElement('style');
-      newStyle.innerHTML = asset.output;
-      document.body.appendChild(newStyle);
+      reloadCSS();
     } else {
       var fn = new Function('require', 'module', 'exports', asset.output);
       modules[asset.id] = [fn, asset.depsByBundle[__PARCEL_BUNDLE_ID]];

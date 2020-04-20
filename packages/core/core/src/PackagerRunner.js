@@ -568,9 +568,13 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
 
     hashRefToNameHash.set(
       bundle.hashReference,
-      md5FromString(
-        includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
-      ).slice(-8),
+      // using bundle hashes results in an unstable name
+      // we want the name stable so we are just using the first bundles id
+      // this allows any resource such as css to be refreshed by appending a timestamp to the url
+      includedBundles[0].slice(-8),
+      // md5FromString(
+      //   includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
+      // ).slice(-8),
     );
   }
 }
