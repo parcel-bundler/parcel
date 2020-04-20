@@ -7,7 +7,6 @@ import type {
   Asset,
   AssetGraphNode,
   AssetRequestDesc,
-  Dependency,
   ParcelOptions,
   ValidationOpts,
 } from './types';
@@ -17,7 +16,6 @@ import type {TargetRequest} from './requests/TargetRequestRunner';
 import type {AssetRequest} from './requests/AssetRequestRunner';
 import type {DepPathRequest} from './requests/DepPathRequestRunner';
 
-import invariant from 'assert';
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -258,30 +256,22 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
-  getAllDependentAssets = (
-    assetGraphNodeId: string,
-    allDependentAssets?: Map<string, Asset> = new Map(),
-  ): Array<Asset> => {
+  getAllDependentAssets = (assetGraphNodeId: string): Array<Asset> => {
     let node = this.assetGraph.getNode(assetGraphNodeId);
     if (!node) {
       throw new Error('Asset not found');
     }
-    // ANDREW_TODO: this seems to make a _lot_ of recursive calls. Is there a way to make it more efficient?
-    this.assetGraph.getNodesConnectedTo(node).forEach(connectedNode => {
-      if (!allDependentAssets.has(connectedNode.id)) {
-        if (connectedNode.type === 'asset') {
-          allDependentAssets.set(connectedNode.id, connectedNode.value);
-        }
-        if (
-          connectedNode.type === 'dependency' ||
-          connectedNode.type === 'asset_group' ||
-          connectedNode.type === 'asset'
-        ) {
-          this.getAllDependentAssets(connectedNode.id, allDependentAssets);
-        }
+
+    let dependents: Array<Asset> = [];
+    this.assetGraph.traverseAncestors(node, (connectedNode, ctx, traversal) => {
+      if (connectedNode.type === 'asset') {
+        dependents.push(connectedNode.value);
+      }
+      if (connectedNode.type === 'entry_file') {
+        traversal.skipChildren();
       }
     });
-    return Array.from(allDependentAssets.values());
+    return dependents;
   };
 
   async validate(): Promise<void> {
