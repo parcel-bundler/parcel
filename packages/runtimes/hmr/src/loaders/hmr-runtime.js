@@ -179,7 +179,10 @@ function updateLink(link) {
       link.parentNode.removeChild(link);
     }
   };
-  newLink.href = link.href.split('?')[0] + '?' + Date.now();
+  newLink.setAttribute(
+    'href',
+    link.getAttribute('href').split('?')[0] + '?' + Date.now(),
+  );
   link.parentNode.insertBefore(newLink, link.nextSibling);
 }
 
@@ -192,7 +195,10 @@ function reloadCSS() {
   cssTimeout = setTimeout(function() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
-      updateLink(links[i]);
+      var absolute = /^https?:\/\//i.test(links[i].getAttribute('href'));
+      if (!absolute) {
+        updateLink(links[i]);
+      }
     }
 
     cssTimeout = null;
