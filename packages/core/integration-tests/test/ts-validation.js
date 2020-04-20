@@ -29,7 +29,6 @@ describe('ts-validator', function() {
   });
 
   it('should throw validation error on typescript typing errors across multiple files', async function() {
-    // ANDREW_TODO: this seems to take a lot longer than it used to.
     let didThrow = false;
     let entry = normalizeFilePath(
       path.join(__dirname, '/integration/ts-validation-error/index.ts'),
