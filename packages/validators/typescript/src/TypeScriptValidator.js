@@ -67,14 +67,11 @@ export default new Validator({
 
           assetsToValidate.set(asset.filePath, configHash);
 
-          // ANDREW_TODO: consider ways to signal within flow that assetGraphNodeId will be defined (or a more graceful way of looking up dependents).
-          let dependentAssets =
-            typeof asset.assetGraphNodeId === 'string'
-              ? getAllDependentAssets(asset.assetGraphNodeId)
-              : [];
-          dependentAssets.forEach(dependentAsset => {
-            assetsToValidate.set(dependentAsset.filePath, configHash);
-          });
+          getAllDependentAssets(asset.assetGraphNodeId).forEach(
+            dependentAsset => {
+              assetsToValidate.set(dependentAsset.filePath, configHash);
+            },
+          );
         }
       }),
     );

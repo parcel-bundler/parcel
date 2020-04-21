@@ -354,8 +354,11 @@ export interface MutableAsset extends BaseAsset {
 
 export interface Asset extends BaseAsset {
   +stats: Stats;
-  // ANDREW_TODO: this is really hacky. It's here because Validate/ValidateAll take type Asset, but we need to make sure we have a way of looking up that asset's dependencies (i.e. something to pass getAllDependentAssets).
-  +assetGraphNodeId?: ?string;
+}
+
+// ANDREW_TODO: this a hacky way of passing around a graphNodeId so it can be used to look up dependent assets within a Validator. There's probably a better way.
+export interface AssetWithGraphNodeId extends Asset {
+  +assetGraphNodeId: string;
 }
 
 export interface Config {
@@ -446,7 +449,7 @@ export type ValidateResult = {|
 
 export type DedicatedThreadValidator = {|
   validateAll: ({|
-    assets: Asset[],
+    assets: AssetWithGraphNodeId[],
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,

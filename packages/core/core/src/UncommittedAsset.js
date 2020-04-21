@@ -28,7 +28,7 @@ import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {createAsset, getConfig} from './assetUtils';
 
-type UncommittedAssetOptions = {|
+export type UncommittedAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
   content?: ?Blob,
@@ -36,7 +36,6 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
-  assetGraphNodeId?: string,
 |};
 
 export default class UncommittedAsset {
@@ -48,7 +47,6 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
-  assetGraphNodeId: ?string;
 
   constructor({
     value,
@@ -58,7 +56,6 @@ export default class UncommittedAsset {
     ast,
     isASTDirty,
     idBase,
-    assetGraphNodeId,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -67,7 +64,6 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
-    this.assetGraphNodeId = assetGraphNodeId;
   }
 
   /*

@@ -18,9 +18,9 @@ import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
-import UncommittedAsset from './UncommittedAsset';
+import UncommittedAssetWithGraphNodeId from './UncommittedAssetWithGraphNodeId';
 import {createAsset} from './assetUtils';
-import {Asset} from './public/Asset';
+import {Asset, AssetWithGraphNodeId} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 import {md5FromObject} from '@parcel/utils';
@@ -40,7 +40,10 @@ export type ValidationOpts = {|
 |};
 
 export default class Validation {
-  allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
+  allAssets: {
+    [validatorName: string]: UncommittedAssetWithGraphNodeId[],
+    ...,
+  } = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};
   dedicatedThread: boolean;
   configRequests: Array<ConfigRequestDesc>;
@@ -91,7 +94,7 @@ export default class Validation {
                 'If we invoking validateAll()-type validators, getDependentAssets must be defined.',
               );
               validatorResults = await plugin.validateAll({
-                assets: assets.map(asset => new Asset(asset)),
+                assets: assets.map(asset => new AssetWithGraphNodeId(asset)),
                 getAllDependentAssets,
                 options: pluginOptions,
                 logger: validatorLogger,
@@ -195,7 +198,9 @@ export default class Validation {
     }
   }
 
-  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
+  async loadAsset(
+    request: AssetRequestDesc,
+  ): Promise<UncommittedAssetWithGraphNodeId> {
     let assetGraphNodeId = md5FromObject(request);
     let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
@@ -211,7 +216,7 @@ export default class Validation {
         : path
             .relative(this.options.projectRoot, filePath)
             .replace(/[\\/]+/g, '/');
-    return new UncommittedAsset({
+    return new UncommittedAssetWithGraphNodeId({
       idBase,
       value: createAsset({
         idBase,
