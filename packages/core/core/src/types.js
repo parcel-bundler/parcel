@@ -200,7 +200,6 @@ export type AssetRequestResult = {|
   assets: Array<Asset>,
   configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
 |};
-
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
