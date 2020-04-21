@@ -453,8 +453,7 @@ export type DedicatedThreadValidator = {|
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
-    // $FlowFixMe ANDREW_TODO: need to understand why there are two different 'Asset' interfaces (in this file v. packages/core/core/types.ts). The implementation of getDependentAssets in AssetGraphBuilder will find Assets with the later type.
-    getAllDependentAssets: (assetGraphNodeId: string) => Array<any>,
+    getAllDependentAssets: (assetGraphNodeId: string) => Array<Asset>,
   |}) => Async<Array<?ValidateResult>>,
 |};
 

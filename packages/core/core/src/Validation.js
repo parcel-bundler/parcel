@@ -2,13 +2,12 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {
-  Asset as IAsset,
   AssetRequestDesc,
   ConfigRequestDesc,
   ParcelOptions,
   ReportFn,
 } from './types';
-import type {Validator, ValidateResult} from '@parcel/types';
+import type {Asset as IAsset, Validator, ValidateResult} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import invariant from 'assert';

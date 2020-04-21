@@ -10,12 +10,15 @@ import type {
   ParcelOptions,
   ValidationOpts,
 } from './types';
+import {Asset as IAsset} from '@parcel/types';
 import type {RunRequestOpts} from './RequestTracker';
 import type {EntryRequest} from './requests/EntryRequestRunner';
 import type {TargetRequest} from './requests/TargetRequestRunner';
 import type {AssetRequest} from './requests/AssetRequestRunner';
 import type {DepPathRequest} from './requests/DepPathRequestRunner';
 
+import {Asset as PublicAsset} from './public/Asset';
+import UncommittedAsset from './UncommittedAsset';
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -256,22 +259,32 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
-  getAllDependentAssets = (assetGraphNodeId: string): Array<Asset> => {
+  getAllDependentAssets = (assetGraphNodeId: string): Array<IAsset> => {
     let node = this.assetGraph.getNode(assetGraphNodeId);
     if (!node) {
       throw new Error('Asset not found');
     }
 
-    let dependents: Array<Asset> = [];
+    let dependentAssets: Array<IAsset> = [];
     this.assetGraph.traverseAncestors(node, (connectedNode, ctx, traversal) => {
       if (connectedNode.type === 'asset') {
-        dependents.push(connectedNode.value);
+        // ANDREW_TODO: This emulates the pattern I observed in Validation where an AssetGraphNode
+        // is wrapped in public/Asset and UncommittedAsset before being exposed to a plugin.
+        // Is this necessary? Could there be a better way to do it?
+        dependentAssets.push(
+          new PublicAsset(
+            new UncommittedAsset({
+              value: connectedNode.value,
+              options: this.options,
+            }),
+          ),
+        );
       }
       if (connectedNode.type === 'entry_file') {
         traversal.skipChildren();
       }
     });
-    return dependents;
+    return dependentAssets;
   };
 
   async validate(): Promise<void> {
