@@ -288,4 +288,62 @@ describe('ts-validator', function() {
       "Argument of type 'string' is not assignable to parameter of type 'number'.",
     );
   });
+
+  it('Successfully checks d.ts files referenced in tsconfig.json when skipLibCheck is omitted', async function() {
+    let didThrow = false;
+    let entry = normalizeFilePath(
+      path.join(__dirname, '/integration/ts-validation-libcheck/src/index.ts'),
+    );
+    let libPath = normalizeFilePath(
+      path.join(
+        __dirname,
+        '/integration/ts-validation-libcheck/types/Params.d.ts',
+      ),
+    );
+    try {
+      await bundle(entry, {
+        defaultConfig: config,
+      });
+    } catch (e) {
+      assert.equal(e.name, 'BuildError');
+      assert(!!Array.isArray(e.diagnostics));
+      assert(e.diagnostics.length === 1);
+      assert(!!e.diagnostics[0].codeFrame);
+      assert.equal(e.diagnostics[0].origin, '@parcel/validator-typescript');
+      assert.equal(
+        e.diagnostics[0].message,
+        `Interface 'ParamsImpl' incorrectly extends interface 'Params'.`,
+      );
+      assert.equal(e.diagnostics[0].filePath, libPath);
+
+      didThrow = true;
+    }
+    assert(didThrow);
+  });
+
+  it('Does not check d.ts files referenced in tsconfig.json when skipLibCheck is true', async function() {
+    let didNotThrow = true;
+    let entry = normalizeFilePath(
+      path.join(
+        __dirname,
+        '/integration/ts-validation-skiplibcheck/src/index.ts',
+      ),
+    );
+    let b;
+    try {
+      b = await bundle(entry, {
+        defaultConfig: config,
+      });
+    } catch (e) {
+      didNotThrow = false;
+    }
+
+    assert(didNotThrow);
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'object');
+    assert.equal(output.default.hello, 123);
+  });
+  // ANDREW_TODO: write a unit test to see what happens if a typescript file includes a non-typescript file as a dependency.
+  // ANDREW_TODO: write a unit test to see what happens if a typescript file includes a d.ts file as a dependency.
 });

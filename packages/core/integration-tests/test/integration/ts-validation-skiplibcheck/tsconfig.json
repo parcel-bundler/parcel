@@ -1,0 +1,6 @@
+{
+    "compilerOptions": {
+        "typeRoots": ["./types"],
+        "skipLibCheck": true
+    }
+}
