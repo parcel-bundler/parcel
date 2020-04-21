@@ -120,7 +120,12 @@ export default class PackagerRunner {
         }
       }),
     );
-    assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap);
+    assignComplexNameHashes(
+      hashRefToNameHash,
+      bundles,
+      bundleInfoMap,
+      this.options,
+    );
     await Promise.all(
       bundles.map(
         bundle =>
@@ -556,7 +561,12 @@ function getInfoKey(cacheKey: string) {
   return md5FromString(`${cacheKey}:info`);
 }
 
-function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
+function assignComplexNameHashes(
+  hashRefToNameHash,
+  bundles,
+  bundleInfoMap,
+  options,
+) {
   for (let bundle of bundles) {
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
@@ -566,16 +576,17 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
       ...getBundlesIncludedInHash(bundle.id, bundleInfoMap),
     ];
 
-    hashRefToNameHash.set(
-      bundle.hashReference,
-      // using bundle hashes results in an unstable name
-      // we want the name stable so we are just using the first bundles id
-      // this allows any resource such as css to be refreshed by appending a timestamp to the url
-      includedBundles[0].slice(-8),
-      // md5FromString(
-      //   includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
-      // ).slice(-8),
-    );
+    // we want stable names with Hot Module Reloading
+    // we want names based on content during production for cacheability
+    let name = options.hot
+      ? includedBundles[0].slice(-8)
+      : md5FromString(
+          includedBundles
+            .map(bundleId => bundleInfoMap[bundleId].hash)
+            .join(':'),
+        ).slice(-8);
+
+    hashRefToNameHash.set(bundle.hashReference, name);
   }
 }
 
