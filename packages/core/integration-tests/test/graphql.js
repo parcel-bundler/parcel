@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
-import gql from 'graphql-tag';
 import {bundle, run} from '@parcel/test-utils';
+import {parse, print} from 'graphql/language';
 
 describe('graphql', function() {
   it('should support requiring graphql files', async function() {
@@ -10,8 +10,8 @@ describe('graphql', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.deepEqual(
-      output().definitions,
-      gql`
+      normalize(output()),
+      normalize(`
         {
           user(id: 5) {
             ...UserFragment
@@ -22,7 +22,7 @@ describe('graphql', function() {
           firstName
           lastName
         }
-      `.definitions,
+      `),
     );
   });
 
@@ -34,8 +34,8 @@ describe('graphql', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.deepEqual(
-      output().definitions,
-      gql`
+      normalize(output()),
+      normalize(`
         {
           user(id: 6) {
             ...UserFragment
@@ -52,7 +52,60 @@ describe('graphql', function() {
           address
           email
         }
-      `.definitions,
+      `),
+    );
+  });
+
+  it('should support importing fragments in other graphql files by name', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/graphql-named-import/index.js'),
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.deepEqual(
+      normalize(output()),
+      normalize(`
+      query MyQuery {
+        user(id: 6) {
+          ...UserFragment
+          address {
+            ...Address
+          }
+        }
+      }
+
+      fragment UserFragment on User {
+        firstName
+        lastName
+        ...AnotherUserFragment
+      }
+
+      fragment Address on Address {
+        line1
+        county
+        postalCode
+      }
+
+      fragment AnotherUserFragment on User {
+        address
+        email
+      }
+
+      fragment otherUserFragment on User {
+        friends {
+          edges {
+            nodes {
+              name
+            }
+          }
+        }
+      }
+      `),
     );
   });
 });
+
+function normalize(body) {
+  return print(parse(body));
+}
