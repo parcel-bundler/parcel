@@ -45,10 +45,22 @@ export default new Packager({
 
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
-      let ast = await concat(bundle, bundleGraph);
-      ast = link({bundle, bundleGraph, ast, options});
+      let wrappedAssets = new Set<string>();
+      let {ast, referencedAssets} = link({
+        bundle,
+        bundleGraph,
+        ast: await concat(bundle, bundleGraph, wrappedAssets),
+        options,
+        wrappedAssets,
+      });
 
-      let {contents, map} = generate(bundleGraph, bundle, ast, options);
+      let {contents, map} = generate({
+        bundleGraph,
+        bundle,
+        ast,
+        referencedAssets,
+        options,
+      });
       return replaceReferences({
         contents:
           contents +
@@ -136,7 +148,6 @@ export default new Packager({
         wrapped += ']';
 
         if (options.sourceMaps) {
-          let lineCount = countLines(output);
           if (mapBuffer) {
             map.addBufferMappings(mapBuffer, lineOffset);
           } else {
@@ -149,7 +160,7 @@ export default new Packager({
             );
           }
 
-          lineOffset += lineCount + 1;
+          lineOffset += countLines(output) + 1;
         }
         i++;
       }

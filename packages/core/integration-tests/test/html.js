@@ -329,8 +329,8 @@ describe('html', function() {
 
     // mergeStyles
     assert(
-      html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
+      html.match(
+        /<style>h1{color:red}div{font-size:20px}\n\/\*# sourceMappingURL=.*\*\/<\/style><style media="print">div{color:#00f}\n\/\*# sourceMappingURL=.*\*\/<\/style>/,
       ),
     );
 
@@ -834,7 +834,11 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(html.includes('<style>.index{color:#00f}</style>'));
+    assert(
+      html.match(
+        /<style>.index{color:#00f}\n\/\*# sourceMappingURL=.*<\/style>/,
+      ),
+    );
   });
 
   it('should process inline non-js scripts', async function() {
@@ -1155,12 +1159,17 @@ describe('html', function() {
       1,
     );
 
+    // a.html should reference a.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g).length, 1);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
+
     let css = await outputFS.readFile(
       path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
-    assert(css.includes('.a'));
-    assert(!css.includes('.b'));
+    assert(css.includes('.a {'));
+    assert(!css.includes('.b {'));
 
     // b.html should point to a CSS bundle containing only b.css
     // It should not point to the bundle containing a.css from a.html
@@ -1174,12 +1183,17 @@ describe('html', function() {
       1,
     );
 
+    // b.html should reference b.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g), null);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g).length, 1);
+
     css = await outputFS.readFile(
       path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
-    assert(!css.includes('.a'));
-    assert(css.includes('.b'));
+    assert(!css.includes('.a {'));
+    assert(css.includes('.b {'));
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
@@ -1211,5 +1225,39 @@ describe('html', function() {
 
     html = await outputFS.readFile('/dist/index.html', 'utf8');
     assert(html.includes('console.log("foo")'));
+  });
+
+  it('should invalidate parent bundle when nested inline bundles change', async function() {
+    // copy into memory fs
+    await ncp(
+      path.join(__dirname, '/integration/html-inline-js-nested'),
+      path.join(__dirname, '/html-inline-js-nested'),
+    );
+
+    let b = await bundler(
+      path.join(__dirname, '/html-inline-js-nested/index.html'),
+      {
+        inputFS: overlayFS,
+        disableCache: false,
+      },
+    );
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(html.includes('module.exports = "hello world"'));
+    assert(html.includes('console.log'));
+
+    await overlayFS.writeFile(
+      path.join(__dirname, '/html-inline-js-nested/test.txt'),
+      'foo bar',
+    );
+    await getNextBuild(b);
+
+    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(!html.includes('module.exports = "hello world"'));
+    assert(html.includes('module.exports = "foo bar"'));
+    assert(html.includes('console.log'));
   });
 });

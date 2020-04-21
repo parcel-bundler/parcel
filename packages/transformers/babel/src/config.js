@@ -26,7 +26,7 @@ export async function load(
 ) {
   // Don't look for a custom babel config if inside node_modules
   if (!config.isSource) {
-    return buildDefaultBabelConfig(config);
+    return buildDefaultBabelConfig(options, config);
   }
 
   // If we are in a monorepo, also find .babelrc configs in the sub packages.
@@ -55,7 +55,9 @@ export async function load(
     babelrcRoots,
     envName:
       options.env.BABEL_ENV ??
+      process.env.BABEL_ENV ??
       options.env.NODE_ENV ??
+      process.env.NODE_ENV ??
       (options.mode === 'production' || options.mode === 'development'
         ? options.mode
         : null) ??
@@ -122,11 +124,11 @@ export async function load(
       config.shouldInvalidateOnStartup();
     }
   } else {
-    await buildDefaultBabelConfig(config);
+    await buildDefaultBabelConfig(options, config);
   }
 }
 
-async function buildDefaultBabelConfig(config: Config) {
+async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
@@ -140,7 +142,10 @@ async function buildDefaultBabelConfig(config: Config) {
     babelTargets = envOptions.targets;
     babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
   }
-  babelOptions = mergeOptions(babelOptions, await getJSXOptions(config));
+  babelOptions = mergeOptions(
+    babelOptions,
+    await getJSXOptions(options, config),
+  );
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>

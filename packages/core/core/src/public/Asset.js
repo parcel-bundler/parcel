@@ -20,7 +20,7 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol,
+  Symbol as ISymbol,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -31,6 +31,8 @@ import UncommittedAsset from '../UncommittedAsset';
 import UncommittedAssetWithGraphNodeId from '../UncommittedAssetWithGraphNodeId';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
+
+const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
 const assetValueToMutableAsset: WeakMap<
@@ -77,6 +79,11 @@ class BaseAsset {
     _assetToAssetValue.set(this, asset.value);
   }
 
+  // $FlowFixMe
+  [inspect]() {
+    return `Asset(${this.filePath})`;
+  }
+
   get id(): string {
     return this.#asset.value.id;
   }
@@ -121,7 +128,7 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): Map<Symbol, Symbol> {
+  get symbols(): Map<ISymbol, ISymbol> {
     return this.#asset.value.symbols;
   }
 
