@@ -119,7 +119,9 @@ export default class MutableBundleGraph extends BundleGraph
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
     for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      this.#graph._graph.removeById(bundle.id);
+      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
+        this.#graph._graph.removeById(bundle.id);
+      }
     }
     this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
   }
