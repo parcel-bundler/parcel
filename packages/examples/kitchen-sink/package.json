@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.html --no-minify --no-scope-hoist --no-cache"
+    "build": "parcel build src/index.html"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.3.1",
@@ -12,12 +12,20 @@
     "@parcel/reporter-sourcemap-visualiser": "^2.0.0-alpha.3.1",
     "parcel": "^2.0.0-alpha.3.2"
   },
+  "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",
   "targets": {
     "browserModern": {
       "engines": {
         "browsers": [
           "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
         ]
       }
     }
