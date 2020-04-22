@@ -7,7 +7,6 @@ import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
-import path from 'path';
 
 export {babelErrorEnhancer};
 
