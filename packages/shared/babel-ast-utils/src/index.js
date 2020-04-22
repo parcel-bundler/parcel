@@ -7,6 +7,7 @@ import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
 import {relativeUrl} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
+import path from 'path';
 
 export {babelErrorEnhancer};
 
@@ -60,6 +61,11 @@ export async function generate({
   if (generated.rawMappings) {
     map = new SourceMap();
     map.addIndexedMappings(generated.rawMappings);
+
+    let originalMap = await asset.getMapBuffer();
+    if (originalMap && map) {
+      map.extends(originalMap);
+    }
   }
 
   return {
