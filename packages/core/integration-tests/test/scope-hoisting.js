@@ -1565,45 +1565,34 @@ describe('scope hoisting', function() {
     it("doesn't support require.resolve calls for included assets", async function() {
       let message =
         "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting";
-      let source = path.normalize(
+      let source = path.join(
+        __dirname,
         '/integration/scope-hoisting/commonjs/require-resolve/a.js',
       );
-      await assert.rejects(
-        () =>
-          bundle(
-            path.join(
-              __dirname,
-              '/integration/scope-hoisting/commonjs/require-resolve/a.js',
-            ),
-          ),
-        {
-          message,
-        },
-        {
-          name: 'BuildError',
-          message,
-          diagnostics: [
-            {
-              message,
-              origin: '@parcel/packager-js',
-              filePath: source,
-              language: 'js',
-              codeFrame: {
-                codeHighlights: {
-                  start: {
-                    line: 3,
-                    column: 11,
-                  },
-                  end: {
-                    line: 3,
-                    column: 11,
-                  },
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 3,
+                  column: 10,
+                },
+                end: {
+                  line: 3,
+                  column: 31,
                 },
               },
             },
-          ],
-        },
-      );
+          },
+        ],
+      });
     });
 
     it('supports require.resolve calls for excluded modules', async function() {

@@ -297,7 +297,13 @@ export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
   let {filename, start, end} = loc;
   return {
     filePath: filename,
-    start,
-    end,
+    start: {
+      line: start.line,
+      column: start.column,
+    },
+    end: {
+      line: end.line,
+      column: end.column,
+    },
   };
 }

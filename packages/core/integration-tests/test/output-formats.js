@@ -367,19 +367,35 @@ describe('output formats', function() {
     });
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
-      await assert.rejects(
-        () =>
-          bundle(
-            path.join(
-              __dirname,
-              '/integration/formats/commonjs-sideeffects/missing-export.js',
-            ),
-          ),
-        {
-          name: 'BuildError',
-          message: path.normalize("other.js does not export 'a'"),
-        },
+      let message = "other.js does not export 'a'";
+      let source = path.join(
+        __dirname,
+        '/integration/formats/commonjs-sideeffects/missing-export.js',
       );
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 10,
+                },
+                end: {
+                  line: 1,
+                  column: 15,
+                },
+              },
+            },
+          },
+        ],
+      });
     });
 
     it('should support commonjs input', async function() {
@@ -583,19 +599,35 @@ describe('output formats', function() {
     });
 
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
-      await assert.rejects(
-        () =>
-          bundle(
-            path.join(
-              __dirname,
-              '/integration/formats/esm-sideeffects/missing-export.js',
-            ),
-          ),
-        {
-          name: 'BuildError',
-          message: path.normalize("b.js does not export 'a'"),
-        },
+      let message = "b.js does not export 'a'";
+      let source = path.join(
+        __dirname,
+        '/integration/formats/esm-sideeffects/missing-export.js',
       );
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 10,
+                },
+                end: {
+                  line: 1,
+                  column: 15,
+                },
+              },
+            },
+          },
+        ],
+      });
     });
 
     it('should support async split bundles', async function() {
