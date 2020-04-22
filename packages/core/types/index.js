@@ -597,7 +597,7 @@ export type CreateBundleOpts =
 export type SymbolResolution = {|
   +asset: Asset,
   +exportSymbol: Symbol | string,
-  +symbol: void | Symbol,
+  +symbol: void | null | Symbol,
   // the location of the specifier that lead to this result
   +loc: ?SourceLocation,
 |};
