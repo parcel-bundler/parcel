@@ -12,7 +12,7 @@ import Cache from '@parcel/cache';
 import {NodePackageManager} from '@parcel/package-manager';
 
 // Default cache directory name
-const DEFAULT_CACHE_DIRNAME = '.parcel-cache22';
+const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 // Generate a unique instanceId, will change on every run of parcel
