@@ -62,7 +62,7 @@ export async function generate({
     map.addIndexedMappings(generated.rawMappings);
 
     let originalMap = await asset.getMapBuffer();
-    if (originalMap && map) {
+    if (originalMap) {
       map.extends(originalMap);
     }
   }
