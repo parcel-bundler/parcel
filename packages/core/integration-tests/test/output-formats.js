@@ -962,6 +962,39 @@ describe('output formats', function() {
         lines[lines.length - 2].startsWith('export default'),
       );
     });
+
+    it("doesn't support require.resolve calls for excluded assets without commonjs", async function() {
+      let message =
+        "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'";
+      let source = path.join(
+        __dirname,
+        '/integration/formats/commonjs-esm/require-resolve.js',
+      );
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 16,
+                },
+                end: {
+                  line: 1,
+                  column: 40,
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
   });
 
   describe('global', function() {
@@ -971,6 +1004,42 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/global-split-worker/index.html',
         ),
+      );
+    });
+
+    it('should throw with external modules', async function() {
+      let message =
+        'External modules are not supported when building for browser';
+      let source = 'index.js';
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(__dirname, 'integration/formats/global-external', source),
+          ),
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: {
+                  start: {
+                    line: 1,
+                    column: 1,
+                  },
+                  end: {
+                    line: 1,
+                    column: 29,
+                  },
+                },
+              },
+            },
+          ],
+        },
       );
     });
   });

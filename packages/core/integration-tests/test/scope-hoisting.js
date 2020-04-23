@@ -342,6 +342,41 @@ describe('scope hoisting', function() {
       });
     });
 
+    it('throws when reexporting a missing symbol', async function() {
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/a.js',
+      );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/c.js',
+      )} does not export 'foo'`;
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: path.normalize(
+              'integration/scope-hoisting/es6/re-export-missing/b.js',
+            ),
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 9,
+                },
+                end: {
+                  line: 1,
+                  column: 11,
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
+
     it('supports multiple exports of the same variable', async function() {
       let b = await bundle(
         path.join(
