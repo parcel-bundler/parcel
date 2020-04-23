@@ -176,7 +176,9 @@ export default class TargetResolver {
             // For serve, write the `dist` to inside the parcel cache, which is
             // temporary, likely in a .gitignore or similar, but still readily
             // available for introspection by the user if necessary.
-            distDir: path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
+            distDir:
+              this.options.distDir ??
+              path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
             publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',

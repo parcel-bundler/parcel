@@ -111,6 +111,7 @@ let watch = program
   .option(
     '--dist-dir <dir>',
     'output directory to write to when unspecified by targets',
+    'dist',
   )
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
@@ -284,7 +285,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     }
   }
 
-  if (command.name() === 'serve') {
+  if (command.name() === 'serve' || command.name() === 'watch') {
     let {publicUrl} = command;
 
     serve = {
