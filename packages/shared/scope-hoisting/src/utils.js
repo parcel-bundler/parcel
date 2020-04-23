@@ -26,6 +26,7 @@ import * as t from '@babel/types';
 import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -270,7 +271,7 @@ export function getThrowableDiagnosticForNode(
   };
 
   if (filePath) {
-    diagnostic.filePath = filePath;
+    diagnostic.filePath = path.normalize(filePath);
   }
   if (loc) {
     diagnostic.codeFrame = {
@@ -296,7 +297,7 @@ export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
 
   let {filename, start, end} = loc;
   return {
-    filePath: filename,
+    filePath: path.normalize(filename),
     start: {
       line: start.line,
       column: start.column,
