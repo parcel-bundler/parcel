@@ -33,7 +33,6 @@ export default class TargetRequestRunner extends RequestRunner<
   }
 
   run(request: Entry) {
-    debugger;
     return this.targetResolver.resolve(request.packagePath);
   }
 
