@@ -65,6 +65,7 @@ export default class TargetResolver {
   ): Promise<TargetResolveResult> {
     let optionTargets = this.options.targets;
 
+    let packageTargets = await this.resolvePackageTargets(rootDir);
     let targets: Array<Target>;
     let files: Array<File> = [];
     if (optionTargets) {
@@ -80,7 +81,6 @@ export default class TargetResolver {
 
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
@@ -176,9 +176,16 @@ export default class TargetResolver {
             // For serve, write the `dist` to inside the parcel cache, which is
             // temporary, likely in a .gitignore or similar, but still readily
             // available for introspection by the user if necessary.
+            // unless there are no package targets in which case we write to the ./dist consistent with watch
+            // @see https://github.com/parcel-bundler/parcel/issues/4518
             distDir:
               this.options.distDir ??
-              path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
+              path.resolve(
+                packageTargets.targets.size == 0
+                  ? this.fs.cwd()
+                  : this.options.cacheDir,
+                DEFAULT_DIST_DIRNAME,
+              ),
             publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
@@ -191,7 +198,6 @@ export default class TargetResolver {
           },
         ];
       } else {
-        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = Array.from(packageTargets.targets.values());
         files = packageTargets.files;
       }
