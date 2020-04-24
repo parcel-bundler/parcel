@@ -29,7 +29,7 @@ async function getSourcemapSizes(
   filePath: FilePath,
   fs: FileSystem,
   projectRoot: FilePath,
-) {
+): Promise<?Map<string, number>> {
   let bundleContents = await fs.readFile(filePath, 'utf-8');
   let mapUrlData = await loadSourceMapUrl(fs, filePath, bundleContents);
   if (!mapUrlData) {
@@ -48,7 +48,7 @@ async function getSourcemapSizes(
     let currMappingIndex = 0;
     let currMapping = parsedMapData.mappings[currMappingIndex];
     let nextMapping = parsedMapData.mappings[currMappingIndex + 1];
-    let sourceContents = new Array(sources.length).fill('');
+    let sourceSizes = new Array(sources.length).fill(0);
     for (let i = 0; i < bundleContents.length; i++) {
       // Update currMapping to be the next mapping with a source
       while (
@@ -72,7 +72,8 @@ async function getSourcemapSizes(
           (nextMapping.generated.line === currLine &&
             nextMapping.generated.column > currColumn))
       ) {
-        sourceContents[currMapping.source] += c;
+        // $FlowFixMe flow got confused
+        sourceSizes[currMapping.source] += Buffer.byteLength(c, 'utf8');
       }
 
       if (c === '\n') {
@@ -83,12 +84,12 @@ async function getSourcemapSizes(
       }
     }
 
-    return sourceContents.map((content, i) => {
-      return {
-        filePath: sources[i],
-        size: Buffer.byteLength(content, 'utf8'),
-      };
-    });
+    let sizeMap = new Map();
+    for (let i = 0; i < sourceSizes.length; i++) {
+      sizeMap.set(sources[i], sourceSizes[i]);
+    }
+
+    return sizeMap;
   }
 }
 
@@ -116,13 +117,11 @@ async function createBundleStats(
       }
     })
     .map(asset => {
-      let foundSize =
-        sourcemapSizes &&
-        sourcemapSizes.find(s => s.filePath === asset.filePath);
+      let foundSize = sourcemapSizes && sourcemapSizes.get(asset.filePath);
 
       return {
         filePath: asset.filePath,
-        size: foundSize ? foundSize.size : asset.stats.size,
+        size: foundSize ? foundSize : asset.stats.size,
         originalSize: asset.stats.size,
         time: asset.stats.time,
       };
