@@ -578,13 +578,13 @@ function assignComplexNameHashes(
 
     // we want stable names with Hot Module Reloading
     // we want names based on content during production for cacheability
-    let name = options.hot
-      ? includedBundles[0].slice(-8)
-      : md5FromString(
+    let name = options.contentHash
+      ? md5FromString(
           includedBundles
             .map(bundleId => bundleInfoMap[bundleId].hash)
             .join(':'),
-        ).slice(-8);
+        ).slice(-8)
+      : includedBundles[0].slice(-8);
 
     hashRefToNameHash.set(bundle.hashReference, name);
   }

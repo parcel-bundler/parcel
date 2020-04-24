@@ -146,6 +146,7 @@ export type ParcelOptions = {|
   publicUrl: string,
   distDir: ?FilePath,
   hot: ?HMROptions,
+  contentHash: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
