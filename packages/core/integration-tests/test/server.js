@@ -258,6 +258,7 @@ describe('server', function() {
         port: port,
         host: 'localhost',
       },
+      distDir,
     });
 
     subscription = await b.watch();
@@ -282,6 +283,7 @@ describe('server', function() {
         port: port,
         host: 'localhost',
       },
+      distDir,
     });
 
     subscription = await b.watch();
