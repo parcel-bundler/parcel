@@ -42,7 +42,10 @@ export function hasBinding(node: Node | Array<Node>, name: string) {
 }
 
 // replace object properties
-export function morph(object: any, newProperties: any) {
+export function morph(
+  object: $Shape<{|[string]: mixed|}>,
+  newProperties: $Shape<{|[string]: mixed|}>,
+) {
   for (let key in object) {
     delete object[key];
   }
