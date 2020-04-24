@@ -10658,6 +10658,11 @@ posthtml-render@^1.1.3, posthtml-render@^1.1.5:
   resolved "https://registry.yarnpkg.com/posthtml-render/-/posthtml-render-1.1.5.tgz#387934e85438a3de77085fbc7d264efb00bd0e0f"
   integrity sha512-yvt54j0zCBHQVEFAuR+yHld8CZrCa/E1Z/OcFNCV1IEWTLVxT8O7nYnM4IIw1CD4r8kaRd3lc42+0lgCKgm87w==
 
+posthtml-render@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/posthtml-render/-/posthtml-render-1.2.2.tgz#f554a19ed40d40e2bfc160826b0a91d4a23656cd"
+  integrity sha512-MbIXTWwAfJ9qET6Zl29UNwJcDJEEz9Zkr5oDhiujitJa7YBJwEpbkX2cmuklCDxubTMoRWpid3q8DrSyGnUUzQ==
+
 posthtml@^0.11.2, posthtml@^0.11.3:
   version "0.11.6"
   resolved "https://registry.yarnpkg.com/posthtml/-/posthtml-0.11.6.tgz#e349d51af7929d0683b9d8c3abd8166beecc90a8"
@@ -10673,6 +10678,14 @@ posthtml@^0.12.0:
   dependencies:
     posthtml-parser "^0.4.1"
     posthtml-render "^1.1.5"
+
+posthtml@^0.12.3:
+  version "0.12.3"
+  resolved "https://registry.yarnpkg.com/posthtml/-/posthtml-0.12.3.tgz#8fa5b903907e9c10ba5b883863cc550189a309d5"
+  integrity sha512-Fbpi95+JJyR0tqU7pUy1zTSQFjAsluuwB9pJ1h0jtnGk7n/O2TBtP5nDl9rV0JVACjQ1Lm5wSp4ppChr8u3MhA==
+  dependencies:
+    posthtml-parser "^0.4.2"
+    posthtml-render "^1.2.2"
 
 prebuild-install@^5.2.5:
   version "5.3.3"

@@ -148,7 +148,13 @@ export default class BundleGraph implements IBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .sort(
+        (a, b) =>
+          bundleGroup.bundleIds.indexOf(a.id) -
+          bundleGroup.bundleIds.indexOf(b.id),
+      )
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
+      .reverse();
   }
 
   getBundles(): Array<IBundle> {
