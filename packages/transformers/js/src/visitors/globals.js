@@ -4,7 +4,7 @@ import type {MutableAsset} from '@parcel/types';
 
 import Path from 'path';
 import * as types from '@babel/types';
-import {hasBinding} from './utils';
+import {isInFalsyBranch, hasBinding} from './utils';
 
 export type GlobalsMap = Map<
   string,
@@ -52,7 +52,8 @@ export default {
       !context.globals.has(node.name) &&
       types.isReferenced(node, parent) &&
       !types.isModuleSpecifier(parent) &&
-      !hasBinding(ancestors, node.name)
+      !hasBinding(ancestors, node.name) &&
+      !isInFalsyBranch(ancestors)
     ) {
       context.globals.set(node.name, VARS[node.name](context.asset));
     }
