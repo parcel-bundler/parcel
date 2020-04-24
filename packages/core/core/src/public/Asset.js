@@ -20,14 +20,15 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol as ISymbol,
-  SourceLocation,
+  MutableSymbols as IMutableSymbols,
+  Symbols as ISymbols,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
+import {Symbols, MutableSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
@@ -128,12 +129,8 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): $ReadOnlyMap<ISymbol, ISymbol> {
-    return this.#asset.value.symbols;
-  }
-
-  get symbolsLocs(): $ReadOnlyMap<ISymbol, SourceLocation> {
-    return this.#asset.value.symbolsLocs;
+  get symbols(): ISymbols {
+    return new Symbols(this.#asset.value.symbols);
   }
 
   get uniqueKey(): ?string {
@@ -261,24 +258,16 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.value.isSplittable = isSplittable;
   }
 
+  get symbols(): IMutableSymbols {
+    return new MutableSymbols(this.#asset.value.symbols);
+  }
+
   addDependency(dep: DependencyOptions): string {
     return this.#asset.addDependency(dep);
   }
 
   addIncludedFile(file: File): void {
     this.#asset.addIncludedFile(file);
-  }
-
-  setSymbol(exportSymbol: ISymbol, symbol: ISymbol, loc: ?SourceLocation) {
-    this.#asset.value.symbols.set(exportSymbol, symbol);
-    if (loc) {
-      this.#asset.value.symbolsLocs.set(exportSymbol, loc);
-    }
-  }
-
-  clearSymbols() {
-    this.#asset.value.symbols.clear();
-    this.#asset.value.symbolsLocs.clear();
   }
 
   isASTDirty(): boolean {

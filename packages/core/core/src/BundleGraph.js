@@ -739,13 +739,13 @@ export default class BundleGraph {
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
-    let identifier = asset.symbols.get(symbol);
+    let identifier = asset.symbols.get(symbol)?.local;
     if (symbol === '*') {
       return {
         asset,
         exportSymbol: '*',
         symbol: identifier,
-        loc: asset.symbolsLocs.get(symbol),
+        loc: asset.symbols.get(symbol)?.loc,
       };
     }
 
@@ -753,7 +753,7 @@ export default class BundleGraph {
     for (let dep of deps) {
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
-        [...dep.symbols].map(([key, val]) => [val, key]),
+        [...dep.symbols].map(([key, val]) => [val.local, key]),
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
@@ -777,7 +777,7 @@ export default class BundleGraph {
 
         if (!loc) {
           // the recursive call didn't actually do anything
-          loc = asset.symbolsLocs.get(symbol);
+          loc = asset.symbols.get(symbol)?.loc;
         }
 
         // If it didn't resolve to anything (likely CommonJS), pass through where we got to
@@ -801,7 +801,7 @@ export default class BundleGraph {
 
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
-      if (dep.symbols.get('*') === '*' && symbol !== 'default') {
+      if (dep.symbols.get('*')?.local === '*' && symbol !== 'default') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
@@ -815,7 +815,7 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: symbol,
-            loc: resolved.symbolsLocs.get(symbol),
+            loc: resolved.symbols.get(symbol)?.loc,
           };
         }
       }
@@ -825,7 +825,7 @@ export default class BundleGraph {
       asset,
       exportSymbol: symbol,
       symbol: identifier,
-      loc: asset.symbolsLocs.get(symbol),
+      loc: asset.symbols.get(symbol)?.loc,
     };
   }
 
@@ -838,7 +838,7 @@ export default class BundleGraph {
 
     let deps = this.getDependencies(asset);
     for (let dep of deps) {
-      if (dep.symbols.get('*') === '*') {
+      if (dep.symbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved).filter(

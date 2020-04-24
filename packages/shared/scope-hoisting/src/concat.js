@@ -217,8 +217,8 @@ function getUsedExports(
         continue;
       }
 
-      for (let [symbol, identifier] of dep.symbols) {
-        if (identifier === '*') {
+      for (let [symbol, {local}] of dep.symbols.getAll()) {
+        if (local === '*') {
           continue;
         }
 
@@ -274,7 +274,7 @@ function shouldExcludeAsset(
       nullthrows(usedExports.get(asset.id)).size === 0) &&
     !bundleGraph.getIncomingDependencies(asset).find(d =>
       // Don't exclude assets that was imported as a wildcard
-      d.symbols.has('*'),
+      d.symbols.hasExportSymbol('*'),
     )
   );
 }
