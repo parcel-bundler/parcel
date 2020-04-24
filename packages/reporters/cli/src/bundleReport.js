@@ -23,7 +23,11 @@ export default async function bundleReport(
   projectRoot: FilePath,
 ) {
   // Get a list of bundles sorted by size
-  let {bundles} = await generateBuildMetrics(bundleGraph, fs, projectRoot);
+  let {bundles} = await generateBuildMetrics(
+    bundleGraph.getBundles(),
+    fs,
+    projectRoot,
+  );
   let rows = [];
 
   for (let bundle of bundles) {

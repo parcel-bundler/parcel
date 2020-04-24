@@ -49,7 +49,7 @@ export default new Reporter({
       case 'buildSuccess':
         if (LOG_LEVELS[logLevelFilter] >= LOG_LEVELS.success) {
           let {bundles} = await generateBuildMetrics(
-            event.bundleGraph,
+            event.bundleGraph.getBundles(),
             options.outputFS,
             options.projectRoot,
           );

@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, BundleGraph, Bundle, FilePath} from '@parcel/types';
+import type {Asset, Bundle, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
@@ -136,14 +136,11 @@ async function createBundleStats(
 }
 
 export default async function generateBuildMetrics(
-  bundleGraph: BundleGraph,
+  bundles: Array<Bundle>,
   fs: FileSystem,
   projectRoot: FilePath,
 ): Promise<BuildMetrics> {
-  let bundles = bundleGraph
-    .getBundles()
-    .sort((a, b) => b.stats.size - a.stats.size)
-    .filter(b => !!b.filePath);
+  bundles.sort((a, b) => b.stats.size - a.stats.size).filter(b => !!b.filePath);
 
   return {
     bundles: (

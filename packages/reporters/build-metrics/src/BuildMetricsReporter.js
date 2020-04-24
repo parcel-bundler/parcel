@@ -44,7 +44,7 @@ export default new Reporter({
       );
 
       let {bundles} = await generateBuildMetrics(
-        event.bundleGraph,
+        event.bundleGraph.getBundles(),
         options.outputFS,
         options.projectRoot,
       );
