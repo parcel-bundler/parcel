@@ -114,13 +114,8 @@ export default class Server extends EventEmitter {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
       return this.sendIndex(req, res);
-    } else if (
-      pathname.startsWith(SOURCES_ENDPOINT) ||
-      this.getFilePathFromBundleGraph(pathname)
-    ) {
-      if (pathname.startsWith(SOURCES_ENDPOINT)) {
-        req.url = pathname.slice(SOURCES_ENDPOINT.length);
-      }
+    } else if (pathname.startsWith(SOURCES_ENDPOINT)) {
+      req.url = pathname.slice(SOURCES_ENDPOINT.length);
       return this.serve(
         this.options.inputFS,
         this.options.projectRoot,
@@ -185,21 +180,6 @@ export default class Server extends EventEmitter {
     );
   }
 
-  getFilePathFromBundleGraph(name: string) {
-    if (name.startsWith('/')) {
-      name = name.slice(1);
-    }
-
-    if (this.bundleGraph) {
-      for (let bundle of this.bundleGraph.getBundles()) {
-        if (bundle.name === name) {
-          return bundle.filePath;
-        }
-      }
-    }
-    return null;
-  }
-
   async serve(
     fs: FileSystem,
     root: FilePath,
@@ -223,9 +203,7 @@ export default class Server extends EventEmitter {
       return this.sendError(res, 400);
     }
 
-    filePath =
-      this.getFilePathFromBundleGraph(filePath) ||
-      path.normalize('.' + path.sep + filePath);
+    filePath = path.normalize('.' + path.sep + filePath);
 
     // malicious path
     if (filePath.includes(path.sep + '..' + path.sep)) {
