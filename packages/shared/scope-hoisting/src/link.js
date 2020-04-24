@@ -212,6 +212,10 @@ export function link({
         );
         let parent;
         if (binding) {
+          invariant(
+            binding.path.getStatementParent().parentPath.isProgram(),
+            "Expected binding declaration's parent to be the program",
+          );
           parent = path.findParent(p => t.isProgram(p.parent));
         }
 
