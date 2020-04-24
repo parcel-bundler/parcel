@@ -60,6 +60,11 @@ export async function generate({
   if (generated.rawMappings) {
     map = new SourceMap();
     map.addIndexedMappings(generated.rawMappings);
+
+    let originalMap = await asset.getMapBuffer();
+    if (originalMap) {
+      map.extends(originalMap);
+    }
   }
 
   return {
