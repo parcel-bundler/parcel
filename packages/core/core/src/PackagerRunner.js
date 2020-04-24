@@ -460,7 +460,11 @@ export default class PackagerRunner {
     };
 
     let mapKey = cacheKeys.map;
-    if (await this.options.cache.blobExists(mapKey)) {
+    let o = bundle.target.sourceMap ?? this.options.sourceMaps;
+    if (
+      (typeof o === 'object' ? !o.inline : o) &&
+      (await this.options.cache.blobExists(mapKey))
+    ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
         outputFS,
