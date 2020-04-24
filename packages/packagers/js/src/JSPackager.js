@@ -206,7 +206,9 @@ function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
   if (bundle.env.isWorker()) {
     let bundles = bundleGraph.getSiblingBundles(bundle);
     for (let b of bundles) {
-      importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+      if (b.type === 'js') {
+        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+      }
     }
   }
 
