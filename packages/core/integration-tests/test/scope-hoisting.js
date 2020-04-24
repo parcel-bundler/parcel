@@ -891,6 +891,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('should insert esModule flag for interop for async (or shared) bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/interop-async/index.html',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['client', 'client', 'viewer']);
+    });
+
     it('should support the jsx pragma', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js'),

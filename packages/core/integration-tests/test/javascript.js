@@ -1143,6 +1143,21 @@ describe('javascript', function() {
     assert.deepEqual(output, 1234);
   });
 
+  it('should not insert global variables in dead branches', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-unused/a.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, 'foo');
+  });
+
   it('should handle re-declaration of the global constant', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-redeclare/index.js'),
