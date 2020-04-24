@@ -5,6 +5,7 @@ import SourceMap from '@parcel/source-map';
 import {
   bundle,
   assertBundleTree,
+  distDir,
   inputFS,
   outputFS,
   shallowEqual,
@@ -876,6 +877,20 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
     assert.equal(map.file, 'index.js.map');
     assert.deepEqual(map.sources, ['index.js']);
+  });
+
+  it('should respect --no-source-maps', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap/index.js'),
+      {
+        sourceMaps: false,
+      },
+    );
+
+    assert.deepStrictEqual(
+      await outputFS.readdir(path.dirname(b.getBundles()[0].filePath)),
+      ['index.js'],
+    );
   });
 
   it.skip('should load existing sourcemaps for CSS files', async function() {
