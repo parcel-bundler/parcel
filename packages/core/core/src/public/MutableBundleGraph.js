@@ -78,6 +78,7 @@ export default class MutableBundleGraph extends BundleGraph
     let bundleGroup: BundleGroup = {
       target,
       entryAssetId: resolved.id,
+      bundleIds: [],
     };
 
     let bundleGroupNode = {
@@ -119,7 +120,9 @@ export default class MutableBundleGraph extends BundleGraph
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
     for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      this.#graph._graph.removeById(bundle.id);
+      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
+        this.#graph._graph.removeById(bundle.id);
+      }
     }
     this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
   }
@@ -174,6 +177,7 @@ export default class MutableBundleGraph extends BundleGraph
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
+    bundleGroup.bundleIds.push(bundle.id);
     let bundleGroupId = getBundleGroupId(bundleGroup);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
@@ -235,7 +239,13 @@ export default class MutableBundleGraph extends BundleGraph
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .sort(
+        (a, b) =>
+          bundleGroup.bundleIds.indexOf(a.id) -
+          bundleGroup.bundleIds.indexOf(b.id),
+      )
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
+      .reverse();
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
