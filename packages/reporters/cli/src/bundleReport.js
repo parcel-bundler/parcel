@@ -24,7 +24,7 @@ export default async function bundleReport(
 ) {
   // Get a list of bundles sorted by size
   let {bundles} = await generateBuildMetrics(
-    bundleGraph.getBundles(),
+    bundleGraph.getBundles().filter(b => !b.isInline),
     fs,
     projectRoot,
   );
