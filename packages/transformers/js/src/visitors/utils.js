@@ -11,6 +11,8 @@ import {
   isIfStatement,
   isProgram,
   isVariableDeclaration,
+  isUnaryExpression,
+  isBinaryExpression,
 } from '@babel/types';
 
 import * as types from '@babel/types';
@@ -68,6 +70,40 @@ export function isInFalsyBranch(ancestors: Array<Node>) {
       }
     }
   });
+}
+
+export function deleteClosestFalsyBranch(ancestors: Array<Node>) {
+  const testNode = ancestors[ancestors.length - 1];
+  let conditionNode = [...ancestors]
+    .reverse()
+    .find(node => isIfStatement(node) || isConditionalExpression(node));
+  if (conditionNode) {
+    const isClosestTestNode = conditionNode.test === testNode;
+    const isClosestUnaryExpression =
+      isUnaryExpression(conditionNode.test) &&
+      conditionNode.test.argument === testNode;
+    const isClosestBinaryExpression =
+      isBinaryExpression(conditionNode.test) &&
+      (conditionNode.test.left === testNode ||
+        conditionNode.test.right === testNode);
+
+    if (
+      isClosestTestNode ||
+      isClosestUnaryExpression ||
+      isClosestBinaryExpression
+    ) {
+      const res = evaluateExpression(conditionNode.test);
+      if (res && res.confident) {
+        const index = ancestors.indexOf(conditionNode);
+        ancestors[index] = conditionNode.alternate;
+        if (res.value) {
+          Object.assign(conditionNode, conditionNode.consequent);
+        } else {
+          Object.assign(conditionNode, conditionNode.alternate);
+        }
+      }
+    }
+  }
 }
 
 function evaluateExpression(node: Expression) {

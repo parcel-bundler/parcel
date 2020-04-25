@@ -1333,6 +1333,36 @@ describe('javascript', function() {
     process.browser = undefined;
   });
 
+  it('should delete falsy branches for replaced variables', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dead-branch-elimination/index.js'),
+    );
+
+    let output = await run(b);
+    assert.equal(
+      output(),
+      'truthy:truthy:truthy:truthy:truthy:truthy:truthy:truthy:truthy',
+    );
+    assert.ok(output.toString().indexOf('falsy') === -1);
+  });
+
+  it('should not include assets from falsy branch', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/dead-branch-elimination/deps.js`),
+      {
+        scopeHoist: true,
+      },
+    );
+
+    let output = await run(b);
+    assertBundles(b, [
+      {
+        assets: ['deps.js'],
+      },
+    ]);
+    assert.equal(output(), 'foo');
+  });
+
   it.skip('should support adding implicit dependencies', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'), {
       delegate: {

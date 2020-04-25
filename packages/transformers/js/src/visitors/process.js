@@ -1,8 +1,9 @@
 import * as types from '@babel/types';
-import {morph} from './utils';
+import {morph, deleteClosestFalsyBranch} from './utils';
 
 export default {
   MemberExpression(node, {asset, ast, env, isBrowser, isNode}, ancestors) {
+    // ancestors.splice(ancestors.length -1, 1)
     // Inline environment variables accessed on process.env
     if (!isNode && types.matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
@@ -13,6 +14,7 @@ export default {
         if (typeof prop !== 'function') {
           let value = types.valueToNode(prop);
           morph(node, value);
+          deleteClosestFalsyBranch(ancestors);
           asset.setAST(ast);
           // asset.meta.env[key.value] = process.env[key.value];
         }
@@ -30,6 +32,8 @@ export default {
       } else {
         morph(node, types.booleanLiteral(true));
       }
+      deleteClosestFalsyBranch(ancestors);
+      asset.setAST(ast);
     }
   },
 };
