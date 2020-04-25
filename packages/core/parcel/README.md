@@ -59,7 +59,7 @@ Now if you just run:
 yarn parcel index.html
 ```
 
-You should get a URL that looks something like: `http://localhost:1234/`
+You should get a URL that looks something like: `http://localhost:1234/`.
 
 Next you can start adding dependencies by specifying them in your code (however
 your language specifies other assets). So for HTML we could create a
