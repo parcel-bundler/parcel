@@ -3,7 +3,6 @@ import {morph, deleteClosestFalsyBranch} from './utils';
 
 export default {
   MemberExpression(node, {asset, ast, env, isBrowser, isNode}, ancestors) {
-    // ancestors.splice(ancestors.length -1, 1)
     // Inline environment variables accessed on process.env
     if (!isNode && types.matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
