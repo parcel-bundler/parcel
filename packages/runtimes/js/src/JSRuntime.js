@@ -134,11 +134,11 @@ export default new Runtime({
 
       let bundleGroup = resolved.value;
       let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+      let mainBundle = bundlesInGroup[bundlesInGroup.length - 1];
 
-      let [firstBundle] = bundlesInGroup;
-      if (firstBundle.isInline) {
+      if (mainBundle.isInline) {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
+          filePath: path.join(__dirname, `/bundles/${mainBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
         });
@@ -146,7 +146,7 @@ export default new Runtime({
       }
 
       // URL dependency or not, fall back to including a runtime that exports the url
-      assets.push(getURLRuntime(dependency, bundle, firstBundle));
+      assets.push(getURLRuntime(dependency, bundle, mainBundle));
     }
 
     if (
