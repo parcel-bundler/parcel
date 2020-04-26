@@ -1,3 +1,5 @@
+/* globals document:readonly */
+
 var bundleURL = null;
 function getBundleURLCached() {
   if (!bundleURL) {
@@ -9,6 +11,10 @@ function getBundleURLCached() {
 
 function getBundleURL() {
   // Attempt to find the URL of the current script and use that as the base URL
+  if ('currentScript' in document) {
+    return getBaseURL(document.currentScript.src);
+  }
+
   try {
     throw new Error();
   } catch (err) {
