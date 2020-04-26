@@ -9,142 +9,153 @@ import {
 import getPort from 'get-port';
 import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
-import {MessageChannel} from 'worker_threads';
 
-describe('react-refresh', function() {
-  describe('synchronous', () => {
-    const testDir = path.join(__dirname, '/integration/react-refresh');
+let MessageChannel;
+try {
+  ({MessageChannel} = require('worker_threads'));
+} catch (_) {
+  // eslint-disable-next-line no-console
+  console.log(
+    'Skipping React Fast Refresh tests because they require worker_threads',
+  );
+}
 
-    let b,
-      root,
-      window,
-      subscription,
-      randoms = {};
+if (MessageChannel) {
+  describe('react-refresh', function() {
+    describe('synchronous', () => {
+      const testDir = path.join(__dirname, '/integration/react-refresh');
 
-    beforeEach(async () => {
-      ({b, root, window, subscription, randoms} = await setup(
-        path.join(testDir, 'index.html'),
-      ));
+      let b,
+        root,
+        window,
+        subscription,
+        randoms = {};
+
+      beforeEach(async () => {
+        ({b, root, window, subscription, randoms} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
+
+      it('retains state in functional components', async function() {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.1.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'OtherFunctional');
+      });
+
+      it('supports changing hooks in functional components', async function() {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.2-hooks.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [
+          ,
+          indexNum,
+          appNum,
+          fooText,
+          fooNum,
+          fooNum2,
+        ] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.notEqual(randoms.fooNum, fooNum);
+        assert(fooNum2);
+        assert.equal(fooText, 'Hooks');
+      });
+
+      it('retains state in parent components when swapping function and class component', async function() {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.3-class.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.notEqual(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'Class');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
     });
 
-    it('retains state in functional components', async function() {
-      await fs.mkdirp(testDir);
-      await fs.copyFile(
-        path.join(testDir, 'Foo.1.js'),
-        path.join(testDir, 'Foo.js'),
+    describe('lazy child component', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-lazy-child',
       );
-      assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
-      // Wait for the hmr-runtime to process the event
-      await new Promise(res => setTimeout(res, 100));
+      let b,
+        root,
+        window,
+        subscription,
+        randoms = {};
 
-      let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-        /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-      );
-      assert.equal(randoms.indexNum, indexNum);
-      assert.equal(randoms.appNum, appNum);
-      assert.equal(randoms.fooNum, fooNum);
-      assert.equal(fooText, 'OtherFunctional');
-    });
+      beforeEach(async () => {
+        ({b, root, window, subscription, randoms} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
 
-    it('supports changing hooks in functional components', async function() {
-      await fs.mkdirp(testDir);
-      await fs.copyFile(
-        path.join(testDir, 'Foo.2-hooks.js'),
-        path.join(testDir, 'Foo.js'),
-      );
-      assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+      it('retains state in async components on change', async function() {
+        assert.equal(randoms.fooText, 'Async');
 
-      // Wait for the hmr-runtime to process the event
-      await new Promise(res => setTimeout(res, 100));
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Async.1.js'),
+          path.join(testDir, 'Async.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
-      let [
-        ,
-        indexNum,
-        appNum,
-        fooText,
-        fooNum,
-        fooNum2,
-      ] = root.textContent.match(
-        /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
-      );
-      assert.equal(randoms.indexNum, indexNum);
-      assert.equal(randoms.appNum, appNum);
-      assert.notEqual(randoms.fooNum, fooNum);
-      assert(fooNum2);
-      assert.equal(fooText, 'Hooks');
-    });
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
 
-    it('retains state in parent components when swapping function and class component', async function() {
-      await fs.mkdirp(testDir);
-      await fs.copyFile(
-        path.join(testDir, 'Foo.3-class.js'),
-        path.join(testDir, 'Foo.js'),
-      );
-      assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'OtherAsync');
+      });
 
-      // Wait for the hmr-runtime to process the event
-      await new Promise(res => setTimeout(res, 100));
-
-      let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-        /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-      );
-      assert.equal(randoms.indexNum, indexNum);
-      assert.equal(randoms.appNum, appNum);
-      assert.notEqual(randoms.fooNum, fooNum);
-      assert.equal(fooText, 'Class');
-    });
-
-    afterEach(async () => {
-      await cleanup({subscription, window});
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
     });
   });
-
-  describe('lazy child component', () => {
-    const testDir = path.join(
-      __dirname,
-      '/integration/react-refresh-lazy-child',
-    );
-
-    let b,
-      root,
-      window,
-      subscription,
-      randoms = {};
-
-    beforeEach(async () => {
-      ({b, root, window, subscription, randoms} = await setup(
-        path.join(testDir, 'index.html'),
-      ));
-    });
-
-    it('retains state in async components on change', async function() {
-      assert.equal(randoms.fooText, 'Async');
-
-      await fs.mkdirp(testDir);
-      await fs.copyFile(
-        path.join(testDir, 'Async.1.js'),
-        path.join(testDir, 'Async.js'),
-      );
-      assert.equal((await getNextBuild(b)).type, 'buildSuccess');
-
-      // Wait for the hmr-runtime to process the event
-      await new Promise(res => setTimeout(res, 100));
-
-      let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-        /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-      );
-      assert.equal(randoms.indexNum, indexNum);
-      assert.equal(randoms.appNum, appNum);
-      assert.equal(randoms.fooNum, fooNum);
-      assert.equal(fooText, 'OtherAsync');
-    });
-
-    afterEach(async () => {
-      await cleanup({subscription, window});
-    });
-  });
-});
+}
 
 async function setup(entry) {
   let port = await getPort(),
@@ -198,6 +209,7 @@ async function setup(entry) {
   );
   // ReactDOM.render
   await window.parcelRequire(bundle.getMainEntry().id).default();
+  await new Promise(res => setTimeout(res, 100));
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
     /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
