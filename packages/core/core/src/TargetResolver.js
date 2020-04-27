@@ -173,19 +173,7 @@ export default class TargetResolver {
         targets = [
           {
             name: 'default',
-            // For serve, write the `dist` to inside the parcel cache, which is
-            // temporary, likely in a .gitignore or similar, but still readily
-            // available for introspection by the user if necessary.
-            // unless there are no package targets in which case we write to the ./dist consistent with watch
-            // @see https://github.com/parcel-bundler/parcel/issues/4518
-            distDir:
-              this.options.distDir ??
-              path.resolve(
-                packageTargets.targets.size == 0
-                  ? this.fs.cwd()
-                  : this.options.cacheDir,
-                DEFAULT_DIST_DIRNAME,
-              ),
+            distDir: this.options.distDir,
             publicUrl: this.options.publicUrl ?? '/',
             env: createEnvironment({
               context: 'browser',
