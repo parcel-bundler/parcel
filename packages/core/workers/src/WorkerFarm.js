@@ -179,6 +179,8 @@ export default class WorkerFarm extends EventEmitter {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
       return this.stopWorker(worker);
+    } else {
+      logger.error(error, '@parcel/workers');
     }
   }
 
@@ -187,6 +189,7 @@ export default class WorkerFarm extends EventEmitter {
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
       patchConsole: this.options.patchConsole,
+      sharedReferences: this.sharedReferences,
     });
 
     worker.fork(nullthrows(this.options.workerPath));
@@ -286,7 +289,6 @@ export default class WorkerFarm extends EventEmitter {
       }
     } else {
       // ESModule default interop
-      // $FlowFixMe
       if (mod.__esModule && !mod[method] && mod.default) {
         mod = mod.default;
       }
@@ -374,17 +376,9 @@ export default class WorkerFarm extends EventEmitter {
     this.sharedReferencesByValue.set(value, ref);
     let promises = [];
     for (let worker of this.workers.values()) {
-      promises.push(
-        new Promise((resolve, reject) => {
-          worker.call({
-            method: 'createSharedReference',
-            args: [ref, value],
-            resolve,
-            reject,
-            retries: 0,
-          });
-        }),
-      );
+      if (worker.ready) {
+        promises.push(worker.sendSharedReference(ref, value));
+      }
     }
 
     await Promise.all(promises);

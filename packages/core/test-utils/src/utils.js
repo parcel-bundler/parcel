@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  Bundle,
   BuildEvent,
   BundleGraph,
   FilePath,
@@ -14,8 +15,11 @@ import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
+import url from 'url';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
+import postHtmlParse from 'posthtml-parser';
+import postHtml from 'posthtml';
 
 import {makeDeferredWithPromise} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -148,25 +152,25 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
   });
 }
 
-export async function run(
-  bundleGraph: BundleGraph,
-  globals: mixed,
-  opts: {require?: boolean, ...} = {},
-): Promise<mixed> {
-  let bundles = [];
-  bundleGraph.traverseBundles(bundle => {
-    bundles.push(bundle);
-  });
+type RunOpts = {require?: boolean, ...};
 
-  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
-  let entryAsset = nullthrows(bundle.getMainEntry());
+export async function runBundles(
+  parent: Bundle,
+  bundles: Array<Bundle>,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
+  let entryAsset = nullthrows(
+    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+  );
+  let env = entryAsset.env;
   let target = entryAsset.env.context;
 
   let ctx, promises;
   switch (target) {
     case 'browser': {
       let prepared = prepareBrowserContext(
-        nullthrows(bundle.filePath),
+        nullthrows(parent.filePath),
         globals,
       );
       ctx = prepared.ctx;
@@ -175,13 +179,13 @@ export async function run(
     }
     case 'node':
     case 'electron-main':
-      ctx = prepareNodeContext(nullthrows(bundle.filePath), globals);
+      ctx = prepareNodeContext(nullthrows(parent.filePath), globals);
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(nullthrows(bundle.filePath), globals);
+      let browser = prepareBrowserContext(nullthrows(parent.filePath), globals);
       ctx = {
         ...browser.ctx,
-        ...prepareNodeContext(nullthrows(bundle.filePath), globals),
+        ...prepareNodeContext(nullthrows(parent.filePath), globals),
       };
       promises = browser.promises;
       break;
@@ -191,10 +195,12 @@ export async function run(
   }
 
   vm.createContext(ctx);
-  vm.runInContext(
-    await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8'),
-    ctx,
-  );
+  for (let b of bundles) {
+    vm.runInContext(
+      await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
+      ctx,
+    );
+  }
 
   if (promises) {
     // await any ongoing dynamic imports during the run
@@ -202,19 +208,70 @@ export async function run(
   }
 
   if (opts.require !== false) {
-    if (ctx.parcelRequire) {
-      // $FlowFixMe
-      return ctx.parcelRequire(entryAsset.id);
-    } else if (ctx.output) {
-      return ctx.output;
-    }
-    if (ctx.module) {
-      // $FlowFixMe
-      return ctx.module.exports;
+    switch (env.outputFormat) {
+      case 'global':
+        if (env.scopeHoist) {
+          return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
+        } else if (ctx.parcelRequire) {
+          // $FlowFixMe
+          return ctx.parcelRequire(entryAsset.id);
+        }
+        return;
+      case 'commonjs':
+        invariant(typeof ctx.module === 'object' && ctx.module != null);
+        return ctx.module.exports;
+      default:
+        throw new Error(
+          'Unable to run bundle with outputFormat ' + env.outputFormat,
+        );
     }
   }
 
   return ctx;
+}
+
+export function runBundle(
+  bundle: Bundle,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
+  return runBundles(bundle, [bundle], globals, opts);
+}
+
+export async function run(
+  bundleGraph: BundleGraph,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
+  let bundles = bundleGraph.getBundles();
+  let bundle = nullthrows(
+    bundles.find(b => b.type === 'js' || b.type === 'html'),
+  );
+  if (bundle.type === 'html') {
+    let code = await overlayFS.readFile(nullthrows(bundle.filePath));
+    let ast = postHtmlParse(code, {
+      lowerCaseAttributeNames: true,
+    });
+
+    let scripts = [];
+    postHtml().walk.call(ast, node => {
+      if (node.tag === 'script') {
+        let src = url.parse(nullthrows(node.attrs).src);
+        if (src.hostname == null) {
+          scripts.push(path.join(distDir, nullthrows(src.pathname)));
+        }
+      }
+      return node;
+    });
+    return runBundles(
+      bundle,
+      scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
+      globals,
+      opts,
+    );
+  } else {
+    return runBundle(bundle, globals, opts);
+  }
 }
 
 export function assertBundles(
@@ -405,6 +462,12 @@ function prepareBrowserContext(
           },
         });
       },
+      atob(str) {
+        return Buffer.from(str, 'base64').toString('binary');
+      },
+      btoa(str) {
+        return Buffer.from(str, 'binary').toString('base64');
+      },
     },
     globals,
   );
@@ -489,4 +552,21 @@ function prepareNodeContext(filePath, globals) {
 
   ctx.global = ctx;
   return ctx;
+}
+
+export function shallowEqual(
+  a: $Shape<{|+[string]: mixed|}>,
+  b: $Shape<{|+[string]: mixed|}>,
+) {
+  if (Object.keys(a).length !== Object.keys(b).length) {
+    return false;
+  }
+
+  for (let [key, value] of Object.entries(a)) {
+    if (!b.hasOwnProperty(key) || b[key] !== value) {
+      return false;
+    }
+  }
+
+  return true;
 }

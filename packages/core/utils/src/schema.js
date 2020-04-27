@@ -2,7 +2,7 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-// $FlowFixMe untyped
+// flowlint-next-line untyped-import:off
 import levenshteinDistance from 'js-levenshtein';
 
 export type SchemaEntity =
@@ -339,7 +339,10 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
 }
 export default validateSchema;
 
-function fuzzySearch(expectedValues: Array<string>, actualValue: string) {
+export function fuzzySearch(
+  expectedValues: Array<string>,
+  actualValue: string,
+): Array<string> {
   let result = expectedValues
     .map(exp => [exp, levenshteinDistance(exp, actualValue)])
     .filter(

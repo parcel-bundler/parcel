@@ -221,7 +221,7 @@ web technologies like HTML, CSS, and JavaScript, to lower level languages like
 Rust, and anything that compiles to WebAssembly (WASM), to assets like images,
 fonts, videos, and more.
 
-Parcel makes your code portable, you can build your code for different
+Parcel makes your code portable. You can build your code for different
 environments, for the web for your server, or for an app. You can even build
 multiple targets at once and have them live update as you make changes.
 
@@ -777,7 +777,7 @@ them through optimizing transforms.
 ### Asset Graph
 
 During the resolving and transforming phases, Parcel discovers all the assets
-in your app or program. Every asset can have it's own dependencies on other
+in your app or program. Every asset can have its own dependencies on other
 assets which Parcel will pull in.
 
 The data structure that represents all of these assets and their dependencies
@@ -945,13 +945,12 @@ let childEnvironment = {...parentEnvironment, browserContext: 'service-worker'};
 
 ### Caching
 
-Parcel will create a `/node_modules/.cache/parcel` directory
-
-The top-level directory will be filled with directories with two letters, which
-are the start of a hash which is finished by the names of the JSON files inside.
+Parcel will create a `/.parcel-cache` directory. It will be filled with
+directories with two letters, which are the start of a hash which is finished
+by the names of the JSON files inside.
 
 ```
-/node_modules/.cache/parcel/
+/.parcel-cache
   /00/
     213debd8ddd45819b79a3a974ed487.json
     40ae9b581afc53841307a4b3c2463d.json
@@ -964,7 +963,7 @@ are the start of a hash which is finished by the names of the JSON files inside.
 ```
 
 It follows this weird structure in order to avoid too many files being created
-in a single directory which degrades file system performance.
+in a single directory, which degrades file system performance.
 
 ## Asset Resolution
 
@@ -1517,3 +1516,17 @@ export default new Validator({
   }
 });
 ```
+Some validators (such as `@parcel/validator-typescript`) may wish to maintain a project-wide cache for efficiency. For these cases, it is appropriate to use a different interface where parcel hands _all_ changed files to the validator at the same time:
+
+```js
+import {Validator} from '@parcel/plugin';
+
+export default new Validator({
+  async validateAll({assets}) {
+    // ...
+    throw error;
+  }
+});
+```
+
+If your plugin implements `validateAll`, Parcel will make sure to always invoke this method on the same thread (so that your cache state is accessible).

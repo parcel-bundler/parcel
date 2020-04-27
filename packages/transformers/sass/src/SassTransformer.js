@@ -1,25 +1,25 @@
 // @flow
+import type {FilePath} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import type {PluginLogger} from '@parcel/logger';
 
 import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
-import {dirname} from 'path';
+import {dirname, join as joinPath} from 'path';
 import {EOL} from 'os';
-import {NodeFS} from '@parcel/fs';
+import SourceMap from '@parcel/source-map';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
-const fs = new NodeFS();
 
 let didWarnAboutNodeSass = false;
-
 async function warnAboutNodeSassBeingUnsupported(
-  filePath,
+  fs: FileSystem,
+  filePath: FilePath,
   logger: PluginLogger,
 ) {
   if (!didWarnAboutNodeSass) {
     try {
-      // TODO: replace this with the actual filesystem later
       await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
       logger.warn({
         origin: '@parcel/transformer-sass',
@@ -37,7 +37,7 @@ async function warnAboutNodeSassBeingUnsupported(
 }
 
 export default new Transformer({
-  async getConfig({asset, resolve}) {
+  async getConfig({asset, resolve, options}) {
     let config = await asset.getConfig(['.sassrc', '.sassrc.js'], {
       packageKey: 'sass',
     });
@@ -63,12 +63,26 @@ export default new Transformer({
         ? config.indentedSyntax
         : asset.type === 'sass';
 
+    if (options.sourceMaps) {
+      config.sourceMap = true;
+      // sources are created relative to the directory of outFile
+      config.outFile = joinPath(options.projectRoot, 'style.css.map');
+      config.omitSourceMapUrl = true;
+      config.sourceMapContents = false;
+    }
+
     return config;
   },
 
   async transform({asset, options, config, logger}) {
-    await warnAboutNodeSassBeingUnsupported(asset.filePath, logger);
-    let sass = await options.packageManager.require('sass', asset.filePath);
+    await warnAboutNodeSassBeingUnsupported(
+      options.inputFS,
+      asset.filePath,
+      logger,
+    );
+    let sass = await options.packageManager.require('sass', asset.filePath, {
+      autoinstall: options.autoinstall,
+    });
     const sassRender = promisify(sass.render.bind(sass));
 
     let css;
@@ -80,6 +94,13 @@ export default new Transformer({
         if (included !== asset.filePath) {
           asset.addIncludedFile({filePath: included});
         }
+      }
+
+      if (result.map != null) {
+        let map = new SourceMap();
+        let {mappings, sources, names} = JSON.parse(result.map);
+        map.addRawMappings(mappings, sources, names);
+        asset.setMap(map);
       }
     } catch (err) {
       // Adapt the Error object for the reporter.

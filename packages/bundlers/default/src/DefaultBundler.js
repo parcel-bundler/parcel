@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {Asset, Bundle, MutableBundleGraph} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGroup,
+  MutableBundleGraph,
+} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
@@ -24,6 +29,7 @@ export default new Bundler({
 
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
+    let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
     let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
@@ -36,6 +42,8 @@ export default new Bundler({
             bundleByType: context?.bundleByType,
             bundleGroupDependency: context?.bundleGroupDependency,
             parentNode: node,
+            parentBundle:
+              bundlesByEntryAsset.get(node.value) ?? context?.parentBundle,
           };
         }
 
@@ -53,6 +61,7 @@ export default new Bundler({
             dependency,
             nullthrows(dependency.target ?? context?.bundleGroup?.target),
           );
+
           let bundleByType: Map<string, Bundle> = new Map();
 
           for (let asset of assets) {
@@ -64,6 +73,7 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
+            bundlesByEntryAsset.set(asset, bundle);
             siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
@@ -73,12 +83,15 @@ export default new Bundler({
             bundleByType,
             bundleGroupDependency: dependency,
             parentNode: node,
+            parentBundle: context?.parentBundle,
           };
         }
 
         invariant(context != null);
         invariant(context.parentNode.type === 'asset');
+        invariant(context.parentBundle != null);
         let parentAsset = context.parentNode.value;
+        let parentBundle = context.parentBundle;
         let bundleGroup = nullthrows(context.bundleGroup);
         let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
         let bundleByType = nullthrows(context.bundleByType);
@@ -130,7 +143,9 @@ export default new Bundler({
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
             bundleRoots.set(bundle, [asset]);
+            bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.createBundleReference(parentBundle, bundle);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
 
@@ -154,14 +169,60 @@ export default new Bundler({
   },
 
   optimize({bundleGraph}) {
-    // Step 2: remove assets that are duplicated in a parent bundle
+    // Step 2: Remove asset graphs that begin with entries to other bundles.
+    bundleGraph.traverseBundles(bundle => {
+      if (bundle.isInline || !bundle.isSplittable) {
+        return;
+      }
+
+      let mainEntry = bundle.getMainEntry();
+      if (mainEntry == null) {
+        return;
+      }
+
+      let siblings = bundleGraph
+        .getReferencedBundles(bundle)
+        .filter(sibling => !sibling.isInline);
+      let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
+        containingBundle =>
+          containingBundle.id !== bundle.id &&
+          // Don't add to BundleGroups for entry bundles, as that would require
+          // another entry bundle depending on these conditions, making it difficult
+          // to predict and reference.
+          !containingBundle.isEntry &&
+          !containingBundle.isInline &&
+          containingBundle.isSplittable,
+      );
+
+      for (let candidate of candidates) {
+        let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+          candidate,
+        );
+        if (
+          Array.from(bundleGroups).every(
+            group =>
+              bundleGraph.getBundlesInBundleGroup(group).length <
+              OPTIONS.maxParallelRequests,
+          )
+        ) {
+          bundleGraph.removeAssetGraphFromBundle(mainEntry, candidate);
+          for (let bundleGroup of bundleGroups) {
+            for (let bundleToAdd of [bundle, ...siblings]) {
+              bundleGraph.addBundleToBundleGroup(bundleToAdd, bundleGroup);
+            }
+          }
+        }
+      }
+    });
+
+    // Step 3: Remove assets that are duplicated in a parent bundle.
     bundleGraph.traverseBundles({
       exit(bundle) {
         deduplicateBundle(bundleGraph, bundle);
       },
     });
 
-    // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
+    // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
     let candidateBundles: Map<
       string,
@@ -183,7 +244,15 @@ export default new Bundler({
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
-        .filter(b => !b.isEntry && b.isSplittable);
+        .filter(b => {
+          let mainEntry = b.getMainEntry();
+
+          return (
+            !b.isEntry &&
+            b.isSplittable &&
+            (mainEntry == null || mainEntry.id !== asset.id)
+          );
+        });
 
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
@@ -284,6 +353,49 @@ export default new Bundler({
       }
 
       deduplicateBundle(bundleGraph, sharedBundle);
+    }
+
+    // Step 5: Mark async dependencies on assets that are already available in
+    // the bundle as internally resolvable. This removes the dependency between
+    // the bundle and the bundle group providing that asset. If all connections
+    // to that bundle group are removed, remove that bundle group.
+    let asyncBundleGroups: Set<BundleGroup> = new Set();
+    bundleGraph.traverse(node => {
+      if (
+        node.type !== 'dependency' ||
+        node.value.isEntry ||
+        !node.value.isAsync
+      ) {
+        return;
+      }
+
+      let dependency = node.value;
+      let resolution = bundleGraph.getDependencyResolution(dependency);
+      if (resolution == null) {
+        return;
+      }
+
+      let externalResolution = bundleGraph.resolveExternalDependency(
+        dependency,
+      );
+      invariant(externalResolution?.type === 'bundle_group');
+      asyncBundleGroups.add(externalResolution.value);
+
+      for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
+        if (
+          bundle.hasAsset(resolution) ||
+          bundleGraph.isAssetInAncestorBundles(bundle, resolution)
+        ) {
+          bundleGraph.internalizeAsyncDependency(bundle, dependency);
+        }
+      }
+    });
+
+    // Remove any bundle groups that no longer have any parent bundles.
+    for (let bundleGroup of asyncBundleGroups) {
+      if (bundleGraph.getParentBundlesOfBundleGroup(bundleGroup).length === 0) {
+        bundleGraph.removeBundleGroup(bundleGroup);
+      }
     }
   },
 });

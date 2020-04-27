@@ -17,7 +17,7 @@ const EMPTY_OPTIONS = {
   projectRoot: '',
   lockFile: undefined,
   autoinstall: false,
-  hot: false,
+  hot: undefined,
   serve: false,
   mode: 'development',
   scopeHoist: false,
@@ -27,6 +27,7 @@ const EMPTY_OPTIONS = {
   sourceMaps: false,
   inputFS,
   outputFS,
+  instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
 };
 

@@ -2,9 +2,11 @@
 import type {Bundle, BundleGraph} from '@parcel/types';
 
 import assert from 'assert';
+import {Readable} from 'stream';
+import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
-import {replaceURLReferences, urlJoin} from '@parcel/utils';
+import {bufferStream, replaceURLReferences, urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -13,7 +15,7 @@ const metadataContent = new Set([
   'link',
   'meta',
   'noscript',
-  'script',
+  // 'script', // retain script order (somewhat)
   'style',
   'template',
   'title',
@@ -31,13 +33,25 @@ export default new Packager({
     let asset = assets[0];
     let code = await asset.getCode();
 
+    let dependencies = [];
+    bundle.traverse(node => {
+      if (node.type === 'dependency') {
+        dependencies.push(node.value);
+      }
+    });
+
     // Insert references to sibling bundles. For example, a <script> tag in the original HTML
     // may import CSS files. This will result in a sibling bundle in the same bundle group as the
     // JS. This will be inserted as a <link> element into the HTML here.
-    let bundleGroups = bundleGraph
-      .getExternalDependencies(bundle)
-      .map(dependency => bundleGraph.resolveExternalDependency(dependency))
-      .filter(Boolean);
+    let bundleGroups = dependencies
+      .map(dependency =>
+        bundleGraph.resolveExternalDependency(dependency, bundle),
+      )
+      .filter(resolved => resolved != null && resolved.type === 'bundle_group')
+      .map(resolved => {
+        invariant(resolved != null && resolved.type === 'bundle_group');
+        return resolved.value;
+      });
     let bundles = bundleGroups.reduce((p, bundleGroup) => {
       let bundles = bundleGraph
         .getBundlesInBundleGroup(bundleGroup)
@@ -122,7 +136,10 @@ async function replaceInlineAssetContent(
 
     if (newContent != null) {
       let {contents, bundle} = newContent;
-      node.content = contents;
+      node.content = (contents instanceof Readable
+        ? await bufferStream(contents)
+        : contents
+      ).toString();
 
       if (bundle.env.outputFormat === 'esmodule') {
         node.attrs.type = 'module';
@@ -169,15 +186,8 @@ function insertBundleReferences(siblingBundles, tree) {
 }
 
 function addBundlesToTree(bundles, tree) {
-  const head = find(tree, 'head');
-  if (head) {
-    const content = head.content || (head.content = []);
-    content.push(...bundles);
-    return;
-  }
-
-  const html = find(tree, 'html');
-  const content = html ? html.content || (html.content = []) : tree;
+  const main = find(tree, 'head') || find(tree, 'html');
+  const content = main ? main.content || (main.content = []) : tree;
   const index = findBundleInsertIndex(content);
 
   content.splice(index, 0, ...bundles);
@@ -194,12 +204,28 @@ function find(tree, tag) {
 }
 
 function findBundleInsertIndex(content) {
+  // HTML document order (https://html.spec.whatwg.org/multipage/syntax.html#writing)
+  //   - Any number of comments and ASCII whitespace.
+  //   - A DOCTYPE.
+  //   - Any number of comments and ASCII whitespace.
+  //   - The document element, in the form of an html element.
+  //   - Any number of comments and ASCII whitespace.
+  //
+  // -> Insert before first non-metadata (or script) element; if none was found, after the doctype
+
+  let doctypeIndex;
   for (let index = 0; index < content.length; index++) {
     const node = content[index];
     if (node && node.tag && !metadataContent.has(node.tag)) {
       return index;
     }
+    if (
+      typeof node === 'string' &&
+      node.toLowerCase().startsWith('<!doctype')
+    ) {
+      doctypeIndex = index;
+    }
   }
 
-  return 0;
+  return doctypeIndex ? doctypeIndex + 1 : 0;
 }

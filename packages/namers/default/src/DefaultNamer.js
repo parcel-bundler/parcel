@@ -93,6 +93,7 @@ export default new Namer({
     if (!bundle.isEntry) {
       name += '.' + bundle.hashReference;
     }
+
     return name + '.' + bundle.type;
   },
 });

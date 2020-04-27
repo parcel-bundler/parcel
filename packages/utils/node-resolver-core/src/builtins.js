@@ -1,9 +1,12 @@
+// @flow
 import polyfills from '@parcel/node-libs-browser';
+// $FlowFixMe this is untyped
 import {builtinModules} from 'module';
 
 const empty = require.resolve('./_empty.js');
 
-let builtins = Object.create(null);
+// $FlowFixMe
+let builtins: {[string]: any, ...} = Object.create(null);
 // use definite (current) list of Node builtins
 for (let key of builtinModules) {
   builtins[key] = empty;

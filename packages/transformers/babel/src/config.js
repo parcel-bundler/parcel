@@ -26,7 +26,7 @@ export async function load(
 ) {
   // Don't look for a custom babel config if inside node_modules
   if (!config.isSource) {
-    return buildDefaultBabelConfig(config);
+    return buildDefaultBabelConfig(options, config);
   }
 
   // If we are in a monorepo, also find .babelrc configs in the sub packages.
@@ -46,13 +46,22 @@ export async function load(
   let babelCore = await options.packageManager.require(
     '@babel/core',
     config.searchPath,
-    {range: BABEL_RANGE},
+    {range: BABEL_RANGE, autoinstall: options.autoinstall},
   );
   let partialConfig = babelCore.loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot,
     babelrcRoots,
+    envName:
+      options.env.BABEL_ENV ??
+      process.env.BABEL_ENV ??
+      options.env.NODE_ENV ??
+      process.env.NODE_ENV ??
+      (options.mode === 'production' || options.mode === 'development'
+        ? options.mode
+        : null) ??
+      'development',
   });
 
   // loadPartialConfig returns null when the file should explicitly not be run through babel (ignore/exclude)
@@ -115,11 +124,11 @@ export async function load(
       config.shouldInvalidateOnStartup();
     }
   } else {
-    await buildDefaultBabelConfig(config);
+    await buildDefaultBabelConfig(options, config);
   }
 }
 
-async function buildDefaultBabelConfig(config: Config) {
+async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
@@ -133,7 +142,10 @@ async function buildDefaultBabelConfig(config: Config) {
     babelTargets = envOptions.targets;
     babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
   }
-  babelOptions = mergeOptions(babelOptions, await getJSXOptions(config));
+  babelOptions = mergeOptions(
+    babelOptions,
+    await getJSXOptions(options, config),
+  );
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>
@@ -257,13 +269,16 @@ async function definePluginDependencies(config) {
 export async function postDeserialize(config: Config, options: PluginOptions) {
   let babelCore = config.result.internal
     ? bundledBabelCore
-    : await options.packageManager.require('@babel/core', config.searchPath);
+    : await options.packageManager.require('@babel/core', config.searchPath, {
+        autoinstall: options.autoinstall,
+      });
 
   config.result.config.presets = await Promise.all(
     config.result.config.presets.map(async configItem => {
       let value = await options.packageManager.require(
         configItem.file.resolved,
         config.searchPath,
+        {autoinstall: options.autoinstall},
       );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {
@@ -277,6 +292,7 @@ export async function postDeserialize(config: Config, options: PluginOptions) {
       let value = await options.packageManager.require(
         configItem.file.resolved,
         config.searchPath,
+        {autoinstall: options.autoinstall},
       );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {

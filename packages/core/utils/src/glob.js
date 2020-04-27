@@ -66,5 +66,6 @@ export function glob(
     },
   };
 
+  // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
   return fastGlob(normalizePath(p), options);
 }

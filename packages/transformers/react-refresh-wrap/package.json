@@ -20,10 +20,13 @@
     "@babel/parser": "^7.0.0",
     "@babel/template": "^7.0.0",
     "@babel/types": "^7.0.0",
+    "@parcel/babel-ast-utils": "^2.0.0-alpha.3.1",
     "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/source-map": "^2.0.0-alpha.3.1",
     "@parcel/utils": "^2.0.0-alpha.3.1",
     "react-refresh": "^0.6.0",
     "semver": "^5.4.1"
+  },
+  "peerDependencies": {
+    "@parcel/core": "^2.0.0-alpha.3.1"
   }
 }

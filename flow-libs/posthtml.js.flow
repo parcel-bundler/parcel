@@ -9,8 +9,7 @@
 declare module 'posthtml' {
   declare type PostHTMLNode = {
     tag: string,
-    // $FlowFixMe
-    attrs?: { [string]: string, ... },
+    attrs?: {[string]: string, ...},
     content?: Array<string>,
     ...
   };
@@ -30,7 +29,7 @@ declare module 'posthtml' {
   declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode) => void;
   declare var process: (
     tree: PostHTMLTree | string,
-    options: ?PostHTMLOptions
+    options: ?PostHTMLOptions,
   ) => Promise<{
     html: string,
     tree: PostHTMLTree,

@@ -1,3 +1,5 @@
+/* global __PARCEL_HMR_HOST, __PARCEL_HMR_PORT, __PARCEL_BUNDLE_ID, __PARCEL_HMR_ENV_HASH */
+
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
@@ -25,10 +27,12 @@ var checkedAssets, assetsToAccept, acceptedAssets;
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = location.hostname;
-  var port = location.port ? ':' + location.port : '';
+  var hostname = __PARCEL_HMR_HOST || location.hostname;
+  var port = __PARCEL_HMR_PORT || location.port;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + port + '/');
+  var ws = new WebSocket(
+    protocol + '://' + hostname + (port ? ':' + port : '') + '/',
+  );
   ws.onmessage = function(event) {
     checkedAssets = {};
     assetsToAccept = [];
@@ -41,7 +45,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       removeErrorOverlay();
 
       let assets = data.assets.filter(
-        // eslint-disable-next-line no-undef
         asset => asset.envHash === __PARCEL_HMR_ENV_HASH,
       );
 
@@ -176,8 +179,14 @@ function hmrApply(bundle, asset) {
   }
 
   if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.output);
-    modules[asset.id] = [fn, asset.deps];
+    if (asset.type === 'css') {
+      var newStyle = document.createElement('style');
+      newStyle.innerHTML = asset.output;
+      document.body.appendChild(newStyle);
+    } else {
+      var fn = new Function('require', 'module', 'exports', asset.output);
+      modules[asset.id] = [fn, asset.depsByBundle[__PARCEL_BUNDLE_ID]];
+    }
   } else if (bundle.parent) {
     hmrApply(bundle.parent, asset);
   }

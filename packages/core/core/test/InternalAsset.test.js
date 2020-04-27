@@ -1,7 +1,8 @@
 // @flow strict-local
 
 import assert from 'assert';
-import Asset, {createAsset} from '../src/InternalAsset';
+import UncommittedAsset from '../src/UncommittedAsset';
+import {createAsset} from '../src/assetUtils';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './utils';
 
@@ -9,7 +10,7 @@ const stats = {time: 0, size: 0};
 
 describe('InternalAsset', () => {
   it('only includes connected files once per filePath', () => {
-    let asset = new Asset({
+    let asset = new UncommittedAsset({
       value: createAsset({
         filePath: '/foo/asset.js',
         env: createEnvironment(),
@@ -30,7 +31,7 @@ describe('InternalAsset', () => {
   });
 
   it('only includes dependencies once per id', () => {
-    let asset = new Asset({
+    let asset = new UncommittedAsset({
       value: createAsset({
         filePath: '/foo/asset.js',
         env: createEnvironment(),
@@ -49,7 +50,7 @@ describe('InternalAsset', () => {
   });
 
   it('includes different dependencies if their id differs', () => {
-    let asset = new Asset({
+    let asset = new UncommittedAsset({
       value: createAsset({
         filePath: '/foo/asset.js',
         env: createEnvironment(),

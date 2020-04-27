@@ -74,6 +74,10 @@ export default class Server extends EventEmitter {
     this.errors = null;
   }
 
+  buildStart() {
+    this.pending = true;
+  }
+
   buildSuccess(bundleGraph: BundleGraph) {
     this.bundleGraph = bundleGraph;
     this.errors = null;
@@ -83,6 +87,7 @@ export default class Server extends EventEmitter {
   }
 
   buildError(diagnostics: Array<Diagnostic>) {
+    this.pending = false;
     this.errors = diagnostics.map(d => {
       let ansiDiagnostic = prettyDiagnostic(d);
 

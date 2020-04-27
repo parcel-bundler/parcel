@@ -1,6 +1,9 @@
 // @flow strict-local
 
+import type {Bundle, BundleGraph, Async} from '@parcel/types';
+
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -42,11 +45,28 @@ export default new Packager({
 
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
-      let ast = await concat(bundle, bundleGraph);
-      ast = link({bundle, bundleGraph, ast, options});
+      let wrappedAssets = new Set<string>();
+      let {ast, referencedAssets} = link({
+        bundle,
+        bundleGraph,
+        ast: await concat(bundle, bundleGraph, wrappedAssets),
+        options,
+        wrappedAssets,
+      });
+
+      let {contents, map} = generate({
+        bundleGraph,
+        bundle,
+        ast,
+        referencedAssets,
+        options,
+      });
       return replaceReferences({
-        contents: generate(bundleGraph, bundle, ast).contents,
-        map: null,
+        contents:
+          contents +
+          '\n' +
+          (await getSourceMapSuffix(getSourceMapReference, map)),
+        map,
       });
     }
 
@@ -58,29 +78,35 @@ export default new Packager({
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
-    let codeQueue = new PromiseQueue({maxConcurrent: 32});
-    let mapQueue = new PromiseQueue({maxConcurrent: 32});
+    let queue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        codeQueue.add(() => node.value.getCode());
-        mapQueue.add(() => node.value.getMap());
+        queue.add(async () => {
+          let [code, mapBuffer] = await Promise.all([
+            node.value.getCode(),
+            node.value.getMapBuffer(),
+          ]);
+          return {code, mapBuffer};
+        });
       }
     });
 
-    let [code, maps] = await Promise.all([codeQueue.run(), mapQueue.run()]);
+    let results = await queue.run();
 
     let assets = '';
     let i = 0;
     let first = true;
     let map = new SourceMap();
-    let lineOffset = countLines(PRELUDE);
+
+    let prefix = getPrefix(bundle, bundleGraph);
+    let lineOffset = countLines(prefix);
 
     let stubsWritten = new Set();
     bundle.traverse(node => {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
-        let resolved = bundleGraph.getDependencyResolution(node.value);
+        let resolved = bundleGraph.getDependencyResolution(node.value, bundle);
         if (
           resolved &&
           resolved.type !== 'js' &&
@@ -105,13 +131,14 @@ export default new Packager({
         let deps = {};
         let dependencies = bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = bundleGraph.getDependencyResolution(dep);
+          let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
             deps[dep.moduleSpecifier] = resolved.id;
           }
         }
 
-        let output = code[i] || '';
+        let {code, mapBuffer} = results[i];
+        let output = code || '';
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
@@ -121,16 +148,18 @@ export default new Packager({
         wrapped += ']';
 
         if (options.sourceMaps) {
-          let assetMap =
-            maps[i] ??
-            SourceMap.generateEmptyMap(
+          if (mapBuffer) {
+            map.addBufferMappings(mapBuffer, lineOffset);
+          } else {
+            map.addEmptyMap(
               path
                 .relative(options.projectRoot, asset.filePath)
                 .replace(/\\+/g, '/'),
               output,
+              lineOffset,
             );
+          }
 
-          map.addMap(assetMap, lineOffset);
           lineOffset += countLines(output) + 1;
         }
         i++;
@@ -141,50 +170,65 @@ export default new Packager({
     });
 
     let entries = bundle.getEntryAssets();
-    let interpreter: ?string = null;
-
-    let isEntry =
-      !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
-      bundle.env.isIsolated();
-    if (isEntry) {
-      let entryAsset = entries[entries.length - 1];
-      // $FlowFixMe
-      interpreter = bundle.target.env.isBrowser()
-        ? null
-        : entryAsset.meta.interpreter;
-    } else if (bundle.env.outputFormat === 'global') {
+    if (!isEntry(bundle, bundleGraph) && bundle.env.outputFormat === 'global') {
       // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
       entries.pop();
     }
 
-    let importScripts = '';
-    if (bundle.env.isWorker()) {
-      let bundles = bundleGraph.getSiblingBundles(bundle);
-      for (let b of bundles) {
-        importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
-      }
-    }
-
-    let sourceMapReference = await getSourceMapReference(map);
-
     return replaceReferences({
       contents:
-        // If the entry asset included a hashbang, repeat it at the top of the bundle
-        (interpreter != null ? `#!${interpreter}\n` : '') +
-        importScripts +
-        (PRELUDE +
-          '({' +
-          assets +
-          '},{},' +
-          JSON.stringify(entries.map(asset => asset.id)) +
-          ', ' +
-          'null' +
-          ')\n\n' +
-          '//# sourceMappingURL=' +
-          sourceMapReference +
-          '\n'),
+        prefix +
+        '({' +
+        assets +
+        '},{},' +
+        JSON.stringify(entries.map(asset => asset.id)) +
+        ', ' +
+        'null' +
+        ')' +
+        '\n\n' +
+        (await getSourceMapSuffix(getSourceMapReference, map)),
       map,
     });
   },
 });
+
+function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
+  let interpreter: ?string;
+  if (isEntry(bundle, bundleGraph) && !bundle.target.env.isBrowser()) {
+    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+    invariant(_interpreter == null || typeof _interpreter === 'string');
+    interpreter = _interpreter;
+  }
+
+  let importScripts = '';
+  if (bundle.env.isWorker()) {
+    let bundles = bundleGraph.getSiblingBundles(bundle);
+    for (let b of bundles) {
+      importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
+    }
+  }
+
+  return (
+    // If the entry asset included a hashbang, repeat it at the top of the bundle
+    (interpreter != null ? `#!${interpreter}\n` : '') + importScripts + PRELUDE
+  );
+}
+
+function isEntry(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+  return (
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+  );
+}
+
+async function getSourceMapSuffix(
+  getSourceMapReference: (?SourceMap) => Async<?string>,
+  map: ?SourceMap,
+): Promise<string> {
+  let sourcemapReference = await getSourceMapReference(map);
+  if (sourcemapReference != null) {
+    return '//# sourceMappingURL=' + sourcemapReference + '\n';
+  } else {
+    return '';
+  }
+}
