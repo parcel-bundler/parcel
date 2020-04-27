@@ -2,7 +2,7 @@ import assert from 'assert';
 import path from 'path';
 import {bundle as _bundle, overlayFS, outputFS, ncp} from '@parcel/test-utils';
 
-const distDir = path.join(__dirname, './dist222');
+const distDir = path.join(__dirname, './dist');
 
 function bundle(path) {
   return _bundle(path, {
