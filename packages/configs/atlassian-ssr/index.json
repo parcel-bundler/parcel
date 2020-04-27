@@ -1,0 +1,72 @@
+{
+  "bundler": "@parcel/bundler-default",
+  "transformers": {
+    "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
+    "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
+    "data-url:*": ["@parcel/transformer-inline-string", "..."],
+    "*.worker.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-workerize",
+      "..."
+    ],
+    "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
+      "@parcel/transformer-dynamic-import-node",
+      "@parcel/transformer-react-refresh-babel",
+      "@parcel/transformer-babel",
+      "@parcel/transformer-js",
+      "@parcel/transformer-react-refresh-wrap"
+    ],
+    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.toml": ["@parcel/transformer-toml"],
+    "*.yaml": ["@parcel/transformer-yaml"],
+    "*.{gql,graphql}": ["@parcel/transformer-graphql"],
+    "*.{styl,stylus}": ["@parcel/transformer-stylus"],
+    "*.{sass,scss}": ["@parcel/transformer-sass"],
+    "*.less": ["@parcel/transformer-less"],
+    "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
+    "*.sss": ["@parcel/transformer-sugarss"],
+    "*.{htm,html}": [
+      "@parcel/transformer-posthtml",
+      "@parcel/transformer-html"
+    ],
+    "*.pug": ["@parcel/transformer-pug"],
+    "*.coffee": ["@parcel/transformer-coffeescript"],
+    "*.mdx": ["@parcel/transformer-mdx"],
+    "*.{eot,gif,jpg,jpeg,ico,mp4,png,svg,ttf,woff}": [
+      "@parcel/transformer-raw"
+    ],
+    "url:*": ["@parcel/transformer-raw"],
+    "*": ["@parcel/transformer-no-splittable"]
+  },
+  "namers": ["@parcel/namer-default"],
+  "runtimes": {
+    "browser": [
+      "@parcel/runtime-js",
+      "@parcel/runtime-browser-hmr",
+      "@parcel/runtime-react-refresh"
+    ],
+    "service-worker": ["@parcel/runtime-js"],
+    "web-worker": ["@parcel/runtime-js"],
+    "node": ["@parcel/runtime-js"]
+  },
+  "optimizers": {
+    "data-url:*": ["...", "@parcel/optimizer-data-url"],
+    "*.css": ["@parcel/optimizer-cssnano"],
+    "*.js": ["@parcel/optimizer-terser"],
+    "*.html": ["@parcel/optimizer-htmlnano"]
+  },
+  "packagers": {
+    "*.html": "@parcel/packager-html",
+    "*.css": "@parcel/packager-css",
+    "*.js": "@parcel/packager-js",
+    "*.ts": "@parcel/packager-ts",
+    "*": "@parcel/packager-raw"
+  },
+  "resolvers": ["@parcel/resolver-default"],
+  "reporters": [
+    "@atlassian/parcel-reporter-analytics",
+    "@parcel/reporter-manifest",
+    "@parcel/reporter-cli",
+    "@parcel/reporter-dev-server",
+    "@parcel/reporter-bundle-analyzer"
+  ]
+}

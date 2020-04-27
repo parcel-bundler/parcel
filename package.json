@@ -59,5 +59,8 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
+  },
+  "dependencies": {
+    "babel-plugin-preval": "^5.0.0"
   }
 }
