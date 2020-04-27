@@ -268,7 +268,7 @@ $ parcel [command] [...entries] [...flags]
 
 #### `parcel serve`
 
-Serve assets on a local server
+Serve assets on a local server.
 
 #### `parcel watch`
 
