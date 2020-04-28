@@ -65,6 +65,9 @@ export default async function applyRuntimes({
               code,
               filePath,
               env: bundle.env,
+              // Runtime assets should be considered source, as they should be
+              // e.g. compiled to run in the target environment
+              isSource: true,
             };
             connections.push({
               bundle,

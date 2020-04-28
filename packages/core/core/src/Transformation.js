@@ -140,11 +140,23 @@ export default class Transformation {
   }
 
   async loadAsset(): Promise<UncommittedAsset> {
-    let {filePath, env, code, pipeline, sideEffects} = this.request;
-    let {content, size, hash, isSource} = await summarizeRequest(
-      this.options.inputFS,
-      this.request,
-    );
+    let {
+      filePath,
+      env,
+      code,
+      pipeline,
+      isSource: isSourceOverride,
+      sideEffects,
+    } = this.request;
+    let {
+      content,
+      size,
+      hash,
+      isSource: summarizedIsSource,
+    } = await summarizeRequest(this.options.inputFS, this.request);
+
+    // Prefer `isSource` originating from the AssetRequest.
+    let isSource = isSourceOverride ?? summarizedIsSource;
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
