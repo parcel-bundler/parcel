@@ -258,10 +258,10 @@ export default class MutableBundleGraph extends BundleGraph
     return this.#graph.getTotalSize(assetToAssetValue(asset));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
-    return this.#graph.isAssetInAncestorBundles(
-      bundleToInternalBundle(bundle),
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
+    return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
     );
   }
 
