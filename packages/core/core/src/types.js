@@ -191,6 +191,7 @@ export type RootNode = {|id: string, +type: 'root', value: string | null|};
 export type AssetRequestDesc = {|
   filePath: FilePath,
   env: Environment,
+  isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,

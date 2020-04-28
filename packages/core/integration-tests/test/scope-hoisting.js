@@ -891,6 +891,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('should insert esModule flag for interop for async (or shared) bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/interop-async/index.html',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['client', 'client', 'viewer']);
+    });
+
     it('should support the jsx pragma', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js'),
@@ -963,6 +975,18 @@ describe('scope hoisting', function() {
       );
 
       assert.equal(await run(b), 42);
+    });
+
+    it('can conditionally reference an imported symbol and unconditionally reference it', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/conditional-import-reference/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'hello');
     });
   });
 
@@ -1924,6 +1948,18 @@ describe('scope hoisting', function() {
 
       assert.equal(await run(b), 42);
     });
+
+    it('can conditionally reference an imported symbol and unconditionally reference it', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/conditional-import-reference/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'hello');
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {
@@ -2069,6 +2105,17 @@ describe('scope hoisting', function() {
     );
 
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
+  });
+
+  it('should not remove a binding with a used AssignmentExpression', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/used-assignmentexpression/a.js',
+      ),
+    );
+
+    assert.strictEqual(await run(b), 3);
   });
 
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
