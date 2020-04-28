@@ -133,8 +133,12 @@ export default new Runtime({
       }
 
       let bundleGroup = resolved.value;
-      let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
-      let mainBundle = bundlesInGroup[bundlesInGroup.length - 1];
+      let mainBundle = nullthrows(
+        bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
+          let main = b.getMainEntry();
+          return main && bundleGroup.entryAssetId === main.id;
+        }),
+      );
 
       if (mainBundle.isInline) {
         assets.push({
