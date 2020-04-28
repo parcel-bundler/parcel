@@ -75,7 +75,7 @@ class Logger {
     if (this.logLevel > 4) {
       if (!this.logFile) {
         this.logFile = fs.createWriteStream(
-          path.join(process.cwd(), `parcel-debug-${currDate.toISOString()}.log`)
+          path.join(process.cwd(), `parcel-debug-${currDate.toISOString().replace(/\:/g, '-')}.log`)
         );
       }
       this.logFile.write(stripAnsi(message) + '\n');
