@@ -1163,7 +1163,7 @@ describe('html', function() {
       insertedBundles.push(bundle);
     }
 
-    assert.equal(insertedBundles.length, 3);
+    assert.equal(insertedBundles.length, 2);
 
     let js1 = await outputFS.readFile(insertedBundles[0].filePath, 'utf8');
     let js2 = await outputFS.readFile(insertedBundles[1].filePath, 'utf8');
@@ -1231,6 +1231,37 @@ describe('html', function() {
     );
     assert(!css.includes('.a {'));
     assert(css.includes('.b {'));
+  });
+
+  it('should support split bundles with many pages', async function() {
+    await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
+      production: true,
+      scopeHoist: true,
+      outputFS: inputFS,
+    });
+
+    let outputFS = inputFS;
+    let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 3);
+
+    html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 5);
+
+    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 4);
+
+    html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 3);
+
+    html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 1);
+
+    html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 1);
+
+    // b.html hitting the parallel request limit should not prevent g.html from being optimized
+    html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 2);
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
