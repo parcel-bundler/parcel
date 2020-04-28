@@ -1234,13 +1234,8 @@ describe('html', function() {
   });
 
   it('should support split bundles with many pages', async function() {
-    await bundle(path.join(__dirname, '/integration/shared-many/*.html'), {
-      production: true,
-      scopeHoist: true,
-      outputFS: inputFS,
-    });
+    await bundle(path.join(__dirname, '/integration/shared-many/*.html'));
 
-    let outputFS = inputFS;
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 3);
 
@@ -1262,6 +1257,23 @@ describe('html', function() {
     // b.html hitting the parallel request limit should not prevent g.html from being optimized
     html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
     assert.equal(html.match(/<script/g).length, 2);
+  });
+
+  it('should remove duplicate assets from sibling bundles', async function() {
+    let bundleGraph = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
+    );
+
+    bundleGraph.traverseBundles(bundle => {
+      bundle.traverseAssets(asset => {
+        let bundles = bundleGraph.findBundlesWithAsset(asset);
+        assert.equal(
+          bundles.length,
+          1,
+          `asset ${asset.filePath} is duplicated`,
+        );
+      });
+    });
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
