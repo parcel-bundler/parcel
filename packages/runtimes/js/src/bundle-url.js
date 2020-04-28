@@ -11,8 +11,10 @@ function getBundleURLCached() {
 
 function getBundleURL() {
   // Attempt to find the URL of the current script and use that as the base URL
-  if (typeof document !== 'undefined' && 'currentScript' in document) {
-    return getBaseURL(document.currentScript.src);
+  if (process.env.PARCEL_BUILD_ENV === 'test') {
+    if (typeof document !== 'undefined' && 'currentScript' in document) {
+      return getBaseURL(document.currentScript.src);
+    }
   }
 
   try {
