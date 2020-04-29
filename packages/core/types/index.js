@@ -656,6 +656,7 @@ export interface BundleGraph {
   findBundlesWithAsset(Asset): Array<Bundle>;
   findBundlesWithDependency(Dependency): Array<Bundle>;
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;

@@ -127,6 +127,21 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
+  findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?IBundle {
+    let internalNode = this.#graph._graph.getNode(bundle.id);
+    invariant(internalNode != null && internalNode.type === 'bundle');
+    let result = this.#graph.findReachableBundleWithAsset(
+      internalNode.value,
+      assetToAssetValue(asset),
+    );
+
+    if (result != null) {
+      return new Bundle(result, this.#graph, this.#options);
+    }
+
+    return null;
+  }
+
   isAssetReferenced(asset: IAsset): boolean {
     return this.#graph.isAssetReferenced(assetToAssetValue(asset));
   }
