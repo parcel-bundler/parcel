@@ -2107,6 +2107,17 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
   });
 
+  it('should not remove a binding with a used AssignmentExpression', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/used-assignmentexpression/a.js',
+      ),
+    );
+
+    assert.strictEqual(await run(b), 3);
+  });
+
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(
