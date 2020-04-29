@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import SourceMap from '@parcel/source-map';
 import {
-  bundle,
+  bundle as _bundle,
   assertBundleTree,
   distDir,
   inputFS,
@@ -11,6 +11,8 @@ import {
   shallowEqual,
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
+
+const bundle = (name, opts = {}) => _bundle(name, {sourceMaps: true, ...opts});
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);

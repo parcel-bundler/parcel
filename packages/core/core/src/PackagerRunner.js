@@ -460,9 +460,10 @@ export default class PackagerRunner {
     };
 
     let mapKey = cacheKeys.map;
-    let o = bundle.target.sourceMap ?? this.options.sourceMaps;
     if (
-      (typeof o === 'object' ? !o.inline : o) &&
+      (typeof bundle.target.sourceMap === 'object'
+        ? !bundle.target.sourceMap.inline
+        : bundle.target.sourceMap) &&
       (await this.options.cache.blobExists(mapKey))
     ) {
       let mapStream = this.options.cache.getStream(mapKey);
