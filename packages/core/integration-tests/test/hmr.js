@@ -1,8 +1,12 @@
 // @flow
+import type {BuildSuccessEvent} from '@parcel/types';
+
 import assert from 'assert';
 import path from 'path';
 import {
+  assertBundles,
   bundler,
+  run,
   defaultConfig,
   getNextBuild,
   overlayFS,
@@ -40,25 +44,25 @@ async function nextWSMessage(ws: WebSocket) {
 
 describe('hmr', function() {
   let subscription;
-  let ws;
-
-  beforeEach(async function() {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-  });
-
-  afterEach(async () => {
-    if (subscription) {
-      await subscription.unsubscribe();
-    }
-    subscription = null;
-    await closeSocket(ws);
-  });
-
   describe('hmr server', () => {
+    let ws;
+
+    beforeEach(async function() {
+      await outputFS.rimraf(path.join(__dirname, '/input'));
+      await ncp(
+        path.join(__dirname, '/integration/commonjs'),
+        path.join(__dirname, '/input'),
+      );
+    });
+
+    afterEach(async () => {
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+      subscription = null;
+      await closeSocket(ws);
+    });
+
     it('should emit an HMR update for the file that changed', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
@@ -258,8 +262,77 @@ describe('hmr', function() {
     });
   });
 
-  // TODO: Update these...
   describe('hmr runtime', () => {
+    afterEach(async () => {
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+      subscription = null;
+    });
+
+    it('should add module.hot even in async bundles', async function() {
+      let port = await getPort();
+      let b = bundler(
+        path.join(__dirname, '/integration/hmr-async-bundle/index.js'),
+        {
+          serve: {
+            https: false,
+            port,
+            host: 'localhost',
+          },
+          hot: {},
+          config,
+        },
+      );
+
+      subscription = await b.watch();
+
+      let bundleEvent = await getNextBuild(b);
+      assert.equal(bundleEvent.type, 'buildSuccess');
+
+      // $FlowFixMe asset.equal doesn't refine the type...
+      let graph = (bundleEvent: BuildSuccessEvent).bundleGraph;
+      assertBundles(graph, [
+        {
+          name: 'index.js',
+          assets: [
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'cacheLoader.js',
+            'HMRRuntime.js',
+            'index.js',
+            'js-loader.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'lodash.js',
+            'relative-path.js',
+          ],
+        },
+        {
+          type: 'js',
+          assets: ['a.js', 'HMRRuntime.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.js', 'HMRRuntime.js'],
+        },
+        {
+          type: 'js',
+          assets: ['c.js', 'HMRRuntime.js'],
+        },
+      ]);
+
+      // $FlowFixMe mixed to any
+      let result: any = await run(
+        graph,
+        {console: {error() {}, warn() {}}}, // silence disconnect warning
+        {port},
+      );
+      assert.strictEqual(await result.default, true);
+    });
+
+    // TODO: Update these...
     /*it('should work with circular dependencies', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {

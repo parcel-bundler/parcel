@@ -173,7 +173,7 @@ export default new Packager({
     if (!isEntry(bundle, bundleGraph) && bundle.env.outputFormat === 'global') {
       // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
-      entries.pop();
+      // entries.pop();
     }
 
     return replaceReferences({
