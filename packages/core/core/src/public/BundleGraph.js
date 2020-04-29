@@ -118,12 +118,12 @@ export default class BundleGraph implements IBundleGraph {
       .map(dep => new Dependency(dep));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
     let internalNode = this.#graph._graph.getNode(bundle.id);
     invariant(internalNode != null && internalNode.type === 'bundle');
-    return this.#graph.isAssetInAncestorBundles(
-      internalNode.value,
+    return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
+      internalNode.value,
     );
   }
 
