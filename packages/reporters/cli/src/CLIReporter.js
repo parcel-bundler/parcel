@@ -128,7 +128,7 @@ function writeDiagnostic(
   for (let diagnostic of diagnostics) {
     let {message, stack, codeframe, hints} = prettyDiagnostic(
       diagnostic,
-      getTerminalWidth(),
+      getTerminalWidth().columns,
     );
     message = chalk[color](message);
 
