@@ -611,7 +611,7 @@ describe('codeframe', () => {
           },
         },
       ],
-      {useColor: false, terminalWidth: 3},
+      {useColor: false, terminalWidth: 9},
     );
 
     let lines = codeframeString.split(LINE_END);
@@ -649,7 +649,7 @@ describe('codeframe', () => {
           message: 'test',
         },
       ],
-      {useColor: false, terminalWidth: 3},
+      {useColor: false, terminalWidth: 9},
     );
 
     let lines = codeframeString.split(LINE_END);

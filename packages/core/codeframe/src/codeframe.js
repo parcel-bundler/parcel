@@ -127,6 +127,15 @@ export default function codeFrame(
       : endLine;
   let endLineString = endLine.toString(10);
 
+  let partWidth: number | null = opts.terminalWidth || null;
+  if (partWidth) {
+    if (partWidth > endLineString.length + 7) {
+      partWidth = partWidth - (endLineString.length + 5);
+    } else {
+      partWidth = null;
+    }
+  }
+
   // Split input into lines and highlight syntax
   let lines = code.split(NEWLINE);
   let syntaxHighlightedLines = (opts.syntaxHighlighting
@@ -160,8 +169,8 @@ export default function codeFrame(
       );
 
     // Split the line into line parts that will fit the provided terminal width
-    let lineParts = opts.terminalWidth
-      ? splitAnsi(syntaxHighlightedLines[currentLineIndex], opts.terminalWidth)
+    let lineParts = partWidth
+      ? splitAnsi(syntaxHighlightedLines[currentLineIndex], partWidth)
       : [syntaxHighlightedLines[currentLineIndex]];
 
     // Check if this line has a full line highlight
@@ -230,10 +239,7 @@ export default function codeFrame(
                 .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
 
               // If the endCol is too big for this line part, trim it so we can handle it in the next one
-              if (
-                opts.terminalWidth &&
-                endCol + startCol > opts.terminalWidth
-              ) {
+              if (partWidth && endCol + startCol > partWidth) {
                 endCol = linePartWidth - 1;
               } else {
                 // The current highlight ends within this line part, used for appending the message
