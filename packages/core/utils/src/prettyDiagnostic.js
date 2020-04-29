@@ -15,6 +15,7 @@ export type AnsiDiagnosticResult = {|
 
 export default function prettyDiagnostic(
   diagnostic: Diagnostic,
+  terminalWidth?: number,
 ): AnsiDiagnosticResult {
   let {
     origin,
@@ -47,13 +48,16 @@ export default function prettyDiagnostic(
       language:
         // $FlowFixMe sketchy null checks do not matter here...
         language || (filePath ? path.extname(filePath).substr(1) : undefined),
+      terminalWidth,
     });
 
     result.codeframe +=
       typeof filePath !== 'string'
         ? ''
         : chalk.underline(
-            `${filePath}:${highlights[0].start.line}:${highlights[0].start.column}\n`,
+            `${filePath}:${highlights[0].start.line}:${
+              highlights[0].start.column
+            }\n`,
           );
     result.codeframe += formattedCodeFrame;
   }

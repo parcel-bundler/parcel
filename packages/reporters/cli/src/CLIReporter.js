@@ -6,7 +6,7 @@ import {Reporter} from '@parcel/plugin';
 import {prettifyTime, prettyDiagnostic, throttle} from '@parcel/utils';
 import chalk from 'chalk';
 
-import {getProgressMessage} from './utils';
+import {getProgressMessage, getTerminalWidth} from './utils';
 import logLevels from './logLevels';
 import bundleReport from './bundleReport';
 import {
@@ -126,7 +126,10 @@ function writeDiagnostic(
   isError: boolean = false,
 ) {
   for (let diagnostic of diagnostics) {
-    let {message, stack, codeframe, hints} = prettyDiagnostic(diagnostic);
+    let {message, stack, codeframe, hints} = prettyDiagnostic(
+      diagnostic,
+      getTerminalWidth(),
+    );
     message = chalk[color](message);
 
     if (message) {
