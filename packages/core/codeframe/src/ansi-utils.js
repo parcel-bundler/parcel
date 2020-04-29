@@ -3,10 +3,7 @@ import sliceAnsi from 'slice-ansi';
 import stringWidth from 'string-width';
 
 // Splits a string into chunks of a specified size, for displaying in the terminal using the correct size
-export default function splitAnsi(
-  line: string,
-  maxWidth: number,
-): Array<string> {
+export function splitAnsi(line: string, maxWidth: number): Array<string> {
   let lineWidth = stringWidth(line);
   if (lineWidth < maxWidth) {
     return [line];

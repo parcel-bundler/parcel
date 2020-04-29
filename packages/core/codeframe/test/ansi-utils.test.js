@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import stringWidth from 'string-width';
 import stripAnsi from 'strip-ansi';
 
-import splitAnsi from '../src/split-ansi';
+import {splitAnsi} from '../src/ansi-utils';
 
 const LENGTH = 5;
 
