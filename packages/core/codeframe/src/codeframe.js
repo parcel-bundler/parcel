@@ -199,6 +199,7 @@ export default function codeFrame(
 
           let lastCol = 0;
           let highlight = null;
+          let highlightHasEnded = false;
           for (
             let partHighlightIndex = 0;
             partHighlightIndex < linePartHighlights.length;
@@ -206,25 +207,39 @@ export default function codeFrame(
           ) {
             // Set highlight to current highlight
             highlight = linePartHighlights[partHighlightIndex];
+            highlightHasEnded = false;
 
             // Calculate the startColumn and get the real width by doing a substring of the original
             // line and replacing tabs with our tab replacement to support tab handling
-            let startCol =
+            let startCol = 0;
+            if (
               highlight.start.line === currentLineIndex &&
               highlight.start.column > colOffset
-                ? lines[currentLineIndex]
-                    .substring(colOffset, highlight.start.column)
-                    .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length
-                : 0;
+            ) {
+              startCol = lines[currentLineIndex]
+                .substring(colOffset, highlight.start.column)
+                .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
+            }
 
             // Calculate the endColumn and get the real width by doing a substring of the original
             // line and replacing tabs with our tab replacement to support tab handling
-            let endCol =
-              highlight.end.line === currentLineIndex
-                ? lines[currentLineIndex]
-                    .substring(colOffset, highlight.end.column)
-                    .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length
-                : linePartWidth - 1;
+            let endCol = linePartWidth - 1;
+            if (highlight.end.line === currentLineIndex) {
+              endCol = lines[currentLineIndex]
+                .substring(colOffset, highlight.end.column)
+                .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
+
+              // If the endCol is too big for this line part, trim it so we can handle it in the next one
+              if (
+                opts.terminalWidth &&
+                endCol + startCol > opts.terminalWidth
+              ) {
+                endCol = linePartWidth - 1;
+              } else {
+                // The current highlight ends within this line part, used for appending the message
+                highlightHasEnded = true;
+              }
+            }
 
             // If endcol is smaller than lastCol it overlaps with another highlight and is no longer visible, we can skip those
             if (endCol >= lastCol) {
@@ -246,11 +261,8 @@ export default function codeFrame(
             }
           }
 
-          if (
-            highlight &&
-            highlight.message &&
-            highlight.end.line === currentLineIndex
-          ) {
+          // Append the highlight message if the current highlights ends on this line part
+          if (highlight && highlight.message && highlightHasEnded) {
             highlightLine += ' ' + highlighter(highlight.message, true);
           }
         }

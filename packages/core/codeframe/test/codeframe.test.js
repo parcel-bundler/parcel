@@ -4,7 +4,7 @@ import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe.only('codeframe', () => {
+describe('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -586,8 +586,7 @@ describe.only('codeframe', () => {
     assert.equal(lines[5], '>   | ^^ test');
   });
 
-  // TODO: Tweak code to handle this
-  it.skip('Should handle small terminal widths', () => {
+  it('Should handle small terminal widths', () => {
     let codeframeString = codeframe(
       'hello world',
       [
@@ -615,10 +614,50 @@ describe.only('codeframe', () => {
       {useColor: false, terminalWidth: 3},
     );
 
-    console.log(codeframeString);
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines[0], '> 1 | hel');
+    assert.equal(lines[1], '>   | ^ ^');
+    assert.equal(lines[2], '> 1 | lo ');
+    assert.equal(lines[3], '>   | ^^');
+    assert.equal(lines[4], '> 1 | wor');
+    assert.equal(lines[5], '> 1 | ld');
+  });
+
+  it('Should handle small terminal widths', () => {
+    let codeframeString = codeframe(
+      'hello world',
+      [
+        {
+          start: {
+            column: 1,
+            line: 1,
+          },
+          end: {
+            column: 1,
+            line: 1,
+          },
+        },
+        {
+          start: {
+            column: 3,
+            line: 1,
+          },
+          end: {
+            column: 5,
+            line: 1,
+          },
+          message: 'test',
+        },
+      ],
+      {useColor: false, terminalWidth: 3},
+    );
 
     let lines = codeframeString.split(LINE_END);
-    assert.equal(lines[0], '> 1 | hello world');
-    assert.equal(lines[1], '>   | ^ ^^^');
+    assert.equal(lines[0], '> 1 | hel');
+    assert.equal(lines[1], '>   | ^ ^');
+    assert.equal(lines[2], '> 1 | lo ');
+    assert.equal(lines[3], '>   | ^^ test');
+    assert.equal(lines[4], '> 1 | wor');
+    assert.equal(lines[5], '> 1 | ld');
   });
 });
