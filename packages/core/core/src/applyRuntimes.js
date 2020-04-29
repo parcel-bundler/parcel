@@ -115,7 +115,7 @@ export default async function applyRuntimes({
       });
 
       for (let asset of assets) {
-        if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
+        if (bundleGraph.isAssetReachableFromBundle(asset, bundle)) {
           duplicatedAssetIds.add(asset.id);
           actions.skipChildren();
         }

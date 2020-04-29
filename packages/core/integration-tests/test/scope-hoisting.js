@@ -2107,6 +2107,17 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
   });
 
+  it('should not remove a binding with a used AssignmentExpression', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/used-assignmentexpression/a.js',
+      ),
+    );
+
+    assert.strictEqual(await run(b), 3);
+  });
+
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(
@@ -2342,5 +2353,37 @@ describe('scope hoisting', function() {
     ]);
 
     assert.deepEqual(await run(b), 43);
+  });
+
+  it('correctly updates dependency when a specified is added', async function() {
+    let testDir = path.join(
+      __dirname,
+      '/integration/scope-hoisting/es6/cache-add-specifier',
+    );
+
+    let b = bundler(path.join(testDir, 'a.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+    });
+
+    let subscription = await b.watch();
+
+    let bundleEvent = await getNextBuild(b);
+    assert(bundleEvent.type === 'buildSuccess');
+    let output = await run(bundleEvent.bundleGraph);
+    assert.deepEqual(output, 'foo');
+
+    await overlayFS.mkdirp(testDir);
+    await overlayFS.copyFile(
+      path.join(testDir, 'a.1.js'),
+      path.join(testDir, 'a.js'),
+    );
+
+    bundleEvent = await getNextBuild(b);
+    assert(bundleEvent.type === 'buildSuccess');
+    output = await run(bundleEvent.bundleGraph);
+    assert.deepEqual(output, 'foobar');
+
+    await subscription.unsubscribe();
   });
 });
