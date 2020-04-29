@@ -289,6 +289,7 @@ export default new Bundler({
       .filter(bundle => bundle.size >= OPTIONS.minBundleSize)
       .sort((a, b) => b.size - a.size);
 
+    let sharedBundles = [];
     for (let {assets, sourceBundles} of sortedCandidates) {
       // Find all bundle groups connected to the original bundles
       let bundleGroups = new Set();
@@ -301,9 +302,9 @@ export default new Bundler({
         }
       }
 
-      // Check that all the bundle groups are inside the parallel request limit.
+      // If all bundle groups have already met the max parallel request limit, then they cannot be split.
       if (
-        Array.from(bundleGroups).some(
+        Array.from(bundleGroups).every(
           group =>
             bundleGraph.getBundlesInBundleGroup(group).length >=
             OPTIONS.maxParallelRequests,
@@ -326,16 +327,41 @@ export default new Bundler({
       // Remove all of the root assets from each of the original bundles
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
+
         for (let bundle of sourceBundles) {
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          // Remove the asset graph from the bundle if all bundle groups are
+          // within the parallel request limit and will include the shared bundle.
+          let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+            bundle,
+          );
+          if (
+            bundleGroups.every(
+              bundleGroup =>
+                bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+                OPTIONS.maxParallelRequests,
+            )
+          ) {
+            bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          }
         }
       }
 
       // Create new bundle node and connect it to all of the original bundle groups
       for (let bundleGroup of bundleGroups) {
-        bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        // If the bundle group is within the parallel request limit, then add the shared bundle.
+        if (
+          bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+          OPTIONS.maxParallelRequests
+        ) {
+          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        }
       }
 
+      sharedBundles.push(sharedBundle);
+    }
+
+    // Remove assets that are duplicated between shared bundles.
+    for (let sharedBundle of sharedBundles) {
       deduplicateBundle(bundleGraph, sharedBundle);
     }
 
@@ -368,7 +394,7 @@ export default new Bundler({
       for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
         if (
           bundle.hasAsset(resolution) ||
-          bundleGraph.isAssetInAncestorBundles(bundle, resolution)
+          bundleGraph.isAssetReachableFromBundle(resolution, bundle)
         ) {
           bundleGraph.internalizeAsyncDependency(bundle, dependency);
         }
@@ -402,7 +428,7 @@ function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
     for (let asset of assets) {
       if (
         bundle.hasAsset(asset) &&
-        bundleGraph.isAssetInAncestorBundles(bundle, asset)
+        bundleGraph.isAssetReachableFromBundle(asset, bundle)
       ) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
       }
