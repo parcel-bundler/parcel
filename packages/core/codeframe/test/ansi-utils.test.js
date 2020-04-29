@@ -1,5 +1,4 @@
 import assert from 'assert';
-import chalk from 'chalk';
 import stringWidth from 'string-width';
 import stripAnsi from 'strip-ansi';
 
@@ -10,9 +9,7 @@ const LENGTH = 5;
 describe('Split ansi', () => {
   it('Should be able to split a long string into smaller strings', () => {
     let originalString =
-      chalk.cyan('This') +
-      chalk.whiteBright('is a very long string') +
-      chalk.green('with a couple colors');
+      '\u001b[36mThis\u001b[39m\u001b[97mis a very long string\u001b[39m\u001b[32mwith a couple colors\u001b[39m';
     let lines = splitAnsi(originalString, LENGTH);
 
     assert.equal(lines.length, 9);
