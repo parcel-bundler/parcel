@@ -102,10 +102,7 @@ export default async function resolveOptions(
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
     publicUrl: initialOptions.publicUrl ?? '/',
-    distDir:
-      initialOptions.distDir != null
-        ? path.resolve(initialOptions.distDir)
-        : null,
+    distDir: path.resolve(initialOptions.distDir ?? 'dist'),
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,

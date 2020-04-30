@@ -1324,11 +1324,14 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-require'),
     );
 
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
     let b = await bundler(
       path.join(__dirname, '/html-inline-js-require/index.html'),
       {
         inputFS: overlayFS,
         disableCache: false,
+        distDir,
       },
     );
 
@@ -1344,7 +1347,7 @@ describe('html', function() {
     );
     await getNextBuild(b);
 
-    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
     assert(html.includes('console.log("foo")'));
   });
 
@@ -1355,11 +1358,14 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-nested'),
     );
 
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
     let b = await bundler(
       path.join(__dirname, '/html-inline-js-nested/index.html'),
       {
         inputFS: overlayFS,
         disableCache: false,
+        distDir,
       },
     );
 
@@ -1376,7 +1382,7 @@ describe('html', function() {
     );
     await getNextBuild(b);
 
-    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
     assert(!html.includes('module.exports = "hello world"'));
     assert(html.includes('module.exports = "foo bar"'));
     assert(html.includes('console.log'));
