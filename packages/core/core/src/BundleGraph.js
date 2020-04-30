@@ -482,59 +482,6 @@ export default class BundleGraph {
     });
   }
 
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset) {
-    let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
-
-    for (let bundleGroup of bundleGroups) {
-      // If the asset is in any sibling bundles, return that bundle.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup);
-      let res = bundles.find(
-        b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
-      );
-      if (res != null) {
-        return res;
-      }
-
-      // Get a list of parent bundle nodes pointing to the bundle group
-      let parentBundleNodes = this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-        'bundle',
-      );
-
-      // Find the nearest ancestor bundle that includes the asset.
-      for (let bundleNode of parentBundleNodes) {
-        this._graph.traverseAncestors(
-          bundleNode,
-          (node, ctx, actions) => {
-            if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(node.value);
-
-              res = childBundles.find(
-                b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
-              );
-              if (res != null) {
-                actions.stop();
-              }
-            }
-
-            // Stop when context changes
-            if (
-              node.type === 'bundle' &&
-              node.value.env.context !== bundle.env.context
-            ) {
-              actions.skipChildren();
-            }
-          },
-          'bundle',
-        );
-
-        if (res != null) {
-          return res;
-        }
-      }
-    }
-  }
-
   traverseBundle<TContext>(
     bundle: Bundle,
     visit: GraphVisitor<AssetNode | DependencyNode, TContext>,
