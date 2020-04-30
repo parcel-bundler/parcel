@@ -153,6 +153,7 @@ export type ParcelOptions = {|
   lockFile: ?FilePath,
   profile: boolean,
   patchConsole: boolean,
+  detailedReport?: number,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
