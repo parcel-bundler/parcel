@@ -7,19 +7,22 @@ import type {
   ParcelOptions,
   ReportFn,
 } from './types';
-import type {Validator, ValidateResult} from '@parcel/types';
+import type {Asset as IAsset, Validator, ValidateResult} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
+import invariant from 'assert';
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
-import UncommittedAsset from './UncommittedAsset';
+import UncommittedAssetWithGraphNodeId from './UncommittedAssetWithGraphNodeId';
 import {createAsset} from './assetUtils';
-import {Asset} from './public/Asset';
+import {Asset, AssetWithGraphNodeId} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
+import {md5FromObject} from '@parcel/utils';
 
 export type ValidationOpts = {|
   config: ParcelConfig,
@@ -32,14 +35,19 @@ export type ValidationOpts = {|
   requests: AssetRequestDesc[],
   report: ReportFn,
   workerApi?: WorkerApi,
+  getAllDependentAssets?: (assetGraphNodeId: string) => Array<IAsset>,
 |};
 
 export default class Validation {
-  allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
+  allAssets: {
+    [validatorName: string]: UncommittedAssetWithGraphNodeId[],
+    ...,
+  } = {};
   allValidators: {[validatorName: string]: Validator, ...} = {};
   dedicatedThread: boolean;
   configRequests: Array<ConfigRequestDesc>;
   configLoader: ConfigLoader;
+  getAllDependentAssets: ?(assetGraphNodeId: string) => Array<IAsset>;
   impactfulOptions: $Shape<ParcelOptions>;
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
@@ -50,6 +58,7 @@ export default class Validation {
   constructor({
     config,
     dedicatedThread,
+    getAllDependentAssets,
     options,
     requests,
     report,
@@ -57,6 +66,7 @@ export default class Validation {
   }: ValidationOpts) {
     this.configLoader = new ConfigLoader({options, config});
     this.dedicatedThread = dedicatedThread ?? false;
+    this.getAllDependentAssets = getAllDependentAssets;
     this.options = options;
     this.parcelConfig = config;
     this.report = report;
@@ -73,11 +83,18 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
-              let validatorResults = await plugin.validateAll({
-                assets: assets.map(asset => new Asset(asset)),
+              let {getAllDependentAssets} = this;
+              invariant(
+                getAllDependentAssets,
+                'If we invoking validateAll()-type validators, getDependentAssets must be defined.',
+              );
+              validatorResults = await plugin.validateAll({
+                assets: assets.map(asset => new AssetWithGraphNodeId(asset)),
+                getAllDependentAssets,
                 options: pluginOptions,
                 logger: validatorLogger,
                 resolveConfigWithPath: (
@@ -90,9 +107,6 @@ export default class Validation {
                     configNames,
                   ),
               });
-              for (let validatorResult of validatorResults) {
-                this.handleResult(validatorResult);
-              }
             }
 
             // Otherwise, pass the assets one-at-a-time
@@ -113,17 +127,17 @@ export default class Validation {
                         ),
                     });
                   }
-
-                  let validatorResult = await plugin.validate({
+                  let result = await plugin.validate({
                     asset: new Asset(asset),
                     options: pluginOptions,
                     config,
                     logger: validatorLogger,
                   });
-                  this.handleResult(validatorResult);
+                  validatorResults.push(result);
                 }),
               );
             }
+            this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, validatorName),
@@ -161,23 +175,32 @@ export default class Validation {
     );
   }
 
-  handleResult(validatorResult: ?ValidateResult) {
-    if (validatorResult) {
-      let {warnings, errors} = validatorResult;
-
-      if (errors.length > 0) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errors,
-        });
+  handleResults(validatorResults: Array<?ValidateResult>) {
+    let warnings: Array<Diagnostic> = [];
+    let errors: Array<Diagnostic> = [];
+    validatorResults.forEach(result => {
+      if (result) {
+        warnings.push(...result.warnings);
+        errors.push(...result.errors);
       }
+    });
 
-      if (warnings.length > 0) {
-        logger.warn(warnings);
-      }
+    // ANDREW_TODO: we reversed the order here, so that warnings get logged even if an error is thrown. Is that a good idea?
+    if (warnings.length > 0) {
+      logger.warn(warnings);
+    }
+
+    if (errors.length > 0) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors,
+      });
     }
   }
 
-  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
+  async loadAsset(
+    request: AssetRequestDesc,
+  ): Promise<UncommittedAssetWithGraphNodeId> {
+    let assetGraphNodeId = md5FromObject(request);
     let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
@@ -192,7 +215,7 @@ export default class Validation {
         : path
             .relative(this.options.projectRoot, filePath)
             .replace(/[\\/]+/g, '/');
-    return new UncommittedAsset({
+    return new UncommittedAssetWithGraphNodeId({
       idBase,
       value: createAsset({
         idBase,
@@ -207,6 +230,7 @@ export default class Validation {
         },
         sideEffects: sideEffects,
       }),
+      assetGraphNodeId,
       options: this.options,
       content,
     });

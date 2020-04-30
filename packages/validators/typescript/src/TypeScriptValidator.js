@@ -18,9 +18,12 @@ let langServiceCache: {
     configHost: ParseConfigHost,
     host: LanguageServiceHost,
     service: LanguageService,
+    skipLibCheck: boolean,
   |},
   ...,
 } = {};
+
+let langServicesToFinalize = new Set</* configHash */ string>();
 
 type TSValidatorConfig = {|
   filepath: string | null,
@@ -34,43 +37,68 @@ export default new Validator({
     assets,
     options,
     resolveConfigWithPath,
+    getAllDependentAssets,
   }): Promise<Array<?ValidateResult>> {
-    // Build a collection that of all the LanguageServices related to files that just changed.
-    let servicesToValidate: Set<string> = new Set();
+    // Build a collection that relates the assets that need to be validated to a particular LanguageService that will do the validating.
+    // This assumes that any given file can only have a single config.
+    let assetsToValidate = new Map<
+      /* filePath */ string,
+      /* configHash */ string,
+    >();
+
     await Promise.all(
       assets.map(async asset => {
         let config = await getConfig(asset, options, resolveConfigWithPath);
         let {configHash} = config;
 
         // Create a languageService/host in the cache for the configuration if it doesn't already exist.
-        await tryCreateLanguageService(config, asset, options);
+        await tryCreateLanguageService(
+          config,
+          asset,
+          options,
+          assetsToValidate,
+        );
         if (!langServiceCache[configHash]) return;
 
-        // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
-        langServiceCache[configHash].host.invalidate(asset.filePath);
+        // If skipLibCheck is true, that means tryCreateLanguageService didn't add the program's files to assetsToValidate - we need to do it ourselves using parcel's dependency graph.
+        if (langServiceCache[configHash].skipLibCheck) {
+          // Invalidate the file with the LanguageServiceHost so Typescript knows it has changed.
+          langServiceCache[configHash].host.invalidate(asset.filePath);
 
-        servicesToValidate.add(configHash);
+          assetsToValidate.set(asset.filePath, configHash);
+
+          getAllDependentAssets(asset.assetGraphNodeId).forEach(
+            dependentAsset => {
+              assetsToValidate.set(dependentAsset.filePath, configHash);
+            },
+          );
+        }
       }),
     );
 
+    // After we've done our first validation of a given project (which, if tsconfig.json skipLibCheck=false, will include d.ts files specified in 'lib' or 'typeRoots'),
+    // we don't need to re-validate the 'lib' or 'typeRoots' d.ts files on subsequent Validations.
+    if (langServicesToFinalize.size > 0) {
+      langServicesToFinalize.forEach(
+        configHash => (langServiceCache[configHash].skipLibCheck = true),
+      );
+      langServicesToFinalize.clear();
+    }
+
     // Ask typescript to analyze all changed programs and translate the results into ValidatorResult objects.
     let validatorResults: Array<?ValidateResult> = [];
-    servicesToValidate.forEach(configHash => {
+    assetsToValidate.forEach((configHash, assetPath) => {
       // Make sure that the filesystem being used by the LanguageServiceHost and ParseConfigHost is up-to-date.
       // (This could change in the context of re-running tests, and probably also for other reasons).
       langServiceCache[configHash].host.fs = options.inputFS;
       langServiceCache[configHash].configHost.fs = options.inputFS;
 
-      let program = langServiceCache[configHash].service.getProgram();
-      if (!program) return;
-
-      let filesToCheck = program.getSourceFiles();
-      filesToCheck.forEach(sourceFile => {
-        let diagnostics = program.getSemanticDiagnostics(sourceFile);
-        validatorResults.push(
-          getValidateResultFromDiagnostics(sourceFile.fileName, diagnostics),
-        );
-      });
+      const diagnostics = langServiceCache[
+        configHash
+      ].service.getSemanticDiagnostics(assetPath);
+      validatorResults.push(
+        getValidateResultFromDiagnostics(assetPath, diagnostics),
+      );
     });
 
     return validatorResults;
@@ -104,6 +132,7 @@ async function tryCreateLanguageService(
   config: TSValidatorConfig,
   asset: Asset,
   options: PluginOptions,
+  assetsToValidate: Map</* filePath */ string, /* configHash */ string>,
 ): Promise<void> {
   if (config.tsconfig && !langServiceCache[config.configHash]) {
     let ts = await options.packageManager.require(
@@ -126,10 +155,27 @@ async function tryCreateLanguageService(
         ts,
         parsedCommandLine,
       );
+      let service = ts.createLanguageService(host, ts.createDocumentRegistry());
+
+      // The first time the language service is created, we want to check all files in the project if skipLibCheck = false (the default).
+      // See: https://www.typescriptlang.org/docs/handbook/compiler-options.html
+      let skipLibCheck =
+        config.tsconfig?.compilerOptions?.skipLibCheck ?? false;
+      if (!skipLibCheck) {
+        // ANDREW_TODO: should we also somehow ask Parcel to monitor the 'lib' and 'typeRoots' d.ts files for changes?
+        let allSourceFiles = service.getProgram()?.getSourceFiles() ?? [];
+        allSourceFiles.forEach(sourceFile => {
+          host.invalidate(asset.filePath);
+          assetsToValidate.set(sourceFile.fileName, config.configHash);
+        });
+        langServicesToFinalize.add(config.configHash);
+      }
+
       langServiceCache[config.configHash] = {
         configHost,
         host,
-        service: ts.createLanguageService(host, ts.createDocumentRegistry()),
+        service,
+        skipLibCheck,
       };
     }
   }

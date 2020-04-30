@@ -28,7 +28,7 @@ import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
 import {createAsset, getConfig} from './assetUtils';
 
-type UncommittedAssetOptions = {|
+export type UncommittedAssetOptions = {|
   value: Asset,
   options: ParcelOptions,
   content?: ?Blob,

@@ -28,6 +28,7 @@ import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
 import UncommittedAsset from '../UncommittedAsset';
+import UncommittedAssetWithGraphNodeId from '../UncommittedAssetWithGraphNodeId';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
 
@@ -202,6 +203,19 @@ export class Asset extends BaseAsset implements IAsset {
 
   get stats(): Stats {
     return this.#asset.value.stats;
+  }
+}
+
+// ANDREW_TODO: this a hacky way of passing around a graphNodeId so it can be used to look up dependent assets within a Validator. There's probably a better way.
+export class AssetWithGraphNodeId extends Asset {
+  #asset;
+
+  constructor(asset: UncommittedAssetWithGraphNodeId) {
+    super(asset);
+    this.#asset = asset;
+  }
+  get assetGraphNodeId(): string {
+    return this.#asset.assetGraphNodeId;
   }
 }
 

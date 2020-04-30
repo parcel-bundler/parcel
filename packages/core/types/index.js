@@ -358,6 +358,11 @@ export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
+// ANDREW_TODO: this a hacky way of passing around a graphNodeId so it can be used to look up dependent assets within a Validator. There's probably a better way.
+export interface AssetWithGraphNodeId extends Asset {
+  +assetGraphNodeId: string;
+}
+
 export interface Config {
   +isSource: boolean;
   +searchPath: FilePath;
@@ -446,10 +451,11 @@ export type ValidateResult = {|
 
 export type DedicatedThreadValidator = {|
   validateAll: ({|
-    assets: Asset[],
+    assets: AssetWithGraphNodeId[],
     resolveConfigWithPath: ResolveConfigWithPathFn,
     options: PluginOptions,
     logger: PluginLogger,
+    getAllDependentAssets: (assetGraphNodeId: string) => Array<Asset>,
   |}) => Async<Array<?ValidateResult>>,
 |};
 
