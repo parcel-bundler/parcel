@@ -84,7 +84,7 @@ export default new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            node.value.getMapBuffer(),
+            bundle.target.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });
