@@ -6,6 +6,8 @@
   },
   "targets": {
     "main": false,
-    "app": {}
+    "app": {
+      "sourceMap": false
+    }
   }
 }

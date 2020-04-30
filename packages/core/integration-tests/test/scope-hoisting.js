@@ -12,11 +12,10 @@ import {
   getNextBuild,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) =>
-  _bundle(name, Object.assign({scopeHoist: true}, opts));
+const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
 
 const bundler = (name, opts = {}) =>
-  _bundler(name, Object.assign({scopeHoist: true}, opts));
+  _bundler(name, {scopeHoist: true, ...opts});
 
 describe('scope hoisting', function() {
   describe('es6', function() {

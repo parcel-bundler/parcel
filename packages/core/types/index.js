@@ -101,7 +101,7 @@ export type PackageTargetDescriptor = {|
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +sourceMap?: TargetSourceMapOptions,
+  +sourceMap?: boolean | TargetSourceMapOptions,
   +stableEntries?: boolean,
   +isLibrary?: boolean,
   +minify?: boolean,
