@@ -119,19 +119,15 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
-    let internalNode = this.#graph._graph.getNode(bundle.id);
-    invariant(internalNode != null && internalNode.type === 'bundle');
     return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
-      internalNode.value,
+      bundleToInternalBundle(bundle),
     );
   }
 
   findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?IBundle {
-    let internalNode = this.#graph._graph.getNode(bundle.id);
-    invariant(internalNode != null && internalNode.type === 'bundle');
     let result = this.#graph.findReachableBundleWithAsset(
-      internalNode.value,
+      bundleToInternalBundle(bundle),
       assetToAssetValue(asset),
     );
 
