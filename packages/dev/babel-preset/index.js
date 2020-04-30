@@ -4,7 +4,7 @@ module.exports = () => ({
       require('@babel/preset-env'),
       {
         targets: {
-          node: 8,
+          node: 10,
         },
       },
     ],
@@ -32,6 +32,7 @@ module.exports = () => ({
             ],
           },
         ],
+        'babel-plugin-minify-dead-code-elimination',
       ],
     },
   },

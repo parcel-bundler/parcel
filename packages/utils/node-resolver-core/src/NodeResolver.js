@@ -398,6 +398,8 @@ export default class NodeResolver {
       default: {
         if (isURL) {
           let resolved = path.resolve(dir, filename);
+          // ATLASSIAN: Fall back to node_modules lookup if relative URL path
+          // doesn't exist.
           return this.options.inputFS.existsSync(resolved)
             ? resolved
             : filename;

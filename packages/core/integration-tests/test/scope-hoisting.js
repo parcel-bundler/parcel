@@ -12,11 +12,10 @@ import {
   getNextBuild,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) =>
-  _bundle(name, Object.assign({scopeHoist: true}, opts));
+const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
 
 const bundler = (name, opts = {}) =>
-  _bundler(name, Object.assign({scopeHoist: true}, opts));
+  _bundler(name, {scopeHoist: true, ...opts});
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -201,7 +200,7 @@ describe('scope hoisting', function() {
       assert.equal(output, 15);
     });
 
-    it('can import from a different bundle via a re-export', async function() {
+    it('can import from a different bundle via a re-export (1)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -223,6 +222,30 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['operational', 'ui']);
+    });
+
+    it('can import from a different bundle via a re-export (2)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary2/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['foo', 'foo']);
+    });
+
+    it('can import from its own bundle with a split package', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-bundle-boundary3/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [['a', 'b'], 'themed']);
     });
 
     it('supports importing all exports re-exported from multiple modules deep', async function() {
@@ -867,6 +890,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 'bar');
+    });
+
+    it('should insert esModule flag for interop for async (or shared) bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/interop-async/index.html',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['client', 'client', 'viewer']);
     });
 
     it('should support the jsx pragma', async function() {
@@ -2073,6 +2108,17 @@ describe('scope hoisting', function() {
     );
 
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
+  });
+
+  it('should not remove a binding with a used AssignmentExpression', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/used-assignmentexpression/a.js',
+      ),
+    );
+
+    assert.strictEqual(await run(b), 3);
   });
 
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {

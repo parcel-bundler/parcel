@@ -82,6 +82,12 @@ export default class BundleGraph implements IBundleGraph {
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
+  getReferencedBundles(bundle: IBundle): Array<IBundle> {
+    return this.#graph
+      .getReferencedBundles(bundleToInternalBundle(bundle))
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+  }
+
   resolveExternalDependency(
     dependency: IDependency,
     bundle: ?IBundle,
@@ -112,12 +118,12 @@ export default class BundleGraph implements IBundleGraph {
       .map(dep => new Dependency(dep));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
     let internalNode = this.#graph._graph.getNode(bundle.id);
     invariant(internalNode != null && internalNode.type === 'bundle');
-    return this.#graph.isAssetInAncestorBundles(
-      internalNode.value,
+    return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
+      internalNode.value,
     );
   }
 
@@ -142,7 +148,13 @@ export default class BundleGraph implements IBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .sort(
+        (a, b) =>
+          bundleGroup.bundleIds.indexOf(a.id) -
+          bundleGroup.bundleIds.indexOf(b.id),
+      )
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
+      .reverse();
   }
 
   getBundles(): Array<IBundle> {

@@ -101,7 +101,7 @@ export type PackageTargetDescriptor = {|
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +sourceMap?: TargetSourceMapOptions,
+  +sourceMap?: boolean | TargetSourceMapOptions,
   +stableEntries?: boolean,
   +isLibrary?: boolean,
   +minify?: boolean,
@@ -206,11 +206,11 @@ export type InitialParcelOptions = {|
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
+  +detailedReport?: number | boolean,
 
   // contentHash
   // throwErrors
   // global?
-  // detailedReport
 |};
 
 export interface PluginOptions {
@@ -223,12 +223,14 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
+  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
+  +detailedReport: number;
 }
 
 export type ServerOptions = {|
@@ -616,12 +618,14 @@ export interface NamedBundle extends Bundle {
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
+  bundleIds: Array<string>,
 |};
 
 export interface MutableBundleGraph extends BundleGraph {
   addAssetGraphToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
+  createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   createBundleGroup(Dependency, Target): BundleGroup;
   getDependencyAssets(Dependency): Array<Asset>;
@@ -645,6 +649,7 @@ export interface BundleGraph {
   getChildBundles(bundle: Bundle): Array<Bundle>;
   getParentBundles(bundle: Bundle): Array<Bundle>;
   getSiblingBundles(bundle: Bundle): Array<Bundle>;
+  getReferencedBundles(bundle: Bundle): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   resolveExternalDependency(
@@ -657,7 +662,7 @@ export interface BundleGraph {
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
   findBundlesWithAsset(Asset): Array<Bundle>;
   findBundlesWithDependency(Dependency): Array<Bundle>;
-  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
