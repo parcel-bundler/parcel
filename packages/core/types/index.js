@@ -258,8 +258,7 @@ export type SourceLocation = {|
 export type Meta = JSONObject;
 
 export type Symbol = string;
-// eslint-disable-next-line no-undef
-export interface Symbols
+export interface Symbols // eslint-disable-next-line no-undef
   extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
