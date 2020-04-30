@@ -72,6 +72,14 @@ export default async function resolveOptions(
   let mode = initialOptions.mode ?? 'development';
   let minify = initialOptions.minify ?? mode === 'production';
 
+  let detailedReport: number = 0;
+  if (initialOptions.detailedReport != null) {
+    detailedReport =
+      initialOptions.detailedReport === true
+        ? 10
+        : parseInt(initialOptions.detailedReport, 10);
+  }
+
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
@@ -111,5 +119,6 @@ export default async function resolveOptions(
     cache,
     packageManager,
     instanceId: generateInstanceId(entries),
+    detailedReport,
   };
 }

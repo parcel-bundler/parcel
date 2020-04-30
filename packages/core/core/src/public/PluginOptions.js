@@ -91,4 +91,8 @@ export default class PluginOptions implements IPluginOptions {
   get packageManager(): PackageManager {
     return this.#options.packageManager;
   }
+
+  get detailedReport(): number {
+    return this.#options.detailedReport || 0;
+  }
 }
