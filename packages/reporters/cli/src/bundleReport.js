@@ -1,7 +1,8 @@
 // @flow
-import type {BundleGraph} from '@parcel/types';
+import type {BundleGraph, FilePath} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
-import {generateBundleReport, prettifyTime} from '@parcel/utils';
+import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
 import filesize from 'filesize';
 import chalk from 'chalk';
 
@@ -16,9 +17,17 @@ const COLUMNS = [
   {align: 'right'}, // time
 ];
 
-export default function bundleReport(bundleGraph: BundleGraph) {
+export default async function bundleReport(
+  bundleGraph: BundleGraph,
+  fs: FileSystem,
+  projectRoot: FilePath,
+) {
   // Get a list of bundles sorted by size
-  let {bundles} = generateBundleReport(bundleGraph);
+  let {bundles} = await generateBuildMetrics(
+    bundleGraph.getBundles().filter(b => !b.isInline),
+    fs,
+    projectRoot,
+  );
   let rows = [];
 
   for (let bundle of bundles) {
@@ -29,22 +38,22 @@ export default function bundleReport(bundleGraph: BundleGraph) {
       chalk.green.bold(prettifyTime(bundle.time)),
     ]);
 
-    for (let asset of bundle.largestAssets) {
+    let largestAssets = bundle.assets.slice(0, 10);
+    for (let asset of largestAssets) {
       // Add a row for the asset.
       rows.push([
-        (asset == bundle.largestAssets[bundle.largestAssets.length - 1]
-          ? '└── '
-          : '├── ') + formatFilename(asset.filePath, chalk.reset),
+        (asset == largestAssets[largestAssets.length - 1] ? '└── ' : '├── ') +
+          formatFilename(asset.filePath, chalk.reset),
         chalk.dim(prettifySize(asset.size)),
         chalk.dim(chalk.green(prettifyTime(asset.time))),
       ]);
     }
 
-    if (bundle.totalAssets > bundle.largestAssets.length) {
+    if (bundle.assets.length > largestAssets.length) {
       rows.push([
         '└── ' +
           chalk.dim(
-            `+ ${bundle.totalAssets - bundle.largestAssets.length} more assets`,
+            `+ ${bundle.assets.length - largestAssets.length} more assets`,
           ),
       ]);
     }

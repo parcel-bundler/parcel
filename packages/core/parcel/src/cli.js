@@ -64,6 +64,8 @@ const commonOptions = {
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/,
   ],
+  '--dist-dir <dir>':
+    'output directory to write to when unspecified by targets',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
 };
@@ -108,10 +110,6 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
-  .option(
-    '--dist-dir <dir>',
-    'output directory to write to when unspecified by targets',
-  )
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
@@ -125,10 +123,6 @@ let build = program
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .option(
-    '--dist-dir <dir>',
-    'Output directory to write to when unspecified by targets',
-  )
   .action(run);
 
 applyOptions(build, commonOptions);
