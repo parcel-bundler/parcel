@@ -5,6 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
 import filesize from 'filesize';
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
 import * as emoji from './emoji';
 import {writeOut, table} from './render';
@@ -23,12 +24,22 @@ export default async function bundleReport(
   projectRoot: FilePath,
   assetCount: number,
 ) {
+  let bundleList = bundleGraph.getBundles().filter(b => !b.isInline);
+
   // Get a list of bundles sorted by size
-  let {bundles} = await generateBuildMetrics(
-    bundleGraph.getBundles().filter(b => !b.isInline),
-    fs,
-    projectRoot,
-  );
+  let {bundles} =
+    assetCount > 0
+      ? await generateBuildMetrics(bundleList, fs, projectRoot)
+      : {
+          bundles: bundleList.map(b => {
+            return {
+              filePath: nullthrows(b.filePath),
+              size: b.stats.size,
+              time: b.stats.time,
+              assets: [],
+            };
+          }),
+        };
   let rows = [];
 
   for (let bundle of bundles) {
