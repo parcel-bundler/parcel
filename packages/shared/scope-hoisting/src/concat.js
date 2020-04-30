@@ -217,7 +217,7 @@ function getUsedExports(
         continue;
       }
 
-      for (let [symbol, {local}] of dep.symbols.getAll()) {
+      for (let [symbol, {local}] of dep.symbols) {
         if (local === '*') {
           continue;
         }

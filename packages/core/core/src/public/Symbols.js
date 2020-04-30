@@ -12,6 +12,9 @@ let parcelSymbolsToSymbols: WeakMap<
 > = new WeakMap();
 
 export class Symbols implements ISymbols {
+  /*::
+  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  */
   #symbols; // Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>
 
   constructor(symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>) {
@@ -39,8 +42,9 @@ export class Symbols implements ISymbols {
     return false;
   }
 
-  getAll(): $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}> {
-    return this.#symbols;
+  // $FlowFixMe
+  [Symbol.iterator]() {
+    return this.#symbols[Symbol.iterator]();
   }
 }
 
@@ -50,6 +54,9 @@ let parcelSymbolsToMutableSymbols: WeakMap<
 > = new WeakMap();
 
 export class MutableSymbols implements IMutableSymbols {
+  /*::
+  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  */
   #symbols; // Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>
 
   constructor(symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>) {
@@ -85,7 +92,8 @@ export class MutableSymbols implements IMutableSymbols {
     return false;
   }
 
-  getAll(): $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}> {
-    return this.#symbols;
+  // $FlowFixMe
+  [Symbol.iterator]() {
+    return this.#symbols[Symbol.iterator]();
   }
 }

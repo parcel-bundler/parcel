@@ -119,7 +119,7 @@ export function link({
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
       if (resolved || dep.isDeferred) {
-        for (let [imported, {local, loc}] of dep.symbols.getAll()) {
+        for (let [imported, {local, loc}] of dep.symbols) {
           imports.set(local, resolved ? [resolved, imported, loc] : null);
         }
       }
@@ -298,7 +298,7 @@ export function link({
     let specifiers = importedFile.specifiers;
 
     // For each of the imported symbols, add to the list of imported specifiers.
-    for (let [imported, {local}] of dep.symbols.getAll()) {
+    for (let [imported, {local}] of dep.symbols) {
       // If already imported, just add the already renamed variable to the mapping.
       let renamed = specifiers.get(imported);
       if (renamed) {
