@@ -1,5 +1,7 @@
 import assert from 'assert';
 import path from 'path';
+import {createWorkerFarm} from '@parcel/core';
+import {MemoryFS} from '@parcel/fs';
 import {
   bundle,
   bundler,
@@ -269,6 +271,13 @@ describe('babel', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
+  it('should support compiling JSX in JS files with React aliased to Preact', async function() {
+    await bundle(path.join(__dirname, '/integration/jsx-react-alias/index.js'));
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
   it('should support compiling JSX in JS files with Preact dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-preact/index.js'));
 
@@ -427,6 +436,97 @@ describe('babel', function() {
     assert(file.includes('string from a plugin in .babelrc'));
     assert(file.includes('SOMETHING ELSE'));
     assert(!file.includes('string from a plugin from a different sub-package'));
+  });
+
+  describe('Babel envName', () => {
+    it('should prefer BABEL_ENV to NODE_ENV', async () => {
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {
+          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          env: {BABEL_ENV: 'production', NODE_ENV: 'development'},
+        },
+      );
+      let file = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8',
+      );
+      assert(!file.includes('class Foo'));
+    });
+
+    it('should prefer the babel env name from options.env', async () => {
+      let prevNodeEnv = process.env.NODE_ENV;
+      let prevBabelEnv = process.env.BABEL_ENV;
+
+      process.env.NODE_ENV = 'development';
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {
+          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          env: {NODE_ENV: 'production'},
+        },
+      );
+      let file = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8',
+      );
+      assert(!file.includes('class Foo'));
+      process.env.NODE_ENV = prevNodeEnv;
+
+      process.env.BABEL_ENV = 'development';
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {
+          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          env: {BABEL_ENV: 'production'},
+        },
+      );
+      file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+      assert(!file.includes('class Foo'));
+      process.env.BABEL_ENV = prevBabelEnv;
+    });
+
+    // TODO: Unskip when multiple WorkerFarm/MemoryFS can run concurrently in tests
+    it.skip('should use process.env.BABEL_ENV if available', async () => {
+      let prevBabelEnv = process.env.BABEL_ENV;
+      process.env.BABEL_ENV = 'production';
+
+      // Run this test with its own WorkerFarm as process.env was mutated and
+      // needs to be sent to a new set of workers.
+      let workerFarm = createWorkerFarm();
+      let outputFS = new MemoryFS(workerFarm);
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {
+          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          outputFS,
+          workerFarm,
+        },
+      );
+      let file = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8',
+      );
+      assert(!file.includes('class Foo'));
+      await workerFarm.end();
+
+      process.env.BABEL_ENV = prevBabelEnv;
+    });
+
+    it('should be "production" if Parcel is run in production mode', async () => {
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {
+          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          mode: 'production',
+        },
+      );
+      let file = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8',
+      );
+      assert(!file.includes('class Foo'));
+    });
   });
 
   describe('tests needing the real filesystem', () => {

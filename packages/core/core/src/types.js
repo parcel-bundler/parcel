@@ -144,7 +144,7 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: ?FilePath,
+  distDir: FilePath,
   hot: ?HMROptions,
   serve: ServerOptions | false,
   autoinstall: boolean,
@@ -153,11 +153,14 @@ export type ParcelOptions = {|
   lockFile: ?FilePath,
   profile: boolean,
   patchConsole: boolean,
+  detailedReport?: number,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
+
+  instanceId: string,
 |};
 
 export type NodeId = string;
@@ -189,6 +192,7 @@ export type RootNode = {|id: string, +type: 'root', value: string | null|};
 export type AssetRequestDesc = {|
   filePath: FilePath,
   env: Environment,
+  isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,

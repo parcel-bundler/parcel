@@ -279,7 +279,8 @@ export default class Parcel {
         bundleGraph: new BundleGraph(bundleGraph, options),
         buildTime: Date.now() - startTime,
       };
-      this.#reporterRunner.report(event);
+
+      await this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
 
@@ -372,6 +373,14 @@ export default class Parcel {
         }
       },
       opts,
+    );
+  }
+
+  // This is mainly for integration tests and it not public api!
+  _getResolvedParcelOptions() {
+    return nullthrows(
+      this.#resolvedOptions,
+      'Resolved options is null, please let parcel intitialise before accessing this.',
     );
   }
 }

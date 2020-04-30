@@ -363,31 +363,23 @@ export default class PackagerRunner {
     });
   }
 
-  getCacheKey(
+  async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): string {
+  ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
-    let packager = this.config.getPackagerName(filePath);
-    let optimizers = this.config.getOptimizerNames(filePath);
-    let deps = Promise.all(
-      [packager, ...optimizers].map(async pkg => {
-        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
-          `${pkg}/package.json`,
-          `${this.config.filePath}/index`,
-        );
-
-        let version = nullthrows(resolvedPkg).version;
-        return [pkg, version];
-      }),
-    );
+    let {version: packager} = await this.config.getPackager(filePath);
+    let optimizers = (
+      await this.config.getOptimizers(filePath)
+    ).map(({name, version}) => [name, version]);
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
-      deps,
+      packager,
+      optimizers,
       opts: {sourceMaps},
       hash: bundleGraph.getHash(bundle),
     });
@@ -468,7 +460,12 @@ export default class PackagerRunner {
     };
 
     let mapKey = cacheKeys.map;
-    if (await this.options.cache.blobExists(mapKey)) {
+    if (
+      (typeof bundle.target.sourceMap === 'object'
+        ? !bundle.target.sourceMap.inline
+        : bundle.target.sourceMap) &&
+      (await this.options.cache.blobExists(mapKey))
+    ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
         outputFS,

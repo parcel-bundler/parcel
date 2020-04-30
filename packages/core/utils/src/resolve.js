@@ -12,6 +12,9 @@ import type {FileSystem} from '@parcel/fs';
 // $FlowFixMe TODO: Type promisify
 import promisify from './promisify';
 import _resolve from 'resolve';
+import {resolveConfig, resolveConfigSync} from '../';
+// $FlowFixMe this is untyped
+import Module from 'module';
 
 const resolveAsync = promisify(_resolve);
 
@@ -23,14 +26,47 @@ export type ResolveResult = {|
 export async function resolve(
   fs: FileSystem,
   id: string,
-  opts?: {|
+  opts: {|
     range?: ?SemverRange,
     ...ResolveOptions,
+    basedir: string,
   |},
 ): Promise<ResolveResult> {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
-    // $FlowFixMe
-    opts = opts || {};
+    // Yarn patches resolve automatically in a non-linked setup
+    let pnp;
+    if (
+      process.versions.pnp != null &&
+      (!id.includes('@parcel/') || id.startsWith('@parcel/watcher')) &&
+      (pnp = Module.findPnpApi(opts.basedir))
+    ) {
+      try {
+        let res = pnp.resolveRequest(id, `${opts.basedir}/`, {
+          extensions: opts.extensions,
+          considerBuiltins: true,
+        });
+
+        if (!res) {
+          // builtin
+          return {resolved: id};
+        }
+
+        let pkgFile = await resolveConfig(fs, res, ['package.json']);
+        let pkg = null;
+        if (pkgFile != null) {
+          pkg = JSON.parse(await fs.readFile(pkgFile, 'utf8'));
+        }
+
+        if (res) {
+          return {resolved: res, pkg};
+        }
+      } catch (e) {
+        if (e.code !== 'MODULE_NOT_FOUND') {
+          throw e;
+        }
+      }
+    }
+
     // $FlowFixMe
     opts.packageFilter = pkg => {
       if (
@@ -44,6 +80,11 @@ export async function resolve(
       }
       return pkg;
     };
+  }
+
+  if (id === 'pnpapi') {
+    // the resolve package doesn't recognize pnpapi as a builtin
+    return {resolved: 'pnpapi'};
   }
 
   let res = await resolveAsync(id, {
@@ -89,11 +130,46 @@ export async function resolve(
 export function resolveSync(
   fs: FileSystem,
   id: string,
-  opts?: ResolveOptions,
+  opts: {|
+    ...ResolveOptions,
+    basedir: string,
+  |},
 ): ResolveResult {
   if (process.env.PARCEL_BUILD_ENV !== 'production') {
-    // $FlowFixMe
-    opts = opts || {};
+    // Yarn patches resolve automatically in a non-linked setup
+    let pnp;
+    if (
+      process.versions.pnp != null &&
+      (!id.startsWith('@parcel') || id.startsWith('@parcel/watcher')) &&
+      (pnp = Module.findPnpApi(opts.basedir))
+    ) {
+      try {
+        let res = pnp.resolveRequest(id, `${opts.basedir}/`, {
+          extensions: opts.extensions,
+          considerBuiltins: true,
+        });
+
+        if (!res) {
+          // builtin
+          return {resolved: id};
+        }
+
+        let pkgFile = resolveConfigSync(fs, res, ['package.json']);
+        let pkg = null;
+        if (pkgFile != null) {
+          pkg = JSON.parse(fs.readFileSync(pkgFile, 'utf8'));
+        }
+
+        if (res) {
+          return {resolved: res, pkg};
+        }
+      } catch (e) {
+        if (e.code !== 'MODULE_NOT_FOUND') {
+          throw e;
+        }
+      }
+    }
+
     // $FlowFixMe
     opts.packageFilter = pkg => {
       if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
@@ -103,6 +179,11 @@ export function resolveSync(
       }
       return pkg;
     };
+  }
+
+  if (id === 'pnpapi') {
+    // the resolve package doesn't recognize pnpapi as a builtin
+    return {resolved: 'pnpapi'};
   }
 
   // $FlowFixMe

@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, outputFS} from '@parcel/test-utils';
+import {bundler, outputFS} from '@parcel/test-utils';
 import defaultConfigContents from '@parcel/config-default';
 
 const metricsConfig = {
@@ -13,20 +13,25 @@ const metricsConfig = {
 
 describe('Build Metrics Reporter', () => {
   it('Should dump bundle metrics to parcel-metrics.json', async () => {
-    await bundle(path.join(__dirname, '/integration/commonjs/index.js'), {
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       defaultConfig: metricsConfig,
       logLevel: 'info',
     });
+    await b.run();
 
-    let cwd = process.cwd();
-    let dirContent = await outputFS.readdir(cwd);
+    let projectRoot: string = b._getResolvedParcelOptions().projectRoot;
+    let dirContent = await outputFS.readdir(projectRoot);
+
     assert(
       dirContent.includes('parcel-metrics.json'),
       'Should create a parcel-metrics.json file',
     );
 
     let metrics = JSON.parse(
-      await outputFS.readFile(path.join(cwd, 'parcel-metrics.json'), 'utf8'),
+      await outputFS.readFile(
+        path.join(projectRoot, 'parcel-metrics.json'),
+        'utf8',
+      ),
     );
 
     assert(!!metrics.buildTime, 'Should contain buildTime');

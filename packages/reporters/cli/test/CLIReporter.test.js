@@ -15,6 +15,7 @@ const EMPTY_OPTIONS = {
   rootDir: __dirname,
   targets: [],
   projectRoot: '',
+  distDir: 'dist',
   lockFile: undefined,
   autoinstall: false,
   hot: undefined,
@@ -27,7 +28,9 @@ const EMPTY_OPTIONS = {
   sourceMaps: false,
   inputFS,
   outputFS,
+  instanceId: 'test',
   packageManager: new NodePackageManager(inputFS),
+  detailedReport: 10,
 };
 
 describe('CLIReporter', () => {

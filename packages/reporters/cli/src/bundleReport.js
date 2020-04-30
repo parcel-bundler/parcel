@@ -1,9 +1,11 @@
 // @flow
-import type {BundleGraph} from '@parcel/types';
+import type {BundleGraph, FilePath} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
-import {generateBundleReport, prettifyTime} from '@parcel/utils';
+import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
 import filesize from 'filesize';
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
 import * as emoji from './emoji';
 import {writeOut, table} from './render';
@@ -16,9 +18,28 @@ const COLUMNS = [
   {align: 'right'}, // time
 ];
 
-export default function bundleReport(bundleGraph: BundleGraph) {
+export default async function bundleReport(
+  bundleGraph: BundleGraph,
+  fs: FileSystem,
+  projectRoot: FilePath,
+  assetCount: number,
+) {
+  let bundleList = bundleGraph.getBundles().filter(b => !b.isInline);
+
   // Get a list of bundles sorted by size
-  let {bundles} = generateBundleReport(bundleGraph);
+  let {bundles} =
+    assetCount > 0
+      ? await generateBuildMetrics(bundleList, fs, projectRoot)
+      : {
+          bundles: bundleList.map(b => {
+            return {
+              filePath: nullthrows(b.filePath),
+              size: b.stats.size,
+              time: b.stats.time,
+              assets: [],
+            };
+          }),
+        };
   let rows = [];
 
   for (let bundle of bundles) {
@@ -29,29 +50,31 @@ export default function bundleReport(bundleGraph: BundleGraph) {
       chalk.green.bold(prettifyTime(bundle.time)),
     ]);
 
-    for (let asset of bundle.largestAssets) {
-      // Add a row for the asset.
-      rows.push([
-        (asset == bundle.largestAssets[bundle.largestAssets.length - 1]
-          ? '└── '
-          : '├── ') + formatFilename(asset.filePath, chalk.reset),
-        chalk.dim(prettifySize(asset.size)),
-        chalk.dim(chalk.green(prettifyTime(asset.time))),
-      ]);
-    }
+    if (assetCount > 0) {
+      let largestAssets = bundle.assets.slice(0, assetCount);
+      for (let asset of largestAssets) {
+        // Add a row for the asset.
+        rows.push([
+          (asset == largestAssets[largestAssets.length - 1] ? '└── ' : '├── ') +
+            formatFilename(asset.filePath, chalk.reset),
+          chalk.dim(prettifySize(asset.size)),
+          chalk.dim(chalk.green(prettifyTime(asset.time))),
+        ]);
+      }
 
-    if (bundle.totalAssets > bundle.largestAssets.length) {
-      rows.push([
-        '└── ' +
-          chalk.dim(
-            `+ ${bundle.totalAssets - bundle.largestAssets.length} more assets`,
-          ),
-      ]);
-    }
+      if (bundle.assets.length > largestAssets.length) {
+        rows.push([
+          '└── ' +
+            chalk.dim(
+              `+ ${bundle.assets.length - largestAssets.length} more assets`,
+            ),
+        ]);
+      }
 
-    // If this isn't the last bundle, add an empty row before the next one
-    if (bundle !== bundles[bundles.length - 1]) {
-      rows.push([]);
+      // If this isn't the last bundle, add an empty row before the next one
+      if (bundle !== bundles[bundles.length - 1]) {
+        rows.push([]);
+      }
     }
   }
 

@@ -10,7 +10,7 @@ import {babelErrorEnhancer} from './babelErrorUtils';
 
 export {babelErrorEnhancer};
 
-export function parse({
+export async function parse({
   asset,
   code,
   options,
@@ -18,18 +18,22 @@ export function parse({
   asset: BaseAsset,
   code: string,
   options: PluginOptions,
-|}): AST {
-  return {
-    type: 'babel',
-    version: '7.0.0',
-    program: babelParse(code, {
-      sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
-      allowReturnOutsideFunction: true,
-      strictMode: false,
-      sourceType: 'module',
-      plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
-    }),
-  };
+|}): Promise<AST> {
+  try {
+    return {
+      type: 'babel',
+      version: '7.0.0',
+      program: babelParse(code, {
+        sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
+        allowReturnOutsideFunction: true,
+        strictMode: false,
+        sourceType: 'module',
+        plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+      }),
+    };
+  } catch (e) {
+    throw await babelErrorEnhancer(e, asset);
+  }
 }
 
 export async function generate({
@@ -56,6 +60,11 @@ export async function generate({
   if (generated.rawMappings) {
     map = new SourceMap();
     map.addIndexedMappings(generated.rawMappings);
+
+    let originalMap = await asset.getMapBuffer();
+    if (originalMap) {
+      map.extends(originalMap);
+    }
   }
 
   return {

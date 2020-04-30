@@ -125,7 +125,7 @@ export default class Transformation {
           throw new Error('request.meta.parcelConfigPath should be a string!');
         }
 
-        let plugin = await this.parcelConfig.loadPlugin({
+        let {plugin} = await this.parcelConfig.loadPlugin({
           packageName: request.plugin,
           resolveFrom,
         });
@@ -140,11 +140,23 @@ export default class Transformation {
   }
 
   async loadAsset(): Promise<UncommittedAsset> {
-    let {filePath, env, code, pipeline, sideEffects} = this.request;
-    let {content, size, hash, isSource} = await summarizeRequest(
-      this.options.inputFS,
-      this.request,
-    );
+    let {
+      filePath,
+      env,
+      code,
+      pipeline,
+      isSource: isSourceOverride,
+      sideEffects,
+    } = this.request;
+    let {
+      content,
+      size,
+      hash,
+      isSource: summarizedIsSource,
+    } = await summarizeRequest(this.options.inputFS, this.request);
+
+    // Prefer `isSource` originating from the AssetRequest.
+    let isSource = isSourceOverride ?? summarizedIsSource;
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the base for the id to ensure it is unique.
@@ -648,7 +660,7 @@ function normalizeAssets(
         includedFiles: result.getIncludedFiles(),
         isInline: result.isInline,
         isIsolated: result.isIsolated,
-        map: internalAsset.map,
+        map: await internalAsset.getMap(),
         meta: result.meta,
         pipeline: internalAsset.value.pipeline,
         type: result.type,

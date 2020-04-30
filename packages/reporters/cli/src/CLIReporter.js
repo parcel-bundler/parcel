@@ -26,7 +26,10 @@ let statusThrottle = throttle((message: string) => {
 }, THROTTLE_DELAY);
 
 // Exported only for test
-export function _report(event: ReporterEvent, options: PluginOptions): void {
+export async function _report(
+  event: ReporterEvent,
+  options: PluginOptions,
+): Promise<void> {
   let logLevelFilter = logLevels[options.logLevel || 'info'];
 
   switch (event.type) {
@@ -77,7 +80,12 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
       );
 
       if (options.mode === 'production') {
-        bundleReport(event.bundleGraph);
+        await bundleReport(
+          event.bundleGraph,
+          options.outputFS,
+          options.projectRoot,
+          options.detailedReport,
+        );
       }
       break;
     case 'buildFailure':
@@ -150,6 +158,6 @@ function writeDiagnostic(
 
 export default new Reporter({
   report({event, options}) {
-    _report(event, options);
+    return _report(event, options);
   },
 });

@@ -16,6 +16,7 @@ import type {ParcelOptions} from '../types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap, md5FromString} from '@parcel/utils';
+import BundleGraph from './BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
@@ -31,11 +32,13 @@ const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
   WeakMap<InternalBundleGraph, MutableBundleGraph>,
 > = new DefaultWeakMap(() => new WeakMap());
 
-export default class MutableBundleGraph implements IMutableBundleGraph {
+export default class MutableBundleGraph extends BundleGraph
+  implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
+    super(graph, options);
     let existing = internalMutableBundleGraphToMutableBundleGraph
       .get(options)
       .get(graph);
@@ -75,6 +78,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     let bundleGroup: BundleGroup = {
       target,
       entryAssetId: resolved.id,
+      bundleIds: [],
     };
 
     let bundleGroupNode = {
@@ -116,33 +120,11 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
     for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      this.#graph._graph.removeById(bundle.id);
+      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
+        this.#graph._graph.removeById(bundle.id);
+      }
     }
     this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
-  }
-
-  resolveExternalDependency(
-    dependency: IDependency,
-    bundle?: IBundle,
-  ): ?(
-    | {|type: 'bundle_group', value: BundleGroup|}
-    | {|type: 'asset', value: IAsset|}
-  ) {
-    let resolved = this.#graph.resolveExternalDependency(
-      dependencyToInternalDependency(dependency),
-      bundle && bundleToInternalBundle(bundle),
-    );
-
-    if (resolved == null) {
-      return;
-    } else if (resolved.type === 'bundle_group') {
-      return resolved;
-    }
-
-    return {
-      type: 'asset',
-      value: assetFromValue(resolved.value, this.#options),
-    };
   }
 
   internalizeAsyncDependency(bundle: IBundle, dependency: IDependency): void {
@@ -195,6 +177,7 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
+    bundleGroup.bundleIds.push(bundle.id);
     let bundleGroupId = getBundleGroupId(bundleGroup);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
@@ -213,26 +196,17 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     );
   }
 
+  createBundleReference(from: IBundle, to: IBundle): void {
+    return this.#graph.createBundleReference(
+      bundleToInternalBundle(from),
+      bundleToInternalBundle(to),
+    );
+  }
+
   getDependencyAssets(dependency: IDependency): Array<IAsset> {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))
       .map(asset => assetFromValue(asset, this.#options));
-  }
-
-  getDependencyResolution(dependency: IDependency): ?IAsset {
-    let resolved = this.#graph.getDependencyResolution(
-      dependencyToInternalDependency(dependency),
-    );
-
-    if (resolved) {
-      return assetFromValue(resolved, this.#options);
-    }
-  }
-
-  getSiblingBundles(bundle: IBundle): Array<IBundle> {
-    return this.#graph
-      .getSiblingBundles(bundleToInternalBundle(bundle))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
   traverse<TContext>(
@@ -256,18 +230,6 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     );
   }
 
-  findBundlesWithAsset(asset: IAsset): Array<IBundle> {
-    return this.#graph
-      .findBundlesWithAsset(assetToAssetValue(asset))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
-  }
-
-  findBundlesWithDependency(dependency: IDependency): Array<IBundle> {
-    return this.#graph
-      .findBundlesWithDependency(dependencyToInternalDependency(dependency))
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
-  }
-
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
       bundleToInternalBundle(bundle),
@@ -277,7 +239,13 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .sort(
+        (a, b) =>
+          bundleGroup.bundleIds.indexOf(a.id) -
+          bundleGroup.bundleIds.indexOf(b.id),
+      )
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
+      .reverse();
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
@@ -290,10 +258,10 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     return this.#graph.getTotalSize(assetToAssetValue(asset));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
-    return this.#graph.isAssetInAncestorBundles(
-      bundleToInternalBundle(bundle),
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
+    return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
     );
   }
 
@@ -301,15 +269,6 @@ export default class MutableBundleGraph implements IMutableBundleGraph {
     this.#graph.removeAssetGraphFromBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
-    );
-  }
-
-  traverseBundles<TContext>(visit: GraphVisitor<IBundle, TContext>): ?TContext {
-    return this.#graph.traverseBundles(
-      mapVisitor(
-        bundle => new Bundle(bundle, this.#graph, this.#options),
-        visit,
-      ),
     );
   }
 
