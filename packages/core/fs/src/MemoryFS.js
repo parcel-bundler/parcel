@@ -643,7 +643,7 @@ class WriteStream extends Writable {
   options: ?FileOptions;
   buffer: Buffer;
   constructor(fs: FileSystem, filePath: FilePath, options: ?FileOptions) {
-    super();
+    super({emitClose: true});
     this.fs = fs;
     this.filePath = filePath;
     this.options = options;
