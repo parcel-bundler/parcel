@@ -1276,6 +1276,47 @@ describe('html', function() {
     });
   });
 
+  it('should support split bundles with many pages with esmodule output', async function() {
+    await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
+      scopeHoist: true,
+    });
+
+    let checkHtml = async filename => {
+      // Find all scripts referenced in the HTML file
+      let html = await outputFS.readFile(path.join(distDir, filename), 'utf8');
+      let re = /<script.*?src="(.*?)"/g;
+      let match;
+      let scripts = new Set();
+      while ((match = re.exec(html))) {
+        scripts.add(path.join(distDir, match[1]));
+      }
+
+      assert(scripts.size > 0, 'no scripts found');
+
+      // Ensure that those scripts don't import anything other than what's in the HTML.
+      for (let script of scripts) {
+        let js = await outputFS.readFile(script, 'utf8');
+        let re = /import .*? from "(.*?)"/g;
+        let match;
+        while ((match = re.exec(js))) {
+          let imported = path.join(distDir, match[1]);
+          assert(
+            scripts.has(imported),
+            `unknown script ${match[1]} imported in ${path.basename(script)}`,
+          );
+        }
+      }
+    };
+
+    checkHtml('a.html');
+    checkHtml('b.html');
+    checkHtml('c.html');
+    checkHtml('d.html');
+    checkHtml('e.html');
+    checkHtml('f.html');
+    checkHtml('g.html');
+  });
+
   it('should invalidate parent bundle when inline bundles change', async function() {
     // copy into memory fs
     await ncp(
@@ -1283,11 +1324,14 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-require'),
     );
 
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
     let b = await bundler(
       path.join(__dirname, '/html-inline-js-require/index.html'),
       {
         inputFS: overlayFS,
         disableCache: false,
+        distDir,
       },
     );
 
@@ -1303,7 +1347,7 @@ describe('html', function() {
     );
     await getNextBuild(b);
 
-    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
     assert(html.includes('console.log("foo")'));
   });
 
@@ -1314,11 +1358,14 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-nested'),
     );
 
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
     let b = await bundler(
       path.join(__dirname, '/html-inline-js-nested/index.html'),
       {
         inputFS: overlayFS,
         disableCache: false,
+        distDir,
       },
     );
 
@@ -1335,7 +1382,7 @@ describe('html', function() {
     );
     await getNextBuild(b);
 
-    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
     assert(!html.includes('module.exports = "hello world"'));
     assert(html.includes('module.exports = "foo bar"'));
     assert(html.includes('console.log'));
