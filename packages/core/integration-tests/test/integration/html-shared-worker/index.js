@@ -1,4 +1,5 @@
 import _ from 'lodash';
-console.log('index', _);
+
+output("main", _.add(1, 2));
 
 new Worker('worker.js');

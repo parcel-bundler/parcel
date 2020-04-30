@@ -104,9 +104,13 @@ export default class Server extends EventEmitter {
   respond(req: Request, res: Response) {
     let {pathname} = url.parse(req.originalUrl || req.url);
 
+    if (pathname == null) {
+      pathname = '/';
+    }
+
     if (this.errors) {
       return this.send500(req, res);
-    } else if (!pathname || path.extname(pathname) === '') {
+    } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
       return this.sendIndex(req, res);
@@ -199,9 +203,7 @@ export default class Server extends EventEmitter {
       return this.sendError(res, 400);
     }
 
-    if (filePath) {
-      filePath = path.normalize('.' + path.sep + filePath);
-    }
+    filePath = path.normalize('.' + path.sep + filePath);
 
     // malicious path
     if (filePath.includes(path.sep + '..' + path.sep)) {
@@ -209,7 +211,9 @@ export default class Server extends EventEmitter {
     }
 
     // join / normalize from the root dir
-    filePath = path.normalize(path.join(root, filePath));
+    if (!path.isAbsolute(filePath)) {
+      filePath = path.normalize(path.join(root, filePath));
+    }
 
     try {
       var stat = await fs.stat(filePath);

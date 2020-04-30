@@ -29,6 +29,7 @@ export default new Bundler({
 
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
+    let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
     let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
@@ -41,6 +42,8 @@ export default new Bundler({
             bundleByType: context?.bundleByType,
             bundleGroupDependency: context?.bundleGroupDependency,
             parentNode: node,
+            parentBundle:
+              bundlesByEntryAsset.get(node.value) ?? context?.parentBundle,
           };
         }
 
@@ -70,6 +73,7 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundleRoots.set(bundle, [asset]);
+            bundlesByEntryAsset.set(asset, bundle);
             siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
@@ -79,12 +83,15 @@ export default new Bundler({
             bundleByType,
             bundleGroupDependency: dependency,
             parentNode: node,
+            parentBundle: context?.parentBundle,
           };
         }
 
         invariant(context != null);
         invariant(context.parentNode.type === 'asset');
+        invariant(context.parentBundle != null);
         let parentAsset = context.parentNode.value;
+        let parentBundle = context.parentBundle;
         let bundleGroup = nullthrows(context.bundleGroup);
         let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
         let bundleByType = nullthrows(context.bundleByType);
@@ -136,7 +143,9 @@ export default new Bundler({
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
             bundleRoots.set(bundle, [asset]);
+            bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.createBundleReference(parentBundle, bundle);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
           }
 
@@ -173,7 +182,7 @@ export default new Bundler({
       }
 
       let siblings = bundleGraph
-        .getSiblingBundles(bundle)
+        .getReferencedBundles(bundle)
         .filter(sibling => !sibling.isInline);
       let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
         containingBundle =>
@@ -285,6 +294,7 @@ export default new Bundler({
       .filter(bundle => bundle.size >= OPTIONS.minBundleSize)
       .sort((a, b) => b.size - a.size);
 
+    let sharedBundles = [];
     for (let {assets, sourceBundles} of sortedCandidates) {
       // Find all bundle groups connected to the original bundles
       let bundleGroups = new Set();
@@ -297,9 +307,9 @@ export default new Bundler({
         }
       }
 
-      // Check that all the bundle groups are inside the parallel request limit.
+      // If all bundle groups have already met the max parallel request limit, then they cannot be split.
       if (
-        Array.from(bundleGroups).some(
+        Array.from(bundleGroups).every(
           group =>
             bundleGraph.getBundlesInBundleGroup(group).length >=
             OPTIONS.maxParallelRequests,
@@ -322,16 +332,41 @@ export default new Bundler({
       // Remove all of the root assets from each of the original bundles
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
+
         for (let bundle of sourceBundles) {
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          // Remove the asset graph from the bundle if all bundle groups are
+          // within the parallel request limit and will include the shared bundle.
+          let bundleGroups = bundleGraph.getBundleGroupsContainingBundle(
+            bundle,
+          );
+          if (
+            bundleGroups.every(
+              bundleGroup =>
+                bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+                OPTIONS.maxParallelRequests,
+            )
+          ) {
+            bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          }
         }
       }
 
       // Create new bundle node and connect it to all of the original bundle groups
       for (let bundleGroup of bundleGroups) {
-        bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        // If the bundle group is within the parallel request limit, then add the shared bundle.
+        if (
+          bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+          OPTIONS.maxParallelRequests
+        ) {
+          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        }
       }
 
+      sharedBundles.push(sharedBundle);
+    }
+
+    // Remove assets that are duplicated between shared bundles.
+    for (let sharedBundle of sharedBundles) {
       deduplicateBundle(bundleGraph, sharedBundle);
     }
 
@@ -364,7 +399,7 @@ export default new Bundler({
       for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
         if (
           bundle.hasAsset(resolution) ||
-          bundleGraph.isAssetInAncestorBundles(bundle, resolution)
+          bundleGraph.isAssetReachableFromBundle(resolution, bundle)
         ) {
           bundleGraph.internalizeAsyncDependency(bundle, dependency);
         }
@@ -398,7 +433,7 @@ function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
     for (let asset of assets) {
       if (
         bundle.hasAsset(asset) &&
-        bundleGraph.isAssetInAncestorBundles(bundle, asset)
+        bundleGraph.isAssetReachableFromBundle(asset, bundle)
       ) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
       }
