@@ -522,7 +522,7 @@ function writeFileStream(
     initialStream
       .pipe(fsStream)
       // $FlowFixMe
-      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('close', () => resolve(fsStream.bytesWritten))
       .on('error', reject);
   });
 }
