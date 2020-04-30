@@ -398,13 +398,19 @@ When you do need to configure Parcel, it will be in one of 3 places.
   "source": "src/index.js",
   "targets": {
     "main": {
-      "node": ["^4.0.0"]
+      "engines": {
+        "node": ">=4.x"
+      }
     },
     "module": {
-      "node": ["^8.0.0"]
+      "engines": {
+        "node": ">=8.x"
+      }
     },
     "browser": {
-      "browsers": ["> 1%", "not dead"]
+      "engines": {
+        "browsers": ["> 1%", "not dead"]
+      }
     }
   },
   "alias": {
