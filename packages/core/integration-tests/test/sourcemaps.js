@@ -5,7 +5,6 @@ import SourceMap from '@parcel/source-map';
 import {
   bundle as _bundle,
   assertBundleTree,
-  distDir,
   inputFS,
   outputFS,
   shallowEqual,

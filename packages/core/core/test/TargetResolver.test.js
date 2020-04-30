@@ -4,11 +4,10 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
+import TargetResolver from '../src/TargetResolver';
 import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './utils';
 
 const DEFAULT_OPTIONS = {..._DEFAULT_OPTIONS, sourceMaps: true};
-
-import TargetResolver from '../src/TargetResolver';
 
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
