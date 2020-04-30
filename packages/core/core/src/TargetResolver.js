@@ -139,7 +139,7 @@ export default class TargetResolver {
               scopeHoist:
                 this.options.scopeHoist && descriptor.scopeHoist !== false,
             }),
-            sourceMap: descriptor.sourceMap,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           };
         });
       }
@@ -351,7 +351,7 @@ export default class TargetResolver {
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
-          sourceMap: descriptor.sourceMap,
+          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -430,7 +430,7 @@ export default class TargetResolver {
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
-          sourceMap: descriptor.sourceMap,
+          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -450,6 +450,7 @@ export default class TargetResolver {
           minify: this.options.minify,
           scopeHoist: this.options.scopeHoist,
         }),
+        sourceMap: this.options.sourceMaps ? {} : undefined,
       });
     }
 
@@ -575,5 +576,17 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
     throw new ThrowableDiagnostic({
       diagnostic: diagnostics,
     });
+  }
+}
+
+function normalizeSourceMap(options: ParcelOptions, sourceMap) {
+  if (options.sourceMaps) {
+    if (typeof sourceMap === 'boolean') {
+      return sourceMap ? {} : undefined;
+    } else {
+      return sourceMap ?? {};
+    }
+  } else {
+    return undefined;
   }
 }
