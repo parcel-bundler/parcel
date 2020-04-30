@@ -408,7 +408,10 @@ function prepareBrowserContext(
               if (el.tag === 'script') {
                 vm.runInContext(
                   overlayFS.readFileSync(
-                    path.join(path.dirname(filePath), el.src),
+                    path.join(
+                      path.dirname(filePath),
+                      url.parse(el.src).pathname,
+                    ),
                     'utf8',
                   ),
                   ctx,
@@ -432,6 +435,9 @@ function prepareBrowserContext(
         return null;
       },
     },
+    currentScript: {
+      src: 'http://localhost/script.js',
+    },
   };
 
   var exports = {};
@@ -442,7 +448,7 @@ function prepareBrowserContext(
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'},
+      location: {hostname: 'localhost', origin: 'http://localhost'},
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
@@ -468,11 +474,12 @@ function prepareBrowserContext(
       btoa(str) {
         return Buffer.from(str, 'binary').toString('base64');
       },
+      URL,
     },
     globals,
   );
 
-  ctx.window = ctx;
+  ctx.window = ctx.self = ctx;
   return {ctx, promises};
 }
 
