@@ -15,6 +15,7 @@ const EMPTY_OPTIONS = {
   rootDir: __dirname,
   targets: [],
   projectRoot: '',
+  distDir: 'dist',
   lockFile: undefined,
   autoinstall: false,
   hot: undefined,

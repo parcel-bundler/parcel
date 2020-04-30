@@ -220,6 +220,7 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
+  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -611,6 +612,7 @@ export interface NamedBundle extends Bundle {
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
+  bundleIds: Array<string>,
 |};
 
 export interface MutableBundleGraph extends BundleGraph {
@@ -654,7 +656,8 @@ export interface BundleGraph {
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
   findBundlesWithAsset(Asset): Array<Bundle>;
   findBundlesWithDependency(Dependency): Array<Bundle>;
-  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;

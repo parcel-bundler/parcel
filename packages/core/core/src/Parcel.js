@@ -279,7 +279,8 @@ export default class Parcel {
         bundleGraph: new BundleGraph(bundleGraph, options),
         buildTime: Date.now() - startTime,
       };
-      this.#reporterRunner.report(event);
+
+      await this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
 

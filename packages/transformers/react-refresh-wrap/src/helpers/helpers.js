@@ -37,6 +37,10 @@ module.exports.postlude = function(module) {
 
     if (module.hot) {
       module.hot.dispose(function(data) {
+        if (Refresh.hasUnrecoverableErrors()) {
+          window.location.reload();
+        }
+
         data.prevExports = module.exports;
       });
 
@@ -70,9 +74,6 @@ module.exports.postlude = function(module) {
         }
         enqueueUpdate();
       });
-    }
-    if (Refresh.hasUnrecoverableErrors()) {
-      window.location.reload();
     }
   }
 };

@@ -427,44 +427,111 @@ export default class BundleGraph {
     });
   }
 
-  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
-    let parentBundleNodes = flatMap(
-      this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(bundle.id)),
-        'bundle',
-      ),
-      bundleGroupNode => {
-        invariant(bundleGroupNode.type === 'bundle_group');
-        return this._graph.getNodesConnectedTo(bundleGroupNode, 'bundle');
-      },
-    );
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean {
+    // For an asset to be reachable from a bundle, it must either exist in a sibling bundle,
+    // or in an ancestor bundle group reachable from all parent bundles.
+    let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
+    return bundleGroups.every(bundleGroup => {
+      // If the asset is in any sibling bundles of the original bundle, it is reachable.
+      let bundles = this.getBundlesInBundleGroup(bundleGroup);
+      if (
+        bundles.some(b => b.id !== bundle.id && this.bundleHasAsset(b, asset))
+      ) {
+        return true;
+      }
 
-    return parentBundleNodes.every(parentNode => {
-      let inBundle;
-
-      this._graph.traverseAncestors(
-        parentNode,
-        (node, ctx, actions) => {
-          if (node.type !== 'bundle' || node.id === bundle.id) {
-            return;
-          }
-
-          // Don't deduplicate when context changes
-          if (node.value.env.context !== bundle.env.context) {
-            actions.skipChildren();
-            return;
-          }
-
-          if (this._graph.hasEdge(node.value.id, asset.id, 'contains')) {
-            inBundle = true;
-            actions.stop();
-          }
-        },
+      // Get a list of parent bundle nodes pointing to the bundle group
+      let parentBundleNodes = this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
         'bundle',
       );
 
-      return inBundle;
+      // Check that every parent bundle has a bundle group in its ancestry that contains the asset.
+      return parentBundleNodes.every(bundleNode => {
+        let inBundle = false;
+
+        this._graph.traverseAncestors(
+          bundleNode,
+          (node, ctx, actions) => {
+            if (node.type === 'bundle_group') {
+              let childBundles = this.getBundlesInBundleGroup(node.value);
+              if (
+                childBundles.some(
+                  b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
+                )
+              ) {
+                inBundle = true;
+                actions.stop();
+              }
+            }
+
+            // Don't deduplicate when context changes
+            if (
+              node.type === 'bundle' &&
+              node.value.env.context !== bundle.env.context
+            ) {
+              actions.skipChildren();
+            }
+          },
+          'bundle',
+        );
+
+        return inBundle;
+      });
     });
+  }
+
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset) {
+    let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
+
+    for (let bundleGroup of bundleGroups) {
+      // If the asset is in any sibling bundles, return that bundle.
+      let bundles = this.getBundlesInBundleGroup(bundleGroup);
+      let res = bundles.find(
+        b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
+      );
+      if (res != null) {
+        return res;
+      }
+
+      // Get a list of parent bundle nodes pointing to the bundle group
+      let parentBundleNodes = this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
+        'bundle',
+      );
+
+      // Find the nearest ancestor bundle that includes the asset.
+      for (let bundleNode of parentBundleNodes) {
+        this._graph.traverseAncestors(
+          bundleNode,
+          (node, ctx, actions) => {
+            if (node.type === 'bundle_group') {
+              let childBundles = this.getBundlesInBundleGroup(node.value);
+
+              res = childBundles.find(
+                b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
+              );
+              if (res != null) {
+                actions.stop();
+              }
+            }
+
+            // Stop when context changes
+            if (
+              node.type === 'bundle' &&
+              node.value.env.context !== bundle.env.context
+            ) {
+              actions.skipChildren();
+            }
+          },
+          'bundle',
+        );
+
+        if (res != null) {
+          return res;
+        }
+      }
+    }
   }
 
   traverseBundle<TContext>(

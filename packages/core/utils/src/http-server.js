@@ -7,7 +7,8 @@ import type {FilePath, HTTPSOptions} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 import http from 'http';
-import https from 'https';
+// $FlowFixMe Flow does not know of http2's existance
+import {createSecureServer} from 'http2';
 import nullthrows from 'nullthrows';
 import {getCertificate, generateCertificate} from '../';
 
@@ -34,17 +35,21 @@ export async function createHTTPServer(
   if (!options.https) {
     server = http.createServer(options.listener);
   } else if (options.https === true) {
-    server = https.createServer(
-      await generateCertificate(
-        options.outputFS,
-        options.cacheDir,
-        options.host,
-      ),
+    let {cert, key} = await generateCertificate(
+      options.outputFS,
+      options.cacheDir,
+      options.host,
+    );
+
+    server = createSecureServer(
+      {cert, key, allowHTTP1: true},
       options.listener,
     );
   } else {
-    server = https.createServer(
-      await getCertificate(options.inputFS, options.https),
+    let {cert, key} = await getCertificate(options.inputFS, options.https);
+
+    server = createSecureServer(
+      {cert, key, allowHTTP1: true},
       options.listener,
     );
   }

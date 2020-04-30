@@ -13,7 +13,6 @@ import type {
 import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
@@ -118,13 +117,24 @@ export default class BundleGraph implements IBundleGraph {
       .map(dep => new Dependency(dep));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
-    let internalNode = this.#graph._graph.getNode(bundle.id);
-    invariant(internalNode != null && internalNode.type === 'bundle');
-    return this.#graph.isAssetInAncestorBundles(
-      internalNode.value,
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
+    return this.#graph.isAssetReachableFromBundle(
+      assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
+    );
+  }
+
+  findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?IBundle {
+    let result = this.#graph.findReachableBundleWithAsset(
+      bundleToInternalBundle(bundle),
       assetToAssetValue(asset),
     );
+
+    if (result != null) {
+      return new Bundle(result, this.#graph, this.#options);
+    }
+
+    return null;
   }
 
   isAssetReferenced(asset: IAsset): boolean {
@@ -148,7 +158,13 @@ export default class BundleGraph implements IBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .sort(
+        (a, b) =>
+          bundleGroup.bundleIds.indexOf(a.id) -
+          bundleGroup.bundleIds.indexOf(b.id),
+      )
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
+      .reverse();
   }
 
   getBundles(): Array<IBundle> {
