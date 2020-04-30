@@ -21,6 +21,7 @@ export default async function bundleReport(
   bundleGraph: BundleGraph,
   fs: FileSystem,
   projectRoot: FilePath,
+  assetCount: number,
 ) {
   // Get a list of bundles sorted by size
   let {bundles} = await generateBuildMetrics(
@@ -38,29 +39,31 @@ export default async function bundleReport(
       chalk.green.bold(prettifyTime(bundle.time)),
     ]);
 
-    let largestAssets = bundle.assets.slice(0, 10);
-    for (let asset of largestAssets) {
-      // Add a row for the asset.
-      rows.push([
-        (asset == largestAssets[largestAssets.length - 1] ? '└── ' : '├── ') +
-          formatFilename(asset.filePath, chalk.reset),
-        chalk.dim(prettifySize(asset.size)),
-        chalk.dim(chalk.green(prettifyTime(asset.time))),
-      ]);
-    }
+    if (assetCount > 0) {
+      let largestAssets = bundle.assets.slice(0, assetCount);
+      for (let asset of largestAssets) {
+        // Add a row for the asset.
+        rows.push([
+          (asset == largestAssets[largestAssets.length - 1] ? '└── ' : '├── ') +
+            formatFilename(asset.filePath, chalk.reset),
+          chalk.dim(prettifySize(asset.size)),
+          chalk.dim(chalk.green(prettifyTime(asset.time))),
+        ]);
+      }
 
-    if (bundle.assets.length > largestAssets.length) {
-      rows.push([
-        '└── ' +
-          chalk.dim(
-            `+ ${bundle.assets.length - largestAssets.length} more assets`,
-          ),
-      ]);
-    }
+      if (bundle.assets.length > largestAssets.length) {
+        rows.push([
+          '└── ' +
+            chalk.dim(
+              `+ ${bundle.assets.length - largestAssets.length} more assets`,
+            ),
+        ]);
+      }
 
-    // If this isn't the last bundle, add an empty row before the next one
-    if (bundle !== bundles[bundles.length - 1]) {
-      rows.push([]);
+      // If this isn't the last bundle, add an empty row before the next one
+      if (bundle !== bundles[bundles.length - 1]) {
+        rows.push([]);
+      }
     }
   }
 
