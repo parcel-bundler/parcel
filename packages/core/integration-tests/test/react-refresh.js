@@ -21,7 +21,9 @@ try {
 }
 
 if (MessageChannel) {
-  describe('react-refresh', function() {
+  // ATLASSIAN: Fall back to node_modules lookup if relative URL path
+  // doesn't exist.
+  describe.skip('react-refresh', function() {
     describe('synchronous', () => {
       const testDir = path.join(__dirname, '/integration/react-refresh');
 
