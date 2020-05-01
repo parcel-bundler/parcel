@@ -4,9 +4,10 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
-import {DEFAULT_OPTIONS} from './utils';
-
 import TargetResolver from '../src/TargetResolver';
+import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './utils';
+
+const DEFAULT_OPTIONS = {..._DEFAULT_OPTIONS, sourceMaps: true};
 
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
@@ -87,7 +88,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
           },
           {
             name: 'customB',
@@ -104,7 +105,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
           },
         ],
       },
@@ -137,7 +138,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -203,7 +204,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -298,7 +299,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -330,7 +331,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -362,7 +363,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -406,7 +407,7 @@ describe('TargetResolver', () => {
             minify: false,
             scopeHoist: false,
           },
-          sourceMap: undefined,
+          sourceMap: {},
           loc: {
             filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json'),
             start: {
@@ -450,7 +451,7 @@ describe('TargetResolver', () => {
             minify: false,
             scopeHoist: false,
           },
-          sourceMap: undefined,
+          sourceMap: {},
           loc: {
             filePath: path.join(fixture, 'package.json'),
             start: {
@@ -496,7 +497,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -528,7 +529,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {

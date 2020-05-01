@@ -84,6 +84,7 @@ export async function _report(
           event.bundleGraph,
           options.outputFS,
           options.projectRoot,
+          options.detailedReport,
         );
       }
       break;

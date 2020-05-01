@@ -68,6 +68,10 @@ const commonOptions = {
     'output directory to write to when unspecified by targets',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
+  '--detailed-report [depth]': [
+    'Print the asset timings and sizes in the build report',
+    /^([0-9]+)$/,
+  ],
 };
 
 var hmrOptions = {
@@ -310,6 +314,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    detailedReport: command.detailedReport,
     env: {
       NODE_ENV: nodeEnv,
     },
