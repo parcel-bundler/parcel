@@ -1073,7 +1073,7 @@ describe('javascript', function() {
     // entire contents into memory and should stream content instead
     let assetSizeBytes = 6000000;
 
-    let distDir = '/dist';
+    let distDir = path.join(outputFS.cwd(), '/dist');
     let fixtureDir = path.join(__dirname, '/integration/import-raw');
     let inputDir = path.join(__dirname, 'input');
 
@@ -1083,7 +1083,10 @@ describe('javascript', function() {
       Buffer.alloc(assetSizeBytes),
     );
 
-    let b = await bundle(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    let b = await bundle(path.join(inputDir, 'index.js'), {
+      inputFS: overlayFS,
+      distDir,
+    });
     assertBundles(b, [
       {
         name: 'index.js',

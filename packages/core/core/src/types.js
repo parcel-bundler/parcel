@@ -144,7 +144,7 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: ?FilePath,
+  distDir: FilePath,
   hot: ?HMROptions,
   contentHash: boolean,
   serve: ServerOptions | false,
@@ -154,6 +154,7 @@ export type ParcelOptions = {|
   lockFile: ?FilePath,
   profile: boolean,
   patchConsole: boolean,
+  detailedReport?: number,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
