@@ -28,10 +28,13 @@ describe('ts-validator', function() {
     subscription = null;
   });
 
-  it('should throw validation error on typescript typing errors', async function() {
+  it('should throw validation error on typescript typing errors across multiple files', async function() {
     let didThrow = false;
     let entry = normalizeFilePath(
       path.join(__dirname, '/integration/ts-validation-error/index.ts'),
+    );
+    let testFile = normalizeFilePath(
+      path.join(__dirname, '/integration/ts-validation-error/test.ts'),
     );
     try {
       await bundle(entry, {
@@ -40,13 +43,31 @@ describe('ts-validator', function() {
     } catch (e) {
       assert.equal(e.name, 'BuildError');
       assert(!!Array.isArray(e.diagnostics));
-      assert(!!e.diagnostics[0].codeFrame);
-      assert.equal(e.diagnostics[0].origin, '@parcel/validator-typescript');
+
+      assert(e.diagnostics.length === 2);
+
+      let entryDiagnostic = e.diagnostics.find(
+        diagnostic => diagnostic.filePath === entry,
+      );
+      assert(!!entryDiagnostic);
+      assert(!!entryDiagnostic.codeFrame);
+      assert.equal(entryDiagnostic.origin, '@parcel/validator-typescript');
       assert.equal(
-        e.diagnostics[0].message,
+        entryDiagnostic.message,
+        `Argument of type '"a string"' is not assignable to parameter of type 'Params'.`,
+      );
+      assert.equal(entryDiagnostic.filePath, entry);
+
+      let testFileDiagnostic = e.diagnostics.find(
+        diagnostic => diagnostic.filePath === testFile,
+      );
+      assert(!!testFileDiagnostic);
+      assert(!!testFileDiagnostic.codeFrame);
+      assert.equal(testFileDiagnostic.origin, '@parcel/validator-typescript');
+      assert.equal(
+        testFileDiagnostic.message,
         `Property 'world' does not exist on type 'Params'.`,
       );
-      assert.equal(e.diagnostics[0].filePath, entry);
 
       didThrow = true;
     }
