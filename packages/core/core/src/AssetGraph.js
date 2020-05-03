@@ -47,15 +47,11 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
   };
 }
 
-export function nodeFromAssetGroup(
-  assetGroup: AssetGroup,
-  deferred: boolean = false,
-) {
+export function nodeFromAssetGroup(assetGroup: AssetGroup) {
   return {
     id: md5FromObject(assetGroup),
     type: 'asset_group',
     value: assetGroup,
-    deferred,
   };
 }
 
@@ -82,14 +78,6 @@ export function nodeFromEntryFile(entry: Entry) {
     value: entry,
   };
 }
-
-// Types that are considered incomplete when they don't have a child node
-const INCOMPLETE_TYPES = [
-  'entry_specifier',
-  'entry_file',
-  'dependency',
-  'asset_group',
-];
 
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
@@ -148,15 +136,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   addNode(node: AssetGraphNode) {
     this.hash = null;
-    let existingNode = this.getNode(node.id);
-    if (
-      INCOMPLETE_TYPES.includes(node.type) &&
-      !node.complete &&
-      !node.deferred &&
-      (!existingNode || existingNode.deferred)
-    ) {
-      this.markIncomplete(node);
-    }
     this.onNodeAdded && this.onNodeAdded(node);
     return super.addNode(node);
   }
@@ -179,14 +158,26 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return this.incompleteNodeIds.size > 0;
   }
 
-  resolveEntry(entry: string, resolved: Array<Entry>) {
-    let entrySpecifierNode = nodeFromEntrySpecifier(entry);
+  resolveEntry(
+    entry: string,
+    resolved: Array<Entry>,
+    correspondingRequest: string,
+  ) {
+    let entrySpecifierNode = nullthrows(
+      this.getNode(nodeFromEntrySpecifier(entry).id),
+    );
+    invariant(entrySpecifierNode.type === 'entry_specifier');
+    entrySpecifierNode.correspondingRequest = correspondingRequest;
     let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
     this.replaceNodesConnectedTo(entrySpecifierNode, entryFileNodes);
     this.incompleteNodeIds.delete(entrySpecifierNode.id);
   }
 
-  resolveTargets(entry: Entry, targets: Array<Target>) {
+  resolveTargets(
+    entry: Entry,
+    targets: Array<Target>,
+    correspondingRequest: string,
+  ) {
     let depNodes = targets.map(target =>
       nodeFromDep(
         createDependency({
@@ -199,7 +190,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       ),
     );
 
-    let entryNode = nodeFromEntryFile(entry);
+    let entryNode = nullthrows(this.getNode(nodeFromEntryFile(entry).id));
+    invariant(entryNode.type === 'entry_file');
+    entryNode.correspondingRequest = correspondingRequest;
     if (this.hasNode(entryNode.id)) {
       this.replaceNodesConnectedTo(entryNode, depNodes);
       this.incompleteNodeIds.delete(entryNode.id);
@@ -208,23 +201,111 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveDependency(
     dependency: Dependency,
-    assetGroupNode: AssetGroupNode | null,
+    assetGroup: AssetGroup | null,
+    correspondingRequest: string,
   ) {
-    let depNode = this.nodes.get(dependency.id);
+    let depNode = nullthrows(this.nodes.get(dependency.id));
+    invariant(depNode.type === 'dependency');
     if (!depNode) return;
     this.incompleteNodeIds.delete(depNode.id);
+    depNode.correspondingRequest = correspondingRequest;
 
-    if (assetGroupNode) {
-      this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
-    }
-  }
-
-  resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
-    let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    this.incompleteNodeIds.delete(assetGroupNode.id);
-    if (!this.hasNode(assetGroupNode.id)) {
+    if (!assetGroup) {
       return;
     }
+
+    let assetGroupNode = nodeFromAssetGroup(assetGroup);
+    let existingAssetGroupNode = this.getNode(assetGroupNode.id);
+
+    this.replaceNodesConnectedTo(depNode, [
+      existingAssetGroupNode ?? assetGroupNode,
+    ]);
+  }
+
+  shouldVisitChild(node: AssetGraphNode, childNode: AssetGraphNode) {
+    if (
+      node.type !== 'dependency' ||
+      childNode.type !== 'asset_group' ||
+      childNode.deferred === false
+    ) {
+      return true;
+    }
+
+    let sideEffects = childNode.value.sideEffects;
+    let dependency = node.value;
+    let previouslyDeferred = childNode.deferred;
+    let defer = this.shouldDeferDependency(dependency, sideEffects);
+    dependency.isDeferred = defer;
+    node.hasDeferred = defer;
+    childNode.deferred = defer;
+
+    if (!previouslyDeferred && defer) {
+      this.traverseAncestors(node, (_node, _, actions) => {
+        if (_node.type === 'asset') {
+          _node.hasDeferred = true;
+        } else if (_node.type === 'asset_group') {
+          _node.hasDeferred = true;
+          actions.skipChildren();
+        } else if (node !== _node) {
+          actions.skipChildren();
+        }
+      });
+    }
+    // TODO: remove hasDeferred if necessary
+
+    return !defer;
+  }
+
+  // Defer transforming this dependency if it is marked as weak, there are no side effects,
+  // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
+  // using a wildcard and isn't an entry (in library mode).
+  // This helps with performance building large libraries like `lodash-es`, which re-exports
+  // a huge number of functions since we can avoid even transforming the files that aren't used.
+  shouldDeferDependency(dependency: Dependency, sideEffects: ?boolean) {
+    let defer = false;
+    if (
+      dependency.isWeak &&
+      sideEffects === false &&
+      !dependency.symbols.has('*')
+    ) {
+      let depNode = this.getNode(dependency.id);
+      invariant(depNode);
+
+      let assets = this.getNodesConnectedTo(depNode);
+      let symbols = new Map(
+        [...dependency.symbols].map(([key, val]) => [val.local, key]),
+      );
+      invariant(assets.length === 1);
+      let firstAsset = assets[0];
+      invariant(firstAsset.type === 'asset');
+      let resolvedAsset = firstAsset.value;
+      let deps = this.getIncomingDependencies(resolvedAsset);
+      defer = deps.every(
+        d =>
+          !(d.env.isLibrary && d.isEntry) &&
+          !d.symbols.has('*') &&
+          ![...d.symbols.keys()].some(symbol => {
+            let assetSymbol = resolvedAsset.symbols.get(symbol)?.local;
+            return assetSymbol != null && symbols.has(assetSymbol);
+          }),
+      );
+    }
+    return defer;
+  }
+
+  resolveAssetGroup(
+    assetGroup: AssetGroup,
+    assets: Array<Asset>,
+    correspondingRequest: string,
+  ) {
+    let assetGroupNode = nodeFromAssetGroup(assetGroup);
+    this.incompleteNodeIds.delete(assetGroupNode.id);
+    assetGroupNode = this.getNode(assetGroupNode.id);
+    if (!assetGroupNode) {
+      return;
+    }
+    invariant(assetGroupNode.type === 'asset_group');
+    assetGroupNode.correspondingRequest = correspondingRequest;
 
     let dependentAssetKeys = [];
     let assetObjects: Array<{|

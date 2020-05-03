@@ -39,7 +39,7 @@ export default class EntryRequestRunner extends RequestRunner<
   }
 
   onComplete(request: FilePath, result: EntryResult, api: RequestRunnerAPI) {
-    this.assetGraph.resolveEntry(request, result.entries);
+    this.assetGraph.resolveEntry(request, result.entries, api.getId());
 
     // Connect files like package.json that affect the entry
     // resolution so we invalidate when they change.
