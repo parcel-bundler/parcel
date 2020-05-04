@@ -206,7 +206,7 @@ function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
     let bundles = bundleGraph.getSiblingBundles(bundle);
     for (let b of bundles) {
       // ATLASSIAN: fork does support shared bundles in workers
-      invariant(b.type === 'js');
+      invariant(b.type !== 'js');
     }
   }
 
