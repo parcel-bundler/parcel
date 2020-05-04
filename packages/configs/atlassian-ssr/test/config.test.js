@@ -5,7 +5,7 @@ import assert from 'assert';
 import config from '../';
 import packageJson from '../package.json';
 
-describe('@parcel/config-default', () => {
+describe('@parcel/config-atlassian-ssr', () => {
   let packageJsonDependencyNames: Set<string>;
   let configPackageReferences: Set<string>;
 

@@ -170,8 +170,7 @@ async function run(entries: Array<string>, command: any) {
   let options = await normalizeOptions(command);
   let packageManager = new NodePackageManager(new NodeFS());
   let defaultConfig: RawParcelConfig = await packageManager.require(
-    // '@parcel/config-default',
-    '@parcel/config-atlassian-ssr',
+    '@parcel/config-default',
     __filename,
     {autoinstall: options.autoinstall},
   );
@@ -180,20 +179,10 @@ async function run(entries: Array<string>, command: any) {
     packageManager,
     defaultConfig: {
       ...defaultConfig,
-      // filePath: (
-      //   await packageManager.resolve('@parcel/config-default', __filename)
-      // ).resolved,
-      filePath: // await packageManager.resolve('@parcel/config-default', __filename, {
-      //   autoinstall: options.autoinstall,
-      // })
-      (
-        await packageManager.resolve(
-          '@parcel/config-atlassian-ssr',
-          __filename,
-          {
-            autoinstall: options.autoinstall,
-          },
-        )
+      filePath: (
+        await packageManager.resolve('@parcel/config-default', __filename, {
+          autoinstall: options.autoinstall,
+        })
       ).resolved,
     },
     patchConsole: true,

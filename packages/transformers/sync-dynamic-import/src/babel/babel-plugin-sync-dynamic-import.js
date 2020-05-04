@@ -30,22 +30,22 @@
  */
 
 module.exports = function({template, types: t}) {
+  const dummyTemplate = template`
+    new Promise(() => {})
+  `;
+  const syncImportTemplate = template`
+    return new Promise((resolve) => {
+      try {
+        const resolved = require(MODULE);
+        resolve(resolved)
+      } catch(e) {
+        reject(e)
+      }
+    })
+  `;
   return {
     visitor: {
       Import(path) {
-        const dummyTemplate = template`
-          new Promise(() => {})
-        `;
-        const syncImportTemplate = template`
-          return new Promise((resolve) => {
-            try {
-              const resolved = require(MODULE);
-              resolve(resolved)
-            } catch(e) {
-              reject(e)
-            }
-          })
-        `;
         const callExpression = path.parentPath;
         const args = callExpression.get('arguments');
         const asyncImport = args[0];

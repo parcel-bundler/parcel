@@ -1,5 +1,5 @@
 {
-  "bundler": "@parcel/bundler-default",
+  "extends": ["@parcel/config-default"],
   "transformers": {
     "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
@@ -9,7 +9,7 @@
       "..."
     ],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
-      "@parcel/transformer-dynamic-import-node",
+      "@parcel/transformer-sync-dynamic-import",
       "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
@@ -35,38 +35,14 @@
       "@parcel/transformer-raw"
     ],
     "url:*": ["@parcel/transformer-raw"],
-    "*": ["@parcel/transformer-no-splittable"]
+    "*": ["@parcel/transformer-not-splittable"]
   },
-  "namers": ["@parcel/namer-default"],
-  "runtimes": {
-    "browser": [
-      "@parcel/runtime-js",
-      "@parcel/runtime-browser-hmr",
-      "@parcel/runtime-react-refresh"
-    ],
-    "service-worker": ["@parcel/runtime-js"],
-    "web-worker": ["@parcel/runtime-js"],
-    "node": ["@parcel/runtime-js"]
-  },
-  "optimizers": {
-    "data-url:*": ["...", "@parcel/optimizer-data-url"],
-    "*.css": ["@parcel/optimizer-cssnano"],
-    "*.js": ["@parcel/optimizer-terser"],
-    "*.html": ["@parcel/optimizer-htmlnano"]
-  },
-  "packagers": {
-    "*.html": "@parcel/packager-html",
-    "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-js",
-    "*.ts": "@parcel/packager-ts",
-    "*": "@parcel/packager-raw"
-  },
-  "resolvers": ["@parcel/resolver-default"],
   "reporters": [
     "@atlassian/parcel-reporter-analytics",
     "@parcel/reporter-manifest",
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
     "@parcel/reporter-bundle-analyzer"
-  ]
+  ],
+  "resolvers": ["@parcel/resolver-atlassian-ssr"]
 }
