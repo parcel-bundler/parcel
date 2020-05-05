@@ -8,12 +8,7 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {
-  countLines,
-  PromiseQueue,
-  relativeBundlePath,
-  replaceInlineReferences,
-} from '@parcel/utils';
+import {countLines, PromiseQueue, replaceInlineReferences} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
@@ -49,7 +44,7 @@ export default new Packager({
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat(bundle, bundleGraph, wrappedAssets),
+        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
         options,
         wrappedAssets,
       });

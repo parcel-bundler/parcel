@@ -36,7 +36,12 @@ import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import rename from './renamer';
-import {getName, getIdentifier, getExportIdentifier} from './utils';
+import {
+  convertBabelLoc,
+  getName,
+  getIdentifier,
+  getExportIdentifier,
+} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -251,7 +256,7 @@ const VISITOR: Visitor<MutableAsset> = {
       let exportsId = getExportsIdentifier(asset, path.scope);
       path.replaceWith(exportsId);
       asset.meta.isCommonJS = true;
-      asset.symbols.set('*', exportsId.name);
+      asset.symbols.set('*', exportsId.name, convertBabelLoc(path.node.loc));
 
       if (!path.scope.hasBinding(exportsId.name)) {
         path.scope
@@ -372,7 +377,11 @@ const VISITOR: Visitor<MutableAsset> = {
       // Otherwise, assign to the existing export binding.
       let scope = path.scope.getProgramParent();
       if (!scope.hasBinding(identifier.name)) {
-        asset.symbols.set(name, identifier.name);
+        asset.symbols.set(
+          name,
+          identifier.name,
+          convertBabelLoc(path.node.loc),
+        );
 
         // If in the program scope, create a variable declaration and initialize with the exported value.
         // Otherwise, declare the variable in the program scope, and assign to it here.
@@ -453,25 +462,29 @@ const VISITOR: Visitor<MutableAsset> = {
       }
 
       dep.meta.isCommonJS = true;
-      dep.symbols.set('*', getName(asset, 'require', source));
+      dep.symbols.set(
+        '*',
+        getName(asset, 'require', source),
+        convertBabelLoc(path.node.loc),
+      );
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
-      path.replaceWith(
-        REQUIRE_CALL_TEMPLATE({
-          ID: t.stringLiteral(asset.id),
-          SOURCE: t.stringLiteral(arg.value),
-        }),
-      );
+      let replacement = REQUIRE_CALL_TEMPLATE({
+        ID: t.stringLiteral(asset.id),
+        SOURCE: t.stringLiteral(arg.value),
+      });
+      replacement.loc = path.node.loc;
+      path.replaceWith(replacement);
     }
 
     if (t.matchesPattern(callee, 'require.resolve')) {
-      path.replaceWith(
-        REQUIRE_RESOLVE_CALL_TEMPLATE({
-          ID: t.stringLiteral(asset.id),
-          SOURCE: arg,
-        }),
-      );
+      let replacement = REQUIRE_RESOLVE_CALL_TEMPLATE({
+        ID: t.stringLiteral(asset.id),
+        SOURCE: arg,
+      });
+      replacement.loc = path.node.loc;
+      path.replaceWith(replacement);
     }
   },
 
@@ -497,11 +510,11 @@ const VISITOR: Visitor<MutableAsset> = {
           throw new Error('Unknown import construct');
         }
 
-        let existing = dep.symbols.get(imported);
+        let existing = dep.symbols.get(imported)?.local;
         if (existing) {
           id.name = existing;
         } else {
-          dep.symbols.set(imported, id.name);
+          dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
         }
       }
       rename(path.scope, specifier.local.name, id.name);
@@ -512,7 +525,7 @@ const VISITOR: Visitor<MutableAsset> = {
   },
 
   ExportDefaultDeclaration(path, asset: MutableAsset) {
-    let {declaration} = path.node;
+    let {declaration, loc} = path.node;
     let identifier = getExportIdentifier(asset, 'default');
     let name: ?string;
     if (
@@ -559,8 +572,8 @@ const VISITOR: Visitor<MutableAsset> = {
       path.replaceWith(declaration);
     }
 
-    if (!asset.symbols.has('default')) {
-      asset.symbols.set('default', identifier.name);
+    if (!asset.symbols.hasExportSymbol('default')) {
+      asset.symbols.set('default', identifier.name, convertBabelLoc(loc));
     }
   },
 
@@ -588,21 +601,27 @@ const VISITOR: Visitor<MutableAsset> = {
           .getDependencies()
           .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
-          let existing = dep.symbols.get(imported);
+          let existing = dep.symbols.get(imported)?.local;
           if (existing) {
             id.name = existing;
           } else {
             // this will merge with the existing dependency
+            let loc = convertBabelLoc(specifier.loc);
             asset.addDependency({
               moduleSpecifier: dep.moduleSpecifier,
-              symbols: new Map([[imported, id.name]]),
+              symbols: new Map([[imported, {local: id.name, loc}]]),
               isWeak: true,
             });
           }
         }
 
-        asset.symbols.set(exported.name, id.name);
+        asset.symbols.set(
+          exported.name,
+          id.name,
+          convertBabelLoc(specifier.loc),
+        );
 
+        id.loc = specifier.loc;
         path.insertAfter(
           EXPORT_ASSIGN_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
@@ -640,7 +659,7 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
-      dep.symbols.set('*', '*');
+      dep.symbols.set('*', '*', convertBabelLoc(path.node.loc));
     }
 
     path.replaceWith(
@@ -658,12 +677,12 @@ function addImport(
   path: NodePath<ImportDeclaration | ExportNamedDeclaration>,
 ) {
   // Replace with a $parcel$require call so we know where to insert side effects.
-  let requireStmt = t.expressionStatement(
-    REQUIRE_CALL_TEMPLATE({
-      ID: t.stringLiteral(asset.id),
-      SOURCE: t.stringLiteral(nullthrows(path.node.source).value),
-    }),
-  );
+  let replacement = REQUIRE_CALL_TEMPLATE({
+    ID: t.stringLiteral(asset.id),
+    SOURCE: t.stringLiteral(nullthrows(path.node.source).value),
+  });
+  replacement.loc = path.node.loc;
+  let requireStmt = t.expressionStatement(replacement);
 
   // Hoist the call to the top of the file.
   let lastImport = path.scope.getData('hoistedImport');
@@ -699,8 +718,12 @@ function addExport(asset: MutableAsset, path, local, exported) {
     ? binding.constantViolations.concat(path)
     : [path];
 
-  if (!asset.symbols.has(exported.name)) {
-    asset.symbols.set(exported.name, identifier.name);
+  if (!asset.symbols.hasExportSymbol(exported.name)) {
+    asset.symbols.set(
+      exported.name,
+      identifier.name,
+      convertBabelLoc(exported.loc),
+    );
   }
 
   rename(scope, local.name, identifier.name);
@@ -710,7 +733,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
 
 function hasImport(asset: MutableAsset, id) {
   for (let dep of asset.getDependencies()) {
-    if (new Set(dep.symbols.values()).has(id)) {
+    if (dep.symbols.hasLocalSymbol(id)) {
       return true;
     }
   }
@@ -719,7 +742,7 @@ function hasImport(asset: MutableAsset, id) {
 }
 
 function hasExport(asset: MutableAsset, id) {
-  return new Set(asset.symbols.values()).has(id);
+  return asset.symbols.hasLocalSymbol(id);
 }
 
 function safeRename(path, asset: MutableAsset, from, to) {
