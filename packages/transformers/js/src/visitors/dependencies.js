@@ -19,7 +19,7 @@ import {
   isNewExpression,
   isFunction,
 } from '@babel/types';
-import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
+import {md5FromString, createDependencyLocation} from '@parcel/utils';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];

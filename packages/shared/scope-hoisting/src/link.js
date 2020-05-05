@@ -160,6 +160,9 @@ export function link({
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
+  // ATLASSIAN: Warn and return an empty object expression for unresolvable
+  // imports.
+  // eslint-disable-next-line no-unused-vars
   function replaceImportNode(originalModule, originalName, path, depLoc) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,

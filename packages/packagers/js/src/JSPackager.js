@@ -8,12 +8,7 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {
-  countLines,
-  PromiseQueue,
-  relativeBundlePath,
-  replaceInlineReferences,
-} from '@parcel/utils';
+import {countLines, PromiseQueue, replaceInlineReferences} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
