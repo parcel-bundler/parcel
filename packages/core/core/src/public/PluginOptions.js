@@ -66,6 +66,10 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.rootDir;
   }
 
+  get distDir(): FilePath {
+    return this.#options.distDir;
+  }
+
   get cacheDir(): FilePath {
     // TODO: remove this. Probably bad if there are other types of caches.
     // Maybe expose the Cache object instead?
@@ -86,5 +90,9 @@ export default class PluginOptions implements IPluginOptions {
 
   get packageManager(): PackageManager {
     return this.#options.packageManager;
+  }
+
+  get detailedReport(): number {
+    return this.#options.detailedReport || 0;
   }
 }

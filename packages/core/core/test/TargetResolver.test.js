@@ -4,9 +4,10 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
-import {DEFAULT_OPTIONS} from './utils';
-
 import TargetResolver from '../src/TargetResolver';
+import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './utils';
+
+const DEFAULT_OPTIONS = {..._DEFAULT_OPTIONS, sourceMaps: true};
 
 const COMMON_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
@@ -87,7 +88,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
           },
           {
             name: 'customB',
@@ -104,7 +105,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
           },
         ],
       },
@@ -137,7 +138,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -203,7 +204,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -298,7 +299,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -330,7 +331,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -362,7 +363,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -406,7 +407,7 @@ describe('TargetResolver', () => {
             minify: false,
             scopeHoist: false,
           },
-          sourceMap: undefined,
+          sourceMap: {},
           loc: {
             filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json'),
             start: {
@@ -450,7 +451,7 @@ describe('TargetResolver', () => {
             minify: false,
             scopeHoist: false,
           },
-          sourceMap: undefined,
+          sourceMap: {},
           loc: {
             filePath: path.join(fixture, 'package.json'),
             start: {
@@ -496,7 +497,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -528,7 +529,7 @@ describe('TargetResolver', () => {
               minify: false,
               scopeHoist: false,
             },
-            sourceMap: undefined,
+            sourceMap: {},
             loc: {
               filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
               start: {
@@ -542,6 +543,44 @@ describe('TargetResolver', () => {
             },
           },
         ],
+      },
+    );
+  });
+
+  it('generates a default target in serve mode', async () => {
+    let targetResolver = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      serve: {port: 1234},
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {
+        targets: [
+          {
+            name: 'default',
+            distDir: DEFAULT_OPTIONS.distDir,
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: [
+                  'last 1 Chrome version',
+                  'last 1 Safari version',
+                  'last 1 Firefox version',
+                  'last 1 Edge version',
+                ],
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+          },
+        ],
+        files: [],
       },
     );
   });

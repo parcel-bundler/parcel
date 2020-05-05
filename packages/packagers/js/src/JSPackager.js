@@ -49,7 +49,7 @@ export default new Packager({
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat(bundle, bundleGraph, wrappedAssets),
+        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
         options,
         wrappedAssets,
       });
@@ -84,7 +84,7 @@ export default new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            node.value.getMapBuffer(),
+            bundle.target.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });

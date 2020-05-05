@@ -1,7 +1,6 @@
 // @flow
 
 import {Reporter} from '@parcel/plugin';
-import path from 'path';
 import HMRServer from './HMRServer';
 import Server from './Server';
 
@@ -28,7 +27,7 @@ export default new Reporter({
             ...serve,
             projectRoot: options.projectRoot,
             cacheDir: options.cacheDir,
-            distDir: path.join(options.cacheDir, 'dist'),
+            distDir: options.distDir,
             // Override the target's publicUrl as that is likely meant for production.
             // This could be configurable in the future.
             publicUrl: serve.publicUrl ?? '/',
@@ -105,10 +104,10 @@ export default new Reporter({
         // On buildFailure watchStart sometimes has not been called yet
         // do not throw an additional warning here
         if (server) {
-          server.buildError(event.diagnostics);
+          await server.buildError(options, event.diagnostics);
         }
         if (hmrServer) {
-          hmrServer.emitError(event.diagnostics);
+          await hmrServer.emitError(options, event.diagnostics);
         }
         break;
     }

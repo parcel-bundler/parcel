@@ -13,7 +13,6 @@ import type {
 import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
@@ -119,12 +118,23 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
-    let internalNode = this.#graph._graph.getNode(bundle.id);
-    invariant(internalNode != null && internalNode.type === 'bundle');
     return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
-      internalNode.value,
+      bundleToInternalBundle(bundle),
     );
+  }
+
+  findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?IBundle {
+    let result = this.#graph.findReachableBundleWithAsset(
+      bundleToInternalBundle(bundle),
+      assetToAssetValue(asset),
+    );
+
+    if (result != null) {
+      return new Bundle(result, this.#graph, this.#options);
+    }
+
+    return null;
   }
 
   isAssetReferenced(asset: IAsset): boolean {
@@ -189,6 +199,7 @@ export default class BundleGraph implements IBundleGraph {
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: res.exportSymbol,
       symbol: res.symbol,
+      loc: res.loc,
     };
   }
 
@@ -198,6 +209,7 @@ export default class BundleGraph implements IBundleGraph {
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
+      loc: e.loc,
     }));
   }
 

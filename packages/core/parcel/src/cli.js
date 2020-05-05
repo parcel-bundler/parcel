@@ -9,10 +9,10 @@ import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
-function logUncaughtError(e: mixed) {
+async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = prettyDiagnostic(diagnostic);
+      let out = await prettyDiagnostic(diagnostic);
       console.error(out.message);
       console.error(out.codeframe || out.stack);
       for (let h of out.hints) {
@@ -24,9 +24,9 @@ function logUncaughtError(e: mixed) {
   }
 }
 
-process.on('unhandledRejection', (reason: mixed) => {
-  logUncaughtError(reason);
-  process.exit(1);
+process.on('unhandledRejection', async (reason: mixed) => {
+  await logUncaughtError(reason);
+  process.exit();
 });
 
 const chalk = require('chalk');
@@ -64,8 +64,14 @@ const commonOptions = {
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/,
   ],
+  '--dist-dir <dir>':
+    'output directory to write to when unspecified by targets',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
+  '--detailed-report [depth]': [
+    'Print the asset timings and sizes in the build report',
+    /^([0-9]+)$/,
+  ],
 };
 
 var hmrOptions = {
@@ -108,10 +114,6 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
-  .option(
-    '--dist-dir <dir>',
-    'output directory to write to when unspecified by targets',
-  )
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
@@ -125,10 +127,6 @@ let build = program
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .option(
-    '--dist-dir <dir>',
-    'Output directory to write to when unspecified by targets',
-  )
   .action(run);
 
 applyOptions(build, commonOptions);
@@ -316,6 +314,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    detailedReport: command.detailedReport,
     env: {
       NODE_ENV: nodeEnv,
     },

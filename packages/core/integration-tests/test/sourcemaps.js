@@ -3,13 +3,15 @@ import path from 'path';
 import os from 'os';
 import SourceMap from '@parcel/source-map';
 import {
-  bundle,
+  bundle as _bundle,
   assertBundleTree,
   inputFS,
   outputFS,
   shallowEqual,
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
+
+const bundle = (name, opts = {}) => _bundle(name, {sourceMaps: true, ...opts});
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -876,6 +878,20 @@ describe('sourcemaps', function() {
     let map = mapUrlData.map;
     assert.equal(map.file, 'index.js.map');
     assert.deepEqual(map.sources, ['index.js']);
+  });
+
+  it('should respect --no-source-maps', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap/index.js'),
+      {
+        sourceMaps: false,
+      },
+    );
+
+    assert.deepStrictEqual(
+      await outputFS.readdir(path.dirname(b.getBundles()[0].filePath)),
+      ['index.js'],
+    );
   });
 
   it.skip('should load existing sourcemaps for CSS files', async function() {
