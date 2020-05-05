@@ -104,10 +104,10 @@ export default new Reporter({
         // On buildFailure watchStart sometimes has not been called yet
         // do not throw an additional warning here
         if (server) {
-          server.buildError(event.diagnostics);
+          await server.buildError(options, event.diagnostics);
         }
         if (hmrServer) {
-          hmrServer.emitError(event.diagnostics);
+          await hmrServer.emitError(options, event.diagnostics);
         }
         break;
     }

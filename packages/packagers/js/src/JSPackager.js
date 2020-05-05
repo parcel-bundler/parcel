@@ -49,7 +49,7 @@ export default new Packager({
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat(bundle, bundleGraph, wrappedAssets),
+        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
         options,
         wrappedAssets,
       });
