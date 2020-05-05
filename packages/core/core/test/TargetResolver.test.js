@@ -547,7 +547,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it('generates a default target in server mode', async () => {
+  it('generates a default target in serve mode', async () => {
     let targetResolver = new TargetResolver({
       ...DEFAULT_OPTIONS,
       serve: {port: 1234},
