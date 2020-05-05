@@ -310,7 +310,7 @@ describe('scope hoisting', function() {
 
     // ATLASSIAN: Warn and return an empty object expression for unresolvable
     // imports.
-    it('excludes default when re-exporting a module', async function() {
+    it.skip('excludes default when re-exporting a module', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
       );
@@ -343,7 +343,9 @@ describe('scope hoisting', function() {
       });
     });
 
-    it('throws when reexporting a missing symbol', async function() {
+    // ATLASSIAN: Warn and return an empty object expression for unresolvable
+    // imports.
+    it.skip('throws when reexporting a missing symbol', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-missing/a.js',
       );
