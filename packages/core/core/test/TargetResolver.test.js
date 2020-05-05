@@ -547,6 +547,44 @@ describe('TargetResolver', () => {
     );
   });
 
+  it('generates a default target in serve mode', async () => {
+    let targetResolver = new TargetResolver({
+      ...DEFAULT_OPTIONS,
+      serve: {port: 1234},
+    });
+
+    assert.deepEqual(
+      await targetResolver.resolve(COMMON_TARGETS_FIXTURE_PATH),
+      {
+        targets: [
+          {
+            name: 'default',
+            distDir: DEFAULT_OPTIONS.distDir,
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: [
+                  'last 1 Chrome version',
+                  'last 1 Safari version',
+                  'last 1 Firefox version',
+                  'last 1 Edge version',
+                ],
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+          },
+        ],
+        files: [],
+      },
+    );
+  });
+
   it('rejects invalid or unknown fields', async () => {
     let code =
       '{\n' +
