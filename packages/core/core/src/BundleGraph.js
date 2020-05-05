@@ -739,16 +739,21 @@ export default class BundleGraph {
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
-    let identifier = asset.symbols.get(symbol);
+    let identifier = asset.symbols.get(symbol)?.local;
     if (symbol === '*') {
-      return {asset, exportSymbol: '*', symbol: identifier};
+      return {
+        asset,
+        exportSymbol: '*',
+        symbol: identifier,
+        loc: asset.symbols.get(symbol)?.loc,
+      };
     }
 
     let deps = this.getDependencies(asset).reverse();
     for (let dep of deps) {
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
-        [...dep.symbols].map(([key, val]) => [val, key]),
+        [...dep.symbols].map(([key, val]) => [val.local, key]),
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
@@ -767,11 +772,22 @@ export default class BundleGraph {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
           exportSymbol,
+          loc,
         } = this.resolveSymbol(resolved, depSymbol, boundary);
+
+        if (!loc) {
+          // the recursive call didn't actually do anything
+          loc = asset.symbols.get(symbol)?.loc;
+        }
 
         // If it didn't resolve to anything (likely CommonJS), pass through where we got to
         if (resolvedSymbol == null) {
-          return {asset: resolvedAsset, symbol: resolvedSymbol, exportSymbol};
+          return {
+            asset: resolvedAsset,
+            symbol: resolvedSymbol,
+            exportSymbol,
+            loc,
+          };
         }
 
         // Otherwise, keep the original symbol name along with the resolved symbol
@@ -779,12 +795,13 @@ export default class BundleGraph {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
           exportSymbol: symbol,
+          loc,
         };
       }
 
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
-      if (dep.symbols.get('*') === '*' && symbol !== 'default') {
+      if (dep.symbols.get('*')?.local === '*' && symbol !== 'default') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
@@ -798,12 +815,18 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: symbol,
+            loc: resolved.symbols.get(symbol)?.loc,
           };
         }
       }
     }
 
-    return {asset, exportSymbol: symbol, symbol: identifier};
+    return {
+      asset,
+      exportSymbol: symbol,
+      symbol: identifier,
+      loc: asset.symbols.get(symbol)?.loc,
+    };
   }
 
   getExportedSymbols(asset: Asset) {
@@ -815,7 +838,7 @@ export default class BundleGraph {
 
     let deps = this.getDependencies(asset);
     for (let dep of deps) {
-      if (dep.symbols.get('*') === '*') {
+      if (dep.symbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved).filter(

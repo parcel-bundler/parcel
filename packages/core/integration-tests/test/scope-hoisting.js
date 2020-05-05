@@ -309,22 +309,71 @@ describe('scope hoisting', function() {
     });
 
     it('excludes default when re-exporting a module', async function() {
-      let threw = false;
-      try {
-        await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/re-export-exclude-default/a.js',
-          ),
-        );
-      } catch (err) {
-        threw = true;
-        assert(
-          err.diagnostics[0].message.endsWith("b.js does not export 'default'"),
-        );
-      }
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
+      );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+      )} does not export 'default'`;
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 8,
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
 
-      assert(threw);
+    it('throws when reexporting a missing symbol', async function() {
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/a.js',
+      );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/c.js',
+      )} does not export 'foo'`;
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: path.normalize(
+              'integration/scope-hoisting/es6/re-export-missing/b.js',
+            ),
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 9,
+                },
+                end: {
+                  line: 1,
+                  column: 11,
+                },
+              },
+            },
+          },
+        ],
+      });
     });
 
     it('supports multiple exports of the same variable', async function() {
@@ -1547,20 +1596,37 @@ describe('scope hoisting', function() {
       assert.equal(output.require, 'function');
     });
 
-    it("doesn't support require.resolve calls", async function() {
-      await assert.rejects(
-        () =>
-          bundle(
-            path.join(
-              __dirname,
-              '/integration/scope-hoisting/commonjs/require-resolve/a.js',
-            ),
-          ),
-        {
-          message:
-            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
-        },
+    it("doesn't support require.resolve calls for included assets", async function() {
+      let message =
+        "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting";
+      let source = path.join(
+        __dirname,
+        '/integration/scope-hoisting/commonjs/require-resolve/a.js',
       );
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 3,
+                  column: 10,
+                },
+                end: {
+                  line: 3,
+                  column: 31,
+                },
+              },
+            },
+          },
+        ],
+      });
     });
 
     it('supports require.resolve calls for excluded modules', async function() {

@@ -258,6 +258,16 @@ export type SourceLocation = {|
 export type Meta = JSONObject;
 
 export type Symbol = string;
+export interface Symbols // eslint-disable-next-line no-undef
+  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+}
+export interface MutableSymbols extends Symbols {
+  clear(): void;
+  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+}
 
 export type DependencyOptions = {|
   +moduleSpecifier: ModuleSpecifier,
@@ -270,7 +280,7 @@ export type DependencyOptions = {|
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
 |};
 
 export interface Dependency {
@@ -288,8 +298,10 @@ export interface Dependency {
   +target: ?Target;
   +sourceAssetId: ?string;
   +sourcePath: ?string;
-  +symbols: Map<Symbol, Symbol>;
   +pipeline: ?string;
+
+  // (imported symbol -> variable that it is used as)
+  +symbols: MutableSymbols;
 }
 
 export type File = {|
@@ -313,10 +325,12 @@ export interface BaseAsset {
   +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
-  +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
+
+  // (symbol exported by this -> name of binding to export)
+  +symbols: Symbols;
 
   getAST(): Promise<?AST>;
   getCode(): Promise<string>;
@@ -345,6 +359,9 @@ export interface MutableAsset extends BaseAsset {
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+
+  +symbols: MutableSymbols;
+
   isASTDirty(): boolean;
   setAST(AST): void;
   setBuffer(Buffer): void;
@@ -421,7 +438,7 @@ export type TransformerResult = {|
   +meta?: Meta,
   +pipeline?: ?string,
   +sideEffects?: boolean,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   +type: string,
   +uniqueKey?: ?string,
 |};
@@ -581,6 +598,8 @@ export type SymbolResolution = {|
   +asset: Asset,
   +exportSymbol: Symbol | string,
   +symbol: void | Symbol,
+  // the location of the specifier that lead to this result
+  +loc: ?SourceLocation,
 |};
 
 export interface Bundle {

@@ -231,9 +231,11 @@ export default class UncommittedAsset {
 
   addDependency(opts: DependencyOptions) {
     // eslint-disable-next-line no-unused-vars
-    let {env, target, ...rest} = opts;
+    let {env, target, symbols, ...rest} = opts;
     let dep = createDependency({
       ...rest,
+      // $FlowFixMe "convert" the $ReadOnlyMaps to the interal mutable one
+      symbols,
       env: mergeEnvironments(this.value.env, env),
       sourceAssetId: this.value.id,
       sourcePath: this.value.filePath,
