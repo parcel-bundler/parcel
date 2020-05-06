@@ -735,7 +735,7 @@ export default class BundleGraph {
   }
 
   // Resolve the export `symbol` of `asset` to the source,
-  // stopping at the first asset after leaving `bundle`
+  // stopping at the first asset after leaving `bundle`.
   // bailout (== caller should do `asset.exports[exportsSymbol]`): `symbol === null`
   // not found: `symbol === undefined`
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
@@ -781,16 +781,10 @@ export default class BundleGraph {
         } = this.resolveSymbol(resolved, depSymbol, boundary);
 
         if (!loc) {
-          // the recursive call didn't actually do anything
+          // Remember how we got there
           loc = asset.symbols?.get(symbol)?.loc;
         }
 
-        // If it didn't resolve to anything (likely CommonJS), pass through where we got to
-        if (resolvedSymbol === null) {
-          return {asset: resolvedAsset, symbol: null, exportSymbol, loc};
-        }
-
-        // TODO not anymore: Otherwise, keep the original symbol name along with the resolved symbol
         return {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
@@ -820,6 +814,7 @@ export default class BundleGraph {
           };
         }
         if (!result.asset.symbols) {
+          // We didn't find it in this dependency, but it might still be there: bailout.
           maybeFoundInDependencies = true;
           break;
         }
@@ -836,7 +831,6 @@ export default class BundleGraph {
 
   getExportedSymbols(asset: Asset) {
     if (!asset.symbols) {
-      // TODO ???
       return [];
     }
 
