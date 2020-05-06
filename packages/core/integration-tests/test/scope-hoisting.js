@@ -2334,6 +2334,14 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [3, 5]);
   });
 
+  it('deduplicates shared sibling assets between bundle groups', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-scope-hoist/index.js'),
+    );
+
+    assert.deepEqual(await run(b), ['a', 'b', 'c']);
+  });
+
   it('can run an entry bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       ['index.js', 'value.js'].map(basename =>
