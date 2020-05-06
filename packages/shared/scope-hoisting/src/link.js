@@ -558,7 +558,7 @@ export function link({
     },
     MemberExpression: {
       exit(path) {
-        if (!path.isReferenced()) {
+        if (path.getData('parcelInserted')) {
           return;
         }
 
@@ -583,6 +583,22 @@ export function link({
 
         // Check if $id$export$name exists and if so, replace the node by it.
         if (identifier) {
+          if (path.parentPath.isAssignmentExpression()) {
+            if (isIdentifier(path.parent.right, {name: identifier})) {
+              // keep `$id$exports.foo = $id$export$foo`
+              return;
+            }
+            let [stmt] = path.parentPath.parentPath.insertAfter(
+              t.expressionStatement(
+                t.assignmentExpression(
+                  '=',
+                  t.cloneNode(path.node),
+                  t.identifier(identifier),
+                ),
+              ),
+            );
+            stmt.get('expression.left').setData('parcelInserted', true);
+          }
           path.replaceWith(t.identifier(identifier));
         }
       },
