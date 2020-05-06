@@ -607,6 +607,11 @@ export type SymbolResolution = {|
   +loc: ?SourceLocation,
 |};
 
+export type ExportSymbolResolution = {|
+  ...SymbolResolution,
+  +exportAs: Symbol | string,
+|};
+
 export interface Bundle {
   +id: string;
   +hashReference: string;
@@ -691,7 +696,7 @@ export interface BundleGraph {
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
+  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<Bundle, TContext>,
     startBundle: ?Bundle,

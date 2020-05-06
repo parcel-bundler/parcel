@@ -790,11 +790,11 @@ export default class BundleGraph {
           return {asset: resolvedAsset, symbol: null, exportSymbol, loc};
         }
 
-        // Otherwise, keep the original symbol name along with the resolved symbol
+        // TODO not anymore: Otherwise, keep the original symbol name along with the resolved symbol
         return {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
-          exportSymbol: symbol,
+          exportSymbol,
           loc,
         };
       }
@@ -829,7 +829,7 @@ export default class BundleGraph {
     return {
       asset,
       exportSymbol: symbol,
-      symbol: maybeFoundInDependencies ? null : identifier,
+      symbol: identifier ?? (maybeFoundInDependencies ? null : undefined),
       loc: asset.symbols?.get(symbol)?.loc,
     };
   }
@@ -843,7 +843,7 @@ export default class BundleGraph {
     let symbols = [];
 
     for (let symbol of asset.symbols.keys()) {
-      symbols.push(this.resolveSymbol(asset, symbol));
+      symbols.push({...this.resolveSymbol(asset, symbol), exportAs: symbol});
     }
 
     let deps = this.getDependencies(asset);
@@ -851,9 +851,9 @@ export default class BundleGraph {
       if (dep.symbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
-        let exported = this.getExportedSymbols(resolved).filter(
-          s => s.exportSymbol !== 'default',
-        );
+        let exported = this.getExportedSymbols(resolved)
+          .filter(s => s.exportSymbol !== 'default')
+          .map(s => ({...s, exportAs: s.exportSymbol}));
         symbols.push(...exported);
       }
     }
