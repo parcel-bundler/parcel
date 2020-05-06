@@ -352,12 +352,18 @@ export function link({
   }
 
   function addBundleImport(mod, path) {
-    // Find the first bundle containing this asset, and create an import for it if needed.
-    // An asset may be duplicated in multiple bundles, so try to find one that matches
-    // the current environment if possible and fall back to the first one.
-    let bundles = bundleGraph.findBundlesWithAsset(mod);
-    let importedBundle =
-      bundles.find(b => b.env.context === bundle.env.context) || bundles[0];
+    // Find a bundle that's reachable from the current bundle (sibling or ancestor)
+    // containing this asset, and create an import for it if needed.
+    let importedBundle = bundleGraph.findReachableBundleWithAsset(bundle, mod);
+    if (!importedBundle) {
+      throw new Error(
+        `No reachable bundle found containing ${relative(
+          options.inputFS.cwd(),
+          mod.filePath,
+        )}`,
+      );
+    }
+
     let filePath = nullthrows(importedBundle.filePath);
     let imported = importedFiles.get(filePath);
     if (!imported) {
