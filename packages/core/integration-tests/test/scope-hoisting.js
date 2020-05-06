@@ -584,7 +584,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 16);
     });
 
-    it('supports correctly handles ES6 re-exports in library mode entries', async function() {
+    it('correctly handles ES6 re-exports in library mode entries', async function() {
       let b = await bundle(
         path.join(
           __dirname,

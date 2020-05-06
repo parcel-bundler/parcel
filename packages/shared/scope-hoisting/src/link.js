@@ -176,13 +176,7 @@ export function link({
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (
-      !node &&
-      node !== null &&
-      !mod.meta.isCommonJS &&
-      mod.meta.isES6Module &&
-      !mod.meta.evalWrapped
-    ) {
+    if (node === undefined && !mod.meta.isCommonJS && mod.meta.isES6Module) {
       let relativePath = relative(options.projectRoot, mod.filePath);
       throw getThrowableDiagnosticForNode(
         `${relativePath} does not export '${symbol}'`,
@@ -191,14 +185,15 @@ export function link({
       );
     }
 
-    // If it is CommonJS, look for an exports object.
+    // Look for an exports object if we bailed out.
     if ((node === undefined && mod.meta.isCommonJS) || node === null) {
       node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
       if (!node) {
         return null;
       }
 
-      return interop(mod, symbol, path, node);
+      node = interop(mod, symbol, path, node);
+      return node;
     }
 
     return node;

@@ -263,8 +263,11 @@ export interface Symbols // eslint-disable-next-line no-undef
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
+  // Whether static analysis bailed out
+  +isCleared: boolean;
 }
 export interface MutableSymbols extends Symbols {
+  // Static analysis bailed out
   clear(): void;
   set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
 }
@@ -301,6 +304,7 @@ export interface Dependency {
   +pipeline: ?string;
 
   // (imported symbol -> variable that it is used as)
+  // TODO make immutable
   +symbols: MutableSymbols;
 }
 
@@ -439,6 +443,7 @@ export type TransformerResult = {|
   +pipeline?: ?string,
   +sideEffects?: boolean,
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
 |};

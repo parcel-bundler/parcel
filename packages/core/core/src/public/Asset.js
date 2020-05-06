@@ -28,7 +28,7 @@ import type {Asset as AssetValue, ParcelOptions} from '../types';
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
-import {Symbols, MutableSymbols} from './Symbols';
+import {Symbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
@@ -130,7 +130,7 @@ class BaseAsset {
   }
 
   get symbols(): ISymbols {
-    return new Symbols(this.#asset.value.symbols);
+    return new Symbols(this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -259,7 +259,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get symbols(): IMutableSymbols {
-    return new MutableSymbols(this.#asset.value.symbols);
+    return new MutableAssetSymbols(this.#asset.value);
   }
 
   addDependency(dep: DependencyOptions): string {

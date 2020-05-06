@@ -1,3 +1,3 @@
-export var foo = (function () {
+export var bar = (function () {
 	return !!module;
 })();

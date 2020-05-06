@@ -207,9 +207,6 @@ const VISITOR: Visitor<MutableAsset> = {
         );
 
         asset.symbols.clear();
-        // TODO make symbols nullable instead
-        asset.meta.evalWrapped = true;
-
         asset.meta.isCommonJS = true;
         asset.meta.isES6Module = false;
       } else {
