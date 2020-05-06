@@ -9,10 +9,10 @@ import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
-function logUncaughtError(e: mixed) {
+async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = prettyDiagnostic(diagnostic);
+      let out = await prettyDiagnostic(diagnostic);
       console.error(out.message);
       console.error(out.codeframe || out.stack);
       for (let h of out.hints) {
@@ -24,9 +24,9 @@ function logUncaughtError(e: mixed) {
   }
 }
 
-process.on('unhandledRejection', (reason: mixed) => {
-  logUncaughtError(reason);
-  process.exit(1);
+process.on('unhandledRejection', async (reason: mixed) => {
+  await logUncaughtError(reason);
+  process.exit();
 });
 
 const chalk = require('chalk');
@@ -68,6 +68,10 @@ const commonOptions = {
     'output directory to write to when unspecified by targets',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
+  '--detailed-report [depth]': [
+    'Print the asset timings and sizes in the build report',
+    /^([0-9]+)$/,
+  ],
 };
 
 var hmrOptions = {
@@ -310,6 +314,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    detailedReport: command.detailedReport,
     env: {
       NODE_ENV: nodeEnv,
     },

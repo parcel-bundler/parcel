@@ -18,9 +18,6 @@ export type DepPathRequest = {|
   result?: DependencyResult,
 |};
 
-const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
-  new Map([...map].map(([key, val]) => [val, key]));
-
 export default class DepPathRequestRunner extends RequestRunner<
   Dependency,
   DependencyResult,
@@ -125,7 +122,9 @@ export default class DepPathRequestRunner extends RequestRunner<
       invariant(depNode);
 
       let assets = this.assetGraph.getNodesConnectedTo(depNode);
-      let symbols = invertMap(dependency.symbols);
+      let symbols = new Map(
+        [...dependency.symbols].map(([key, val]) => [val.local, key]),
+      );
       invariant(assets.length === 1);
       let firstAsset = assets[0];
       invariant(firstAsset.type === 'asset');
@@ -136,7 +135,7 @@ export default class DepPathRequestRunner extends RequestRunner<
           !(d.env.isLibrary && d.isEntry) &&
           !d.symbols.has('*') &&
           ![...d.symbols.keys()].some(symbol => {
-            let assetSymbol = resolvedAsset.symbols.get(symbol);
+            let assetSymbol = resolvedAsset.symbols.get(symbol)?.local;
             return assetSymbol != null && symbols.has(assetSymbol);
           }),
       );

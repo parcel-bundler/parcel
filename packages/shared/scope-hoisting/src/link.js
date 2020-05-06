@@ -6,6 +6,7 @@ import type {
   BundleGraph,
   PluginOptions,
   Symbol,
+  SourceLocation,
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
@@ -35,7 +36,14 @@ import {
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
-import {assertString, getName, getIdentifier, verifyScopeState} from './utils';
+import {
+  assertString,
+  convertBabelLoc,
+  getName,
+  getIdentifier,
+  getThrowableDiagnosticForNode,
+  verifyScopeState,
+} from './utils';
 import OutputFormats from './formats/index.js';
 
 const ESMODULE_TEMPLATE = template.statement<
@@ -78,7 +86,7 @@ export function link({
 |}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, ?[Asset, Symbol]> = new Map();
+  let imports: Map<Symbol, ?[Asset, Symbol, ?SourceLocation]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
@@ -111,8 +119,8 @@ export function link({
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
       if (resolved || dep.isDeferred) {
-        for (let [imported, local] of dep.symbols) {
-          imports.set(local, resolved ? [resolved, imported] : null);
+        for (let [imported, {local, loc}] of dep.symbols) {
+          imports.set(local, resolved ? [resolved, imported, loc] : null);
         }
       }
     }
@@ -123,7 +131,7 @@ export function link({
   });
 
   function resolveSymbol(inputAsset, inputSymbol: Symbol, bundle) {
-    let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
+    let {asset, exportSymbol, symbol, loc} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol,
       bundle,
@@ -133,6 +141,7 @@ export function link({
         asset: asset,
         symbol: exportSymbol,
         identifier: undefined,
+        loc,
       };
     }
 
@@ -147,11 +156,11 @@ export function link({
       identifier = replacements.get(identifier);
     }
 
-    return {asset: asset, symbol: exportSymbol, identifier};
+    return {asset: asset, symbol: exportSymbol, identifier, loc};
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
-  function replaceImportNode(originalModule, originalName, path) {
+  function replaceImportNode(originalModule, originalName, path, depLoc) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
@@ -171,8 +180,12 @@ export function link({
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      let relativePath = relative(options.inputFS.cwd(), mod.filePath);
-      throw new Error(`${relativePath} does not export '${symbol}'`);
+      let relativePath = relative(options.projectRoot, mod.filePath);
+      throw getThrowableDiagnosticForNode(
+        `${relativePath} does not export '${symbol}'`,
+        depLoc?.filePath ?? path.node.loc?.filename,
+        depLoc,
+      );
     }
 
     // If it is CommonJS, look for an exports object.
@@ -273,6 +286,7 @@ export function link({
         source: dep.moduleSpecifier,
         specifiers: new Map(),
         isCommonJS: !!dep.meta.isCommonJS,
+        loc: convertBabelLoc(path.node.loc),
       };
 
       importedFiles.set(dep.moduleSpecifier, importedFile);
@@ -284,15 +298,15 @@ export function link({
     let specifiers = importedFile.specifiers;
 
     // For each of the imported symbols, add to the list of imported specifiers.
-    for (let [imported, symbol] of dep.symbols) {
+    for (let [imported, {local}] of dep.symbols) {
       // If already imported, just add the already renamed variable to the mapping.
       let renamed = specifiers.get(imported);
       if (renamed) {
-        replacements.set(symbol, renamed);
+        replacements.set(local, renamed);
         continue;
       }
 
-      renamed = replacements.get(symbol);
+      renamed = replacements.get(local);
       if (!renamed) {
         // Rename the specifier to something nicer. Try to use the imported
         // name, except for default and namespace imports, and if the name is
@@ -308,7 +322,7 @@ export function link({
         }
 
         programScope.references[renamed] = true;
-        replacements.set(symbol, renamed);
+        replacements.set(local, renamed);
       }
 
       specifiers.set(imported, renamed);
@@ -347,6 +361,7 @@ export function link({
       imported = {
         bundle: importedBundle,
         assets: new Set(),
+        loc: convertBabelLoc(path.node.loc),
       };
       importedFiles.set(filePath, imported);
     }
@@ -464,11 +479,11 @@ export function link({
         );
         if (!bundleGraph.getDependencyResolution(dep, bundle)) {
           // was excluded from bundling (e.g. includeNodeModules = false)
-
           if (bundle.env.outputFormat !== 'commonjs') {
-            // TODO add loc information once available
-            throw new Error(
-              "`require.resolve` calls for excluded assets are only supported with outputFormat = 'commonjs'",
+            throw getThrowableDiagnosticForNode(
+              "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
+              mapped.filePath,
+              path.node.loc,
             );
           }
 
@@ -476,9 +491,10 @@ export function link({
             REQUIRE_RESOLVE_CALL_TEMPLATE({ID: t.stringLiteral(source.value)}),
           );
         } else {
-          // TODO add loc information once available
-          throw new Error(
+          throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
+            mapped.filePath,
+            path.node.loc,
           );
         }
       }
@@ -593,8 +609,8 @@ export function link({
           // import was deferred
           node = t.objectExpression([]);
         } else {
-          let [asset, symbol] = imported;
-          node = replaceImportNode(asset, symbol, path);
+          let [asset, symbol, loc] = imported;
+          node = replaceImportNode(asset, symbol, path, loc);
 
           // If the export does not exist, replace with an empty object.
           if (!node) {
@@ -617,12 +633,7 @@ export function link({
 
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            format.generateBundleImports(
-              bundle,
-              file.bundle,
-              file.assets,
-              path,
-            );
+            format.generateBundleImports(bundle, file, path);
           } else {
             format.generateExternalImport(bundle, file, path);
           }
@@ -690,7 +701,7 @@ function maybeAddEsModuleFlag(scope, mod) {
   // Insert __esModule interop flag if the required module is an ES6 module with a default export.
   // This ensures that code generated by Babel and other tools works properly.
 
-  if (mod.meta.isES6Module && mod.symbols.has('default')) {
+  if (mod.meta.isES6Module && mod.symbols.hasExportSymbol('default')) {
     let name = assertString(mod.meta.exportsIdentifier);
     let binding = scope.getBinding(name);
     if (binding && !binding.path.getData('hasESModuleFlag')) {
