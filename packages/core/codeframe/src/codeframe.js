@@ -168,11 +168,6 @@ export default function codeFrame(
           (b.start.line < currentLineIndex ? 0 : b.start.column),
       );
 
-    // Split the line into line parts that will fit the provided terminal width
-    let lineParts = partWidth
-      ? splitAnsi(syntaxHighlightedLines[currentLineIndex], partWidth)
-      : [syntaxHighlightedLines[currentLineIndex]];
-
     // Check if this line has a full line highlight
     let isWholeLine =
       foundHighlights.length &&
@@ -180,7 +175,40 @@ export default function codeFrame(
         h => h.start.line < currentLineIndex && h.end.line > currentLineIndex,
       );
 
+    // Split the line into line parts that will fit the provided terminal width
     let colOffset = 0;
+    let lineParts = [];
+    let syntaxHighlightedLine = syntaxHighlightedLines[currentLineIndex];
+    if (partWidth) {
+      if (stringWidth(syntaxHighlightedLine) > 2 * partWidth) {
+        let endIndex = partWidth;
+        if (foundHighlights) {
+          if (foundHighlights[0].start.line === currentLineIndex) {
+            colOffset =
+              foundHighlights[0].start.column > partWidth
+                ? foundHighlights[0].start.column - partWidth
+                : 0;
+          } else if (
+            foundHighlights[0].end.line === currentLineIndex &&
+            foundHighlights[0].end.column > partWidth
+          ) {
+            colOffset = foundHighlights[0].end.column - partWidth;
+          }
+        }
+
+        endIndex = colOffset + 2 * partWidth;
+
+        syntaxHighlightedLine = syntaxHighlightedLine.substring(
+          colOffset,
+          endIndex,
+        );
+      }
+
+      lineParts = splitAnsi(syntaxHighlightedLine, partWidth);
+    } else {
+      lineParts = [syntaxHighlightedLine];
+    }
+
     for (let linePart of lineParts) {
       // Write the syntax highlighted line part
       resultLines.push(
