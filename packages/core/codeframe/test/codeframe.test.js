@@ -4,7 +4,7 @@ import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe.only('codeframe', () => {
+describe('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -684,5 +684,33 @@ describe.only('codeframe', () => {
     assert.equal(lines[1], '>   |               ');
     assert.equal(lines[2], '> 1 | lo world hello');
     assert.equal(lines[3], '>   | ^^^^^^^^^^^^^^');
+  });
+
+  it('Should truncate long lines and print message', () => {
+    let originalLine = 'hello world '.repeat(1000);
+    let codeframeString = codeframe(
+      originalLine,
+      [
+        {
+          start: {
+            column: 1000,
+            line: 1,
+          },
+          end: {
+            column: 1200,
+            line: 1,
+          },
+          message: 'This is a message',
+        },
+      ],
+      {useColor: false, terminalWidth: 20},
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 4);
+    assert.equal(lines[0], '> 1 | ello world hel');
+    assert.equal(lines[1], '>   |               ');
+    assert.equal(lines[2], '> 1 | lo world hello');
+    assert.equal(lines[3], '>   | ^^^^^^^^^^^^^^ This is a message');
   });
 });

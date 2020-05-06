@@ -17,8 +17,8 @@ export type AnsiDiagnosticResult = {|
 
 export default async function prettyDiagnostic(
   diagnostic: Diagnostic,
-  terminalWidth?: number,
   options?: PluginOptions,
+  terminalWidth?: number,
 ): Promise<AnsiDiagnosticResult> {
   let {
     origin,

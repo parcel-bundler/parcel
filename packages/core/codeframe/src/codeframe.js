@@ -209,7 +209,13 @@ export default function codeFrame(
       lineParts = [syntaxHighlightedLine];
     }
 
-    for (let linePart of lineParts) {
+    for (
+      let linepartIndex = 0;
+      linepartIndex < lineParts.length;
+      linepartIndex++
+    ) {
+      let linePart = lineParts[linepartIndex];
+
       // Write the syntax highlighted line part
       resultLines.push(
         lineNumberPrefixer({
@@ -269,6 +275,11 @@ export default function codeFrame(
               // If the endCol is too big for this line part, trim it so we can handle it in the next one
               if (partWidth && endCol + startCol > partWidth) {
                 endCol = linePartWidth - 1;
+
+                // Handle truncated lines
+                if (linepartIndex === lineParts.length - 1) {
+                  highlightHasEnded = true;
+                }
               } else {
                 // The current highlight ends within this line part, used for appending the message
                 highlightHasEnded = true;
