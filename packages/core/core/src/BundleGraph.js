@@ -734,10 +734,6 @@ export default class BundleGraph {
     );
   }
 
-  // Resolve the export `symbol` of `asset` to the source,
-  // stopping at the first asset after leaving `bundle`.
-  // bailout (== caller should do `asset.exports[exportsSymbol]`): `symbol === null`
-  // not found: `symbol === undefined`
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 

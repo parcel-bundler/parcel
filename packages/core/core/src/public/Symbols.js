@@ -9,6 +9,12 @@ import type {Asset, Dependency} from '../types';
 
 import nullthrows from 'nullthrows';
 
+const EMPTY_ITERATOR = {
+  next() {
+    return {done: true};
+  },
+};
+
 let valueToSymbols: WeakMap<Asset, Symbols> = new WeakMap();
 
 export class Symbols implements ISymbols {
@@ -48,11 +54,7 @@ export class Symbols implements ISymbols {
   [Symbol.iterator]() {
     return this.#value.symbols
       ? this.#value.symbols[Symbol.iterator]()
-      : {
-          next() {
-            return {done: true};
-          },
-        };
+      : EMPTY_ITERATOR;
   }
 
   get isCleared() {
@@ -103,11 +105,7 @@ class MutableSymbols {
   [Symbol.iterator]() {
     return this.#value.symbols
       ? this.#value.symbols[Symbol.iterator]()
-      : {
-          next() {
-            return {done: true};
-          },
-        };
+      : EMPTY_ITERATOR;
   }
 
   get isCleared() {

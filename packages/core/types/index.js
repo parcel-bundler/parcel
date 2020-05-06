@@ -691,6 +691,12 @@ export interface BundleGraph {
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  /**
+   * Resolve the export `symbol` of `asset` to the source,
+   * stopping at the first asset after leaving `bundle`.
+   * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
+   * `symbol === undefined`: symbol not found
+   */
   resolveSymbol(
     asset: Asset,
     symbol: Symbol,
