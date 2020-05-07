@@ -219,8 +219,13 @@ export function link({
       if (!path.scope.getBinding(name)) {
         // Hoist to the nearest path with the same scope as the exports is declared in
         let binding = path.scope.getBinding(
-          assertString(mod.meta.exportsIdentifier),
+          bundle.hasAsset(mod)
+            ? assertString(mod.meta.exportsIdentifier)
+            : // If this bundle doesn't have the asset, use the binding for
+              // the `parcelRequire`d init function.
+              getIdentifier(mod, 'init').name,
         );
+
         let parent;
         if (binding) {
           invariant(
