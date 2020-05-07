@@ -735,21 +735,20 @@ export default class BundleGraph {
     );
   }
 
-  // Resolve the export `symbol` of `asset` to the source,
-  // stopping at the first asset after leaving `bundle` (symbol is nullish in that case)
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
-    let identifier = asset.symbols.get(symbol)?.local;
+    let identifier = asset.symbols?.get(symbol)?.local;
     if (symbol === '*') {
       return {
         asset,
         exportSymbol: '*',
-        symbol: identifier,
-        loc: asset.symbols.get(symbol)?.loc,
+        symbol: identifier ?? null,
+        loc: asset.symbols?.get(symbol)?.loc,
       };
     }
 
+    let maybeFoundInDependencies = !asset.symbols;
     let deps = this.getDependencies(asset).reverse();
     for (let dep of deps) {
       // If this is a re-export, find the original module.
@@ -760,12 +759,14 @@ export default class BundleGraph {
       if (depSymbol != null) {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) {
-          // External module.
+          // External module
+          maybeFoundInDependencies = true;
           break;
         }
 
         if (assetOutside) {
           // We found the symbol, but `asset` is outside, return `asset` and the original symbol
+          maybeFoundInDependencies = true;
           break;
         }
 
@@ -777,25 +778,14 @@ export default class BundleGraph {
         } = this.resolveSymbol(resolved, depSymbol, boundary);
 
         if (!loc) {
-          // the recursive call didn't actually do anything
-          loc = asset.symbols.get(symbol)?.loc;
+          // Remember how we got there
+          loc = asset.symbols?.get(symbol)?.loc;
         }
 
-        // If it didn't resolve to anything (likely CommonJS), pass through where we got to
-        if (resolvedSymbol == null) {
-          return {
-            asset: resolvedAsset,
-            symbol: resolvedSymbol,
-            exportSymbol,
-            loc,
-          };
-        }
-
-        // Otherwise, keep the original symbol name along with the resolved symbol
         return {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
-          exportSymbol: symbol,
+          exportSymbol,
           loc,
         };
       }
@@ -809,6 +799,7 @@ export default class BundleGraph {
         if (result.symbol != undefined) {
           if (assetOutside) {
             // We found the symbol, but `asset` is outside, return `asset` and the original symbol
+            maybeFoundInDependencies = true;
             break;
           }
 
@@ -816,8 +807,13 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: symbol,
-            loc: resolved.symbols.get(symbol)?.loc,
+            loc: resolved.symbols?.get(symbol)?.loc,
           };
+        }
+        if (!result.asset.symbols) {
+          // We didn't find it in this dependency, but it might still be there: bailout.
+          maybeFoundInDependencies = true;
+          break;
         }
       }
     }
@@ -825,16 +821,20 @@ export default class BundleGraph {
     return {
       asset,
       exportSymbol: symbol,
-      symbol: identifier,
-      loc: asset.symbols.get(symbol)?.loc,
+      symbol: identifier ?? (maybeFoundInDependencies ? null : undefined),
+      loc: asset.symbols?.get(symbol)?.loc,
     };
   }
 
   getExportedSymbols(asset: Asset) {
+    if (!asset.symbols) {
+      return [];
+    }
+
     let symbols = [];
 
     for (let symbol of asset.symbols.keys()) {
-      symbols.push(this.resolveSymbol(asset, symbol));
+      symbols.push({...this.resolveSymbol(asset, symbol), exportAs: symbol});
     }
 
     let deps = this.getDependencies(asset);
@@ -842,9 +842,9 @@ export default class BundleGraph {
       if (dep.symbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
-        let exported = this.getExportedSymbols(resolved).filter(
-          s => s.exportSymbol !== 'default',
-        );
+        let exported = this.getExportedSymbols(resolved)
+          .filter(s => s.exportSymbol !== 'default')
+          .map(s => ({...s, exportAs: s.exportSymbol}));
         symbols.push(...exported);
       }
     }

@@ -140,7 +140,7 @@ export function link({
       return {
         asset: asset,
         symbol: exportSymbol,
-        identifier: undefined,
+        identifier: null,
         loc,
       };
     }
@@ -170,10 +170,7 @@ export function link({
       bundle,
     );
 
-    let node;
-    if (identifier) {
-      node = findSymbol(path, identifier);
-    }
+    let node = identifier ? findSymbol(path, identifier) : identifier;
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
@@ -182,7 +179,7 @@ export function link({
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
+    if (node === undefined && !mod.meta.isCommonJS && mod.meta.isES6Module) {
       let relativePath = relative(options.projectRoot, mod.filePath);
       // ATLASSIAN: Warn and return an empty object expression for unresolvable
       // imports.
@@ -197,14 +194,15 @@ export function link({
       return t.objectExpression([]);
     }
 
-    // If it is CommonJS, look for an exports object.
-    if (!node && mod.meta.isCommonJS) {
+    // Look for an exports object if we bailed out.
+    if ((node === undefined && mod.meta.isCommonJS) || node === null) {
       node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
       if (!node) {
         return null;
       }
 
-      return interop(mod, symbol, path, node);
+      node = interop(mod, symbol, path, node);
+      return node;
     }
 
     return node;
@@ -228,23 +226,23 @@ export function link({
     if (mod.meta.isCommonJS && originalName === 'default') {
       let name = getName(mod, '$interop$default');
       if (!path.scope.getBinding(name)) {
-        // Hoist to the nearest path with the same scope as the exports is declared in
-        let binding = path.scope.getBinding(
-          assertString(mod.meta.exportsIdentifier),
+        let binding = nullthrows(
+          path.scope.getBinding(
+            bundle.hasAsset(mod)
+              ? assertString(mod.meta.exportsIdentifier)
+              : // If this bundle doesn't have the asset, use the binding for
+                // the `parcelRequire`d init function.
+                getName(mod, 'init'),
+          ),
         );
-        let parent;
-        if (binding) {
-          invariant(
-            binding.path.getStatementParent().parentPath.isProgram(),
-            "Expected binding declaration's parent to be the program",
-          );
-          parent = path.findParent(p => t.isProgram(p.parent));
-        }
 
-        if (!parent) {
-          parent = path.getStatementParent();
-        }
+        invariant(
+          binding.path.getStatementParent().parentPath.isProgram(),
+          "Expected binding declaration's parent to be the program",
+        );
 
+        // Hoist to the nearest path with the same scope as the exports is declared in.
+        let parent = nullthrows(path.findParent(p => t.isProgram(p.parent)));
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
@@ -252,11 +250,9 @@ export function link({
           }),
         );
 
-        if (binding) {
-          binding.reference(
-            decl.get<NodePath<Identifier>>('declarations.0.init'),
-          );
-        }
+        binding.reference(
+          decl.get<NodePath<Identifier>>('declarations.0.init'),
+        );
 
         getScopeBefore(parent).registerDeclaration(decl);
       }
