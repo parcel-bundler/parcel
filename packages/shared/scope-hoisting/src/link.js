@@ -28,6 +28,7 @@ import {relative} from 'path';
 import template from '@babel/template';
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
   isExpressionStatement,
   isIdentifier,
   isObjectPattern,
@@ -157,6 +158,43 @@ export function link({
     }
 
     return {asset: asset, symbol: exportSymbol, identifier, loc};
+  }
+
+  function maybeReplaceIdentifier(path: NodePath<Identifier>) {
+    let {name} = path.node;
+    if (typeof name !== 'string') {
+      return;
+    }
+
+    let replacement = replacements.get(name);
+    if (replacement) {
+      path.node.name = replacement;
+    }
+
+    if (imports.has(name)) {
+      let node;
+      let imported = imports.get(name);
+      if (imported == null) {
+        // import was deferred
+        node = t.objectExpression([]);
+      } else {
+        let [asset, symbol, loc] = imported;
+        node = replaceImportNode(asset, symbol, path, loc);
+
+        // If the export does not exist, replace with an empty object.
+        if (!node) {
+          node = t.objectExpression([]);
+        }
+      }
+      path.replaceWith(node);
+      return;
+    }
+
+    // If it's an undefined $id$exports identifier.
+    if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
+      path.replaceWith(t.objectExpression([]));
+    }
+    return;
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
@@ -581,62 +619,39 @@ export function link({
         let name = isIdentifier(property) ? property.name : property.value;
         let {identifier} = resolveSymbol(asset, name);
 
+        if (identifier == null) {
+          return;
+        }
+
         // Check if $id$export$name exists and if so, replace the node by it.
-        if (identifier) {
-          if (path.parentPath.isAssignmentExpression()) {
-            if (isIdentifier(path.parent.right, {name: identifier})) {
+        if (isAssignmentExpression(path.parent)) {
+          if (isIdentifier(path.parent.right)) {
+            maybeReplaceIdentifier(path.parentPath.get('right'));
+
+            if (
+              isAssignmentExpression(path.parent) &&
+              path.parent.right.name === identifier
+            ) {
               // keep `$id$exports.foo = $id$export$foo`
               return;
             }
-            let [stmt] = path.parentPath.parentPath.insertAfter(
-              t.expressionStatement(
-                t.assignmentExpression(
-                  '=',
-                  t.cloneNode(path.node),
-                  t.identifier(identifier),
-                ),
-              ),
-            );
-            stmt.get('expression.left').setData('parcelInserted', true);
           }
-          path.replaceWith(t.identifier(identifier));
+          let [stmt] = path.parentPath.parentPath.insertAfter(
+            t.expressionStatement(
+              t.assignmentExpression(
+                '=',
+                t.cloneNode(path.node),
+                t.identifier(identifier),
+              ),
+            ),
+          );
+          stmt.get('expression.left').setData('parcelInserted', true);
         }
+        path.replaceWith(t.identifier(identifier));
       },
     },
     ReferencedIdentifier(path) {
-      let {name} = path.node;
-      if (typeof name !== 'string') {
-        return;
-      }
-
-      let replacement = replacements.get(name);
-      if (replacement) {
-        path.node.name = replacement;
-      }
-
-      if (imports.has(name)) {
-        let node;
-        let imported = imports.get(name);
-        if (!imported) {
-          // import was deferred
-          node = t.objectExpression([]);
-        } else {
-          let [asset, symbol, loc] = imported;
-          node = replaceImportNode(asset, symbol, path, loc);
-
-          // If the export does not exist, replace with an empty object.
-          if (!node) {
-            node = t.objectExpression([]);
-          }
-        }
-        path.replaceWith(node);
-        return;
-      }
-
-      // If it's an undefined $id$exports identifier.
-      if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
-        path.replaceWith(t.objectExpression([]));
-      }
+      maybeReplaceIdentifier(path);
     },
     Program: {
       exit(path) {
