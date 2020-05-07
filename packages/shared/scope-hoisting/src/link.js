@@ -15,6 +15,7 @@ import type {
   FunctionDeclaration,
   Identifier,
   LVal,
+  MemberExpression,
   ObjectProperty,
   Statement,
   StringLiteral,
@@ -87,7 +88,7 @@ export function link({
 |}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, ?[Asset, Symbol, ?SourceLocation]> = new Map();
+  let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
@@ -148,6 +149,16 @@ export function link({
 
     let identifier = symbol;
 
+    if (identifier && imports.get(identifier) === null) {
+      // a deferred import
+      return {
+        asset: asset,
+        symbol: exportSymbol,
+        identifier: null,
+        loc,
+      };
+    }
+
     // If this is a wildcard import, resolve to the exports object.
     if (asset && exportSymbol === '*') {
       identifier = assertString(asset.meta.exportsIdentifier);
@@ -187,14 +198,10 @@ export function link({
         }
       }
       path.replaceWith(node);
-      return;
-    }
-
-    // If it's an undefined $id$exports identifier.
-    if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
+    } else if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
+      // If it's an undefined $id$exports identifier.
       path.replaceWith(t.objectExpression([]));
     }
-    return;
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
@@ -623,16 +630,16 @@ export function link({
           return;
         }
 
+        let {parent} = path;
         // Check if $id$export$name exists and if so, replace the node by it.
-        if (isAssignmentExpression(path.parent)) {
-          if (isIdentifier(path.parent.right)) {
-            maybeReplaceIdentifier(path.parentPath.get('right'));
+        if (isAssignmentExpression(parent)) {
+          if (isIdentifier(parent.right)) {
+            maybeReplaceIdentifier(
+              path.parentPath.get<NodePath<Identifier>>('right'),
+            );
 
-            if (
-              isAssignmentExpression(path.parent) &&
-              path.parent.right.name === identifier
-            ) {
-              // keep `$id$exports.foo = $id$export$foo`
+            // do not modify `$id$exports.foo = $id$export$foo` statements
+            if (isIdentifier(parent.right, {name: identifier})) {
               return;
             }
           }
@@ -645,8 +652,12 @@ export function link({
               ),
             ),
           );
-          stmt.get('expression.left').setData('parcelInserted', true);
+
+          stmt
+            .get<NodePath<MemberExpression>>('expression.left')
+            .setData('parcelInserted', true);
         }
+
         path.replaceWith(t.identifier(identifier));
       },
     },
