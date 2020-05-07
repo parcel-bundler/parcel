@@ -217,23 +217,23 @@ export function link({
     if (mod.meta.isCommonJS && originalName === 'default') {
       let name = getName(mod, '$interop$default');
       if (!path.scope.getBinding(name)) {
-        // Hoist to the nearest path with the same scope as the exports is declared in
-        let binding = path.scope.getBinding(
-          assertString(mod.meta.exportsIdentifier),
+        let binding = nullthrows(
+          path.scope.getBinding(
+            bundle.hasAsset(mod)
+              ? assertString(mod.meta.exportsIdentifier)
+              : // If this bundle doesn't have the asset, use the binding for
+                // the `parcelRequire`d init function.
+                getName(mod, 'init'),
+          ),
         );
-        let parent;
-        if (binding) {
-          invariant(
-            binding.path.getStatementParent().parentPath.isProgram(),
-            "Expected binding declaration's parent to be the program",
-          );
-          parent = path.findParent(p => t.isProgram(p.parent));
-        }
 
-        if (!parent) {
-          parent = path.getStatementParent();
-        }
+        invariant(
+          binding.path.getStatementParent().parentPath.isProgram(),
+          "Expected binding declaration's parent to be the program",
+        );
 
+        // Hoist to the nearest path with the same scope as the exports is declared in.
+        let parent = nullthrows(path.findParent(p => t.isProgram(p.parent)));
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
@@ -241,11 +241,9 @@ export function link({
           }),
         );
 
-        if (binding) {
-          binding.reference(
-            decl.get<NodePath<Identifier>>('declarations.0.init'),
-          );
-        }
+        binding.reference(
+          decl.get<NodePath<Identifier>>('declarations.0.init'),
+        );
 
         getScopeBefore(parent).registerDeclaration(decl);
       }

@@ -1048,6 +1048,18 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output, 'hello');
     });
+
+    it('can conditionally reference an imported symbol from another bundle in a case clause', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/async-interop-conditional/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output, 42);
+    });
   });
 
   describe('commonjs', function() {
