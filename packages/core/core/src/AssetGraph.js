@@ -10,7 +10,6 @@ import type {
   Dependency,
   DependencyNode,
   Entry,
-  NodeId,
   Target,
 } from './types';
 
@@ -23,8 +22,6 @@ import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
-  onIncompleteNode?: (node: AssetGraphNode) => mixed,
-  onNodeAdded?: (node: AssetGraphNode) => mixed,
   onNodeRemoved?: (node: AssetGraphNode) => mixed,
 |};
 
@@ -80,10 +77,7 @@ export function nodeFromEntryFile(entry: Entry) {
 }
 
 export default class AssetGraph extends Graph<AssetGraphNode> {
-  onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
-  onIncompleteNode: ?(node: AssetGraphNode) => mixed;
-  incompleteNodeIds: Set<NodeId> = new Set();
   hash: ?string;
 
   // $FlowFixMe
@@ -91,7 +85,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let res = new AssetGraph(opts);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    res.incompleteNodeIds = opts.incompleteNodeIds;
     res.hash = opts.hash;
     return res;
   }
@@ -101,19 +94,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     return {
       ...super.serialize(),
-      incompleteNodeIds: this.incompleteNodeIds,
       hash: this.hash,
     };
   }
 
-  initOptions({
-    onNodeAdded,
-    onNodeRemoved,
-    onIncompleteNode,
-  }: AssetGraphOpts = {}) {
-    this.onNodeAdded = onNodeAdded;
+  initOptions({onNodeRemoved}: AssetGraphOpts = {}) {
     this.onNodeRemoved = onNodeRemoved;
-    this.onIncompleteNode = onIncompleteNode;
   }
 
   initialize({entries, assetGroups}: InitOpts) {
@@ -136,26 +122,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   addNode(node: AssetGraphNode) {
     this.hash = null;
-    this.onNodeAdded && this.onNodeAdded(node);
     return super.addNode(node);
   }
 
   removeNode(node: AssetGraphNode) {
     this.hash = null;
-    this.incompleteNodeIds.delete(node.id);
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
-  }
-
-  markIncomplete(node: AssetGraphNode) {
-    this.incompleteNodeIds.add(node.id);
-    if (this.onIncompleteNode) {
-      this.onIncompleteNode(node);
-    }
-  }
-
-  hasIncompleteNodes() {
-    return this.incompleteNodeIds.size > 0;
   }
 
   resolveEntry(
@@ -170,7 +143,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     entrySpecifierNode.correspondingRequest = correspondingRequest;
     let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
     this.replaceNodesConnectedTo(entrySpecifierNode, entryFileNodes);
-    this.incompleteNodeIds.delete(entrySpecifierNode.id);
   }
 
   resolveTargets(
@@ -195,7 +167,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     entryNode.correspondingRequest = correspondingRequest;
     if (this.hasNode(entryNode.id)) {
       this.replaceNodesConnectedTo(entryNode, depNodes);
-      this.incompleteNodeIds.delete(entryNode.id);
     }
   }
 
@@ -207,7 +178,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let depNode = nullthrows(this.nodes.get(dependency.id));
     invariant(depNode.type === 'dependency');
     if (!depNode) return;
-    this.incompleteNodeIds.delete(depNode.id);
     depNode.correspondingRequest = correspondingRequest;
 
     if (!assetGroup) {
@@ -325,7 +295,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     correspondingRequest: string,
   ) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    this.incompleteNodeIds.delete(assetGroupNode.id);
     assetGroupNode = this.getNode(assetGroupNode.id);
     if (!assetGroupNode) {
       return;
