@@ -15,6 +15,7 @@ import type {
   FunctionDeclaration,
   Identifier,
   LVal,
+  MemberExpression,
   ObjectProperty,
   Statement,
   StringLiteral,
@@ -632,11 +633,14 @@ export function link({
         }
 
         // Check if $id$export$name exists and if so, replace the node by it.
-        if (isAssignmentExpression(path.parent)) {
-          if (isIdentifier(path.parent.right)) {
-            maybeReplaceIdentifier(path.parentPath.get('right'));
+        let {parent} = path;
+        if (isAssignmentExpression(parent)) {
+          if (isIdentifier(parent.right)) {
+            maybeReplaceIdentifier(
+              path.parentPath.get<NodePath<Identifier>>('right'),
+            );
 
-            if (isIdentifier(path.parent.right, {name: identifier})) {
+            if (isIdentifier(parent.right, {name: identifier})) {
               return;
             }
           }
@@ -650,7 +654,9 @@ export function link({
             ),
           );
 
-          stmt.get('expression.left').setData('parcelInserted', true);
+          stmt
+            .get<NodePath<MemberExpression>>('expression.left')
+            .setData('parcelInserted', true);
         }
         path.replaceWith(t.identifier(identifier));
       },
