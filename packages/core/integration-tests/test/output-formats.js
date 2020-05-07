@@ -794,7 +794,14 @@ describe('output formats', function() {
     it('should support use an import polyfill for older browsers', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
-        {defaultEngines: null},
+        {
+          defaultEngines: {
+            browsers: [
+              // Implements es modules but not dynamic imports
+              'Chrome 61',
+            ],
+          },
+        },
       );
 
       let html = await outputFS.readFile(
