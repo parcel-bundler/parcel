@@ -223,7 +223,7 @@ export function link({
               ? assertString(mod.meta.exportsIdentifier)
               : // If this bundle doesn't have the asset, use the binding for
                 // the `parcelRequire`d init function.
-                getIdentifier(mod, 'init').name,
+                getName(mod, 'init'),
           ),
         );
 
