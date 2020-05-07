@@ -512,6 +512,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports exporting an import from a wrapped asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, true);
+    });
+
     it('supports requiring a re-exported and renamed ES6 import', async function() {
       let b = await bundle(
         path.join(
@@ -572,7 +584,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 16);
     });
 
-    it('supports correctly handles ES6 re-exports in library mode entries', async function() {
+    it('correctly handles ES6 re-exports in library mode entries', async function() {
       let b = await bundle(
         path.join(
           __dirname,
