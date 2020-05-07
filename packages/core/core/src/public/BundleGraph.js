@@ -6,6 +6,7 @@ import type {
   BundleGraph as IBundleGraph,
   BundleGroup,
   Dependency as IDependency,
+  ExportSymbolResolution,
   GraphVisitor,
   Symbol,
   SymbolResolution,
@@ -203,13 +204,14 @@ export default class BundleGraph implements IBundleGraph {
     };
   }
 
-  getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
+  getExportedSymbols(asset: IAsset): Array<ExportSymbolResolution> {
     let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
       loc: e.loc,
+      exportAs: e.exportAs,
     }));
   }
 
