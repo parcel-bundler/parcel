@@ -18,6 +18,7 @@ import type {DepPathRequest} from './requests/DepPathRequestRunner';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import path from 'path';
 import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
@@ -48,12 +49,6 @@ type Opts = {|
   workerFarm: WorkerFarm,
 |};
 
-const requestPriorities: $ReadOnlyArray<$ReadOnlyArray<string>> = [
-  ['entry_request'],
-  ['target_request'],
-  ['dep_path_request', 'asset_request'],
-];
-
 type AssetGraphBuildRequest =
   | EntryRequest
   | TargetRequest
@@ -81,6 +76,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   configRef: number;
   workerFarm: WorkerFarm;
   cacheKey: string;
+  entries: ?Array<string>;
+  initialAssetGroups: ?Array<AssetRequestDesc>;
 
   handle: Handle;
 
@@ -94,6 +91,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   }: Opts) {
     this.options = options;
     this.optionsRef = optionsRef;
+    this.entries = entries;
+    this.initialAssetGroups = assetRequests;
     this.workerFarm = workerFarm;
     this.assetRequests = [];
 
@@ -122,7 +121,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.assetGraph.initOptions({
       onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
-      onIncompleteNode: node => this.handleIncompleteNode(node),
     });
 
     let assetGraph = this.assetGraph;
@@ -201,42 +199,49 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     this.rejected = new Map();
-    let lastQueueError;
-    for (let currPriorities of requestPriorities) {
-      if (!this.requestTracker.hasInvalidRequests()) {
-        break;
-      }
 
-      let promises = [];
-      for (let request of this.requestTracker.getInvalidRequests()) {
+    let root = this.assetGraph.getRootNode();
+    if (!root) {
+      throw new Error('A root node is required to traverse');
+    }
+
+    let visited = new Set([root.id]);
+
+    const visit = node => {
+      let request = this.getCorrespondingRequest(node);
+      if (
+        !node.complete &&
+        !node.deferred &&
+        request != null &&
+        !this.requestTracker.hasValidResult(nullthrows(request).id)
+      ) {
         // $FlowFixMe
-        let assetGraphBuildRequest: AssetGraphBuildRequest = (request: any);
-        if (currPriorities.includes(request.type)) {
-          promises.push(this.queueRequest(assetGraphBuildRequest, {signal}));
+        this.queueRequest(request, {
+          signal,
+        }).then(() => visitChildren(node));
+      } else {
+        visitChildren(node);
+      }
+    };
+
+    const visitChildren = node => {
+      for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
+        if (
+          (!visited.has(child.id) || child.hasDeferred) &&
+          this.assetGraph.shouldVisitChild(node, child)
+        ) {
+          visited.add(child.id);
+          visit(child);
         }
       }
-      if (lastQueueError) {
-        throw lastQueueError;
-      }
-      this.queue.run().catch(e => {
-        lastQueueError = e;
-      });
-      await Promise.all(promises);
-    }
+    };
 
-    if (this.assetGraph.hasIncompleteNodes()) {
-      for (let id of this.assetGraph.incompleteNodeIds) {
-        this.processIncompleteAssetGraphNode(
-          nullthrows(this.assetGraph.getNode(id)),
-          signal,
-        );
-      }
-    }
-
+    visit(root);
     await this.queue.run();
 
     let errors = [];
     for (let [requestId, error] of this.rejected) {
+      // ? Is this still needed?
       if (this.requestTracker.isTracked(requestId)) {
         errors.push(error);
       }
@@ -252,7 +257,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let changedAssets = this.changedAssets;
     this.changedAssets = new Map();
-
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
@@ -274,7 +278,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       }),
     );
 
-    // Skip sending validation requests if no validators were no validators configured
+    // Skip sending validation requests if no validators were configured
     if (trackedRequestsDesc.length === 0) {
       return;
     }
@@ -299,6 +303,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       if (this.rejected.size > 0) {
         return;
       }
+
       try {
         await this.runRequest(request, runOpts);
       } catch (e) {
@@ -317,11 +322,14 @@ export default class AssetGraphBuilder extends EventEmitter {
         return this.depPathRequestRunner.runRequest(request.request, runOpts);
       case 'asset_request': {
         this.assetRequests.push(request);
+        let assetActuallyChanged = !this.requestTracker.hasValidResult(
+          request.id,
+        );
         let result = await this.assetRequestRunner.runRequest(
           request.request,
           runOpts,
         );
-        if (result != null) {
+        if (assetActuallyChanged && result != null) {
           for (let asset of result.assets) {
             this.changedAssets.set(asset.id, asset);
           }
@@ -332,6 +340,14 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   getCorrespondingRequest(node: AssetGraphNode) {
+    let requestNode =
+      node.correspondingRequest != null
+        ? this.requestGraph.getNode(node.correspondingRequest)
+        : null;
+    if (requestNode != null) {
+      invariant(requestNode.type === 'request');
+      return requestNode.value;
+    }
     switch (node.type) {
       case 'entry_specifier': {
         let type = 'entry_request';
@@ -366,19 +382,6 @@ export default class AssetGraphBuilder extends EventEmitter {
         };
       }
     }
-  }
-
-  processIncompleteAssetGraphNode(node: AssetGraphNode, signal: ?AbortSignal) {
-    let request = nullthrows(this.getCorrespondingRequest(node));
-    if (!this.requestTracker.hasValidResult(request.id)) {
-      this.queueRequest(request, {
-        signal,
-      });
-    }
-  }
-
-  handleIncompleteNode(node: AssetGraphNode) {
-    this.processIncompleteAssetGraphNode(node);
   }
 
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {

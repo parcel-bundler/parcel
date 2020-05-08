@@ -283,7 +283,6 @@ export default class Parcel {
       await this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
-
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
