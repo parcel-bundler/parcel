@@ -18,7 +18,7 @@
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.24",
     "@parcel/scope-hoisting": "^2.0.0-frontbucket.25",
-    "@parcel/source-map": "^2.0.0-alpha.4.9",
+    "@parcel/source-map": "2.0.0-alpha.4.9",
     "@parcel/utils": "^2.0.0-frontbucket.21",
     "nullthrows": "^1.1.1"
   },
