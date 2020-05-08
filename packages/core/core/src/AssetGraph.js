@@ -341,7 +341,14 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {
       let depNode = nodeFromDep(dep);
-      depNodes.push(depNode);
+      let depNodeExisting = this.nodes.get(depNode.id);
+      if (depNodeExisting) {
+        invariant(depNodeExisting.type === 'dependency');
+        depNodeExisting.value = dep;
+        depNodes.push(depNodeExisting);
+      } else {
+        depNodes.push(depNode);
+      }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.moduleSpecifier,
       );

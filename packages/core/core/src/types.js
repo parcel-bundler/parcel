@@ -213,7 +213,6 @@ export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
-  // An asset group node is used to
   value: AssetGroup,
   deferred?: boolean,
   correspondingRequest?: string,
