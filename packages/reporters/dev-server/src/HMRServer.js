@@ -1,6 +1,6 @@
 // @flow
 
-import type {BuildSuccessEvent} from '@parcel/types';
+import type {BuildSuccessEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
@@ -71,8 +71,10 @@ export default class HMRServer {
     this.wss.close();
   }
 
-  emitError(diagnostics: Array<Diagnostic>) {
-    let renderedDiagnostics = diagnostics.map(d => prettyDiagnostic(d));
+  async emitError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
+    let renderedDiagnostics = await Promise.all(
+      diagnostics.map(d => prettyDiagnostic(d, options)),
+    );
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved

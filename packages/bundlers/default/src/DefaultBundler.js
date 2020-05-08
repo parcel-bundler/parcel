@@ -216,11 +216,7 @@ export default new Bundler({
     });
 
     // Step 3: Remove assets that are duplicated in a parent bundle.
-    bundleGraph.traverseBundles({
-      exit(bundle) {
-        deduplicateBundle(bundleGraph, bundle);
-      },
-    });
+    deduplicate(bundleGraph);
 
     // Step 4: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
@@ -361,9 +357,7 @@ export default new Bundler({
     }
 
     // Remove assets that are duplicated between shared bundles.
-    for (let sharedBundle of sharedBundles) {
-      deduplicateBundle(bundleGraph, sharedBundle);
-    }
+    deduplicate(bundleGraph);
 
     // Step 5: Mark async dependencies on assets that are already available in
     // the bundle as internally resolvable. This removes the dependency between
@@ -410,27 +404,24 @@ export default new Bundler({
   },
 });
 
-function deduplicateBundle(bundleGraph: MutableBundleGraph, bundle: Bundle) {
-  if (bundle.env.isIsolated() || !bundle.isSplittable) {
-    // If a bundle's environment is isolated, it can't access assets present
-    // in any ancestor bundles. Don't deduplicate any assets.
-    return;
-  }
+function deduplicate(bundleGraph: MutableBundleGraph) {
+  bundleGraph.traverse(node => {
+    if (node.type === 'asset') {
+      let asset = node.value;
+      let bundles = bundleGraph.findBundlesWithAsset(asset);
+      for (let bundle of bundles) {
+        // If a bundle's environment is isolated, it can't access assets present
+        // in any ancestor bundles. Don't deduplicate any assets.
+        if (bundle.env.isIsolated() || !bundle.isSplittable) {
+          continue;
+        }
 
-  bundle.traverse(node => {
-    if (node.type !== 'dependency') {
-      return;
-    }
-
-    let dependency = node.value;
-    let assets = bundleGraph.getDependencyAssets(dependency);
-
-    for (let asset of assets) {
-      if (
-        bundle.hasAsset(asset) &&
-        bundleGraph.isAssetReachableFromBundle(asset, bundle)
-      ) {
-        bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+        if (
+          bundle.hasAsset(asset) &&
+          bundleGraph.isAssetReachableFromBundle(asset, bundle)
+        ) {
+          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+        }
       }
     }
   });
