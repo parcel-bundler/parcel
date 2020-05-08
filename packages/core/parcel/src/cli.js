@@ -9,10 +9,10 @@ import {prettyDiagnostic} from '@parcel/utils';
 
 require('v8-compile-cache');
 
-function logUncaughtError(e: mixed) {
+async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = prettyDiagnostic(diagnostic);
+      let out = await prettyDiagnostic(diagnostic);
       console.error(out.message);
       console.error(out.codeframe || out.stack);
       for (let h of out.hints) {
@@ -24,9 +24,9 @@ function logUncaughtError(e: mixed) {
   }
 }
 
-process.on('unhandledRejection', (reason: mixed) => {
-  logUncaughtError(reason);
-  process.exit(1);
+process.on('unhandledRejection', async (reason: mixed) => {
+  await logUncaughtError(reason);
+  process.exit();
 });
 
 const chalk = require('chalk');

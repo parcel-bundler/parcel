@@ -23,7 +23,7 @@ type DependencyOpts = {|
   env: Environment,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol>,
+  symbols?: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   pipeline?: ?string,
 |};
 
