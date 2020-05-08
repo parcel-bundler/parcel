@@ -373,6 +373,7 @@ export type RequestRunnerAPI = {|
   invalidateOnStartup: () => void,
   replaceSubrequests: (Array<RequestGraphNode>) => void,
   storeResult: (result: mixed) => void,
+  getId: () => string,
 |};
 
 export function generateRequestId(type: string, request: mixed) {
@@ -448,6 +449,7 @@ export class RequestRunner<TRequest, TResult> {
       storeResult: result => {
         this.tracker.storeResult(requestId, result);
       },
+      getId: () => requestId,
     };
 
     return api;
