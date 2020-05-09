@@ -748,6 +748,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('correctly handles excluded and wrapped reexport assets with sideEffects: false', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false-wrap-excluded/a.js',
+        ),
+      );
+      let output = await run(b);
+
+      assert.deepEqual(output, 4);
+    });
+
     it('supports the package.json sideEffects flag with an array', async function() {
       let b = await bundle(
         path.join(
