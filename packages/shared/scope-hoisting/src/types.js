@@ -4,6 +4,7 @@ import type {
   Bundle,
   BundleGraph,
   ModuleSpecifier,
+  NamedBundle,
   PluginOptions,
   Symbol,
   SourceLocation,
@@ -36,7 +37,7 @@ export type OutputFormat = {|
     path: NodePath<Program>,
   ): void,
   generateExports(
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     bundle: Bundle,
     referencedAssets: Set<Asset>,
     path: NodePath<Program>,

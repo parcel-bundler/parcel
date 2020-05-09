@@ -5,6 +5,7 @@ import type {
   Bundle,
   BundleGraph,
   PluginOptions,
+  NamedBundle,
   Symbol,
 } from '@parcel/types';
 import type {
@@ -368,7 +369,7 @@ export function generateExternalImport(
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,

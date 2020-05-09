@@ -6,6 +6,7 @@ import type {
   BundleGraph,
   FilePath,
   InitialParcelOptions,
+  NamedBundle,
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -122,7 +123,7 @@ export function bundler(
 export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
-): Promise<BundleGraph> {
+): Promise<BundleGraph<NamedBundle>> {
   return nullthrows(await bundler(entries, opts).run());
 }
 
@@ -239,7 +240,7 @@ export function runBundle(
 }
 
 export async function run(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
@@ -275,7 +276,7 @@ export async function run(
 }
 
 export function assertBundles(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,

@@ -4,6 +4,7 @@ import type {
   Asset,
   Bundle,
   BundleGraph,
+  NamedBundle,
   PluginOptions,
   Symbol,
   SourceLocation,
@@ -81,7 +82,7 @@ export function link({
   wrappedAssets,
 }: {|
   bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   ast: File,
   options: PluginOptions,
   wrappedAssets: Set<string>,

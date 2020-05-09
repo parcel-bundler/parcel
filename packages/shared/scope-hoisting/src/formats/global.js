@@ -1,6 +1,12 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  NamedBundle,
+  Symbol,
+} from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {
   ExpressionStatement,
@@ -75,7 +81,7 @@ export function generateExternalImport(_: Bundle, {loc}: ExternalModule) {
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,

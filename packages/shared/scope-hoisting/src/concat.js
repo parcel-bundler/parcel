@@ -5,6 +5,7 @@ import type {
   Bundle,
   BundleGraph,
   PluginOptions,
+  NamedBundle,
   Symbol,
 } from '@parcel/types';
 import type {
@@ -64,7 +65,7 @@ export async function concat({
   wrappedAssets,
 }: {|
   bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
 |}) {
@@ -197,7 +198,7 @@ function parse(code, sourceFilename) {
 
 function getUsedExports(
   bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
 
@@ -263,7 +264,7 @@ function getUsedExports(
 }
 
 function shouldSkipAsset(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   usedExports: Map<string, Set<Symbol>>,
 ) {
@@ -289,7 +290,7 @@ const FIND_REQUIRES_VISITOR = {
       result,
     }: {|
       bundle: Bundle,
-      bundleGraph: BundleGraph,
+      bundleGraph: BundleGraph<NamedBundle>,
       asset: Asset,
       result: Array<Asset>,
     |},
@@ -320,7 +321,7 @@ const FIND_REQUIRES_VISITOR = {
 
 function findRequires(
   bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   ast: Node,
 ): Array<Asset> {

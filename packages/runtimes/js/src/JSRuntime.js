@@ -6,6 +6,7 @@ import type {
   BundleGroup,
   Dependency,
   Environment,
+  NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
 
@@ -178,7 +179,7 @@ function getLoaderRuntimes({
   bundle: Bundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
 |}) {
   let assets = [];
   // Sort so the bundles containing the entry asset appear last
@@ -276,7 +277,10 @@ function getLoaderRuntimes({
   return assets;
 }
 
-function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+function isNewContext(
+  bundle: Bundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   return (
     bundle.isEntry ||
     bundleGraph
@@ -311,7 +315,7 @@ function getURLRuntime(
 
 function getRegisterCode(
   entryBundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {
