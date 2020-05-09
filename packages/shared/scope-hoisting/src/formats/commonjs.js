@@ -2,7 +2,6 @@
 
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   PluginOptions,
   NamedBundle,
@@ -140,7 +139,7 @@ function generateDestructuringAssignment(
 }
 
 export function generateBundleImports(
-  from: Bundle,
+  from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
@@ -184,7 +183,7 @@ export function generateBundleImports(
 }
 
 export function generateExternalImport(
-  bundle: Bundle,
+  bundle: NamedBundle,
   external: ExternalModule,
   path: NodePath<Program>,
 ) {
@@ -370,7 +369,7 @@ export function generateExternalImport(
 
 export function generateExports(
   bundleGraph: BundleGraph<NamedBundle>,
-  bundle: Bundle,
+  bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,

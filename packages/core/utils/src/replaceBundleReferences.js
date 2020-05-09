@@ -35,7 +35,7 @@ export function replaceURLReferences({
   map,
   relative = true,
 }: {|
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   contents: string,
   relative?: boolean,
@@ -159,8 +159,8 @@ function getURLReplacement({
   relative,
 }: {|
   dependency: Dependency,
-  fromBundle: Bundle,
-  toBundle: Bundle,
+  fromBundle: NamedBundle,
+  toBundle: NamedBundle,
   relative: boolean,
 |}) {
   let url = URL.parse(dependency.moduleSpecifier);

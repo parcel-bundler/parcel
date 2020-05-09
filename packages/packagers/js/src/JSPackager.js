@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Bundle, BundleGraph, NamedBundle, Async} from '@parcel/types';
+import type {BundleGraph, NamedBundle, Async} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -194,7 +194,7 @@ export default new Packager({
 });
 
 function getPrefix(
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let interpreter: ?string;
@@ -219,7 +219,7 @@ function getPrefix(
 }
 
 function isEntry(
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   return (

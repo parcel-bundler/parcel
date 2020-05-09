@@ -1,7 +1,6 @@
 // @flow
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   MutableAsset,
   NamedBundle,
@@ -61,7 +60,7 @@ export function getExportIdentifier(asset: Asset | MutableAsset, name: string) {
 }
 
 export function needsPrelude(
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ) {
   if (bundle.env.outputFormat !== 'global') {
@@ -83,7 +82,10 @@ export function needsPrelude(
   );
 }
 
-export function isEntry(bundle: Bundle, bundleGraph: BundleGraph<NamedBundle>) {
+export function isEntry(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
@@ -92,7 +94,7 @@ export function isEntry(bundle: Bundle, bundleGraph: BundleGraph<NamedBundle>) {
 }
 
 export function isReferenced(
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let isReferenced = false;
@@ -111,7 +113,7 @@ export function isReferenced(
 }
 
 export function hasAsyncDescendant(
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   let _hasAsyncDescendant = false;

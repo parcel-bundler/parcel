@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import type {
-  Bundle,
   BundleGraph,
   BundleGroup,
   Dependency,
@@ -176,7 +175,7 @@ function getLoaderRuntimes({
   bundleGroup,
   bundleGraph,
 }: {|
-  bundle: Bundle,
+  bundle: NamedBundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
   bundleGraph: BundleGraph<NamedBundle>,
@@ -278,7 +277,7 @@ function getLoaderRuntimes({
 }
 
 function isNewContext(
-  bundle: Bundle,
+  bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   return (
@@ -294,8 +293,8 @@ function isNewContext(
 
 function getURLRuntime(
   dependency: Dependency,
-  from: Bundle,
-  to: Bundle,
+  from: NamedBundle,
+  to: NamedBundle,
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to);
   if (dependency.meta.webworker === true) {
@@ -314,7 +313,7 @@ function getURLRuntime(
 }
 
 function getRegisterCode(
-  entryBundle: Bundle,
+  entryBundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let idToName = {};
@@ -338,7 +337,7 @@ function getRegisterCode(
   );
 }
 
-function getRelativePathExpr(from: Bundle, to: Bundle): string {
+function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
     return `require('./relative-path')(${JSON.stringify(
       getPublicBundleId(from),
@@ -348,11 +347,11 @@ function getRelativePathExpr(from: Bundle, to: Bundle): string {
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
-function shouldUseRuntimeManifest(bundle: Bundle): boolean {
+function shouldUseRuntimeManifest(bundle: NamedBundle): boolean {
   let env = bundle.env;
   return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
 }
 
-function getPublicBundleId(bundle: Bundle): string {
+function getPublicBundleId(bundle: NamedBundle): string {
   return bundle.id.slice(-16);
 }

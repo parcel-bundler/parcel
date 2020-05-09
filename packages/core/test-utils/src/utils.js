@@ -1,7 +1,6 @@
 // @flow
 
 import type {
-  Bundle,
   BuildEvent,
   BundleGraph,
   FilePath,
@@ -156,8 +155,8 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
-  parent: Bundle,
-  bundles: Array<Bundle>,
+  parent: NamedBundle,
+  bundles: Array<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
@@ -170,23 +169,20 @@ export async function runBundles(
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(
-        nullthrows(parent.filePath),
-        globals,
-      );
+      let prepared = prepareBrowserContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
     }
     case 'node':
     case 'electron-main':
-      ctx = prepareNodeContext(nullthrows(parent.filePath), globals);
+      ctx = prepareNodeContext(parent.filePath, globals);
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(nullthrows(parent.filePath), globals);
+      let browser = prepareBrowserContext(parent.filePath, globals);
       ctx = {
         ...browser.ctx,
-        ...prepareNodeContext(nullthrows(parent.filePath), globals),
+        ...prepareNodeContext(parent.filePath, globals),
       };
       promises = browser.promises;
       break;
@@ -232,7 +228,7 @@ export async function runBundles(
 }
 
 export function runBundle(
-  bundle: Bundle,
+  bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {

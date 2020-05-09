@@ -1,7 +1,6 @@
 // @flow strict-local
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   ModuleSpecifier,
   NamedBundle,
@@ -20,25 +19,25 @@ export type ExternalModule = {|
 |};
 
 export type ExternalBundle = {|
-  bundle: Bundle,
+  bundle: NamedBundle,
   assets: Set<Asset>,
   loc?: ?SourceLocation,
 |};
 
 export type OutputFormat = {|
   generateBundleImports(
-    from: Bundle,
+    from: NamedBundle,
     external: ExternalBundle,
     path: NodePath<Program>,
   ): void,
   generateExternalImport(
-    bundle: Bundle,
+    bundle: NamedBundle,
     external: ExternalModule,
     path: NodePath<Program>,
   ): void,
   generateExports(
     bundleGraph: BundleGraph<NamedBundle>,
-    bundle: Bundle,
+    bundle: NamedBundle,
     referencedAssets: Set<Asset>,
     path: NodePath<Program>,
     replacements: Map<Symbol, Symbol>,

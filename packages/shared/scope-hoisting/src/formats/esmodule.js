@@ -38,7 +38,7 @@ import {
 } from '../utils';
 
 export function generateBundleImports(
-  from: Bundle,
+  from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {

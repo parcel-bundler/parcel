@@ -50,7 +50,7 @@ const IMPORTSCRIPTS_TEMPLATE = template.statement<
 >('importScripts(BUNDLE);');
 
 export function generateBundleImports(
-  from: Bundle,
+  from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
@@ -82,7 +82,7 @@ export function generateExternalImport(_: Bundle, {loc}: ExternalModule) {
 
 export function generateExports(
   bundleGraph: BundleGraph<NamedBundle>,
-  bundle: Bundle,
+  bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
 ) {

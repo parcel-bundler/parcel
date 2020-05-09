@@ -2,7 +2,6 @@
 
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   NamedBundle,
   PluginOptions,
@@ -52,7 +51,7 @@ export function generate({
   options,
 }: {|
   bundleGraph: BundleGraph<NamedBundle>,
-  bundle: Bundle,
+  bundle: NamedBundle,
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
