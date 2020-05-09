@@ -107,6 +107,12 @@ export default class BundleGraph {
     this.removeExternalDependency(bundle, dependency);
   }
 
+  isDependencyDeferred(dependency: Dependency): boolean {
+    let node = this._graph.getNode(dependency.id);
+    invariant(node && node.type === 'dependency');
+    return !!node.hasDeferred;
+  }
+
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
     return this._graph
       .getNodesConnectedTo(

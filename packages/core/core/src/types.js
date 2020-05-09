@@ -88,7 +88,6 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
-  isDeferred: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -214,7 +213,6 @@ export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
-  // An asset group node is used to
   value: AssetGroup,
   deferred?: boolean,
   correspondingRequest?: string,
