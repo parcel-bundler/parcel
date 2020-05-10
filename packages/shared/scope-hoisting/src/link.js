@@ -120,7 +120,7 @@ export function link({
 
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || dep.isDeferred) {
+      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
         for (let [imported, {local, loc}] of dep.symbols) {
           imports.set(local, resolved ? [resolved, imported, loc] : null);
         }
@@ -462,7 +462,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && dep.isDeferred) {
+          } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
