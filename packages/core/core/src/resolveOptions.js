@@ -43,7 +43,7 @@ export default async function resolveOptions(
   let rootDir =
     initialOptions.rootDir != null
       ? path.resolve(initialOptions.rootDir)
-      : await getRootDir(inputFS, entries);
+      : getRootDir(entries);
 
   let projectRootFile =
     (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
