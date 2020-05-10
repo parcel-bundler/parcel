@@ -27,6 +27,7 @@ import {
   DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from './TargetDescriptor.schema';
+import {BROWSER_ENVS} from './public/Environment';
 
 export type TargetResolveResult = {|
   targets: Array<Target>,
@@ -144,7 +145,8 @@ export default class TargetResolver {
         });
       }
 
-      if (this.options.serve) {
+      let serve = this.options.serve;
+      if (serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -155,7 +157,7 @@ export default class TargetResolver {
             },
           });
         }
-        if (targets[0].env.context !== 'browser') {
+        if (!BROWSER_ENVS.has(targets[0].env.context)) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
@@ -163,7 +165,7 @@ export default class TargetResolver {
             },
           });
         }
-        targets[0].distDir = this.options.serve.distDir;
+        targets[0].distDir = serve.distDir;
       }
     } else {
       // Explicit targets were not provided. Either use a modern target for server
