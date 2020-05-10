@@ -78,6 +78,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: string;
+  // The position of e.g. `package.json#main`
   +loc: ?SourceLocation;
 }
 
@@ -193,7 +194,7 @@ export type InitialParcelOptions = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,
-  +serve?: ServerOptions | false,
+  +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
   +profile?: boolean,
@@ -211,6 +212,13 @@ export type InitialParcelOptions = {|
   // global?
 |};
 
+export type InitialServerOptions = {|
+  +publicUrl?: string,
+  +host?: string,
+  +port: number,
+  +https?: HTTPSOptions | boolean,
+|};
+
 export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
@@ -220,7 +228,6 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
-  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -231,6 +238,7 @@ export interface PluginOptions {
 }
 
 export type ServerOptions = {|
+  +distDir: FilePath,
   +host?: string,
   +port: number,
   +https?: HTTPSOptions | boolean,

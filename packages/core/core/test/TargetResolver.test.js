@@ -553,10 +553,12 @@ describe('TargetResolver', () => {
     );
   });
 
-  it('generates a default target in serve mode', async () => {
+  it.only('generates a default target in serve mode', async () => {
+    let serveDistDir = path.join(DEFAULT_OPTIONS.cacheDir, 'dist');
+
     let targetResolver = new TargetResolver({
       ...DEFAULT_OPTIONS,
-      serve: {port: 1234},
+      serve: {distDir: serveDistDir, port: 1234},
     });
 
     assert.deepEqual(
@@ -565,7 +567,7 @@ describe('TargetResolver', () => {
         targets: [
           {
             name: 'default',
-            distDir: DEFAULT_OPTIONS.distDir,
+            distDir: serveDistDir,
             publicUrl: '/',
             env: {
               context: 'browser',
@@ -667,7 +669,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('generates the correct distDirs with two explicit target', async () => {
+  it.only('generates the correct distDirs with two explicit targets', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
 
     assert.deepEqual(

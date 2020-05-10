@@ -80,6 +80,8 @@ export default async function resolveOptions(
         : parseInt(initialOptions.detailedReport, 10);
   }
 
+  let publicUrl = initialOptions.publicUrl ?? '/';
+
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
@@ -97,7 +99,15 @@ export default async function resolveOptions(
     minify,
     autoinstall: initialOptions.autoinstall ?? true,
     hot: initialOptions.hot ?? null,
-    serve: initialOptions.serve ?? false,
+    serve: initialOptions.serve
+      ? {
+          ...initialOptions.serve,
+          distDir:
+            initialOptions.distDir != null
+              ? path.resolve(rootDir, initialOptions.distDir)
+              : path.join(cacheDir, 'dist'),
+        }
+      : false,
     disableCache: initialOptions.disableCache ?? false,
     killWorkers: initialOptions.killWorkers ?? true,
     profile: initialOptions.profile ?? false,
@@ -109,8 +119,8 @@ export default async function resolveOptions(
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
-    publicUrl: initialOptions.publicUrl ?? '/',
-    distDir: path.resolve(initialOptions.distDir ?? 'dist'),
+    publicUrl,
+    distDir: initialOptions.distDir,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
