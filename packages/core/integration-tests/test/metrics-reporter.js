@@ -21,6 +21,7 @@ describe('Build Metrics Reporter', () => {
 
     let projectRoot: string = b._getResolvedParcelOptions().projectRoot;
     let dirContent = await outputFS.readdir(projectRoot);
+
     assert(
       dirContent.includes('parcel-metrics.json'),
       'Should create a parcel-metrics.json file',

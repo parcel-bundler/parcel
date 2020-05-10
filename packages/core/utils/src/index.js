@@ -1,9 +1,9 @@
 // @flow strict-local
-export type * from './generateBundleReport';
+export type * from './generateBuildMetrics';
 export type * from './prettyDiagnostic';
 
 export {default as countLines} from './countLines';
-export {default as generateBundleReport} from './generateBundleReport';
+export {default as generateBuildMetrics} from './generateBuildMetrics';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
 export {default as getRootDir} from './getRootDir';

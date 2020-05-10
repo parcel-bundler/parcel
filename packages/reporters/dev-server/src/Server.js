@@ -1,7 +1,7 @@
 // @flow
 
-import type {Request, Response, DevServerOptions} from './types.js.flow';
-import type {BundleGraph, FilePath} from '@parcel/types';
+import type {DevServerOptions, Request, Response} from './types.js.flow';
+import type {BundleGraph, FilePath, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 
@@ -11,10 +11,10 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
-  loadConfig,
-  createHTTPServer,
-  prettyDiagnostic,
   ansiHtml,
+  createHTTPServer,
+  loadConfig,
+  prettyDiagnostic,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -86,27 +86,33 @@ export default class Server extends EventEmitter {
     this.emit('bundled');
   }
 
-  buildError(diagnostics: Array<Diagnostic>) {
+  async buildError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
     this.pending = false;
-    this.errors = diagnostics.map(d => {
-      let ansiDiagnostic = prettyDiagnostic(d);
+    this.errors = await Promise.all(
+      diagnostics.map(async d => {
+        let ansiDiagnostic = await prettyDiagnostic(d, options);
 
-      return {
-        message: ansiHtml(ansiDiagnostic.message),
-        stack: ansiDiagnostic.codeframe
-          ? ansiHtml(ansiDiagnostic.codeframe)
-          : ansiHtml(ansiDiagnostic.stack),
-        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
-      };
-    });
+        return {
+          message: ansiHtml(ansiDiagnostic.message),
+          stack: ansiDiagnostic.codeframe
+            ? ansiHtml(ansiDiagnostic.codeframe)
+            : ansiHtml(ansiDiagnostic.stack),
+          hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
+        };
+      }),
+    );
   }
 
   respond(req: Request, res: Response) {
     let {pathname} = url.parse(req.originalUrl || req.url);
 
+    if (pathname == null) {
+      pathname = '/';
+    }
+
     if (this.errors) {
       return this.send500(req, res);
-    } else if (!pathname || path.extname(pathname) === '') {
+    } else if (path.extname(pathname) === '') {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
       return this.sendIndex(req, res);
@@ -199,9 +205,7 @@ export default class Server extends EventEmitter {
       return this.sendError(res, 400);
     }
 
-    if (filePath) {
-      filePath = path.normalize('.' + path.sep + filePath);
-    }
+    filePath = path.normalize('.' + path.sep + filePath);
 
     // malicious path
     if (filePath.includes(path.sep + '..' + path.sep)) {
@@ -209,7 +213,9 @@ export default class Server extends EventEmitter {
     }
 
     // join / normalize from the root dir
-    filePath = path.normalize(path.join(root, filePath));
+    if (!path.isAbsolute(filePath)) {
+      filePath = path.normalize(path.join(root, filePath));
+    }
 
     try {
       var stat = await fs.stat(filePath);

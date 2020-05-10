@@ -6,6 +6,7 @@ import type {
   ModuleSpecifier,
   PluginOptions,
   Symbol,
+  SourceLocation,
 } from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {Program} from '@babel/types';
@@ -14,18 +15,19 @@ export type ExternalModule = {|
   source: ModuleSpecifier,
   specifiers: Map<Symbol, Symbol>,
   isCommonJS: ?boolean,
+  loc?: ?SourceLocation,
 |};
 
 export type ExternalBundle = {|
   bundle: Bundle,
   assets: Set<Asset>,
+  loc?: ?SourceLocation,
 |};
 
 export type OutputFormat = {|
   generateBundleImports(
     from: Bundle,
-    bundle: Bundle,
-    assets: Set<Asset>,
+    external: ExternalBundle,
     path: NodePath<Program>,
   ): void,
   generateExternalImport(

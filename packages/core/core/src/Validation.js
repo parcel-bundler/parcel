@@ -8,6 +8,7 @@ import type {
   ReportFn,
 } from './types';
 import type {Validator, ValidateResult} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
@@ -73,10 +74,11 @@ export default class Validation {
         if (assets) {
           let plugin = this.allValidators[validatorName];
           let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorResults: Array<?ValidateResult> = [];
           try {
             // If the plugin supports the single-threading validateAll method, pass all assets to it.
             if (plugin.validateAll && this.dedicatedThread) {
-              let validatorResults = await plugin.validateAll({
+              validatorResults = await plugin.validateAll({
                 assets: assets.map(asset => new Asset(asset)),
                 options: pluginOptions,
                 logger: validatorLogger,
@@ -90,9 +92,6 @@ export default class Validation {
                     configNames,
                   ),
               });
-              for (let validatorResult of validatorResults) {
-                this.handleResult(validatorResult);
-              }
             }
 
             // Otherwise, pass the assets one-at-a-time
@@ -120,10 +119,11 @@ export default class Validation {
                     config,
                     logger: validatorLogger,
                   });
-                  this.handleResult(validatorResult);
+                  validatorResults.push(validatorResult);
                 }),
               );
             }
+            this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
               diagnostic: errorToDiagnostic(e, validatorName),
@@ -161,19 +161,24 @@ export default class Validation {
     );
   }
 
-  handleResult(validatorResult: ?ValidateResult) {
-    if (validatorResult) {
-      let {warnings, errors} = validatorResult;
-
-      if (errors.length > 0) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errors,
-        });
+  handleResults(validatorResults: Array<?ValidateResult>) {
+    let warnings: Array<Diagnostic> = [];
+    let errors: Array<Diagnostic> = [];
+    validatorResults.forEach(result => {
+      if (result) {
+        warnings.push(...result.warnings);
+        errors.push(...result.errors);
       }
+    });
 
-      if (warnings.length > 0) {
-        logger.warn(warnings);
-      }
+    if (errors.length > 0) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors,
+      });
+    }
+
+    if (warnings.length > 0) {
+      logger.warn(warnings);
     }
   }
 

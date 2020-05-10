@@ -4,11 +4,13 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  Symbol as ISymbol,
+  MutableSymbols as IMutableSymbols,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
+
 import Environment from './Environment';
 import Target from './Target';
+import {MutableDependencySymbols} from './Symbols';
 import nullthrows from 'nullthrows';
 
 const inspect = Symbol.for('nodejs.util.inspect.custom');
@@ -74,10 +76,6 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isWeak;
   }
 
-  get isDeferred(): boolean {
-    return this.#dep.isDeferred;
-  }
-
   get loc(): ?SourceLocation {
     return this.#dep.loc;
   }
@@ -88,6 +86,10 @@ export default class Dependency implements IDependency {
 
   get meta(): Meta {
     return this.#dep.meta;
+  }
+
+  get symbols(): IMutableSymbols {
+    return new MutableDependencySymbols(this.#dep);
   }
 
   get target(): ?Target {
@@ -103,10 +105,6 @@ export default class Dependency implements IDependency {
   get sourcePath(): ?string {
     // TODO: does this need to be public?
     return this.#dep.sourcePath;
-  }
-
-  get symbols(): Map<ISymbol, ISymbol> {
-    return this.#dep.symbols;
   }
 
   get pipeline(): ?string {

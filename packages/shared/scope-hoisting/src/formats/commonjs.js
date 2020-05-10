@@ -18,7 +18,7 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {NodePath} from '@babel/traverse';
-import type {ExternalModule} from '../types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
 import {
@@ -34,12 +34,12 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
 import {
   assertString,
   getIdentifier,
   getName,
+  getThrowableDiagnosticForNode,
   removeReplaceBinding,
 } from '../utils';
 
@@ -140,8 +140,7 @@ function generateDestructuringAssignment(
 
 export function generateBundleImports(
   from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
@@ -422,66 +421,73 @@ export function generateExports(
         }
       }
     } else {
-      for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
-        entry,
-      )) {
-        if (!symbol) {
-          let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-          throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `${relativePath} does not export '${exportSymbol}'`,
-              filePath: entry.filePath,
-              // TODO: add codeFrames (actual and reexporting asset) when AST from transformers is reused
-            },
-          });
-        }
+      for (let {
+        exportAs,
+        exportSymbol,
+        symbol,
+        asset,
+        loc,
+      } of bundleGraph.getExportedSymbols(entry)) {
+        if (symbol != null) {
+          let hasReplacement = replacements.get(symbol);
+          symbol = hasReplacement ?? symbol;
 
-        let hasReplacement = replacements.get(symbol);
-        symbol = hasReplacement ?? symbol;
-
-        // If there is an existing binding with the exported name (e.g. an import),
-        // rename it so we can use the name for the export instead.
-        if (path.scope.hasBinding(exportSymbol) && exportSymbol !== symbol) {
-          rename(
-            path.scope,
-            exportSymbol,
-            path.scope.generateUid(exportSymbol),
-          );
-        }
-
-        let binding = nullthrows(path.scope.getBinding(symbol));
-        if (!hasReplacement) {
-          let id = !t.isValidIdentifier(exportSymbol)
-            ? path.scope.generateUid(exportSymbol)
-            : exportSymbol;
-          // rename only once, avoid having to update `replacements` transitively
-          rename(path.scope, symbol, id);
-          replacements.set(symbol, id);
-          symbol = id;
-        }
-
-        let [stmt] = binding.path.getStatementParent().insertAfter(
-          EXPORT_TEMPLATE({
-            NAME: t.identifier(exportSymbol),
-            IDENTIFIER: t.identifier(symbol),
-          }),
-        );
-        binding.reference(stmt.get<NodePath<Identifier>>('expression.right'));
-
-        // Exports other than the default export are live bindings. Insert an assignment
-        // after each constant violation so this remains true.
-        if (exportSymbol !== 'default') {
-          for (let path of binding.constantViolations) {
-            let [stmt] = path.insertAfter(
-              EXPORT_TEMPLATE({
-                NAME: t.identifier(exportSymbol),
-                IDENTIFIER: t.identifier(symbol),
-              }),
-            );
-            binding.reference(
-              stmt.get<NodePath<Identifier>>('expression.right'),
-            );
+          // If there is an existing binding with the exported name (e.g. an import),
+          // rename it so we can use the name for the export instead.
+          if (path.scope.hasBinding(exportAs) && exportAs !== symbol) {
+            rename(path.scope, exportAs, path.scope.generateUid(exportAs));
           }
+
+          let binding = nullthrows(path.scope.getBinding(symbol));
+          if (!hasReplacement) {
+            let id = !t.isValidIdentifier(exportAs)
+              ? path.scope.generateUid(exportAs)
+              : exportAs;
+            // rename only once, avoid having to update `replacements` transitively
+            rename(path.scope, symbol, id);
+            replacements.set(symbol, id);
+            symbol = id;
+          }
+
+          let [stmt] = binding.path.getStatementParent().insertAfter(
+            EXPORT_TEMPLATE({
+              NAME: t.identifier(exportAs),
+              IDENTIFIER: t.identifier(symbol),
+            }),
+          );
+          binding.reference(stmt.get<NodePath<Identifier>>('expression.right'));
+
+          // Exports other than the default export are live bindings. Insert an assignment
+          // after each constant violation so this remains true.
+          if (exportAs !== 'default') {
+            for (let path of binding.constantViolations) {
+              let [stmt] = path.insertAfter(
+                EXPORT_TEMPLATE({
+                  NAME: t.identifier(exportAs),
+                  IDENTIFIER: t.identifier(symbol),
+                }),
+              );
+              binding.reference(
+                stmt.get<NodePath<Identifier>>('expression.right'),
+              );
+            }
+          }
+        } else if (symbol === null) {
+          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
+          let relativePath = relative(options.projectRoot, asset.filePath);
+          throw getThrowableDiagnosticForNode(
+            `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+            entry.filePath,
+            loc,
+          );
+        } else {
+          // Reexport that couldn't be resolved
+          let relativePath = relative(options.projectRoot, asset.filePath);
+          throw getThrowableDiagnosticForNode(
+            `${relativePath} does not export '${exportSymbol}'`,
+            entry.filePath,
+            loc,
+          );
         }
       }
     }

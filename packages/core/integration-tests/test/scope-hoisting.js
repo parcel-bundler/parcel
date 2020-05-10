@@ -12,11 +12,10 @@ import {
   getNextBuild,
 } from '@parcel/test-utils';
 
-const bundle = (name, opts = {}) =>
-  _bundle(name, Object.assign({scopeHoist: true}, opts));
+const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
 
 const bundler = (name, opts = {}) =>
-  _bundler(name, Object.assign({scopeHoist: true}, opts));
+  _bundler(name, {scopeHoist: true, ...opts});
 
 describe('scope hoisting', function() {
   describe('es6', function() {
@@ -310,22 +309,71 @@ describe('scope hoisting', function() {
     });
 
     it('excludes default when re-exporting a module', async function() {
-      let threw = false;
-      try {
-        await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/re-export-exclude-default/a.js',
-          ),
-        );
-      } catch (err) {
-        threw = true;
-        assert(
-          err.diagnostics[0].message.endsWith("b.js does not export 'default'"),
-        );
-      }
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
+      );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+      )} does not export 'default'`;
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 8,
+                },
+                end: {
+                  line: 1,
+                  column: 8,
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
 
-      assert(threw);
+    it('throws when reexporting a missing symbol', async function() {
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/a.js',
+      );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/re-export-missing/c.js',
+      )} does not export 'foo'`;
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: path.normalize(
+              'integration/scope-hoisting/es6/re-export-missing/b.js',
+            ),
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 1,
+                  column: 9,
+                },
+                end: {
+                  line: 1,
+                  column: 11,
+                },
+              },
+            },
+          },
+        ],
+      });
     });
 
     it('supports multiple exports of the same variable', async function() {
@@ -464,6 +512,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports exporting an import from a wrapped asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, true);
+    });
+
     it('supports requiring a re-exported and renamed ES6 import', async function() {
       let b = await bundle(
         path.join(
@@ -524,7 +584,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 16);
     });
 
-    it('supports correctly handles ES6 re-exports in library mode entries', async function() {
+    it('correctly handles ES6 re-exports in library mode entries', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -891,6 +951,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('should insert esModule flag for interop for async (or shared) bundles', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/interop-async/index.html',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['client', 'client', 'viewer']);
+    });
+
     it('should support the jsx pragma', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js'),
@@ -963,6 +1035,30 @@ describe('scope hoisting', function() {
       );
 
       assert.equal(await run(b), 42);
+    });
+
+    it('can conditionally reference an imported symbol and unconditionally reference it', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/conditional-import-reference/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'hello');
+    });
+
+    it('can conditionally reference an imported symbol from another bundle in a case clause', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/async-interop-conditional/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output, 42);
     });
   });
 
@@ -1524,20 +1620,48 @@ describe('scope hoisting', function() {
       assert.equal(output.require, 'function');
     });
 
-    it("doesn't support require.resolve calls", async function() {
-      await assert.rejects(
-        () =>
-          bundle(
-            path.join(
-              __dirname,
-              '/integration/scope-hoisting/commonjs/require-resolve/a.js',
-            ),
-          ),
-        {
-          message:
-            "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
-        },
+    it("doesn't support require.resolve calls for included assets", async function() {
+      let message =
+        "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting";
+      let source = path.join(
+        __dirname,
+        '/integration/scope-hoisting/commonjs/require-resolve/a.js',
       );
+      await assert.rejects(() => bundle(source), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/packager-js',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: {
+                start: {
+                  line: 3,
+                  column: 10,
+                },
+                end: {
+                  line: 3,
+                  column: 31,
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
+
+    it('supports mutations of the exports objects', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-object/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 43);
     });
 
     it('supports require.resolve calls for excluded modules', async function() {
@@ -1924,6 +2048,18 @@ describe('scope hoisting', function() {
 
       assert.equal(await run(b), 42);
     });
+
+    it('can conditionally reference an imported symbol and unconditionally reference it', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/conditional-import-reference/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'hello');
+    });
   });
 
   it('should not throw with JS included from HTML', async function() {
@@ -2071,6 +2207,17 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [42, 42, 42, 42]);
   });
 
+  it('should not remove a binding with a used AssignmentExpression', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/used-assignmentexpression/a.js',
+      ),
+    );
+
+    assert.strictEqual(await run(b), 3);
+  });
+
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(
@@ -2216,6 +2363,14 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), [3, 5]);
   });
 
+  it('deduplicates shared sibling assets between bundle groups', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-scope-hoist/index.js'),
+    );
+
+    assert.deepEqual(await run(b), ['a', 'b', 'c']);
+  });
+
   it('can run an entry bundle whose entry asset is present in another bundle', async () => {
     let b = await bundle(
       ['index.js', 'value.js'].map(basename =>
@@ -2306,5 +2461,37 @@ describe('scope hoisting', function() {
     ]);
 
     assert.deepEqual(await run(b), 43);
+  });
+
+  it('correctly updates dependency when a specified is added', async function() {
+    let testDir = path.join(
+      __dirname,
+      '/integration/scope-hoisting/es6/cache-add-specifier',
+    );
+
+    let b = bundler(path.join(testDir, 'a.js'), {
+      inputFS: overlayFS,
+      outputFS: overlayFS,
+    });
+
+    let subscription = await b.watch();
+
+    let bundleEvent = await getNextBuild(b);
+    assert(bundleEvent.type === 'buildSuccess');
+    let output = await run(bundleEvent.bundleGraph);
+    assert.deepEqual(output, 'foo');
+
+    await overlayFS.mkdirp(testDir);
+    await overlayFS.copyFile(
+      path.join(testDir, 'a.1.js'),
+      path.join(testDir, 'a.js'),
+    );
+
+    bundleEvent = await getNextBuild(b);
+    assert(bundleEvent.type === 'buildSuccess');
+    output = await run(bundleEvent.bundleGraph);
+    assert.deepEqual(output, 'foobar');
+
+    await subscription.unsubscribe();
   });
 });

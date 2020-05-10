@@ -6,6 +6,7 @@ import type {
   BundleGraph as IBundleGraph,
   BundleGroup,
   Dependency as IDependency,
+  ExportSymbolResolution,
   GraphVisitor,
   Symbol,
   SymbolResolution,
@@ -13,7 +14,6 @@ import type {
 import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {DefaultWeakMap} from '@parcel/utils';
 
@@ -52,6 +52,12 @@ export default class BundleGraph implements IBundleGraph {
     this.#options = options;
     _bundleGraphToInternalBundleGraph.set(this, graph);
     internalBundleGraphToBundleGraph.get(options).set(graph, this);
+  }
+
+  isDependencyDeferred(dep: IDependency): boolean {
+    return this.#graph.isDependencyDeferred(
+      dependencyToInternalDependency(dep),
+    );
   }
 
   getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
@@ -118,13 +124,24 @@ export default class BundleGraph implements IBundleGraph {
       .map(dep => new Dependency(dep));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
-    let internalNode = this.#graph._graph.getNode(bundle.id);
-    invariant(internalNode != null && internalNode.type === 'bundle');
-    return this.#graph.isAssetInAncestorBundles(
-      internalNode.value,
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
+    return this.#graph.isAssetReachableFromBundle(
+      assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
+    );
+  }
+
+  findReachableBundleWithAsset(bundle: IBundle, asset: IAsset): ?IBundle {
+    let result = this.#graph.findReachableBundleWithAsset(
+      bundleToInternalBundle(bundle),
       assetToAssetValue(asset),
     );
+
+    if (result != null) {
+      return new Bundle(result, this.#graph, this.#options);
+    }
+
+    return null;
   }
 
   isAssetReferenced(asset: IAsset): boolean {
@@ -148,7 +165,13 @@ export default class BundleGraph implements IBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .sort(
+        (a, b) =>
+          bundleGroup.bundleIds.indexOf(a.id) -
+          bundleGroup.bundleIds.indexOf(b.id),
+      )
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
+      .reverse();
   }
 
   getBundles(): Array<IBundle> {
@@ -183,15 +206,18 @@ export default class BundleGraph implements IBundleGraph {
       asset: assetFromValue(res.asset, this.#options),
       exportSymbol: res.exportSymbol,
       symbol: res.symbol,
+      loc: res.loc,
     };
   }
 
-  getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
+  getExportedSymbols(asset: IAsset): Array<ExportSymbolResolution> {
     let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
+      loc: e.loc,
+      exportAs: e.exportAs,
     }));
   }
 

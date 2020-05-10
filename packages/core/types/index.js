@@ -100,7 +100,7 @@ export type PackageTargetDescriptor = {|
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +sourceMap?: TargetSourceMapOptions,
+  +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
@@ -204,11 +204,11 @@ export type InitialParcelOptions = {|
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
+  +detailedReport?: number | boolean,
 
   // contentHash
   // throwErrors
   // global?
-  // detailedReport
 |};
 
 export interface PluginOptions {
@@ -220,12 +220,14 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
+  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
+  +detailedReport: number;
 }
 
 export type ServerOptions = {|
@@ -256,6 +258,19 @@ export type SourceLocation = {|
 export type Meta = JSONObject;
 
 export type Symbol = string;
+export interface Symbols // eslint-disable-next-line no-undef
+  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+  // Whether static analysis bailed out
+  +isCleared: boolean;
+}
+export interface MutableSymbols extends Symbols {
+  // Static analysis bailed out
+  clear(): void;
+  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+}
 
 export type DependencyOptions = {|
   +moduleSpecifier: ModuleSpecifier,
@@ -268,7 +283,7 @@ export type DependencyOptions = {|
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
 |};
 
 export interface Dependency {
@@ -279,15 +294,17 @@ export interface Dependency {
   +isOptional: boolean;
   +isURL: boolean;
   +isWeak: ?boolean;
-  +isDeferred: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
   +target: ?Target;
   +sourceAssetId: ?string;
   +sourcePath: ?string;
-  +symbols: Map<Symbol, Symbol>;
   +pipeline: ?string;
+
+  // (imported symbol -> variable that it is used as)
+  // TODO make immutable
+  +symbols: MutableSymbols;
 }
 
 export type File = {|
@@ -311,10 +328,12 @@ export interface BaseAsset {
   +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
-  +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
+
+  // (symbol exported by this -> name of binding to export)
+  +symbols: Symbols;
 
   getAST(): Promise<?AST>;
   getCode(): Promise<string>;
@@ -343,6 +362,9 @@ export interface MutableAsset extends BaseAsset {
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+
+  +symbols: MutableSymbols;
+
   isASTDirty(): boolean;
   setAST(AST): void;
   setBuffer(Buffer): void;
@@ -419,7 +441,8 @@ export type TransformerResult = {|
   +meta?: Meta,
   +pipeline?: ?string,
   +sideEffects?: boolean,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
 |};
@@ -578,7 +601,14 @@ export type CreateBundleOpts =
 export type SymbolResolution = {|
   +asset: Asset,
   +exportSymbol: Symbol | string,
-  +symbol: void | Symbol,
+  +symbol: void | null | Symbol,
+  // the location of the specifier that lead to this result
+  +loc: ?SourceLocation,
+|};
+
+export type ExportSymbolResolution = {|
+  ...SymbolResolution,
+  +exportAs: Symbol | string,
 |};
 
 export interface Bundle {
@@ -611,6 +641,7 @@ export interface NamedBundle extends Bundle {
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
+  bundleIds: Array<string>,
 |};
 
 export interface MutableBundleGraph extends BundleGraph {
@@ -651,19 +682,27 @@ export interface BundleGraph {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
+  isDependencyDeferred(dependency: Dependency): boolean;
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
   findBundlesWithAsset(Asset): Array<Bundle>;
   findBundlesWithDependency(Dependency): Array<Bundle>;
-  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  /**
+   * Resolve the export `symbol` of `asset` to the source,
+   * stopping at the first asset after leaving `bundle`.
+   * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
+   * `symbol === undefined`: symbol not found
+   */
   resolveSymbol(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
+  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<Bundle, TContext>,
     startBundle: ?Bundle,
