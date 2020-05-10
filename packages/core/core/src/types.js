@@ -88,7 +88,6 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
-  isDeferred: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -120,7 +119,7 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: FilePath,
@@ -178,13 +177,20 @@ export interface Node {
   value: any;
 }
 
-export type AssetNode = {|id: string, +type: 'asset', value: Asset|};
+export type AssetNode = {|
+  id: string,
+  +type: 'asset',
+  value: Asset,
+  hasDeferred?: boolean,
+|};
 
 export type DependencyNode = {|
   id: string,
   type: 'dependency',
   value: Dependency,
   complete?: boolean,
+  correspondingRequest?: string,
+  hasDeferred?: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -207,9 +213,10 @@ export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
-  // An asset group node is used to
   value: AssetGroup,
-  deferred: boolean,
+  deferred?: boolean,
+  correspondingRequest?: string,
+  hasDeferred?: boolean,
 |};
 
 export type DepPathRequestNode = {|
@@ -228,6 +235,7 @@ export type EntrySpecifierNode = {|
   id: string,
   +type: 'entry_specifier',
   value: ModuleSpecifier,
+  correspondingRequest?: string,
 |};
 
 export type Entry = {|
@@ -239,6 +247,7 @@ export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
   value: Entry,
+  correspondingRequest?: string,
 |};
 
 export type AssetGraphNode =

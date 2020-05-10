@@ -6,6 +6,7 @@ import type {
   BundleGraph as IBundleGraph,
   BundleGroup,
   Dependency as IDependency,
+  ExportSymbolResolution,
   GraphVisitor,
   Symbol,
   SymbolResolution,
@@ -51,6 +52,12 @@ export default class BundleGraph implements IBundleGraph {
     this.#options = options;
     _bundleGraphToInternalBundleGraph.set(this, graph);
     internalBundleGraphToBundleGraph.get(options).set(graph, this);
+  }
+
+  isDependencyDeferred(dep: IDependency): boolean {
+    return this.#graph.isDependencyDeferred(
+      dependencyToInternalDependency(dep),
+    );
   }
 
   getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
@@ -203,13 +210,14 @@ export default class BundleGraph implements IBundleGraph {
     };
   }
 
-  getExportedSymbols(asset: IAsset): Array<SymbolResolution> {
+  getExportedSymbols(asset: IAsset): Array<ExportSymbolResolution> {
     let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
     return res.map(e => ({
       asset: assetFromValue(e.asset, this.#options),
       exportSymbol: e.exportSymbol,
       symbol: e.symbol,
       loc: e.loc,
+      exportAs: e.exportAs,
     }));
   }
 

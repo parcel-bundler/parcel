@@ -15,6 +15,7 @@ import type {
   FunctionDeclaration,
   Identifier,
   LVal,
+  MemberExpression,
   ObjectProperty,
   Statement,
   StringLiteral,
@@ -28,6 +29,7 @@ import {relative} from 'path';
 import template from '@babel/template';
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
   isExpressionStatement,
   isIdentifier,
   isObjectPattern,
@@ -86,7 +88,7 @@ export function link({
 |}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, ?[Asset, Symbol, ?SourceLocation]> = new Map();
+  let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
@@ -118,7 +120,7 @@ export function link({
 
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || dep.isDeferred) {
+      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
         for (let [imported, {local, loc}] of dep.symbols) {
           imports.set(local, resolved ? [resolved, imported, loc] : null);
         }
@@ -140,12 +142,22 @@ export function link({
       return {
         asset: asset,
         symbol: exportSymbol,
-        identifier: undefined,
+        identifier: null,
         loc,
       };
     }
 
     let identifier = symbol;
+
+    if (identifier && imports.get(identifier) === null) {
+      // a deferred import
+      return {
+        asset: asset,
+        symbol: exportSymbol,
+        identifier: null,
+        loc,
+      };
+    }
 
     // If this is a wildcard import, resolve to the exports object.
     if (asset && exportSymbol === '*') {
@@ -159,6 +171,39 @@ export function link({
     return {asset: asset, symbol: exportSymbol, identifier, loc};
   }
 
+  function maybeReplaceIdentifier(path: NodePath<Identifier>) {
+    let {name} = path.node;
+    if (typeof name !== 'string') {
+      return;
+    }
+
+    let replacement = replacements.get(name);
+    if (replacement) {
+      path.node.name = replacement;
+    }
+
+    if (imports.has(name)) {
+      let node;
+      let imported = imports.get(name);
+      if (imported == null) {
+        // import was deferred
+        node = t.objectExpression([]);
+      } else {
+        let [asset, symbol, loc] = imported;
+        node = replaceImportNode(asset, symbol, path, loc);
+
+        // If the export does not exist, replace with an empty object.
+        if (!node) {
+          node = t.objectExpression([]);
+        }
+      }
+      path.replaceWith(node);
+    } else if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
+      // If it's an undefined $id$exports identifier.
+      path.replaceWith(t.objectExpression([]));
+    }
+  }
+
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
   function replaceImportNode(originalModule, originalName, path, depLoc) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
@@ -167,10 +212,7 @@ export function link({
       bundle,
     );
 
-    let node;
-    if (identifier) {
-      node = findSymbol(path, identifier);
-    }
+    let node = identifier ? findSymbol(path, identifier) : identifier;
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
@@ -179,7 +221,7 @@ export function link({
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
+    if (node === undefined && !mod.meta.isCommonJS && mod.meta.isES6Module) {
       let relativePath = relative(options.projectRoot, mod.filePath);
       throw getThrowableDiagnosticForNode(
         `${relativePath} does not export '${symbol}'`,
@@ -188,14 +230,15 @@ export function link({
       );
     }
 
-    // If it is CommonJS, look for an exports object.
-    if (!node && mod.meta.isCommonJS) {
+    // Look for an exports object if we bailed out.
+    if ((node === undefined && mod.meta.isCommonJS) || node === null) {
       node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
       if (!node) {
         return null;
       }
 
-      return interop(mod, symbol, path, node);
+      node = interop(mod, symbol, path, node);
+      return node;
     }
 
     return node;
@@ -219,23 +262,23 @@ export function link({
     if (mod.meta.isCommonJS && originalName === 'default') {
       let name = getName(mod, '$interop$default');
       if (!path.scope.getBinding(name)) {
-        // Hoist to the nearest path with the same scope as the exports is declared in
-        let binding = path.scope.getBinding(
-          assertString(mod.meta.exportsIdentifier),
+        let binding = nullthrows(
+          path.scope.getBinding(
+            bundle.hasAsset(mod)
+              ? assertString(mod.meta.exportsIdentifier)
+              : // If this bundle doesn't have the asset, use the binding for
+                // the `parcelRequire`d init function.
+                getName(mod, 'init'),
+          ),
         );
-        let parent;
-        if (binding) {
-          invariant(
-            binding.path.getStatementParent().parentPath.isProgram(),
-            "Expected binding declaration's parent to be the program",
-          );
-          parent = path.findParent(p => t.isProgram(p.parent));
-        }
 
-        if (!parent) {
-          parent = path.getStatementParent();
-        }
+        invariant(
+          binding.path.getStatementParent().parentPath.isProgram(),
+          "Expected binding declaration's parent to be the program",
+        );
 
+        // Hoist to the nearest path with the same scope as the exports is declared in.
+        let parent = nullthrows(path.findParent(p => t.isProgram(p.parent)));
         let [decl] = parent.insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
             NAME: t.identifier(name),
@@ -243,11 +286,9 @@ export function link({
           }),
         );
 
-        if (binding) {
-          binding.reference(
-            decl.get<NodePath<Identifier>>('declarations.0.init'),
-          );
-        }
+        binding.reference(
+          decl.get<NodePath<Identifier>>('declarations.0.init'),
+        );
 
         getScopeBefore(parent).registerDeclaration(decl);
       }
@@ -421,7 +462,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && dep.isDeferred) {
+          } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
@@ -562,7 +603,7 @@ export function link({
     },
     MemberExpression: {
       exit(path) {
-        if (!path.isReferenced()) {
+        if (path.getData('parcelInserted')) {
           return;
         }
 
@@ -585,46 +626,43 @@ export function link({
         let name = isIdentifier(property) ? property.name : property.value;
         let {identifier} = resolveSymbol(asset, name);
 
-        // Check if $id$export$name exists and if so, replace the node by it.
-        if (identifier) {
-          path.replaceWith(t.identifier(identifier));
+        if (identifier == null) {
+          return;
         }
+
+        let {parent} = path;
+        // Check if $id$export$name exists and if so, replace the node by it.
+        if (isAssignmentExpression(parent)) {
+          if (isIdentifier(parent.right)) {
+            maybeReplaceIdentifier(
+              path.parentPath.get<NodePath<Identifier>>('right'),
+            );
+
+            // do not modify `$id$exports.foo = $id$export$foo` statements
+            if (isIdentifier(parent.right, {name: identifier})) {
+              return;
+            }
+          }
+          let [stmt] = path.parentPath.parentPath.insertAfter(
+            t.expressionStatement(
+              t.assignmentExpression(
+                '=',
+                t.cloneNode(path.node),
+                t.identifier(identifier),
+              ),
+            ),
+          );
+
+          stmt
+            .get<NodePath<MemberExpression>>('expression.left')
+            .setData('parcelInserted', true);
+        }
+
+        path.replaceWith(t.identifier(identifier));
       },
     },
     ReferencedIdentifier(path) {
-      let {name} = path.node;
-      if (typeof name !== 'string') {
-        return;
-      }
-
-      let replacement = replacements.get(name);
-      if (replacement) {
-        path.node.name = replacement;
-      }
-
-      if (imports.has(name)) {
-        let node;
-        let imported = imports.get(name);
-        if (!imported) {
-          // import was deferred
-          node = t.objectExpression([]);
-        } else {
-          let [asset, symbol, loc] = imported;
-          node = replaceImportNode(asset, symbol, path, loc);
-
-          // If the export does not exist, replace with an empty object.
-          if (!node) {
-            node = t.objectExpression([]);
-          }
-        }
-        path.replaceWith(node);
-        return;
-      }
-
-      // If it's an undefined $id$exports identifier.
-      if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
-        path.replaceWith(t.objectExpression([]));
-      }
+      maybeReplaceIdentifier(path);
     },
     Program: {
       exit(path) {

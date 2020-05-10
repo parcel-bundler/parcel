@@ -512,6 +512,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports exporting an import from a wrapped asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-wrapped/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, true);
+    });
+
     it('supports requiring a re-exported and renamed ES6 import', async function() {
       let b = await bundle(
         path.join(
@@ -572,7 +584,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 16);
     });
 
-    it('supports correctly handles ES6 re-exports in library mode entries', async function() {
+    it('correctly handles ES6 re-exports in library mode entries', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -1035,6 +1047,18 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 'hello');
+    });
+
+    it('can conditionally reference an imported symbol from another bundle in a case clause', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/async-interop-conditional/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(await output, 42);
     });
   });
 
@@ -1627,6 +1651,17 @@ describe('scope hoisting', function() {
           },
         ],
       });
+    });
+
+    it('supports mutations of the exports objects', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-object/index.js',
+        ),
+      );
+
+      assert.equal(await run(b), 43);
     });
 
     it('supports require.resolve calls for excluded modules', async function() {
@@ -2326,6 +2361,14 @@ describe('scope hoisting', function() {
     ]);
 
     assert.deepEqual(await run(b), [3, 5]);
+  });
+
+  it('deduplicates shared sibling assets between bundle groups', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-scope-hoist/index.js'),
+    );
+
+    assert.deepEqual(await run(b), ['a', 'b', 'c']);
   });
 
   it('can run an entry bundle whose entry asset is present in another bundle', async () => {

@@ -103,7 +103,7 @@ export async function concat({
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldExcludeAsset(bundleGraph, asset, usedExports)) {
+      if (shouldSkipAsset(bundleGraph, asset, usedExports)) {
         return context;
       }
 
@@ -113,7 +113,7 @@ export async function concat({
       };
     },
     exit(asset, context) {
-      if (!context || shouldExcludeAsset(bundleGraph, asset, usedExports)) {
+      if (!context || shouldSkipAsset(bundleGraph, asset, usedExports)) {
         return;
       }
 
@@ -262,7 +262,7 @@ function getUsedExports(
   return usedExports;
 }
 
-function shouldExcludeAsset(
+function shouldSkipAsset(
   bundleGraph: BundleGraph,
   asset: Asset,
   usedExports: Map<string, Set<Symbol>>,

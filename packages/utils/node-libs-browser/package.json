@@ -36,7 +36,7 @@
     "timers-browserify": "^2.0.11",
     "tty-browserify": "^0.0.1",
     "url": "^0.11.0",
-    "util": "^0.12.2",
+    "util": "^0.12.3",
     "vm-browserify": "^1.1.2"
   }
 }

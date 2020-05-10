@@ -42,6 +42,20 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 5);
     });
 
+    it('should support commonjs output from esmodule input (re-export rename)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-commonjs/re-export-rename.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!dist.includes('function')); // no iife
+      assert(dist.includes('exports.default'));
+      assert.equal((await run(b)).default, 2);
+    });
+
     it('should support commonjs output from esmodule input', async function() {
       let b = await bundle(
         path.join(
@@ -484,6 +498,16 @@ describe('output formats', function() {
       assert(!dist.includes('export default'));
     });
 
+    it('should support esmodule output (renaming re-export)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm/re-export-rename.js'),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('export var foo'));
+      assert(!dist.includes('export default'));
+    });
+
     it('should support esmodule output with external modules (named import)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-external/named.js'),
@@ -770,7 +794,14 @@ describe('output formats', function() {
     it('should support use an import polyfill for older browsers', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
-        {defaultEngines: null},
+        {
+          defaultEngines: {
+            browsers: [
+              // Implements es modules but not dynamic imports
+              'Chrome 61',
+            ],
+          },
+        },
       );
 
       let html = await outputFS.readFile(
