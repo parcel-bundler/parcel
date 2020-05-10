@@ -1,15 +1,21 @@
 // @flow strict-local
 
 import type {FilePath} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import {isGlob} from './glob';
 
 const path = require('path');
 
-export default function getRootDir(files: Array<FilePath>): FilePath {
+export default async function getRootDir(
+  inputFS: FileSystem,
+  entries: Array<FilePath>,
+): Promise<FilePath> {
   let cur = null;
 
-  for (let file of files) {
-    let parsed = path.parse(file);
+  for (let file of entries) {
+    let parsed = path.parse(
+      (await inputFS.stat(file)).isDirectory() ? `${file}/index` : file,
+    );
     parsed.dir = findGlobRoot(parsed.dir);
     if (!cur) {
       cur = parsed;

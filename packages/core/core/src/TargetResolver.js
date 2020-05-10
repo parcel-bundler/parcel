@@ -311,7 +311,7 @@ export default class TargetResolver {
         } else {
           distDir =
             this.options.distDir ??
-            path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+            path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
         let descriptor = parseCommonTargetDescriptor(
@@ -370,10 +370,8 @@ export default class TargetResolver {
       let distEntry;
       let loc;
       if (distPath == null) {
-        distDir = path.resolve(
-          pkgDir,
-          this.options.distDir ?? DEFAULT_DIST_DIRNAME,
-        );
+        distDir =
+          this.options.distDir ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME);
         if (customTargets.length >= 2) {
           distDir = path.join(distDir, targetName);
         }
@@ -447,7 +445,7 @@ export default class TargetResolver {
       targets.set('default', {
         name: 'default',
         distDir:
-          this.options.distDir ?? path.resolve(pkgDir, DEFAULT_DIST_DIRNAME),
+          this.options.distDir ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME),
         publicUrl: this.options.publicUrl,
         env: createEnvironment({
           engines: pkgEngines,

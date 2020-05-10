@@ -43,7 +43,7 @@ export default async function resolveOptions(
   let rootDir =
     initialOptions.rootDir != null
       ? path.resolve(initialOptions.rootDir)
-      : getRootDir(entries);
+      : await getRootDir(inputFS, entries);
 
   let projectRootFile =
     (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
@@ -59,7 +59,9 @@ export default async function resolveOptions(
   }
   let projectRoot = path.dirname(projectRootFile);
 
+  let inputCwd = inputFS.cwd();
   let outputCwd = outputFS.cwd();
+
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
     // use a default directory resolved relative to the project root.
@@ -81,6 +83,10 @@ export default async function resolveOptions(
   }
 
   let publicUrl = initialOptions.publicUrl ?? '/';
+  let distDir =
+    initialOptions.distDir != null
+      ? path.resolve(inputCwd, initialOptions.distDir)
+      : undefined;
 
   return {
     config: initialOptions.config,
@@ -102,10 +108,7 @@ export default async function resolveOptions(
     serve: initialOptions.serve
       ? {
           ...initialOptions.serve,
-          distDir:
-            initialOptions.distDir != null
-              ? path.resolve(rootDir, initialOptions.distDir)
-              : path.join(cacheDir, 'dist'),
+          distDir: distDir ?? path.join(cacheDir, 'dist'),
         }
       : false,
     disableCache: initialOptions.disableCache ?? false,
@@ -120,7 +123,7 @@ export default async function resolveOptions(
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
     publicUrl,
-    distDir: initialOptions.distDir,
+    distDir,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
