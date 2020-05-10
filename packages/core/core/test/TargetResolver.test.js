@@ -39,6 +39,12 @@ const INVALID_DISTPATH_FIXTURE_PATH = path.join(
   'fixtures/invalid-distpath',
 );
 
+const DEFAULT_DISTPATH_FIXTURE_PATHS = {
+  none: path.join(__dirname, 'fixtures/targets-default-distdir-none'),
+  one: path.join(__dirname, 'fixtures/targets-default-distdir-one'),
+  two: path.join(__dirname, 'fixtures/targets-default-distdir-two'),
+};
+
 const CONTEXT_FIXTURE_PATH = path.join(__dirname, 'fixtures/context');
 
 describe('TargetResolver', () => {
@@ -581,6 +587,148 @@ describe('TargetResolver', () => {
           },
         ],
         files: [],
+      },
+    );
+  });
+
+  it.only('generates the correct distDir with no explicit targets', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+
+    assert.deepEqual(
+      await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.none),
+      {
+        targets: [
+          {
+            name: 'default',
+            distDir: path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.none, 'dist'),
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['Chrome 80'],
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+          },
+        ],
+        files: [
+          {
+            filePath: path.join(
+              DEFAULT_DISTPATH_FIXTURE_PATHS.none,
+              'package.json',
+            ),
+          },
+        ],
+      },
+    );
+  });
+
+  it.only('generates the correct distDir with one explicit target', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+
+    assert.deepEqual(
+      await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.one),
+      {
+        targets: [
+          {
+            name: 'browserModern',
+            distDir: path.join(DEFAULT_DISTPATH_FIXTURE_PATHS.one, 'dist'),
+            distEntry: undefined,
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['Chrome 80'],
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+            loc: undefined,
+          },
+        ],
+        files: [
+          {
+            filePath: path.join(
+              DEFAULT_DISTPATH_FIXTURE_PATHS.one,
+              'package.json',
+            ),
+          },
+        ],
+      },
+    );
+  });
+
+  it.only('generates the correct distDirs with two explicit target', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+
+    assert.deepEqual(
+      await targetResolver.resolve(DEFAULT_DISTPATH_FIXTURE_PATHS.two),
+      {
+        targets: [
+          {
+            name: 'browserModern',
+            distDir: path.join(
+              DEFAULT_DISTPATH_FIXTURE_PATHS.two,
+              'dist',
+              'browserModern',
+            ),
+            distEntry: undefined,
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['last 1 version'],
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+            loc: undefined,
+          },
+          {
+            name: 'browserLegacy',
+            distDir: path.join(
+              DEFAULT_DISTPATH_FIXTURE_PATHS.two,
+              'dist',
+              'browserLegacy',
+            ),
+            distEntry: undefined,
+            publicUrl: '/',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: ['IE 11'],
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+            loc: undefined,
+          },
+        ],
+        files: [
+          {
+            filePath: path.join(
+              DEFAULT_DISTPATH_FIXTURE_PATHS.two,
+              'package.json',
+            ),
+          },
+        ],
       },
     );
   });
