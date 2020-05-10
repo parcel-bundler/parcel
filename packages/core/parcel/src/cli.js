@@ -23,6 +23,9 @@ async function logUncaughtError(e: mixed) {
   } else {
     INTERNAL_ORIGINAL_CONSOLE.error(e);
   }
+
+  // A hack to definitely ensure we logged the uncaught exception
+  await new Promise(resolve => setTimeout(resolve, 100));
 }
 
 process.on('unhandledRejection', async (reason: mixed) => {
@@ -247,7 +250,7 @@ async function run(entries: Array<string>, command: any) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
       if (!(e instanceof BuildError)) {
-        logUncaughtError(e);
+        await logUncaughtError(e);
       }
       process.exit(1);
     }
