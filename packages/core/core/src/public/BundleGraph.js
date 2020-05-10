@@ -54,6 +54,12 @@ export default class BundleGraph implements IBundleGraph {
     internalBundleGraphToBundleGraph.get(options).set(graph, this);
   }
 
+  isDependencyDeferred(dep: IDependency): boolean {
+    return this.#graph.isDependencyDeferred(
+      dependencyToInternalDependency(dep),
+    );
+  }
+
   getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
     let resolution = this.#graph.getDependencyResolution(
       dependencyToInternalDependency(dep),
