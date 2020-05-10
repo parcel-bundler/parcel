@@ -178,13 +178,11 @@ async function run(entries: Array<string>, command: any) {
     packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: (await packageManager.resolve(
-        '@parcel/config-default',
-        __filename,
-        {
+      filePath: (
+        await packageManager.resolve('@parcel/config-default', __filename, {
           autoinstall: options.autoinstall,
-        },
-      )).resolved,
+        })
+      ).resolved,
     },
     patchConsole: true,
     ...options,
