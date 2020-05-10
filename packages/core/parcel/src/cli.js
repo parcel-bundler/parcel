@@ -5,7 +5,7 @@ import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {prettyDiagnostic} from '@parcel/utils';
+import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
 
 require('v8-compile-cache');
 
@@ -178,11 +178,13 @@ async function run(entries: Array<string>, command: any) {
     packageManager,
     defaultConfig: {
       ...defaultConfig,
-      filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename, {
+      filePath: (await packageManager.resolve(
+        '@parcel/config-default',
+        __filename,
+        {
           autoinstall: options.autoinstall,
-        })
-      ).resolved,
+        },
+      )).resolved,
     },
     patchConsole: true,
     ...options,
@@ -194,6 +196,14 @@ async function run(entries: Array<string>, command: any) {
         throw err;
       }
     });
+
+    if (command.open && options.serve) {
+      await openInBrowser(
+        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
+          'localhost'}:${options.serve.port}`,
+        command.open,
+      );
+    }
 
     let isExiting;
     const exit = async () => {
