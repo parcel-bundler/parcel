@@ -553,7 +553,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('generates a default target in serve mode', async () => {
+  it('generates a default target in serve mode', async () => {
     let serveDistDir = path.join(DEFAULT_OPTIONS.cacheDir, 'dist');
 
     let targetResolver = new TargetResolver({
@@ -593,7 +593,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('generates the correct distDir with no explicit targets', async () => {
+  it('generates the correct distDir with no explicit targets', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
 
     assert.deepEqual(
@@ -630,7 +630,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('generates the correct distDir with one explicit target', async () => {
+  it('generates the correct distDir with one explicit target', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
 
     assert.deepEqual(
@@ -669,7 +669,7 @@ describe('TargetResolver', () => {
     );
   });
 
-  it.only('generates the correct distDirs with two explicit targets', async () => {
+  it('generates the correct distDirs with two explicit targets', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
 
     assert.deepEqual(
