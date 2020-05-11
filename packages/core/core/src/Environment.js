@@ -111,5 +111,7 @@ export function getEnvironmentHash(env: Environment) {
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
+    // ATLASSIAN: use context in hash until bundles are shared in workers
+    context: env.context,
   });
 }
