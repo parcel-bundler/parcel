@@ -1653,15 +1653,42 @@ describe('scope hoisting', function() {
       });
     });
 
-    it('supports mutations of the exports objects', async function() {
+    it('supports mutations of the exports object by the importer', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/mutated-exports-object/index.js',
+          '/integration/scope-hoisting/commonjs/mutated-exports-object-importer/index.js',
         ),
       );
 
+      assert.deepEqual(await run(b), [43, {foo: 43}]);
+    });
+
+    it('supports mutations of the exports object by a different asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-object-different/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$exports'));
       assert.equal(await run(b), 43);
+    });
+
+    it('supports mutations of the exports object inside an expression', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-object-expression/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), [{foo: 3}, 3, 3]);
     });
 
     it('supports require.resolve calls for excluded modules', async function() {

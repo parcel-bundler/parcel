@@ -29,15 +29,20 @@ export default new Validator({
         let codeframe: DiagnosticCodeFrame = {
           code: result.source,
           codeHighlights: result.messages.map(message => {
+            let start = {
+              line: message.line,
+              column: message.column,
+            };
             return {
-              start: {
-                line: message.line,
-                column: message.column,
-              },
-              end: {
-                line: message.endLine,
-                column: message.endColumn,
-              },
+              start,
+              // Parse errors have no ending
+              end:
+                message.endLine != null
+                  ? {
+                      line: message.endLine,
+                      column: message.endColumn,
+                    }
+                  : start,
               message: message.message,
             };
           }),
