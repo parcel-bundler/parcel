@@ -1659,17 +1659,6 @@ describe('scope hoisting', function() {
       });
     });
 
-    it('supports mutations of the exports objects', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/commonjs/mutated-exports-object/index.js',
-        ),
-      );
-
-      assert.equal(await run(b), 43);
-    });
-
     it('supports require.resolve calls for excluded modules', async function() {
       let b = await bundle(
         path.join(
