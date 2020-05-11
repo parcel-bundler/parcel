@@ -10,6 +10,7 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
+  Node,
   Expression,
   File,
   FunctionDeclaration,
@@ -28,6 +29,7 @@ import {relative} from 'path';
 import template from '@babel/template';
 import * as t from '@babel/types';
 import {
+  isAssignmentExpression,
   isExpressionStatement,
   isIdentifier,
   isObjectPattern,
@@ -86,7 +88,7 @@ export function link({
 |}): {|ast: File, referencedAssets: Set<Asset>|} {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
-  let imports: Map<Symbol, ?[Asset, Symbol, ?SourceLocation]> = new Map();
+  let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
 
@@ -118,7 +120,7 @@ export function link({
 
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || dep.isDeferred) {
+      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
         for (let [imported, {local, loc}] of dep.symbols) {
           imports.set(local, resolved ? [resolved, imported, loc] : null);
         }
@@ -147,6 +149,16 @@ export function link({
 
     let identifier = symbol;
 
+    if (identifier && imports.get(identifier) === null) {
+      // a deferred import
+      return {
+        asset: asset,
+        symbol: exportSymbol,
+        identifier: null,
+        loc,
+      };
+    }
+
     // If this is a wildcard import, resolve to the exports object.
     if (asset && exportSymbol === '*') {
       identifier = assertString(asset.meta.exportsIdentifier);
@@ -157,6 +169,39 @@ export function link({
     }
 
     return {asset: asset, symbol: exportSymbol, identifier, loc};
+  }
+
+  function maybeReplaceIdentifier(path: NodePath<Identifier>) {
+    let {name} = path.node;
+    if (typeof name !== 'string') {
+      return;
+    }
+
+    let replacement = replacements.get(name);
+    if (replacement) {
+      path.node.name = replacement;
+    }
+
+    if (imports.has(name)) {
+      let node;
+      let imported = imports.get(name);
+      if (imported == null) {
+        // import was deferred
+        node = t.objectExpression([]);
+      } else {
+        let [asset, symbol, loc] = imported;
+        node = replaceImportNode(asset, symbol, path, loc);
+
+        // If the export does not exist, replace with an empty object.
+        if (!node) {
+          node = t.objectExpression([]);
+        }
+      }
+      path.replaceWith(node);
+    } else if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
+      // If it's an undefined $id$exports identifier.
+      path.replaceWith(t.objectExpression([]));
+    }
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
@@ -426,7 +471,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && dep.isDeferred) {
+          } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
@@ -567,10 +612,6 @@ export function link({
     },
     MemberExpression: {
       exit(path) {
-        if (!path.isReferenced()) {
-          return;
-        }
-
         let {object, property, computed} = path.node;
         if (
           !(
@@ -590,46 +631,41 @@ export function link({
         let name = isIdentifier(property) ? property.name : property.value;
         let {identifier} = resolveSymbol(asset, name);
 
-        // Check if $id$export$name exists and if so, replace the node by it.
-        if (identifier) {
+        if (identifier == null) {
+          return;
+        }
+
+        let {parent, parentPath} = path;
+        // If inside an expression, update the actual export binding as well
+        if (isAssignmentExpression(parent, {left: path.node})) {
+          if (isIdentifier(parent.right)) {
+            maybeReplaceIdentifier(
+              parentPath.get<NodePath<Identifier>>('right'),
+            );
+
+            // do not modify `$id$exports.foo = $id$export$foo` statements
+            if (isIdentifier(parent.right, {name: identifier})) {
+              return;
+            }
+          }
+
+          // turn `$exports.foo = ...` into `$exports.foo = $export$foo = ...`
+          parentPath
+            .get<NodePath<Node>>('right')
+            .replaceWith(
+              t.assignmentExpression(
+                '=',
+                t.identifier(identifier),
+                parent.right,
+              ),
+            );
+        } else {
           path.replaceWith(t.identifier(identifier));
         }
       },
     },
     ReferencedIdentifier(path) {
-      let {name} = path.node;
-      if (typeof name !== 'string') {
-        return;
-      }
-
-      let replacement = replacements.get(name);
-      if (replacement) {
-        path.node.name = replacement;
-      }
-
-      if (imports.has(name)) {
-        let node;
-        let imported = imports.get(name);
-        if (!imported) {
-          // import was deferred
-          node = t.objectExpression([]);
-        } else {
-          let [asset, symbol, loc] = imported;
-          node = replaceImportNode(asset, symbol, path, loc);
-
-          // If the export does not exist, replace with an empty object.
-          if (!node) {
-            node = t.objectExpression([]);
-          }
-        }
-        path.replaceWith(node);
-        return;
-      }
-
-      // If it's an undefined $id$exports identifier.
-      if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
-        path.replaceWith(t.objectExpression([]));
-      }
+      maybeReplaceIdentifier(path);
     },
     Program: {
       exit(path) {
