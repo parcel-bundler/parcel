@@ -10,12 +10,12 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
+  Node,
   Expression,
   File,
   FunctionDeclaration,
   Identifier,
   LVal,
-  MemberExpression,
   ObjectProperty,
   Statement,
   StringLiteral,
@@ -95,8 +95,6 @@ export function link({
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
 
-  // return {ast, referencedAssets};
-
   // If building a library, the target is actually another bundler rather
   // than the final output that could be loaded in a browser. So, loader
   // runtimes are excluded, and instead we add imports into the entry bundle
@@ -122,7 +120,7 @@ export function link({
 
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || dep.isDeferred) {
+      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
         for (let [imported, {local, loc}] of dep.symbols) {
           imports.set(local, resolved ? [resolved, imported, loc] : null);
         }
@@ -473,7 +471,7 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && dep.isDeferred) {
+          } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
             path.remove();
           } else {
             let name = addExternalModule(path, dep);
@@ -614,10 +612,6 @@ export function link({
     },
     MemberExpression: {
       exit(path) {
-        if (path.getData('parcelInserted')) {
-          return;
-        }
-
         let {object, property, computed} = path.node;
         if (
           !(
@@ -641,33 +635,33 @@ export function link({
           return;
         }
 
-        // Check if $id$export$name exists and if so, replace the node by it.
-        let {parent} = path;
-        if (isAssignmentExpression(parent)) {
+        let {parent, parentPath} = path;
+        // If inside an expression, update the actual export binding as well
+        if (isAssignmentExpression(parent, {left: path.node})) {
           if (isIdentifier(parent.right)) {
             maybeReplaceIdentifier(
-              path.parentPath.get<NodePath<Identifier>>('right'),
+              parentPath.get<NodePath<Identifier>>('right'),
             );
 
+            // do not modify `$id$exports.foo = $id$export$foo` statements
             if (isIdentifier(parent.right, {name: identifier})) {
               return;
             }
           }
-          let [stmt] = path.parentPath.parentPath.insertAfter(
-            t.expressionStatement(
+
+          // turn `$exports.foo = ...` into `$exports.foo = $export$foo = ...`
+          parentPath
+            .get<NodePath<Node>>('right')
+            .replaceWith(
               t.assignmentExpression(
                 '=',
-                t.cloneNode(path.node),
                 t.identifier(identifier),
+                parent.right,
               ),
-            ),
-          );
-
-          stmt
-            .get<NodePath<MemberExpression>>('expression.left')
-            .setData('parcelInserted', true);
+            );
+        } else {
+          path.replaceWith(t.identifier(identifier));
         }
-        path.replaceWith(t.identifier(identifier));
       },
     },
     ReferencedIdentifier(path) {

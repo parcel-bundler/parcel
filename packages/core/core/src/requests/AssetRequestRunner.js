@@ -70,7 +70,7 @@ export default class AssetRequestRunner extends RequestRunner<
     result: AssetRequestResult,
     api: RequestRunnerAPI,
   ) {
-    this.assetGraph.resolveAssetGroup(request, result.assets);
+    this.assetGraph.resolveAssetGroup(request, result.assets, api.getId());
 
     let {assets, configRequests} = result;
 
