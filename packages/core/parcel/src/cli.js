@@ -5,7 +5,7 @@ import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {prettyDiagnostic} from '@parcel/utils';
+import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
 
 require('v8-compile-cache');
 
@@ -195,6 +195,14 @@ async function run(entries: Array<string>, command: any) {
       }
     });
 
+    if (command.open && options.serve) {
+      await openInBrowser(
+        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
+          'localhost'}:${options.serve.port}`,
+        command.open,
+      );
+    }
+
     let isExiting;
     const exit = async () => {
       if (isExiting) {
@@ -295,7 +303,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port, host: host != null ? host : 'localhost'};
+    hmr = {port, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
