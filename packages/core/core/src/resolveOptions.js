@@ -108,7 +108,7 @@ export default async function resolveOptions(
     serve: initialOptions.serve
       ? {
           ...initialOptions.serve,
-          distDir: distDir ?? path.join(cacheDir, 'dist'),
+          distDir: distDir ?? path.join(outputCwd, 'dist'),
         }
       : false,
     disableCache: initialOptions.disableCache ?? false,
