@@ -616,12 +616,11 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
+  +filePath: ?FilePath;
   +isEntry: ?boolean;
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +filePath: ?FilePath;
-  +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
@@ -644,7 +643,7 @@ export type BundleGroup = {|
   bundleIds: Array<string>,
 |};
 
-export interface MutableBundleGraph extends BundleGraph {
+export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addAssetGraphToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
@@ -665,14 +664,14 @@ export interface MutableBundleGraph extends BundleGraph {
   ): ?TContext;
 }
 
-export interface BundleGraph {
-  getBundles(): Array<Bundle>;
+export interface BundleGraph<TBundle: Bundle> {
+  getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  getChildBundles(bundle: Bundle): Array<Bundle>;
-  getParentBundles(bundle: Bundle): Array<Bundle>;
-  getSiblingBundles(bundle: Bundle): Array<Bundle>;
-  getReferencedBundles(bundle: Bundle): Array<Bundle>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+  getChildBundles(bundle: Bundle): Array<TBundle>;
+  getParentBundles(bundle: Bundle): Array<TBundle>;
+  getSiblingBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(bundle: Bundle): Array<TBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   resolveExternalDependency(
@@ -684,10 +683,10 @@ export interface BundleGraph {
   );
   isDependencyDeferred(dependency: Dependency): boolean;
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  findBundlesWithAsset(Asset): Array<Bundle>;
-  findBundlesWithDependency(Dependency): Array<Bundle>;
+  findBundlesWithAsset(Asset): Array<TBundle>;
+  findBundlesWithDependency(Dependency): Array<TBundle>;
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
@@ -704,7 +703,7 @@ export interface BundleGraph {
   ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphVisitor<Bundle, TContext>,
+    visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
   ): ?TContext;
 }
@@ -738,7 +737,7 @@ export type Bundler = {|
 export type Namer = {|
   name({|
     bundle: Bundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<Bundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -754,7 +753,7 @@ export type RuntimeAsset = {|
 export type Runtime = {|
   apply({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -763,10 +762,13 @@ export type Runtime = {|
 export type Packager = {|
   package({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+    getInlineBundleContents: (
+      Bundle,
+      BundleGraph<NamedBundle>,
+    ) => Async<{|contents: Blob|}>,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -862,7 +864,7 @@ export type BuildProgressEvent =
 
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph,
+  +bundleGraph: BundleGraph<NamedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
 |};
