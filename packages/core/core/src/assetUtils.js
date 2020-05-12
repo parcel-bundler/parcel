@@ -2,7 +2,6 @@
 
 import type {
   ASTGenerator,
-  ConfigResult,
   File,
   FilePath,
   GenerateOutput,
@@ -14,6 +13,7 @@ import type {
   Transformer,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment} from './types';
+import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
@@ -156,14 +156,18 @@ export async function getConfig(
     packageKey?: string,
     parse?: boolean,
   |},
-): Promise<ConfigResult | null> {
+): Promise<ConfigOutput | null> {
   let packageKey = options?.packageKey;
   let parse = options && options.parse;
 
   if (packageKey != null) {
     let pkg = await asset.getPackage();
     if (pkg && pkg[packageKey]) {
-      return pkg[packageKey];
+      return {
+        config: pkg[packageKey],
+        // The package.json file was already registered by asset.getPackage() -> asset.getConfig()
+        files: [],
+      };
     }
   }
 
