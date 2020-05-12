@@ -1,7 +1,14 @@
 // @flow strict-local
 
 import type SourceMap from '@parcel/source-map';
-import type {Async, Blob, Bundle, BundleGraph, Dependency} from '@parcel/types';
+import type {
+  Async,
+  Blob,
+  Bundle,
+  BundleGraph,
+  Dependency,
+  NamedBundle,
+} from '@parcel/types';
 
 import invariant from 'assert';
 import {Readable} from 'stream';
@@ -28,8 +35,8 @@ export function replaceURLReferences({
   map,
   relative = true,
 }: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   contents: string,
   relative?: boolean,
   map?: ?SourceMap,
@@ -91,14 +98,17 @@ export async function replaceInlineReferences({
   getInlineBundleContents,
 }: {|
   bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   contents: string,
   getInlineReplacement: (
     Dependency,
     ?'string',
     string,
   ) => {|from: string, to: string|},
-  getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+  getInlineBundleContents: (
+    Bundle,
+    BundleGraph<NamedBundle>,
+  ) => Async<{|contents: Blob|}>,
   map?: ?SourceMap,
 |}): Promise<{|+contents: string, +map: ?SourceMap|}> {
   let replacements = new Map();
@@ -149,8 +159,8 @@ function getURLReplacement({
   relative,
 }: {|
   dependency: Dependency,
-  fromBundle: Bundle,
-  toBundle: Bundle,
+  fromBundle: NamedBundle,
+  toBundle: NamedBundle,
   relative: boolean,
 |}) {
   let url = URL.parse(dependency.moduleSpecifier);
