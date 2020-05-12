@@ -1,6 +1,6 @@
 {
   "name": "@parcel/plugin",
-  "version": "2.0.0-frontbucket.24",
+  "version": "2.0.0-frontbucket.25",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,6 +15,6 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/types": "^2.0.0-frontbucket.24"
+    "@parcel/types": "^2.0.0-frontbucket.25"
   }
 }

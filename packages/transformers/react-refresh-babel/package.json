@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-react-refresh-babel",
-  "version": "2.0.0-frontbucket.24",
+  "version": "2.0.0-frontbucket.25",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,7 +16,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.24",
+    "@parcel/plugin": "^2.0.0-frontbucket.25",
     "react-refresh": "^0.6.0"
   }
 }

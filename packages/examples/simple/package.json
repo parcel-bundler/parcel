@@ -1,6 +1,6 @@
 {
   "name": "@parcel/simple-example",
-  "version": "2.0.0-frontbucket.26",
+  "version": "2.0.0-frontbucket.27",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.14",
-    "@parcel/core": "^2.0.0-frontbucket.25"
+    "@parcel/core": "^2.0.0-frontbucket.26"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
