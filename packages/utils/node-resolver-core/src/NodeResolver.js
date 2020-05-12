@@ -26,6 +26,7 @@ type Options = {|
   options: PluginOptions,
   extensions: Array<string>,
   mainFields: Array<string>,
+  aliasField?: string,
 |};
 type ResolvedFile = {|
   path: string,
@@ -62,6 +63,7 @@ export default class NodeResolver {
   mainFields: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
+  aliasField: string;
 
   constructor(opts: Options) {
     this.extensions = opts.extensions.map(ext =>
@@ -71,6 +73,7 @@ export default class NodeResolver {
     this.options = opts.options;
     this.packageCache = new Map();
     this.rootPackage = null;
+    this.aliasField = opts.aliasField ? opts.aliasField : 'alias';
   }
 
   async resolve({
@@ -780,7 +783,7 @@ export default class NodeResolver {
     // Resolve aliases in the package.source, package.alias, and package.browser fields.
     return (
       (await this.getAlias(filename, pkg.pkgdir, pkg.source)) ||
-      (await this.getAlias(filename, pkg.pkgdir, pkg.alias)) ||
+      (await this.getAlias(filename, pkg.pkgdir, pkg[this.aliasField])) ||
       (env.isBrowser() &&
         (await this.getAlias(filename, pkg.pkgdir, pkg.browser))) ||
       filename
