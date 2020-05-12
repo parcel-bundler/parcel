@@ -1,5 +1,5 @@
 // @flow strict-local
-import type {Bundle, BundleGraph} from '@parcel/types';
+import type {Bundle, BundleGraph, NamedBundle} from '@parcel/types';
 
 import assert from 'assert';
 import {Readable} from 'stream';
@@ -89,7 +89,7 @@ export default new Packager({
 });
 
 async function getAssetContent(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   getInlineBundleContents,
   assetId,
 ) {
@@ -115,7 +115,7 @@ async function getAssetContent(
 }
 
 async function replaceInlineAssetContent(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   getInlineBundleContents,
   tree,
 ) {
