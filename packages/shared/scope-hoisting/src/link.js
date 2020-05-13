@@ -2,20 +2,20 @@
 
 import type {
   Asset,
-  Bundle,
   BundleGraph,
+  NamedBundle,
   PluginOptions,
   Symbol,
   SourceLocation,
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
+  Node,
   Expression,
   File,
   FunctionDeclaration,
   Identifier,
   LVal,
-  MemberExpression,
   ObjectProperty,
   Statement,
   StringLiteral,
@@ -80,8 +80,8 @@ export function link({
   options,
   wrappedAssets,
 }: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   ast: File,
   options: PluginOptions,
   wrappedAssets: Set<string>,
@@ -603,10 +603,6 @@ export function link({
     },
     MemberExpression: {
       exit(path) {
-        if (path.getData('parcelInserted')) {
-          return;
-        }
-
         let {object, property, computed} = path.node;
         if (
           !(
@@ -630,12 +626,12 @@ export function link({
           return;
         }
 
-        let {parent} = path;
-        // Check if $id$export$name exists and if so, replace the node by it.
-        if (isAssignmentExpression(parent)) {
+        let {parent, parentPath} = path;
+        // If inside an expression, update the actual export binding as well
+        if (isAssignmentExpression(parent, {left: path.node})) {
           if (isIdentifier(parent.right)) {
             maybeReplaceIdentifier(
-              path.parentPath.get<NodePath<Identifier>>('right'),
+              parentPath.get<NodePath<Identifier>>('right'),
             );
 
             // do not modify `$id$exports.foo = $id$export$foo` statements
@@ -643,22 +639,20 @@ export function link({
               return;
             }
           }
-          let [stmt] = path.parentPath.parentPath.insertAfter(
-            t.expressionStatement(
+
+          // turn `$exports.foo = ...` into `$exports.foo = $export$foo = ...`
+          parentPath
+            .get<NodePath<Node>>('right')
+            .replaceWith(
               t.assignmentExpression(
                 '=',
-                t.cloneNode(path.node),
                 t.identifier(identifier),
+                parent.right,
               ),
-            ),
-          );
-
-          stmt
-            .get<NodePath<MemberExpression>>('expression.left')
-            .setData('parcelInserted', true);
+            );
+        } else {
+          path.replaceWith(t.identifier(identifier));
         }
-
-        path.replaceWith(t.identifier(identifier));
       },
     },
     ReferencedIdentifier(path) {

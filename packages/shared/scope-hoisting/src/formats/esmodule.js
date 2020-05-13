@@ -4,6 +4,7 @@ import type {
   Asset,
   Bundle,
   BundleGraph,
+  NamedBundle,
   PluginOptions,
   Symbol,
 } from '@parcel/types';
@@ -37,7 +38,7 @@ import {
 } from '../utils';
 
 export function generateBundleImports(
-  from: Bundle,
+  from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
@@ -120,7 +121,7 @@ export function generateExternalImport(
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   programPath: NodePath<Program>,
