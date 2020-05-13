@@ -31,6 +31,10 @@ export function getProgressMessage(event: BuildProgressEvent): ?string {
   return null;
 }
 
+export function getTerminalWidth() {
+  return terminalSize;
+}
+
 // Pad a string with spaces on either side
 export function pad(text: string, length: number, align: PadAlign = 'left') {
   let pad = ' '.repeat(length - stringWidth(text));
