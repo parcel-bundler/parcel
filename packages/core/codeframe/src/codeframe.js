@@ -298,8 +298,10 @@ export default function codeFrame(
                 characters += startCol - lastCol;
               }
 
-              // Append the highlight indicators
-              highlightLine += highlighter('^'.repeat(characters));
+              if (characters > 0) {
+                // Append the highlight indicators
+                highlightLine += highlighter('^'.repeat(characters));
+              }
 
               // Set the lastCol equal to character count between start of line part and highlight end-column
               lastCol = endCol + 1;
