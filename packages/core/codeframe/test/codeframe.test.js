@@ -4,7 +4,7 @@ import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe('codeframe', () => {
+describe.only('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -586,106 +586,6 @@ describe('codeframe', () => {
     assert.equal(lines[5], '>   | ^^ test');
   });
 
-  it('Should handle small terminal widths', () => {
-    let codeframeString = codeframe(
-      'hello world',
-      [
-        {
-          start: {
-            column: 1,
-            line: 1,
-          },
-          end: {
-            column: 1,
-            line: 1,
-          },
-        },
-        {
-          start: {
-            column: 3,
-            line: 1,
-          },
-          end: {
-            column: 5,
-            line: 1,
-          },
-        },
-      ],
-      {useColor: false, terminalWidth: 9},
-    );
-
-    let lines = codeframeString.split(LINE_END);
-    assert.equal(lines.length, 4);
-    assert.equal(lines[0], '> 1 | hel');
-    assert.equal(lines[1], '>   | ^ ^');
-    assert.equal(lines[2], '> 1 | lo ');
-    assert.equal(lines[3], '>   | ^^');
-  });
-
-  it('Should handle small terminal widths with message', () => {
-    let codeframeString = codeframe(
-      'hello world',
-      [
-        {
-          start: {
-            column: 1,
-            line: 1,
-          },
-          end: {
-            column: 1,
-            line: 1,
-          },
-        },
-        {
-          start: {
-            column: 3,
-            line: 1,
-          },
-          end: {
-            column: 5,
-            line: 1,
-          },
-          message: 'test',
-        },
-      ],
-      {useColor: false, terminalWidth: 9},
-    );
-
-    let lines = codeframeString.split(LINE_END);
-    assert.equal(lines.length, 4);
-    assert.equal(lines[0], '> 1 | hel');
-    assert.equal(lines[1], '>   | ^ ^');
-    assert.equal(lines[2], '> 1 | lo ');
-    assert.equal(lines[3], '>   | ^^ test');
-  });
-
-  it('Should truncate long lines', () => {
-    let originalLine = 'hello world '.repeat(1000);
-    let codeframeString = codeframe(
-      originalLine,
-      [
-        {
-          start: {
-            column: 1000,
-            line: 1,
-          },
-          end: {
-            column: 1200,
-            line: 1,
-          },
-        },
-      ],
-      {useColor: false, terminalWidth: 20},
-    );
-
-    let lines = codeframeString.split(LINE_END);
-    assert.equal(lines.length, 4);
-    assert.equal(lines[0], '> 1 | ello world hel');
-    assert.equal(lines[1], '>   |               ');
-    assert.equal(lines[2], '> 1 | lo world hello');
-    assert.equal(lines[3], '>   | ^^^^^^^^^^^^^^');
-  });
-
   it('Should truncate long lines and print message', () => {
     let originalLine = 'hello world '.repeat(1000);
     let codeframeString = codeframe(
@@ -703,14 +603,12 @@ describe('codeframe', () => {
           message: 'This is a message',
         },
       ],
-      {useColor: false, terminalWidth: 20},
+      {useColor: false, terminalWidth: 25},
     );
 
     let lines = codeframeString.split(LINE_END);
-    assert.equal(lines.length, 4);
-    assert.equal(lines[0], '> 1 | ello world hel');
-    assert.equal(lines[1], '>   |               ');
-    assert.equal(lines[2], '> 1 | lo world hello');
-    assert.equal(lines[3], '>   | ^^^^^^^^^^^^^^ This is a message');
+    assert.equal(lines.length, 2);
+    assert.equal(lines[0], '> 1 | d hello world hello');
+    assert.equal(lines[1], '>   |      ^^^^^^^^^^^^^^ This is a message');
   });
 });

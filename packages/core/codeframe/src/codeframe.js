@@ -4,7 +4,7 @@ import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 import chalk from 'chalk';
 import emphasize from 'emphasize';
 import stringWidth from 'string-width';
-import {splitAnsi} from './ansi-utils';
+import sliceAnsi from 'slice-ansi';
 
 type CodeFramePadding = {|
   before: number,
@@ -127,15 +127,6 @@ export default function codeFrame(
       : endLine;
   let endLineString = endLine.toString(10);
 
-  let partWidth: number | null = opts.terminalWidth || null;
-  if (partWidth) {
-    if (partWidth > endLineString.length + 7) {
-      partWidth = partWidth - (endLineString.length + 5);
-    } else {
-      partWidth = null;
-    }
-  }
-
   // Split input into lines and highlight syntax
   let lines = code.split(NEWLINE);
   let syntaxHighlightedLines = (opts.syntaxHighlighting
@@ -156,7 +147,7 @@ export default function codeFrame(
     if (currentLineIndex > syntaxHighlightedLines.length - 1) break;
 
     // Find highlights that need to get rendered on the current line
-    let foundHighlights = highlights
+    let lineHighlights = highlights
       .filter(
         highlight =>
           highlight.start.line <= currentLineIndex &&
@@ -170,161 +161,132 @@ export default function codeFrame(
 
     // Check if this line has a full line highlight
     let isWholeLine =
-      foundHighlights.length &&
-      !!foundHighlights.find(
+      lineHighlights.length &&
+      !!lineHighlights.find(
         h => h.start.line < currentLineIndex && h.end.line > currentLineIndex,
       );
 
-    // Split the line into line parts that will fit the provided terminal width
-    let colOffset = 0;
-    let lineParts = [];
-    let syntaxHighlightedLine = syntaxHighlightedLines[currentLineIndex];
-    if (partWidth) {
-      if (stringWidth(syntaxHighlightedLine) > 2 * partWidth) {
-        let endIndex = partWidth;
-        if (foundHighlights) {
-          if (foundHighlights[0].start.line === currentLineIndex) {
-            colOffset =
-              foundHighlights[0].start.column > partWidth
-                ? foundHighlights[0].start.column - partWidth
-                : 0;
-          } else if (
-            foundHighlights[0].end.line === currentLineIndex &&
-            foundHighlights[0].end.column > partWidth
-          ) {
-            colOffset = foundHighlights[0].end.column - partWidth;
-          }
-        }
-
-        endIndex = colOffset + 2 * partWidth;
-
-        syntaxHighlightedLine = syntaxHighlightedLine.substring(
-          colOffset,
-          endIndex,
-        );
-      }
-
-      lineParts = splitAnsi(syntaxHighlightedLine, partWidth);
-    } else {
-      lineParts = [syntaxHighlightedLine];
+    let lineLengthLimit = 1000;
+    if (opts.terminalWidth && opts.terminalWidth > endLineString.length + 7) {
+      lineLengthLimit = opts.terminalWidth - (endLineString.length + 5);
     }
 
-    for (
-      let linepartIndex = 0;
-      linepartIndex < lineParts.length;
-      linepartIndex++
-    ) {
-      let linePart = lineParts[linepartIndex];
+    // Split the line into line parts that will fit the provided terminal width
+    let colOffset = 0;
+    let lineEndCol = lineLengthLimit;
+    let syntaxHighlightedLine = syntaxHighlightedLines[currentLineIndex];
+    if (stringWidth(syntaxHighlightedLine) > lineLengthLimit) {
+      if (lineHighlights.length > 0) {
+        if (lineHighlights[0].start.line === currentLineIndex) {
+          colOffset = lineHighlights[0].start.column - 5;
+        } else if (lineHighlights[0].end.line === currentLineIndex) {
+          colOffset = lineHighlights[0].end.column - 5;
+        }
+      }
 
-      // Write the syntax highlighted line part
+      colOffset = colOffset > 0 ? colOffset : 0;
+      lineEndCol = colOffset + lineLengthLimit;
+
+      syntaxHighlightedLine = sliceAnsi(
+        syntaxHighlightedLine,
+        colOffset,
+        lineEndCol,
+      );
+    }
+
+    // Write the syntax highlighted line part
+    resultLines.push(
+      lineNumberPrefixer({
+        lineNumber: (currentLineIndex + 1).toString(10),
+        endLine: endLineString,
+        isHighlighted: lineHighlights.length > 0,
+      }) + syntaxHighlightedLine,
+    );
+
+    let lineWidth = stringWidth(syntaxHighlightedLine);
+    let highlightLine = '';
+    if (isWholeLine) {
+      highlightLine = highlighter('^'.repeat(lineWidth));
+    } else if (lineHighlights.length > 0) {
+      let lastCol = 0;
+      let highlight = null;
+      let highlightHasEnded = false;
+
+      for (
+        let highlightIndex = 0;
+        highlightIndex < lineHighlights.length;
+        highlightIndex++
+      ) {
+        // Set highlight to current highlight
+        highlight = lineHighlights[highlightIndex];
+        highlightHasEnded = false;
+
+        // Calculate the startColumn and get the real width by doing a substring of the original
+        // line and replacing tabs with our tab replacement to support tab handling
+        let startCol = 0;
+        if (
+          highlight.start.line === currentLineIndex &&
+          highlight.start.column > colOffset
+        ) {
+          startCol = lines[currentLineIndex]
+            .substring(colOffset, highlight.start.column)
+            .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
+        }
+
+        // Calculate the endColumn and get the real width by doing a substring of the original
+        // line and replacing tabs with our tab replacement to support tab handling
+        let endCol = lineWidth - 1;
+        if (highlight.end.line === currentLineIndex) {
+          endCol = lines[currentLineIndex]
+            .substring(colOffset, highlight.end.column)
+            .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
+
+          // If the endCol is too big for this line part, trim it so we can handle it in the next one
+          if (endCol > lineWidth) {
+            endCol = lineWidth - 1;
+          }
+
+          highlightHasEnded = true;
+        }
+
+        // If endcol is smaller than lastCol it overlaps with another highlight and is no longer visible, we can skip those
+        if (endCol >= lastCol) {
+          let characters = endCol - startCol + 1;
+          if (startCol > lastCol) {
+            // startCol is before lastCol, so add spaces as padding before the highlight indicators
+            highlightLine += ' '.repeat(startCol - lastCol);
+          } else if (lastCol > startCol) {
+            // If last column is larger than the start, there's overlap in highlights
+            // This line adjusts the characters count to ensure we don't add too many characters
+            characters += startCol - lastCol;
+          }
+
+          // Append the highlight indicators
+          highlightLine += highlighter('^'.repeat(characters));
+
+          // Set the lastCol equal to character count between start of line part and highlight end-column
+          lastCol = endCol + 1;
+        }
+
+        // There's no point in processing more highlights if we reached the end of the line
+        if (endCol >= lineEndCol - 1) {
+          break;
+        }
+      }
+
+      // Append the highlight message if the current highlights ends on this line part
+      if (highlight && highlight.message && highlightHasEnded) {
+        highlightLine += ' ' + highlighter(highlight.message, true);
+      }
+    }
+
+    if (highlightLine) {
       resultLines.push(
         lineNumberPrefixer({
-          lineNumber: (currentLineIndex + 1).toString(10),
           endLine: endLineString,
-          isHighlighted: foundHighlights.length > 0,
-        }) + linePart,
+          isHighlighted: true,
+        }) + highlightLine,
       );
-
-      if (foundHighlights.length > 0) {
-        // Get real width of the highlighted line part
-        let linePartWidth = stringWidth(linePart);
-
-        let highlightLine = isWholeLine
-          ? highlighter('^'.repeat(linePartWidth))
-          : '';
-        if (!isWholeLine) {
-          // Get all highlights that should be rendered under this line part
-          let linePartHighlights = foundHighlights.filter(
-            h =>
-              h.end.line > currentLineIndex ||
-              (h.end.line === currentLineIndex && h.end.column >= colOffset),
-          );
-
-          let lastCol = 0;
-          let highlight = null;
-          let highlightHasEnded = false;
-          for (
-            let partHighlightIndex = 0;
-            partHighlightIndex < linePartHighlights.length;
-            partHighlightIndex++
-          ) {
-            // Set highlight to current highlight
-            highlight = linePartHighlights[partHighlightIndex];
-            highlightHasEnded = false;
-
-            // Calculate the startColumn and get the real width by doing a substring of the original
-            // line and replacing tabs with our tab replacement to support tab handling
-            let startCol = 0;
-            if (
-              highlight.start.line === currentLineIndex &&
-              highlight.start.column > colOffset
-            ) {
-              startCol = lines[currentLineIndex]
-                .substring(colOffset, highlight.start.column)
-                .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
-            }
-
-            // Calculate the endColumn and get the real width by doing a substring of the original
-            // line and replacing tabs with our tab replacement to support tab handling
-            let endCol = linePartWidth - 1;
-            if (highlight.end.line === currentLineIndex) {
-              endCol = lines[currentLineIndex]
-                .substring(colOffset, highlight.end.column)
-                .replace(TAB_REPLACE_REGEX, TAB_REPLACEMENT).length;
-
-              // If the endCol is too big for this line part, trim it so we can handle it in the next one
-              if (partWidth && endCol + startCol > partWidth) {
-                endCol = linePartWidth - 1;
-
-                // Handle truncated lines
-                if (linepartIndex === lineParts.length - 1) {
-                  highlightHasEnded = true;
-                }
-              } else {
-                // The current highlight ends within this line part, used for appending the message
-                highlightHasEnded = true;
-              }
-            }
-
-            // If endcol is smaller than lastCol it overlaps with another highlight and is no longer visible, we can skip those
-            if (endCol >= lastCol) {
-              let characters = endCol - startCol + 1;
-              if (startCol > lastCol) {
-                // startCol is before lastCol, so add spaces as padding before the highlight indicators
-                highlightLine += ' '.repeat(startCol - lastCol);
-              } else if (lastCol > startCol) {
-                // If last column is larger than the start, there's overlap in highlights
-                // This line adjusts the characters count to ensure we don't add too many characters
-                characters += startCol - lastCol;
-              }
-
-              if (characters > 0) {
-                // Append the highlight indicators
-                highlightLine += highlighter('^'.repeat(characters));
-              }
-
-              // Set the lastCol equal to character count between start of line part and highlight end-column
-              lastCol = endCol + 1;
-            }
-          }
-
-          // Append the highlight message if the current highlights ends on this line part
-          if (highlight && highlight.message && highlightHasEnded) {
-            highlightLine += ' ' + highlighter(highlight.message, true);
-          }
-        }
-
-        if (highlightLine) {
-          resultLines.push(
-            lineNumberPrefixer({
-              endLine: endLineString,
-              isHighlighted: true,
-            }) + highlightLine,
-          );
-        }
-
-        colOffset += linePartWidth;
-      }
     }
   }
 
