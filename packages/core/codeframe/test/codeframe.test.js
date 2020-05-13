@@ -4,7 +4,7 @@ import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe.only('codeframe', () => {
+describe('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -650,5 +650,95 @@ describe.only('codeframe', () => {
     assert.equal(lines[1], '>   |      ^^^^^^^^^^^^^^ This is the first line');
     assert.equal(lines[2], '> 2 | new line new line n');
     assert.equal(lines[3], '>   |  ^^^^^^^^^^^^^^^^^^ This is the second line');
+  });
+
+  it('Truncation across various types and positions of highlights', () => {
+    let originalLine =
+      'hello world '.repeat(100) + '\n' + 'new line '.repeat(100);
+    let codeframeString = codeframe(
+      originalLine,
+      [
+        {
+          start: {
+            column: 2,
+            line: 1,
+          },
+          end: {
+            column: 5,
+            line: 1,
+          },
+        },
+        {
+          start: {
+            column: 6,
+            line: 1,
+          },
+          end: {
+            column: 10,
+            line: 1,
+          },
+          message: 'I have a message',
+        },
+        {
+          start: {
+            column: 15,
+            line: 1,
+          },
+          end: {
+            column: 25,
+            line: 1,
+          },
+          message: 'I also have a message',
+        },
+        {
+          start: {
+            column: 2,
+            line: 2,
+          },
+          end: {
+            column: 5,
+            line: 2,
+          },
+          message: 'This is the second line',
+        },
+      ],
+      {useColor: false, terminalWidth: 25},
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 4);
+    assert.equal(lines[0], '> 1 | hello world hello w');
+    assert.equal(lines[1], '>   |  ^^^^^^^^^    ^^^^^ I also have a message');
+    assert.equal(lines[2], '> 2 | new line new line n');
+    assert.equal(lines[3], '>   |  ^^^^ This is the second line');
+  });
+
+  it('Multi-line highlight w/ truncation', () => {
+    let originalLine =
+      'hello world '.repeat(100) + '\n' + 'new line '.repeat(100);
+    let codeframeString = codeframe(
+      originalLine,
+      [
+        {
+          start: {
+            column: 2,
+            line: 1,
+          },
+          end: {
+            column: 151,
+            line: 2,
+          },
+          message: 'I have a message',
+        },
+      ],
+      {useColor: false, terminalWidth: 25},
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 4);
+    assert.equal(lines[0], '> 1 | hello world hello w');
+    assert.equal(lines[1], '>   |  ^^^^^^^^^^^^^^^^^^');
+    assert.equal(lines[2], '> 2 | ew line new line ne');
+    assert.equal(lines[3], '>   | ^^^^^^ I have a message');
   });
 });
