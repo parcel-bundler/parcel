@@ -103,7 +103,6 @@ export default new Transformer({
       ast.program,
       config.hydrated,
     );
-
     ast.program = root;
     asset.setAST({
       type: 'postcss',
