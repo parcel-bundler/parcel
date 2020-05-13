@@ -611,4 +611,44 @@ describe.only('codeframe', () => {
     assert.equal(lines[0], '> 1 | d hello world hello');
     assert.equal(lines[1], '>   |      ^^^^^^^^^^^^^^ This is a message');
   });
+
+  it('Truncation across multiple lines', () => {
+    let originalLine =
+      'hello world '.repeat(100) + '\n' + 'new line '.repeat(100);
+    let codeframeString = codeframe(
+      originalLine,
+      [
+        {
+          start: {
+            column: 15,
+            line: 1,
+          },
+          end: {
+            column: 400,
+            line: 1,
+          },
+          message: 'This is the first line',
+        },
+        {
+          start: {
+            column: 2,
+            line: 2,
+          },
+          end: {
+            column: 100,
+            line: 2,
+          },
+          message: 'This is the second line',
+        },
+      ],
+      {useColor: false, terminalWidth: 25},
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 4);
+    assert.equal(lines[0], '> 1 | ld hello world hell');
+    assert.equal(lines[1], '>   |      ^^^^^^^^^^^^^^ This is the first line');
+    assert.equal(lines[2], '> 2 | new line new line n');
+    assert.equal(lines[3], '>   |  ^^^^^^^^^^^^^^^^^^ This is the second line');
+  });
 });
