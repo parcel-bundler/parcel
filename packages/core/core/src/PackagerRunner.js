@@ -526,10 +526,15 @@ function writeFileStream(
       ? stream.pipe(replaceStream(hashRefToNameHash))
       : stream;
     let fsStream = fs.createWriteStream(filePath, options);
+    let fsStreamClosed = new Promise(resolve => {
+      fsStream.on('close', () => resolve());
+    });
     initialStream
       .pipe(fsStream)
-      // $FlowFixMe
-      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('finish', () =>
+        // $FlowFixMe
+        resolve(fsStreamClosed.then(() => fsStream.bytesWritten)),
+      )
       .on('error', reject);
   });
 }

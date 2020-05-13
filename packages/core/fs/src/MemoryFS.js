@@ -642,8 +642,9 @@ class WriteStream extends Writable {
   filePath: FilePath;
   options: ?FileOptions;
   buffer: Buffer;
+
   constructor(fs: FileSystem, filePath: FilePath, options: ?FileOptions) {
-    super();
+    super({emitClose: true, autoDestroy: true});
     this.fs = fs;
     this.filePath = filePath;
     this.options = options;
@@ -661,10 +662,10 @@ class WriteStream extends Writable {
   }
 
   _final(callback: (error?: Error) => void) {
-    this.fs.writeFile(this.filePath, this.buffer, this.options).then(
-      () => callback(),
-      err => callback(err),
-    );
+    this.fs
+      .writeFile(this.filePath, this.buffer, this.options)
+      .then(callback)
+      .catch(callback);
   }
 
   get bytesWritten() {
