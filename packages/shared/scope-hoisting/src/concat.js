@@ -78,7 +78,7 @@ export async function concat({
             node.value,
             bundle,
           );
-          if (resolved) {
+          if (resolved && resolved.sideEffects) {
             wrappedAssets.add(resolved.id);
           }
           return true;

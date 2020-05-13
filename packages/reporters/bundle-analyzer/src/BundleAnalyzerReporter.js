@@ -22,7 +22,9 @@ export default new Reporter({
       Array<NamedBundle>,
     > = new DefaultMap(() => []);
     for (let bundle of event.bundleGraph.getBundles()) {
-      bundlesByTarget.get(bundle.target.name).push(bundle);
+      if (!bundle.isInline) {
+        bundlesByTarget.get(bundle.target.name).push(bundle);
+      }
     }
 
     let reportsDir = path.join(options.projectRoot, 'parcel-bundle-reports');
