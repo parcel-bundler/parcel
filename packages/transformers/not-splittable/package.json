@@ -1,0 +1,14 @@
+{
+  "name": "@parcel/transformer-not-splittable",
+  "version": "0.0.1",
+  "description": "parcel transformer plugin for setting all assets to not be splittable",
+  "main": "lib/NotSplittableTransformer.js",
+  "source": "src/NotSplittableTransformer.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@atlassian/parcel-plugin": "^2.0.0-frontbucket.15"
+  }
+}
