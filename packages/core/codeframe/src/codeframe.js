@@ -26,13 +26,14 @@ type CodeFrameOptions = {|
   syntaxHighlighting: boolean,
   maxLines: number,
   padding: CodeFramePadding,
-  terminalWidth?: number,
+  terminalWidth: number,
   language?: string,
 |};
 
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
 const TAB_REPLACE_REGEX = /\t/g;
 const TAB_REPLACEMENT = '  ';
+const DEFAULT_TERMINAL_WIDTH = 80;
 
 const highlightSyntax = (txt: string, lang?: string): string => {
   if (lang) {
@@ -58,7 +59,7 @@ export default function codeFrame(
     syntaxHighlighting: !!inputOpts.syntaxHighlighting,
     language: inputOpts.language,
     maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
-    terminalWidth: inputOpts.terminalWidth,
+    terminalWidth: inputOpts.terminalWidth || DEFAULT_TERMINAL_WIDTH,
     padding: inputOpts.padding || {
       before: 1,
       after: 2,
@@ -164,10 +165,10 @@ export default function codeFrame(
         h => h.start.line < currentLineIndex && h.end.line > currentLineIndex,
       );
 
-    let lineLengthLimit = 1000;
-    if (opts.terminalWidth && opts.terminalWidth > endLineString.length + 7) {
-      lineLengthLimit = opts.terminalWidth - (endLineString.length + 5);
-    }
+    let lineLengthLimit =
+      opts.terminalWidth > endLineString.length + 7
+        ? opts.terminalWidth - (endLineString.length + 5)
+        : 10;
 
     // Split the line into line parts that will fit the provided terminal width
     let colOffset = 0;
