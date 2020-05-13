@@ -422,6 +422,17 @@ describe('scope hoisting', function() {
       assert.equal(await run(b), 123);
     });
 
+    it('supports named exports before the variable declaration', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-before-declaration/a.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), {x: 2});
+    });
+
     it('should not export function arguments', async function() {
       let b = await bundle(
         path.join(
