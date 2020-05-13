@@ -58,7 +58,7 @@ export default function codeFrame(
     useColor: !!inputOpts.useColor,
     syntaxHighlighting: !!inputOpts.syntaxHighlighting,
     language: inputOpts.language,
-    maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
+    maxLines: inputOpts.maxLines ?? 12,
     terminalWidth: inputOpts.terminalWidth || DEFAULT_TERMINAL_WIDTH,
     padding: inputOpts.padding || {
       before: 1,
