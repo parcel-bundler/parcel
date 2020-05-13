@@ -11,15 +11,7 @@ type CodeFramePadding = {|
   after: number,
 |};
 
-type CodeFrameOptionsInput = {
-  useColor?: boolean,
-  maxLines?: number,
-  padding?: CodeFramePadding,
-  syntaxHighlighting?: boolean,
-  language?: string,
-  terminalWidth?: number,
-  ...
-};
+type CodeFrameOptionsInput = $Shape<CodeFrameOptions>;
 
 type CodeFrameOptions = {|
   useColor: boolean,
