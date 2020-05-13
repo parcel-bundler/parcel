@@ -2,18 +2,6 @@
 # yarn lockfile v1
 
 
-"@atlassian/parcel-plugin@^2.0.0-frontbucket.15":
-  version "2.0.0-frontbucket.25"
-  resolved "https://packages.atlassian.com/api/npm/atlassian-npm/@atlassian/parcel-plugin/-/@atlassian/parcel-plugin-2.0.0-frontbucket.25.tgz#0e0d526a9045e364d989c828a2a7ac297c79f4e1"
-  integrity sha1-Dg1SapBF42TZicgooqesKXx59OE=
-  dependencies:
-    "@atlassian/parcel-types" "^2.0.0-frontbucket.25"
-
-"@atlassian/parcel-types@^2.0.0-frontbucket.25":
-  version "2.0.0-frontbucket.25"
-  resolved "https://packages.atlassian.com/api/npm/atlassian-npm/@atlassian/parcel-types/-/@atlassian/parcel-types-2.0.0-frontbucket.25.tgz#360bf97665ec70b1e5ce5bb997fa8a57d0da010a"
-  integrity sha1-Ngv5dmXscLHlzlu5l/qKV9DaAQo=
-
 "@babel/cli@^7.4.4":
   version "7.8.4"
   resolved "https://registry.yarnpkg.com/@babel/cli/-/cli-7.8.4.tgz#505fb053721a98777b2b175323ea4f090b7d3c1c"
