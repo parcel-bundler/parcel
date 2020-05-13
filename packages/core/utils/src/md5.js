@@ -20,12 +20,17 @@ export function md5FromString(
 
 export function md5FromReadableStream(stream: Readable): Promise<string> {
   return new Promise((resolve, reject) => {
+    stream.on('error', err => {
+      reject(err);
+    });
     stream
       .pipe(crypto.createHash('md5').setEncoding('hex'))
       .on('finish', function() {
         resolve(this.read());
       })
-      .on('error', reject);
+      .on('error', err => {
+        reject(err);
+      });
   });
 }
 

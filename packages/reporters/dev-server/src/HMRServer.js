@@ -1,6 +1,6 @@
 // @flow
 
-import type {BuildSuccessEvent} from '@parcel/types';
+import type {BuildSuccessEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
@@ -40,7 +40,6 @@ export default class HMRServer {
 
   start() {
     let websocketOptions = {
-      server: this.options.devServer,
       /*verifyClient: info => {
           if (!this.options.host) return true;
 
@@ -48,7 +47,11 @@ export default class HMRServer {
           return this.options.host === originator.hostname;
         }*/
     };
-
+    if (this.options.devServer) {
+      websocketOptions.server = this.options.devServer;
+    } else if (this.options.port) {
+      websocketOptions.port = this.options.port;
+    }
     this.wss = new WebSocket.Server(websocketOptions);
 
     this.wss.on('connection', ws => {
@@ -68,8 +71,10 @@ export default class HMRServer {
     this.wss.close();
   }
 
-  emitError(diagnostics: Array<Diagnostic>) {
-    let renderedDiagnostics = diagnostics.map(d => prettyDiagnostic(d));
+  async emitError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
+    let renderedDiagnostics = await Promise.all(
+      diagnostics.map(d => prettyDiagnostic(d, options)),
+    );
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved

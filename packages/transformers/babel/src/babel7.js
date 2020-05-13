@@ -3,6 +3,8 @@
 import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import invariant from 'assert';
+import * as bundledBabelCore from '@babel/core';
+import {relativeUrl} from '@parcel/utils';
 
 import {BABEL_RANGE} from './constants';
 import packageJson from '../package.json';
@@ -19,9 +21,10 @@ export default async function babel7(
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
   let babel = babelOptions.internal
-    ? require('@babel/core')
+    ? bundledBabelCore
     : await options.packageManager.require('@babel/core', asset.filePath, {
         range: BABEL_RANGE,
+        autoinstall: options.autoinstall,
       });
 
   let config = {
@@ -34,6 +37,7 @@ export default async function babel7(
     configFile: false,
     parserOpts: {
       ...babelOptions.config.parserOpts,
+      sourceFilename: relativeUrl(options.projectRoot, asset.filePath),
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
@@ -43,24 +47,27 @@ export default async function babel7(
       name: 'parcel',
       version: transformerVersion,
       targets: JSON.stringify(babelOptions.targets),
+      outputFormat: asset.env.outputFormat,
     },
   };
 
-  let code = await asset.getCode();
-
+  let ast = await asset.getAST();
   let res;
-  if (asset.ast) {
-    res = babel.transformFromAstSync(asset.ast.program, code, config);
+  if (ast) {
+    res = await babel.transformFromAstAsync(
+      ast.program,
+      asset.isASTDirty() ? undefined : await asset.getCode(),
+      config,
+    );
   } else {
-    res = babel.transformSync(code, config);
+    res = await babel.transformAsync(await asset.getCode(), config);
   }
 
   if (res.ast) {
-    return {
+    asset.setAST({
       type: 'babel',
       version: '7.0.0',
       program: res.ast,
-      isDirty: true,
-    };
+    });
   }
 }

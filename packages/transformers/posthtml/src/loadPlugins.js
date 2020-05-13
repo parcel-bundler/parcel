@@ -11,14 +11,28 @@ export default async function loadExternalPlugins(
   if (Array.isArray(plugins)) {
     return Promise.all(
       plugins
-        .map(p => loadPlugin(p, relative, null, options.packageManager))
+        .map(p =>
+          loadPlugin(
+            p,
+            relative,
+            null,
+            options.packageManager,
+            options.autoinstall,
+          ),
+        )
         .filter(Boolean),
     );
   } else if (typeof plugins === 'object') {
     let _plugins = plugins;
     let mapPlugins = await Promise.all(
       Object.keys(plugins).map(p =>
-        loadPlugin(p, relative, _plugins[p], options.packageManager),
+        loadPlugin(
+          p,
+          relative,
+          _plugins[p],
+          options.packageManager,
+          options.autoinstall,
+        ),
       ),
     );
     return mapPlugins.filter(Boolean);
@@ -32,12 +46,15 @@ async function loadPlugin(
   relative: FilePath,
   options: mixed = {},
   packageManager: PackageManager,
+  autoinstall: boolean,
 ): mixed {
   if (typeof pluginArg !== 'string') {
     return pluginArg;
   }
 
-  let plugin = await packageManager.require(pluginArg, relative);
+  let plugin = await packageManager.require(pluginArg, relative, {
+    autoinstall,
+  });
   plugin = plugin.default || plugin;
 
   if (

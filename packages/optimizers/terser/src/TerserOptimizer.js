@@ -3,21 +3,19 @@
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Optimizer} from '@parcel/plugin';
-import {loadConfig} from '@parcel/utils';
+import {blobToString, loadConfig} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
+import ThrowableDiagnostic from '@parcel/diagnostic';
+
 import path from 'path';
 
 export default new Optimizer({
-  async optimize({contents, map, bundle, options}) {
+  async optimize({contents, map, bundle, options, getSourceMapReference}) {
     if (!bundle.env.minify) {
       return {contents, map};
     }
 
-    if (typeof contents !== 'string') {
-      throw new Error(
-        'TerserOptimizer: Only string contents are currently supported',
-      );
-    }
+    let code = await blobToString(contents);
 
     let userConfig = await loadConfig(
       options.inputFS,
@@ -27,7 +25,6 @@ export default new Optimizer({
 
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
-      warnings: true,
       ...userConfig?.config,
       compress: {
         ...userConfig?.config?.compress,
@@ -35,25 +32,78 @@ export default new Optimizer({
           bundle.env.outputFormat === 'esmodule' ||
           bundle.env.outputFormat === 'commonjs',
       },
-      sourceMap: {
-        filename: path.relative(options.projectRoot, bundle.filePath),
-        asObject: true,
-        content: originalMap,
-      },
+      sourceMap: options.sourceMaps
+        ? {
+            filename: path.relative(options.projectRoot, bundle.filePath),
+            asObject: true,
+            content: originalMap,
+          }
+        : false,
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    let result = minify(contents, config);
+    let result = minify(code, config);
 
     if (result.error) {
-      throw result.error;
+      // $FlowFixMe
+      let {message, line, col} = result.error;
+      if (line != null && col != null) {
+        let diagnostic = [];
+        let mapping = map?.findClosestMapping(line, col);
+        if (mapping && mapping.original && mapping.source) {
+          let {source, original} = mapping;
+          let filePath = path.resolve(options.projectRoot, source);
+          diagnostic.push({
+            message,
+            origin: '@parcel/optimizer-terser',
+            language: 'js',
+            filePath,
+            codeFrame: {
+              code: await options.inputFS.readFile(filePath, 'utf8'),
+              codeHighlights: [{message, start: original, end: original}],
+            },
+            hints: ["It's likely that Terser doesn't support this syntax yet."],
+          });
+        }
+
+        if (diagnostic.length === 0 || options.logLevel === 'verbose') {
+          let loc = {
+            line: line,
+            column: col,
+          };
+          diagnostic.push({
+            message,
+            origin: '@parcel/optimizer-terser',
+            language: 'js',
+            filePath: undefined,
+            codeFrame: {
+              code,
+              codeHighlights: [{message, start: loc, end: loc}],
+            },
+            hints: ["It's likely that Terser doesn't support this syntax yet."],
+          });
+        }
+        throw new ThrowableDiagnostic({diagnostic});
+      } else {
+        throw result.error;
+      }
     }
 
     let sourceMap = null;
-    if (result.map) {
-      sourceMap = await SourceMap.fromRawSourceMap(result.map);
+    let minifiedContents: string = nullthrows(result.code);
+    if (result.map && typeof result.map !== 'string') {
+      sourceMap = new SourceMap();
+      sourceMap.addRawMappings(
+        result.map.mappings,
+        result.map.sources,
+        result.map.names || [],
+      );
+      let sourcemapReference = await getSourceMapReference(sourceMap);
+      if (sourcemapReference) {
+        minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;
+      }
     }
 
-    return {contents: nullthrows(result.code), map: sourceMap};
+    return {contents: minifiedContents, map: sourceMap};
   },
 });

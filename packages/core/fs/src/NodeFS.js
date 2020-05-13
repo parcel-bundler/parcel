@@ -1,5 +1,6 @@
 // @flow
-import type {FileSystem} from './types';
+import type {WriteStream} from 'fs';
+import type {FileOptions, FileSystem} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
   Event,
@@ -23,7 +24,6 @@ const realpath = promisify(fs.realpath);
 
 export class NodeFS implements FileSystem {
   readFile = promisify(fs.readFile);
-  writeFile = promisify(fs.writeFile);
   copyFile = promisify(fs.copyFile);
   stat = promisify(fs.stat);
   readdir = promisify(fs.readdir);
@@ -33,7 +33,6 @@ export class NodeFS implements FileSystem {
   rimraf = promisify(rimraf);
   ncp = promisify(ncp);
   createReadStream = fs.createReadStream;
-  createWriteStream = fs.createWriteStream;
   cwd = process.cwd;
   chdir = process.chdir;
 
@@ -41,6 +40,28 @@ export class NodeFS implements FileSystem {
   realpathSync = fs.realpathSync;
   existsSync = fs.existsSync;
   readdirSync = (fs.readdirSync: any);
+
+  createWriteStream(filePath: string, options: any): WriteStream {
+    let tmpFilePath = getTempFilePath(filePath);
+    let stream = fs.createWriteStream(tmpFilePath, options);
+    stream.on('close', () => fs.renameSync(tmpFilePath, filePath));
+    return stream;
+  }
+
+  async writeFile(
+    filePath: FilePath,
+    contents: Buffer | string,
+    options: ?FileOptions,
+  ): Promise<void> {
+    let tmpFilePath = getTempFilePath(filePath);
+    await fs.promises.writeFile(
+      tmpFilePath,
+      contents,
+      // $FlowFixMe
+      options,
+    );
+    await fs.promises.rename(tmpFilePath, filePath);
+  }
 
   readFileSync(filePath: FilePath, encoding?: buffer$Encoding): any {
     if (encoding != null) {
@@ -99,3 +120,25 @@ export class NodeFS implements FileSystem {
 }
 
 registerSerializableClass(`${packageJSON.version}:NodeFS`, NodeFS);
+
+let writeStreamCalls = 0;
+
+let threadId;
+try {
+  ({threadId} = require('worker_threads'));
+} catch {
+  //
+}
+
+// Generate a temporary file path used for atomic writing of files.
+function getTempFilePath(filePath: FilePath) {
+  writeStreamCalls = writeStreamCalls % Number.MAX_SAFE_INTEGER;
+  return (
+    filePath +
+    '.' +
+    process.pid +
+    (threadId != null ? '.' + threadId : '') +
+    '.' +
+    (writeStreamCalls++).toString(36)
+  );
+}

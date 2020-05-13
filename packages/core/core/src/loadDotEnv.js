@@ -46,6 +46,5 @@ export default async function loadEnv(
     }),
   );
 
-  // $FlowFixMe
   return Object.assign({}, ...envs);
 }

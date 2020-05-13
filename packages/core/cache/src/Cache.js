@@ -8,7 +8,7 @@ import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/core';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
 export default class Cache {

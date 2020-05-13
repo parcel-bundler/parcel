@@ -19,6 +19,7 @@ const COLORS = {
 const TYPE_COLORS = {
   bundle: 'blue',
   contains: 'grey',
+  internal_async: 'orange',
   references: 'red',
 };
 
@@ -51,7 +52,7 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isAsync) parts.push('async');
       if (node.value.isWeak) parts.push('weak');
       if (node.value.isOptional) parts.push('optional');
-      if (node.value.isDeferred) parts.push('deferred');
+      if (node.hasDeferred) parts.push('deferred');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'asset') {

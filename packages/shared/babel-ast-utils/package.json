@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/babel-ast-utils",
+  "version": "2.0.0-alpha.3.1",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/index.js",
+  "source": "src/index.js",
+  "engines": {
+    "node": ">= 10.0.0"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.0.0",
+    "@babel/parser": "^7.0.0",
+    "@parcel/source-map": "2.0.0-alpha.4.9",
+    "@parcel/utils": "^2.0.0-alpha.3.1"
+  }
+}

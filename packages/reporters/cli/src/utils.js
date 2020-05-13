@@ -8,6 +8,10 @@ import termSize from 'term-size';
 import stripAnsi from 'strip-ansi';
 
 export type PadAlign = 'left' | 'right';
+let terminalSize = termSize();
+process.stdout.on('resize', function() {
+  terminalSize = termSize();
+});
 
 export function getProgressMessage(event: BuildProgressEvent): ?string {
   switch (event.phase) {
@@ -25,6 +29,10 @@ export function getProgressMessage(event: BuildProgressEvent): ?string {
   }
 
   return null;
+}
+
+export function getTerminalWidth() {
+  return terminalSize;
 }
 
 // Pad a string with spaces on either side
@@ -48,7 +56,7 @@ export function formatFilename(
 }
 
 export function countLines(message: string) {
-  let {columns} = termSize();
+  let {columns} = terminalSize;
 
   return stripAnsi(message)
     .split('\n')

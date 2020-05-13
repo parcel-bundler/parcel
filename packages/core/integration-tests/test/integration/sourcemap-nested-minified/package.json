@@ -1,0 +1,14 @@
+{
+  "name": "parcel-sourcemap-integration-test",
+  "version": "1.0.0",
+  "license": "MIT",
+  "private": true,
+  "node": "dist/index.js",
+  "targets": {
+    "node": {
+      "engines": {
+        "node": ">= 8.0.0"
+      }
+    }
+  }
+}

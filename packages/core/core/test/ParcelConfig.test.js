@@ -27,6 +27,7 @@ describe('ParcelConfig', () => {
         },
       },
       packageManager,
+      false,
     );
 
     it('should return null array if no glob matches', () => {
@@ -65,6 +66,7 @@ describe('ParcelConfig', () => {
         },
       },
       packageManager,
+      false,
     );
 
     it('should return an empty array if no pipeline matches', () => {
@@ -128,10 +130,11 @@ describe('ParcelConfig', () => {
           },
         },
         packageManager,
+        false,
       );
 
       sinon.stub(logger, 'warn');
-      let plugin = await config.loadPlugin({
+      let {plugin} = await config.loadPlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
       });
@@ -167,6 +170,7 @@ describe('ParcelConfig', () => {
           },
         },
         packageManager,
+        false,
       );
 
       let errored = false;

@@ -18,7 +18,9 @@ export default new Transformer({
       return [asset];
     }
 
-    const pug = await options.packageManager.require('pug', asset.filePath);
+    const pug = await options.packageManager.require('pug', asset.filePath, {
+      autoinstall: options.autoinstall,
+    });
     const content = await asset.getCode();
     const render = pug.compile(content, {
       degug: true,

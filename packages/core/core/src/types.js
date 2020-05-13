@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  ASTGenerator,
   BuildMode,
   BundleGroup,
   Engines,
@@ -26,6 +27,7 @@ import type {
   ConfigResult,
   OutputFormat,
   TargetDescriptor,
+  HMROptions,
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -86,19 +88,19 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
-  isDeferred: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, Symbol>,
+  symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   pipeline?: ?string,
 |};
 
 export type Asset = {|
   id: string,
+  committed: boolean,
   hash: ?string,
   filePath: FilePath,
   type: string,
@@ -108,16 +110,20 @@ export type Asset = {|
   isInline: boolean,
   isSplittable: ?boolean,
   isSource: boolean,
-  outputHash: string,
   env: Environment,
   meta: Meta,
   stats: Stats,
   contentKey: ?string,
   mapKey: ?string,
+  outputHash: ?string,
   pipeline: ?string,
-  symbols: Map<Symbol, Symbol>,
+  astKey: ?string,
+  astGenerator: ?ASTGenerator,
+  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects: boolean,
-  uniqueKey?: ?string,
+  uniqueKey: ?string,
+  configPath?: FilePath,
+  plugin: ?PackageName,
 |};
 
 export type ParcelOptions = {|
@@ -137,8 +143,8 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: ?FilePath,
-  hot: boolean,
+  distDir: FilePath,
+  hot: ?HMROptions,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -146,11 +152,14 @@ export type ParcelOptions = {|
   lockFile: ?FilePath,
   profile: boolean,
   patchConsole: boolean,
+  detailedReport?: number,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
   cache: Cache,
   packageManager: PackageManager,
+
+  instanceId: string,
 |};
 
 export type NodeId = string;
@@ -168,13 +177,20 @@ export interface Node {
   value: any;
 }
 
-export type AssetNode = {|id: string, +type: 'asset', value: Asset|};
+export type AssetNode = {|
+  id: string,
+  +type: 'asset',
+  value: Asset,
+  hasDeferred?: boolean,
+|};
 
 export type DependencyNode = {|
   id: string,
   type: 'dependency',
   value: Dependency,
   complete?: boolean,
+  correspondingRequest?: string,
+  hasDeferred?: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -182,6 +198,7 @@ export type RootNode = {|id: string, +type: 'root', value: string | null|};
 export type AssetRequestDesc = {|
   filePath: FilePath,
   env: Environment,
+  isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
@@ -196,9 +213,10 @@ export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
-  // An asset group node is used to
   value: AssetGroup,
-  deferred: boolean,
+  deferred?: boolean,
+  correspondingRequest?: string,
+  hasDeferred?: boolean,
 |};
 
 export type DepPathRequestNode = {|
@@ -217,6 +235,7 @@ export type EntrySpecifierNode = {|
   id: string,
   +type: 'entry_specifier',
   value: ModuleSpecifier,
+  correspondingRequest?: string,
 |};
 
 export type Entry = {|
@@ -228,6 +247,7 @@ export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
   value: Entry,
+  correspondingRequest?: string,
 |};
 
 export type AssetGraphNode =
@@ -348,11 +368,13 @@ export type BundleGroupNode = {|
 export type TransformationOpts = {|
   request: AssetRequestDesc,
   optionsRef: number,
+  configRef: number,
 |};
 
 export type ValidationOpts = {|
-  request: AssetRequestDesc,
+  requests: AssetRequestDesc[],
   optionsRef: number,
+  configRef: number,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

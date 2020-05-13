@@ -1,1 +1,1 @@
-export default import("./b.js").then(b => b.default);
+output = import("./b.js").then(b => b.default);

@@ -157,7 +157,6 @@ export default class Environment implements IEnvironment {
       let withoutMinBrowsers = browserslist([...browsers, ...minBrowsers]);
       return matchedBrowsers.length === withoutMinBrowsers.length;
     } else if (this.isNode() && this.engines.node != null && minVersions.node) {
-      // $FlowFixMe
       return !semver.intersects(`< ${minVersions.node}`, this.engines.node);
     }
 

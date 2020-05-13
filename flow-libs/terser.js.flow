@@ -28,7 +28,7 @@ declare module 'terser' {
         ecma?: ECMAVersion,
         evaluate?: boolean,
         expression?: boolean,
-        global_defs?: { [string]: string, ... },
+        global_defs?: {[string]: string, ...},
         hoist_funs?: boolean,
         hoist_props?: boolean,
         hoist_vars?: boolean,
@@ -69,7 +69,7 @@ declare module 'terser' {
         unsafe_regexp?: boolean,
         unsafe_undefined?: boolean,
         unused?: boolean,
-        warnings?: boolean
+        warnings?: boolean,
       |};
 
   declare type MangleOptions =
@@ -89,8 +89,8 @@ declare module 'terser' {
               debug?: boolean,
               keep_quoted?: boolean | 'strict',
               regex?: ?RegExp,
-              reserved?: Array<string>
-            |}
+              reserved?: Array<string>,
+            |},
       |};
 
   declare type OutputOptions = {|
@@ -116,14 +116,14 @@ declare module 'terser' {
     semicolons?: boolean,
     shebang?: boolean,
     webkit?: boolean,
-    wrap_iife?: boolean
+    wrap_iife?: boolean,
   |};
 
   declare type ParseOptions = {|
     bare_returns?: boolean,
     ecma?: ECMAVersion,
     html5_comments?: boolean,
-    shebang?: boolean
+    shebang?: boolean,
   |};
 
   declare type SourceMapOptions = {|
@@ -131,8 +131,8 @@ declare module 'terser' {
     url?: string,
     content?: any,
     root?: string,
-    asObject?: boolean
-  |}
+    asObject?: boolean,
+  |};
 
   declare type MinifyOptions = {|
     compress?: CompressOptions,
@@ -144,15 +144,28 @@ declare module 'terser' {
     module?: boolean,
     output?: ?OutputOptions,
     parse?: ParseOptions,
-    nameCache?: ?{ [string]: string, ... },
+    nameCache?: ?{[string]: string, ...},
     safari10?: boolean,
     toplevel?: boolean,
     warnings?: boolean,
-    sourceMap?: SourceMapOptions
+    sourceMap?: false | SourceMapOptions,
   |};
 
-  declare module.exports: { minify(
-    source: string,
-    options?: MinifyOptions
-  ): {|code?: string, error?: Error, map?: string|}, ... };
+  declare type RawSourceMap = {|
+    +version: number,
+    +sources: string[],
+    +names: string[],
+    +sourceRoot?: string,
+    +sourcesContent?: string[],
+    +mappings: string,
+    +file: string,
+  |};
+
+  declare module.exports: {
+    minify(
+      source: string,
+      options?: MinifyOptions,
+    ): {|code?: string, error?: Error, map?: string | RawSourceMap|},
+    ...
+  };
 }

@@ -1,12 +1,13 @@
 // @flow strict-local
-
+import path from 'path';
 import {Transformer} from '@parcel/plugin';
+import SourceMap from '@parcel/source-map';
 
 // E.g: ~library/file.less
 const WEBPACK_ALIAS_RE = /^~[^/]/;
 
 export default new Transformer({
-  async getConfig({asset, resolve}) {
+  async getConfig({asset, resolve, options}) {
     let config = await asset.getConfig(['.lessrc', '.lessrc.js'], {
       packageKey: 'less',
     });
@@ -22,15 +23,25 @@ export default new Transformer({
       resolvePathPlugin({asset, resolve}),
     ];
 
+    if (options.sourceMaps) {
+      config.sourceMap = {};
+    }
+
     return config;
   },
 
   async transform({asset, options, config}) {
-    const less = await options.packageManager.require('less', asset.filePath);
-    const code = await asset.getCode();
-    let css;
+    asset.type = 'css';
+    asset.meta.hasDependencies = false;
+
+    let less = await options.packageManager.require('less', asset.filePath, {
+      autoinstall: options.autoinstall,
+    });
+
+    let code = await asset.getCode();
+    let result;
     try {
-      css = (await less.render(code, config)).css;
+      result = await less.render(code, config);
     } catch (err) {
       // For the error reporter
       err.fileName = err.filename;
@@ -41,9 +52,19 @@ export default new Transformer({
       throw err;
     }
 
-    asset.type = 'css';
-    asset.setCode(css);
-    asset.meta.hasDependencies = false;
+    if (result.map != null) {
+      let map = new SourceMap();
+      let {mappings, sources, names} = JSON.parse(result.map);
+      map.addRawMappings(
+        mappings,
+        sources.map(s => path.relative(options.projectRoot, s)),
+        names,
+      );
+      asset.setMap(map);
+    }
+
+    asset.setCode(result.css);
+
     return [asset];
   },
 });
@@ -53,10 +74,14 @@ function urlPlugin({asset}) {
     install(less, pluginManager) {
       const visitor = new less.visitors.Visitor({
         visitUrl(node) {
-          node.value.value = asset.addURLDependency(
-            node.value.value,
-            node.currentFileInfo.filename,
-          );
+          if (
+            !node.value.value.startsWith('#') // IE's `behavior: url(#default#VML)`)
+          ) {
+            node.value.value = asset.addURLDependency(
+              node.value.value,
+              node.currentFileInfo.filename,
+            );
+          }
           return node;
         },
       });

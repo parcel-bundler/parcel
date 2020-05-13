@@ -10,7 +10,9 @@ import type {
   ProcessedParcelConfig,
   ExtendableParcelConfigPipeline,
 } from './types';
+
 import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
@@ -20,10 +22,7 @@ import ParcelConfigSchema from './ParcelConfig.schema';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
-export default async function loadParcelConfig(
-  filePath: FilePath,
-  options: ParcelOptions,
-) {
+export default async function loadParcelConfig(options: ParcelOptions) {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -33,7 +32,7 @@ export default async function loadParcelConfig(
         },
         options,
       )
-    : await resolveParcelConfig(filePath, options);
+    : await resolveParcelConfig(options);
   if (!parcelConfig && options.defaultConfig) {
     parcelConfig = await create(
       {
@@ -51,10 +50,8 @@ export default async function loadParcelConfig(
   return parcelConfig;
 }
 
-export async function resolveParcelConfig(
-  filePath: FilePath,
-  options: ParcelOptions,
-) {
+export async function resolveParcelConfig(options: ParcelOptions) {
+  let filePath = getResolveFrom(options);
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
   ]);
@@ -76,9 +73,35 @@ export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
 ) {
-  let config: RawParcelConfig = parse(
-    await options.inputFS.readFile(configPath),
-  );
+  let contents = await options.inputFS.readFile(configPath, 'utf8');
+  let config: RawParcelConfig;
+  try {
+    config = parse(contents);
+  } catch (e) {
+    let pos = {
+      line: e.lineNumber,
+      column: e.columnNumber,
+    };
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: 'Failed to parse .parcelrc',
+        origin: '@parcel/core',
+
+        filePath: configPath,
+        language: 'json5',
+        codeFrame: {
+          code: contents,
+          codeHighlights: [
+            {
+              start: pos,
+              end: pos,
+              message: e.message,
+            },
+          ],
+        },
+      },
+    });
+  }
   return processConfigChain(config, configPath, options);
 }
 
@@ -87,7 +110,6 @@ function processPipeline(
   filePath: FilePath,
 ): any {
   if (pipeline) {
-    // $FlowFixMe
     return pipeline.map(pkg => {
       if (pkg === '...') return pkg;
 
@@ -158,7 +180,11 @@ export async function processConfigChain(
     filePath,
     ...configFile,
   });
-  let config = new ParcelConfig(resolvedFile, options.packageManager);
+  let config = new ParcelConfig(
+    resolvedFile,
+    options.packageManager,
+    options.autoinstall,
+  );
 
   let extendedFiles: Array<FilePath> = [];
   if (configFile.extends) {
@@ -245,6 +271,22 @@ export function mergeConfigs(
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,
+    base.autoinstall,
+  );
+}
+
+function getResolveFrom(options: ParcelOptions) {
+  let cwd = options.inputFS.cwd();
+  let dir = isSubdirectory(cwd, options.projectRoot)
+    ? cwd
+    : options.projectRoot;
+  return path.join(dir, 'index');
+}
+
+function isSubdirectory(child, parent) {
+  const relative = path.relative(parent, child);
+  return (
+    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
   );
 }
 

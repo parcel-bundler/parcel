@@ -1,10 +1,32 @@
+// @flow
+import type {Node} from '@babel/types';
+
 import * as t from '@babel/types';
 import explode from './explode.js';
+import traverse from './traverse';
 
-export function simple(node, visitors, state) {
+export type Visitors<F> = {
+  [string]: F | {|enter?: F, exit?: F|},
+  shouldSkip?: Node => boolean,
+  ...
+};
+export type VisitorsExploded<F> = {
+  [string]: {|
+    enter?: Array<F>,
+    exit?: Array<F>,
+  |},
+  shouldSkip?: Node => boolean,
+  ...
+};
+
+export function simple<T>(
+  node: Node,
+  _visitors: Visitors<(any, T) => void>,
+  state: T,
+) {
   if (!node) return;
 
-  visitors = explode(visitors);
+  const visitors: VisitorsExploded<(any, T) => void> = explode(_visitors);
 
   (function c(node) {
     if (!node) return;
@@ -18,6 +40,7 @@ export function simple(node, visitors, state) {
     }
 
     for (let key of t.VISITOR_KEYS[node.type] || []) {
+      // $FlowFixMe
       let subNode = node[key];
       if (Array.isArray(subNode)) {
         for (let subSubNode of subNode) {
@@ -36,10 +59,14 @@ export function simple(node, visitors, state) {
   })(node);
 }
 
-export function ancestor(node, visitors, state) {
+export function ancestor<T>(
+  node: Node,
+  _visitors: Visitors<(any, T, Array<Node>) => void>,
+  state: T,
+) {
   if (!node) return;
 
-  visitors = explode(visitors);
+  const visitors = explode<(any, T, Array<Node>) => void>(_visitors);
   let ancestors = [];
 
   (function c(node) {
@@ -52,11 +79,13 @@ export function ancestor(node, visitors, state) {
 
     if (enter) {
       for (let visitor of enter) {
+        // $FlowFixMe
         visitor(node, state || ancestors, ancestors);
       }
     }
 
     for (let key of t.VISITOR_KEYS[node.type] || []) {
+      // $FlowFixMe
       let subNode = node[key];
       if (Array.isArray(subNode)) {
         for (let subSubNode of subNode) {
@@ -69,6 +98,7 @@ export function ancestor(node, visitors, state) {
 
     if (exit) {
       for (let visitor of exit) {
+        // $FlowFixMe
         visitor(node, state || ancestors, ancestors);
       }
     }
@@ -77,10 +107,16 @@ export function ancestor(node, visitors, state) {
   })(node);
 }
 
-export function recursive(node, visitors, state) {
+export function recursive<T>(
+  node: Node,
+  _visitors: Visitors<(any, T, recurse: (Node) => void) => void>,
+  state: T,
+) {
   if (!node) return;
 
-  visitors = explode(visitors);
+  const visitors = explode<(any, T, recurse: (Node) => void) => void>(
+    _visitors,
+  );
 
   (function c(node) {
     if (!node) return;
@@ -93,6 +129,7 @@ export function recursive(node, visitors, state) {
       }
     } else {
       for (let key of t.VISITOR_KEYS[node.type] || []) {
+        // $FlowFixMe
         let subNode = node[key];
         if (Array.isArray(subNode)) {
           for (let subSubNode of subNode) {
@@ -105,3 +142,5 @@ export function recursive(node, visitors, state) {
     }
   })(node);
 }
+
+export {traverse};

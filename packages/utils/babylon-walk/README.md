@@ -107,6 +107,14 @@ countFunctions(ast);
 // = 3
 ```
 
+### walk.traverse(node, visitors, state)
+
+Visitors get called as `(path, state)`. Every `Path` has these methods (similar to `@babel/traverse`):
+
+- `skip()`
+- `replaceWith(node)`
+- `remove()`
+
 [babel-types]: https://github.com/babel/babel/tree/master/packages/babel-types
 [cache your visitors]: https://github.com/thejameskyle/babel-handbook/blob/master/translations/en/plugin-handbook.md#toc-optimizing-nested-visitors
 [visitors]: https://github.com/thejameskyle/babel-handbook/blob/master/translations/en/plugin-handbook.md#toc-visitors

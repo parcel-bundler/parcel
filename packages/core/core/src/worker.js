@@ -1,6 +1,6 @@
 // @flow strict-local
 import invariant from 'assert';
-import type {Bundle, ParcelOptions} from './types';
+import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import BundleGraph from './BundleGraph';
 import type {WorkerApi} from '@parcel/workers';
 
@@ -22,35 +22,63 @@ registerCoreWithSerializer();
 type WorkerTransformationOpts = {|
   ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
   optionsRef: number,
+  configRef: number,
 |};
 type WorkerValidationOpts = {|
   ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
   optionsRef: number,
+  configRef: number,
 |};
 
 export function runTransform(
   workerApi: WorkerApi,
   opts: WorkerTransformationOpts,
 ) {
-  let {optionsRef, ...rest} = opts;
-  let options = workerApi.getSharedReference(optionsRef);
+  let {optionsRef, configRef, ...rest} = opts;
+  let options = ((workerApi.getSharedReference(
+    optionsRef,
+    // $FlowFixMe
+  ): any): ParcelOptions);
+  let processedConfig = ((workerApi.getSharedReference(
+    configRef,
+    // $FlowFixMe
+  ): any): ProcessedParcelConfig);
+  let config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.autoinstall,
+  );
+
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    // $FlowFixMe
     options,
+    config,
     ...rest,
   }).run();
 }
 
 export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
-  let {optionsRef, ...rest} = opts;
-  let options = workerApi.getSharedReference(optionsRef);
+  let {optionsRef, configRef, ...rest} = opts;
+  let options = ((workerApi.getSharedReference(
+    optionsRef,
+    // $FlowFixMe
+  ): any): ParcelOptions);
+  let processedConfig = ((workerApi.getSharedReference(
+    configRef,
+    // $FlowFixMe
+  ): any): ProcessedParcelConfig);
+  let config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.autoinstall,
+  );
+
   return new Validation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
-    // $FlowFixMe
     options,
+    config,
     ...rest,
   }).run();
 }
@@ -60,13 +88,13 @@ export function runPackage(
   {
     bundle,
     bundleGraphReference,
-    config,
+    configRef,
     cacheKeys,
     optionsRef,
   }: {|
     bundle: Bundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    configRef: number,
     cacheKeys: {|
       content: string,
       map: string,
@@ -76,11 +104,23 @@ export function runPackage(
   |},
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
-  let options = workerApi.getSharedReference(optionsRef);
   invariant(bundleGraph instanceof BundleGraph);
+  let options = ((workerApi.getSharedReference(
+    optionsRef,
+    // $FlowFixMe
+  ): any): ParcelOptions);
+  let processedConfig = ((workerApi.getSharedReference(
+    configRef,
+    // $FlowFixMe
+  ): any): ProcessedParcelConfig);
+  let config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.autoinstall,
+  );
+
   return new PackagerRunner({
     config,
-    // $FlowFixMe
     options,
     report: reportWorker.bind(null, workerApi),
   }).getBundleInfo(bundle, bundleGraph, cacheKeys);

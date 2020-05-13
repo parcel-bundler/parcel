@@ -10,7 +10,7 @@ import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
@@ -38,15 +38,16 @@ export function registerCoreWithSerializer() {
     throw new Error('Expected package version to be a string');
   }
 
-  for (let ctor of [
+  // $FlowFixMe
+  for (let [name, ctor] of (Object.entries({
     AssetGraph,
     Config,
     BundleGraph,
     Graph,
     ParcelConfig,
     RequestGraph,
-  ]) {
-    registerSerializableClass(packageVersion + ':' + ctor.name, ctor);
+  }): Array<[string, Class<*>]>)) {
+    registerSerializableClass(packageVersion + ':' + name, ctor);
   }
 
   coreRegistered = true;

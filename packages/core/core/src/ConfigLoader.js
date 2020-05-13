@@ -1,6 +1,6 @@
 // @flow
 
-import type {ConfigRequestDesc, ParcelOptions} from './types';
+import type {Config, ConfigRequestDesc, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
@@ -10,21 +10,26 @@ import {PluginLogger} from '@parcel/logger';
 import path from 'path';
 
 import {createConfig} from './InternalConfig';
-import Config from './public/Config';
-import loadParcelConfig from './loadParcelConfig';
-import loadPlugin from './loadParcelPlugin';
+import PublicConfig from './public/Config';
 
 export default class ConfigLoader {
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
   queue: PromiseQueue<any>;
 
-  constructor(options: ParcelOptions) {
+  constructor({
+    options,
+    config,
+  }: {|
+    options: ParcelOptions,
+    config: ParcelConfig,
+  |}) {
     this.options = options;
+    this.parcelConfig = config;
     this.queue = new PromiseQueue({maxConcurrent: 32});
   }
 
-  load(configRequest: ConfigRequestDesc) {
+  load(configRequest: ConfigRequestDesc): Promise<Config> {
     let promise = this.queue.add(() => this._load(configRequest));
     this.queue.run().catch(() => {
       // Do nothing. Promises returned from `add` that will reject if the underlying
@@ -35,13 +40,13 @@ export default class ConfigLoader {
 
   _load(configRequest: ConfigRequestDesc) {
     if (!configRequest.plugin) {
-      return this.loadParcelConfig(configRequest);
+      return Promise.resolve().then(() => this.loadParcelConfig(configRequest));
     }
 
     return this.loadPluginConfig(configRequest);
   }
 
-  async loadParcelConfig(configRequest: ConfigRequestDesc) {
+  loadParcelConfig(configRequest: ConfigRequestDesc) {
     let {filePath, isSource, env, pipeline} = configRequest;
     let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
     let searchPath = path.join(dir, 'index');
@@ -50,26 +55,18 @@ export default class ConfigLoader {
       searchPath,
       env,
     });
-    let publicConfig = new Config(config, this.options);
-
-    let {config: parcelConfig, extendedFiles} = nullthrows(
-      await loadParcelConfig(searchPath, this.options),
-    );
-
-    publicConfig.setResolvedPath(parcelConfig.filePath);
-    publicConfig.setResult(parcelConfig.getConfig());
-    this.parcelConfig = parcelConfig;
-
+    let publicConfig = new PublicConfig(config, this.options);
+    publicConfig.setResolvedPath(this.parcelConfig.filePath);
     let devDeps = [];
     switch (configRequest.meta.actionType) {
       case 'transformation':
-        devDeps = parcelConfig.getTransformerNames(filePath, pipeline);
+        devDeps = this.parcelConfig.getTransformerNames(filePath, pipeline);
         break;
       case 'validation':
-        devDeps = parcelConfig.getValidatorNames(filePath);
+        devDeps = this.parcelConfig.getValidatorNames(filePath);
         break;
       case 'dependency':
-        devDeps = parcelConfig.getResolverNames();
+        devDeps = this.parcelConfig.getResolverNames();
         break;
     }
     devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
@@ -78,10 +75,8 @@ export default class ConfigLoader {
 
     publicConfig.setWatchGlob('**/.parcelrc');
 
+    // TODO: get included files from plugin nodes
     // TODO: if extended config comes from a package, yarn.lock change should invalidate config request
-    for (let extendedFile of extendedFiles) {
-      publicConfig.addIncludedFile(extendedFile);
-    }
 
     return config;
   }
@@ -100,15 +95,14 @@ export default class ConfigLoader {
     });
 
     invariant(typeof parcelConfigPath === 'string');
-    let pluginInstance = await loadPlugin(
-      this.options.packageManager,
-      nullthrows(plugin),
-      parcelConfigPath,
-    );
+    let {plugin: pluginInstance} = await this.parcelConfig.loadPlugin({
+      packageName: nullthrows(plugin),
+      resolveFrom: parcelConfigPath,
+    });
 
     if (pluginInstance.loadConfig != null) {
       await pluginInstance.loadConfig({
-        config: new Config(config, this.options),
+        config: new PublicConfig(config, this.options),
         options: this.options,
         logger: new PluginLogger({origin: nullthrows(plugin)}),
       });

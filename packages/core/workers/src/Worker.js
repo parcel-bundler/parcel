@@ -59,6 +59,18 @@ export default class Worker extends EventEmitter {
       }
     }
 
+    // Workaround for https://github.com/nodejs/node/issues/29117
+    if (process.env.NODE_OPTIONS) {
+      let opts = process.env.NODE_OPTIONS.split(' ');
+      for (let i = 0; i < opts.length; i++) {
+        let opt = opts[i];
+        if (opt === '-r' || opt === '--require') {
+          filteredArgs.push(opt, opts[i + 1]);
+          i++;
+        }
+      }
+    }
+
     let onMessage = data => this.receive(data);
     let onExit = code => {
       this.exitCode = code;

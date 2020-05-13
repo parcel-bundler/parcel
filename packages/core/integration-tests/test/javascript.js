@@ -1,9 +1,11 @@
 import assert from 'assert';
 import path from 'path';
+import url from 'url';
 import {
   bundle,
   bundler,
   run,
+  runBundle,
   assertBundles,
   ncp,
   overlayFS,
@@ -350,12 +352,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/workers/index.js'),
-      {
-        outputFS: inputFS,
-      },
-    );
+    let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 
     assertBundles(b, [
       {
@@ -404,9 +401,9 @@ describe('javascript', function() {
           'bundle-url.js',
           'JSRuntime.js',
           'JSRuntime.js',
+          'JSRuntime.js',
           'get-worker-url.js',
           'bundle-manifest.js',
-          'JSRuntime.js',
           'relative-path.js',
         ],
       },
@@ -683,8 +680,8 @@ describe('javascript', function() {
           'bundle-url.js',
           'get-worker-url.js',
           'JSRuntime.js',
-          'bundle-manifest.js',
           'JSRuntime.js',
+          'bundle-manifest.js',
           'relative-path.js',
         ],
       },
@@ -752,6 +749,24 @@ describe('javascript', function() {
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+
+    let outputArgs = [];
+    let workerArgs = [];
+    await run(b, {
+      Worker: class {
+        constructor(url) {
+          workerArgs.push(url);
+        }
+      },
+      output: (ctx, val) => {
+        outputArgs.push([ctx, val]);
+      },
+    });
+
+    assert.deepStrictEqual(outputArgs, [['main', 3]]);
+    assert.deepStrictEqual(workerArgs, [
+      `http://localhost/${path.basename(workerBundle.filePath)}`,
+    ]);
   });
 
   it('should dynamic import files which import raw files', async function() {
@@ -1046,8 +1061,10 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output()));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output()).pathname),
+    );
     assert.equal(stats.size, 9);
   });
 
@@ -1056,7 +1073,7 @@ describe('javascript', function() {
     // entire contents into memory and should stream content instead
     let assetSizeBytes = 6000000;
 
-    let distDir = '/dist';
+    let distDir = path.join(outputFS.cwd(), '/dist');
     let fixtureDir = path.join(__dirname, '/integration/import-raw');
     let inputDir = path.join(__dirname, 'input');
 
@@ -1066,7 +1083,10 @@ describe('javascript', function() {
       Buffer.alloc(assetSizeBytes),
     );
 
-    let b = await bundle(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    let b = await bundle(path.join(inputDir, 'index.js'), {
+      inputFS: overlayFS,
+      distDir,
+    });
     assertBundles(b, [
       {
         name: 'index.js',
@@ -1087,8 +1107,10 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output()));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output()).pathname),
+    );
     assert.equal(stats.size, assetSizeBytes);
   });
 
@@ -1142,6 +1164,21 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.deepEqual(output, 1234);
+  });
+
+  it('should not insert global variables in dead branches', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-unused/a.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, 'foo');
   });
 
   it('should handle re-declaration of the global constant', async function() {
@@ -1317,6 +1354,9 @@ describe('javascript', function() {
     let output = await run(b);
     assert.ok(output.toString().indexOf('process.browser') === -1);
     assert.equal(output(), true);
+    // Running the bundled code has the side effect of setting process.browser = true, which can mess
+    // up the instantiation of typescript.sys within validator-typescript, so we want to reset it.
+    process.browser = undefined;
   });
 
   it.skip('should support adding implicit dependencies', async function() {
@@ -1527,9 +1567,10 @@ describe('javascript', function() {
     assert.equal(output.entry.test(), 'pkg-browser-multiple main-entry');
   });
 
-  it('should resolve the module field before main', async function() {
+  it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/module-field.js'),
+      {scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -1545,9 +1586,10 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-es6-module');
   });
 
-  it('should resolve the module field before main', async function() {
+  it.skip('should resolve the module field before main if scope-hoisting is enabled', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolve-entries/both-fields.js'),
+      {scopeHoist: true},
     );
 
     assertBundles(b, [
@@ -2098,15 +2140,17 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/bundle-text/index.js'),
     );
 
-    assert.equal(
-      (await run(b)).default,
-      `body {
+    assert(
+      (await run(b)).default.startsWith(
+        `body {
   background-color: #000000;
 }
 
 .svg-img {
   background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
-}`,
+}
+/*# sourceMappingURL=data:application/json;charset=utf-8;base64,`,
+      ),
     );
   });
 
@@ -2122,9 +2166,6 @@ describe('javascript', function() {
   it('should inline binary content as url-encoded base64 and mime type with `data-url:*` imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/data-url/binary.js'),
-      {
-        outputFS: inputFS,
-      },
     );
 
     assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
@@ -2318,6 +2359,281 @@ describe('javascript', function() {
     );
 
     let res = await run(b);
-    assert((await res.default()).startsWith('/resource'));
+    assert(url.parse(await res.default()).pathname.startsWith('/resource'));
+  });
+
+  it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async/same-bundle.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-bundle.js',
+        assets: [
+          'same-bundle.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [42, 42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle ancestry without creating a new bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sync-async/same-ancestry.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'same-ancestry.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'dep.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+          'same-ancestry.js',
+        ],
+      },
+      {
+        assets: ['get-dep.js', 'JSRuntime.js'],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [42, 42]);
+  });
+
+  it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
+    let b = await bundle(
+      ['same-bundle.js', 'get-dep.js'].map(entry =>
+        path.join(__dirname, '/integration/sync-async/', entry),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['dep.js'],
+      },
+      {
+        name: 'same-bundle.js',
+        assets: [
+          'same-bundle.js',
+          'get-dep.js',
+          'get-dep-2.js',
+          'dep.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        name: 'get-dep.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-dep.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    let bundles = b.getBundles();
+    let sameBundle = bundles.find(b => b.name === 'same-bundle.js');
+    let getDep = bundles.find(b => b.name === 'get-dep.js');
+
+    assert.deepEqual(await (await runBundle(sameBundle)).default, [42, 42, 42]);
+    assert.deepEqual(await (await runBundle(getDep)).default, 42);
+  });
+
+  it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-exports-for-sibling-descendant/index.js',
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['wraps.js', 'lodash.js'],
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['child.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['grandchild.js'],
+      },
+      {
+        assets: ['b.js'],
+      },
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [3, 5]);
+  });
+
+  it('can run an entry bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      ['index.js', 'value.js'].map(basename =>
+        path.join(__dirname, '/integration/sync-entry-shared', basename),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {name: 'value.js', assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.equal(await (await run(b)).default, 43);
+  });
+
+  it('can run an async bundle whose entry asset is present in another bundle', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/async-entry-shared/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['value.js']},
+      {assets: ['async.js']},
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, [42, 43]);
+  });
+
+  it('should display a codeframe on a Terser parse error', async () => {
+    let fixture = path.join(__dirname, 'integration/terser-codeframe/index.js');
+    let code = await inputFS.readFileSync(fixture, 'utf8');
+    await assert.rejects(
+      () =>
+        bundle(fixture, {
+          minify: true,
+        }),
+      {
+        name: 'BuildError',
+        diagnostics: [
+          {
+            message: 'Name expected',
+            origin: '@parcel/optimizer-terser',
+            filePath: undefined,
+            language: 'js',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  message: 'Name expected',
+                  start: {
+                    column: 4,
+                    line: 1,
+                  },
+                  end: {
+                    column: 4,
+                    line: 1,
+                  },
+                },
+              ],
+            },
+            hints: ["It's likely that Terser doesn't support this syntax yet."],
+          },
+        ],
+      },
+    );
+  });
+
+  it('can run an async bundle that depends on a nonentry asset in a sibling', async () => {
+    let b = await bundle(
+      ['index.js', 'other-entry.js'].map(basename =>
+        path.join(
+          __dirname,
+          '/integration/async-entry-shared-sibling',
+          basename,
+        ),
+      ),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'other-entry.js',
+        assets: [
+          'other-entry.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {assets: ['a.js', 'value.js']},
+      {assets: ['b.js']},
+    ]);
+
+    assert.deepEqual(await (await run(b)).default, 43);
   });
 });

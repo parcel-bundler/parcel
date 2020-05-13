@@ -14,3 +14,11 @@ export function normalizeSeparators(filePath: FilePath): FilePath {
 
   return ret;
 }
+
+export function relatifyPath(from: string, to: string) {
+  let filename = path.relative(from, to);
+  if (filename[0] !== '.') {
+    filename = './' + filename;
+  }
+  return filename.replace(/\\+/g, '/');
+}

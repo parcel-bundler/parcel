@@ -36,6 +36,8 @@ export type GlobMap<T> = {[Glob]: T, ...};
 
 export type RawParcelConfigPipeline = Array<PackageName>;
 
+export type HMROptions = {port?: number, host?: string, ...};
+
 export type RawParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: RawParcelConfigPipeline,
@@ -98,7 +100,7 @@ export type PackageTargetDescriptor = {|
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +sourceMap?: TargetSourceMapOptions,
+  +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
@@ -190,7 +192,7 @@ export type InitialParcelOptions = {|
   +sourceMaps?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +hot?: boolean,
+  +hot?: ?HMROptions,
   +serve?: ServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -202,27 +204,30 @@ export type InitialParcelOptions = {|
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
+  +detailedReport?: number | boolean,
 
   // contentHash
   // throwErrors
   // global?
-  // detailedReport
 |};
 
 export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
   +env: EnvMap;
-  +hot: boolean;
+  +hot: ?HMROptions;
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
+  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
   +outputFS: FileSystem;
   +packageManager: PackageManager;
+  +instanceId: string;
+  +detailedReport: number;
 }
 
 export type ServerOptions = {|
@@ -250,13 +255,22 @@ export type SourceLocation = {|
   |},
 |};
 
-export type Meta = {
-  [string]: JSONValue,
-  globals?: Map<string, ?{code: string, deps?: Array<string>, ...}>,
-  ...
-};
+export type Meta = JSONObject;
 
 export type Symbol = string;
+export interface Symbols // eslint-disable-next-line no-undef
+  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+  // Whether static analysis bailed out
+  +isCleared: boolean;
+}
+export interface MutableSymbols extends Symbols {
+  // Static analysis bailed out
+  clear(): void;
+  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+}
 
 export type DependencyOptions = {|
   +moduleSpecifier: ModuleSpecifier,
@@ -269,7 +283,7 @@ export type DependencyOptions = {|
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: Map<Symbol, Symbol>,
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
 |};
 
 export interface Dependency {
@@ -280,15 +294,17 @@ export interface Dependency {
   +isOptional: boolean;
   +isURL: boolean;
   +isWeak: ?boolean;
-  +isDeferred: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
   +target: ?Target;
   +sourceAssetId: ?string;
   +sourcePath: ?string;
-  +symbols: Map<Symbol, Symbol>;
   +pipeline: ?string;
+
+  // (imported symbol -> variable that it is used as)
+  // TODO make immutable
+  +symbols: MutableSymbols;
 }
 
 export type File = {|
@@ -296,8 +312,12 @@ export type File = {|
   +hash?: string,
 |};
 
+export type ASTGenerator = {|
+  type: string,
+  version: string,
+|};
+
 export interface BaseAsset {
-  +ast: ?AST;
   +env: Environment;
   +fs: FileSystem;
   +filePath: FilePath;
@@ -308,14 +328,19 @@ export interface BaseAsset {
   +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
-  +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
+  +astGenerator: ?ASTGenerator;
 
+  // (symbol exported by this -> name of binding to export)
+  +symbols: Symbols;
+
+  getAST(): Promise<?AST>;
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
+  getMapBuffer(): Promise<?Buffer>;
   getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
@@ -329,25 +354,27 @@ export interface BaseAsset {
 }
 
 export interface MutableAsset extends BaseAsset {
-  ast: ?AST;
   isIsolated: boolean;
   isInline: boolean;
   isSplittable: ?boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  setMap(?SourceMap): void;
-  setCode(string): void;
-  setBuffer(Buffer): void;
-  setStream(Readable): void;
   addIncludedFile(file: File): void;
-  addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+
+  +symbols: MutableSymbols;
+
+  isASTDirty(): boolean;
+  setAST(AST): void;
+  setBuffer(Buffer): void;
+  setCode(string): void;
   setEnvironment(opts: EnvironmentOpts): void;
+  setMap(?SourceMap): void;
+  setStream(Readable): void;
 }
 
 export interface Asset extends BaseAsset {
-  +outputHash: string;
   +stats: Stats;
 }
 
@@ -393,31 +420,32 @@ export type Stats = {|
 |};
 
 export type GenerateOutput = {|
-  +code: string,
+  +content: Blob,
   +map?: ?SourceMap,
 |};
 
 export type Blob = string | Buffer | Readable;
 
-export interface TransformerResult {
-  +type: string;
-  +code?: string;
-  +map?: ?SourceMap;
-  +content?: Blob;
-  +ast?: ?AST;
-  +dependencies?: $ReadOnlyArray<DependencyOptions>;
-  +includedFiles?: $ReadOnlyArray<File>;
-  +isIsolated?: boolean;
-  +isInline?: boolean;
-  +isSplittable?: boolean;
-  +isSource?: boolean;
-  +env?: EnvironmentOpts;
-  +meta?: Meta;
-  +pipeline?: ?string;
-  +symbols?: Map<Symbol, Symbol>;
-  +sideEffects?: boolean;
-  +uniqueKey?: ?string;
-}
+export type TransformerResult = {|
+  +ast?: ?AST,
+  +content?: ?Blob,
+  +dependencies?: $ReadOnlyArray<DependencyOptions>,
+  +env?: EnvironmentOpts,
+  +filePath?: FilePath,
+  +includedFiles?: $ReadOnlyArray<File>,
+  +isInline?: boolean,
+  +isIsolated?: boolean,
+  +isSource?: boolean,
+  +isSplittable?: boolean,
+  +map?: ?SourceMap,
+  +meta?: Meta,
+  +pipeline?: ?string,
+  +sideEffects?: boolean,
+  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbolsConfident?: boolean,
+  +type: string,
+  +uniqueKey?: ?string,
+|};
 
 export type Async<T> = T | Promise<T>;
 
@@ -427,18 +455,32 @@ type ResolveConfigFn = (
   configNames: Array<FilePath>,
 ) => Promise<FilePath | null>;
 
+type ResolveConfigWithPathFn = (
+  configNames: Array<FilePath>,
+  assetFilePath: string,
+) => Promise<FilePath | null>;
+
 export type ValidateResult = {|
   warnings: Array<Diagnostic>,
   errors: Array<Diagnostic>,
 |};
 
-export type Validator = {|
-  validate({|
+export type DedicatedThreadValidator = {|
+  validateAll: ({|
+    assets: Asset[],
+    resolveConfigWithPath: ResolveConfigWithPathFn,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<Array<?ValidateResult>>,
+|};
+
+export type MultiThreadValidator = {|
+  validate: ({|
     asset: Asset,
     config: ConfigResult | void,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<ValidateResult | void>,
+  |}) => Async<ValidateResult | void>,
   getConfig?: ({|
     asset: Asset,
     resolveConfig: ResolveConfigFn,
@@ -446,6 +488,8 @@ export type Validator = {|
     logger: PluginLogger,
   |}) => Async<ConfigResult | void>,
 |};
+
+export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
   // TODO: deprecate getConfig
@@ -489,9 +533,8 @@ export type Transformer = {|
     logger: PluginLogger,
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
+    asset: Asset,
+    ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
@@ -558,7 +601,14 @@ export type CreateBundleOpts =
 export type SymbolResolution = {|
   +asset: Asset,
   +exportSymbol: Symbol | string,
-  +symbol: void | Symbol,
+  +symbol: void | null | Symbol,
+  // the location of the specifier that lead to this result
+  +loc: ?SourceLocation,
+|};
+
+export type ExportSymbolResolution = {|
+  ...SymbolResolution,
+  +exportAs: Symbol | string,
 |};
 
 export interface Bundle {
@@ -566,12 +616,11 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
+  +filePath: ?FilePath;
   +isEntry: ?boolean;
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +filePath: ?FilePath;
-  +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
@@ -591,54 +640,72 @@ export interface NamedBundle extends Bundle {
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
+  bundleIds: Array<string>,
 |};
 
-export interface MutableBundleGraph {
+export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addAssetGraphToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
+  createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   createBundleGroup(Dependency, Target): BundleGroup;
-  findBundlesWithAsset(Asset): Array<Bundle>;
   getDependencyAssets(Dependency): Array<Asset>;
-  getDependencyResolution(Dependency): ?Asset;
-  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
   getTotalSize(Asset): number;
-  isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  removeBundleGroup(bundleGroup: BundleGroup): void;
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
   traverse<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
-  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
   traverseContents<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
 }
 
-export interface BundleGraph {
-  getBundles(): Array<Bundle>;
+export interface BundleGraph<TBundle: Bundle> {
+  getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  getChildBundles(bundle: Bundle): Array<Bundle>;
-  getParentBundles(bundle: Bundle): Array<Bundle>;
-  getSiblingBundles(bundle: Bundle): Array<Bundle>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+  getChildBundles(bundle: Bundle): Array<TBundle>;
+  getParentBundles(bundle: Bundle): Array<TBundle>;
+  getSiblingBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(bundle: Bundle): Array<TBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency, bundle: Bundle): ?Asset;
-  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  resolveExternalDependency(
+    dependency: Dependency,
+    bundle: ?Bundle,
+  ): ?(
+    | {|type: 'bundle_group', value: BundleGroup|}
+    | {|type: 'asset', value: Asset|}
+  );
+  isDependencyDeferred(dependency: Dependency): boolean;
+  getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  findBundlesWithAsset(Asset): Array<TBundle>;
+  findBundlesWithDependency(Dependency): Array<TBundle>;
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
   isAssetReferenced(asset: Asset): boolean;
-  isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
+  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
-  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
+  /**
+   * Resolve the export `symbol` of `asset` to the source,
+   * stopping at the first asset after leaving `bundle`.
+   * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
+   * `symbol === undefined`: symbol not found
+   */
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): SymbolResolution;
+  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphTraversalCallback<Bundle, TContext>,
-    startBundle?: Bundle,
+    visit: GraphVisitor<TBundle, TContext>,
+    startBundle: ?Bundle,
   ): ?TContext;
-  findBundlesWithAsset(Asset): Array<Bundle>;
-  getExternalDependencies(bundle: Bundle): Array<Dependency>;
-  resolveExternalDependency(dependency: Dependency): ?BundleGroup;
 }
 
 export type BundleResult = {|
@@ -670,7 +737,7 @@ export type Bundler = {|
 export type Namer = {|
   name({|
     bundle: Bundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<Bundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -686,7 +753,7 @@ export type RuntimeAsset = {|
 export type Runtime = {|
   apply({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -695,14 +762,14 @@ export type Runtime = {|
 export type Packager = {|
   package({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
-    getSourceMapReference: (map: SourceMap) => Promise<string> | string,
     logger: PluginLogger,
     getInlineBundleContents: (
       Bundle,
-      BundleGraph,
-    ) => Async<{|contents: Blob, map: ?(Readable | string)|}>,
+      BundleGraph<NamedBundle>,
+    ) => Async<{|contents: Blob|}>,
+    getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
 
@@ -713,6 +780,7 @@ export type Optimizer = {|
     map: ?SourceMap,
     options: PluginOptions,
     logger: PluginLogger,
+    getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
 
@@ -796,7 +864,7 @@ export type BuildProgressEvent =
 
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph,
+  +bundleGraph: BundleGraph<NamedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
 |};

@@ -8,6 +8,7 @@ import type {
   FilePath,
   InitialParcelOptions,
   ModuleSpecifier,
+  NamedBundle as INamedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
@@ -19,11 +20,11 @@ import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
+import {NamedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import path from 'path';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
@@ -83,11 +84,7 @@ export default class Parcel {
     );
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
-
-    let {config} = await loadParcelConfig(
-      path.join(resolvedOptions.inputFS.cwd(), 'index'),
-      resolvedOptions,
-    );
+    let {config} = await loadParcelConfig(resolvedOptions);
     this.#config = config;
     this.#farm =
       this.#initialOptions.workerFarm ??
@@ -100,6 +97,9 @@ export default class Parcel {
     let {ref: optionsRef} = await this.#farm.createSharedReference(
       resolvedOptions,
     );
+    let {ref: configRef} = await this.#farm.createSharedReference(
+      config.getConfig(),
+    );
 
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
@@ -109,7 +109,6 @@ export default class Parcel {
         name: 'MainAssetGraph',
         options: resolvedOptions,
         optionsRef,
-        config,
         entries: resolvedOptions.entries,
         workerFarm: this.#farm,
       }),
@@ -117,7 +116,6 @@ export default class Parcel {
         name: 'RuntimesAssetGraph',
         options: resolvedOptions,
         optionsRef,
-        config,
         workerFarm: this.#farm,
       }),
     ]);
@@ -140,6 +138,7 @@ export default class Parcel {
       farm: this.#farm,
       options: resolvedOptions,
       optionsRef,
+      configRef,
       report,
     });
 
@@ -147,7 +146,7 @@ export default class Parcel {
     this.#initialized = true;
   }
 
-  async run(): Promise<IBundleGraph> {
+  async run(): Promise<IBundleGraph<INamedBundle>> {
     let startTime = Date.now();
     if (!this.#initialized) {
       await this.init();
@@ -255,17 +254,17 @@ export default class Parcel {
       if (options.profile) {
         await this.#farm.startProfile();
       }
-
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
         signal,
       );
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
+      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
       await this.#packagerRunner.writeBundles(bundleGraph);
@@ -279,13 +278,18 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, options),
+        bundleGraph: new BundleGraph(
+          bundleGraph,
+          (bundle, bundleGraph, options) =>
+            new NamedBundle(bundle, bundleGraph, options),
+          options,
+        ),
         buildTime: Date.now() - startTime,
       };
-      this.#reporterRunner.report(event);
+
+      await this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
-
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -356,7 +360,6 @@ export default class Parcel {
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = this.#assetGraphBuilder.getWatcherOptions();
-
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
@@ -378,6 +381,14 @@ export default class Parcel {
       opts,
     );
   }
+
+  // This is mainly for integration tests and it not public api!
+  _getResolvedParcelOptions() {
+    return nullthrows(
+      this.#resolvedOptions,
+      'Resolved options is null, please let parcel intitialise before accessing this.',
+    );
+  }
 }
 
 export class BuildError extends ThrowableDiagnostic {
@@ -387,8 +398,6 @@ export class BuildError extends ThrowableDiagnostic {
     this.name = 'BuildError';
   }
 }
-
-export {default as Asset} from './InternalAsset';
 
 export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
   return new WorkerFarm({

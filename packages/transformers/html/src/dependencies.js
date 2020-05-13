@@ -1,9 +1,7 @@
 // @flow
 
-import type {MutableAsset, Environment} from '@parcel/types';
+import type {AST, Environment, MutableAsset} from '@parcel/types';
 import PostHTML from 'posthtml';
-
-import nullthrows from 'nullthrows';
 
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -105,9 +103,8 @@ function getAttrDepHandler(attr) {
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(asset: MutableAsset) {
-  let ast = nullthrows(asset.ast);
-
+export default function collectDependencies(asset: MutableAsset, ast: AST) {
+  let isDirty = false;
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
     if (!attrs) {
@@ -134,7 +131,7 @@ export default function collectDependencies(asset: MutableAsset) {
       attrs.href = asset.addURLDependency(attrs.href, {
         isEntry: true,
       });
-      ast.isDirty = true;
+      isDirty = true;
       return node;
     }
 
@@ -153,8 +150,12 @@ export default function collectDependencies(asset: MutableAsset) {
             ? depOptionsHandler(attrs, asset.env)
             : depOptionsHandler && depOptionsHandler[attr];
         attrs[attr] = depHandler(asset, attrs[attr], depOptions);
-        ast.isDirty = true;
+        isDirty = true;
       }
+    }
+
+    if (isDirty) {
+      asset.setAST(ast);
     }
 
     return node;

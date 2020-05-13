@@ -6,6 +6,8 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
+  NamedBundle as NamedBundleType,
+  Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm from '@parcel/workers';
@@ -21,6 +23,7 @@ import {
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
+import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {Readable, Transform} from 'stream';
 import nullthrows from 'nullthrows';
@@ -37,6 +40,7 @@ import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 
 type Opts = {|
   config: ParcelConfig,
+  configRef?: number,
   farm?: WorkerFarm,
   options: ParcelOptions,
   optionsRef?: number,
@@ -59,6 +63,7 @@ const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
 export default class PackagerRunner {
   config: ParcelConfig;
+  configRef: ?number;
   options: ParcelOptions;
   optionsRef: ?number;
   farm: ?WorkerFarm;
@@ -69,13 +74,14 @@ export default class PackagerRunner {
   getBundleInfoFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: number,
-    config: ParcelConfig,
+    configRef: number,
     cacheKeys: CacheKeyMap,
     optionsRef: number,
   |}) => Promise<BundleInfo>;
 
-  constructor({config, farm, options, optionsRef, report}: Opts) {
+  constructor({config, configRef, farm, options, optionsRef, report}: Opts) {
     this.config = config;
+    this.configRef = configRef;
     this.options = options;
     this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
@@ -135,7 +141,10 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     bundleGraphReference: number,
-  ): Promise<{|...BundleInfo, cacheKeys: CacheKeyMap|}> {
+  ): Promise<{|
+    ...BundleInfo,
+    cacheKeys: CacheKeyMap,
+  |}> {
     let start = Date.now();
 
     let cacheKey = await this.getCacheKey(bundle, bundleGraph);
@@ -151,7 +160,7 @@ export default class PackagerRunner {
         bundleGraphReference,
         cacheKeys,
         optionsRef: nullthrows(this.optionsRef),
-        config: this.config,
+        configRef: nullthrows(this.configRef),
       }));
 
     return {time: Date.now() - start, hash, hashReferences, cacheKeys};
@@ -178,7 +187,12 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): Promise<{|contents: Blob, map: ?(Readable | string)|}> {
+  ): Promise<{|
+    contents: Blob,
+    map: ?string,
+  |}> {
+    await initSourcemaps;
+
     let packaged = await this.package(bundle, bundleGraph);
     let res = await this.optimize(
       bundle,
@@ -192,6 +206,21 @@ export default class PackagerRunner {
       contents: res.contents,
       map,
     };
+  }
+
+  getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
+    if (map && this.options.sourceMaps) {
+      if (
+        bundle.isInline ||
+        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
+      ) {
+        return this.generateSourceMap(bundleToInternalBundle(bundle), map);
+      } else {
+        return path.basename(bundle.filePath) + '.map';
+      }
+    } else {
+      return null;
+    }
   }
 
   async package(
@@ -209,18 +238,20 @@ export default class PackagerRunner {
     try {
       return await packager.plugin.package({
         bundle,
-        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        bundleGraph: new BundleGraph<NamedBundleType>(
+          bundleGraph,
+          (bundle, bundleGraph, options) =>
+            new NamedBundle(bundle, bundleGraph, options),
+          this.options,
+        ),
         getSourceMapReference: map => {
-          return bundle.isInline ||
-            (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-            ? this.generateSourceMap(bundleToInternalBundle(bundle), map)
-            : path.basename(bundle.filePath) + '.map';
+          return this.getSourceMapReference(bundle, map);
         },
         options: this.pluginOptions,
         logger: new PluginLogger({origin: packager.name}),
-        getInlineBundleContents: (
+        getInlineBundleContents: async (
           bundle: BundleType,
-          bundleGraph: BundleGraphType,
+          bundleGraph: BundleGraphType<NamedBundleType>,
         ) => {
           if (!bundle.isInline) {
             throw new Error(
@@ -228,10 +259,13 @@ export default class PackagerRunner {
             );
           }
 
-          return this.getBundleResult(
+          let res = await this.getBundleResult(
             bundleToInternalBundle(bundle),
+            // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
           );
+
+          return {contents: res.contents};
         },
       });
     } catch (e) {
@@ -269,6 +303,9 @@ export default class PackagerRunner {
           bundle,
           contents: optimized.contents,
           map: optimized.map,
+          getSourceMapReference: map => {
+            return this.getSourceMapReference(bundle, map);
+          },
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
         });
@@ -316,6 +353,11 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
+    let isInlineMap =
+      bundle.isInline ||
+      (bundle.target.sourceMap && bundle.target.sourceMap.inline);
+
+    // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
       fs: this.options.inputFS,
@@ -324,37 +366,27 @@ export default class PackagerRunner {
         ? url.format(url.parse(sourceRoot + '/'))
         : undefined,
       inlineSources,
-      inlineMap:
-        bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline),
+      format: isInlineMap ? 'inline' : 'string',
     });
   }
 
-  getCacheKey(
+  async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): string {
+  ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
-    let packager = this.config.getPackagerName(filePath);
-    let optimizers = this.config.getOptimizerNames(filePath);
-    let deps = Promise.all(
-      [packager, ...optimizers].map(async pkg => {
-        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
-          `${pkg}/package.json`,
-          `${this.config.filePath}/index`,
-        );
-
-        let version = nullthrows(resolvedPkg).version;
-        return [pkg, version];
-      }),
-    );
+    let {version: packager} = await this.config.getPackager(filePath);
+    let optimizers = (
+      await this.config.getOptimizers(filePath)
+    ).map(({name, version}) => [name, version]);
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
-      deps,
+      packager,
+      optimizers,
       opts: {sourceMaps},
       hash: bundleGraph.getHash(bundle),
     });
@@ -435,7 +467,12 @@ export default class PackagerRunner {
     };
 
     let mapKey = cacheKeys.map;
-    if (await this.options.cache.blobExists(mapKey)) {
+    if (
+      (typeof bundle.target.sourceMap === 'object'
+        ? !bundle.target.sourceMap.inline
+        : bundle.target.sourceMap) &&
+      (await this.options.cache.blobExists(mapKey))
+    ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
         outputFS,

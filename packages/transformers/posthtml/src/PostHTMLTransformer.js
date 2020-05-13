@@ -52,8 +52,7 @@ export default new Transformer({
       return [asset];
     }
 
-    const ast = nullthrows(asset.ast);
-
+    let ast = nullthrows(await asset.getAST());
     let res = await posthtml(config.plugins).process(ast.program, config);
 
     if (res.messages) {
@@ -67,15 +66,18 @@ export default new Transformer({
       );
     }
 
-    ast.program = res.tree;
-    asset.ast = ast;
+    asset.setAST({
+      type: 'posthtml',
+      version: '0.4.1',
+      program: JSON.parse(JSON.stringify(res.tree)), // posthtml adds functions to the AST that are not serializable
+    });
 
     return [asset];
   },
 
-  generate({asset}) {
+  generate({ast}) {
     return {
-      code: render(nullthrows(asset.ast).program),
+      content: render(ast.program),
     };
   },
 });

@@ -21,6 +21,50 @@ export default new Transformer({
     return load({config, options, logger});
   },
 
+  /*async getConfig({asset, resolve, options}): Promise<?ParcelPostCSSConfig> {
+    let configFile: mixed = await asset.getConfig(
+      ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
+      {packageKey: 'postcss'},
+    );
+
+    // Use a basic, modules-only PostCSS config if the file opts in by a name
+    // like foo.module.css
+    if (configFile == null && asset.filePath.match(MODULE_BY_NAME_RE)) {
+      configFile = {
+        plugins: {
+          'postcss-modules': {},
+        },
+      };
+    }
+
+    if (configFile == null) {
+      return;
+    }
+
+    if (typeof configFile !== 'object') {
+      throw new Error('PostCSS config should be an object.');
+    }
+
+    if (
+      configFile.plugins == null ||
+      typeof configFile.plugins !== 'object' ||
+      Object.keys(configFile.plugins) === 0
+    ) {
+      throw new Error('PostCSS config must have plugins');
+    }
+
+    let originalModulesConfig;
+    let configFilePlugins = configFile.plugins;
+    if (
+      configFilePlugins != null &&
+      typeof configFilePlugins === 'object' &&
+      configFilePlugins['postcss-modules'] != null
+    ) {
+      originalModulesConfig = configFilePlugins['postcss-modules'];
+      // $FlowFixMe
+      delete configFilePlugins['postcss-modules'];
+    }*/
+
   preSerializeConfig({config}) {
     return preSerialize(config);
   },
@@ -71,7 +115,8 @@ export default new Transformer({
     }
 
     let ast = nullthrows(asset.ast);
-    if (COMPOSES_RE.test(await asset.getCode())) {
+    let code = asset.isASTDirty() ? null : await asset.getCode();
+    if (code == null || COMPOSES_RE.test(code)) {
       ast.program.walkDecls(decl => {
         let [, importPath] = FROM_IMPORT_RE.exec(decl.value) || [];
         if (decl.prop === 'composes' && importPath != null) {
@@ -96,16 +141,20 @@ export default new Transformer({
       });
     }
 
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let {messages, root} = await postcss(plugins).process(
       ast.program,
       config.hydrated,
     );
 
     ast.program = root;
-    ast.isDirty = true;
+    asset.setAST({
+      type: 'postcss',
+      version: '7.0.0',
+      program: root,
+    });
     for (let msg of messages) {
       if (msg.type === 'dependency') {
-        // $FlowFixMe merely a convention
         msg = (msg: {|
           type: 'dependency',
           plugin: string,
@@ -136,22 +185,20 @@ export default new Transformer({
       assets.push({
         type: 'js',
         filePath: asset.filePath + '.js',
-        code,
+        content: code,
       });
     }
     return assets;
   },
 
-  generate({asset}) {
-    let ast = nullthrows(asset.ast);
-
+  generate({ast}) {
     let code = '';
     postcss.stringify(ast.program, c => {
       code += c;
     });
 
     return {
-      code,
+      content: code,
     };
   },
 });

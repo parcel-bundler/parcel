@@ -142,8 +142,8 @@ class Bundler extends EventEmitter {
       detailedReport: options.detailedReport || false,
       global: options.global,
       autoinstall:
-        typeof options.autoInstall === 'boolean'
-          ? options.autoInstall
+        typeof options.autoinstall === 'boolean'
+          ? options.autoinstall
           : process.env.PARCEL_AUTOINSTALL === 'false'
           ? false
           : !isProduction,

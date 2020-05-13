@@ -72,12 +72,13 @@ export class RequestGraph extends Graph<
 
   // $FlowFixMe
   static deserialize(opts: SerializedRequestGraph) {
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     let deserialized = new RequestGraph(opts);
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
-    // $FlowFixMe
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
     return deserialized;
   }
 
@@ -296,6 +297,13 @@ export default class RequestTracker {
     this.graph.removeById(id);
   }
 
+  storeResult(id: string, result: mixed) {
+    let node = this.graph.getNode(id);
+    if (node && node.type === 'request') {
+      node.value.result = result;
+    }
+  }
+
   hasValidResult(id: string) {
     return (
       this.graph.nodes.has(id) &&
@@ -364,6 +372,8 @@ export type RequestRunnerAPI = {|
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
   replaceSubrequests: (Array<RequestGraphNode>) => void,
+  storeResult: (result: mixed) => void,
+  getId: () => string,
 |};
 
 export function generateRequestId(type: string, request: mixed) {
@@ -417,9 +427,7 @@ export class RequestRunner<TRequest, TResult> {
   // unused vars are used for types
   // eslint-disable-next-line no-unused-vars
   onComplete(request: TRequest, result: TResult, api: RequestRunnerAPI) {
-    throw new Error(
-      `RequestRunner for type ${this.type} did not implement onComplete()`,
-    );
+    // Do nothing, this is defined for flow if extended classes implement this function
   }
 
   generateRequestId(request: TRequest) {
@@ -438,6 +446,10 @@ export class RequestRunner<TRequest, TResult> {
         this.tracker.graph.invalidateOnStartup(requestId),
       replaceSubrequests: subrequestNodes =>
         this.tracker.graph.replaceSubrequests(requestId, subrequestNodes),
+      storeResult: result => {
+        this.tracker.storeResult(requestId, result);
+      },
+      getId: () => requestId,
     };
 
     return api;

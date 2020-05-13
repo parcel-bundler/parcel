@@ -47,7 +47,6 @@ class Logger {
   }
 
   error(input: Diagnostifiable, realOrigin?: string): void {
-    // $FlowFixMe origin is undefined on PluginInputDiagnostic
     let diagnostic = anyToDiagnostic(input);
     if (typeof realOrigin === 'string') {
       diagnostic = Array.isArray(diagnostic)
@@ -130,7 +129,6 @@ export class PluginLogger {
       | DiagnosticWithoutOrigin
       | Array<DiagnosticWithoutOrigin>,
   ): void {
-    // $FlowFixMe it should work, don't really wanna mess with the types of logger.error though...
     logger.error(input, this.origin);
   }
 
@@ -178,6 +176,7 @@ export function unpatchConsole() {
   // Skip if console isn't patched...
   if (!consolePatched) return;
 
+  /* eslint-disable no-console */
   // $FlowFixMe
   console.log = INTERNAL_ORIGINAL_CONSOLE.log;
 
@@ -193,6 +192,7 @@ export function unpatchConsole() {
   // $FlowFixMe
   console.error = INTERNAL_ORIGINAL_CONSOLE.error;
 
+  /* eslint-enable no-console */
   consolePatched = false;
 }
 

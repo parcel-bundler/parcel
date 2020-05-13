@@ -1,7 +1,3 @@
-type Params = {
-  hello: string;
-};
+import { test } from './test';
 
-export default function test(params: Params) {
-  return params.world;
-}
+export default test('a string');

@@ -5,28 +5,32 @@ import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {prettyDiagnostic} from '@parcel/utils';
+import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
+import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 
 require('v8-compile-cache');
 
-function logUncaughtError(e: mixed) {
+async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = prettyDiagnostic(diagnostic);
-      console.error(out.message);
-      console.error(out.codeframe || out.stack);
+      let out = await prettyDiagnostic(diagnostic);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.message);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
       for (let h of out.hints) {
-        console.error(h);
+        INTERNAL_ORIGINAL_CONSOLE.error(h);
       }
     }
   } else {
-    console.error(e);
+    INTERNAL_ORIGINAL_CONSOLE.error(e);
   }
+
+  // A hack to definitely ensure we logged the uncaught exception
+  await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-process.on('unhandledRejection', (reason: mixed) => {
-  logUncaughtError(reason);
-  process.exit(1);
+process.on('unhandledRejection', async (reason: mixed) => {
+  await logUncaughtError(reason);
+  process.exit();
 });
 
 const chalk = require('chalk');
@@ -64,12 +68,25 @@ const commonOptions = {
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/,
   ],
+  '--dist-dir <dir>':
+    'output directory to write to when unspecified by targets',
   '--profile': 'enable build profiling',
   '-V, --version': 'output the version number',
+  '--detailed-report [depth]': [
+    'Print the asset timings and sizes in the build report',
+    /^([0-9]+)$/,
+  ],
 };
 
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
+  '-p, --port <port>': [
+    'set the port to serve on. defaults to 1234',
+    value => parseInt(value, 10),
+    1234,
+  ],
+  '--host <host>':
+    'set the host to listen on, defaults to listening on all interfaces',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
@@ -87,16 +104,7 @@ function applyOptions(cmd, options) {
 let serve = program
   .command('serve [input...]')
   .description('starts a development server')
-  .option(
-    '-p, --port <port>',
-    'set the port to serve on. defaults to 1234',
-    parseInt,
-  )
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .option(
-    '--host <host>',
-    'set the host to listen on, defaults to listening on all interfaces',
-  )
   .option(
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser',
@@ -110,10 +118,6 @@ applyOptions(serve, commonOptions);
 let watch = program
   .command('watch [input...]')
   .description('starts the bundler in watch mode')
-  .option(
-    '--dist-dir <dir>',
-    'output directory to write to when unspecified by targets',
-  )
   .option('--public-url <url>', 'the path prefix for absolute urls')
   .option('--watch-for-stdin', 'exit when stdin closes')
   .action(run);
@@ -127,10 +131,6 @@ let build = program
   .option('--no-minify', 'disable minification')
   .option('--no-scope-hoist', 'disable scope-hoisting')
   .option('--public-url <url>', 'the path prefix for absolute urls')
-  .option(
-    '--dist-dir <dir>',
-    'Output directory to write to when unspecified by targets',
-  )
   .action(run);
 
 applyOptions(build, commonOptions);
@@ -144,13 +144,13 @@ program
   });
 
 program.on('--help', function() {
-  console.log('');
-  console.log(
+  INTERNAL_ORIGINAL_CONSOLE.log('');
+  INTERNAL_ORIGINAL_CONSOLE.log(
     '  Run `' +
       chalk.bold('parcel help <command>') +
       '` for more information on specific commands',
   );
-  console.log('');
+  INTERNAL_ORIGINAL_CONSOLE.log('');
 });
 
 // Make serve the default command except for --help
@@ -166,14 +166,16 @@ async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
-    console.log('No entries found');
+    INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
     return;
   }
   let Parcel = require('@parcel/core').default;
+  let options = await normalizeOptions(command);
   let packageManager = new NodePackageManager(new NodeFS());
   let defaultConfig: RawParcelConfig = await packageManager.require(
     '@parcel/config-default',
     __filename,
+    {autoinstall: options.autoinstall},
   );
   let parcel = new Parcel({
     entries,
@@ -181,11 +183,13 @@ async function run(entries: Array<string>, command: any) {
     defaultConfig: {
       ...defaultConfig,
       filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename)
+        await packageManager.resolve('@parcel/config-default', __filename, {
+          autoinstall: options.autoinstall,
+        })
       ).resolved,
     },
     patchConsole: true,
-    ...(await normalizeOptions(command)),
+    ...options,
   });
 
   if (command.name() === 'watch' || command.name() === 'serve') {
@@ -194,6 +198,14 @@ async function run(entries: Array<string>, command: any) {
         throw err;
       }
     });
+
+    if (command.open && options.serve) {
+      await openInBrowser(
+        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
+          'localhost'}:${options.serve.port}`,
+        command.open,
+      );
+    }
 
     let isExiting;
     const exit = async () => {
@@ -208,7 +220,7 @@ async function run(entries: Array<string>, command: any) {
 
     if (command.watchForStdin) {
       process.stdin.on('end', async () => {
-        console.log('STDIN closed, ending');
+        INTERNAL_ORIGINAL_CONSOLE.log('STDIN closed, ending');
 
         await exit();
       });
@@ -246,7 +258,7 @@ async function run(entries: Array<string>, command: any) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
       if (!(e instanceof BuildError)) {
-        logUncaughtError(e);
+        await logUncaughtError(e);
       }
       process.exit(1);
     }
@@ -270,16 +282,20 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   }
 
   let serve = false;
-  if (command.name() === 'serve') {
-    let {port = 1234, host, publicUrl} = command;
+  let {port, host} = command;
+  if (command.name() === 'serve' || command.hmr) {
     port = await getPort({port, host});
 
     if (command.port && port !== command.port) {
-      // Parcel logger is not set up at this point, so just use native console.
-      console.warn(
+      // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE.
+      INTERNAL_ORIGINAL_CONSOLE.warn(
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
     }
+  }
+
+  if (command.name() === 'serve') {
+    let {publicUrl} = command;
 
     serve = {
       https,
@@ -289,9 +305,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     };
   }
 
-  let hmr = false;
+  let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = true;
+    hmr = {port, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
@@ -310,6 +326,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile,
+    detailedReport: command.detailedReport,
     env: {
       NODE_ENV: nodeEnv,
     },

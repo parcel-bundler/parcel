@@ -7,121 +7,186 @@ import type {
   ParcelOptions,
   ReportFn,
 } from './types';
+import type {Validator, ValidateResult} from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
-import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
-import InternalAsset, {createAsset} from './InternalAsset';
+import UncommittedAsset from './UncommittedAsset';
+import {createAsset} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
+  config: ParcelConfig,
+  /**
+   * If true, this Validation instance will run all validators that implement the single-threaded "validateAll" method.
+   * If falsy, it will run validators that implement the one-asset-at-a-time "validate" method.
+   */
+  dedicatedThread?: boolean,
   options: ParcelOptions,
-  request: AssetRequestDesc,
+  requests: AssetRequestDesc[],
   report: ReportFn,
-  workerApi: WorkerApi,
+  workerApi?: WorkerApi,
 |};
 
 export default class Validation {
-  request: AssetRequestDesc;
+  allAssets: {[validatorName: string]: UncommittedAsset[], ...} = {};
+  allValidators: {[validatorName: string]: Validator, ...} = {};
+  dedicatedThread: boolean;
   configRequests: Array<ConfigRequestDesc>;
   configLoader: ConfigLoader;
-  options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
+  options: ParcelOptions;
+  parcelConfig: ParcelConfig;
   report: ReportFn;
-  workerApi: WorkerApi;
+  requests: AssetRequestDesc[];
+  workerApi: ?WorkerApi;
 
-  constructor({request, report, options, workerApi}: ValidationOpts) {
-    this.configLoader = new ConfigLoader(options);
+  constructor({
+    config,
+    dedicatedThread,
+    options,
+    requests,
+    report,
+    workerApi,
+  }: ValidationOpts) {
+    this.configLoader = new ConfigLoader({options, config});
+    this.dedicatedThread = dedicatedThread ?? false;
     this.options = options;
+    this.parcelConfig = config;
     this.report = report;
-    this.request = request;
+    this.requests = requests;
     this.workerApi = workerApi;
   }
 
   async run(): Promise<void> {
-    this.report({
-      type: 'validation',
-      filePath: this.request.filePath,
-    });
-
-    let asset = await this.loadAsset();
-
-    let configRequest = {
-      filePath: this.request.filePath,
-      isSource: asset.value.isSource,
-      meta: {
-        actionType: 'validation',
-      },
-      env: this.request.env,
-    };
-
-    let config = await this.configLoader.load(configRequest);
-    nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(
-      config.result,
-      this.options.packageManager,
-    );
-
-    let validators = await parcelConfig.getValidators(this.request.filePath);
     let pluginOptions = new PluginOptions(this.options);
+    await this.buildAssetsAndValidators();
+    await Promise.all(
+      Object.keys(this.allValidators).map(async validatorName => {
+        let assets = this.allAssets[validatorName];
+        if (assets) {
+          let plugin = this.allValidators[validatorName];
+          let validatorLogger = new PluginLogger({origin: validatorName});
+          let validatorResults: Array<?ValidateResult> = [];
+          try {
+            // If the plugin supports the single-threading validateAll method, pass all assets to it.
+            if (plugin.validateAll && this.dedicatedThread) {
+              validatorResults = await plugin.validateAll({
+                assets: assets.map(asset => new Asset(asset)),
+                options: pluginOptions,
+                logger: validatorLogger,
+                resolveConfigWithPath: (
+                  configNames: Array<string>,
+                  assetFilePath: string,
+                ) =>
+                  resolveConfig(
+                    this.options.inputFS,
+                    assetFilePath,
+                    configNames,
+                  ),
+              });
+            }
 
-    for (let validator of validators) {
-      let validatorLogger = new PluginLogger({origin: validator.name});
-      try {
-        let config = null;
-        if (validator.plugin.getConfig) {
-          config = await validator.plugin.getConfig({
-            asset: new Asset(asset),
-            options: pluginOptions,
-            logger: validatorLogger,
-            resolveConfig: (configNames: Array<string>) =>
-              resolveConfig(
-                this.options.inputFS,
-                asset.value.filePath,
-                configNames,
-              ),
-          });
-        }
+            // Otherwise, pass the assets one-at-a-time
+            else if (plugin.validate && !this.dedicatedThread) {
+              await Promise.all(
+                assets.map(async asset => {
+                  let config = null;
+                  if (plugin.getConfig) {
+                    config = await plugin.getConfig({
+                      asset: new Asset(asset),
+                      options: pluginOptions,
+                      logger: validatorLogger,
+                      resolveConfig: (configNames: Array<string>) =>
+                        resolveConfig(
+                          this.options.inputFS,
+                          asset.value.filePath,
+                          configNames,
+                        ),
+                    });
+                  }
 
-        let validatorResult = await validator.plugin.validate({
-          asset: new Asset(asset),
-          options: pluginOptions,
-          config,
-          logger: validatorLogger,
-        });
-
-        if (validatorResult) {
-          let {warnings, errors} = validatorResult;
-
-          if (errors.length > 0) {
+                  let validatorResult = await plugin.validate({
+                    asset: new Asset(asset),
+                    options: pluginOptions,
+                    config,
+                    logger: validatorLogger,
+                  });
+                  validatorResults.push(validatorResult);
+                }),
+              );
+            }
+            this.handleResults(validatorResults);
+          } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errors,
+              diagnostic: errorToDiagnostic(e, validatorName),
             });
           }
+        }
+      }),
+    );
+  }
 
-          if (warnings.length > 0) {
-            logger.warn(warnings);
+  async buildAssetsAndValidators() {
+    // Figure out what validators need to be run, and group the assets by the relevant validators.
+    await Promise.all(
+      this.requests.map(async request => {
+        this.report({
+          type: 'validation',
+          filePath: request.filePath,
+        });
+
+        let asset = await this.loadAsset(request);
+
+        let validators = await this.parcelConfig.getValidators(
+          request.filePath,
+        );
+
+        for (let validator of validators) {
+          this.allValidators[validator.name] = validator.plugin;
+          if (this.allAssets[validator.name]) {
+            this.allAssets[validator.name].push(asset);
+          } else {
+            this.allAssets[validator.name] = [asset];
           }
         }
-      } catch (e) {
-        throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, validator.name),
-        });
+      }),
+    );
+  }
+
+  handleResults(validatorResults: Array<?ValidateResult>) {
+    let warnings: Array<Diagnostic> = [];
+    let errors: Array<Diagnostic> = [];
+    validatorResults.forEach(result => {
+      if (result) {
+        warnings.push(...result.warnings);
+        errors.push(...result.errors);
       }
+    });
+
+    if (errors.length > 0) {
+      throw new ThrowableDiagnostic({
+        diagnostic: errors,
+      });
+    }
+
+    if (warnings.length > 0) {
+      logger.warn(warnings);
     }
   }
 
-  async loadAsset(): Promise<InternalAsset> {
-    let {filePath, env, code, sideEffects} = this.request;
+  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
+    let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
-      this.request,
+      request,
     );
 
     // If the transformer request passed code rather than a filename,
@@ -132,7 +197,7 @@ export default class Validation {
         : path
             .relative(this.options.projectRoot, filePath)
             .replace(/[\\/]+/g, '/');
-    return new InternalAsset({
+    return new UncommittedAsset({
       idBase,
       value: createAsset({
         idBase,

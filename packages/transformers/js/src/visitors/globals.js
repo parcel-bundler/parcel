@@ -2,19 +2,29 @@
 
 import type {MutableAsset} from '@parcel/types';
 
-import nullthrows from 'nullthrows';
 import Path from 'path';
 import * as types from '@babel/types';
-import {hasBinding} from './utils';
+import {isInFalsyBranch, hasBinding} from './utils';
+
+export type GlobalsMap = Map<
+  string,
+  ?{code: string, deps?: Array<string>, ...},
+>;
+
+type TraverseContext = {|
+  asset: MutableAsset,
+  globals: GlobalsMap,
+|};
 
 const VARS = {
   process: () => ({
     code: 'var process = require("process");',
     deps: ['process'],
   }),
-  global: () => ({
-    code: `var global = arguments[${/*asset.options.scopeHoist ? 0 : */ 3}];`,
-  }),
+  global: asset =>
+    asset.env.scopeHoist
+      ? /* Scope hoisting replaces this on its own in hoist.js */ null
+      : {code: `var global = arguments[3];`},
   __dirname: asset => ({
     code: `var __dirname = ${JSON.stringify(Path.dirname(asset.filePath))};`,
   }),
@@ -35,38 +45,39 @@ const VARS = {
 };
 
 export default {
-  Identifier(node: any, asset: MutableAsset, ancestors: any) {
+  Identifier(node: any, context: TraverseContext, ancestors: any) {
     let parent = ancestors[ancestors.length - 2];
     if (
       VARS.hasOwnProperty(node.name) &&
-      !nullthrows(asset.meta.globals).has(node.name) &&
+      !context.globals.has(node.name) &&
       types.isReferenced(node, parent) &&
       !types.isModuleSpecifier(parent) &&
-      !hasBinding(ancestors, node.name)
+      !hasBinding(ancestors, node.name) &&
+      !isInFalsyBranch(ancestors)
     ) {
-      nullthrows(asset.meta.globals).set(node.name, VARS[node.name](asset));
+      context.globals.set(node.name, VARS[node.name](context.asset));
     }
   },
 
-  Declaration(node: any, asset: MutableAsset, ancestors: any) {
+  Declaration(node: any, context: TraverseContext, ancestors: any) {
     // If there is a global declaration of one of the variables, remove our declaration
     let identifiers = types.getBindingIdentifiers(node);
     for (let id in identifiers) {
       if (VARS.hasOwnProperty(id) && !inScope(ancestors)) {
         // Don't delete entirely, so we don't add it again when the declaration is referenced
-        nullthrows(asset.meta.globals).set(id, null);
+        context.globals.set(id, null);
       }
     }
   },
 
   Program: {
-    exit(node: any, asset: MutableAsset) {
+    exit(node: any, context: TraverseContext) {
       // Add dependencies at the end so that items that were deleted later don't leave
       // their dependencies around.
-      for (let g of nullthrows(asset.meta.globals).values()) {
+      for (let g of context.globals.values()) {
         if (g && g.deps) {
           for (let dep of g.deps) {
-            asset.addDependency({moduleSpecifier: dep});
+            context.asset.addDependency({moduleSpecifier: dep});
           }
         }
       }

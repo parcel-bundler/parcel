@@ -2,7 +2,7 @@ import * as types from '@babel/types';
 import {morph} from './utils';
 
 export default {
-  MemberExpression(node, {asset, env, isBrowser, isNode}, ancestors) {
+  MemberExpression(node, {asset, ast, env, isBrowser, isNode}, ancestors) {
     // Inline environment variables accessed on process.env
     if (!isNode && types.matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
@@ -13,7 +13,7 @@ export default {
         if (typeof prop !== 'function') {
           let value = types.valueToNode(prop);
           morph(node, value);
-          asset.ast.isDirty = true;
+          asset.setAST(ast);
           // asset.meta.env[key.value] = process.env[key.value];
         }
       }

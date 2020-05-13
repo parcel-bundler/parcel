@@ -1,23 +1,26 @@
 // @flow
 
 import type {
+  AST,
   DependencyOptions,
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Expression} from '@babel/types';
+import type {Node} from '@babel/types';
+import type {Visitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
-import traverse from '@babel/traverse';
+import {
+  isArrowFunctionExpression,
+  isCallExpression,
+  isMemberExpression,
+  isReturnStatement,
+  isIdentifier,
+  isNewExpression,
+  isFunction,
+} from '@babel/types';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
-import {hasBinding, morph} from './utils';
-import invariant from 'assert';
-
-type Visitor = (
-  node: any,
-  {|asset: MutableAsset, options: PluginOptions|},
-  ancestors: Array<any>,
-) => void;
+import {isInFalsyBranch, hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -44,7 +47,7 @@ export default ({
   },
 
   CallExpression: {
-    enter(node, {asset}, ancestors) {
+    enter(node, {asset, ast}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isRequire =
@@ -58,9 +61,23 @@ export default ({
       if (isRequire) {
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
-        invariant(asset.ast);
-        let isAsync = isRequireAsync(ancestors, node, asset.ast);
+        let isAsync = isRequireAsync(ancestors, node, asset, ast);
         addDependency(asset, args[0], {isOptional, isAsync});
+        return;
+      }
+
+      let isRequireResolve =
+        types.isMemberExpression(callee) &&
+        types.matchesPattern(callee, 'require.resolve') &&
+        args.length === 1 &&
+        types.isStringLiteral(args[0]) &&
+        !hasBinding(ancestors, 'require') &&
+        !isInFalsyBranch(ancestors);
+
+      if (isRequireResolve) {
+        let isOptional =
+          ancestors.some(a => types.isTryStatement(a)) || undefined;
+        addDependency(asset, args[0], {isOptional});
         return;
       }
 
@@ -78,12 +95,11 @@ export default ({
         addDependency(asset, args[0], {isAsync: true});
 
         node.callee = types.identifier('require');
-        invariant(asset.ast);
-        asset.ast.isDirty = true;
+        asset.setAST(ast);
         return;
       }
     },
-    exit(node, {asset}, ancestors) {
+    exit(node, {asset, ast}, ancestors) {
       if (node.type !== 'CallExpression') {
         // It's possible this node has been morphed into another type
         return;
@@ -100,7 +116,7 @@ export default ({
       if (isRegisterServiceWorker) {
         // Treat service workers as an entry point so filenames remain consistent across builds.
         // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-        addURLDependency(asset, args[0], {
+        addURLDependency(asset, ast, args[0], {
           isEntry: true,
           env: {context: 'service-worker'},
         });
@@ -108,14 +124,12 @@ export default ({
       }
 
       let isImportScripts =
-        (asset.env.context === 'web-worker' ||
-          asset.env.context === 'service-worker') &&
-        callee.name === 'importScripts';
+        asset.env.isWorker() && callee.name === 'importScripts';
 
       if (isImportScripts) {
         for (let arg of args) {
           if (types.isStringLiteral(arg)) {
-            addURLDependency(asset, arg);
+            addURLDependency(asset, ast, arg);
           }
         }
         return;
@@ -124,7 +138,7 @@ export default ({
   },
 
   NewExpression: {
-    exit(node, {asset}, ancestors) {
+    exit(node, {asset, ast}, ancestors) {
       let {callee, arguments: args} = node;
 
       let isWebWorker =
@@ -145,7 +159,7 @@ export default ({
             isModule = prop.value.value === 'module';
         }
 
-        addURLDependency(asset, args[0], {
+        addURLDependency(asset, ast, args[0], {
           env: {
             context: 'web-worker',
             outputFormat:
@@ -159,47 +173,19 @@ export default ({
       }
     },
   },
-}: {
-  [key: string]: Visitor | {|enter?: Visitor, exit?: Visitor|},
-  ...,
-});
-
-function isInFalsyBranch(ancestors) {
-  // Check if any ancestors are if statements
-  return ancestors.some((node, index) => {
-    if (types.isIfStatement(node)) {
-      let res = evaluateExpression(node.test);
-      if (res && res.confident) {
-        // If the test is truthy, exclude the dep if it is in the alternate branch.
-        // If the test if falsy, exclude the dep if it is in the consequent branch.
-        let child = ancestors[index + 1];
-        return res.value ? child === node.alternate : child === node.consequent;
-      }
-    }
-  });
-}
-
-function evaluateExpression(node: Expression) {
-  // Wrap the node in a standalone program so we can traverse it
-  let file = types.file(types.program([types.expressionStatement(node)]));
-
-  // Find the first expression and evaluate it.
-  let res = null;
-  traverse(file, {
-    Expression(path) {
-      res = path.evaluate();
-      path.stop();
-    },
-  });
-
-  return res;
-}
+}: Visitors<
+  (
+    any,
+    {|asset: MutableAsset, ast: AST, options: PluginOptions|},
+    Array<Node>,
+  ) => void,
+>);
 
 // TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })
 //   2. Rollup - new Promise(function (resolve) { resolve(require(...)) })
 //   3. Parcel - Promise.resolve(require(...))
-function isRequireAsync(ancestors, requireNode, ast) {
+function isRequireAsync(ancestors, requireNode, asset, ast) {
   let parent = ancestors[ancestors.length - 2];
 
   // Promise.resolve().then(() => require('foo'))
@@ -208,8 +194,8 @@ function isRequireAsync(ancestors, requireNode, ast) {
   let functionParent = getFunctionParent(ancestors);
   if (
     functionParent &&
-    types.isCallExpression(functionParent) &&
-    types.isMemberExpression(functionParent.callee) &&
+    isCallExpression(functionParent) &&
+    isMemberExpression(functionParent.callee) &&
     functionParent.callee.property.name === 'then' &&
     isPromiseResolve(functionParent.callee.object)
   ) {
@@ -220,10 +206,7 @@ function isRequireAsync(ancestors, requireNode, ast) {
     //   Promise.resolve().then(() => __importStar(require('./foo')));
     // This is transformed into:
     //   Promise.resolve().then(() => require('./foo')).then(res => __importStar(res));
-    if (
-      !types.isArrowFunctionExpression(parent) &&
-      !types.isReturnStatement(parent)
-    ) {
+    if (!isArrowFunctionExpression(parent) && !isReturnStatement(parent)) {
       // Replace the original `require` call with a reference to a variable
       let requireClone = types.clone(requireNode);
       let v = types.identifier(
@@ -233,10 +216,11 @@ function isRequireAsync(ancestors, requireNode, ast) {
 
       // Add the variable as a param to the parent function
       let fn = functionParent.arguments[0];
+      // $FlowFixMe
       fn.params[0] = v;
 
       // Replace original function with only the require call
-      functionParent.arguments[0] = types.isArrowFunctionExpression(fn)
+      functionParent.arguments[0] = isArrowFunctionExpression(fn)
         ? types.arrowFunctionExpression([], requireClone)
         : types.functionExpression(
             null,
@@ -254,13 +238,14 @@ function isRequireAsync(ancestors, requireNode, ast) {
       );
 
       morph(functionParent, replacement);
-      ast.isDirty = true;
+      asset.setAST(ast);
     }
 
     return true;
   }
 
   // Promise.resolve(require('foo'))
+  // $FlowFixMe
   if (isPromiseResolve(parent) && parent.arguments[0] === requireNode) {
     return true;
   }
@@ -270,13 +255,15 @@ function isRequireAsync(ancestors, requireNode, ast) {
   // new Promise(function (resolve) { resolve(require('foo')) })
   if (
     functionParent &&
-    types.isCallExpression(parent) &&
-    types.isIdentifier(parent.callee) &&
-    types.isNewExpression(functionParent) &&
-    types.isIdentifier(functionParent.callee) &&
+    isCallExpression(parent) &&
+    isIdentifier(parent.callee) &&
+    isNewExpression(functionParent) &&
+    isIdentifier(functionParent.callee) &&
     functionParent.callee.name === 'Promise' &&
-    types.isFunction(functionParent.arguments[0]) &&
-    types.isIdentifier(functionParent.arguments[0].params[0]) &&
+    isFunction(functionParent.arguments[0]) &&
+    // $FlowFixMe
+    isIdentifier(functionParent.arguments[0].params[0]) &&
+    // $FlowFixMe
     parent.callee.name === functionParent.arguments[0].params[0].name
   ) {
     return true;
@@ -285,9 +272,10 @@ function isRequireAsync(ancestors, requireNode, ast) {
 
 function isPromiseResolve(node) {
   return (
-    types.isCallExpression(node) &&
-    types.isMemberExpression(node.callee) &&
-    types.isIdentifier(node.callee.object) &&
+    isCallExpression(node) &&
+    isMemberExpression(node.callee) &&
+    isIdentifier(node.callee.object) &&
+    isIdentifier(node.callee.property) &&
     node.callee.object.name === 'Promise' &&
     node.callee.property.name === 'resolve'
   );
@@ -316,6 +304,7 @@ function addDependency(
 
 function addURLDependency(
   asset: MutableAsset,
+  ast: AST,
   node,
   opts: $Shape<DependencyOptions> = {},
 ) {
@@ -331,6 +320,5 @@ function addURLDependency(
       types.stringLiteral(url),
     ]),
   );
-  invariant(asset.ast);
-  asset.ast.isDirty = true;
+  asset.setAST(ast);
 }

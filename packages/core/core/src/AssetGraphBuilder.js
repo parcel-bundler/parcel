@@ -10,12 +10,15 @@ import type {
   ParcelOptions,
   ValidationOpts,
 } from './types';
-import type ParcelConfig from './ParcelConfig';
 import type {RunRequestOpts} from './RequestTracker';
-import type {AssetGraphBuildRequest} from './requests';
+import type {EntryRequest} from './requests/EntryRequestRunner';
+import type {TargetRequest} from './requests/TargetRequestRunner';
+import type {AssetRequest} from './requests/AssetRequestRunner';
+import type {DepPathRequest} from './requests/DepPathRequestRunner';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import path from 'path';
 import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
@@ -24,30 +27,33 @@ import RequestTracker, {
   generateRequestId,
 } from './RequestTracker';
 import {PARCEL_VERSION} from './constants';
-import {
-  EntryRequestRunner,
-  TargetRequestRunner,
-  AssetRequestRunner,
-  DepPathRequestRunner,
-} from './requests';
+import ParcelConfig from './ParcelConfig';
+
+import ParcelConfigRequestRunner from './requests/ParcelConfigRequestRunner';
+import EntryRequestRunner from './requests/EntryRequestRunner';
+import TargetRequestRunner from './requests/TargetRequestRunner';
+import AssetRequestRunner from './requests/AssetRequestRunner';
+import DepPathRequestRunner from './requests/DepPathRequestRunner';
+
+import Validation from './Validation';
+import {report} from './ReporterRunner';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
   optionsRef: number,
-  config: ParcelConfig,
   name: string,
   entries?: Array<string>,
   assetRequests?: Array<AssetRequestDesc>,
   workerFarm: WorkerFarm,
 |};
 
-const requestPriorities: $ReadOnlyArray<$ReadOnlyArray<string>> = [
-  ['entry_request'],
-  ['target_request'],
-  ['dep_path_request', 'asset_request'],
-];
+type AssetGraphBuildRequest =
+  | EntryRequest
+  | TargetRequest
+  | AssetRequest
+  | DepPathRequest;
 
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
@@ -57,7 +63,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   targetRequestRunner: TargetRequestRunner;
   depPathRequestRunner: DepPathRequestRunner;
   assetRequestRunner: AssetRequestRunner;
-  assetRequests: Array<AssetRequestDesc>;
+  configRequestRunner: ParcelConfigRequestRunner;
+  assetRequests: Array<AssetRequest>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
   rejected: Map<string, mixed>;
@@ -66,13 +73,15 @@ export default class AssetGraphBuilder extends EventEmitter {
   options: ParcelOptions;
   optionsRef: number;
   config: ParcelConfig;
+  configRef: number;
   workerFarm: WorkerFarm;
   cacheKey: string;
+  entries: ?Array<string>;
+  initialAssetGroups: ?Array<AssetRequestDesc>;
 
   handle: Handle;
 
   async init({
-    config,
     options,
     optionsRef,
     entries,
@@ -82,6 +91,9 @@ export default class AssetGraphBuilder extends EventEmitter {
   }: Opts) {
     this.options = options;
     this.optionsRef = optionsRef;
+    this.entries = entries;
+    this.initialAssetGroups = assetRequests;
+    this.workerFarm = workerFarm;
     this.assetRequests = [];
 
     // TODO: changing these should not throw away the entire graph.
@@ -109,7 +121,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.assetGraph.initOptions({
       onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
-      onIncompleteNode: node => this.handleIncompleteNode(node),
     });
 
     let assetGraph = this.assetGraph;
@@ -127,18 +138,10 @@ export default class AssetGraphBuilder extends EventEmitter {
       options,
       assetGraph,
     });
-    this.assetRequestRunner = new AssetRequestRunner({
+    this.configRequestRunner = new ParcelConfigRequestRunner({
       tracker,
       options,
-      optionsRef,
       workerFarm,
-      assetGraph,
-    });
-    this.depPathRequestRunner = new DepPathRequestRunner({
-      tracker,
-      options,
-      config,
-      assetGraph,
     });
 
     if (changes) {
@@ -158,43 +161,87 @@ export default class AssetGraphBuilder extends EventEmitter {
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
   |}> {
-    this.rejected = new Map();
-    let lastQueueError;
-    for (let currPriorities of requestPriorities) {
-      if (!this.requestTracker.hasInvalidRequests()) {
-        break;
-      }
+    let {config, configRef} = nullthrows(
+      await this.configRequestRunner.runRequest(null, {
+        signal,
+      }),
+    );
 
-      let promises = [];
-      for (let request of this.requestTracker.getInvalidRequests()) {
+    // This should not be necessary once sub requests are supported
+    if (configRef !== this.configRef) {
+      this.configRef = configRef;
+      this.config = new ParcelConfig(
+        config,
+        this.options.packageManager,
+        this.options.autoinstall,
+      );
+      let {
+        requestTracker: tracker,
+        options,
+        optionsRef,
+        workerFarm,
+        assetGraph,
+      } = this;
+      this.assetRequestRunner = new AssetRequestRunner({
+        tracker,
+        options,
+        optionsRef,
+        configRef,
+        workerFarm,
+        assetGraph,
+      });
+      this.depPathRequestRunner = new DepPathRequestRunner({
+        tracker,
+        options,
+        assetGraph,
+        config: this.config,
+      });
+    }
+
+    this.rejected = new Map();
+
+    let root = this.assetGraph.getRootNode();
+    if (!root) {
+      throw new Error('A root node is required to traverse');
+    }
+
+    let visited = new Set([root.id]);
+
+    const visit = node => {
+      let request = this.getCorrespondingRequest(node);
+      if (
+        !node.complete &&
+        !node.deferred &&
+        request != null &&
+        !this.requestTracker.hasValidResult(nullthrows(request).id)
+      ) {
         // $FlowFixMe
-        let assetGraphBuildRequest: AssetGraphBuildRequest = (request: any);
-        if (currPriorities.includes(request.type)) {
-          promises.push(this.queueRequest(assetGraphBuildRequest, {signal}));
+        this.queueRequest(request, {
+          signal,
+        }).then(() => visitChildren(node));
+      } else {
+        visitChildren(node);
+      }
+    };
+
+    const visitChildren = node => {
+      for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
+        if (
+          (!visited.has(child.id) || child.hasDeferred) &&
+          this.assetGraph.shouldVisitChild(node, child)
+        ) {
+          visited.add(child.id);
+          visit(child);
         }
       }
-      if (lastQueueError) {
-        throw lastQueueError;
-      }
-      this.queue.run().catch(e => {
-        lastQueueError = e;
-      });
-      await Promise.all(promises);
-    }
+    };
 
-    if (this.assetGraph.hasIncompleteNodes()) {
-      for (let id of this.assetGraph.incompleteNodeIds) {
-        this.processIncompleteAssetGraphNode(
-          nullthrows(this.assetGraph.getNode(id)),
-          signal,
-        );
-      }
-    }
-
+    visit(root);
     await this.queue.run();
 
     let errors = [];
     for (let [requestId, error] of this.rejected) {
+      // ? Is this still needed?
       if (this.requestTracker.isTracked(requestId)) {
         errors.push(error);
       }
@@ -205,18 +252,48 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     let changedAssets = this.changedAssets;
     this.changedAssets = new Map();
-
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
   async validate(): Promise<void> {
-    let promises = this.assetRequests.map(request =>
-      this.runValidate({request, optionsRef: this.optionsRef}),
+    let trackedRequestsDesc = this.assetRequests
+      .filter(
+        request =>
+          this.requestTracker.isTracked(request.id) &&
+          this.config.getValidatorNames(request.request.filePath).length > 0,
+      )
+      .map(({request}) => request);
+
+    // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
+    let promises = trackedRequestsDesc.map(request =>
+      this.runValidate({
+        requests: [request],
+        optionsRef: this.optionsRef,
+        configRef: this.configRef,
+      }),
     );
+
+    // Skip sending validation requests if no validators were configured
+    if (trackedRequestsDesc.length === 0) {
+      return;
+    }
+
+    // Schedule validations on the main thread for all validation plugins that implement "validateAll".
+    promises.push(
+      new Validation({
+        requests: trackedRequestsDesc,
+        options: this.options,
+        config: this.config,
+        report,
+        dedicatedThread: true,
+      }).run(),
+    );
+
     this.assetRequests = [];
     await Promise.all(promises);
   }
@@ -226,6 +303,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       if (this.rejected.size > 0) {
         return;
       }
+
       try {
         await this.runRequest(request, runOpts);
       } catch (e) {
@@ -243,12 +321,15 @@ export default class AssetGraphBuilder extends EventEmitter {
       case 'dep_path_request':
         return this.depPathRequestRunner.runRequest(request.request, runOpts);
       case 'asset_request': {
-        this.assetRequests.push(request.request);
+        this.assetRequests.push(request);
+        let assetActuallyChanged = !this.requestTracker.hasValidResult(
+          request.id,
+        );
         let result = await this.assetRequestRunner.runRequest(
           request.request,
           runOpts,
         );
-        if (result != null) {
+        if (assetActuallyChanged && result != null) {
           for (let asset of result.assets) {
             this.changedAssets.set(asset.id, asset);
           }
@@ -259,6 +340,14 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   getCorrespondingRequest(node: AssetGraphNode) {
+    let requestNode =
+      node.correspondingRequest != null
+        ? this.requestGraph.getNode(node.correspondingRequest)
+        : null;
+    if (requestNode != null) {
+      invariant(requestNode.type === 'request');
+      return requestNode.value;
+    }
     switch (node.type) {
       case 'entry_specifier': {
         let type = 'entry_request';
@@ -295,22 +384,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  processIncompleteAssetGraphNode(node: AssetGraphNode, signal: ?AbortSignal) {
-    let request = nullthrows(this.getCorrespondingRequest(node));
-    if (!this.requestTracker.hasValidResult(request.id)) {
-      this.queueRequest(request, {
-        signal,
-      });
-    }
-  }
-
-  handleIncompleteNode(node: AssetGraphNode) {
-    this.processIncompleteAssetGraphNode(node);
-  }
-
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
     let request = this.getCorrespondingRequest(node);
-    if (request != null) {
+    if (request != null && this.requestTracker.isTracked(request.id)) {
       this.requestTracker.untrackRequest(request.id);
     }
   }

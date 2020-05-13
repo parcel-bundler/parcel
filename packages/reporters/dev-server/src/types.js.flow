@@ -37,6 +37,7 @@ export type ServerError = Error & {|
 |};
 
 export type HMRServerOptions = {|
-  devServer: HTTPServer,
+  devServer?: HTTPServer,
+  port: number,
   logger: PluginLogger
 |};

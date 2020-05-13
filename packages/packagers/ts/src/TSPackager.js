@@ -14,8 +14,10 @@ export default new Packager({
     let code = await assets[0].getCode();
     let map = await assets[0].getMap();
     if (map) {
-      let sourceMapReference = await getSourceMapReference(map);
-      code += '\n//# sourceMappingURL=' + sourceMapReference + '\n';
+      let sourcemapReference = await getSourceMapReference(map);
+      if (sourcemapReference != null) {
+        code += '\n//# sourceMappingURL=' + sourcemapReference + '\n';
+      }
     }
 
     return {contents: code, map};
