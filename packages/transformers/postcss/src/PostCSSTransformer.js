@@ -21,50 +21,6 @@ export default new Transformer({
     return load({config, options, logger});
   },
 
-  /*async getConfig({asset, resolve, options}): Promise<?ParcelPostCSSConfig> {
-    let configFile: mixed = await asset.getConfig(
-      ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
-      {packageKey: 'postcss'},
-    );
-
-    // Use a basic, modules-only PostCSS config if the file opts in by a name
-    // like foo.module.css
-    if (configFile == null && asset.filePath.match(MODULE_BY_NAME_RE)) {
-      configFile = {
-        plugins: {
-          'postcss-modules': {},
-        },
-      };
-    }
-
-    if (configFile == null) {
-      return;
-    }
-
-    if (typeof configFile !== 'object') {
-      throw new Error('PostCSS config should be an object.');
-    }
-
-    if (
-      configFile.plugins == null ||
-      typeof configFile.plugins !== 'object' ||
-      Object.keys(configFile.plugins) === 0
-    ) {
-      throw new Error('PostCSS config must have plugins');
-    }
-
-    let originalModulesConfig;
-    let configFilePlugins = configFile.plugins;
-    if (
-      configFilePlugins != null &&
-      typeof configFilePlugins === 'object' &&
-      configFilePlugins['postcss-modules'] != null
-    ) {
-      originalModulesConfig = configFilePlugins['postcss-modules'];
-      // $FlowFixMe
-      delete configFilePlugins['postcss-modules'];
-    }*/
-
   preSerializeConfig({config}) {
     return preSerialize(config);
   },
@@ -114,7 +70,7 @@ export default new Transformer({
       );
     }
 
-    let ast = nullthrows(asset.ast);
+    let ast = nullthrows(await asset.getAST());
     let code = asset.isASTDirty() ? null : await asset.getCode();
     if (code == null || COMPOSES_RE.test(code)) {
       ast.program.walkDecls(decl => {

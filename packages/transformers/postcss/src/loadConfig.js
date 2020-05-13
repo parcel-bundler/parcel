@@ -69,7 +69,7 @@ export async function load({
   logger: PluginLogger,
 |}) {
   let configFile: any = await config.getConfig(
-    ['.postcssrc', '.postcssrc.json', 'postcss.config.js', '.postcssrc.js'],
+    ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'},
   );
 
@@ -101,11 +101,11 @@ export async function load({
         ? configFile.plugins
         : Object.keys(configFile.plugins);
       for (let p of configFilePlugins) {
-        // JavaScript configs can use an array of functions... ugh
+        // JavaScript configs can use an array of functions... opt out of all caching...
         if (typeof p === 'function') {
           configFile.__contains_functions = true;
 
-          // Just do all the things, tbh have no clue what this does...
+          // This should enforce the config to be revalidated as it can contain functions and is JS
           config.shouldInvalidateOnStartup();
           config.shouldReload();
         }

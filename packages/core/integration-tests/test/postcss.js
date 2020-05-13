@@ -311,7 +311,7 @@ describe('postcss', () => {
         name: 'style.css',
         assets: ['style.css'],
         includedFiles: {
-          'style.css': ['package.json'],
+          'style.css': [],
         },
       },
     ]);
