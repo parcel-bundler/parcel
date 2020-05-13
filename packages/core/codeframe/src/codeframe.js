@@ -37,7 +37,6 @@ const TAB_REPLACEMENT = '  ';
 const highlightSyntax = (txt: string, lang?: string): string => {
   if (lang) {
     try {
-      // Figure out a way to get this mapped to the original line...
       return emphasize.highlight(lang, txt).value;
     } catch (e) {
       // fallback for unknown languages...
@@ -59,7 +58,6 @@ export default function codeFrame(
     syntaxHighlighting: !!inputOpts.syntaxHighlighting,
     language: inputOpts.language,
     maxLines: inputOpts.maxLines !== undefined ? inputOpts.maxLines : 12,
-    // If terminal width is undefined, don't split up lines
     terminalWidth: inputOpts.terminalWidth,
     padding: inputOpts.padding || {
       before: 1,
