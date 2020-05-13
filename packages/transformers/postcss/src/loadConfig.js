@@ -27,19 +27,19 @@ async function configHydrator(
   }
 
   // Load the custom config...
-  let modules;
+  let modulesConfig;
   let configFilePlugins = configFile.plugins;
   if (
     configFilePlugins != null &&
     typeof configFilePlugins === 'object' &&
     configFilePlugins['postcss-modules'] != null
   ) {
-    modules = configFilePlugins['postcss-modules'];
+    modulesConfig = configFilePlugins['postcss-modules'];
     delete configFilePlugins['postcss-modules'];
   }
 
-  if (!modules && configFile.modules) {
-    modules = {};
+  if (!modulesConfig && configFile.modules) {
+    modulesConfig = {};
   }
 
   let plugins = await loadExternalPlugins(
@@ -54,7 +54,7 @@ async function configHydrator(
       plugins,
       from: config.searchPath,
       to: config.searchPath,
-      modules,
+      modules: modulesConfig,
     },
   });
 }
