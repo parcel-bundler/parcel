@@ -132,15 +132,14 @@ export async function load({
 export function preSerialize(config: Config) {
   if (!config.result) return;
 
+  // Ensure we dont pass functions to the serialiser
   if (config.result.raw.__contains_functions) {
-    // $FlowFixMe
-    config.result = {};
-  } else {
-    // $FlowFixMe
-    config.result = {
-      raw: config.result.raw,
-    };
+    config.result.raw = {};
   }
+
+  // This gets re-hydrated in Deserialize, so never store this.
+  // It also usually contains a bunch of functions so bad idea anyway...
+  config.result.hydrated = {};
 }
 
 export function postDeserialize(config: Config, options: PluginOptions) {
