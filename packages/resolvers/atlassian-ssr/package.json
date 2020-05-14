@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/resolver-atlassian-ssr",
+  "version": "2.0.0-frontbucket.24",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/AtlassianSsrResolver.js",
+  "source": "src/AtlassianSsrResolver.js",
+  "engines": {
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/node-resolver-core": "^2.0.0-frontbucket.9",
+    "@parcel/plugin": "^2.0.0-frontbucket.22"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.2.2"
+  }
+}
