@@ -15,12 +15,13 @@ export default new Resolver({
       );
     }
 
-    // always prefer module field for SSR builds
+    // ATLASSIAN: always prefer `module` over `main` so we can resolve esm versions of atlaskit modules
     let mainFields = ['source', 'browser', 'module', 'main'];
     const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
       mainFields,
       options,
+      // ATLASSIAN: use custom field in package.json for aliases so we can have different aliases for SSR and client builds
       aliasField: 'aliasSsr',
     });
 
