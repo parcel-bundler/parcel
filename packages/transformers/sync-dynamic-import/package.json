@@ -1,0 +1,15 @@
+{
+  "name": "@parcel/transformer-sync-dynamic-import",
+  "version": "0.0.1",
+  "main": "lib/SyncDynamicImportTransformer.js",
+  "source": "src/SyncDynamicImportTransformer.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@babel/core": "^7.8.7",
+    "react-loadable": "^5.5.0",
+    "semver": "^7.3.2"
+  }
+}
