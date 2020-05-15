@@ -2,6 +2,7 @@
 import path from 'path';
 import type {BundleGraph, Bundle, Dependency} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
+import nullthrows from 'nullthrows';
 
 const buildManifest = (bundleGraph: BundleGraph) => {
   const manifest = {};
@@ -30,15 +31,12 @@ const buildManifest = (bundleGraph: BundleGraph) => {
         continue;
       }
 
-      // let bundles = bundleGraph.getBundlesInBundleGroup(resolved);
-      // const [entryBundle] = bundles;
       const allBundles = bundleGraph.getBundlesInBundleGroup(resolved.value);
-      const jsBundles = allBundles.filter(b => b.type === 'js');
-      const entryBundle = jsBundles[jsBundles.length - 1];
-
-      if (!entryBundle) {
-        continue;
-      }
+      const entryBundle = nullthrows(
+        allBundles.find(
+          b => b.getMainEntry()?.id === resolved.value.entryAssetId,
+        ),
+      );
 
       if (!assets[dependency.moduleSpecifier]) {
         assets[dependency.moduleSpecifier] = new Set();

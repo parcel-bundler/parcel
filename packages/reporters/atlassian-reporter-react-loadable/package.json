@@ -1,5 +1,5 @@
 {
-  "name": "@atlassian/parcel-reporter-react-loadable",
+  "name": "@parcel/reporter-react-loadable",
   "version": "0.0.1",
   "description": "parcel reporter plugin for generating a manifest for react loadable",
   "main": "lib/ReactLoadableReporter.js",
@@ -8,7 +8,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
+    "@parcel/plugin": "^2.0.0-frontbucket.22",
     "@parcel/types": "^2.0.0-frontbucket.22",
-    "@parcel/plugin": "^2.0.0-frontbucket.22"
+    "nullthrows": "^1.1.1"
   }
 }
