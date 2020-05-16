@@ -47,7 +47,7 @@ export class NodeFS implements FileSystem {
       ...options,
       emitClose: true,
     });
-    stream.on('close', () => fs.renameSync(tmpFilePath, filePath));
+    stream.once('close', () => fs.renameSync(tmpFilePath, filePath));
     return stream;
   }
 
