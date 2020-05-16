@@ -95,7 +95,7 @@ export default class ConfigLoader {
     });
 
     invariant(typeof parcelConfigPath === 'string');
-    let pluginInstance = await this.parcelConfig.loadPlugin({
+    let {plugin: pluginInstance} = await this.parcelConfig.loadPlugin({
       packageName: nullthrows(plugin),
       resolveFrom: parcelConfigPath,
     });

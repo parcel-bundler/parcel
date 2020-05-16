@@ -6,6 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
+  NamedBundle as NamedBundleType,
   Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
@@ -237,7 +238,11 @@ export default class PackagerRunner {
     try {
       return await packager.plugin.package({
         bundle,
-        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        bundleGraph: new BundleGraph<NamedBundleType>(
+          bundleGraph,
+          NamedBundle.get,
+          this.options,
+        ),
         getSourceMapReference: map => {
           return this.getSourceMapReference(bundle, map);
         },
@@ -245,7 +250,7 @@ export default class PackagerRunner {
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: async (
           bundle: BundleType,
-          bundleGraph: BundleGraphType,
+          bundleGraph: BundleGraphType<NamedBundleType>,
         ) => {
           if (!bundle.isInline) {
             throw new Error(
@@ -255,6 +260,7 @@ export default class PackagerRunner {
 
           let res = await this.getBundleResult(
             bundleToInternalBundle(bundle),
+            // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
           );
 
@@ -363,31 +369,23 @@ export default class PackagerRunner {
     });
   }
 
-  getCacheKey(
+  async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-  ): string {
+  ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
-    let packager = this.config.getPackagerName(filePath);
-    let optimizers = this.config.getOptimizerNames(filePath);
-    let deps = Promise.all(
-      [packager, ...optimizers].map(async pkg => {
-        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
-          `${pkg}/package.json`,
-          `${this.config.filePath}/index`,
-        );
-
-        let version = nullthrows(resolvedPkg).version;
-        return [pkg, version];
-      }),
-    );
+    let {version: packager} = await this.config.getPackager(filePath);
+    let optimizers = (
+      await this.config.getOptimizers(filePath)
+    ).map(({name, version}) => [name, version]);
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
-      deps,
+      packager,
+      optimizers,
       opts: {sourceMaps},
       hash: bundleGraph.getHash(bundle),
     });
@@ -468,7 +466,12 @@ export default class PackagerRunner {
     };
 
     let mapKey = cacheKeys.map;
-    if (await this.options.cache.blobExists(mapKey)) {
+    if (
+      (typeof bundle.target.sourceMap === 'object'
+        ? !bundle.target.sourceMap.inline
+        : bundle.target.sourceMap) &&
+      (await this.options.cache.blobExists(mapKey))
+    ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
         outputFS,
@@ -522,10 +525,15 @@ function writeFileStream(
       ? stream.pipe(replaceStream(hashRefToNameHash))
       : stream;
     let fsStream = fs.createWriteStream(filePath, options);
+    let fsStreamClosed = new Promise(resolve => {
+      fsStream.on('close', () => resolve());
+    });
     initialStream
       .pipe(fsStream)
-      // $FlowFixMe
-      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('finish', () =>
+        // $FlowFixMe
+        resolve(fsStreamClosed.then(() => fsStream.bytesWritten)),
+      )
       .on('error', reject);
   });
 }

@@ -12,6 +12,7 @@ export default new Transformer({
     let gql = await options.packageManager.require(
       'graphql-tag',
       asset.filePath,
+      {autoinstall: options.autoinstall},
     );
 
     let gqlMap = new Map();

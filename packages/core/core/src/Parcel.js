@@ -8,6 +8,7 @@ import type {
   FilePath,
   InitialParcelOptions,
   ModuleSpecifier,
+  NamedBundle as INamedBundle,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
@@ -19,6 +20,7 @@ import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import {createDependency} from './Dependency';
 import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
+import {NamedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -144,7 +146,7 @@ export default class Parcel {
     this.#initialized = true;
   }
 
-  async run(): Promise<IBundleGraph> {
+  async run(): Promise<IBundleGraph<INamedBundle>> {
     let startTime = Date.now();
     if (!this.#initialized) {
       await this.init();
@@ -276,13 +278,13 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(bundleGraph, options),
+        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
       };
-      this.#reporterRunner.report(event);
+
+      await this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
-
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -372,6 +374,14 @@ export default class Parcel {
         }
       },
       opts,
+    );
+  }
+
+  // This is mainly for integration tests and it not public api!
+  _getResolvedParcelOptions() {
+    return nullthrows(
+      this.#resolvedOptions,
+      'Resolved options is null, please let parcel intitialise before accessing this.',
     );
   }
 }

@@ -20,16 +20,20 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol,
+  MutableSymbols as IMutableSymbols,
+  Symbols as ISymbols,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
+import {Symbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
+
+const inspect = Symbol.for('nodejs.util.inspect.custom');
 
 const assetValueToAsset: WeakMap<AssetValue, Asset> = new WeakMap();
 const assetValueToMutableAsset: WeakMap<
@@ -76,6 +80,11 @@ class BaseAsset {
     _assetToAssetValue.set(this, asset.value);
   }
 
+  // $FlowFixMe
+  [inspect]() {
+    return `Asset(${this.filePath})`;
+  }
+
   get id(): string {
     return this.#asset.value.id;
   }
@@ -120,8 +129,8 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): Map<Symbol, Symbol> {
-    return this.#asset.value.symbols;
+  get symbols(): ISymbols {
+    return new Symbols(this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -251,6 +260,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set isSplittable(isSplittable: ?boolean): void {
     this.#asset.value.isSplittable = isSplittable;
+  }
+
+  get symbols(): IMutableSymbols {
+    return new MutableAssetSymbols(this.#asset.value);
   }
 
   addDependency(dep: DependencyOptions): string {

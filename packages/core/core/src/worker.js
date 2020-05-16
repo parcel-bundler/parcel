@@ -43,7 +43,11 @@ export function runTransform(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(processedConfig, options.packageManager);
+  let config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.autoinstall,
+  );
 
   return new Transformation({
     workerApi,
@@ -64,7 +68,11 @@ export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(processedConfig, options.packageManager);
+  let config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.autoinstall,
+  );
 
   return new Validation({
     workerApi,
@@ -105,7 +113,11 @@ export function runPackage(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(processedConfig, options.packageManager);
+  let config = new ParcelConfig(
+    processedConfig,
+    options.packageManager,
+    options.autoinstall,
+  );
 
   return new PackagerRunner({
     config,

@@ -1,11 +1,16 @@
 // @flow
 
-import type {Bundle, BundleGraph, PluginOptions} from '@parcel/types';
 import type {
+  Asset,
+  BundleGraph,
+  NamedBundle,
+  PluginOptions,
+} from '@parcel/types';
+import type {
+  ArrayExpression,
   ExpressionStatement,
   File,
   Statement,
-  StringLiteral,
 } from '@babel/types';
 
 import babelGenerate from '@babel/generator';
@@ -17,20 +22,40 @@ import * as t from '@babel/types';
 import template from '@babel/template';
 
 const REGISTER_TEMPLATE = template.statement<
-  {|ID: StringLiteral, STATEMENTS: Array<Statement>|},
+  {|
+    REFERENCED_IDS: ArrayExpression,
+    STATEMENTS: Array<Statement>,
+  |},
   ExpressionStatement,
->('parcelRequire.registerBundle(ID, function () { STATEMENTS; })');
+>(`(function() {
+  function $parcel$bundleWrapper() {
+    if ($parcel$bundleWrapper._executed) return;
+    STATEMENTS;
+    $parcel$bundleWrapper._executed = true;
+  }
+  var $parcel$referencedAssets = REFERENCED_IDS;
+  for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
+    parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+  }
+})()`);
 const WRAPPER_TEMPLATE = template.statement<
   {|STATEMENTS: Array<Statement>|},
   ExpressionStatement,
 >('(function () { STATEMENTS; })()');
 
-export function generate(
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
+export function generate({
+  bundleGraph,
+  bundle,
+  ast,
+  referencedAssets,
+  options,
+}: {|
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   ast: File,
   options: PluginOptions,
-) {
+  referencedAssets: Set<Asset>,
+|}) {
   let interpreter;
   if (!bundle.target.env.isBrowser()) {
     let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
@@ -38,8 +63,7 @@ export function generate(
     interpreter = _interpreter;
   }
 
-  let entry = bundle.getMainEntry();
-  let isAsync = entry && !isEntry(bundle, bundleGraph);
+  let isAsync = !isEntry(bundle, bundleGraph);
 
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
   // at the right time (after other bundle dependencies are loaded).
@@ -48,8 +72,12 @@ export function generate(
     statements = isAsync
       ? [
           REGISTER_TEMPLATE({
-            ID: t.stringLiteral(nullthrows(entry).publicId),
             STATEMENTS: statements,
+            REFERENCED_IDS: t.arrayExpression(
+              [bundle.getMainEntry(), ...referencedAssets]
+                .filter(Boolean)
+                .map(asset => t.stringLiteral(asset.publicId)),
+            ),
           }),
         ]
       : [WRAPPER_TEMPLATE({STATEMENTS: statements})];

@@ -1,5 +1,5 @@
 // @flow
-import type {Symbol} from '@parcel/types';
+import type {Asset, Symbol} from '@parcel/types';
 import type {NodePath, Scope} from '@babel/traverse';
 import type {Expression, Identifier, Node} from '@babel/types';
 
@@ -25,6 +25,7 @@ import {pathDereference, pathRemove} from './utils';
 export default function treeShake(
   scope: Scope,
   exportedIdentifiers: Set<Symbol>,
+  exportsMap: Map<Symbol, Asset>,
 ) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
@@ -34,7 +35,7 @@ export default function treeShake(
     removed = false;
 
     Object.keys(scope.bindings).forEach((name: string) => {
-      let binding = getUnusedBinding(scope.path, name);
+      let binding = getUnusedBinding(scope.path, name, exportsMap);
 
       // If it is not safe to remove the binding don't touch it.
       if (!binding || exportedIdentifiers.has(name)) {
@@ -44,7 +45,7 @@ export default function treeShake(
       // Remove the binding and all references to it.
       pathRemove(binding.path);
       [...binding.referencePaths, ...binding.constantViolations].forEach(p =>
-        remove(p, scope),
+        remove(p, scope, exportsMap),
       );
 
       scope.removeBinding(name);
@@ -54,14 +55,23 @@ export default function treeShake(
 }
 
 // Check if a binding is safe to remove and returns it if it is.
-function getUnusedBinding(path, name) {
+function getUnusedBinding(path, name, exportsMap) {
   let binding = path.scope.getBinding(name);
   if (!binding) {
     return null;
   }
 
-  if (!isPure(binding.path)) {
+  if (!isPure(binding)) {
     // declaration (~= init) isn't pure
+    return null;
+  }
+
+  if (hasSideEffects(binding)) {
+    // e.g.
+    //    let foo = {};
+    //    foo = window;
+    //    foo.xyz = 2;
+    //    console.log(window.xyz);
     return null;
   }
 
@@ -71,7 +81,7 @@ function getUnusedBinding(path, name) {
 
   // Is there any references which aren't simple assignments?
   let bailout = binding.referencePaths.some(
-    path => !isExportAssignment(path) && !isWildcardDest(path),
+    path => !isExportAssignment(path, exportsMap) && !isWildcardDest(path),
   );
 
   if (!bailout) {
@@ -81,7 +91,8 @@ function getUnusedBinding(path, name) {
   return null;
 }
 
-function isPure(path) {
+function isPure(binding) {
+  let {path} = binding;
   let {node} = path;
   if (isVariableDeclarator(node) && isIdentifier(node.id)) {
     let init = path.get<NodePath<Expression>>('init');
@@ -97,12 +108,30 @@ function isPure(path) {
   return path.isPure();
 }
 
-function isExportAssignment(path) {
+function hasSideEffects(binding) {
+  let {node} = binding.path;
+  if (isVariableDeclarator(node)) {
+    return !(
+      (!binding.referenced || isObjectExpression(node.init)) &&
+      (binding.constant ||
+        binding.constantViolations.every(
+          ({node}) =>
+            !isAssignmentExpression(node) || isObjectExpression(node.right),
+        ))
+    );
+  }
+
+  return false;
+}
+
+function isExportAssignment(path, exportsMap: Map<Symbol, Asset>) {
   let {parent} = path;
-  // match "path.foo = bar;"
+  // match "path.foo = bar;", where path is a known exports identifier.
   if (
     isMemberExpression(parent) &&
     parent.object === path.node &&
+    isIdentifier(path.node) &&
+    exportsMap.has(path.node.name) &&
     ((isIdentifier(parent.property) && !parent.computed) ||
       isStringLiteral(parent.property))
   ) {
@@ -123,7 +152,11 @@ function isWildcardDest(path) {
   );
 }
 
-function remove(path: NodePath<Node>, scope: Scope) {
+function remove(
+  path: NodePath<Node>,
+  scope: Scope,
+  exportsMap: Map<Symbol, Asset>,
+) {
   let {node, parent} = path;
   if (isAssignmentExpression(node)) {
     let right;
@@ -131,7 +164,7 @@ function remove(path: NodePath<Node>, scope: Scope) {
       // TODO missing test coverage
       // replace sequence expression with it's sole child
       path.parentPath.replaceWith(node);
-      remove(path.parentPath, scope);
+      remove(path.parentPath, scope, exportsMap);
     } else if (
       //e.g. `exports.foo = bar;`, `bar` needs to be pure (an Identifier isn't ?!)
       isExpressionStatement(parent) &&
@@ -142,8 +175,8 @@ function remove(path: NodePath<Node>, scope: Scope) {
       // right side isn't pure
       path.replaceWith(node.right);
     }
-  } else if (isExportAssignment(path)) {
-    remove(path.parentPath.parentPath, scope);
+  } else if (isExportAssignment(path, exportsMap)) {
+    remove(path.parentPath.parentPath, scope, exportsMap);
   } else if (isWildcardDest(path)) {
     let wildcard = path.parent;
     invariant(isCallExpression(wildcard));
@@ -163,14 +196,14 @@ function remove(path: NodePath<Node>, scope: Scope) {
         isIdentifier(src) ||
           (isObjectExpression(src) && src.properties.length === 0),
       );
-      remove(path.parentPath, scope);
+      remove(path.parentPath, scope, exportsMap);
     }
   } else if (!path.removed) {
     if (isSequenceExpression(parent) && parent.expressions.length === 1) {
       // TODO missing test coverage
       // replace sequence expression with it's sole child
       path.parentPath.replaceWith(node);
-      remove(path.parentPath, scope);
+      remove(path.parentPath, scope, exportsMap);
     } else {
       pathRemove(path);
     }

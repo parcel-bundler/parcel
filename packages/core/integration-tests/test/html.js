@@ -3,7 +3,6 @@ import {
   bundle,
   bundler,
   assertBundles,
-  assertBundleTree,
   removeDistDirectory,
   distDir,
   getNextBuild,
@@ -273,8 +272,9 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
+
     assert(
-      /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
+      /^<link rel="stylesheet" href="[/\\]html-css-optional-elements\.[a-f0-9]+\.css">\s*<script src="[/\\]other\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
@@ -328,8 +328,8 @@ describe('html', function() {
 
     // mergeStyles
     assert(
-      html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
+      html.match(
+        /<style>h1{color:red}div{font-size:20px}\n\/\*# sourceMappingURL=.*\*\/<\/style><style media="print">div{color:#00f}\n\/\*# sourceMappingURL=.*\*\/<\/style>/,
       ),
     );
 
@@ -555,7 +555,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/webmanifest/index.html'),
     );
 
-    await assertBundleTree(b, {
+    assertBundles(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
@@ -579,7 +579,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-manifest/index.html'),
     );
 
-    await assertBundleTree(b, {
+    assertBundles(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
@@ -833,7 +833,11 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(html.includes('<style>.index{color:#00f}</style>'));
+    assert(
+      html.match(
+        /<style>.index{color:#00f}\n\/\*# sourceMappingURL=.*<\/style>/,
+      ),
+    );
   });
 
   it('should process inline non-js scripts', async function() {
@@ -990,6 +994,132 @@ describe('html', function() {
     assert(html.includes('.add(2, 3)'));
   });
 
+  it('inserts sibling bundles into html in the correct order (no head)', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-shared/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['async.js'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-worker-url.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let lodashSibling = path.basename(
+      b
+        .getChildBundles(b.getBundles().find(v => v.isEntry))
+        .find(v => v.getEntryAssets().length === 0).filePath,
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let insertedBundles = [];
+    let regex = /<script (?:type="[^"]+" )?src="([^"]*)"><\/script>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      insertedBundles.push(path.basename(match[1]));
+    }
+
+    assert.equal(insertedBundles.length, 2);
+    assert.equal(insertedBundles[0], lodashSibling);
+  });
+
+  it('inserts sibling bundles into html in the correct order (head)', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-shared-head/index.html'),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['async.js'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'get-worker-url.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'index.html',
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
+      },
+      {
+        type: 'js',
+        assets: ['worker.js'],
+      },
+    ]);
+
+    let lodashSibling = path.basename(
+      b
+        .getChildBundles(b.getBundles().find(v => v.isEntry))
+        .find(v => v.getEntryAssets().length === 0).filePath,
+    );
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let insertedBundles = [];
+    let regex = /<script (?:type="[^"]+" )?src="([^"]*)"><\/script>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      insertedBundles.push(path.basename(match[1]));
+    }
+
+    assert.equal(insertedBundles.length, 2);
+    assert.equal(insertedBundles[0], lodashSibling);
+  });
+
   it('should support multiple entries with shared sibling bundles', async function() {
     await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
@@ -1005,6 +1135,44 @@ describe('html', function() {
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
     assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
+  });
+
+  it('should insert JS sibling bundle script tags in the correct order', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        'integration/scope-hoisting/es6/interop-async/index.html',
+      ),
+      {production: true, scopeHoist: true},
+    );
+    let bundles = b.getBundles();
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    let insertedBundles = [];
+    let regex = /<script (?:type="[^"]+" )?src="([^"]*)"><\/script>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      let bundle = bundles.find(
+        b => path.basename(b.filePath) === path.basename(match[1]),
+      );
+
+      insertedBundles.push(bundle);
+    }
+
+    assert.equal(insertedBundles.length, 2);
+
+    let js1 = await outputFS.readFile(insertedBundles[0].filePath, 'utf8');
+    let js2 = await outputFS.readFile(insertedBundles[1].filePath, 'utf8');
+
+    let id = js1.match(/parcelRequire\.register\("([a-f0-9]+)",/)[1];
+    assert(new RegExp(`parcelRequire\\("${id}"\\)`).test(js2));
+
+    let output = await run(b);
+    assert.deepEqual(output, ['client', 'client', 'viewer']);
   });
 
   it('should not point to unrelated sibling bundles', async function() {
@@ -1028,12 +1196,17 @@ describe('html', function() {
       1,
     );
 
+    // a.html should reference a.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g).length, 1);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g), null);
+
     let css = await outputFS.readFile(
       path.join(distDir, html.match(/\/a\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
-    assert(css.includes('.a'));
-    assert(!css.includes('.b'));
+    assert(css.includes('.a {'));
+    assert(!css.includes('.b {'));
 
     // b.html should point to a CSS bundle containing only b.css
     // It should not point to the bundle containing a.css from a.html
@@ -1047,12 +1220,101 @@ describe('html', function() {
       1,
     );
 
+    // b.html should reference b.js only
+    assert.equal(html.match(/a\.[a-z0-9]+\.js/g), null);
+
+    assert.equal(html.match(/b\.[a-z0-9]+\.js/g).length, 1);
+
     css = await outputFS.readFile(
       path.join(distDir, html.match(/\/b\.[a-z0-9]+\.css/)[0]),
       'utf8',
     );
-    assert(!css.includes('.a'));
-    assert(css.includes('.b'));
+    assert(!css.includes('.a {'));
+    assert(css.includes('.b {'));
+  });
+
+  it('should support split bundles with many pages', async function() {
+    await bundle(path.join(__dirname, '/integration/shared-many/*.html'));
+
+    let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 3);
+
+    html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 5);
+
+    html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 4);
+
+    html = await outputFS.readFile(path.join(distDir, 'd.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 3);
+
+    html = await outputFS.readFile(path.join(distDir, 'e.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 1);
+
+    html = await outputFS.readFile(path.join(distDir, 'f.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 1);
+
+    // b.html hitting the parallel request limit should not prevent g.html from being optimized
+    html = await outputFS.readFile(path.join(distDir, 'g.html'), 'utf8');
+    assert.equal(html.match(/<script/g).length, 2);
+  });
+
+  it('should remove duplicate assets from sibling bundles', async function() {
+    let bundleGraph = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
+    );
+
+    bundleGraph.traverseBundles(bundle => {
+      bundle.traverseAssets(asset => {
+        let bundles = bundleGraph.findBundlesWithAsset(asset);
+        assert.equal(
+          bundles.length,
+          1,
+          `asset ${asset.filePath} is duplicated`,
+        );
+      });
+    });
+  });
+
+  it('should support split bundles with many pages with esmodule output', async function() {
+    await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
+      scopeHoist: true,
+    });
+
+    let checkHtml = async filename => {
+      // Find all scripts referenced in the HTML file
+      let html = await outputFS.readFile(path.join(distDir, filename), 'utf8');
+      let re = /<script.*?src="(.*?)"/g;
+      let match;
+      let scripts = new Set();
+      while ((match = re.exec(html))) {
+        scripts.add(path.join(distDir, match[1]));
+      }
+
+      assert(scripts.size > 0, 'no scripts found');
+
+      // Ensure that those scripts don't import anything other than what's in the HTML.
+      for (let script of scripts) {
+        let js = await outputFS.readFile(script, 'utf8');
+        let re = /import .*? from "(.*?)"/g;
+        let match;
+        while ((match = re.exec(js))) {
+          let imported = path.join(distDir, match[1]);
+          assert(
+            scripts.has(imported),
+            `unknown script ${match[1]} imported in ${path.basename(script)}`,
+          );
+        }
+      }
+    };
+
+    checkHtml('a.html');
+    checkHtml('b.html');
+    checkHtml('c.html');
+    checkHtml('d.html');
+    checkHtml('e.html');
+    checkHtml('f.html');
+    checkHtml('g.html');
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
@@ -1062,11 +1324,14 @@ describe('html', function() {
       path.join(__dirname, '/html-inline-js-require'),
     );
 
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
     let b = await bundler(
       path.join(__dirname, '/html-inline-js-require/index.html'),
       {
         inputFS: overlayFS,
         disableCache: false,
+        distDir,
       },
     );
 
@@ -1082,7 +1347,44 @@ describe('html', function() {
     );
     await getNextBuild(b);
 
-    html = await outputFS.readFile('/dist/index.html', 'utf8');
+    html = await outputFS.readFile(path.join(distDir, '/index.html'), 'utf8');
     assert(html.includes('console.log("foo")'));
+  });
+
+  it('should invalidate parent bundle when nested inline bundles change', async function() {
+    // copy into memory fs
+    await ncp(
+      path.join(__dirname, '/integration/html-inline-js-nested'),
+      path.join(__dirname, '/html-inline-js-nested'),
+    );
+
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
+    let b = await bundler(
+      path.join(__dirname, '/html-inline-js-nested/index.html'),
+      {
+        inputFS: overlayFS,
+        disableCache: false,
+        distDir,
+      },
+    );
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let html = await outputFS.readFile('/dist/index.html', 'utf8');
+    assert(html.includes('module.exports = "hello world"'));
+    assert(html.includes('console.log'));
+
+    await overlayFS.writeFile(
+      path.join(__dirname, '/html-inline-js-nested/test.txt'),
+      'foo bar',
+    );
+    await getNextBuild(b);
+
+    html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
+    assert(!html.includes('module.exports = "hello world"'));
+    assert(html.includes('module.exports = "foo bar"'));
+    assert(html.includes('console.log'));
   });
 });

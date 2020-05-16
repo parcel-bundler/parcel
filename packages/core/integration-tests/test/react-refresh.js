@@ -7,132 +7,227 @@ import {
   defaultConfig,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
-import JSDom from 'jsdom';
+import JSDOM from 'jsdom';
 import nullthrows from 'nullthrows';
 
-const testDir = path.join(__dirname, '/integration/react-refresh');
+let MessageChannel;
+try {
+  ({MessageChannel} = require('worker_threads'));
+} catch (_) {
+  // eslint-disable-next-line no-console
+  console.log(
+    'Skipping React Fast Refresh tests because they require worker_threads',
+  );
+}
 
-describe('react-refresh', function() {
-  let b,
-    root,
-    window,
-    subscription,
-    randoms = {};
+if (MessageChannel) {
+  describe('react-refresh', function() {
+    describe('synchronous', () => {
+      const testDir = path.join(__dirname, '/integration/react-refresh');
 
-  beforeEach(async () => {
-    let port = await getPort();
-    b = bundler(path.join(testDir, 'index.js'), {
-      inputFS: fs,
-      outputFS: fs,
-      serve: {
-        https: false,
-        port,
-        host: '127.0.0.1',
-      },
-      hot: true,
-      defaultConfig: {
-        ...defaultConfig,
-        reporters: ['@parcel/reporter-dev-server'],
-      },
+      let b,
+        root,
+        window,
+        subscription,
+        randoms = {};
+
+      beforeEach(async () => {
+        ({b, root, window, subscription, randoms} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
+
+      it('retains state in functional components', async function() {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.1.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'OtherFunctional');
+      });
+
+      it('supports changing hooks in functional components', async function() {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.2-hooks.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [
+          ,
+          indexNum,
+          appNum,
+          fooText,
+          fooNum,
+          fooNum2,
+        ] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.notEqual(randoms.fooNum, fooNum);
+        assert(fooNum2);
+        assert.equal(fooText, 'Hooks');
+      });
+
+      it('retains state in parent components when swapping function and class component', async function() {
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Foo.3-class.js'),
+          path.join(testDir, 'Foo.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.notEqual(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'Class');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
     });
 
-    window = new JSDom.JSDOM(`<div id="root"></div>`, {
-      runScripts: 'outside-only',
-      url: 'http://127.0.0.1:' + port + '/index.html',
-    }).window;
-    window.console.clear = () => {};
-    let {document} = window;
-    root = document.getElementById('root');
+    describe('lazy child component', () => {
+      const testDir = path.join(
+        __dirname,
+        '/integration/react-refresh-lazy-child',
+      );
 
-    subscription = await b.watch();
+      let b,
+        root,
+        window,
+        subscription,
+        randoms = {};
 
-    let bundleEvent = await getNextBuild(b);
-    assert.equal(bundleEvent.type, 'buildSuccess');
-    let bundle = nullthrows(
-      bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
-    );
-    window.eval(await fs.readFile(nullthrows(bundle.filePath), 'utf8'));
-    // ReactDOM.render
-    window.parcelRequire(bundle.getMainEntry().publicId).default();
+      beforeEach(async () => {
+        ({b, root, window, subscription, randoms} = await setup(
+          path.join(testDir, 'index.html'),
+        ));
+      });
 
-    let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-    );
-    assert(indexNum);
-    assert(appNum);
-    assert(fooNum);
-    assert.equal(fooText, 'Functional');
+      it('retains state in async components on change', async function() {
+        assert.equal(randoms.fooText, 'Async');
 
-    randoms = {indexNum, appNum, fooNum};
+        await fs.mkdirp(testDir);
+        await fs.copyFile(
+          path.join(testDir, 'Async.1.js'),
+          path.join(testDir, 'Async.js'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+
+        // Wait for the hmr-runtime to process the event
+        await new Promise(res => setTimeout(res, 100));
+
+        let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+          /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+        );
+        assert.equal(randoms.indexNum, indexNum);
+        assert.equal(randoms.appNum, appNum);
+        assert.equal(randoms.fooNum, fooNum);
+        assert.equal(fooText, 'OtherAsync');
+      });
+
+      afterEach(async () => {
+        await cleanup({subscription, window});
+      });
+    });
+  });
+}
+
+async function setup(entry) {
+  let port = await getPort(),
+    b,
+    window,
+    randoms,
+    subscription,
+    root;
+
+  b = bundler(entry, {
+    inputFS: fs,
+    outputFS: fs,
+    serve: {
+      https: false,
+      port,
+      host: '127.0.0.1',
+    },
+    hot: true,
+    defaultConfig: {
+      ...defaultConfig,
+      reporters: ['@parcel/reporter-dev-server'],
+    },
   });
 
-  it('retains state in functional components', async function() {
-    await fs.mkdirp(testDir);
-    await fs.copyFile(
-      path.join(testDir, 'Foo.1.js'),
-      path.join(testDir, 'Foo.js'),
-    );
-    assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+  subscription = await b.watch();
+  let bundleEvent = await getNextBuild(b);
+  assert.equal(bundleEvent.type, 'buildSuccess');
 
-    // Wait for the hmr-runtime to process the event
-    await new Promise(res => setTimeout(res, 100));
+  let dom = await JSDOM.JSDOM.fromURL(
+    'http://127.0.0.1:' + port + '/index.html',
+    {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+    },
+  );
+  window = dom.window;
+  await new Promise(res =>
+    window.document.addEventListener('load', () => {
+      res();
+    }),
+  );
+  window.console.clear = () => {};
+  window.MessageChannel = MessageChannel;
+  root = window.document.getElementById('root');
 
-    let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-    );
-    assert.equal(randoms.indexNum, indexNum);
-    assert.equal(randoms.appNum, appNum);
-    assert.equal(randoms.fooNum, fooNum);
-    assert.equal(fooText, 'OtherFunctional');
-  });
+  let bundle = nullthrows(
+    bundleEvent.bundleGraph.getChildBundles(
+      bundleEvent.bundleGraph.getBundles().find(b => b.type === 'html'),
+    )[0],
+  );
+  // ReactDOM.render
+  await window.parcelRequire(bundle.getMainEntry().id).default();
+  await new Promise(res => setTimeout(res, 100));
 
-  it('supports changing hooks in functional components', async function() {
-    await fs.mkdirp(testDir);
-    await fs.copyFile(
-      path.join(testDir, 'Foo.2-hooks.js'),
-      path.join(testDir, 'Foo.js'),
-    );
-    assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+  let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
+    /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
+  );
+  assert(indexNum);
+  assert(appNum);
+  assert(fooNum);
 
-    // Wait for the hmr-runtime to process the event
-    await new Promise(res => setTimeout(res, 100));
+  randoms = {indexNum, appNum, fooText, fooNum};
 
-    let [, indexNum, appNum, fooText, fooNum, fooNum2] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+):([\d.]+)$/,
-    );
-    assert.equal(randoms.indexNum, indexNum);
-    assert.equal(randoms.appNum, appNum);
-    assert.notEqual(randoms.fooNum, fooNum);
-    assert(fooNum2);
-    assert.equal(fooText, 'Hooks');
-  });
+  return {port, b, window, randoms, subscription, root};
+}
 
-  it('retains state in parent components when swapping function and class component', async function() {
-    await fs.mkdirp(testDir);
-    await fs.copyFile(
-      path.join(testDir, 'Foo.3-class.js'),
-      path.join(testDir, 'Foo.js'),
-    );
-    assert.equal((await getNextBuild(b)).type, 'buildSuccess');
-
-    // Wait for the hmr-runtime to process the event
-    await new Promise(res => setTimeout(res, 100));
-
-    let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
-      /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
-    );
-    assert.equal(randoms.indexNum, indexNum);
-    assert.equal(randoms.appNum, appNum);
-    assert.notEqual(randoms.fooNum, fooNum);
-    assert.equal(fooText, 'Class');
-  });
-
-  afterEach(async () => {
-    if (window) {
-      window.close();
-    }
-    if (subscription) {
-      await subscription.unsubscribe();
-    }
-  });
-});
+async function cleanup({window, subscription}) {
+  if (window) {
+    window.close();
+  }
+  if (subscription) {
+    await subscription.unsubscribe();
+  }
+}

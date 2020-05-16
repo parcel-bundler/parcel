@@ -2,7 +2,6 @@
 
 import type {
   ASTGenerator,
-  ConfigResult,
   File,
   FilePath,
   GenerateOutput,
@@ -10,9 +9,11 @@ import type {
   PackageName,
   Stats,
   Symbol,
+  SourceLocation,
   Transformer,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment} from './types';
+import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
@@ -47,7 +48,7 @@ type AssetOptions = {|
   outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
-  symbols?: Map<Symbol, Symbol>,
+  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
@@ -67,8 +68,8 @@ export function createAsset(options: AssetOptions): Asset {
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
-    isIsolated: options.isIsolated == null ? false : options.isIsolated,
-    isInline: options.isInline == null ? false : options.isInline,
+    isIsolated: options.isIsolated ?? false,
+    isInline: options.isInline ?? false,
     isSplittable: options.isSplittable,
     type: options.type,
     contentKey: options.contentKey,
@@ -84,8 +85,8 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols || new Map(),
-    sideEffects: options.sideEffects != null ? options.sideEffects : true,
+    symbols: options.symbols ?? (options.symbols === null ? null : new Map()),
+    sideEffects: options.sideEffects ?? true,
     uniqueKey: uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,
@@ -112,10 +113,11 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   }
 
   let pluginName = nullthrows(asset.value.plugin);
-  let plugin: Transformer = await loadPlugin(
+  let {plugin} = await loadPlugin<Transformer>(
     asset.options.packageManager,
     pluginName,
     nullthrows(asset.value.configPath),
+    asset.options.autoinstall,
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);
@@ -155,14 +157,18 @@ export async function getConfig(
     packageKey?: string,
     parse?: boolean,
   |},
-): Promise<ConfigResult | null> {
+): Promise<ConfigOutput | null> {
   let packageKey = options?.packageKey;
   let parse = options && options.parse;
 
   if (packageKey != null) {
     let pkg = await asset.getPackage();
     if (pkg && pkg[packageKey]) {
-      return pkg[packageKey];
+      return {
+        config: pkg[packageKey],
+        // The package.json file was already registered by asset.getPackage() -> asset.getConfig()
+        files: [],
+      };
     }
   }
 

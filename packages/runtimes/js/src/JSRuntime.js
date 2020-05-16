@@ -133,12 +133,16 @@ export default new Runtime({
       }
 
       let bundleGroup = resolved.value;
-      let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+      let mainBundle = nullthrows(
+        bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
+          let main = b.getMainEntry();
+          return main && bundleGroup.entryAssetId === main.id;
+        }),
+      );
 
-      let [firstBundle] = bundlesInGroup;
-      if (firstBundle.isInline) {
+      if (mainBundle.isInline) {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
+          filePath: path.join(__dirname, `/bundles/${mainBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
         });
@@ -146,7 +150,7 @@ export default new Runtime({
       }
 
       // URL dependency or not, fall back to including a runtime that exports the url
-      assets.push(getURLRuntime(dependency, bundle, firstBundle));
+      assets.push(getURLRuntime(dependency, bundle, mainBundle));
     }
 
     if (
@@ -174,7 +178,7 @@ function getLoaderRuntimes({
   bundle: NamedBundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
 |}) {
   let assets = [];
   // Sort so the bundles containing the entry asset appear last
@@ -274,7 +278,10 @@ function getLoaderRuntimes({
   return assets;
 }
 
-function isNewContext(bundle: NamedBundle, bundleGraph: BundleGraph): boolean {
+function isNewContext(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   return (
     bundle.isEntry ||
     bundleGraph
@@ -309,7 +316,7 @@ function getURLRuntime(
 
 function getRegisterCode(
   entryBundle: NamedBundle,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {

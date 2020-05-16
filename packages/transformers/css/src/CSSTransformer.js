@@ -3,6 +3,7 @@
 import type {FilePath} from '@parcel/types';
 import type {Container, Node} from 'postcss';
 
+import SourceMap from '@parcel/source-map';
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isURL} from '@parcel/utils';
 import postcss from 'postcss';
@@ -166,7 +167,7 @@ export default new Transformer({
     return [asset];
   },
 
-  generate({ast}) {
+  async generate({asset, ast}) {
     let root = ast.program;
 
     // $FlowFixMe
@@ -192,13 +193,27 @@ export default new Transformer({
       root.each((node, index) => convert(root, node, index));
     }
 
-    let code = '';
-    postcss.stringify(root, c => {
-      code += c;
+    let result = await postcss().process(root, {
+      from: asset.filePath,
+      map: {
+        annotation: false,
+        inline: false,
+      },
+      // Pass postcss's own stringifier to it to silence its warning
+      // as we don't want to perform any transformations -- only generate
+      stringifier: postcss.stringify,
     });
 
+    let map;
+    if (result.map != null) {
+      map = new SourceMap();
+      let {mappings, sources, names} = result.map.toJSON();
+      map.addRawMappings(mappings, sources, names);
+    }
+
     return {
-      content: code,
+      content: result.css,
+      map,
     };
   },
 });

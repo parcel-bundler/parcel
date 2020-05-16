@@ -254,9 +254,12 @@ describe('postcss', () => {
     // an in-memory fs and reads first from memory, then falling back to the real fs.
     let packageManager = new NodePackageManager(overlayFS, packageInstaller);
 
+    let distDir = path.join(outputFS.cwd(), 'dist');
+
     await bundle(path.join(__dirname, '/input/index.css'), {
       inputFS: outputFS,
       packageManager,
+      distDir,
     });
 
     // cssnext was installed
@@ -269,10 +272,7 @@ describe('postcss', () => {
     assert(pkg.devDependencies['postcss-test']);
 
     // postcss-test is applied
-    let css = await outputFS.readFile(
-      path.join(outputFS.cwd(), 'dist', 'index.css'),
-      'utf8',
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('background: green'));
 
     // Increase the timeout for just this test. It takes a while with npm.
@@ -299,5 +299,25 @@ describe('postcss', () => {
     let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
 
     assert.equal(css.split('red').length - 1, 2);
+  });
+
+  it('should support using a postcss config in package.json', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-config-package/style.css'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.css'],
+        includedFiles: {
+          'style.css': ['package.json'],
+        },
+      },
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
+
+    assert(/background-color:\s*red/.test(css));
   });
 });

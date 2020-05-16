@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Namer, FilePath} from '@parcel/types';
+import type {Bundle as IBundle, Namer, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
@@ -16,7 +16,7 @@ import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MutableBundleGraph from './public/MutableBundleGraph';
-import {Bundle} from './public/Bundle';
+import {Bundle, NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
@@ -76,7 +76,7 @@ export default class BundlerRunner {
       this.options,
     );
 
-    let bundler = await this.config.getBundler();
+    let {plugin: bundler} = await this.config.getBundler();
 
     try {
       await bundler.bundle({
@@ -130,16 +130,12 @@ export default class BundlerRunner {
   }
 
   async getCacheKey(assetGraph: AssetGraph) {
-    let bundler = this.config.getBundlerName();
-    let {pkg} = await this.options.packageManager.resolve(
-      `${bundler}/package.json`,
-      `${this.config.filePath}/index`, // TODO: is this right?
-    );
+    let name = this.config.getBundlerName();
+    let {version} = await this.config.getBundler();
 
-    let version = nullthrows(pkg).version;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
-      bundler,
+      name,
       version,
       hash: assetGraph.getHash(),
     });
@@ -162,12 +158,21 @@ export default class BundlerRunner {
   }
 
   async nameBundle(
-    namers: Array<{|name: string, plugin: Namer, resolveFrom: FilePath|}>,
+    namers: Array<{|
+      name: string,
+      version: string,
+      plugin: Namer,
+      resolveFrom: FilePath,
+    |}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
     let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
-    let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
+    let bundleGraph = new BundleGraph<IBundle>(
+      internalBundleGraph,
+      NamedBundle.get,
+      this.options,
+    );
 
     for (let namer of namers) {
       try {

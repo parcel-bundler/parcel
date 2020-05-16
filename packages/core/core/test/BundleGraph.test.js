@@ -47,10 +47,15 @@ function createMockAssetGraph(ids: [string, string]) {
   let graph = new AssetGraph();
   graph.initialize({targets: DEFAULT_TARGETS, entries: ['./index']});
 
-  graph.resolveEntry('./index', [{filePath: '/path/to/index/src/main.js'}]);
+  graph.resolveEntry(
+    './index',
+    [{filePath: '/path/to/index/src/main.js'}],
+    '1',
+  );
   graph.resolveTargets(
     {filePath: '/path/to/index/src/main.js'},
     DEFAULT_TARGETS,
+    '2',
   );
 
   let dep = createDependency({
@@ -61,7 +66,7 @@ function createMockAssetGraph(ids: [string, string]) {
   });
   let filePath = '/index.js';
   let req = {filePath, env: DEFAULT_ENV};
-  graph.resolveDependency(dep, nodeFromAssetGroup(req));
+  graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({
     moduleSpecifier: 'dependent-asset-1',
@@ -91,7 +96,7 @@ function createMockAssetGraph(ids: [string, string]) {
       env: DEFAULT_ENV,
     }),
   ];
-  graph.resolveAssetGroup(req, assets);
+  graph.resolveAssetGroup(req, assets, '4');
 
   return graph;
 }

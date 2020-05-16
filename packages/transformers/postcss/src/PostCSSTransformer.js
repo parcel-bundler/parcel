@@ -75,6 +75,7 @@ export default new Transformer({
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath,
+        {autoinstall: options.autoinstall},
       );
 
       plugins.push(

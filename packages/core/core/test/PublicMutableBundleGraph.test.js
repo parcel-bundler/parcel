@@ -57,15 +57,25 @@ function createMockAssetGraph() {
     entries: ['./index', './index2'],
   });
 
-  graph.resolveEntry('./index', [{filePath: '/path/to/index/src/main.js'}]);
-  graph.resolveEntry('./index2', [{filePath: '/path/to/index/src/main2.js'}]);
+  graph.resolveEntry(
+    './index',
+    [{filePath: '/path/to/index/src/main.js'}],
+    '1',
+  );
+  graph.resolveEntry(
+    './index2',
+    [{filePath: '/path/to/index/src/main2.js'}],
+    '2',
+  );
   graph.resolveTargets(
     {filePath: '/path/to/index/src/main.js'},
     DEFAULT_TARGETS,
+    '3',
   );
   graph.resolveTargets(
     {filePath: '/path/to/index/src/main2.js'},
     DEFAULT_TARGETS,
+    '4',
   );
 
   let dep1 = createDependency({
@@ -85,33 +95,41 @@ function createMockAssetGraph() {
 
   let filePath = '/index.js';
   let req1 = {filePath, env: DEFAULT_ENV};
-  graph.resolveDependency(dep1, nodeFromAssetGroup(req1));
-  graph.resolveAssetGroup(req1, [
-    createAsset({
-      id: id1,
-      filePath,
-      type: 'js',
-      isSource: true,
-      hash: '#1',
-      stats,
-      env: DEFAULT_ENV,
-    }),
-  ]);
+  graph.resolveDependency(dep1, nodeFromAssetGroup(req1).value, '5');
+  graph.resolveAssetGroup(
+    req1,
+    [
+      createAsset({
+        id: id1,
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#1',
+        stats,
+        env: DEFAULT_ENV,
+      }),
+    ],
+    '6',
+  );
 
   filePath = '/index2.js';
   let req2 = {filePath, env: DEFAULT_ENV};
-  graph.resolveDependency(dep2, nodeFromAssetGroup(req2));
-  graph.resolveAssetGroup(req2, [
-    createAsset({
-      id: id2,
-      filePath,
-      type: 'js',
-      isSource: true,
-      hash: '#2',
-      stats,
-      env: DEFAULT_ENV,
-    }),
-  ]);
+  graph.resolveDependency(dep2, nodeFromAssetGroup(req2).value, '7');
+  graph.resolveAssetGroup(
+    req2,
+    [
+      createAsset({
+        id: id2,
+        filePath,
+        type: 'js',
+        isSource: true,
+        hash: '#2',
+        stats,
+        env: DEFAULT_ENV,
+      }),
+    ],
+    '8',
+  );
 
   return graph;
 }

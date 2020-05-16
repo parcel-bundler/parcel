@@ -15,7 +15,11 @@ export default new Transformer({
 
   async transform({asset, resolve, config, options}) {
     // stylus should be installed locally in the module that's being required
-    let stylus = await options.packageManager.require('stylus', asset.filePath);
+    let stylus = await options.packageManager.require(
+      'stylus',
+      asset.filePath,
+      {autoinstall: options.autoinstall},
+    );
 
     let code = await asset.getCode();
     let style = stylus(code, config);
@@ -50,7 +54,9 @@ async function getDependencies(
   seen.add(filepath);
   const [Parser, DepsResolver, nodes, utils] = await Promise.all(
     ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
-      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath),
+      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath, {
+        autoinstall: options.autoinstall,
+      }),
     ),
   );
 

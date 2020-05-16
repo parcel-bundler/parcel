@@ -1,6 +1,6 @@
 // @flow strict-local
 
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import htmlnano from 'htmlnano';
 import {loadConfig} from '@parcel/utils';
 import {Optimizer} from '@parcel/plugin';

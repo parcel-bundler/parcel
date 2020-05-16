@@ -4,12 +4,12 @@ import type {IDisposable, InitialParcelOptions} from '@parcel/types';
 
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import defaultConfigContents from '@parcel/config-default';
-// $FlowFixMe this is untyped
+// $FlowFixMe Flow can't resolve this
 import Module from 'module';
 import path from 'path';
-// $FlowFixMe this is untyped
+// flowlint-next-line untyped-import:off
 import {addHook} from 'pirates';
 import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
 

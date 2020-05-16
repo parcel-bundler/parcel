@@ -12,6 +12,8 @@ import {
   getNextBuild,
 } from '@parcel/test-utils';
 
+const distDir = path.join(__dirname, '/integration/monorepo/dist/default');
+
 describe('monorepos', function() {
   beforeEach(async () => {
     await outputFS.rimraf(path.join(__dirname, '/monorepo'));
@@ -37,7 +39,7 @@ describe('monorepos', function() {
           '/integration/monorepo/packages/pkg-b/src/index.js',
         ),
       ],
-      {scopeHoist: true},
+      {scopeHoist: true, distDir},
     );
 
     assertBundles(b, [
@@ -56,28 +58,19 @@ describe('monorepos', function() {
     ]);
 
     let contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/dist/default/pkg-a/src/index.js',
-      ),
+      path.join(distDir, '/pkg-a/src/index.js'),
       'utf8',
     );
     assert(contents.includes('exports.default ='));
 
     contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/dist/default/pkg-b/src/index.js',
-      ),
+      path.join(distDir, '/pkg-b/src/index.js'),
       'utf8',
     );
     assert(contents.includes('require("./index.css")'));
 
     contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/dist/default/pkg-b/src/index.css',
-      ),
+      path.join(distDir, '/pkg-b/src/index.css'),
       'utf8',
     );
     assert(contents.includes('._foo'));
@@ -164,7 +157,7 @@ describe('monorepos', function() {
   it('should build using root targets with a glob pointing at files inside packages', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/monorepo/packages/*/src/index.js'),
-      {scopeHoist: true},
+      {scopeHoist: true, distDir},
     );
 
     assertBundles(b, [
@@ -183,28 +176,19 @@ describe('monorepos', function() {
     ]);
 
     let contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/dist/default/pkg-a/src/index.js',
-      ),
+      path.join(distDir, '/pkg-a/src/index.js'),
       'utf8',
     );
     assert(contents.includes('exports.default ='));
 
     contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/dist/default/pkg-b/src/index.js',
-      ),
+      path.join(distDir, '/pkg-b/src/index.js'),
       'utf8',
     );
     assert(contents.includes('require("./index.css")'));
 
     contents = await outputFS.readFile(
-      path.join(
-        __dirname,
-        '/integration/monorepo/dist/default/pkg-b/src/index.css',
-      ),
+      path.join(distDir, '/pkg-b/src/index.css'),
       'utf8',
     );
     assert(contents.includes('._foo'));
