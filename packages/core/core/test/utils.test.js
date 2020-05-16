@@ -20,7 +20,10 @@ describe('getPublicId', () => {
   });
 
   it('if no collisions, returns the first 5 base62 characters of value represented by the input', () => {
-    assert.equal(getPublicId(id, () => false), fullPublicId.slice(0, 5));
+    assert.equal(
+      getPublicId(id, () => false),
+      fullPublicId.slice(0, 5),
+    );
   });
 
   it('uses more characters if there is a collision', () => {

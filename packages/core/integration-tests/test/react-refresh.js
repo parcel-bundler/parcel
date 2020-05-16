@@ -208,7 +208,7 @@ async function setup(entry) {
     )[0],
   );
   // ReactDOM.render
-  await window.parcelRequire(bundle.getMainEntry().id).default();
+  await window.parcelRequire(bundle.getMainEntry().publicId).default();
   await new Promise(res => setTimeout(res, 100));
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
