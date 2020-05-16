@@ -1168,7 +1168,7 @@ describe('html', function() {
     let js1 = await outputFS.readFile(insertedBundles[0].filePath, 'utf8');
     let js2 = await outputFS.readFile(insertedBundles[1].filePath, 'utf8');
 
-    let id = js1.match(/parcelRequire\.register\("([a-f0-9]+)",/)[1];
+    let id = js1.match(/parcelRequire\.register\("([a-zA-z0-9]+)",/)[1];
     assert(new RegExp(`parcelRequire\\("${id}"\\)`).test(js2));
 
     let output = await run(b);

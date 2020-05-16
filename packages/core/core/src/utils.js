@@ -4,6 +4,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {BundleGroup} from '@parcel/types';
 
 import assert from 'assert';
+import baseX from 'base-x';
 import {registerSerializableClass} from './serializer';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
@@ -13,6 +14,10 @@ import {RequestGraph} from './RequestTracker';
 import Config from './public/Config';
 // flowlint-next-line untyped-import:off
 import packageJson from '../package.json';
+
+const base62 = baseX(
+  '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+);
 
 export function getBundleGroupId(bundleGroup: BundleGroup): string {
   return 'bundle_group:' + bundleGroup.entryAssetId;
@@ -63,21 +68,9 @@ export function getPublicId(
     `id ${id} must be a 32-character hexadecimal string`,
   );
 
-  let buf = Buffer.alloc(16);
-  for (let byteOffset = 0; byteOffset < 16; byteOffset += 4) {
-    // Add the integer values to the buffer
-    // https://stackoverflow.com/questions/8044543/how-can-i-store-an-integer-in-a-nodejs-buffer/53550757#53550757
-    buf.writeUInt32BE(
-      parseInt(id.slice(byteOffset * 2, byteOffset * 2 + 8), 16),
-      byteOffset,
-    );
-  }
-
-  // 128-bit values are represented in the first 22 characters
-  // of the base64 string. The remaining two are always '=='.
-  let base64 = buf.toString('base64').slice(0, 22);
-  for (let end = 5; end <= base64.length; end++) {
-    let candidate = base64.slice(0, end);
+  let encoded = base62.encode(Buffer.from(id, 'hex'));
+  for (let end = 5; end <= encoded.length; end++) {
+    let candidate = encoded.slice(0, end);
     if (!alreadyExists(candidate)) {
       return candidate;
     }

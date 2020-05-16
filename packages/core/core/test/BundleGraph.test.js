@@ -15,20 +15,20 @@ describe('BundleGraph', () => {
     let bundleGraph = BundleGraph.fromAssetGraph(
       createMockAssetGraph([id1, id2]),
     );
-    assert.deepEqual(
-      getAssets(bundleGraph).map(a => a.publicId),
-      ['ASNFZ', 'mHZUM'],
-    );
+    assert.deepEqual(getAssets(bundleGraph).map(a => a.publicId), [
+      '296TI',
+      '4DGUq',
+    ]);
   });
 
   it('uses a longer publicId if there is a collision', () => {
     let bundleGraph = BundleGraph.fromAssetGraph(
       createMockAssetGraph([id1, id1.slice(0, 16) + '7' + id1.slice(17)]),
     );
-    assert.deepEqual(
-      getAssets(bundleGraph).map(a => a.publicId),
-      ['ASNFZ', 'ASNFZ4'],
-    );
+    assert.deepEqual(getAssets(bundleGraph).map(a => a.publicId), [
+      '296TI',
+      '296TII',
+    ]);
   });
 });
 

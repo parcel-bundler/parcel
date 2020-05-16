@@ -42,10 +42,10 @@ describe('MutableBundleGraph', () => {
       }
     });
 
-    assert.deepEqual(
-      internalBundleGraph.getBundles().map(b => b.publicId),
-      ['S6Z3D', '7JU1A'],
-    );
+    assert.deepEqual(internalBundleGraph.getBundles().map(b => b.publicId), [
+      '2iKuX',
+      '7cqnn',
+    ]);
   });
 });
 
