@@ -14,6 +14,7 @@ import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
 import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
+import fsWriteStreamAtomic from 'fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -42,13 +43,8 @@ export class NodeFS implements FileSystem {
   readdirSync = (fs.readdirSync: any);
 
   createWriteStream(filePath: string, options: any): WriteStream {
-    let tmpFilePath = getTempFilePath(filePath);
-    let stream = fs.createWriteStream(tmpFilePath, {
-      ...options,
-      emitClose: true,
-    });
-    stream.on('close', () => fs.renameSync(tmpFilePath, filePath));
-    return stream;
+    // $FlowFixMe
+    return fsWriteStreamAtomic(filePath, options);
   }
 
   async writeFile(
