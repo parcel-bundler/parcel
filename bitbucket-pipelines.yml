@@ -5,6 +5,16 @@ clone:
 
 definitions:
   steps:
+    - step: &flow
+        name: Run flow
+        script:
+          - yarn install --frozen-lockfile
+          - yarn run flow check
+    - step: &lint
+        name: Run lint
+        script:
+          - yarn install --frozen-lockfile
+          - yarn run lint
     - step: &test-unit
         name: Run unit tests
         script:
@@ -60,11 +70,15 @@ definitions:
 pipelines:
   default:
     - parallel:
+        - step: *flow
+        - step: *lint
         - step: *test-unit
         - step: *test-integration
   tags:
     '*':
       - parallel:
+          - step: *flow
+          - step: *lint
           - step: *test-unit
           - step: *test-integration
       - step: *build-release-parcel
