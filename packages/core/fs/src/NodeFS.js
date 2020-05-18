@@ -1,5 +1,5 @@
 // @flow
-import type {WriteStream} from 'fs';
+import type {Writable} from 'stream';
 import type {FileOptions, FileSystem} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
@@ -42,8 +42,7 @@ export class NodeFS implements FileSystem {
   existsSync = fs.existsSync;
   readdirSync = (fs.readdirSync: any);
 
-  createWriteStream(filePath: string, options: any): WriteStream {
-    // $FlowFixMe
+  createWriteStream(filePath: string, options: any): Writable {
     return fsWriteStreamAtomic(filePath, options);
   }
 
