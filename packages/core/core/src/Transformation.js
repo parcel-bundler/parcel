@@ -340,7 +340,9 @@ export default class Transformation {
       return null;
     }
 
-    let cachedAssets = await this.options.cache.get(cacheKey);
+    let cachedAssets = await this.options.cache.get<Array<AssetValue>>(
+      cacheKey,
+    );
     if (!cachedAssets) {
       return null;
     }

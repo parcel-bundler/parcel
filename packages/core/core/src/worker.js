@@ -1,6 +1,7 @@
 // @flow strict-local
+
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
-import type {WorkerApi} from '@parcel/workers';
+import type {SharedReference, WorkerApi} from '@parcel/workers';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -22,12 +23,12 @@ registerCoreWithSerializer();
 // https://github.com/facebook/flow/issues/2835
 type WorkerTransformationOpts = {|
   ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 type WorkerValidationOpts = {|
   ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 
@@ -101,14 +102,14 @@ export function runPackage(
     optionsRef,
   }: {|
     bundle: Bundle,
-    bundleGraphReference: number,
-    configRef: number,
+    bundleGraphReference: SharedReference,
+    configRef: SharedReference,
     cacheKeys: {|
       content: string,
       map: string,
       info: string,
     |},
-    optionsRef: number,
+    optionsRef: SharedReference,
   |},
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);

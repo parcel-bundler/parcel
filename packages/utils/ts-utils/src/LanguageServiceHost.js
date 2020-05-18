@@ -2,7 +2,11 @@
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
-import type {ParsedCommandLine} from 'typescript';
+import type {
+  CompilerOptions,
+  IScriptSnapshot,
+  ParsedCommandLine,
+} from 'typescript';
 import {FSHost} from './FSHost';
 
 export class LanguageServiceHost extends FSHost {
@@ -38,7 +42,7 @@ export class LanguageServiceHost extends FSHost {
     return this.files[fileName] && this.files[fileName].version.toString();
   }
 
-  getScriptSnapshot(fileName: string): any | void {
+  getScriptSnapshot(fileName: string): IScriptSnapshot | void {
     if (!this.fileExists(fileName)) {
       return;
     }

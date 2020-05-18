@@ -34,6 +34,8 @@ import logger from '@parcel/logger';
 let profileId = 1;
 let referenceId = 1;
 
+export opaque type SharedReference = number;
+
 export type FarmOptions = {|
   maxConcurrentWorkers: number,
   maxConcurrentCallsPerWorker: number,
@@ -52,8 +54,8 @@ type WorkerModule = {|
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
   createReverseHandle(fn: HandleFunction): Handle,
-  getSharedReference(ref: number): mixed,
-  resolveSharedReference(value: mixed): ?number,
+  getSharedReference(ref: SharedReference): mixed,
+  resolveSharedReference(value: mixed): ?SharedReference,
   callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>,
 |};
 
@@ -72,8 +74,8 @@ export default class WorkerFarm extends EventEmitter {
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
-  sharedReferences: Map<number, mixed> = new Map();
-  sharedReferencesByValue: Map<mixed, number> = new Map();
+  sharedReferences: Map<SharedReference, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
   profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
@@ -106,8 +108,8 @@ export default class WorkerFarm extends EventEmitter {
       awaitResponse?: ?boolean,
     ) => Promise<mixed>,
     createReverseHandle: (fn: HandleFunction) => Handle,
-    getSharedReference: (ref: number) => mixed,
-    resolveSharedReference: (value: mixed) => void | number,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
     runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
   |} = {
     callMaster: async (
@@ -137,7 +139,8 @@ export default class WorkerFarm extends EventEmitter {
         handle: handle.id,
         args,
       }),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    getSharedReference: (ref: SharedReference) =>
+      this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
   };
@@ -385,7 +388,9 @@ export default class WorkerFarm extends EventEmitter {
     return handle;
   }
 
-  async createSharedReference(value: mixed) {
+  async createSharedReference(
+    value: mixed,
+  ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
@@ -503,8 +508,8 @@ export default class WorkerFarm extends EventEmitter {
       awaitResponse?: ?boolean,
     ) => Promise<mixed>,
     createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
-    getSharedReference: (ref: number) => mixed,
-    resolveSharedReference: (value: mixed) => void | number,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
     runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
   |} {
     invariant(

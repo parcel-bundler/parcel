@@ -83,7 +83,9 @@ export default class BundlerRunner {
     let cacheKey;
     if (!this.options.disableCache) {
       cacheKey = await this.getCacheKey(graph, configResult);
-      let cachedBundleGraph = await this.options.cache.get(cacheKey);
+      let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
+        cacheKey,
+      );
       assertSignalNotAborted(signal);
 
       if (cachedBundleGraph) {

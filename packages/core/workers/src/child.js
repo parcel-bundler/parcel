@@ -10,7 +10,7 @@ import type {
   ChildImpl,
 } from './types';
 import type {IDisposable} from '@parcel/types';
-import type {WorkerApi} from './WorkerFarm';
+import type {SharedReference, WorkerApi} from './WorkerFarm';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -37,8 +37,8 @@ export class Child {
   profiler: ?Profiler;
   workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
-  sharedReferences: Map<number, mixed> = new Map();
-  sharedReferencesByValue: Map<mixed, number> = new Map();
+  sharedReferences: Map<SharedReference, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -59,8 +59,8 @@ export class Child {
       awaitResponse?: ?boolean,
     ) => Promise<mixed>,
     createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
-    getSharedReference: (ref: number) => mixed,
-    resolveSharedReference: (value: mixed) => void | number,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
     runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
   |} = {
     callMaster: (
@@ -71,7 +71,8 @@ export class Child {
       this.createReverseHandle(fn),
     runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
       this.workerApi.callMaster({handle: handle.id, args}, true),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    getSharedReference: (ref: SharedReference) =>
+      this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
   };

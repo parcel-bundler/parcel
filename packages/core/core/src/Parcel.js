@@ -10,7 +10,7 @@ import type {
   ModuleSpecifier,
   NamedBundle as INamedBundle,
 } from '@parcel/types';
-import type {ParcelOptions} from './types';
+import type {AssetRequestResult, ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
@@ -316,7 +316,7 @@ export default class Parcel {
     filePath: FilePath,
     env: EnvironmentOpts,
     code?: string,
-  |}): $FlowFixMe {
+  |}): Promise<AssetRequestResult> {
     let [result] = await Promise.all([
       this.#assetGraphBuilder.runTransform({
         filePath,
