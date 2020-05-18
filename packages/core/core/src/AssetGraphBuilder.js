@@ -33,7 +33,7 @@ import RequestTracker, {
 import {PARCEL_VERSION} from './constants';
 import ParcelConfig from './ParcelConfig';
 
-import ParcelConfigRequestRunner from './requests/ParcelConfigRequest';
+import createParcelConfigRequest from './requests/ParcelConfigRequest';
 import createEntryRequest from './requests/EntryRequest';
 import TargetRequestRunner from './requests/TargetRequest';
 import createAssetRequest from './requests/AssetRequest';
@@ -61,7 +61,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   requestTracker: RequestTracker;
   targetRequestRunner: TargetRequestRunner;
   depPathRequestRunner: DepPathRequestRunner;
-  configRequestRunner: ParcelConfigRequestRunner;
   assetRequests: Array<AssetGroup>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
@@ -127,9 +126,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       options: this.options,
     });
     let tracker = this.requestTracker;
-    this.configRequestRunner = new ParcelConfigRequestRunner({tracker});
     this.targetRequestRunner = new TargetRequestRunner({tracker});
-    await this.setupConfigStuff();
 
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
@@ -142,12 +139,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  async setupConfigStuff(signal?: AbortSignal) {
+  async setupConfigStuff() {
     let {config, configRef} = nullthrows(
-      await this.configRequestRunner.runRequest({
-        request: null,
-        signal,
-      }),
+      await this.requestTracker.runRequest(createParcelConfigRequest()),
     );
 
     // This should not be necessary once sub requests are supported

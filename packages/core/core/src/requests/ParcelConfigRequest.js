@@ -5,7 +5,7 @@ import type {
   ResolvedParcelConfigFile,
   PackageName,
 } from '@parcel/types';
-import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
+import type {StaticRunOpts} from '../RequestTracker';
 import type {
   ExtendableParcelConfigPipeline,
   ParcelOptions,
@@ -19,7 +19,6 @@ import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
-import {RequestRunner} from '../RequestTracker';
 import ParcelConfig from '../ParcelConfig';
 import ParcelConfigSchema from '../ParcelConfig.schema';
 
@@ -31,53 +30,52 @@ type ConfigAndRef = {|
 |};
 
 type RunOpts = {|
-  request: null,
+  input: null,
   ...StaticRunOpts,
 |};
 
-// export default function createParcelConfigRequest(
-//   opts: ParcelConfigRequestOpts,
-// ) {
-//   return new ParcelConfigRequestRunner(opts);
-// }
+export type ParcelConfigRequest = {|
+  id: string,
+  type: string,
+  input: null,
+  run: () => Promise<ConfigAndRef>,
+|};
 
-export default class ParcelConfigRequestRunner extends RequestRunner<
-  null,
-  ConfigAndRef,
-> {
-  disposeConfigRef: () => Promise<mixed>;
+const type = 'parcel_config_request';
 
-  constructor(opts: RequestRunnerOpts) {
-    super(opts);
-    this.type = 'parcel_config_request';
-  }
+export default function createParcelConfigRequest() {
+  let disposeConfigRef: void | (() => Promise<mixed>);
+  return {
+    id: type,
+    type,
+    async run({api, options, farm}: RunOpts): Promise<ConfigAndRef> {
+      let {config, extendedFiles} = await loadParcelConfig(options);
+      let processedConfig = config.getConfig();
+      let {ref, dispose} = await farm.createSharedReference(processedConfig);
+      disposeConfigRef && (await disposeConfigRef());
+      disposeConfigRef = dispose;
 
-  async run({api, options, farm}: RunOpts): Promise<ConfigAndRef> {
-    let {config, extendedFiles} = await loadParcelConfig(options);
-    let processedConfig = config.getConfig();
-    let {ref, dispose} = await farm.createSharedReference(processedConfig);
-    this.disposeConfigRef && (await this.disposeConfigRef());
-    this.disposeConfigRef = dispose;
+      api.invalidateOnFileUpdate(config.filePath);
+      api.invalidateOnFileDelete(config.filePath);
 
-    api.invalidateOnFileUpdate(config.filePath);
-    api.invalidateOnFileDelete(config.filePath);
+      for (let filePath of extendedFiles) {
+        api.invalidateOnFileUpdate(filePath);
+        api.invalidateOnFileDelete(filePath);
+      }
 
-    for (let filePath of extendedFiles) {
-      api.invalidateOnFileUpdate(filePath);
-      api.invalidateOnFileDelete(filePath);
-    }
+      if (config.filePath === options.defaultConfig?.filePath) {
+        api.invalidateOnFileCreate('**/.parcelrc');
+      }
 
-    if (config.filePath === options.defaultConfig?.filePath) {
-      api.invalidateOnFileCreate('**/.parcelrc');
-    }
+      // Need to do this because of reinstantiate the shared reference
+      api.invalidateOnStartup();
 
-    // Need to do this because of reinstantiate the shared reference
-    api.invalidateOnStartup();
-
-    let result = {config: processedConfig, configRef: ref};
-    api.storeResult(result);
-    return result;
-  }
+      let result = {config: processedConfig, configRef: ref};
+      api.storeResult(result);
+      return result;
+    },
+    input: null,
+  };
 }
 
 export async function loadParcelConfig(options: ParcelOptions) {
