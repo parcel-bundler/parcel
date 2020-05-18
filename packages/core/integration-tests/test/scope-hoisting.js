@@ -2005,6 +2005,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 42);
     });
 
+    it('should stub require.cache', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/require-cache/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {});
+    });
+
     it('should insert __esModule interop flag when importing from an ES module', async function() {
       let b = await bundle(
         path.join(
