@@ -16,10 +16,10 @@ import type {
   ValidationOpts,
 } from './types';
 import type {RunRequestOpts} from './RequestTracker';
-import type {EntryRequest} from './requests/EntryRequest';
+import type {EntryRequest, EntryResult} from './requests/EntryRequest';
 import type {TargetRequest} from './requests/TargetRequest';
 import type {DepPathRequest} from './requests/PathRequest';
-import type {AssetRequestType} from './requests/AssetRequest';
+import type {AssetRequest} from './requests/AssetRequest';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
@@ -34,7 +34,7 @@ import {PARCEL_VERSION} from './constants';
 import ParcelConfig from './ParcelConfig';
 
 import ParcelConfigRequestRunner from './requests/ParcelConfigRequest';
-import EntryRequestRunner from './requests/EntryRequest';
+import createEntryRequest from './requests/EntryRequest';
 import TargetRequestRunner from './requests/TargetRequest';
 import createAssetRequest from './requests/AssetRequest';
 import DepPathRequestRunner from './requests/PathRequest';
@@ -53,24 +53,12 @@ type Opts = {|
   workerFarm: WorkerFarm,
 |};
 
-type AssetRequestOld = {|
-  id: string,
-  +type: 'asset_request',
-  request: AssetRequestInput,
-  result?: AssetRequestResult,
-|};
-
-type AssetGraphBuildRequest =
-  | EntryRequest
-  | TargetRequest
-  | AssetRequestOld
-  | DepPathRequest;
+type AssetGraphBuildRequest = EntryRequest | TargetRequest | DepPathRequest;
 
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
   requestTracker: RequestTracker;
-  entryRequestRunner: EntryRequestRunner;
   targetRequestRunner: TargetRequestRunner;
   depPathRequestRunner: DepPathRequestRunner;
   configRequestRunner: ParcelConfigRequestRunner;
@@ -140,7 +128,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
     let tracker = this.requestTracker;
     this.configRequestRunner = new ParcelConfigRequestRunner({tracker});
-    this.entryRequestRunner = new EntryRequestRunner({tracker});
     this.targetRequestRunner = new TargetRequestRunner({tracker});
     await this.setupConfigStuff();
 
@@ -289,33 +276,30 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
   }
 
-  runRequest(request: AssetGraphBuildRequest, runOpts: RunRequestOpts) {
+  // TODO: this should be removed after refactor
+  // $FlowFixMe
+  runRequest(request: any, runOpts: RunRequestOpts) {
     switch (request.type) {
       case 'entry_request':
-        return this.runEntryRequest(request.request, request.id, runOpts);
+        return this.runEntryRequest(request);
       case 'target_request':
         return this.runTargetRequest(request.request, request.id, runOpts);
       case 'dep_path_request':
         return this.runDepPathRequest(request.request, request.id, runOpts);
       case 'asset_request':
-        // TODO: this should be removed after refactor
-        // $FlowFixMe
         return this.runAssetRequest(request);
     }
   }
 
-  async runEntryRequest(
-    request: FilePath,
-    requestId: string,
-    runOpts: RunRequestOpts,
-  ) {
-    let result = await this.entryRequestRunner.runRequest({
-      request,
-      ...runOpts,
-    });
+  async runEntryRequest(request: EntryRequest) {
+    let result = await this.requestTracker.runRequest<
+      FilePath,
+      EntryResult,
+      EntryRequest,
+    >(request);
     // TODO: shouldn't need this check, improve request graph types
     if (result != null) {
-      this.assetGraph.resolveEntry(request, result.entries, requestId);
+      this.assetGraph.resolveEntry(request.input, result.entries, request.id);
     }
   }
 
@@ -348,14 +332,14 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetGraph.resolveDependency(request, result, requestId);
   }
 
-  async runAssetRequest(request: AssetRequestType) {
+  async runAssetRequest(request: AssetRequest) {
     // eslint-disable-next-line no-unused-vars
     let {configRef, optionsRef, ...assetGroup} = request.input;
     this.assetRequests.push(assetGroup);
     let assets = await this.requestTracker.runRequest<
       AssetRequestInput,
       AssetRequestResult,
-      AssetRequestType,
+      AssetRequest,
     >(request);
 
     if (assets != null) {
@@ -379,12 +363,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
     switch (node.type) {
       case 'entry_specifier': {
-        let type = 'entry_request';
-        return {
-          type,
-          request: node.value,
-          id: generateRequestId(type, node.value),
-        };
+        return createEntryRequest(node.value);
       }
       case 'entry_file': {
         let type = 'target_request';

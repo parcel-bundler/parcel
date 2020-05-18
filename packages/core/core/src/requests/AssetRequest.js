@@ -20,7 +20,7 @@ type RunInput = {|
   ...StaticRunOpts,
 |};
 
-export type AssetRequestType = {|
+export type AssetRequest = {|
   id: string,
   +type: 'asset_request',
   run: RunInput => Promise<AssetRequestResult>,
