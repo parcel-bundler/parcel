@@ -9,7 +9,7 @@ import type {
   WorkerResponse,
   ChildImpl,
 } from './types';
-import type {IDisposable} from '@parcel/types';
+import type {Async, IDisposable} from '@parcel/types';
 import type {SharedReference, WorkerApi} from './WorkerFarm';
 
 import invariant from 'assert';
@@ -77,7 +77,7 @@ export class Child {
       this.sharedReferencesByValue.get(value),
   };
 
-  messageListener(message: WorkerMessage): void | Promise<void> {
+  messageListener(message: WorkerMessage): Async<void> {
     if (message.type === 'response') {
       return this.handleResponse(message);
     } else if (message.type === 'request') {

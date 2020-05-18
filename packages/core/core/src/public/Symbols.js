@@ -23,7 +23,7 @@ export class Symbols implements ISymbols {
   */
   #value; // Asset
 
-  constructor(asset: Asset): void | Symbols {
+  constructor(asset: Asset): Symbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
       return existing;
@@ -31,6 +31,7 @@ export class Symbols implements ISymbols {
 
     this.#value = asset;
     valueToSymbols.set(asset, this);
+    return this;
   }
 
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|} {
@@ -71,7 +72,7 @@ class MutableSymbols {
   /*::
   @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
   */
-  #value; // Asset
+  #value: Asset | Dependency;
 
   constructor(asset: Asset | Dependency) {
     this.#value = asset;
@@ -115,8 +116,8 @@ class MutableSymbols {
 
 export class MutableDependencySymbols extends MutableSymbols
   implements IMutableSymbols {
-  #dependency; // Dependency
-  constructor(dependency: Dependency): void | MutableDependencySymbols {
+  #dependency: Dependency;
+  constructor(dependency: Dependency): MutableDependencySymbols {
     let existing = valueToMutableSymbols.get(dependency);
     if (existing != null) {
       return ((existing: any): MutableDependencySymbols);
@@ -124,6 +125,7 @@ export class MutableDependencySymbols extends MutableSymbols
 
     super(dependency);
     this.#dependency = dependency;
+    return this;
   }
 
   clear() {
@@ -133,8 +135,8 @@ export class MutableDependencySymbols extends MutableSymbols
 
 export class MutableAssetSymbols extends MutableSymbols
   implements IMutableSymbols {
-  #asset; // Asset
-  constructor(asset: Asset): void | MutableAssetSymbols {
+  #asset: Asset;
+  constructor(asset: Asset): MutableAssetSymbols {
     super(asset);
     let existing = valueToMutableSymbols.get(asset);
     if (existing != null) {
@@ -142,6 +144,7 @@ export class MutableAssetSymbols extends MutableSymbols
     }
 
     this.#asset = asset;
+    return this;
   }
 
   clear() {

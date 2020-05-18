@@ -74,7 +74,7 @@ export function environmentToInternalEnvironment(
 export default class Environment implements IEnvironment {
   #environment; // InternalEnvironment
 
-  constructor(env: InternalEnvironment): void | Environment {
+  constructor(env: InternalEnvironment): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
     if (existing != null) {
       return existing;
@@ -83,6 +83,7 @@ export default class Environment implements IEnvironment {
     this.#environment = env;
     _environmentToInternalEnvironment.set(this, env);
     internalEnvironmentToEnvironment.set(env, this);
+    return this;
   }
 
   get context(): EnvironmentContext {

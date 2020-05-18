@@ -16,7 +16,7 @@ import {
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 
-export function hasBinding(node: Node | Array<Node>, name: string): mixed {
+export function hasBinding(node: Node | Array<Node>, name: string): boolean {
   if (Array.isArray(node)) {
     return node.some(ancestor => hasBinding(ancestor, name));
   } else if (isProgram(node) || isBlockStatement(node) || isBlock(node)) {
@@ -28,7 +28,9 @@ export function hasBinding(node: Node | Array<Node>, name: string): mixed {
     isArrowFunctionExpression(node)
   ) {
     return (
-      (node.id && node.id.name === name) ||
+      (typeof node.id === 'object' &&
+        node.id != null &&
+        node.id.name === name) ||
       node.params.some(param => isIdentifier(param) && param.name === name)
     );
   } else if (isVariableDeclaration(node)) {

@@ -57,9 +57,9 @@ export function addDevDependency(
 export function getInvalidations(
   config: Config,
 ): Array<
-  | $FlowFixMe
-  | {|action: string, pattern: FilePath|}
-  | {|action: string, pattern: Glob|},
+  | {|action: 'add', pattern: Glob|}
+  | {|action: 'change', pattern: FilePath|}
+  | {|action: 'unlink', pattern: FilePath|},
 > {
   let invalidations = [];
 

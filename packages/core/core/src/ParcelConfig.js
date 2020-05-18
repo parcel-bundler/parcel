@@ -372,7 +372,7 @@ export default class ParcelConfig {
     return this.loadPlugins<Reporter>(this.reporters);
   }
 
-  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): any {
+  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): boolean {
     let prefix = pipeline ? `${pipeline}:` : '';
     return (
       isMatch(prefix + filePath, pattern) ||
@@ -380,7 +380,7 @@ export default class ParcelConfig {
     );
   }
 
-  matchGlobMap(filePath: FilePath, globMap: {[Glob]: any, ...}): any | null {
+  matchGlobMap<T>(filePath: FilePath, globMap: {|[Glob]: T|}): ?T {
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern)) {
         return globMap[pattern];
@@ -392,7 +392,7 @@ export default class ParcelConfig {
 
   matchGlobMapPipelines(
     filePath: FilePath,
-    globMap: {[Glob]: ExtendableParcelConfigPipeline, ...},
+    globMap: {|[Glob]: ExtendableParcelConfigPipeline|},
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
     let matches = [];

@@ -1,10 +1,7 @@
 // @flow
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 
-export function getExportedName(
-  ts: TypeScriptModule,
-  node: any,
-): any | null | string {
+export function getExportedName(ts: TypeScriptModule, node: any): ?string {
   if (!node.modifiers) {
     return null;
   }

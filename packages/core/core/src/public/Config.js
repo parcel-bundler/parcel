@@ -23,7 +23,7 @@ export default class PublicConfig implements IConfig {
   #config; // Config;
   #options; // ParcelOptions
 
-  constructor(config: Config, options: ParcelOptions): void | PublicConfig {
+  constructor(config: Config, options: ParcelOptions): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {
       return existing;
@@ -32,6 +32,7 @@ export default class PublicConfig implements IConfig {
     this.#config = config;
     this.#options = options;
     internalConfigToConfig.get(options).set(config, this);
+    return this;
   }
 
   get env(): Environment {

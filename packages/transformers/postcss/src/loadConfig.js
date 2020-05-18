@@ -48,7 +48,7 @@ async function configHydrator(
     options,
   );
 
-  return config.setResult({
+  config.setResult({
     raw: configFile,
     hydrated: {
       plugins,

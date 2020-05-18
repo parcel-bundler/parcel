@@ -49,6 +49,11 @@ export type ParcelConfigRequest = {|
   run: () => Promise<ConfigAndCachePath>,
 |};
 
+type ParcelConfigChain = {|
+  config: ParcelConfig,
+  extendedFiles: Array<FilePath>,
+|};
+
 const type = 'parcel_config_request';
 
 export default function createParcelConfigRequest() {
@@ -84,7 +89,7 @@ export default function createParcelConfigRequest() {
 
 export async function loadParcelConfig(
   options: ParcelOptions,
-): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
+): Promise<ParcelConfigChain> {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -114,9 +119,7 @@ export async function loadParcelConfig(
 
 export async function resolveParcelConfig(
   options: ParcelOptions,
-):
-  | Promise<null>
-  | Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
+): Promise<?ParcelConfigChain> {
   let filePath = getResolveFrom(options);
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
@@ -131,14 +134,14 @@ export async function resolveParcelConfig(
 export function create(
   config: ResolvedParcelConfigFile,
   options: ParcelOptions,
-): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
+): Promise<ParcelConfigChain> {
   return processConfigChain(config, config.filePath, options);
 }
 
 export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
-): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
+): Promise<ParcelConfigChain> {
   let contents = await options.inputFS.readFile(configPath, 'utf8');
   let config: RawParcelConfig;
   try {
@@ -241,7 +244,7 @@ export async function processConfigChain(
   configFile: RawParcelConfig | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
-): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
+): Promise<ParcelConfigChain> {
   // Validate config...
   let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);

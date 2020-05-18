@@ -333,9 +333,7 @@ export default class Transformation {
     return finalAssets.concat(resultingAssets);
   }
 
-  async readFromCache(
-    cacheKey: string,
-  ): Promise<null | Array<UncommittedAsset>> {
+  async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
     if (this.options.disableCache || this.request.code != null) {
       return null;
     }

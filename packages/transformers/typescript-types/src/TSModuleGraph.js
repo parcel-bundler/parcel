@@ -24,7 +24,7 @@ export class TSModuleGraph {
     }
   }
 
-  getModule(name: string): void | TSModule {
+  getModule(name: string): ?TSModule {
     return this.modules.get(name);
   }
 
@@ -76,7 +76,7 @@ export class TSModuleGraph {
   getExport(
     m: TSModule,
     e: Export,
-  ): null | {|imported: string, module: TSModule, name: string|} {
+  ): ?{|imported: string, module: TSModule, name: string|} {
     invariant(e.name != null);
     let exportName = e.name;
 
@@ -155,7 +155,7 @@ export class TSModuleGraph {
   getAllExports(
     module: TSModule = nullthrows(this.mainModule),
     excludeDefault: boolean = false,
-  ): Array<any | {|imported: string, module: TSModule, name: string|}> {
+  ): Array<{|imported: string, module: TSModule, name: string|}> {
     let res = [];
     for (let e of module.exports) {
       if (e.name && (!excludeDefault || e.name !== 'default')) {

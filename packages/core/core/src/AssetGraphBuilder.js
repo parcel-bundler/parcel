@@ -3,7 +3,7 @@
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {FilePath, ModuleSpecifier} from '@parcel/types';
 import type WorkerFarm, {Handle, SharedReference} from '@parcel/workers';
-import type {Event} from '@parcel/watcher';
+import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
@@ -315,10 +315,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     return this.requestGraph.respondToFSEvents(events);
   }
 
-  getWatcherOptions(): {|
-    backend?: 'fs-events' | 'watchman' | 'inotify' | 'windows' | 'brute-force',
-    ignore?: Array<FilePath>,
-  |} {
+  getWatcherOptions(): WatcherOptions {
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(this.options.projectRoot, dir),
     );

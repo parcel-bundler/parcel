@@ -75,7 +75,7 @@ export default class PackagerRunner {
   report: ReportFn;
   getBundleInfoFromWorker: ({|
     bundle: InternalBundle,
-    bundleGraphReference: mixed,
+    bundleGraphReference: SharedReference,
     configRef: SharedReference,
     cacheKeys: CacheKeyMap,
     optionsRef: SharedReference,
@@ -142,7 +142,7 @@ export default class PackagerRunner {
   async processBundle(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    bundleGraphReference: mixed,
+    bundleGraphReference: SharedReference,
   ): Promise<{|
     ...BundleInfo,
     cacheKeys: CacheKeyMap,
@@ -175,7 +175,7 @@ export default class PackagerRunner {
     };
   }
 
-  getBundleInfoFromCache(infoKey: string): void | Promise<?BundleInfo> {
+  getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
     if (this.options.disableCache) {
       return;
     }
