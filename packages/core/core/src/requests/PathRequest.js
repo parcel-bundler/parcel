@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from '../ParcelConfig';
-import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
+import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -10,50 +10,45 @@ import {escapeMarkdown, relatifyPath} from '@parcel/utils';
 import path from 'path';
 import URL from 'url';
 import {report} from '../ReporterRunner';
-import {RequestRunner} from '../RequestTracker';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
 
-type DependencyResult = AssetGroup | null | void;
+export type PathRequestInput = {|dependency: Dependency, config: ParcelConfig|};
+export type PathRequestResult = AssetGroup | null | void;
 
-export type DepPathRequest = {|
+export type PathRequest = {|
   id: string,
   +type: 'dep_path_request',
-  request: Dependency,
-  result?: DependencyResult,
+  run: RunOpts => Promise<PathRequestResult>,
+  input: PathRequestInput,
 |};
 
 type RunOpts = {|
-  request: Dependency,
+  input: PathRequestInput,
   ...StaticRunOpts,
 |};
 
-// export default function createPathRequest(opts: DepPathRequestOpts) {
-//   return new DepPathRequestRunner(opts);
-// }
+const type = 'path_request';
 
-export default class DepPathRequestRunner extends RequestRunner<
-  Dependency,
-  DependencyResult,
-> {
-  constructor(opts: RequestRunnerOpts) {
-    super(opts);
-    this.type = 'dep_path_request';
+export default function createPathRequest(input: PathRequestInput) {
+  return {
+    id: input.dependency.id,
+    type,
+    run,
+    input,
+  };
+}
+async function run({input, api, options}: RunOpts) {
+  let {config, dependency} = input;
+  let resolverRunner = new ResolverRunner({options, config});
+  let assetGroup = await resolverRunner.resolve(dependency);
+
+  // ? Should this happen if asset is deferred?
+  if (assetGroup != null) {
+    api.invalidateOnFileDelete(assetGroup.filePath);
   }
 
-  async run({request, api, options, extras}: RunOpts) {
-    // $FlowFixMe
-    let {config}: {|config: ParcelConfig|} = (extras: any);
-    let resolverRunner = new ResolverRunner({options, config});
-    let assetGroup = await resolverRunner.resolve(request);
-
-    // ? Should this happen if asset is deferred?
-    if (assetGroup != null) {
-      api.invalidateOnFileDelete(assetGroup.filePath);
-    }
-
-    return assetGroup;
-  }
+  return assetGroup;
 }
 
 type ResolverRunnerOpts = {|

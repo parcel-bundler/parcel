@@ -438,14 +438,12 @@ export type RequestRunnerOpts = {|tracker: RequestTracker|};
 export type RunRequestOpts = {|
   signal?: ?AbortSignal,
   parentId?: string,
-  extras?: mixed,
 |};
 
 export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RequestRunnerAPI,
-  extras?: mixed,
   graph: RequestGraph,
 |};
 
@@ -475,7 +473,6 @@ export class RequestRunner<TRequest, TResult> {
   async runRequest({
     request,
     signal,
-    extras,
   }: {|
     request: TRequest,
     ...RunRequestOpts,
@@ -494,7 +491,6 @@ export class RequestRunner<TRequest, TResult> {
             api,
             farm,
             options,
-            extras,
             graph: this.tracker.graph,
           });
       assertSignalNotAborted(signal);

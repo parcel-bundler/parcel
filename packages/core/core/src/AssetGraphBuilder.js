@@ -10,7 +10,6 @@ import type {
   AssetGroup,
   AssetRequestInput,
   AssetRequestResult,
-  Dependency,
   Entry,
   ParcelOptions,
   ValidationOpts,
@@ -18,7 +17,11 @@ import type {
 import type {RunRequestOpts} from './RequestTracker';
 import type {EntryRequest, EntryResult} from './requests/EntryRequest';
 import type {TargetRequest} from './requests/TargetRequest';
-import type {DepPathRequest} from './requests/PathRequest';
+import type {
+  PathRequest,
+  PathRequestInput,
+  PathRequestResult,
+} from './requests/PathRequest';
 import type {AssetRequest} from './requests/AssetRequest';
 
 import EventEmitter from 'events';
@@ -37,7 +40,7 @@ import createParcelConfigRequest from './requests/ParcelConfigRequest';
 import createEntryRequest from './requests/EntryRequest';
 import TargetRequestRunner from './requests/TargetRequest';
 import createAssetRequest from './requests/AssetRequest';
-import DepPathRequestRunner from './requests/PathRequest';
+import createPathRequest from './requests/PathRequest';
 
 import Validation from './Validation';
 import {report} from './ReporterRunner';
@@ -53,14 +56,13 @@ type Opts = {|
   workerFarm: WorkerFarm,
 |};
 
-type AssetGraphBuildRequest = EntryRequest | TargetRequest | DepPathRequest;
+type AssetGraphBuildRequest = TargetRequest;
 
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
   requestTracker: RequestTracker;
   targetRequestRunner: TargetRequestRunner;
-  depPathRequestRunner: DepPathRequestRunner;
   assetRequests: Array<AssetGroup>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
@@ -152,8 +154,6 @@ export default class AssetGraphBuilder extends EventEmitter {
         this.options.packageManager,
         this.options.autoinstall,
       );
-      let {requestTracker: tracker} = this;
-      this.depPathRequestRunner = new DepPathRequestRunner({tracker});
     }
   }
 
@@ -278,8 +278,8 @@ export default class AssetGraphBuilder extends EventEmitter {
         return this.runEntryRequest(request);
       case 'target_request':
         return this.runTargetRequest(request.request, request.id, runOpts);
-      case 'dep_path_request':
-        return this.runDepPathRequest(request.request, request.id, runOpts);
+      case 'path_request':
+        return this.runPathRequest(request);
       case 'asset_request':
         return this.runAssetRequest(request);
     }
@@ -291,10 +291,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       EntryResult,
       EntryRequest,
     >(request);
-    // TODO: shouldn't need this check, improve request graph types
-    if (result != null) {
-      this.assetGraph.resolveEntry(request.input, result.entries, request.id);
-    }
+    this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
   async runTargetRequest(
@@ -311,19 +308,17 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  async runDepPathRequest(
-    request: Dependency,
-    requestId: string,
-    runOpts: RunRequestOpts,
-  ) {
-    let result = await this.depPathRequestRunner.runRequest({
-      request,
-      extras: {
-        config: this.config,
-      },
-      ...runOpts,
-    });
-    this.assetGraph.resolveDependency(request, result, requestId);
+  async runPathRequest(request: PathRequest) {
+    let result = await this.requestTracker.runRequest<
+      PathRequestInput,
+      PathRequestResult,
+      PathRequest,
+    >(request);
+    this.assetGraph.resolveDependency(
+      request.input.dependency,
+      result,
+      request.id,
+    );
   }
 
   async runAssetRequest(request: AssetRequest) {
@@ -356,9 +351,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       return null;
     }
     switch (node.type) {
-      case 'entry_specifier': {
+      case 'entry_specifier':
         return createEntryRequest(node.value);
-      }
       case 'entry_file': {
         let type = 'target_request';
         return {
@@ -367,21 +361,14 @@ export default class AssetGraphBuilder extends EventEmitter {
           id: generateRequestId(type, node.value),
         };
       }
-      case 'dependency': {
-        let type = 'dep_path_request';
-        return {
-          type,
-          request: node.value,
-          id: generateRequestId(type, node.value),
-        };
-      }
-      case 'asset_group': {
+      case 'dependency':
+        return createPathRequest({dependency: node.value, config: this.config});
+      case 'asset_group':
         return createAssetRequest({
           ...node.value,
           configRef: this.configRef,
           optionsRef: this.optionsRef,
         });
-      }
     }
   }
 
