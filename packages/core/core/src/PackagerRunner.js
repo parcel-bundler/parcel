@@ -528,12 +528,15 @@ function writeFileStream(
     let fsStreamClosed = new Promise(resolve => {
       fsStream.on('close', () => resolve());
     });
+    let bytesWritten = 0;
     initialStream
-      .pipe(fsStream)
-      .on('finish', () =>
-        // $FlowFixMe
-        resolve(fsStreamClosed.then(() => fsStream.bytesWritten)),
+      .pipe(
+        new TapStream(buf => {
+          bytesWritten += buf.length;
+        }),
       )
+      .pipe(fsStream)
+      .on('finish', () => resolve(fsStreamClosed.then(() => bytesWritten)))
       .on('error', reject);
   });
 }
