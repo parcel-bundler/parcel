@@ -8,7 +8,7 @@ import type {NodeId, ParcelOptions} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {isGlobMatch, md5FromObject} from '@parcel/utils';
+import {isGlobMatch} from '@parcel/utils';
 import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted} from './utils';
 
@@ -433,13 +433,6 @@ export default class RequestTracker {
   }
 }
 
-export type RequestRunnerOpts = {|tracker: RequestTracker|};
-
-export type RunRequestOpts = {|
-  signal?: ?AbortSignal,
-  parentId?: string,
-|};
-
 export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
@@ -456,83 +449,3 @@ export type RequestRunnerAPI = {|
   storeResult: (result: mixed) => void,
   getId: () => string,
 |};
-
-export function generateRequestId(type: string, request: mixed) {
-  return md5FromObject({type, request});
-}
-
-export class RequestRunner<TRequest, TResult> {
-  type: string;
-  // $FlowFixMe RequestRunner will be removed during refactor
-  tracker: RequestTracker<any>;
-
-  constructor({tracker}: RequestRunnerOpts) {
-    this.tracker = tracker;
-  }
-
-  async runRequest({
-    request,
-    signal,
-  }: {|
-    request: TRequest,
-    ...RunRequestOpts,
-  |}): Promise<TResult | void> {
-    let id = this.generateRequestId(request);
-    try {
-      let api = this.createAPI(id);
-
-      let {farm, options} = this.tracker;
-      this.tracker.trackRequest({id, type: this.type, request: request});
-      let result: TResult = this.tracker.hasValidResult(id)
-        ? // $FlowFixMe
-          (this.tracker.getRequestResult(id): any)
-        : await this.run({
-            request: request,
-            api,
-            farm,
-            options,
-            graph: this.tracker.graph,
-          });
-      assertSignalNotAborted(signal);
-      this.tracker.completeRequest(id);
-
-      return result;
-    } catch (err) {
-      this.tracker.rejectRequest(id);
-      throw err;
-    }
-  }
-
-  // unused vars are used for types
-  // eslint-disable-next-line no-unused-vars
-  run(obj: {|request: TRequest, ...StaticRunOpts|}): Promise<TResult> {
-    throw new Error(
-      `RequestRunner for type ${this.type} did not implement run()`,
-    );
-  }
-
-  generateRequestId(request: TRequest) {
-    return md5FromObject({type: this.type, request});
-  }
-
-  createAPI(requestId: string): RequestRunnerAPI {
-    let api = {
-      invalidateOnFileCreate: glob =>
-        this.tracker.graph.invalidateOnFileCreate(requestId, glob),
-      invalidateOnFileDelete: filePath =>
-        this.tracker.graph.invalidateOnFileDelete(requestId, filePath),
-      invalidateOnFileUpdate: filePath =>
-        this.tracker.graph.invalidateOnFileUpdate(requestId, filePath),
-      invalidateOnStartup: () =>
-        this.tracker.graph.invalidateOnStartup(requestId),
-      replaceSubrequests: subrequestNodes =>
-        this.tracker.graph.replaceSubrequests(requestId, subrequestNodes),
-      storeResult: result => {
-        this.tracker.storeResult(requestId, result);
-      },
-      getId: () => requestId,
-    };
-
-    return api;
-  }
-}

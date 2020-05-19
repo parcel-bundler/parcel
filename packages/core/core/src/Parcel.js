@@ -365,7 +365,7 @@ export default class Parcel {
           this.#watchEvents.emit({error: err});
           return;
         }
-
+        //console.log('FILE EVENTS', events);
         let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {

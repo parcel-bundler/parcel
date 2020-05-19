@@ -13,7 +13,6 @@ import type {
 import {md5FromObject} from '@parcel/utils';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {generateRequestId} from '../RequestTracker';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -26,6 +25,10 @@ export type AssetRequest = {|
   run: RunInput => Promise<AssetRequestResult>,
   input: AssetRequestInput,
 |};
+
+function generateRequestId(type, obj) {
+  return `${type}:${md5FromObject(obj)}`;
+}
 
 export default function createAssetRequest(input: AssetRequestInput) {
   return {

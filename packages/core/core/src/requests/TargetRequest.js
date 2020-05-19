@@ -9,7 +9,7 @@ import type {
   PackageTargetDescriptor,
   TargetDescriptor,
 } from '@parcel/types';
-import type {StaticRunOpts, RequestRunnerOpts} from '../RequestTracker';
+import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions, Target} from '../types';
 
 import ThrowableDiagnostic, {
@@ -17,7 +17,7 @@ import ThrowableDiagnostic, {
   getJSONSourceLocation,
 } from '@parcel/diagnostic';
 import path from 'path';
-import {loadConfig, validateSchema} from '@parcel/utils';
+import {loadConfig, md5FromObject, validateSchema} from '@parcel/utils';
 import {createEnvironment} from '../Environment';
 // $FlowFixMe
 import browserslist from 'browserslist';
@@ -29,7 +29,6 @@ import {
   DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
-import {RequestRunner} from '../RequestTracker';
 
 type TargetResolveResult = {|
   targets: Array<Target>,
@@ -37,7 +36,7 @@ type TargetResolveResult = {|
 |};
 
 type RunOpts = {|
-  request: Entry,
+  input: Entry,
   ...StaticRunOpts,
 |};
 
@@ -62,35 +61,32 @@ const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  request: Entry,
-  result?: TargetResolveResult,
+  run: RunOpts => Promise<TargetResolveResult>,
+  input: Entry,
 |};
 
-// export default function createTargetRequest(opts: TargetResolverOpts) {
-//   return new TargetRequestRunner(opts);
-// }
+const type = 'target_request';
 
-export default class TargetRequestRunner extends RequestRunner<
-  Entry,
-  TargetResolveResult,
-> {
-  constructor(opts: RequestRunnerOpts) {
-    super(opts);
-    this.type = 'target_request';
+export default function createTargetRequest(input: Entry) {
+  return {
+    id: `${type}:${md5FromObject(input)}`,
+    type,
+    run,
+    input,
+  };
+}
+
+async function run({input, api, options}: RunOpts) {
+  let targetResolver = new TargetResolver(options);
+  let result = await targetResolver.resolve(input.packagePath);
+
+  // Connect files like package.json that affect the target
+  // resolution so we invalidate when they change.
+  for (let file of result.files) {
+    api.invalidateOnFileUpdate(file.filePath);
   }
 
-  async run({request, api, options}: RunOpts) {
-    let targetResolver = new TargetResolver(options);
-    let result = await targetResolver.resolve(request.packagePath);
-
-    // Connect files like package.json that affect the target
-    // resolution so we invalidate when they change.
-    for (let file of result.files) {
-      api.invalidateOnFileUpdate(file.filePath);
-    }
-
-    return result;
-  }
+  return result;
 }
 
 export class TargetResolver {

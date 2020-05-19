@@ -18,7 +18,7 @@ export type PathRequestResult = AssetGroup | null | void;
 
 export type PathRequest = {|
   id: string,
-  +type: 'dep_path_request',
+  +type: 'path_request',
   run: RunOpts => Promise<PathRequestResult>,
   input: PathRequestInput,
 |};

@@ -141,7 +141,16 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
     invariant(entrySpecifierNode.type === 'entry_specifier');
     entrySpecifierNode.correspondingRequest = correspondingRequest;
-    let entryFileNodes = resolved.map(file => nodeFromEntryFile(file));
+    let entryFileNodes = resolved.map(file => {
+      let node = nodeFromEntryFile(file);
+      let existingNode = this.getNode(node.id);
+      if (existingNode) {
+        invariant(existingNode.type === 'entry_file');
+        existingNode.value = file;
+        return existingNode;
+      }
+      return node;
+    });
     this.replaceNodesConnectedTo(entrySpecifierNode, entryFileNodes);
   }
 
