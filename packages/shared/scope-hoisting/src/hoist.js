@@ -276,7 +276,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
 
     if (t.matchesPattern(path.node, 'require.cache') && !asset.env.isNode()) {
-      path.replaceWith(t.identifier('{}'));
+      path.replaceWith(t.objectExpression([]));
     }
 
     if (t.matchesPattern(path.node, 'module.bundle')) {
