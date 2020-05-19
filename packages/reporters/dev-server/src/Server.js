@@ -1,7 +1,12 @@
 // @flow
 
-import type {Request, Response, DevServerOptions} from './types.js.flow';
-import type {BundleGraph, FilePath} from '@parcel/types';
+import type {DevServerOptions, Request, Response} from './types.js.flow';
+import type {
+  BundleGraph,
+  FilePath,
+  PluginOptions,
+  NamedBundle,
+} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 
@@ -11,10 +16,10 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import {
-  loadConfig,
-  createHTTPServer,
-  prettyDiagnostic,
   ansiHtml,
+  createHTTPServer,
+  loadConfig,
+  prettyDiagnostic,
 } from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
@@ -52,7 +57,7 @@ export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph | null;
+  bundleGraph: BundleGraph<NamedBundle> | null;
   errors: Array<{|
     message: string,
     stack: string,
@@ -78,7 +83,7 @@ export default class Server extends EventEmitter {
     this.pending = true;
   }
 
-  buildSuccess(bundleGraph: BundleGraph) {
+  buildSuccess(bundleGraph: BundleGraph<NamedBundle>) {
     this.bundleGraph = bundleGraph;
     this.errors = null;
     this.pending = false;
@@ -86,19 +91,21 @@ export default class Server extends EventEmitter {
     this.emit('bundled');
   }
 
-  buildError(diagnostics: Array<Diagnostic>) {
+  async buildError(options: PluginOptions, diagnostics: Array<Diagnostic>) {
     this.pending = false;
-    this.errors = diagnostics.map(d => {
-      let ansiDiagnostic = prettyDiagnostic(d);
+    this.errors = await Promise.all(
+      diagnostics.map(async d => {
+        let ansiDiagnostic = await prettyDiagnostic(d, options);
 
-      return {
-        message: ansiHtml(ansiDiagnostic.message),
-        stack: ansiDiagnostic.codeframe
-          ? ansiHtml(ansiDiagnostic.codeframe)
-          : ansiHtml(ansiDiagnostic.stack),
-        hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
-      };
-    });
+        return {
+          message: ansiHtml(ansiDiagnostic.message),
+          stack: ansiDiagnostic.codeframe
+            ? ansiHtml(ansiDiagnostic.codeframe)
+            : ansiHtml(ansiDiagnostic.stack),
+          hints: ansiDiagnostic.hints.map(hint => ansiHtml(hint)),
+        };
+      }),
+    );
   }
 
   respond(req: Request, res: Response) {

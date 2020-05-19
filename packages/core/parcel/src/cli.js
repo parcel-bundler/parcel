@@ -5,28 +5,32 @@ import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
-import {prettyDiagnostic} from '@parcel/utils';
+import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
+import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
 
 require('v8-compile-cache');
 
-function logUncaughtError(e: mixed) {
+async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
-      let out = prettyDiagnostic(diagnostic);
-      console.error(out.message);
-      console.error(out.codeframe || out.stack);
+      let out = await prettyDiagnostic(diagnostic);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.message);
+      INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);
       for (let h of out.hints) {
-        console.error(h);
+        INTERNAL_ORIGINAL_CONSOLE.error(h);
       }
     }
   } else {
-    console.error(e);
+    INTERNAL_ORIGINAL_CONSOLE.error(e);
   }
+
+  // A hack to definitely ensure we logged the uncaught exception
+  await new Promise(resolve => setTimeout(resolve, 100));
 }
 
-process.on('unhandledRejection', (reason: mixed) => {
-  logUncaughtError(reason);
-  process.exit(1);
+process.on('unhandledRejection', async (reason: mixed) => {
+  await logUncaughtError(reason);
+  process.exit();
 });
 
 const chalk = require('chalk');
@@ -141,13 +145,13 @@ program
   });
 
 program.on('--help', function() {
-  console.log('');
-  console.log(
+  INTERNAL_ORIGINAL_CONSOLE.log('');
+  INTERNAL_ORIGINAL_CONSOLE.log(
     '  Run `' +
       chalk.bold('parcel help <command>') +
       '` for more information on specific commands',
   );
-  console.log('');
+  INTERNAL_ORIGINAL_CONSOLE.log('');
 });
 
 // Make serve the default command except for --help
@@ -163,7 +167,7 @@ async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
-    console.log('No entries found');
+    INTERNAL_ORIGINAL_CONSOLE.log('No entries found');
     return;
   }
   let Parcel = require('@parcel/core').default;
@@ -196,6 +200,14 @@ async function run(entries: Array<string>, command: any) {
       }
     });
 
+    if (command.open && options.serve) {
+      await openInBrowser(
+        `${options.serve.https ? 'https' : 'http'}://${options.serve.host ||
+          'localhost'}:${options.serve.port}`,
+        command.open,
+      );
+    }
+
     let isExiting;
     const exit = async () => {
       if (isExiting) {
@@ -209,7 +221,7 @@ async function run(entries: Array<string>, command: any) {
 
     if (command.watchForStdin) {
       process.stdin.on('end', async () => {
-        console.log('STDIN closed, ending');
+        INTERNAL_ORIGINAL_CONSOLE.log('STDIN closed, ending');
 
         await exit();
       });
@@ -247,7 +259,7 @@ async function run(entries: Array<string>, command: any) {
       // If an exception is thrown during Parcel.build, it is given to reporters in a
       // buildFailure event, and has been shown to the user.
       if (!(e instanceof BuildError)) {
-        logUncaughtError(e);
+        await logUncaughtError(e);
       }
       process.exit(1);
     }
@@ -276,8 +288,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     port = await getPort({port, host});
 
     if (command.port && port !== command.port) {
-      // Parcel logger is not set up at this point, so just use native console.
-      console.warn(
+      // Parcel logger is not set up at this point, so just use native INTERNAL_ORIGINAL_CONSOLE.
+      INTERNAL_ORIGINAL_CONSOLE.warn(
         chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`),
       );
     }
@@ -296,7 +308,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port, host: host != null ? host : 'localhost'};
+    hmr = {port, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';

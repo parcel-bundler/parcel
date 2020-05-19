@@ -175,6 +175,7 @@ export default class TargetResolver {
             name: 'default',
             distDir: this.options.distDir,
             publicUrl: this.options.publicUrl ?? '/',
+            sourceMap: this.options.sourceMaps ? {} : undefined,
             env: createEnvironment({
               context: 'browser',
               engines: {

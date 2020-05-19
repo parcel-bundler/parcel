@@ -22,7 +22,8 @@ export type DiagnosticCodeHighlight = {|
 |};
 
 export type DiagnosticCodeFrame = {|
-  code: string,
+  // if no code is passed, it will be read in from Diagnostic#filePath
+  code?: string,
   codeHighlights: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>,
 |};
 
@@ -36,7 +37,7 @@ export type Diagnostic = {|
   stack?: string,
   name?: string,
 
-  // Asset metadata
+  // Asset metadata, filePath is absolute or relative to the project root
   filePath?: FilePath,
   language?: string,
 

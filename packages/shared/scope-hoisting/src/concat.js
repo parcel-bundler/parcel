@@ -1,10 +1,16 @@
 // @flow
 
-import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
+import type {
+  Asset,
+  BundleGraph,
+  PluginOptions,
+  NamedBundle,
+  Symbol,
+} from '@parcel/types';
 import type {
   CallExpression,
-  Identifier,
   ClassDeclaration,
+  Identifier,
   Node,
   Statement,
   VariableDeclaration,
@@ -26,7 +32,7 @@ import {
   isVariableDeclaration,
 } from '@babel/types';
 import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue} from '@parcel/utils';
+import {PromiseQueue, relativeUrl} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -50,11 +56,18 @@ type TraversalContext = {|
   children: AssetASTMap,
 |};
 
-export async function concat(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+// eslint-disable-next-line no-unused-vars
+export async function concat({
+  bundle,
+  bundleGraph,
+  options,
+  wrappedAssets,
+}: {|
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  options: PluginOptions,
   wrappedAssets: Set<string>,
-) {
+|}) {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
     switch (node.type) {
@@ -65,14 +78,16 @@ export async function concat(
             node.value,
             bundle,
           );
-          if (resolved) {
+          if (resolved && resolved.sideEffects) {
             wrappedAssets.add(resolved.id);
           }
           return true;
         }
         break;
       case 'asset':
-        queue.add(() => processAsset(bundle, node.value, wrappedAssets));
+        queue.add(() =>
+          processAsset(options, bundle, node.value, wrappedAssets),
+        );
     }
   });
 
@@ -88,7 +103,7 @@ export async function concat(
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldExcludeAsset(bundleGraph, asset, usedExports)) {
+      if (shouldSkipAsset(bundleGraph, asset, usedExports)) {
         return context;
       }
 
@@ -98,7 +113,7 @@ export async function concat(
       };
     },
     exit(asset, context) {
-      if (!context || shouldExcludeAsset(bundleGraph, asset, usedExports)) {
+      if (!context || shouldSkipAsset(bundleGraph, asset, usedExports)) {
         return;
       }
 
@@ -145,7 +160,8 @@ export async function concat(
 }
 
 async function processAsset(
-  bundle: Bundle,
+  options: PluginOptions,
+  bundle: NamedBundle,
   asset: Asset,
   wrappedAssets: Set<string>,
 ) {
@@ -155,7 +171,7 @@ async function processAsset(
     statements = t.cloneNode(nullthrows(ast).program.program).body;
   } else {
     let code = await asset.getCode();
-    statements = parse(code, asset.filePath);
+    statements = parse(code, relativeUrl(options.projectRoot, asset.filePath));
   }
 
   if (wrappedAssets.has(asset.id)) {
@@ -169,9 +185,9 @@ async function processAsset(
   return [asset.id, statements];
 }
 
-function parse(code, filename) {
+function parse(code, sourceFilename) {
   let ast = babelParse(code, {
-    sourceFilename: filename,
+    sourceFilename,
     allowReturnOutsideFunction: true,
     plugins: ['dynamicImport'],
   });
@@ -180,8 +196,8 @@ function parse(code, filename) {
 }
 
 function getUsedExports(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
 
@@ -201,8 +217,8 @@ function getUsedExports(
         continue;
       }
 
-      for (let [symbol, identifier] of dep.symbols) {
-        if (identifier === '*') {
+      for (let [symbol, {local}] of dep.symbols) {
+        if (local === '*') {
           continue;
         }
 
@@ -246,8 +262,8 @@ function getUsedExports(
   return usedExports;
 }
 
-function shouldExcludeAsset(
-  bundleGraph: BundleGraph,
+function shouldSkipAsset(
+  bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   usedExports: Map<string, Set<Symbol>>,
 ) {
@@ -258,7 +274,7 @@ function shouldExcludeAsset(
       nullthrows(usedExports.get(asset.id)).size === 0) &&
     !bundleGraph.getIncomingDependencies(asset).find(d =>
       // Don't exclude assets that was imported as a wildcard
-      d.symbols.has('*'),
+      d.symbols.hasExportSymbol('*'),
     )
   );
 }
@@ -272,8 +288,8 @@ const FIND_REQUIRES_VISITOR = {
       asset,
       result,
     }: {|
-      bundle: Bundle,
-      bundleGraph: BundleGraph,
+      bundle: NamedBundle,
+      bundleGraph: BundleGraph<NamedBundle>,
       asset: Asset,
       result: Array<Asset>,
     |},
@@ -303,8 +319,8 @@ const FIND_REQUIRES_VISITOR = {
 };
 
 function findRequires(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   ast: Node,
 ): Array<Asset> {
