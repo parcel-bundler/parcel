@@ -22,17 +22,17 @@ type SerializedRequestGraph = {|
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
-export type RequestBlah = {|
+type Request = {|
   id: string,
   +type: string,
-  request: mixed,
+  input: mixed,
   result?: mixed,
 |};
 
 type RequestNode = {|
   id: string,
   +type: 'request',
-  value: RequestBlah,
+  value: Request,
 |};
 type RequestGraphNode = RequestNode | FileNode | GlobNode;
 
@@ -41,6 +41,23 @@ type RequestGraphEdgeType =
   | 'invalidated_by_update'
   | 'invalidated_by_delete'
   | 'invalidated_by_create';
+
+type RequestRunnerAPI = {|
+  invalidateOnFileCreate: Glob => void,
+  invalidateOnFileDelete: FilePath => void,
+  invalidateOnFileUpdate: FilePath => void,
+  invalidateOnStartup: () => void,
+  replaceSubrequests: (Array<RequestGraphNode>) => void,
+  storeResult: (result: mixed) => void,
+  getId: () => string,
+|};
+
+export type StaticRunOpts = {|
+  farm: WorkerFarm,
+  options: ParcelOptions,
+  api: RequestRunnerAPI,
+  graph: RequestGraph,
+|};
 
 const nodeFromFilePath = (filePath: string) => ({
   id: filePath,
@@ -54,7 +71,7 @@ const nodeFromGlob = (glob: Glob) => ({
   value: glob,
 });
 
-const nodeFromRequest = (request: RequestBlah) => ({
+const nodeFromRequest = (request: Request) => ({
   id: request.id,
   type: 'request',
   value: request,
@@ -114,7 +131,7 @@ export class RequestGraph extends Graph<
   }
 
   // TODO: deprecate
-  addRequest(request: RequestBlah) {
+  addRequest(request: Request) {
     let requestNode = nodeFromRequest(request);
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
@@ -130,7 +147,7 @@ export class RequestGraph extends Graph<
     return node;
   }
 
-  completeRequest(request: RequestBlah) {
+  completeRequest(request: Request) {
     this.invalidNodeIds.delete(request.id);
     this.incompleteNodeIds.delete(request.id);
   }
@@ -301,7 +318,7 @@ export default class RequestTracker {
     return nullthrows(this.graph.getNode(id));
   }
 
-  trackRequest(request: RequestBlah) {
+  trackRequest(request: Request) {
     if (this.isTracked(request.id)) {
       return;
     }
@@ -357,7 +374,7 @@ export default class RequestTracker {
     return this.graph.invalidNodeIds.size > 0;
   }
 
-  getInvalidRequests(): Array<RequestBlah> {
+  getInvalidRequests(): Array<Request> {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
@@ -391,7 +408,7 @@ export default class RequestTracker {
     try {
       let api = this.createAPI(id);
 
-      this.trackRequest({id, type: request.type, request: request.input});
+      this.trackRequest({id, type: request.type, input: request.input});
       let result: TResult = this.hasValidResult(id)
         ? // $FlowFixMe
           (this.getRequestResult(id): any)
@@ -432,20 +449,3 @@ export default class RequestTracker {
     return api;
   }
 }
-
-export type StaticRunOpts = {|
-  farm: WorkerFarm,
-  options: ParcelOptions,
-  api: RequestRunnerAPI,
-  graph: RequestGraph,
-|};
-
-export type RequestRunnerAPI = {|
-  invalidateOnFileCreate: Glob => void,
-  invalidateOnFileDelete: FilePath => void,
-  invalidateOnFileUpdate: FilePath => void,
-  invalidateOnStartup: () => void,
-  replaceSubrequests: (Array<RequestGraphNode>) => void,
-  storeResult: (result: mixed) => void,
-  getId: () => string,
-|};

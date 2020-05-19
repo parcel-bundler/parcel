@@ -1,25 +1,18 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {FilePath} from '@parcel/types';
 import type WorkerFarm, {Handle} from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
   AssetGroup,
-  AssetRequestInput,
-  AssetRequestResult,
   ParcelOptions,
   ValidationOpts,
 } from './types';
-import type {EntryRequest, EntryResult} from './requests/EntryRequest';
+import type {EntryRequest} from './requests/EntryRequest';
 import type {TargetRequest} from './requests/TargetRequest';
-import type {
-  PathRequest,
-  PathRequestInput,
-  PathRequestResult,
-} from './requests/PathRequest';
+import type {PathRequest} from './requests/PathRequest';
 import type {AssetRequest} from './requests/AssetRequest';
 
 import EventEmitter from 'events';
@@ -278,11 +271,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async runEntryRequest(request: EntryRequest) {
-    let result = await this.requestTracker.runRequest<
-      FilePath,
-      EntryResult,
-      EntryRequest,
-    >(request);
+    let result = await this.requestTracker.runRequest(request);
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
@@ -292,11 +281,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async runPathRequest(request: PathRequest) {
-    let result = await this.requestTracker.runRequest<
-      PathRequestInput,
-      PathRequestResult,
-      PathRequest,
-    >(request);
+    let result = await this.requestTracker.runRequest(request);
     this.assetGraph.resolveDependency(
       request.input.dependency,
       result,
@@ -308,11 +293,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     // eslint-disable-next-line no-unused-vars
     let {configRef, optionsRef, ...assetGroup} = request.input;
     this.assetRequests.push(assetGroup);
-    let assets = await this.requestTracker.runRequest<
-      AssetRequestInput,
-      AssetRequestResult,
-      AssetRequest,
-    >(request);
+    let assets = await this.requestTracker.runRequest(request);
 
     if (assets != null) {
       for (let asset of assets) {

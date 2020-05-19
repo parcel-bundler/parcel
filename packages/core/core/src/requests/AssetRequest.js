@@ -96,7 +96,7 @@ async function run({input, api, options, farm, graph}: RunInput) {
       graph.addRequest({
         id,
         type: 'config_request',
-        request,
+        input: request,
         result,
       }),
     );
@@ -134,7 +134,7 @@ async function run({input, api, options, farm, graph}: RunInput) {
         graph.addRequest({
           id,
           type: 'dep_version_request',
-          request: depVersionRequst,
+          input: depVersionRequst,
           result: version,
         }),
       );
