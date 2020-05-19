@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Ask questions on Spectrum
-    url: https://spectrum.chat/parcel
+  - name: Ask a question
+    url: https://github.com/parcel-bundler/parcel/discussions
     about: Please ask and answer questions here.
   - name: Documentation
     url: https://github.com/parcel-bundler/website
