@@ -104,6 +104,8 @@ export async function concat({
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
       if (shouldSkipAsset(bundleGraph, asset, usedExports)) {
+        // if (shouldExcludeAsset(bundleGraph, asset, usedExports)) {
+        wrappedAssets.delete(asset.id);
         return context;
       }
 

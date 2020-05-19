@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-atlassian-ssr",
-  "version": "2.0.0-frontbucket.24",
+  "version": "0.0.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

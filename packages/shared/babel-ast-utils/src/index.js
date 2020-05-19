@@ -21,7 +21,7 @@ export async function parse({
   code: string,
   options: PluginOptions,
   // ATLASSIAN: allow additional plugins for the parser
-  plugins: Array<ParserPlugin>,
+  plugins?: Array<ParserPlugin>,
 |}): Promise<AST> {
   try {
     const plugins = [
