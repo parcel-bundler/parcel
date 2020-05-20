@@ -667,10 +667,6 @@ class WriteStream extends Writable {
       .then(callback)
       .catch(callback);
   }
-
-  get bytesWritten() {
-    return this.buffer.byteLength;
-  }
 }
 
 const S_IFREG = 0o100000;
