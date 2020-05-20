@@ -1,13 +1,11 @@
 // @flow
 import path from 'path';
-import type {BundleGraph, Bundle, Dependency} from '@parcel/types';
+import type {BundleGraph, Bundle, Dependency, Target} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 
-const buildManifest = (bundleGraph: BundleGraph) => {
-  const manifest = {};
-  const bundles = bundleGraph.getBundles();
-
+const manifest = {};
+const buildManifest = (bundles: Set<Bundle>, bundleGraph: BundleGraph) => {
   const assets = {};
   bundles.forEach((bundle: Bundle) => {
     if (bundle.type !== 'js') {
@@ -68,20 +66,39 @@ const buildManifest = (bundleGraph: BundleGraph) => {
 };
 
 exports.default = new Reporter({
-  report({event, options}) {
-    if (event.type === 'buildSuccess') {
-      const manifest = buildManifest(event.bundleGraph);
-      const filePath = path.join(
-        options.projectRoot,
-        'dist',
-        'react-loadable.json',
-      );
-      return options.outputFS.writeFile(
-        filePath,
-        JSON.stringify(manifest, null, 2),
-      );
-    } else {
+  async report({event, options}) {
+    if (event.type !== 'buildSuccess') {
       return;
     }
+
+    let bundleGraph = event.bundleGraph;
+    let entryBundlesByTarget: Map<
+      string,
+      {|target: Target, entryBundles: Set<Bundle>|},
+    > = new Map();
+    bundleGraph.traverseBundles((bundle, _, actions) => {
+      let res = entryBundlesByTarget.get(bundle.target.name);
+      if (res == null) {
+        res = {
+          target: bundle.target,
+          entryBundles: new Set(),
+        };
+        entryBundlesByTarget.set(bundle.target.name, res);
+      }
+      res.entryBundles.add(bundle);
+      actions.skipChildren();
+    });
+
+    await Promise.all(
+      Array.from(entryBundlesByTarget).map(
+        async ([, {target, entryBundles}]) => {
+          const manifest = buildManifest(entryBundles, bundleGraph);
+          await options.outputFS.writeFile(
+            path.join(target.distDir, 'react-loadable.json'),
+            JSON.stringify(manifest, null, 2),
+          );
+        },
+      ),
+    );
   },
 });
