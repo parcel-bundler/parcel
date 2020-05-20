@@ -26,7 +26,7 @@
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
-    "version:frontbucket": "yarn lerna version prerelease --preid frontbucket",
+    "version:frontbucket": "yarn lerna version prerelease --preid frontbucket --force-publish=@atlassian/internal-parcel-utils,@atlassian/parcel-reporter-analytics",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=*",
     "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
   },
