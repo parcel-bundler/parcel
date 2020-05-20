@@ -22,7 +22,15 @@ type SerializedRequestGraph = {|
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
-type Request = {|
+
+type Request<TInput, TResult> = {|
+  id: string,
+  +type: string,
+  input: TInput,
+  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
+|};
+
+type StoredRequest = {|
   id: string,
   +type: string,
   input: mixed,
@@ -32,7 +40,7 @@ type Request = {|
 type RequestNode = {|
   id: string,
   +type: 'request',
-  value: Request,
+  value: StoredRequest,
 |};
 type RequestGraphNode = RequestNode | FileNode | GlobNode;
 
@@ -42,21 +50,21 @@ type RequestGraphEdgeType =
   | 'invalidated_by_delete'
   | 'invalidated_by_create';
 
-type RequestRunnerAPI = {|
+type RunAPI = {|
   invalidateOnFileCreate: Glob => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
-  replaceSubrequests: (Array<RequestGraphNode>) => void,
   storeResult: (result: mixed) => void,
-  getId: () => string,
+  runRequest: <TInput, TResult, TRequest: Request<TInput, TResult>>(
+    subRequest: TRequest,
+  ) => Async<TResult>,
 |};
 
 export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
-  api: RequestRunnerAPI,
-  graph: RequestGraph,
+  api: RunAPI,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -71,7 +79,7 @@ const nodeFromGlob = (glob: Glob) => ({
   value: glob,
 });
 
-const nodeFromRequest = (request: Request) => ({
+const nodeFromRequest = (request: StoredRequest) => ({
   id: request.id,
   type: 'request',
   value: request,
@@ -130,24 +138,13 @@ export class RequestGraph extends Graph<
     return super.removeNode(node);
   }
 
-  // TODO: deprecate
-  addRequest(request: Request) {
-    let requestNode = nodeFromRequest(request);
-    if (!this.hasNode(requestNode.id)) {
-      this.addNode(requestNode);
-    } else {
-      requestNode = this.getNode(requestNode.id);
-    }
-    return requestNode;
-  }
-
   getRequestNode(id: string) {
     let node = nullthrows(this.getNode(id));
     invariant(node.type === 'request');
     return node;
   }
 
-  completeRequest(request: Request) {
+  completeRequest(request: StoredRequest) {
     this.invalidNodeIds.delete(request.id);
     this.incompleteNodeIds.delete(request.id);
   }
@@ -159,10 +156,6 @@ export class RequestGraph extends Graph<
     let requestNode = this.getRequestNode(requestId);
     if (!this.hasNode(requestId)) {
       this.addNode(requestNode);
-    }
-
-    for (let subrequestNode of subrequestNodes) {
-      this.invalidNodeIds.delete(subrequestNode.id);
     }
 
     this.replaceNodesConnectedTo(
@@ -310,26 +303,17 @@ export default class RequestTracker {
     this.signal = signal;
   }
 
-  isTracked(id: string) {
-    return this.graph.hasNode(id);
-  }
-
-  getRequest(id: string) {
-    return nullthrows(this.graph.getNode(id));
-  }
-
-  trackRequest(request: Request) {
-    if (this.isTracked(request.id)) {
-      return;
+  startRequest(request: StoredRequest) {
+    if (!this.graph.hasNode(request.id)) {
+      let node = nodeFromRequest(request);
+      this.graph.addNode(node);
     }
 
     this.graph.incompleteNodeIds.add(request.id);
     this.graph.invalidNodeIds.delete(request.id);
-    let node = nodeFromRequest(request);
-    this.graph.addNode(node);
   }
 
-  untrackRequest(id: string) {
+  removeRequest(id: string) {
     this.graph.removeById(id);
   }
 
@@ -374,7 +358,7 @@ export default class RequestTracker {
     return this.graph.invalidNodeIds.size > 0;
   }
 
-  getInvalidRequests(): Array<Request> {
+  getInvalidRequests(): Array<StoredRequest> {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
@@ -391,34 +375,27 @@ export default class RequestTracker {
     this.graph.replaceSubrequests(requestId, subrequestNodes);
   }
 
-  async runRequest<
-    TInput,
-    TResult,
-    TRequest: {|
-      id: string,
-      +type: string,
-      run: (runInput: {|
-        input: TInput,
-        ...StaticRunOpts,
-      |}) => Promise<TResult>,
-      input: TInput,
-    |},
-  >(request: TRequest): Async<TResult> {
+  async runRequest<TInput, TResult, TRequest: Request<TInput, TResult>>(
+    request: TRequest,
+  ): Async<TResult> {
     let id = request.id;
-    try {
-      let api = this.createAPI(id);
 
-      this.trackRequest({id, type: request.type, input: request.input});
-      let result: TResult = this.hasValidResult(id)
-        ? // $FlowFixMe
-          (this.getRequestResult(id): any)
-        : await request.run({
-            input: request.input,
-            api,
-            farm: this.farm,
-            options: this.options,
-            graph: this.graph,
-          });
+    if (this.hasValidResult(id)) {
+      // $FlowFixMe
+      let result: TResult = (this.getRequestResult(id): any);
+      return result; // ? Can this be done more concisely?
+    }
+
+    let {api, subRequests} = this.createAPI(id);
+    try {
+      this.startRequest({id, type: request.type, input: request.input});
+      let result = await request.run({
+        input: request.input,
+        api,
+        farm: this.farm,
+        options: this.options,
+      });
+
       assertSignalNotAborted(this.signal);
       this.completeRequest(id);
 
@@ -426,10 +403,18 @@ export default class RequestTracker {
     } catch (err) {
       this.rejectRequest(id);
       throw err;
+    } finally {
+      this.graph.replaceSubrequests(
+        id,
+        [...subRequests].map(subRequestId =>
+          nullthrows(this.graph.getNode(subRequestId)),
+        ),
+      );
     }
   }
 
-  createAPI(requestId: string): RequestRunnerAPI {
+  createAPI(requestId: string): {|api: RunAPI, subRequests: Set<NodeId>|} {
+    let subRequests = new Set();
     let api = {
       invalidateOnFileCreate: glob =>
         this.graph.invalidateOnFileCreate(requestId, glob),
@@ -438,14 +423,15 @@ export default class RequestTracker {
       invalidateOnFileUpdate: filePath =>
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
-      replaceSubrequests: subrequestNodes =>
-        this.graph.replaceSubrequests(requestId, subrequestNodes),
       storeResult: result => {
         this.storeResult(requestId, result);
       },
-      getId: () => requestId,
+      runRequest: subRequest => {
+        subRequests.add(subRequest.id);
+        return this.runRequest(subRequest);
+      },
     };
 
-    return api;
+    return {api, subRequests};
   }
 }

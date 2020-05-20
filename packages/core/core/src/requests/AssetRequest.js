@@ -63,7 +63,7 @@ function getId(input: AssetRequestInput) {
   return `${type}:${md5FromObject(hashInput)}`;
 }
 
-async function run({input, api, options, farm, graph}: RunInput) {
+async function run({input, api, options, farm}: RunInput) {
   api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
   let start = Date.now();
   let {configRef, optionsRef, ...request} = input;
@@ -85,70 +85,55 @@ async function run({input, api, options, farm, graph}: RunInput) {
     }
   }
 
-  // TODO: this should no longer be needed once we have ConfigRequestRunner
-  let subrequestNodes = [];
   // Add config requests
   for (let {request, result} of configRequests) {
     let id = generateRequestId('config_request', request);
-    let shouldSetupInvalidations =
-      graph.invalidNodeIds.has(id) || !graph.hasNode(id);
-    let subrequestNode = nullthrows(
-      graph.addRequest({
-        id,
-        type: 'config_request',
-        input: request,
-        result,
-      }),
-    );
-    invariant(subrequestNode.type === 'request');
+    await api.runRequest({
+      id,
+      type: 'config_request',
+      run: ({api}) => {
+        if (result.resolvedPath != null) {
+          api.invalidateOnFileUpdate(result.resolvedPath);
+        }
 
-    if (shouldSetupInvalidations) {
-      if (result.resolvedPath != null) {
-        graph.invalidateOnFileUpdate(subrequestNode.id, result.resolvedPath);
-      }
+        for (let filePath of result.includedFiles) {
+          api.invalidateOnFileUpdate(filePath);
+        }
 
-      for (let filePath of result.includedFiles) {
-        graph.invalidateOnFileUpdate(subrequestNode.id, filePath);
-      }
+        if (result.watchGlob != null) {
+          api.invalidateOnFileCreate(result.watchGlob);
+        }
 
-      if (result.watchGlob != null) {
-        graph.invalidateOnFileCreate(subrequestNode.id, result.watchGlob);
-      }
-
-      if (result.shouldInvalidateOnStartup) {
-        graph.invalidateOnStartup(subrequestNode.id);
-      }
-    }
-    subrequestNodes.push(subrequestNode);
+        if (result.shouldInvalidateOnStartup) {
+          api.invalidateOnStartup();
+        }
+        // ? Better way to make flow happy
+        return Promise.resolve();
+      },
+      input: null,
+    });
 
     // Add dep version requests
-    for (let [moduleSpecifier, version] of result.devDeps) {
+    for (let [moduleSpecifier] of result.devDeps) {
       let depVersionRequst = {
         moduleSpecifier,
         resolveFrom: result.resolvedPath, // TODO: resolveFrom should be nearest package boundary
       };
       let id = generateRequestId('dep_version_request', depVersionRequst);
-      let shouldSetupInvalidations =
-        graph.invalidNodeIds.has(id) || !graph.hasNode(id);
-      let subrequestNode = nullthrows(
-        graph.addRequest({
-          id,
-          type: 'dep_version_request',
-          input: depVersionRequst,
-          result: version,
-        }),
-      );
-      invariant(subrequestNode.type === 'request');
-      if (shouldSetupInvalidations) {
-        if (options.lockFile != null) {
-          graph.invalidateOnFileUpdate(subrequestNode.id, options.lockFile);
-        }
-      }
-      subrequestNodes.push(subrequestNode);
+      await api.runRequest({
+        id,
+        type: 'version_request',
+        run: ({api}) => {
+          if (options.lockFile != null) {
+            api.invalidateOnFileUpdate(options.lockFile);
+          }
+          // ? Better way to make flow happy
+          return Promise.resolve();
+        },
+        input: null,
+      });
     }
   }
-
-  api.replaceSubrequests(subrequestNodes);
 
   return assets;
 }

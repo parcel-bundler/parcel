@@ -1,19 +1,18 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {ModuleSpecifier} from '@parcel/types';
 import type WorkerFarm, {Handle} from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
   AssetGroup,
+  Dependency,
+  Entry,
   ParcelOptions,
   ValidationOpts,
 } from './types';
-import type {EntryRequest} from './requests/EntryRequest';
-import type {TargetRequest} from './requests/TargetRequest';
-import type {PathRequest} from './requests/PathRequest';
-import type {AssetRequest} from './requests/AssetRequest';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
@@ -44,12 +43,6 @@ type Opts = {|
   workerFarm: WorkerFarm,
 |};
 
-type AssetGraphSubRequest =
-  | EntryRequest
-  | TargetRequest
-  | PathRequest
-  | AssetRequest;
-
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
@@ -57,7 +50,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   assetRequests: Array<AssetGroup>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
-  rejected: Map<string, mixed>;
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
@@ -130,7 +122,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  async setupConfigStuff() {
+  async loadConfig() {
     let {config, configRef} = nullthrows(
       await this.requestTracker.runRequest(createParcelConfigRequest()),
     );
@@ -153,9 +145,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     changedAssets: Map<string, Asset>,
   |}> {
     this.requestTracker.setSignal(signal);
-    await this.setupConfigStuff();
+    await this.loadConfig();
 
-    this.rejected = new Map();
+    let errors = [];
 
     let root = this.assetGraph.getRootNode();
     if (!root) {
@@ -165,11 +157,17 @@ export default class AssetGraphBuilder extends EventEmitter {
     let visited = new Set([root.id]);
 
     const visit = node => {
-      let request = this.getCorrespondingRequest(node);
-      if (!node.complete && !node.deferred && request != null) {
-        this.queueRequest(request).then(() => visitChildren(node));
-      } else {
+      if (errors.length > 0) {
+        return;
+      }
+
+      if (this.shouldSkipRequest(node)) {
         visitChildren(node);
+      } else {
+        this.queueCorrespondingRequest(node).then(
+          () => visitChildren(node),
+          error => errors.push(error),
+        );
       }
     };
 
@@ -187,14 +185,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     visit(root);
     await this.queue.run();
-
-    let errors = [];
-    for (let [requestId, error] of this.rejected) {
-      // ? Is this still needed?
-      if (this.requestTracker.isTracked(requestId)) {
-        errors.push(error);
-      }
-    }
 
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
@@ -243,44 +233,53 @@ export default class AssetGraphBuilder extends EventEmitter {
     await Promise.all(promises);
   }
 
-  queueRequest(request: AssetGraphSubRequest) {
-    return this.queue.add(async () => {
-      if (this.rejected.size > 0) {
-        return;
-      }
-
-      try {
-        await this.runRequest(request);
-      } catch (e) {
-        this.rejected.set(request.id, e);
-      }
-    });
+  shouldSkipRequest(node: AssetGraphNode) {
+    const typesWithRequests = [
+      'entry_specifier',
+      'entry_file',
+      'dependency',
+      'asset_group',
+    ];
+    return (
+      node.complete === true ||
+      !typesWithRequests.includes(node.type) ||
+      (node.correspondingRequest != null &&
+        this.requestGraph.getNode(node.correspondingRequest) != null &&
+        this.requestTracker.hasValidResult(node.correspondingRequest))
+    );
   }
 
-  runRequest(request: AssetGraphSubRequest) {
-    switch (request.type) {
-      case 'entry_request':
-        return this.runEntryRequest(request);
-      case 'target_request':
-        return this.runTargetRequest(request);
-      case 'path_request':
-        return this.runPathRequest(request);
-      case 'asset_request':
-        return this.runAssetRequest(request);
+  queueCorrespondingRequest(node: AssetGraphNode) {
+    switch (node.type) {
+      case 'entry_specifier':
+        return this.queue.add(() => this.runEntryRequest(node.value));
+      case 'entry_file':
+        return this.queue.add(() => this.runTargetRequest(node.value));
+      case 'dependency':
+        return this.queue.add(() => this.runPathRequest(node.value));
+      case 'asset_group':
+        return this.queue.add(() => this.runAssetRequest(node.value));
+      default:
+        throw new Error(
+          `Can not queue corresponding request of node with type ${node.type}`,
+        );
     }
   }
 
-  async runEntryRequest(request: EntryRequest) {
+  async runEntryRequest(input: ModuleSpecifier) {
+    let request = createEntryRequest(input);
     let result = await this.requestTracker.runRequest(request);
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
-  async runTargetRequest(request: TargetRequest) {
+  async runTargetRequest(input: Entry) {
+    let request = createTargetRequest(input);
     let result = await this.requestTracker.runRequest(request);
     this.assetGraph.resolveTargets(request.input, result.targets, request.id);
   }
 
-  async runPathRequest(request: PathRequest) {
+  async runPathRequest(input: Dependency) {
+    let request = createPathRequest({dependency: input, config: this.config});
     let result = await this.requestTracker.runRequest(request);
     this.assetGraph.resolveDependency(
       request.input.dependency,
@@ -289,51 +288,26 @@ export default class AssetGraphBuilder extends EventEmitter {
     );
   }
 
-  async runAssetRequest(request: AssetRequest) {
-    // eslint-disable-next-line no-unused-vars
-    let {configRef, optionsRef, ...assetGroup} = request.input;
-    this.assetRequests.push(assetGroup);
+  async runAssetRequest(input: AssetGroup) {
+    this.assetRequests.push(input);
+    let request = createAssetRequest({
+      ...input,
+      configRef: this.configRef,
+      optionsRef: this.optionsRef,
+    });
     let assets = await this.requestTracker.runRequest(request);
 
     if (assets != null) {
       for (let asset of assets) {
         this.changedAssets.set(asset.id, asset);
       }
-      this.assetGraph.resolveAssetGroup(assetGroup, assets, request.id);
-    }
-  }
-
-  getCorrespondingRequest(node: AssetGraphNode) {
-    let requestNode =
-      node.correspondingRequest != null
-        ? this.requestGraph.getNode(node.correspondingRequest)
-        : null;
-    if (
-      requestNode != null &&
-      this.requestTracker.hasValidResult(requestNode.id)
-    ) {
-      return null;
-    }
-    switch (node.type) {
-      case 'entry_specifier':
-        return createEntryRequest(node.value);
-      case 'entry_file':
-        return createTargetRequest(node.value);
-      case 'dependency':
-        return createPathRequest({dependency: node.value, config: this.config});
-      case 'asset_group':
-        return createAssetRequest({
-          ...node.value,
-          configRef: this.configRef,
-          optionsRef: this.optionsRef,
-        });
+      this.assetGraph.resolveAssetGroup(input, assets, request.id);
     }
   }
 
   handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
-    let request = this.getCorrespondingRequest(node);
-    if (request != null && this.requestTracker.isTracked(request.id)) {
-      this.requestTracker.untrackRequest(request.id);
+    if (node.correspondingRequest != null) {
+      this.requestTracker.removeRequest(node.correspondingRequest);
     }
   }
 
