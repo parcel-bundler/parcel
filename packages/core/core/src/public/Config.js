@@ -120,7 +120,10 @@ export default class PublicConfig implements IConfig {
     }
 
     if (!options || !options.exclude) {
-      if (this.#config.resolvedPath == null) {
+      if (
+        this.#config.resolvedPath == null ||
+        this.#config.resolvedPath.endsWith('package.json')
+      ) {
         this.setResolvedPath(conf.files[0].filePath);
       } else {
         this.addIncludedFile(conf.files[0].filePath);
