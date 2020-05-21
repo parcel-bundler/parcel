@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, FilePath} from '@parcel/types';
+import type {Asset, FilePath, NamedBundle} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
@@ -94,11 +94,11 @@ async function getSourcemapSizes(
 }
 
 async function createBundleStats(
-  bundle: Bundle,
+  bundle: NamedBundle,
   fs: FileSystem,
   projectRoot: FilePath,
 ) {
-  let filePath = nullthrows(bundle.filePath);
+  let filePath = bundle.filePath;
   let sourcemapSizes = await getSourcemapSizes(filePath, fs, projectRoot);
 
   let assets: Array<Asset> = [];
@@ -136,7 +136,7 @@ async function createBundleStats(
 }
 
 export default async function generateBuildMetrics(
-  bundles: Array<Bundle>,
+  bundles: Array<NamedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
 ): Promise<BuildMetrics> {

@@ -100,6 +100,14 @@ export default class PublicConfig implements IConfig {
       exclude?: boolean,
     |},
   ): Promise<ConfigResult | null> {
+    let packageKey = options && options.packageKey;
+    if (packageKey != null) {
+      let pkg = await this.getPackage();
+      if (pkg && pkg[packageKey]) {
+        return pkg[packageKey];
+      }
+    }
+
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,

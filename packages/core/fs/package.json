@@ -16,6 +16,7 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
+    "fs-write-stream-atomic": "github:atlassian-forks/fs-write-stream-atomic#4edf1a95433a9936229c7f768c9ea9bb5884b487",
     "@parcel/utils": "^2.0.0-frontbucket.22",
     "@parcel/watcher": "^2.0.0-alpha.5",
     "@parcel/workers": "^2.0.0-frontbucket.22",

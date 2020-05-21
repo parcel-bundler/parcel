@@ -1,13 +1,16 @@
 // @flow
 import path from 'path';
-import type {BundleGraph, Bundle, Dependency, Target} from '@parcel/types';
+import type {BundleGraph, NamedBundle, Dependency, Target} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 
 const manifest = {};
-const buildManifest = (bundles: Set<Bundle>, bundleGraph: BundleGraph) => {
+const buildManifest = (
+  bundles: Set<NamedBundle>,
+  bundleGraph: BundleGraph<NamedBundle>,
+) => {
   const assets = {};
-  bundles.forEach((bundle: Bundle) => {
+  bundles.forEach((bundle: NamedBundle) => {
     if (bundle.type !== 'js') {
       return;
     }
@@ -74,7 +77,7 @@ exports.default = new Reporter({
     let bundleGraph = event.bundleGraph;
     let entryBundlesByTarget: Map<
       string,
-      {|target: Target, entryBundles: Set<Bundle>|},
+      {|target: Target, entryBundles: Set<NamedBundle>|},
     > = new Map();
     bundleGraph.traverseBundles((bundle, _, actions) => {
       let res = entryBundlesByTarget.get(bundle.target.name);

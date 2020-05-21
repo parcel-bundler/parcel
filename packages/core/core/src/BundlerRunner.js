@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Namer, FilePath} from '@parcel/types';
+import type {Bundle as IBundle, Namer, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
@@ -16,7 +16,7 @@ import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph, {removeAssetGroups} from './BundleGraph';
 import MutableBundleGraph from './public/MutableBundleGraph';
-import {Bundle} from './public/Bundle';
+import {Bundle, NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
@@ -166,7 +166,12 @@ export default class BundlerRunner {
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
     let bundle = new Bundle(internalBundle, internalBundleGraph, this.options);
-    let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
+    let bundleGraph = new BundleGraph<IBundle>(
+      internalBundleGraph,
+      (bundle, bundleGraph, options) =>
+        new NamedBundle(bundle, bundleGraph, options),
+      this.options,
+    );
 
     for (let namer of namers) {
       try {

@@ -426,6 +426,17 @@ describe('scope hoisting', function() {
       assert.equal(await run(b), 123);
     });
 
+    it('supports named exports before the variable declaration', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-before-declaration/a.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), {x: 2});
+    });
+
     it('should not export function arguments', async function() {
       let b = await bundle(
         path.join(
@@ -750,6 +761,18 @@ describe('scope hoisting', function() {
       // TODO (from PR #4385) - maybe comply to this once we have better symbol information?
       //assert(!called, 'side effect called');
       assert.deepEqual(output, 'bar');
+    });
+
+    it('correctly handles excluded and wrapped reexport assets with sideEffects: false', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false-wrap-excluded/a.js',
+        ),
+      );
+      let output = await run(b);
+
+      assert.deepEqual(output, 4);
     });
 
     it('supports the package.json sideEffects flag with an array', async function() {
