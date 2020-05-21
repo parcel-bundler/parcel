@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-not-splittable",
-  "version": "0.0.1",
+  "version": "0.0.2-frontbucket.0",
   "description": "parcel transformer plugin for setting all assets to not be splittable",
   "main": "lib/NotSplittableTransformer.js",
   "source": "src/NotSplittableTransformer.js",

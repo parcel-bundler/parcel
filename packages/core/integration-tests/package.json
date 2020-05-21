@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.0.0-frontbucket.34",
+  "version": "2.0.0-frontbucket.35",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -33,7 +33,7 @@
     "lodash": "^4.17.15",
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
-    "parcel": "^2.0.0-frontbucket.33",
+    "parcel": "^2.0.0-frontbucket.34",
     "parcel-bundler": "^2.0.0-frontbucket.23",
     "postcss-custom-properties": "^8.0.9",
     "postcss-import": "^12.0.1",
