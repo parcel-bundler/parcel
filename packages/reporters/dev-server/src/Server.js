@@ -142,25 +142,17 @@ export default class Server extends EventEmitter {
 
   sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
-      // If the main asset is an HTML file, serve it
-      let htmlBundle = this.bundleGraph.traverseBundles(
-        (bundle, context, {stop}) => {
-          if (bundle.type !== 'html' || !bundle.isEntry) return;
-
-          if (!context) {
-            context = bundle;
-          }
-
-          if (
-            context &&
+      // If there is exactly one entry HTML file, serve it
+      const htmlBundles = this.bundleGraph
+        .getBundles()
+        .filter(
+          bundle =>
+            bundle.type === 'html' &&
+            bundle.isEntry &&
             bundle.filePath &&
-            bundle.filePath.endsWith('index.html')
-          ) {
-            stop();
-            return bundle;
-          }
-        },
-      );
+            bundle.filePath.endsWith('.html'),
+        );
+      const htmlBundle = htmlBundles.length === 1 ? htmlBundles[0] : undefined;
 
       if (htmlBundle) {
         req.url = `/${path.relative(
