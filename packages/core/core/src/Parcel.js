@@ -14,6 +14,7 @@ import type {AssetRequestResult, ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
@@ -44,20 +45,30 @@ export const INTERNAL_TRANSFORM: symbol = Symbol('internal_transform');
 export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
-  #assetGraphBuilder; // AssetGraphBuilder
-  #runtimesAssetGraphBuilder; // AssetGraphBuilder
-  #bundlerRunner; // BundlerRunner
-  #packagerRunner; // PackagerRunner
-  #config;
-  #farm; // WorkerFarm
-  #initialized = false; // boolean
-  #initialOptions; // InitialParcelOptions;
-  #reporterRunner; // ReporterRunner
-  #resolvedOptions = null; // ?ParcelOptions
-  #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
-  #watchAbortController; // AbortController
-  #watchQueue = new PromiseQueue<?BuildEvent>({maxConcurrent: 1}); // PromiseQueue<?BuildEvent>
-  #watchEvents = new ValueEmitter<
+  #assetGraphBuilder /*: AssetGraphBuilder*/;
+  #runtimesAssetGraphBuilder /*: AssetGraphBuilder*/;
+  #bundlerRunner /*: BundlerRunner*/;
+  #packagerRunner /*: PackagerRunner*/;
+  #config /*: ParcelConfig*/;
+  #farm /*: WorkerFarm*/;
+  #initialized /*: boolean*/ = false;
+  #initialOptions /*: InitialParcelOptions*/;
+  #reporterRunner /*: ReporterRunner*/;
+  #resolvedOptions /*: ?ParcelOptions*/ = null;
+  #watchAbortController /*: AbortController*/;
+  #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
+    maxConcurrent: 1,
+  });
+  #watchEvents /*: ValueEmitter<
+    | {|
+        +error: Error,
+        +buildEvent?: void,
+      |}
+    | {|
+        +buildEvent: BuildEvent,
+        +error?: void,
+      |},
+  > */ = new ValueEmitter<
     | {|
         +error: Error,
         +buildEvent?: void,
@@ -67,8 +78,8 @@ export default class Parcel {
         +error?: void,
       |},
   >();
-  #watcherSubscription; // AsyncSubscription
-  #watcherCount = 0; // number
+  #watcherSubscription /*: ?AsyncSubscription*/;
+  #watcherCount /*: number*/ = 0;
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = options;
