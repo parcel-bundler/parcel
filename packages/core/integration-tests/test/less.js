@@ -147,6 +147,39 @@ describe('less', function() {
     );
   });
 
+  it('should support less url rewrites', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-url-rewrite/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less'],
+      },
+      {
+        type: 'woff2',
+        assets: ['a.woff2'],
+      },
+      {
+        type: 'woff2',
+        assets: ['b.woff2'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
+  });
+
   it('should support transforming less with postcss', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-postcss/index.js'),
