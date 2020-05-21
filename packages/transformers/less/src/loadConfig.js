@@ -11,6 +11,8 @@ export async function load({config}: {|config: Config|}) {
     configFile = {};
   }
 
+  // Rewrites urls to be relative to the provided filename
+  configFile.rewriteUrls = 'all';
   configFile.plugins = configFile.plugins || [];
   let isStatic =
     config.resolvedPath && path.extname(config.resolvedPath) !== '.js';
