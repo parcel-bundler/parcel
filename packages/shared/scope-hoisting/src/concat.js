@@ -2,9 +2,9 @@
 
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   PluginOptions,
+  NamedBundle,
   Symbol,
 } from '@parcel/types';
 import type {
@@ -63,8 +63,8 @@ export async function concat({
   options,
   wrappedAssets,
 }: {|
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
 |}) {
@@ -78,7 +78,7 @@ export async function concat({
             node.value,
             bundle,
           );
-          if (resolved) {
+          if (resolved && resolved.sideEffects) {
             wrappedAssets.add(resolved.id);
           }
           return true;
@@ -163,7 +163,7 @@ export async function concat({
 
 async function processAsset(
   options: PluginOptions,
-  bundle: Bundle,
+  bundle: NamedBundle,
   asset: Asset,
   wrappedAssets: Set<string>,
 ) {
@@ -198,8 +198,8 @@ function parse(code, sourceFilename) {
 }
 
 function getUsedExports(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
 
@@ -265,7 +265,7 @@ function getUsedExports(
 }
 
 function shouldSkipAsset(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   usedExports: Map<string, Set<Symbol>>,
 ) {
@@ -290,8 +290,8 @@ const FIND_REQUIRES_VISITOR = {
       asset,
       result,
     }: {|
-      bundle: Bundle,
-      bundleGraph: BundleGraph,
+      bundle: NamedBundle,
+      bundleGraph: BundleGraph<NamedBundle>,
       asset: Asset,
       result: Array<Asset>,
     |},
@@ -321,8 +321,8 @@ const FIND_REQUIRES_VISITOR = {
 };
 
 function findRequires(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   ast: Node,
 ): Array<Asset> {

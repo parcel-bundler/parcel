@@ -15,7 +15,7 @@ import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap, md5FromString} from '@parcel/utils';
+import {md5FromString} from '@parcel/utils';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
@@ -27,30 +27,20 @@ import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
 
-const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
-  ParcelOptions,
-  WeakMap<InternalBundleGraph, MutableBundleGraph>,
-> = new DefaultWeakMap(() => new WeakMap());
-
-export default class MutableBundleGraph extends BundleGraph
+export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
-    super(graph, options);
-    let existing = internalMutableBundleGraphToMutableBundleGraph
-      .get(options)
-      .get(graph);
-    if (existing != null) {
-      return existing;
-    }
+    super(
+      graph,
+      (bundle, bundleGraph, options) =>
+        new Bundle(bundle, bundleGraph, options),
+      options,
+    );
     this.#graph = graph;
     this.#options = options;
-
-    internalMutableBundleGraphToMutableBundleGraph
-      .get(options)
-      .set(graph, this);
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
@@ -234,18 +224,6 @@ export default class MutableBundleGraph extends BundleGraph
     return this.#graph.getBundleGroupsContainingBundle(
       bundleToInternalBundle(bundle),
     );
-  }
-
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
-    return this.#graph
-      .getBundlesInBundleGroup(bundleGroup)
-      .sort(
-        (a, b) =>
-          bundleGroup.bundleIds.indexOf(a.id) -
-          bundleGroup.bundleIds.indexOf(b.id),
-      )
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options))
-      .reverse();
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {

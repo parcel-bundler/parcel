@@ -1,9 +1,9 @@
 // @flow
 import type {
   Asset,
-  Bundle,
   BundleGraph,
   MutableAsset,
+  NamedBundle,
   SourceLocation,
 } from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
@@ -59,7 +59,10 @@ export function getExportIdentifier(asset: Asset | MutableAsset, name: string) {
   return getIdentifier(asset, 'export', name);
 }
 
-export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
+export function needsPrelude(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   if (bundle.env.outputFormat !== 'global') {
     return false;
   }
@@ -79,7 +82,10 @@ export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
   );
 }
 
-export function isEntry(bundle: Bundle, bundleGraph: BundleGraph) {
+export function isEntry(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
@@ -87,7 +93,10 @@ export function isEntry(bundle: Bundle, bundleGraph: BundleGraph) {
   );
 }
 
-export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
+export function isReferenced(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   let isReferenced = false;
   bundle.traverseAssets((asset, _, actions) => {
     // A bundle is potentially referenced if any of its assets is referenced
@@ -104,8 +113,8 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
 }
 
 export function hasAsyncDescendant(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   let _hasAsyncDescendant = false;
   bundleGraph.traverseBundles((b, _, actions) => {

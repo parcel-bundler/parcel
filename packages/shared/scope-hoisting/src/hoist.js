@@ -715,7 +715,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
 
   let binding = scope.getBinding(local.name);
   let constantViolations = binding
-    ? binding.constantViolations.concat(path)
+    ? binding.constantViolations.concat(binding.path.getStatementParent())
     : [path];
 
   if (!asset.symbols.hasExportSymbol(exported.name)) {
@@ -728,7 +728,9 @@ function addExport(asset: MutableAsset, path, local, exported) {
 
   rename(scope, local.name, identifier.name);
 
-  constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
+  for (let p of constantViolations) {
+    p.insertAfter(t.cloneDeep(assignNode));
+  }
 }
 
 function hasImport(asset: MutableAsset, id) {

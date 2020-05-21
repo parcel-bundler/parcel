@@ -1,5 +1,5 @@
 // @flow
-import type {WriteStream} from 'fs';
+import type {Writable} from 'stream';
 import type {FileOptions, FileSystem} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
@@ -14,6 +14,7 @@ import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
 import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
+import fsWriteStreamAtomic from 'fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
@@ -41,11 +42,8 @@ export class NodeFS implements FileSystem {
   existsSync = fs.existsSync;
   readdirSync = (fs.readdirSync: any);
 
-  createWriteStream(filePath: string, options: any): WriteStream {
-    let tmpFilePath = getTempFilePath(filePath);
-    let stream = fs.createWriteStream(tmpFilePath, options);
-    stream.on('close', () => fs.renameSync(tmpFilePath, filePath));
-    return stream;
+  createWriteStream(filePath: string, options: any): Writable {
+    return fsWriteStreamAtomic(filePath, options);
   }
 
   async writeFile(

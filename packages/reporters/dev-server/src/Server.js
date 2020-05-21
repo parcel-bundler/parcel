@@ -1,7 +1,12 @@
 // @flow
 
 import type {DevServerOptions, Request, Response} from './types.js.flow';
-import type {BundleGraph, FilePath, PluginOptions} from '@parcel/types';
+import type {
+  BundleGraph,
+  FilePath,
+  PluginOptions,
+  NamedBundle,
+} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 
@@ -52,7 +57,7 @@ export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
   rootPath: string;
-  bundleGraph: BundleGraph | null;
+  bundleGraph: BundleGraph<NamedBundle> | null;
   errors: Array<{|
     message: string,
     stack: string,
@@ -78,7 +83,7 @@ export default class Server extends EventEmitter {
     this.pending = true;
   }
 
-  buildSuccess(bundleGraph: BundleGraph) {
+  buildSuccess(bundleGraph: BundleGraph<NamedBundle>) {
     this.bundleGraph = bundleGraph;
     this.errors = null;
     this.pending = false;
