@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-default",
-  "version": "2.0.0-frontbucket.28",
+  "version": "2.0.0-frontbucket.29",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -15,8 +15,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/node-resolver-core": "^2.0.0-frontbucket.13",
-    "@parcel/plugin": "^2.0.0-frontbucket.25"
+    "@parcel/node-resolver-core": "^2.0.0-frontbucket.14",
+    "@parcel/plugin": "^2.0.0-frontbucket.26"
   },
   "devDependencies": {
     "@babel/core": "^7.2.2"

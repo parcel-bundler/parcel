@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-raw",
-  "version": "2.0.0-frontbucket.25",
+  "version": "2.0.0-frontbucket.26",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,6 +16,6 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.25"
+    "@parcel/plugin": "^2.0.0-frontbucket.26"
   }
 }

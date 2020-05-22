@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-css",
-  "version": "2.0.0-frontbucket.26",
+  "version": "2.0.0-frontbucket.27",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,8 +16,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.25",
+    "@parcel/plugin": "^2.0.0-frontbucket.26",
     "@parcel/source-map": "2.0.0-alpha.4.9",
-    "@parcel/utils": "^2.0.0-frontbucket.22"
+    "@parcel/utils": "^2.0.0-frontbucket.23"
   }
 }

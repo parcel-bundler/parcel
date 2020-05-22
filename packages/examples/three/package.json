@@ -1,6 +1,6 @@
 {
   "name": "@parcel/three-js-stresstest",
-  "version": "2.0.0-frontbucket.5",
+  "version": "2.0.0-frontbucket.6",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -8,8 +8,8 @@
     "build": "parcel build src/entry.js"
   },
   "devDependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.34",
-    "parcel": "^2.0.0-frontbucket.34"
+    "@parcel/config-default": "^2.0.0-frontbucket.35",
+    "parcel": "^2.0.0-frontbucket.35"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

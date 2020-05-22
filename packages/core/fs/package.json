@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "2.0.0-frontbucket.23",
+  "version": "2.0.0-frontbucket.24",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -16,10 +16,10 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "fs-write-stream-atomic": "github:atlassian-forks/fs-write-stream-atomic#4edf1a95433a9936229c7f768c9ea9bb5884b487",
-    "@parcel/utils": "^2.0.0-frontbucket.22",
+    "@parcel/utils": "^2.0.0-frontbucket.23",
     "@parcel/watcher": "^2.0.0-alpha.5",
-    "@parcel/workers": "^2.0.0-frontbucket.22",
+    "@parcel/workers": "^2.0.0-frontbucket.23",
+    "fs-write-stream-atomic": "github:atlassian-forks/fs-write-stream-atomic#4edf1a95433a9936229c7f768c9ea9bb5884b487",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",

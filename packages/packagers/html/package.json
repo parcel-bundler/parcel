@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-html",
-  "version": "2.0.0-frontbucket.26",
+  "version": "2.0.0-frontbucket.27",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,9 +16,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.25",
-    "@parcel/types": "^2.0.0-frontbucket.25",
-    "@parcel/utils": "^2.0.0-frontbucket.22",
+    "@parcel/plugin": "^2.0.0-frontbucket.26",
+    "@parcel/types": "^2.0.0-frontbucket.26",
+    "@parcel/utils": "^2.0.0-frontbucket.23",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.11.3"
   }
