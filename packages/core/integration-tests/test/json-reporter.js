@@ -61,7 +61,7 @@ describe('json reporter', () => {
           assert(bundle.filePath.endsWith(DIST_INDEX));
           assert(typeof bundle.size === 'number');
           assert(typeof bundle.time === 'number');
-          assert(Array.isArray(bundle.largestAssets));
+          assert(Array.isArray(bundle.assets));
         }
       }
     } finally {

@@ -15,7 +15,7 @@ import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {DefaultWeakMap, md5FromString} from '@parcel/utils';
+import {md5FromString} from '@parcel/utils';
 import BundleGraph from './BundleGraph';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
@@ -27,30 +27,20 @@ import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
 import {HASH_REF_PREFIX} from '../constants';
 
-const internalMutableBundleGraphToMutableBundleGraph: DefaultWeakMap<
-  ParcelOptions,
-  WeakMap<InternalBundleGraph, MutableBundleGraph>,
-> = new DefaultWeakMap(() => new WeakMap());
-
-export default class MutableBundleGraph extends BundleGraph
+export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
-    super(graph, options);
-    let existing = internalMutableBundleGraphToMutableBundleGraph
-      .get(options)
-      .get(graph);
-    if (existing != null) {
-      return existing;
-    }
+    super(
+      graph,
+      (bundle, bundleGraph, options) =>
+        new Bundle(bundle, bundleGraph, options),
+      options,
+    );
     this.#graph = graph;
     this.#options = options;
-
-    internalMutableBundleGraphToMutableBundleGraph
-      .get(options)
-      .set(graph, this);
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
@@ -78,6 +68,7 @@ export default class MutableBundleGraph extends BundleGraph
     let bundleGroup: BundleGroup = {
       target,
       entryAssetId: resolved.id,
+      bundleIds: [],
     };
 
     let bundleGroupNode = {
@@ -119,7 +110,9 @@ export default class MutableBundleGraph extends BundleGraph
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
     for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      this.#graph._graph.removeById(bundle.id);
+      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
+        this.#graph._graph.removeById(bundle.id);
+      }
     }
     this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
   }
@@ -174,6 +167,7 @@ export default class MutableBundleGraph extends BundleGraph
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
+    bundleGroup.bundleIds.push(bundle.id);
     let bundleGroupId = getBundleGroupId(bundleGroup);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
@@ -232,12 +226,6 @@ export default class MutableBundleGraph extends BundleGraph
     );
   }
 
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
-    return this.#graph
-      .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
-  }
-
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getParentBundlesOfBundleGroup(bundleGroup)
@@ -248,10 +236,10 @@ export default class MutableBundleGraph extends BundleGraph
     return this.#graph.getTotalSize(assetToAssetValue(asset));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
-    return this.#graph.isAssetInAncestorBundles(
-      bundleToInternalBundle(bundle),
+  isAssetReachableFromBundle(asset: IAsset, bundle: IBundle): boolean {
+    return this.#graph.isAssetReachableFromBundle(
       assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
     );
   }
 

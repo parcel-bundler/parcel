@@ -1,11 +1,11 @@
 // @flow
 
 import type {
-  Bundle,
   BuildEvent,
   BundleGraph,
   FilePath,
   InitialParcelOptions,
+  NamedBundle,
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -15,8 +15,11 @@ import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
+import url from 'url';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
+import postHtmlParse from 'posthtml-parser';
+import postHtml from 'posthtml';
 
 import {makeDeferredWithPromise} from '@parcel/utils';
 import _chalk from 'chalk';
@@ -119,7 +122,7 @@ export function bundler(
 export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
-): Promise<BundleGraph> {
+): Promise<BundleGraph<NamedBundle>> {
   return nullthrows(await bundler(entries, opts).run());
 }
 
@@ -151,34 +154,35 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 
 type RunOpts = {require?: boolean, ...};
 
-export async function runBundle(
-  bundle: Bundle,
+export async function runBundles(
+  parent: NamedBundle,
+  bundles: Array<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  let entryAsset = nullthrows(bundle.getMainEntry());
+  let entryAsset = nullthrows(
+    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+  );
+  let env = entryAsset.env;
   let target = entryAsset.env.context;
 
   let ctx, promises;
   switch (target) {
     case 'browser': {
-      let prepared = prepareBrowserContext(
-        nullthrows(bundle.filePath),
-        globals,
-      );
+      let prepared = prepareBrowserContext(parent.filePath, globals);
       ctx = prepared.ctx;
       promises = prepared.promises;
       break;
     }
     case 'node':
     case 'electron-main':
-      ctx = prepareNodeContext(nullthrows(bundle.filePath), globals);
+      ctx = prepareNodeContext(parent.filePath, globals);
       break;
     case 'electron-renderer': {
-      let browser = prepareBrowserContext(nullthrows(bundle.filePath), globals);
+      let browser = prepareBrowserContext(parent.filePath, globals);
       ctx = {
         ...browser.ctx,
-        ...prepareNodeContext(nullthrows(bundle.filePath), globals),
+        ...prepareNodeContext(parent.filePath, globals),
       };
       promises = browser.promises;
       break;
@@ -188,10 +192,12 @@ export async function runBundle(
   }
 
   vm.createContext(ctx);
-  vm.runInContext(
-    await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8'),
-    ctx,
-  );
+  for (let b of bundles) {
+    vm.runInContext(
+      await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
+      ctx,
+    );
+  }
 
   if (promises) {
     // await any ongoing dynamic imports during the run
@@ -199,9 +205,9 @@ export async function runBundle(
   }
 
   if (opts.require !== false) {
-    switch (bundle.env.outputFormat) {
+    switch (env.outputFormat) {
       case 'global':
-        if (bundle.env.scopeHoist) {
+        if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
@@ -213,7 +219,7 @@ export async function runBundle(
         return ctx.module.exports;
       default:
         throw new Error(
-          'Unable to run bundle with outputFormat ' + bundle.env.outputFormat,
+          'Unable to run bundle with outputFormat ' + env.outputFormat,
         );
     }
   }
@@ -221,18 +227,52 @@ export async function runBundle(
   return ctx;
 }
 
-export function run(
-  bundleGraph: BundleGraph,
+export function runBundle(
+  bundle: NamedBundle,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<mixed> {
+  return runBundles(bundle, [bundle], globals, opts);
+}
+
+export async function run(
+  bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
   let bundles = bundleGraph.getBundles();
-  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
-  return runBundle(bundle, globals, opts);
+  let bundle = nullthrows(
+    bundles.find(b => b.type === 'js' || b.type === 'html'),
+  );
+  if (bundle.type === 'html') {
+    let code = await overlayFS.readFile(nullthrows(bundle.filePath));
+    let ast = postHtmlParse(code, {
+      lowerCaseAttributeNames: true,
+    });
+
+    let scripts = [];
+    postHtml().walk.call(ast, node => {
+      if (node.tag === 'script') {
+        let src = url.parse(nullthrows(node.attrs).src);
+        if (src.hostname == null) {
+          scripts.push(path.join(distDir, nullthrows(src.pathname)));
+        }
+      }
+      return node;
+    });
+    return runBundles(
+      bundle,
+      scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
+      globals,
+      opts,
+    );
+  } else {
+    return runBundle(bundle, globals, opts);
+  }
 }
 
 export function assertBundles(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,
@@ -365,7 +405,10 @@ function prepareBrowserContext(
               if (el.tag === 'script') {
                 vm.runInContext(
                   overlayFS.readFileSync(
-                    path.join(path.dirname(filePath), el.src),
+                    path.join(
+                      path.dirname(filePath),
+                      url.parse(el.src).pathname,
+                    ),
                     'utf8',
                   ),
                   ctx,
@@ -389,6 +432,9 @@ function prepareBrowserContext(
         return null;
       },
     },
+    currentScript: {
+      src: 'http://localhost/script.js',
+    },
   };
 
   var exports = {};
@@ -399,7 +445,7 @@ function prepareBrowserContext(
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'},
+      location: {hostname: 'localhost', origin: 'http://localhost'},
       fetch(url) {
         return Promise.resolve({
           async arrayBuffer() {
@@ -422,11 +468,15 @@ function prepareBrowserContext(
       atob(str) {
         return Buffer.from(str, 'base64').toString('binary');
       },
+      btoa(str) {
+        return Buffer.from(str, 'binary').toString('base64');
+      },
+      URL,
     },
     globals,
   );
 
-  ctx.window = ctx;
+  ctx.window = ctx.self = ctx;
   return {ctx, promises};
 }
 

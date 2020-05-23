@@ -5,6 +5,7 @@ import type {
   Bundle,
   BundleGraph,
   CodeSymbol,
+  NamedBundle,
   PluginOptions,
 } from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
@@ -15,7 +16,7 @@ import type {
   ImportDeclaration,
   Program,
 } from '@babel/types';
-import type {ExternalModule} from '../types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import * as t from '@babel/types';
 import {
@@ -28,14 +29,17 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import {relativeBundlePath} from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
 import rename from '../renamer';
-import {getName, removeReplaceBinding, verifyScopeState} from '../utils';
+import {
+  getName,
+  removeReplaceBinding,
+  getThrowableDiagnosticForNode,
+  verifyScopeState,
+} from '../utils';
 
 export function generateBundleImports(
-  from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  from: NamedBundle,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
   let specifiers = [...assets].map(asset => {
@@ -117,7 +121,7 @@ export function generateExternalImport(
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: Bundle,
   referencedAssets: Set<Asset>,
   programPath: NodePath<Program>,
@@ -128,41 +132,48 @@ export function generateExports(
   let exportedIdentifiers = new Map<CodeSymbol, CodeSymbol>();
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {exportSymbol, symbol, asset} of bundleGraph.getExportedSymbols(
-      entry,
-    )) {
-      if (symbol == null) {
-        let relativePath = relative(options.inputFS.cwd(), asset.filePath);
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `${relativePath} does not export '${exportSymbol}'`,
-            filePath: entry.filePath,
-            // TODO: add codeFrame when AST from transformers is reused
-          },
-        });
-      }
+    for (let {
+      exportAs,
+      exportSymbol,
+      symbol,
+      asset,
+      loc,
+    } of bundleGraph.getExportedSymbols(entry)) {
+      if (symbol != null) {
+        symbol = replacements.get(symbol) || symbol;
 
-      symbol = replacements.get(symbol) || symbol;
+        // Map CommonJS module.exports assignments to default ESM exports for interop
+        if (exportAs === '*') {
+          exportAs = 'default';
+        }
 
-      // Map CommonJS module.exports assignments to default ESM exports for interop
-      if (exportSymbol === '*') {
-        exportSymbol = 'default';
-      }
+        // If there is an existing binding with the exported name (e.g. an import),
+        // rename it so we can use the name for the export instead.
+        if (programPath.scope.hasBinding(exportAs) && exportAs !== symbol) {
+          rename(
+            programPath.scope,
+            exportAs,
+            programPath.scope.generateUid(exportAs),
+          );
+        }
 
-      // If there is an existing binding with the exported name (e.g. an import),
-      // rename it so we can use the name for the export instead.
-      if (
-        programPath.scope.hasBinding(exportSymbol) &&
-        exportSymbol !== symbol
-      ) {
-        rename(
-          programPath.scope,
-          exportSymbol,
-          programPath.scope.generateUid(exportSymbol),
+        exportedIdentifiers.set(exportAs, symbol);
+      } else if (symbol === null) {
+        // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
+        let relativePath = relative(options.projectRoot, asset.filePath);
+        throw getThrowableDiagnosticForNode(
+          `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+          entry.filePath,
+          loc,
+        );
+      } else {
+        let relativePath = relative(options.projectRoot, asset.filePath);
+        throw getThrowableDiagnosticForNode(
+          `${relativePath} does not export '${exportSymbol}'`,
+          entry.filePath,
+          loc,
         );
       }
-
-      exportedIdentifiers.set(exportSymbol, symbol);
     }
   }
 

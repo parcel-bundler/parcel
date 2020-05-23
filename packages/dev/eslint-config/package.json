@@ -9,6 +9,7 @@
     "eslint-plugin-flowtype": "^3.1.1",
     "eslint-plugin-import": "^2.16.0",
     "eslint-plugin-mocha": "^6.2.2",
-    "eslint-plugin-monorepo": "^0.2.1"
+    "eslint-plugin-monorepo": "^0.2.1",
+    "eslint-plugin-react": "^7.12.0"
   }
 }

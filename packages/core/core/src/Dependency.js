@@ -23,7 +23,7 @@ type DependencyOpts = {|
   env: Environment,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<CodeSymbol, CodeSymbol>,
+  symbols?: Map<CodeSymbol, {|local: CodeSymbol, loc: ?SourceLocation|}>,
   pipeline?: ?string,
 |};
 
@@ -45,7 +45,6 @@ export function createDependency(opts: DependencyOpts): Dependency {
     isEntry: opts.isEntry ?? false,
     isOptional: opts.isOptional ?? false,
     isURL: opts.isURL ?? false,
-    isDeferred: false,
     meta: opts.meta || {},
     symbols: opts.symbols || new Map(),
   };

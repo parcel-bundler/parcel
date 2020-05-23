@@ -1,11 +1,11 @@
 // @flow strict-local
 
 import type {
-  Bundle,
   BundleGraph,
   BundleGroup,
   Dependency,
   Environment,
+  NamedBundle,
   RuntimeAsset,
 } from '@parcel/types';
 
@@ -133,12 +133,16 @@ export default new Runtime({
       }
 
       let bundleGroup = resolved.value;
-      let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+      let mainBundle = nullthrows(
+        bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
+          let main = b.getMainEntry();
+          return main && bundleGroup.entryAssetId === main.id;
+        }),
+      );
 
-      let [firstBundle] = bundlesInGroup;
-      if (firstBundle.isInline) {
+      if (mainBundle.isInline) {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${firstBundle.id}.js`),
+          filePath: path.join(__dirname, `/bundles/${mainBundle.id}.js`),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
         });
@@ -146,7 +150,7 @@ export default new Runtime({
       }
 
       // URL dependency or not, fall back to including a runtime that exports the url
-      assets.push(getURLRuntime(dependency, bundle, firstBundle));
+      assets.push(getURLRuntime(dependency, bundle, mainBundle));
     }
 
     if (
@@ -171,10 +175,10 @@ function getLoaderRuntimes({
   bundleGroup,
   bundleGraph,
 }: {|
-  bundle: Bundle,
+  bundle: NamedBundle,
   dependency: Dependency,
   bundleGroup: BundleGroup,
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
 |}) {
   let assets = [];
   // Sort so the bundles containing the entry asset appear last
@@ -272,7 +276,10 @@ function getLoaderRuntimes({
   return assets;
 }
 
-function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+function isNewContext(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   return (
     bundle.isEntry ||
     bundleGraph
@@ -286,8 +293,8 @@ function isNewContext(bundle: Bundle, bundleGraph: BundleGraph): boolean {
 
 function getURLRuntime(
   dependency: Dependency,
-  from: Bundle,
-  to: Bundle,
+  from: NamedBundle,
+  to: NamedBundle,
 ): RuntimeAsset {
   let relativePathExpr = getRelativePathExpr(from, to);
   if (dependency.meta.webworker === true) {
@@ -306,8 +313,8 @@ function getURLRuntime(
 }
 
 function getRegisterCode(
-  entryBundle: Bundle,
-  bundleGraph: BundleGraph,
+  entryBundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let idToName = {};
   bundleGraph.traverseBundles((bundle, _, actions) => {
@@ -330,7 +337,7 @@ function getRegisterCode(
   );
 }
 
-function getRelativePathExpr(from: Bundle, to: Bundle): string {
+function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
     return `require('./relative-path')(${JSON.stringify(
       getPublicBundleId(from),
@@ -340,11 +347,11 @@ function getRelativePathExpr(from: Bundle, to: Bundle): string {
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
 }
 
-function shouldUseRuntimeManifest(bundle: Bundle): boolean {
+function shouldUseRuntimeManifest(bundle: NamedBundle): boolean {
   let env = bundle.env;
   return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
 }
 
-function getPublicBundleId(bundle: Bundle): string {
+function getPublicBundleId(bundle: NamedBundle): string {
   return bundle.id.slice(-16);
 }

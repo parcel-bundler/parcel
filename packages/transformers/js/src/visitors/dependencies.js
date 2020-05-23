@@ -6,23 +6,21 @@ import type {
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Expression, Node} from '@babel/types';
+import type {Node} from '@babel/types';
 import type {Visitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
 import {
   isArrowFunctionExpression,
   isCallExpression,
-  isIfStatement,
   isMemberExpression,
   isReturnStatement,
   isIdentifier,
   isNewExpression,
   isFunction,
 } from '@babel/types';
-import traverse from '@babel/traverse';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
-import {hasBinding, morph} from './utils';
+import {isInFalsyBranch, hasBinding, morph} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
@@ -182,37 +180,6 @@ export default ({
     Array<Node>,
   ) => void,
 >);
-
-function isInFalsyBranch(ancestors) {
-  // Check if any ancestors are if statements
-  return ancestors.some((node, index) => {
-    if (isIfStatement(node)) {
-      let res = evaluateExpression(node.test);
-      if (res && res.confident) {
-        // If the test is truthy, exclude the dep if it is in the alternate branch.
-        // If the test if falsy, exclude the dep if it is in the consequent branch.
-        let child = ancestors[index + 1];
-        return res.value ? child === node.alternate : child === node.consequent;
-      }
-    }
-  });
-}
-
-function evaluateExpression(node: Expression) {
-  // Wrap the node in a standalone program so we can traverse it
-  let file = types.file(types.program([types.expressionStatement(node)]));
-
-  // Find the first expression and evaluate it.
-  let res = null;
-  traverse(file, {
-    Expression(path) {
-      res = path.evaluate();
-      path.stop();
-    },
-  });
-
-  return res;
-}
 
 // TypeScript, Rollup, and Parcel itself generate these patterns for async imports in CommonJS
 //   1. TypeScript - Promise.resolve().then(function () { return require(...) })

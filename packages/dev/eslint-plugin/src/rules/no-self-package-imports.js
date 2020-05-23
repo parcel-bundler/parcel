@@ -52,7 +52,7 @@ module.exports = {
       CallExpression(node) {
         if (
           isStaticRequireOrResolve(node) &&
-          getRequiredPath(node).startsWith(pkgName)
+          isSelfImport(pkgName, getRequiredPath(node))
         ) {
           context.report({
             node,
@@ -75,7 +75,7 @@ module.exports = {
       },
       ImportDeclaration(node) {
         let request = node.source.value.trim();
-        if (request.startsWith(pkgName)) {
+        if (isSelfImport(pkgName, request)) {
           context.report({
             node,
             message,
@@ -101,4 +101,8 @@ module.exports = {
 
 function quote(str) {
   return "'" + str + "'";
+}
+
+function isSelfImport(packageName, descriptor) {
+  return descriptor === packageName || descriptor.startsWith(packageName + '/');
 }

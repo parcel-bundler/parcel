@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Dependency} from '@parcel/types';
+import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {
   AssetRequestDesc,
   Bundle as InternalBundle,
@@ -51,7 +51,12 @@ export default async function applyRuntimes({
       try {
         let applied = await runtime.plugin.apply({
           bundle: new NamedBundle(bundle, bundleGraph, options),
-          bundleGraph: new BundleGraph(bundleGraph, options),
+          bundleGraph: new BundleGraph<INamedBundle>(
+            bundleGraph,
+            (bundle, bundleGraph, options) =>
+              new NamedBundle(bundle, bundleGraph, options),
+            options,
+          ),
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
         });
@@ -63,6 +68,9 @@ export default async function applyRuntimes({
               code,
               filePath,
               env: bundle.env,
+              // Runtime assets should be considered source, as they should be
+              // e.g. compiled to run in the target environment
+              isSource: true,
             };
             connections.push({
               bundle,
@@ -112,7 +120,7 @@ export default async function applyRuntimes({
       });
 
       for (let asset of assets) {
-        if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
+        if (bundleGraph.isAssetReachableFromBundle(asset, bundle)) {
           duplicatedAssetIds.add(asset.id);
           actions.skipChildren();
         }

@@ -6,6 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
+  NamedBundle as NamedBundleType,
   Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
@@ -237,7 +238,12 @@ export default class PackagerRunner {
     try {
       return await packager.plugin.package({
         bundle,
-        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        bundleGraph: new BundleGraph<NamedBundleType>(
+          bundleGraph,
+          (bundle, bundleGraph, options) =>
+            new NamedBundle(bundle, bundleGraph, options),
+          this.options,
+        ),
         getSourceMapReference: map => {
           return this.getSourceMapReference(bundle, map);
         },
@@ -245,7 +251,7 @@ export default class PackagerRunner {
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: async (
           bundle: BundleType,
-          bundleGraph: BundleGraphType,
+          bundleGraph: BundleGraphType<NamedBundleType>,
         ) => {
           if (!bundle.isInline) {
             throw new Error(
@@ -255,6 +261,7 @@ export default class PackagerRunner {
 
           let res = await this.getBundleResult(
             bundleToInternalBundle(bundle),
+            // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
           );
 
@@ -460,7 +467,12 @@ export default class PackagerRunner {
     };
 
     let mapKey = cacheKeys.map;
-    if (await this.options.cache.blobExists(mapKey)) {
+    if (
+      (typeof bundle.target.sourceMap === 'object'
+        ? !bundle.target.sourceMap.inline
+        : bundle.target.sourceMap) &&
+      (await this.options.cache.blobExists(mapKey))
+    ) {
       let mapStream = this.options.cache.getStream(mapKey);
       await writeFileStream(
         outputFS,
@@ -514,10 +526,18 @@ function writeFileStream(
       ? stream.pipe(replaceStream(hashRefToNameHash))
       : stream;
     let fsStream = fs.createWriteStream(filePath, options);
+    let fsStreamClosed = new Promise(resolve => {
+      fsStream.on('close', () => resolve());
+    });
+    let bytesWritten = 0;
     initialStream
+      .pipe(
+        new TapStream(buf => {
+          bytesWritten += buf.length;
+        }),
+      )
       .pipe(fsStream)
-      // $FlowFixMe
-      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('finish', () => resolve(fsStreamClosed.then(() => bytesWritten)))
       .on('error', reject);
   });
 }

@@ -1,9 +1,10 @@
 // @flow strict-local
-export type * from './generateBundleReport';
+export type * from './config';
+export type * from './generateBuildMetrics';
 export type * from './prettyDiagnostic';
 
 export {default as countLines} from './countLines';
-export {default as generateBundleReport} from './generateBundleReport';
+export {default as generateBuildMetrics} from './generateBuildMetrics';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
 export {default as getRootDir} from './getRootDir';
@@ -22,6 +23,7 @@ export {default as relativeUrl} from './relativeUrl';
 export {default as createDependencyLocation} from './dependency-location';
 export {default as debounce} from './debounce';
 export {default as throttle} from './throttle';
+export {default as openInBrowser} from './openInBrowser';
 
 export * from './blob';
 export * from './collection';

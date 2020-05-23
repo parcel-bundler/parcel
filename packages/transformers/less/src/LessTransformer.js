@@ -22,6 +22,7 @@ export default new Transformer({
       urlPlugin({asset}),
       resolvePathPlugin({asset, resolve}),
     ];
+    config.rewriteUrls = 'all';
 
     if (options.sourceMaps) {
       config.sourceMap = {};

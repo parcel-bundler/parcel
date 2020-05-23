@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Bundle, BundleGraph, Async} from '@parcel/types';
+import type {BundleGraph, NamedBundle, Async} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -49,7 +49,7 @@ export default new Packager({
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat(bundle, bundleGraph, wrappedAssets),
+        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
         options,
         wrappedAssets,
       });
@@ -84,7 +84,7 @@ export default new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            node.value.getMapBuffer(),
+            bundle.target.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });
@@ -193,7 +193,10 @@ export default new Packager({
   },
 });
 
-function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
+function getPrefix(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): string {
   let interpreter: ?string;
   if (isEntry(bundle, bundleGraph) && !bundle.target.env.isBrowser()) {
     let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
@@ -215,7 +218,10 @@ function getPrefix(bundle: Bundle, bundleGraph: BundleGraph): string {
   );
 }
 
-function isEntry(bundle: Bundle, bundleGraph: BundleGraph): boolean {
+function isEntry(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+): boolean {
   return (
     !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
   );

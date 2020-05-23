@@ -1,5 +1,6 @@
 import assert from 'assert';
 import path from 'path';
+import url from 'url';
 import {
   bundle,
   run,
@@ -123,8 +124,12 @@ describe('typescript', function() {
 
       let output = await run(b);
       assert.equal(typeof output.getRaw, 'function');
-      assert(/^\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
-      assert(await outputFS.exists(path.join(distDir, output.getRaw())));
+      assert(/http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
+      assert(
+        await outputFS.exists(
+          path.join(distDir, url.parse(output.getRaw()).pathname),
+        ),
+      );
     });
 
     it('should minify with minify enabled', async function() {

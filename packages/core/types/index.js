@@ -125,7 +125,7 @@ export type PackageTargetDescriptor = {|
   +outputFormat?: OutputFormat,
   +publicUrl?: string,
   +distDir?: FilePath,
-  +sourceMap?: TargetSourceMapOptions,
+  +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
@@ -269,11 +269,11 @@ export type InitialParcelOptions = {|
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
   +defaultEngines?: Engines,
+  +detailedReport?: number | boolean,
 
   // contentHash
   // throwErrors
   // global?
-  // detailedReport
 |};
 
 export interface PluginOptions {
@@ -285,12 +285,14 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
+  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
   +outputFS: FileSystem;
   +packageManager: PackageManager;
   +instanceId: string;
+  +detailedReport: number;
 }
 
 export type ServerOptions = {|
@@ -331,6 +333,19 @@ export type Meta = JSONObject;
  * An identifier in an asset (likely imported/exported).
  */
 export type CodeSymbol = string;
+export interface CodeSymbols // eslint-disable-next-line no-undef
+  extends Iterable<[CodeSymbol, {|local: CodeSymbol, loc: ?SourceLocation|}]> {
+  get(exportSymbol: CodeSymbol): ?{|local: CodeSymbol, loc: ?SourceLocation|};
+  hasExportSymbol(exportSymbol: CodeSymbol): boolean;
+  hasLocalSymbol(local: CodeSymbol): boolean;
+  // Whether static analysis bailed out
+  +isCleared: boolean;
+}
+export interface MutableCodeSymbols extends CodeSymbols {
+  // Static analysis bailed out
+  clear(): void;
+  set(exportSymbol: CodeSymbol, local: CodeSymbol, loc: ?SourceLocation): void;
+}
 
 /**
  * Usen when creating a Dependency, see that.
@@ -348,7 +363,10 @@ export type DependencyOptions = {|
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: Map<CodeSymbol, CodeSymbol>,
+  +symbols?: $ReadOnlyMap<
+    CodeSymbol,
+    {|local: CodeSymbol, loc: ?SourceLocation|},
+  >,
 |};
 
 /**
@@ -378,15 +396,17 @@ export interface Dependency {
   +isOptional: boolean;
   +isURL: boolean;
   +isWeak: ?boolean;
-  +isDeferred: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
   +target: ?Target;
   +sourceAssetId: ?string;
   +sourcePath: ?string;
-  +symbols: Map<CodeSymbol, CodeSymbol>;
   +pipeline: ?string;
+
+  // (imported symbol -> variable that it is used as)
+  // TODO make immutable
+  +symbols: MutableCodeSymbols;
 }
 
 export type File = {|
@@ -434,10 +454,12 @@ export interface BaseAsset {
   +isSplittable: ?boolean;
   +isSource: boolean;
   +type: string;
-  +symbols: Map<CodeSymbol, CodeSymbol>;
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
+
+  // (symbol exported by this -> name of binding to export)
+  +symbols: CodeSymbols;
 
   getAST(): Promise<?AST>;
   getCode(): Promise<string>;
@@ -471,6 +493,9 @@ export interface MutableAsset extends BaseAsset {
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+
+  +symbols: MutableCodeSymbols;
+
   isASTDirty(): boolean;
   setAST(AST): void;
   setBuffer(Buffer): void;
@@ -574,7 +599,11 @@ export type TransformerResult = {|
   +meta?: Meta,
   +pipeline?: ?string,
   +sideEffects?: boolean,
-  +symbols?: Map<CodeSymbol, CodeSymbol>,
+  +symbols?: $ReadOnlyMap<
+    CodeSymbol,
+    {|local: CodeSymbol, loc: ?SourceLocation|},
+  >,
+  +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
 |};
@@ -772,7 +801,14 @@ export type CreateBundleOpts =
 export type SymbolResolution = {|
   +asset: Asset,
   +exportSymbol: CodeSymbol | string,
-  +symbol: void | CodeSymbol,
+  +symbol: void | null | CodeSymbol,
+  // the location of the specifier that lead to this result
+  +loc: ?SourceLocation,
+|};
+
+export type ExportSymbolResolution = {|
+  ...SymbolResolution,
+  +exportAs: CodeSymbol | string,
 |};
 
 /**
@@ -793,12 +829,11 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
+  +filePath: ?FilePath;
   +isEntry: ?boolean;
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +filePath: ?FilePath;
-  +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
@@ -824,7 +859,40 @@ export interface NamedBundle extends Bundle {
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
+  bundleIds: Array<string>,
 |};
+
+/**
+ * A BundleGraph in the Bundler that can be modified
+ * @method addAssetGraphToBundle Add asset and all child nodes to the bundle VERIFY how??
+ * @method createAssetReference FIXME
+ * @method createBundleGroup Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s)
+ * @method getDependencyAssets FIXME a dependency can have multiple child nodes?
+ * @method removeAssetGraphFromBundle Remove all "contains" edges from the bundle to the nodes in the asset's subgraph.
+ * @method internalizeAsyncDependency Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>.
+ * @method traverse FIME difference to traverseContents?
+ * @method traverseContents FIXME
+ */
+export interface MutableBundleGraph extends BundleGraph<Bundle> {
+  addAssetGraphToBundle(Asset, Bundle): void;
+  addBundleToBundleGroup(Bundle, BundleGroup): void;
+  createAssetReference(Dependency, Asset): void;
+  createBundleReference(Bundle, Bundle): void;
+  createBundle(CreateBundleOpts): Bundle;
+  createBundleGroup(Dependency, Target): BundleGroup;
+  getDependencyAssets(Dependency): Array<Asset>;
+  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  getTotalSize(Asset): number;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
+  removeBundleGroup(bundleGroup: BundleGroup): void;
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
+  ): ?TContext;
+  traverseContents<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
+  ): ?TContext;
+}
 
 /**
  * A Graph that contains Bundle-s, Asset-s, Dependency-s, BundleGroup-s
@@ -844,14 +912,14 @@ export type BundleGroup = {|
  * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
  * @method getExportedSymbols Gets the symbols that are (transivitely) exported by the asset
  */
-export interface BundleGraph {
-  getBundles(): Array<Bundle>;
+export interface BundleGraph<TBundle: Bundle> {
+  getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  getChildBundles(bundle: Bundle): Array<Bundle>;
-  getParentBundles(bundle: Bundle): Array<Bundle>;
-  getSiblingBundles(bundle: Bundle): Array<Bundle>;
-  getReferencedBundles(bundle: Bundle): Array<Bundle>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+  getChildBundles(bundle: Bundle): Array<TBundle>;
+  getParentBundles(bundle: Bundle): Array<TBundle>;
+  getSiblingBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(bundle: Bundle): Array<TBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   resolveExternalDependency(
@@ -861,54 +929,30 @@ export interface BundleGraph {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
+  isDependencyDeferred(dependency: Dependency): boolean;
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  findBundlesWithAsset(Asset): Array<Bundle>;
-  findBundlesWithDependency(Dependency): Array<Bundle>;
-  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  findBundlesWithAsset(Asset): Array<TBundle>;
+  findBundlesWithDependency(Dependency): Array<TBundle>;
+  isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  /**
+   * Resolve the export `symbol` of `asset` to the source,
+   * stopping at the first asset after leaving `bundle`.
+   * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
+   * `symbol === undefined`: symbol not found
+   */
   resolveSymbol(
     asset: Asset,
     symbol: CodeSymbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  getExportedSymbols(asset: Asset): Array<SymbolResolution>;
+  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphVisitor<Bundle, TContext>,
+    visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
-  ): ?TContext;
-}
-
-/**
- * A BundleGraph in the Bundler that can be modified
- * @method addAssetGraphToBundle Add asset and all child nodes to the bundle VERIFY how??
- * @method createAssetReference FIXME
- * @method createBundleGroup Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s)
- * @method getDependencyAssets FIXME a dependency can have multiple child nodes?
- * @method removeAssetGraphFromBundle Remove all "contains" edges from the bundle to the nodes in the asset's subgraph.
- * @method internalizeAsyncDependency Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>.
- * @method traverse FIME difference to traverseContents?
- * @method traverseContents FIXME
- */
-export interface MutableBundleGraph extends BundleGraph {
-  addAssetGraphToBundle(Asset, Bundle): void;
-  addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset): void;
-  createBundleReference(from: Bundle, to: Bundle): void;
-  createBundle(CreateBundleOpts): Bundle;
-  createBundleGroup(Dependency, Target): BundleGroup;
-  getDependencyAssets(Dependency): Array<Asset>;
-  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
-  getTotalSize(Asset): number;
-  removeAssetGraphFromBundle(Asset, Bundle): void;
-  removeBundleGroup(bundleGroup: BundleGroup): void;
-  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
 }
 
@@ -953,7 +997,7 @@ export type Bundler = {|
 export type Namer = {|
   name({|
     bundle: Bundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<Bundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -972,7 +1016,7 @@ export type RuntimeAsset = {|
 export type Runtime = {|
   apply({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -981,10 +1025,13 @@ export type Runtime = {|
 export type Packager = {|
   package({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+    getInlineBundleContents: (
+      Bundle,
+      BundleGraph<NamedBundle>,
+    ) => Async<{|contents: Blob|}>,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -1110,7 +1157,7 @@ export type BuildProgressEvent =
  */
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph,
+  +bundleGraph: BundleGraph<NamedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
 |};

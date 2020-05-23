@@ -1,5 +1,6 @@
 import assert from 'assert';
 import path from 'path';
+import url from 'url';
 import {
   bundle,
   bundler,
@@ -748,6 +749,24 @@ describe('javascript', function() {
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker'));
     let contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
     assert(contents.includes(`importScripts("./${sharedBundle.name}")`));
+
+    let outputArgs = [];
+    let workerArgs = [];
+    await run(b, {
+      Worker: class {
+        constructor(url) {
+          workerArgs.push(url);
+        }
+      },
+      output: (ctx, val) => {
+        outputArgs.push([ctx, val]);
+      },
+    });
+
+    assert.deepStrictEqual(outputArgs, [['main', 3]]);
+    assert.deepStrictEqual(workerArgs, [
+      `http://localhost/${path.basename(workerBundle.filePath)}`,
+    ]);
   });
 
   it('should dynamic import files which import raw files', async function() {
@@ -1042,8 +1061,10 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output()));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output()).pathname),
+    );
     assert.equal(stats.size, 9);
   });
 
@@ -1052,7 +1073,7 @@ describe('javascript', function() {
     // entire contents into memory and should stream content instead
     let assetSizeBytes = 6000000;
 
-    let distDir = '/dist';
+    let distDir = path.join(outputFS.cwd(), '/dist');
     let fixtureDir = path.join(__dirname, '/integration/import-raw');
     let inputDir = path.join(__dirname, 'input');
 
@@ -1062,7 +1083,10 @@ describe('javascript', function() {
       Buffer.alloc(assetSizeBytes),
     );
 
-    let b = await bundle(path.join(inputDir, 'index.js'), {inputFS: overlayFS});
+    let b = await bundle(path.join(inputDir, 'index.js'), {
+      inputFS: overlayFS,
+      distDir,
+    });
     assertBundles(b, [
       {
         name: 'index.js',
@@ -1083,8 +1107,10 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    let stats = await outputFS.stat(path.join(distDir, output()));
+    assert(/^http:\/\/localhost\/test\.[0-9a-f]+\.txt$/.test(output()));
+    let stats = await outputFS.stat(
+      path.join(distDir, url.parse(output()).pathname),
+    );
     assert.equal(stats.size, assetSizeBytes);
   });
 
@@ -1138,6 +1164,21 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.deepEqual(output, 1234);
+  });
+
+  it('should not insert global variables in dead branches', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/globals-unused/a.js'),
+    );
+
+    assertBundles(b, [
+      {
+        assets: ['a.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, 'foo');
   });
 
   it('should handle re-declaration of the global constant', async function() {
@@ -2318,7 +2359,7 @@ describe('javascript', function() {
     );
 
     let res = await run(b);
-    assert((await res.default()).startsWith('/resource'));
+    assert(url.parse(await res.default()).pathname.startsWith('/resource'));
   });
 
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {

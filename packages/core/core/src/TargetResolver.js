@@ -65,6 +65,7 @@ export default class TargetResolver {
   ): Promise<TargetResolveResult> {
     let optionTargets = this.options.targets;
 
+    let packageTargets = await this.resolvePackageTargets(rootDir);
     let targets: Array<Target>;
     let files: Array<File> = [];
     if (optionTargets) {
@@ -80,7 +81,6 @@ export default class TargetResolver {
 
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
@@ -139,7 +139,7 @@ export default class TargetResolver {
               scopeHoist:
                 this.options.scopeHoist && descriptor.scopeHoist !== false,
             }),
-            sourceMap: descriptor.sourceMap,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           };
         });
       }
@@ -173,11 +173,9 @@ export default class TargetResolver {
         targets = [
           {
             name: 'default',
-            // For serve, write the `dist` to inside the parcel cache, which is
-            // temporary, likely in a .gitignore or similar, but still readily
-            // available for introspection by the user if necessary.
-            distDir: path.resolve(this.options.cacheDir, DEFAULT_DIST_DIRNAME),
+            distDir: this.options.distDir,
             publicUrl: this.options.publicUrl ?? '/',
+            sourceMap: this.options.sourceMaps ? {} : undefined,
             env: createEnvironment({
               context: 'browser',
               engines: {
@@ -189,7 +187,6 @@ export default class TargetResolver {
           },
         ];
       } else {
-        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = Array.from(packageTargets.targets.values());
         files = packageTargets.files;
       }
@@ -355,7 +352,7 @@ export default class TargetResolver {
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
-          sourceMap: descriptor.sourceMap,
+          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -434,7 +431,7 @@ export default class TargetResolver {
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
           }),
-          sourceMap: descriptor.sourceMap,
+          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -454,6 +451,7 @@ export default class TargetResolver {
           minify: this.options.minify,
           scopeHoist: this.options.scopeHoist,
         }),
+        sourceMap: this.options.sourceMaps ? {} : undefined,
       });
     }
 
@@ -579,5 +577,17 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
     throw new ThrowableDiagnostic({
       diagnostic: diagnostics,
     });
+  }
+}
+
+function normalizeSourceMap(options: ParcelOptions, sourceMap) {
+  if (options.sourceMaps) {
+    if (typeof sourceMap === 'boolean') {
+      return sourceMap ? {} : undefined;
+    } else {
+      return sourceMap ?? {};
+    }
+  } else {
+    return undefined;
   }
 }

@@ -259,6 +259,7 @@ describe('hmr', function() {
   });
 
   // TODO: Update these...
+  // TODO: add test for 4532 (`require` call in modified asset in child bundle where HMR runtime runs in parent bundle)
   describe('hmr runtime', () => {
     /*it('should work with circular dependencies', async function() {
       let port = await getPort();
