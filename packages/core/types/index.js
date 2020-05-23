@@ -383,9 +383,9 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
-  +resolvedPath: ?FilePath;
+  +includedFiles: Set<FilePath>;
+  +rootDir: FilePath;
 
-  setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;

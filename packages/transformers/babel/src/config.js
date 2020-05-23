@@ -92,7 +92,7 @@ export async function load(
       config.shouldInvalidateOnStartup();
       // babel.config.js files get required by @babel/core so there's no use in setting resolved path for watch mode invalidation
     } else {
-      config.setResolvedPath(
+      config.addIncludedFile(
         typeof babelrcPath === 'string' ? babelrcPath : configPath,
       );
     }

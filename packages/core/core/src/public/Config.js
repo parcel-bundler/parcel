@@ -8,6 +8,7 @@ import type {
   PackageName,
   ConfigResult,
 } from '@parcel/types';
+import Path from 'path';
 import type {Config, ParcelOptions} from '../types';
 
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
@@ -18,6 +19,13 @@ const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,
   WeakMap<Config, PublicConfig>,
 > = new DefaultWeakMap(() => new WeakMap());
+
+const ROOT_FILES = new Set([
+  'package.json',
+  'yarn.lock',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+]);
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
@@ -50,12 +58,22 @@ export default class PublicConfig implements IConfig {
     return this.#config.isSource;
   }
 
-  get resolvedPath() {
-    return this.#config.resolvedPath;
+  get includedFiles() {
+    return this.#config.includedFiles;
   }
 
-  setResolvedPath(filePath: FilePath) {
-    this.#config.resolvedPath = filePath;
+  get rootDir() {
+    if (this.#config.rootDir != null) {
+      return this.#config.rootDir;
+    }
+
+    for (let filePath of this.includedFiles) {
+      if (ROOT_FILES.has(Path.basename(filePath))) {
+        this.#config.rootDir = Path.dirname(filePath);
+      }
+    }
+
+    return this.#config.rootDir || this.#options.rootDir;
   }
 
   // $FlowFixMe
@@ -68,6 +86,13 @@ export default class PublicConfig implements IConfig {
   }
 
   addIncludedFile(filePath: FilePath) {
+    if (
+      this.#config.rootDir != null &&
+      ROOT_FILES.has(Path.basename(filePath))
+    ) {
+      this.#config.rootDir = null;
+    }
+
     this.#config.includedFiles.add(filePath);
   }
 
@@ -120,14 +145,7 @@ export default class PublicConfig implements IConfig {
     }
 
     if (!options || !options.exclude) {
-      if (
-        this.#config.resolvedPath == null ||
-        this.#config.resolvedPath.endsWith('package.json')
-      ) {
-        this.setResolvedPath(conf.files[0].filePath);
-      } else {
-        this.addIncludedFile(conf.files[0].filePath);
-      }
+      this.addIncludedFile(conf.files[0].filePath);
     }
 
     return conf.config;

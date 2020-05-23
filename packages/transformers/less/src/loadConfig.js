@@ -14,8 +14,12 @@ export async function load({config}: {|config: Config|}) {
   // Rewrites urls to be relative to the provided filename
   configFile.rewriteUrls = 'all';
   configFile.plugins = configFile.plugins || [];
-  let isStatic =
-    config.resolvedPath && path.extname(config.resolvedPath) !== '.js';
+  let isStatic = true;
+  for (let f of config.includedFiles) {
+    if (path.extname(f) === '.js') {
+      isStatic = false;
+    }
+  }
 
   if (!isStatic) {
     // This should enforce the config to be reloaded on every run as it's JS

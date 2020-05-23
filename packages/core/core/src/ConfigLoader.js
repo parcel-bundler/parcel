@@ -56,7 +56,6 @@ export default class ConfigLoader {
       env,
     });
     let publicConfig = new PublicConfig(config, this.options);
-    publicConfig.setResolvedPath(this.parcelConfig.filePath);
     let devDeps = [];
     switch (configRequest.meta.actionType) {
       case 'transformation':
