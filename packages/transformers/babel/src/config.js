@@ -260,7 +260,7 @@ async function definePluginDependencies(config) {
         await config.getConfigFrom(configItem.file.resolved, ['package.json'], {
           parse: true,
         }),
-      );
+      ).contents;
       config.addDevDependency(pkg.name, pkg.version);
     }),
   );

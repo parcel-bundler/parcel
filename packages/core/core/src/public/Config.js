@@ -8,7 +8,6 @@ import type {
   PackageName,
   ConfigResult,
 } from '@parcel/types';
-import Path from 'path';
 import type {Config, ParcelOptions} from '../types';
 
 import {DefaultWeakMap, loadConfig} from '@parcel/utils';
@@ -20,12 +19,10 @@ const internalConfigToConfig: DefaultWeakMap<
   WeakMap<Config, PublicConfig>,
 > = new DefaultWeakMap(() => new WeakMap());
 
-const ROOT_FILES = new Set([
-  'package.json',
-  'yarn.lock',
-  'package-lock.json',
-  'pnpm-lock.yaml',
-]);
+export type FullConfigResult = {|
+  contents: ConfigResult,
+  filePath: FilePath,
+|};
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
@@ -62,20 +59,6 @@ export default class PublicConfig implements IConfig {
     return this.#config.includedFiles;
   }
 
-  get rootDir() {
-    if (this.#config.rootDir != null) {
-      return this.#config.rootDir;
-    }
-
-    for (let filePath of this.includedFiles) {
-      if (ROOT_FILES.has(Path.basename(filePath))) {
-        this.#config.rootDir = Path.dirname(filePath);
-      }
-    }
-
-    return this.#config.rootDir || this.#options.rootDir;
-  }
-
   // $FlowFixMe
   setResult(result: any) {
     this.#config.result = result;
@@ -86,13 +69,6 @@ export default class PublicConfig implements IConfig {
   }
 
   addIncludedFile(filePath: FilePath) {
-    if (
-      this.#config.rootDir != null &&
-      ROOT_FILES.has(Path.basename(filePath))
-    ) {
-      this.#config.rootDir = null;
-    }
-
     this.#config.includedFiles.add(filePath);
   }
 
@@ -124,12 +100,16 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null> {
+  ): Promise<FullConfigResult | null> {
     let packageKey = options && options.packageKey;
     if (packageKey != null) {
       let pkg = await this.getPackage();
       if (pkg && pkg[packageKey]) {
-        return pkg[packageKey];
+        return {
+          contents: pkg[packageKey],
+          // This should be fine as pkgFilePath should be defined by getPackage()
+          filePath: this.#config.pkgFilePath || '',
+        };
       }
     }
 
@@ -144,11 +124,15 @@ export default class PublicConfig implements IConfig {
       return null;
     }
 
+    let configFilePath = conf.files[0].filePath;
     if (!options || !options.exclude) {
-      this.addIncludedFile(conf.files[0].filePath);
+      this.addIncludedFile(configFilePath);
     }
 
-    return conf.config;
+    return {
+      contents: conf.config,
+      filePath: configFilePath,
+    };
   }
 
   getConfig(
@@ -158,7 +142,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null> {
+  ): Promise<FullConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
@@ -167,7 +151,14 @@ export default class PublicConfig implements IConfig {
       return this.#config.pkg;
     }
 
-    this.#config.pkg = await this.getConfig(['package.json']);
+    let pkgConfig = await this.getConfig(['package.json']);
+    if (!pkgConfig) {
+      return null;
+    }
+
+    this.#config.pkg = pkgConfig.contents;
+    this.#config.pkgFilePath = pkgConfig.filePath;
+
     return this.#config.pkg;
   }
 }

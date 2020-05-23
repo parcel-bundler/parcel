@@ -7,13 +7,14 @@ export async function load({config}: {|config: Config|}) {
     packageKey: 'less',
   });
 
-  if (configFile === null) {
-    configFile = {};
+  let configContents = {};
+  if (configFile != null) {
+    configContents = configFile.contents;
   }
 
   // Rewrites urls to be relative to the provided filename
-  configFile.rewriteUrls = 'all';
-  configFile.plugins = configFile.plugins || [];
+  configContents.rewriteUrls = 'all';
+  configContents.plugins = configContents.plugins || [];
   let isStatic = true;
   for (let f of config.includedFiles) {
     if (path.extname(f) === '.js') {
@@ -27,7 +28,7 @@ export async function load({config}: {|config: Config|}) {
     config.shouldReload();
   }
 
-  return config.setResult({isStatic, config: configFile});
+  return config.setResult({isStatic, config: configContents});
 }
 
 export function preSerialize(config: Config) {

@@ -118,7 +118,8 @@ export default class AssetRequestRunner extends RequestRunner<
       for (let [moduleSpecifier, version] of result.devDeps) {
         let depVersionRequst = {
           moduleSpecifier,
-          resolveFrom: result.rootDir,
+          // TODO: Improve this?
+          resolveFrom: result.searchPath,
         };
         let id = generateRequestId('dep_version_request', depVersionRequst);
         let shouldSetupInvalidations =
