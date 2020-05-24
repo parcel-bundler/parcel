@@ -6,7 +6,7 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  ConfigResult,
+  ConfigResultWithFilePath,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
@@ -18,11 +18,6 @@ const internalConfigToConfig: DefaultWeakMap<
   ParcelOptions,
   WeakMap<Config, PublicConfig>,
 > = new DefaultWeakMap(() => new WeakMap());
-
-export type FullConfigResult = {|
-  contents: ConfigResult,
-  filePath: FilePath,
-|};
 
 export default class PublicConfig implements IConfig {
   #config; // Config;
@@ -100,7 +95,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<FullConfigResult | null> {
+  ): Promise<ConfigResultWithFilePath | null> {
     let packageKey = options && options.packageKey;
     if (packageKey != null) {
       let pkg = await this.getPackage();
@@ -142,7 +137,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<FullConfigResult | null> {
+  ): Promise<ConfigResultWithFilePath | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 

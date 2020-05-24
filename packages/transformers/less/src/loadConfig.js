@@ -3,7 +3,7 @@ import type {Config} from '@parcel/types';
 import path from 'path';
 
 export async function load({config}: {|config: Config|}) {
-  let configFile: any = await config.getConfig(['.lessrc', '.lessrc.js'], {
+  let configFile = await config.getConfig(['.lessrc', '.lessrc.js'], {
     packageKey: 'less',
   });
 
@@ -15,20 +15,15 @@ export async function load({config}: {|config: Config|}) {
   // Rewrites urls to be relative to the provided filename
   configContents.rewriteUrls = 'all';
   configContents.plugins = configContents.plugins || [];
-  let isStatic = true;
-  for (let f of config.includedFiles) {
-    if (path.extname(f) === '.js') {
-      isStatic = false;
-    }
-  }
 
-  if (!isStatic) {
-    // This should enforce the config to be reloaded on every run as it's JS
+  // This should enforce the config to be reloaded on every run as it's JS
+  let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
+  if (isDynamic) {
     config.shouldInvalidateOnStartup();
     config.shouldReload();
   }
 
-  return config.setResult({isStatic, config: configContents});
+  return config.setResult({isStatic: !isDynamic, config: configContents});
 }
 
 export function preSerialize(config: Config) {

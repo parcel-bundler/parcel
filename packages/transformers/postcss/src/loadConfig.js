@@ -76,14 +76,8 @@ export async function load({
   let contents = null;
   if (configFile) {
     contents = configFile.contents;
-    let isStatic = true;
-    for (let f of config.includedFiles) {
-      if (path.extname(f) === '.js') {
-        isStatic = false;
-      }
-    }
-
-    if (!isStatic) {
+    let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
+    if (isDynamic) {
       logger.warn({
         message:
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',

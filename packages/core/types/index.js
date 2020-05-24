@@ -12,6 +12,10 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
+export type ConfigResultWithFilePath = {|
+  contents: ConfigResult,
+  filePath: FilePath,
+|};
 export type EnvMap = typeof process.env;
 
 export type JSONValue =
@@ -398,7 +402,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -406,7 +410,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
   shouldReload(): void;

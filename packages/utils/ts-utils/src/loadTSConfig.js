@@ -21,7 +21,7 @@ export async function loadTSConfig(config: Config, options: PluginOptions) {
   let parsedConfig = ts.parseJsonConfigFileContent(
     configResult.contents,
     host,
-    nullthrows(configResult.filePath),
+    path.dirname(nullthrows(configResult.filePath)),
   );
 
   // Add all of the extended config files to be watched
