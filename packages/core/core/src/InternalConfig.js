@@ -3,8 +3,6 @@
 import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
 import type {Config, Environment} from './types';
 
-import Path from 'path';
-
 type ConfigOpts = {|
   isSource: boolean,
   searchPath: FilePath,
