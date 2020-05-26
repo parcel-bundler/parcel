@@ -434,16 +434,20 @@ export default class BundleGraph {
   }
 
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean {
-    // For an asset to be reachable from a bundle, it must either exist in a sibling bundle,
+    // For an asset to be reachable from a bundle, it must either exist in a preceding sibling bundle,
     // or in an ancestor bundle group reachable from all parent bundles.
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
     return bundleGroups.every(bundleGroup => {
       // If the asset is in any sibling bundles of the original bundle, it is reachable.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup);
-      if (
-        bundles.some(b => b.id !== bundle.id && this.bundleHasAsset(b, asset))
-      ) {
-        return true;
+      let bundles = this.getBundlesInBundleGroup(bundleGroup).reverse();
+      for (let b of bundles) {
+        // Only preceding siblings
+        if (b.id === bundle.id) {
+          break;
+        }
+        if (this.bundleHasAsset(b, asset)) {
+          return true;
+        }
       }
 
       // Get a list of parent bundle nodes pointing to the bundle group
@@ -460,14 +464,19 @@ export default class BundleGraph {
           bundleNode,
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(node.value);
-              if (
-                childBundles.some(
-                  b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
-                )
-              ) {
-                inBundle = true;
-                actions.stop();
+              let childBundles = this.getBundlesInBundleGroup(
+                node.value,
+              ).reverse();
+              for (let b of childBundles) {
+                // Only preceding siblings
+                if (b.id === bundle.id) {
+                  break;
+                }
+                if (this.bundleHasAsset(b, asset)) {
+                  inBundle = true;
+                  actions.stop();
+                  break;
+                }
               }
             }
 
@@ -489,15 +498,17 @@ export default class BundleGraph {
 
   findReachableBundleWithAsset(bundle: Bundle, asset: Asset) {
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
-
     for (let bundleGroup of bundleGroups) {
       // If the asset is in any sibling bundles, return that bundle.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup);
-      let res = bundles.find(
-        b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
-      );
-      if (res != null) {
-        return res;
+      let bundles = this.getBundlesInBundleGroup(bundleGroup).reverse();
+      for (let b of bundles) {
+        // Only preceding siblings
+        if (b.id === bundle.id) {
+          break;
+        }
+        if (this.bundleHasAsset(b, asset)) {
+          return b;
+        }
       }
 
       // Get a list of parent bundle nodes pointing to the bundle group
@@ -508,17 +519,25 @@ export default class BundleGraph {
 
       // Find the nearest ancestor bundle that includes the asset.
       for (let bundleNode of parentBundleNodes) {
+        let res;
         this._graph.traverseAncestors(
           bundleNode,
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(node.value);
+              let childBundles = this.getBundlesInBundleGroup(
+                node.value,
+              ).reverse();
 
-              res = childBundles.find(
-                b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
-              );
-              if (res != null) {
-                actions.stop();
+              for (let b of childBundles) {
+                // Only preceding siblings
+                if (b.id === bundle.id) {
+                  break;
+                }
+                if (this.bundleHasAsset(b, asset)) {
+                  res = b;
+                  actions.stop();
+                  break;
+                }
               }
             }
 
@@ -661,12 +680,8 @@ export default class BundleGraph {
   }
 
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
-    return this._graph
-      .getNodesConnectedFrom(
-        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-        'bundle',
-      )
-      .filter(node => node.type === 'bundle')
+    return [...bundleGroup.bundleIds]
+      .map(id => nullthrows(this._graph.getNode(id)))
       .map(node => {
         invariant(node.type === 'bundle');
         return node.value;
