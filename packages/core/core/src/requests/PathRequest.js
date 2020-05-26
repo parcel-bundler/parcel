@@ -1,5 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
+import type {Async} from '@parcel/types';
 import type ParcelConfig from '../ParcelConfig';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
@@ -67,7 +68,10 @@ export class ResolverRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async getThrowableDiagnostic(dependency: Dependency, message: string) {
+  async getThrowableDiagnostic(
+    dependency: Dependency,
+    message: string,
+  ): Async<ThrowableDiagnostic> {
     let diagnostic: Diagnostic = {
       message,
       origin: '@parcel/core',
@@ -183,8 +187,8 @@ export class ResolverRunner {
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
-    // $FlowFixMe
-    let err: any = await this.getThrowableDiagnostic(
+    // $FlowFixMe because of the err.code assignment
+    let err = await this.getThrowableDiagnostic(
       dependency,
       `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );

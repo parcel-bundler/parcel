@@ -56,8 +56,8 @@ type RunAPI = {|
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
   storeResult: (result: mixed) => void,
-  runRequest: <TInput, TResult, TRequest: Request<TInput, TResult>>(
-    subRequest: TRequest,
+  runRequest: <TInput, TResult>(
+    subRequest: Request<TInput, TResult>,
   ) => Async<TResult>,
 |};
 
@@ -332,10 +332,12 @@ export default class RequestTracker {
     );
   }
 
-  getRequestResult(id: string) {
+  getRequestResult<T>(id: string): T {
     let node = nullthrows(this.graph.getNode(id));
     invariant(node.type === 'request');
-    return node.value.result;
+    // $FlowFixMe
+    let result: T = (node.value.result: any);
+    return result;
   }
 
   completeRequest(id: string) {
@@ -375,15 +377,13 @@ export default class RequestTracker {
     this.graph.replaceSubrequests(requestId, subrequestNodes);
   }
 
-  async runRequest<TInput, TResult, TRequest: Request<TInput, TResult>>(
-    request: TRequest,
+  async runRequest<TInput, TResult>(
+    request: Request<TInput, TResult>,
   ): Async<TResult> {
     let id = request.id;
 
     if (this.hasValidResult(id)) {
-      // $FlowFixMe
-      let result: TResult = (this.getRequestResult(id): any);
-      return result; // ? Can this be done more concisely?
+      return this.getRequestResult<TResult>(id);
     }
 
     let {api, subRequests} = this.createAPI(id);
@@ -426,9 +426,11 @@ export default class RequestTracker {
       storeResult: result => {
         this.storeResult(requestId, result);
       },
-      runRequest: subRequest => {
+      runRequest: <TInput, TResult>(
+        subRequest: Request<TInput, TResult>,
+      ): Async<TResult> => {
         subRequests.add(subRequest.id);
-        return this.runRequest(subRequest);
+        return this.runRequest<TInput, TResult>(subRequest);
       },
     };
 

@@ -24,7 +24,7 @@ import ParcelConfigSchema from '../ParcelConfig.schema';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
-type ConfigAndRef = {|
+export type ConfigAndRef = {|
   config: ProcessedParcelConfig,
   configRef: number,
 |};

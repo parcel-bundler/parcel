@@ -1,18 +1,23 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {ModuleSpecifier} from '@parcel/types';
+import type {FilePath, ModuleSpecifier} from '@parcel/types';
 import type WorkerFarm, {Handle} from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
   AssetGroup,
+  AssetRequestInput,
   Dependency,
   Entry,
   ParcelOptions,
   ValidationOpts,
 } from './types';
+import type {ConfigAndRef} from './requests/ParcelConfigRequest';
+import type {EntryResult} from './requests/EntryRequest';
+import type {TargetResolveResult} from './requests/TargetRequest';
+import type {PathRequestInput} from './requests/PathRequest';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
@@ -124,7 +129,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async loadConfig() {
     let {config, configRef} = nullthrows(
-      await this.requestTracker.runRequest(createParcelConfigRequest()),
+      await this.requestTracker.runRequest<null, ConfigAndRef>(
+        createParcelConfigRequest(),
+      ),
     );
 
     // This should not be necessary once sub requests are supported
@@ -268,19 +275,27 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async runEntryRequest(input: ModuleSpecifier) {
     let request = createEntryRequest(input);
-    let result = await this.requestTracker.runRequest(request);
+    let result = await this.requestTracker.runRequest<FilePath, EntryResult>(
+      request,
+    );
     this.assetGraph.resolveEntry(request.input, result.entries, request.id);
   }
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let result = await this.requestTracker.runRequest(request);
+    let result = await this.requestTracker.runRequest<
+      Entry,
+      TargetResolveResult,
+    >(request);
     this.assetGraph.resolveTargets(request.input, result.targets, request.id);
   }
 
   async runPathRequest(input: Dependency) {
     let request = createPathRequest({dependency: input, config: this.config});
-    let result = await this.requestTracker.runRequest(request);
+    let result = await this.requestTracker.runRequest<
+      PathRequestInput,
+      ?AssetGroup,
+    >(request);
     this.assetGraph.resolveDependency(
       request.input.dependency,
       result,
@@ -295,7 +310,10 @@ export default class AssetGraphBuilder extends EventEmitter {
       configRef: this.configRef,
       optionsRef: this.optionsRef,
     });
-    let assets = await this.requestTracker.runRequest(request);
+    let assets = await this.requestTracker.runRequest<
+      AssetRequestInput,
+      Array<Asset>,
+    >(request);
 
     if (assets != null) {
       for (let asset of assets) {

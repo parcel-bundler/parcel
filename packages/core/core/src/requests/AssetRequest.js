@@ -11,8 +11,6 @@ import type {
 } from '../types';
 
 import {md5FromObject} from '@parcel/utils';
-import invariant from 'assert';
-import nullthrows from 'nullthrows';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -88,7 +86,7 @@ async function run({input, api, options, farm}: RunInput) {
   // Add config requests
   for (let {request, result} of configRequests) {
     let id = generateRequestId('config_request', request);
-    await api.runRequest({
+    await api.runRequest<null, void>({
       id,
       type: 'config_request',
       run: ({api}) => {
@@ -107,8 +105,6 @@ async function run({input, api, options, farm}: RunInput) {
         if (result.shouldInvalidateOnStartup) {
           api.invalidateOnStartup();
         }
-        // ? Better way to make flow happy
-        return Promise.resolve();
       },
       input: null,
     });
@@ -120,15 +116,13 @@ async function run({input, api, options, farm}: RunInput) {
         resolveFrom: result.resolvedPath, // TODO: resolveFrom should be nearest package boundary
       };
       let id = generateRequestId('dep_version_request', depVersionRequst);
-      await api.runRequest({
+      await api.runRequest<null, void>({
         id,
         type: 'version_request',
         run: ({api}) => {
           if (options.lockFile != null) {
             api.invalidateOnFileUpdate(options.lockFile);
           }
-          // ? Better way to make flow happy
-          return Promise.resolve();
         },
         input: null,
       });
