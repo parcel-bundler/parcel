@@ -16,6 +16,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
+    "@babel/traverse": "^7.2.3",
     "@parcel/plugin": "^2.0.0-alpha.3.1",
     "@parcel/scope-hoisting": "^2.0.0-alpha.3.1",
     "@parcel/source-map": "2.0.0-alpha.4.9",
