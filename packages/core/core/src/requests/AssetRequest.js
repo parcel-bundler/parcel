@@ -11,6 +11,7 @@ import type {
 } from '../types';
 
 import {md5FromObject} from '@parcel/utils';
+import invariant from 'assert';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -90,19 +91,27 @@ async function run({input, api, options, farm}: RunInput) {
       id,
       type: 'config_request',
       run: ({api}) => {
-        if (result.resolvedPath != null) {
-          api.invalidateOnFileUpdate(result.resolvedPath);
+        let {
+          resolvedPath,
+          includedFiles,
+          watchGlob,
+          shouldInvalidateOnStartup,
+        } = result;
+        if (resolvedPath != null) {
+          api.invalidateOnFileUpdate(resolvedPath);
+          api.invalidateOnFileDelete(resolvedPath);
         }
 
-        for (let filePath of result.includedFiles) {
+        for (let filePath of includedFiles) {
+          api.invalidateOnFileUpdate(filePath);
           api.invalidateOnFileUpdate(filePath);
         }
 
-        if (result.watchGlob != null) {
-          api.invalidateOnFileCreate(result.watchGlob);
+        if (watchGlob != null) {
+          api.invalidateOnFileCreate(watchGlob);
         }
 
-        if (result.shouldInvalidateOnStartup) {
+        if (shouldInvalidateOnStartup) {
           api.invalidateOnStartup();
         }
       },

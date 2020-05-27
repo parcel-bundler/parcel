@@ -43,6 +43,7 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   // resolution so we invalidate when they change.
   for (let file of result.files) {
     api.invalidateOnFileUpdate(file.filePath);
+    api.invalidateOnFileDelete(file.filePath);
   }
 
   // If the entry specifier is a glob, add a glob node so

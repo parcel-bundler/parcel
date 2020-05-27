@@ -44,7 +44,6 @@ async function run({input, api, options}: RunOpts) {
   let resolverRunner = new ResolverRunner({options, config});
   let assetGroup = await resolverRunner.resolve(dependency);
 
-  // ? Should this happen if asset is deferred?
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
   }

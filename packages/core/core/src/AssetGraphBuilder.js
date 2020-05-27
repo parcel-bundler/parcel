@@ -48,6 +48,13 @@ type Opts = {|
   workerFarm: WorkerFarm,
 |};
 
+const typesWithRequests = new Set([
+  'entry_specifier',
+  'entry_file',
+  'dependency',
+  'asset_group',
+]);
+
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
@@ -241,15 +248,9 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   shouldSkipRequest(node: AssetGraphNode) {
-    const typesWithRequests = [
-      'entry_specifier',
-      'entry_file',
-      'dependency',
-      'asset_group',
-    ];
     return (
       node.complete === true ||
-      !typesWithRequests.includes(node.type) ||
+      !typesWithRequests.has(node.type) ||
       (node.correspondingRequest != null &&
         this.requestGraph.getNode(node.correspondingRequest) != null &&
         this.requestTracker.hasValidResult(node.correspondingRequest))
