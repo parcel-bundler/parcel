@@ -34,7 +34,7 @@ module.exports = function({template, types: t}) {
     new Promise(() => {})
   `;
   const syncImportTemplate = template`
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       try {
         const resolved = require(MODULE);
         resolve(resolved)
