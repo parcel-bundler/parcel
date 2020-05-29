@@ -127,9 +127,13 @@ class RustAsset extends Asset {
     await exec('cargo', args, {cwd: cargoDir});
 
     // Get output file paths
-    let [stdout] = await exec('cargo', ['metadata', '--format-version', '1'], {
-      cwd: cargoDir
-    });
+    let [stdout] = await exec(
+      'cargo',
+      ['metadata', '--format-version', '1', '--no-deps'],
+      {
+        cwd: cargoDir
+      }
+    );
     const cargoMetadata = JSON.parse(stdout);
     const cargoTargetDir = cargoMetadata.target_directory;
     let outDir = path.join(cargoTargetDir, RUST_TARGET, 'release');
