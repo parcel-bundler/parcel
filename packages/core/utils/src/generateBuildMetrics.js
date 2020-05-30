@@ -94,7 +94,7 @@ async function getSourcemapSizes(
       sizeMap.set(sources[i], sourceSizes[i]);
     }
 
-    sizeMap.set('unknown-origin', unknownOrigin);
+    sizeMap.set('', unknownOrigin);
 
     return sizeMap;
   }
