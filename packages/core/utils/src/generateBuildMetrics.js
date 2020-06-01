@@ -86,10 +86,6 @@ async function getSourcemapSizes(
     }
 
     let sizeMap = new Map();
-    for (let source of sources) {
-      sizeMap.set(source, 0);
-    }
-
     for (let i = 0; i < sourceSizes.length; i++) {
       sizeMap.set(sources[i], sourceSizes[i]);
     }
