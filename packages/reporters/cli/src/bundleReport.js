@@ -62,7 +62,7 @@ export default async function bundleReport(
         if (asset.filePath !== '') {
           columns[0] += formatFilename(asset.filePath, chalk.reset);
         } else {
-          columns[0] += 'Code from unknown sourcefile';
+          columns[0] += 'Code from unknown sourcefiles';
         }
 
         // Add a row for the asset.
