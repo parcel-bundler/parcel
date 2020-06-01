@@ -178,8 +178,7 @@ export default class BundleGraph<TBundle: IBundle>
       .getBundlesInBundleGroup(bundleGroup)
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      )
-      .reverse();
+      );
   }
 
   getBundles(): Array<TBundle> {

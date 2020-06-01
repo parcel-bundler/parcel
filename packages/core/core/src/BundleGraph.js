@@ -439,7 +439,7 @@ export default class BundleGraph {
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
     return bundleGroups.every(bundleGroup => {
       // If the asset is in any sibling bundles of the original bundle, it is reachable.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup).reverse();
+      let bundles = this.getBundlesInBundleGroup(bundleGroup);
       for (let b of bundles) {
         // Only preceding siblings
         if (b.id === bundle.id) {
@@ -464,9 +464,7 @@ export default class BundleGraph {
           bundleNode,
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(
-                node.value,
-              ).reverse();
+              let childBundles = this.getBundlesInBundleGroup(node.value);
               for (let b of childBundles) {
                 // Only preceding siblings
                 if (b.id === bundle.id) {
@@ -500,7 +498,7 @@ export default class BundleGraph {
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
     for (let bundleGroup of bundleGroups) {
       // If the asset is in any sibling bundles, return that bundle.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup).reverse();
+      let bundles = this.getBundlesInBundleGroup(bundleGroup);
       for (let b of bundles) {
         // Only preceding siblings
         if (b.id === bundle.id) {
@@ -524,9 +522,7 @@ export default class BundleGraph {
           bundleNode,
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(
-                node.value,
-              ).reverse();
+              let childBundles = this.getBundlesInBundleGroup(node.value);
 
               for (let b of childBundles) {
                 // Only preceding siblings
@@ -681,6 +677,7 @@ export default class BundleGraph {
 
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
     return [...bundleGroup.bundleIds]
+      .reverse()
       .map(id => nullthrows(this._graph.getNode(id)))
       .map(node => {
         invariant(node.type === 'bundle');
