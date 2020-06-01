@@ -1,7 +1,6 @@
 // @flow strict-local
 import type {NamedBundle} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
-import fs from 'fs';
 import path from 'path';
 
 export default new Reporter({
@@ -43,7 +42,7 @@ export default new Reporter({
         });
       }
 
-      fs.writeFileSync(`${targetDir}/bundle-buddy.json`, JSON.stringify(out));
+      options.outputFS.writeFileSync(`${targetDir}/bundle-buddy.json`, JSON.stringify(out));
     }
   },
 });
