@@ -101,6 +101,7 @@ program
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
   .option('--no-autoinstall', 'disable autoinstall')
+  .option('--content-hash', 'enable content hashing')
   .option(
     '-t, --target [target]',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
