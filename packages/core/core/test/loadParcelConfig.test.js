@@ -21,6 +21,10 @@ describe('loadParcelConfig', () => {
       assert.throws(() => {
         validatePackageName('@parcel/foo-bar', 'transform', 'transformers');
       }, /Official parcel transform packages must be named according to "@parcel\/transform-{name}"/);
+
+      assert.throws(() => {
+        validatePackageName('@parcel/transformer', 'transform', 'transformers');
+      }, /Official parcel transform packages must be named according to "@parcel\/transform-{name}"/);
     });
 
     it('should succeed on a valid official package', () => {
@@ -35,6 +39,10 @@ describe('loadParcelConfig', () => {
       assert.throws(() => {
         validatePackageName('parcel-foo-bar', 'transform', 'transformers');
       }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
+
+      assert.throws(() => {
+        validatePackageName('parcel-transform', 'transform', 'transformers');
+      }, /Parcel transform packages must be named according to "parcel-transform-{name}"/);
     });
 
     it('should succeed on a valid community package', () => {
@@ -44,7 +52,7 @@ describe('loadParcelConfig', () => {
     it('should error on an invalid scoped package', () => {
       assert.throws(() => {
         validatePackageName('@test/foo-bar', 'transform', 'transformers');
-      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
+      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform\[-{name}\]"/);
 
       assert.throws(() => {
         validatePackageName(
@@ -52,12 +60,18 @@ describe('loadParcelConfig', () => {
           'transform',
           'transformers',
         );
-      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform-{name}"/);
+      }, /Scoped parcel transform packages must be named according to "@test\/parcel-transform\[-{name}\]"/);
     });
 
     it('should succeed on a valid scoped package', () => {
       validatePackageName(
         '@test/parcel-transform-bar',
+        'transform',
+        'transformers',
+      );
+
+      validatePackageName(
+        '@test/parcel-transform',
         'transform',
         'transformers',
       );
