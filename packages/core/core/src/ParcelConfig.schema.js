@@ -25,8 +25,9 @@ export function validatePackageName(
   } else if (pkg.startsWith('@')) {
     let [scope, name] = pkg.split('/');
     assert(
-      name.startsWith(`parcel-${pluginType}-`),
-      `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}-{name}"`,
+      name.startsWith(`parcel-${pluginType}-`) ||
+        name === `parcel-${pluginType}`,
+      `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}[-{name}]"`,
     );
   } else {
     assert(
