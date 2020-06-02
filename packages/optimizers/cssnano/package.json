@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-cssnano",
-  "version": "2.0.0-frontbucket.26",
+  "version": "2.0.0-frontbucket.27",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

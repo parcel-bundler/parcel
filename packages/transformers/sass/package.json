@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-sass",
-  "version": "2.0.0-frontbucket.27",
+  "version": "2.0.0-frontbucket.28",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -16,10 +16,10 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0-frontbucket.24",
+    "@parcel/fs": "^2.0.0-frontbucket.25",
     "@parcel/plugin": "^2.0.0-frontbucket.26",
     "@parcel/source-map": "2.0.0-alpha.4.11",
-    "@parcel/utils": "^2.0.0-frontbucket.23"
+    "@parcel/utils": "^2.0.0-frontbucket.24"
   },
   "devDependencies": {
     "sass": "^1.22.9"

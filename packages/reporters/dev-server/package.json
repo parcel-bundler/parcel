@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-dev-server",
-  "version": "2.0.0-frontbucket.28",
+  "version": "2.0.0-frontbucket.29",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.26",
-    "@parcel/utils": "^2.0.0-frontbucket.23",
+    "@parcel/utils": "^2.0.0-frontbucket.24",
     "connect": "^3.7.0",
     "ejs": "^2.6.1",
     "http-proxy-middleware": "^0.19.1",

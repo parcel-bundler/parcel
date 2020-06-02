@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-manifest",
-  "version": "2.0.0-frontbucket.27",
+  "version": "2.0.0-frontbucket.28",
   "main": "lib/ManifestReporter.js",
   "source": "src/ManifestReporter.js",
   "engines": {
@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.26",
-    "@parcel/utils": "^2.0.0-frontbucket.23"
+    "@parcel/utils": "^2.0.0-frontbucket.24"
   }
 }
