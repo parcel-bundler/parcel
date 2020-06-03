@@ -6194,15 +6194,6 @@ fs-write-stream-atomic@^1.0.8:
     imurmurhash "^0.1.4"
     readable-stream "1 || 2"
 
-"fs-write-stream-atomic@github:atlassian-forks/fs-write-stream-atomic#4edf1a95433a9936229c7f768c9ea9bb5884b487":
-  version "1.0.10"
-  resolved "https://codeload.github.com/atlassian-forks/fs-write-stream-atomic/tar.gz/4edf1a95433a9936229c7f768c9ea9bb5884b487"
-  dependencies:
-    graceful-fs "^4.1.2"
-    iferr "^1.0.2"
-    imurmurhash "^0.1.4"
-    readable-stream "1 || 2"
-
 fs.realpath@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/fs.realpath/-/fs.realpath-1.0.0.tgz#1504ad2523158caa40db4a2787cb01411994ea4f"
