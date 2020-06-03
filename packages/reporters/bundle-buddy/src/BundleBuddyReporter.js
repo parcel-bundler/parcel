@@ -4,7 +4,7 @@ import {Reporter} from '@parcel/plugin';
 import path from 'path';
 
 export default new Reporter({
-  report({event, options}) {
+  async report({event, options}) {
     if (event.type !== 'buildSuccess' || process.env.BUNDLE_BUDDY == null) {
       return;
     }
@@ -42,7 +42,7 @@ export default new Reporter({
         });
       }
 
-      options.outputFS.writeFileSync(`${targetDir}/bundle-buddy.json`, JSON.stringify(out));
+      await options.outputFS.writeFile(`${targetDir}/bundle-buddy.json`, JSON.stringify(out));
     }
   },
 });
