@@ -42,7 +42,10 @@ export default new Reporter({
         });
       }
 
-      await options.outputFS.writeFile(`${targetDir}/bundle-buddy.json`, JSON.stringify(out));
+      await options.outputFS.writeFile(
+        `${targetDir}/bundle-buddy.json`,
+        JSON.stringify(out),
+      );
     }
   },
 });
