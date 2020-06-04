@@ -11,7 +11,6 @@ import type {
 } from '../types';
 
 import {md5FromObject} from '@parcel/utils';
-import invariant from 'assert';
 
 type RunInput = {|
   input: AssetRequestInput,
