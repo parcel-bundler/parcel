@@ -14,10 +14,9 @@ import type {
   ParcelOptions,
   ValidationOpts,
 } from './types';
-import type {ConfigAndRef} from './requests/ParcelConfigRequest';
+import type {ConfigAndCachePath} from './requests/ParcelConfigRequest';
 import type {EntryResult} from './requests/EntryRequest';
 import type {TargetResolveResult} from './requests/TargetRequest';
-import type {PathRequestInput} from './requests/PathRequest';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
@@ -66,8 +65,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
   optionsRef: number;
-  config: ParcelConfig;
-  configRef: number;
   workerFarm: WorkerFarm;
   cacheKey: string;
   entries: ?Array<string>;
@@ -134,24 +131,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  async loadConfig() {
-    let {config, configRef} = nullthrows(
-      await this.requestTracker.runRequest<null, ConfigAndRef>(
-        createParcelConfigRequest(),
-      ),
-    );
-
-    // This should not be necessary once sub requests are supported
-    if (configRef !== this.configRef) {
-      this.configRef = configRef;
-      this.config = new ParcelConfig(
-        config,
-        this.options.packageManager,
-        this.options.autoinstall,
-      );
-    }
-  }
-
   async build(
     signal?: AbortSignal,
   ): Promise<{|
@@ -159,7 +138,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     changedAssets: Map<string, Asset>,
   |}> {
     this.requestTracker.setSignal(signal);
-    await this.loadConfig();
 
     let errors = [];
 
@@ -213,9 +191,21 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
+  // TODO: turn validation into a request
   async validate(): Promise<void> {
+    let {config: processedConfig, cachePath} = nullthrows(
+      await this.requestTracker.runRequest<null, ConfigAndCachePath>(
+        createParcelConfigRequest(),
+      ),
+    );
+
+    let config = new ParcelConfig(
+      processedConfig,
+      this.options.packageManager,
+      this.options.autoinstall,
+    );
     let trackedRequestsDesc = this.assetRequests.filter(request => {
-      return this.config.getValidatorNames(request.filePath).length > 0;
+      return config.getValidatorNames(request.filePath).length > 0;
     });
 
     // Schedule validations on workers for all plugins that implement the one-asset-at-a-time "validate" method.
@@ -223,7 +213,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       this.runValidate({
         requests: [request],
         optionsRef: this.optionsRef,
-        configRef: this.configRef,
+        configCachePath: cachePath,
       }),
     );
 
@@ -237,7 +227,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       new Validation({
         requests: trackedRequestsDesc,
         options: this.options,
-        config: this.config,
+        config,
         report,
         dedicatedThread: true,
       }).run(),
@@ -292,23 +282,17 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async runPathRequest(input: Dependency) {
-    let request = createPathRequest({dependency: input, config: this.config});
-    let result = await this.requestTracker.runRequest<
-      PathRequestInput,
-      ?AssetGroup,
-    >(request);
-    this.assetGraph.resolveDependency(
-      request.input.dependency,
-      result,
-      request.id,
+    let request = createPathRequest(input);
+    let result = await this.requestTracker.runRequest<Dependency, ?AssetGroup>(
+      request,
     );
+    this.assetGraph.resolveDependency(input, result, request.id);
   }
 
   async runAssetRequest(input: AssetGroup) {
     this.assetRequests.push(input);
     let request = createAssetRequest({
       ...input,
-      configRef: this.configRef,
       optionsRef: this.optionsRef,
     });
     let assets = await this.requestTracker.runRequest<

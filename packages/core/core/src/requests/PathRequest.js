@@ -1,48 +1,59 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {Async} from '@parcel/types';
-import type ParcelConfig from '../ParcelConfig';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
 import {escapeMarkdown, relatifyPath} from '@parcel/utils';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
 import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
+import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest from './ParcelConfigRequest';
 
-export type PathRequestInput = {|dependency: Dependency, config: ParcelConfig|};
 export type PathRequestResult = AssetGroup | null | void;
 
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
   run: RunOpts => Promise<PathRequestResult>,
-  input: PathRequestInput,
+  input: Dependency,
 |};
 
 type RunOpts = {|
-  input: PathRequestInput,
+  input: Dependency,
   ...StaticRunOpts,
 |};
 
 const type = 'path_request';
 
-export default function createPathRequest(input: PathRequestInput) {
+export default function createPathRequest(input: Dependency) {
   return {
-    id: input.dependency.id,
+    id: input.id,
     type,
     run,
     input,
   };
 }
 async function run({input, api, options}: RunOpts) {
-  let {config, dependency} = input;
-  let resolverRunner = new ResolverRunner({options, config});
-  let assetGroup = await resolverRunner.resolve(dependency);
+  let {config} = nullthrows(
+    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+  );
+  let resolverRunner = new ResolverRunner({
+    options,
+    config: new ParcelConfig(
+      config,
+      options.packageManager,
+      options.autoinstall,
+    ),
+  });
+  let assetGroup = await resolverRunner.resolve(input);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);

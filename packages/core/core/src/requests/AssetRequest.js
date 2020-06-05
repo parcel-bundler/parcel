@@ -9,8 +9,11 @@ import type {
   ConfigRequestDesc,
   TransformationOpts,
 } from '../types';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import {md5FromObject} from '@parcel/utils';
+import nullthrows from 'nullthrows';
+import createParcelConfigRequest from './ParcelConfigRequest';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -57,16 +60,19 @@ const type = 'asset_request';
 
 function getId(input: AssetRequestInput) {
   // eslint-disable-next-line no-unused-vars
-  let {optionsRef, configRef, ...hashInput} = input;
+  let {optionsRef, ...hashInput} = input;
   return `${type}:${md5FromObject(hashInput)}`;
 }
 
 async function run({input, api, options, farm}: RunInput) {
   api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
   let start = Date.now();
-  let {configRef, optionsRef, ...request} = input;
+  let {optionsRef, ...request} = input;
+  let {cachePath} = nullthrows(
+    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+  );
   let {assets, configRequests} = await getRunTransform(farm)({
-    configRef,
+    configCachePath: cachePath,
     optionsRef,
     request,
   });

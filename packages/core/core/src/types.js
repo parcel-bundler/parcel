@@ -202,16 +202,12 @@ export type AssetRequestInput = {|
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
-  configRef: number,
   optionsRef: number,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = $Rest<
-  AssetRequestInput,
-  {|configRef: number, optionsRef: number|},
->;
+export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -370,13 +366,13 @@ export type BundleGroupNode = {|
 export type TransformationOpts = {|
   request: AssetGroup,
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ValidationOpts = {|
   requests: AssetGroup[],
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

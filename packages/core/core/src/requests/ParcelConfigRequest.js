@@ -12,7 +12,12 @@ import type {
   ProcessedParcelConfig,
 } from '../types';
 
-import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
+import {
+  resolveConfig,
+  resolve,
+  validateSchema,
+  md5FromObject,
+} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 // $FlowFixMe
 import {parse} from 'json5';
@@ -24,9 +29,9 @@ import ParcelConfigSchema from '../ParcelConfig.schema';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
-export type ConfigAndRef = {|
+export type ConfigAndCachePath = {|
   config: ProcessedParcelConfig,
-  configRef: number,
+  cachePath: string,
 |};
 
 type RunOpts = {|
@@ -38,22 +43,18 @@ export type ParcelConfigRequest = {|
   id: string,
   type: string,
   input: null,
-  run: () => Promise<ConfigAndRef>,
+  run: () => Promise<ConfigAndCachePath>,
 |};
 
 const type = 'parcel_config_request';
 
 export default function createParcelConfigRequest() {
-  let disposeConfigRef: void | (() => Promise<mixed>);
   return {
     id: type,
     type,
-    async run({api, options, farm}: RunOpts): Promise<ConfigAndRef> {
+    async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
       let {config, extendedFiles} = await loadParcelConfig(options);
       let processedConfig = config.getConfig();
-      let {ref, dispose} = await farm.createSharedReference(processedConfig);
-      disposeConfigRef && (await disposeConfigRef());
-      disposeConfigRef = dispose;
 
       api.invalidateOnFileUpdate(config.filePath);
       api.invalidateOnFileDelete(config.filePath);
@@ -67,10 +68,10 @@ export default function createParcelConfigRequest() {
         api.invalidateOnFileCreate('**/.parcelrc');
       }
 
-      // Need to do this because of reinstantiate the shared reference
-      api.invalidateOnStartup();
-
-      let result = {config: processedConfig, configRef: ref};
+      let cachePath = md5FromObject(processedConfig);
+      await options.cache.set(cachePath, processedConfig);
+      let result = {config: processedConfig, cachePath};
+      // TODO: don't store config twice (once in the graph and once in a separate cache entry)
       api.storeResult(result);
       return result;
     },
