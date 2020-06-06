@@ -90,7 +90,6 @@ export type Dependency = {|
   isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: ?boolean,
   isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
@@ -98,7 +97,10 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols: ?Map<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+  >,
   pipeline?: ?string,
 |};
 
@@ -186,6 +188,7 @@ export type AssetNode = {|
   id: string,
   +type: 'asset',
   value: Asset,
+  usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
 |};
 
@@ -195,7 +198,10 @@ export type DependencyNode = {|
   value: Dependency,
   complete?: boolean,
   correspondingRequest?: string,
+  deferred: boolean,
   hasDeferred?: boolean,
+  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsUp: Set<Symbol>,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -218,8 +224,8 @@ export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
   value: AssetGroup,
-  deferred?: boolean,
   correspondingRequest?: string,
+  deferred?: boolean,
   hasDeferred?: boolean,
 |};
 

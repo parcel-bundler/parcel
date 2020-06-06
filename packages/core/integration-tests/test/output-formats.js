@@ -382,34 +382,41 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
       let message = "other.js does not export 'a'";
-      let source = path.join(
-        __dirname,
-        '/integration/formats/commonjs-sideeffects/missing-export.js',
-      );
-      await assert.rejects(() => bundle(source), {
-        name: 'BuildError',
-        message,
-        diagnostics: [
-          {
-            message,
-            origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 10,
-                },
-                end: {
-                  line: 1,
-                  column: 15,
+      let source = 'missing-export.js';
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/formats/commonjs-sideeffects',
+              source,
+            ),
+          ),
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: {
+                  start: {
+                    line: 1,
+                    column: 10,
+                  },
+                  end: {
+                    line: 1,
+                    column: 15,
+                  },
                 },
               },
             },
-          },
-        ],
-      });
+          ],
+        },
+      );
     });
 
     it('should support commonjs input', async function() {
@@ -445,8 +452,8 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(!dist.includes('function')); // no iife
-      assert(dist.includes('export const foo'));
-      assert(dist.includes('export const bar = foo + 3'));
+      assert(dist.includes('export { syntheticExport$foo as foo }'));
+      assert(/export const bar = .+ \+ 3/.test(dist));
     });
 
     it('should support esmodule output (default identifier)', async function() {
@@ -504,7 +511,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export var foo'));
+      assert(dist.includes('export { syntheticExport$foo as foo }'));
       assert(!dist.includes('export default'));
     });
 
@@ -622,36 +629,69 @@ describe('output formats', function() {
       assert(async.includes('export const foo'));
     });
 
+    it('should support dynamic imports with chained reexports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-async-chained-reexport/index.js',
+        ),
+      );
+
+      let async = await outputFS.readFile(
+        b.getBundles().find(b => b.name.startsWith('c')).filePath,
+        'utf8',
+      );
+      assert(!/\$export\$default\s+=/.test(async));
+    });
+
+    it('should support dynamic imports with chained reexports II', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-async-chained-reexport2/index.js',
+        ),
+      );
+
+      let async = await outputFS.readFile(
+        b.getChildBundles(b.getBundles().find(b => b.isEntry))[0].filePath,
+        'utf8',
+      );
+      assert(!async.includes('$import$'));
+    });
+
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
       let message = "b.js does not export 'a'";
-      let source = path.join(
-        __dirname,
-        '/integration/formats/esm-sideeffects/missing-export.js',
-      );
-      await assert.rejects(() => bundle(source), {
-        name: 'BuildError',
-        message,
-        diagnostics: [
-          {
-            message,
-            origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 10,
-                },
-                end: {
-                  line: 1,
-                  column: 15,
+      let source = 'missing-export.js';
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
+          ),
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: {
+                  start: {
+                    line: 1,
+                    column: 10,
+                  },
+                  end: {
+                    line: 1,
+                    column: 15,
+                  },
                 },
               },
             },
-          },
-        ],
-      });
+          ],
+        },
+      );
     });
 
     it('should support async split bundles', async function() {

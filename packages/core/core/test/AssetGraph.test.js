@@ -1,13 +1,10 @@
 // @flow
 
 import assert from 'assert';
-import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import AssetGraph, {
   nodeFromAssetGroup,
   nodeFromDep,
   nodeFromEntryFile,
-  nodeFromAsset,
 } from '../src/AssetGraph';
 import {createDependency} from '../src/Dependency';
 import {createAsset} from '../src/assetUtils';
@@ -437,48 +434,5 @@ describe('AssetGraph', () => {
     assert(graph.hasEdge(nodeFromDep(dep1).id, '2'));
     assert(graph.hasEdge('2', nodeFromDep(dep2).id));
     assert(graph.hasEdge(nodeFromDep(dep2).id, '3'));
-  });
-
-  it('should support marking and unmarking parents with hasDeferred', () => {
-    let graph = new AssetGraph();
-
-    let assetGroup = {filePath: '/index.js', env: DEFAULT_ENV};
-    let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    graph.initialize({assetGroups: [assetGroup]});
-    let dependency = createDependency({
-      moduleSpecifier: './utils',
-      env: DEFAULT_ENV,
-      sourcePath: '/index.js',
-    });
-    let depNode = nodeFromDep(dependency);
-    let asset = createAsset({
-      id: '1',
-      filePath: '/index.js',
-      type: 'js',
-      isSource: true,
-      hash: '#1',
-      stats,
-      dependencies: new Map([['utils', dependency]]),
-      env: DEFAULT_ENV,
-      includedFiles: new Map(),
-    });
-    let assetNode = nodeFromAsset(asset);
-    graph.resolveAssetGroup(assetGroup, [asset], '1');
-
-    graph.markParentsWithHasDeferred(depNode);
-    let node = nullthrows(graph.getNode(assetNode.id));
-    invariant(node.type === 'asset');
-    assert(node.hasDeferred);
-    node = nullthrows(graph.getNode(assetGroupNode.id));
-    invariant(node.type === 'asset_group');
-    assert(node.hasDeferred);
-
-    graph.unmarkParentsWithHasDeferred(depNode);
-    node = nullthrows(graph.getNode(assetNode.id));
-    invariant(node.type === 'asset');
-    assert(!node.hasDeferred);
-    node = nullthrows(graph.getNode(assetGroupNode.id));
-    invariant(node.type === 'asset_group');
-    assert(!node.hasDeferred);
   });
 });

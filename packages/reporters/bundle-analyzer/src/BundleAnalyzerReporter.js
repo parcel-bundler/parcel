@@ -12,7 +12,9 @@ export default new Reporter({
   async report({event, options}) {
     if (
       event.type !== 'buildSuccess' ||
-      process.env.PARCEL_BUNDLE_ANALYZER == null
+      process.env.PARCEL_BUNDLE_ANALYZER == null ||
+      // $FlowFixMe
+      process.env.PARCEL_BUNDLE_ANALYZER == false
     ) {
       return;
     }

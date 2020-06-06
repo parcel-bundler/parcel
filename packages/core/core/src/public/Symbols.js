@@ -1,13 +1,18 @@
 // @flow
 import type {
-  Symbol,
-  MutableSymbols as IMutableSymbols,
-  Symbols as ISymbols,
+  Symbol as ISymbol,
+  MutableAssetSymbols as IMutableAssetSymbols,
+  AssetSymbols as IAssetSymbols,
+  MutableDependencySymbols as IMutableDependencySymbols,
   SourceLocation,
 } from '@parcel/types';
 import type {Asset, Dependency} from '../types';
 
-import nullthrows from 'nullthrows';
+const EMPTY_ITERABLE = {
+  [Symbol.iterator]() {
+    return EMPTY_ITERATOR;
+  },
+};
 
 const EMPTY_ITERATOR = {
   next() {
@@ -15,11 +20,11 @@ const EMPTY_ITERATOR = {
   },
 };
 
-let valueToSymbols: WeakMap<Asset, Symbols> = new WeakMap();
+let valueToSymbols: WeakMap<Asset, AssetSymbols> = new WeakMap();
 
-export class Symbols implements ISymbols {
+export class AssetSymbols implements IAssetSymbols {
   /*::
-  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation|}]> { return ({}: any); }
   */
   #value; // Asset
 
@@ -33,15 +38,15 @@ export class Symbols implements ISymbols {
     valueToSymbols.set(asset, this);
   }
 
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|} {
+  get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
     return this.#value.symbols?.get(exportSymbol);
   }
 
-  hasExportSymbol(exportSymbol: Symbol): boolean {
+  hasExportSymbol(exportSymbol: ISymbol): boolean {
     return Boolean(this.#value.symbols?.has(exportSymbol));
   }
 
-  hasLocalSymbol(local: Symbol): boolean {
+  hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols) {
       for (let s of this.#value.symbols.values()) {
         if (local === s.local) return true;
@@ -57,42 +62,60 @@ export class Symbols implements ISymbols {
       : EMPTY_ITERATOR;
   }
 
+  exportSymbols(): Iterable<ISymbol> {
+    // $FlowFixMe
+    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
+  }
+
   get isCleared() {
     return this.#value.symbols == null;
   }
 }
 
-let valueToMutableSymbols: WeakMap<
-  Asset | Dependency,
-  MutableSymbols,
+let valueToMutableAssetSymbols: WeakMap<
+  Asset,
+  MutableAssetSymbols,
 > = new WeakMap();
-
-class MutableSymbols {
+export class MutableAssetSymbols implements IMutableAssetSymbols {
   /*::
-  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation|}]> { return ({}: any); }
   */
-  #value; // Asset
+  #value: Asset;
 
-  constructor(asset: Asset | Dependency) {
+  constructor(asset: Asset) {
+    let existing = valueToMutableAssetSymbols.get(asset);
+    if (existing != null) {
+      return existing;
+    }
     this.#value = asset;
   }
 
-  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation) {
-    nullthrows(
-      this.#value.symbols,
-      'Cannot set symbol on cleared Symbols',
-    ).set(exportSymbol, {local, loc});
+  ensure(): void {
+    let symbols = this.#value.symbols;
+    if (this.#value.symbols == null) {
+      symbols = new Map();
+      this.#value.symbols = symbols;
+    }
   }
 
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|} {
+  set(exportSymbol: ISymbol, local: ISymbol, loc: ?SourceLocation) {
+    let symbols = this.#value.symbols;
+    if (symbols == null) {
+      symbols = new Map();
+      this.#value.symbols = symbols;
+    }
+    symbols.set(exportSymbol, {local, loc});
+  }
+
+  get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
     return this.#value.symbols?.get(exportSymbol);
   }
 
-  hasExportSymbol(exportSymbol: Symbol): boolean {
+  hasExportSymbol(exportSymbol: ISymbol): boolean {
     return Boolean(this.#value.symbols?.has(exportSymbol));
   }
 
-  hasLocalSymbol(local: Symbol): boolean {
+  hasLocalSymbol(local: ISymbol): boolean {
     if (this.#value.symbols) {
       for (let s of this.#value.symbols.values()) {
         if (local === s.local) return true;
@@ -108,43 +131,96 @@ class MutableSymbols {
       : EMPTY_ITERATOR;
   }
 
+  exportSymbols(): Iterable<ISymbol> {
+    // $FlowFixMe
+    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
+  }
+
   get isCleared() {
     return this.#value.symbols == null;
   }
-}
-
-export class MutableDependencySymbols extends MutableSymbols
-  implements IMutableSymbols {
-  #dependency; // Dependency
-  constructor(dependency: Dependency) {
-    let existing = valueToMutableSymbols.get(dependency);
-    if (existing != null) {
-      return ((existing: any): MutableDependencySymbols);
-    }
-
-    super(dependency);
-    this.#dependency = dependency;
-  }
 
   clear() {
-    this.#dependency.symbols.clear();
+    this.#value.symbols = null;
   }
 }
 
-export class MutableAssetSymbols extends MutableSymbols
-  implements IMutableSymbols {
-  #asset; // Asset
-  constructor(asset: Asset) {
-    super(asset);
-    let existing = valueToMutableSymbols.get(asset);
-    if (existing != null) {
-      return ((existing: any): MutableAssetSymbols);
-    }
+let valueToMutableDependencySymbols: WeakMap<
+  Dependency,
+  MutableDependencySymbols,
+> = new WeakMap();
+export class MutableDependencySymbols implements IMutableDependencySymbols {
+  /*::
+  @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation, isWeak: boolean|}]> { return ({}: any); }
+  */
+  #value: Dependency;
 
-    this.#asset = asset;
+  constructor(dep: Dependency) {
+    let existing = valueToMutableDependencySymbols.get(dep);
+    if (existing != null) {
+      return existing;
+    }
+    this.#value = dep;
   }
 
-  clear() {
-    this.#asset.symbols = null;
+  ensure(): void {
+    let symbols = this.#value.symbols;
+    if (this.#value.symbols == null) {
+      symbols = new Map();
+      this.#value.symbols = symbols;
+    }
+  }
+
+  set(
+    exportSymbol: ISymbol,
+    local: ISymbol,
+    loc: ?SourceLocation,
+    isWeak: ?boolean,
+  ) {
+    let symbols = this.#value.symbols;
+    if (symbols == null) {
+      symbols = new Map();
+      this.#value.symbols = symbols;
+    }
+    symbols.set(exportSymbol, {
+      local,
+      loc,
+      isWeak: (symbols.get(exportSymbol)?.isWeak ?? true) && (isWeak ?? false),
+    });
+  }
+
+  get(
+    exportSymbol: ISymbol,
+  ): ?{|local: ISymbol, loc: ?SourceLocation, isWeak: boolean|} {
+    return this.#value.symbols?.get(exportSymbol);
+  }
+
+  hasExportSymbol(exportSymbol: ISymbol): boolean {
+    return Boolean(this.#value.symbols?.has(exportSymbol));
+  }
+
+  hasLocalSymbol(local: ISymbol): boolean {
+    if (this.#value.symbols) {
+      for (let s of this.#value.symbols.values()) {
+        if (local === s.local) return true;
+      }
+    }
+    return false;
+  }
+
+  // $FlowFixMe
+  [Symbol.iterator]() {
+    return this.#value.symbols
+      ? this.#value.symbols[Symbol.iterator]()
+      : EMPTY_ITERATOR;
+  }
+
+  exportSymbols(): Iterable<ISymbol> {
+    // $FlowFixMe
+    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
+  }
+
+  get isCleared() {
+    return this.#value.symbols == null;
   }
 }

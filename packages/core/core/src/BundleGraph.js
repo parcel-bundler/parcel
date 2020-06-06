@@ -971,7 +971,6 @@ export default class BundleGraph {
       };
     }
   }
-
   getAssetById(id: string): Asset {
     let node = this._graph.getNode(id);
     if (node == null) {
@@ -992,15 +991,21 @@ export default class BundleGraph {
     return publicId;
   }
 
-  getExportedSymbols(asset: Asset) {
+  getExportedSymbols(asset: Asset, boundary: ?Bundle) {
     if (!asset.symbols) {
       return [];
     }
 
     let symbols = [];
 
-    for (let symbol of asset.symbols.keys()) {
-      symbols.push({...this.resolveSymbol(asset, symbol), exportAs: symbol});
+    for (let [symbol, {local, loc}] of asset.symbols) {
+      symbols.push({
+        asset,
+        symbol: local,
+        exportSymbol: symbol,
+        loc,
+        exportAs: symbol,
+      });
     }
 
     let deps = this.getDependencies(asset);
@@ -1008,7 +1013,7 @@ export default class BundleGraph {
       if (dep.symbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
-        let exported = this.getExportedSymbols(resolved)
+        let exported = this.getExportedSymbols(resolved, boundary)
           .filter(s => s.exportSymbol !== 'default')
           .map(s => ({...s, exportAs: s.exportSymbol}));
         symbols.push(...exported);
@@ -1076,5 +1081,16 @@ export default class BundleGraph {
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
+  }
+
+  getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol> {
+    let node = this._graph.getNode(asset.id);
+    invariant(node && node.type === 'asset');
+    return new Set(node.usedSymbols);
+  }
+  getUsedSymbolsDependency(dep: Dependency): Set<Symbol> {
+    let node = this._graph.getNode(dep.id);
+    invariant(node && node.type === 'dependency');
+    return node.usedSymbolsUp;
   }
 }

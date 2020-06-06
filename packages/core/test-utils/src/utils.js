@@ -1,8 +1,10 @@
 // @flow
 
 import type {
+  Asset,
   BuildEvent,
   BundleGraph,
+  Dependency,
   FilePath,
   InitialParcelOptions,
   NamedBundle,
@@ -119,6 +121,57 @@ export function bundler(
     contentHash: true,
     ...opts,
   });
+}
+
+export function findAsset(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+): Asset {
+  return nullthrows(
+    bundleGraph.traverseBundles((bundle, context, actions) => {
+      let asset = bundle.traverseAssets((asset, context, actions) => {
+        if (path.basename(asset.filePath) === assetFileName) {
+          actions.stop();
+          return asset;
+        }
+      });
+      if (asset) {
+        actions.stop();
+        return asset;
+      }
+    }),
+    `Couldn't find asset ${assetFileName}`,
+  );
+}
+
+export function findDependency(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): Dependency {
+  let asset = findAsset(bundleGraph, assetFileName);
+
+  let dependency = bundleGraph
+    .getDependencies(asset)
+    .find(d => d.moduleSpecifier === moduleSpecifier);
+  invariant(
+    dependency != null,
+    `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
+  );
+  return dependency;
+}
+
+export function assertDependencyWasDeferred(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): void {
+  invariant(
+    bundleGraph.isDependencyDeferred(
+      findDependency(bundleGraph, assetFileName, moduleSpecifier),
+    ),
+    `The dependency wasn't deferred`,
+  );
 }
 
 export async function bundle(

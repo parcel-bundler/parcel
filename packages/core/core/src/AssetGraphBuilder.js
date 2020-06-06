@@ -1,15 +1,17 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {FilePath, ModuleSpecifier} from '@parcel/types';
+import type {FilePath, ModuleSpecifier, Symbol} from '@parcel/types';
 import type WorkerFarm, {Handle} from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
   AssetGroup,
+  AssetNode,
   AssetRequestInput,
   Dependency,
+  DependencyNode,
   Entry,
   ParcelOptions,
   ValidationOpts,
@@ -19,6 +21,7 @@ import type {EntryResult} from './requests/EntryRequest';
 import type {TargetResolveResult} from './requests/TargetRequest';
 
 import EventEmitter from 'events';
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
@@ -144,8 +147,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     let visited = new Set([root.id]);
-
-    const visit = node => {
+    const visit = (node: AssetGraphNode) => {
       if (errors.length > 0) {
         return;
       }
@@ -159,8 +161,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         );
       }
     };
-
-    const visitChildren = node => {
+    const visitChildren = (node: AssetGraphNode) => {
       for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
         if (
           (!visited.has(child.id) || child.hasDeferred) &&
@@ -171,21 +172,393 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
       }
     };
-
     visit(root);
+
     await this.queue.run();
 
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
+    this.propagateSymbols();
+
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
+
+    // if (symbolsErrors.length > 0) {
+    // throw new ThrowableDiagnostic({diagnostic: symbolsErrors});
+    // }
+
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     let changedAssets = this.changedAssets;
     this.changedAssets = new Map();
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
+  }
+
+  propagateSymbols() {
+    this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
+      let hasDirtyOutgoingDep = false;
+
+      // exportSymbol -> identifier
+      let assetSymbols = assetNode.value.symbols;
+      // identifier -> exportSymbol
+      let assetSymbolsInverse = assetNode.value.symbols
+        ? new Map(
+            [...assetNode.value.symbols].map(([key, val]) => [val.local, key]),
+          )
+        : null;
+
+      let hasNamespaceOutgoingDeps = outgoingDeps.some(
+        d => d.value.symbols?.get('*')?.local === '*',
+      );
+
+      // 1) Determine what the incomingDeps requests from the asset
+      // ----------------------------------------------------------
+
+      let isEntry = false;
+
+      // Used symbols that are exported or reexported (symbol will be removed again later) by asset.
+      assetNode.usedSymbols = new Set();
+
+      // Symbols that have to be namespace reexported by outgoingDeps.
+      let namespaceReexportedSymbols = new Set<Symbol>();
+
+      if (incomingDeps.length === 0) {
+        // Root in the runtimes Graph
+        assetNode.usedSymbols.add('*');
+        namespaceReexportedSymbols.add('*');
+      } else {
+        for (let incomingDep of incomingDeps) {
+          if (incomingDep.value.symbols == null) {
+            isEntry = true;
+            continue;
+          }
+
+          for (let exportSymbol of incomingDep.usedSymbolsDown) {
+            if (exportSymbol === '*') {
+              assetNode.usedSymbols.add('*');
+              namespaceReexportedSymbols.add('*');
+            }
+            if (
+              !assetSymbols ||
+              assetSymbols.has(exportSymbol) ||
+              assetSymbols.has('*')
+            ) {
+              // An own symbol or a non-namespace reexport
+              assetNode.usedSymbols.add(exportSymbol);
+            }
+            // A namespace reexport
+            // (but only if we actually have namespace-exporting outgoing dependencies,
+            // This usually happens with a reexporting asset with many namespace exports which means that
+            // we cannot match up the correct asset with the used symbol at this level.)
+            else if (hasNamespaceOutgoingDeps) {
+              namespaceReexportedSymbols.add(exportSymbol);
+            }
+          }
+        }
+      }
+
+      // console.log(1, {
+      //   asset: assetNode.value.filePath,
+      //   used: assetNode.usedSymbols,
+      //   namespaceReexportedSymbols,
+      //   incomingDeps: incomingDeps.map(d => [
+      //     d.value.moduleSpecifier,
+      //     ...d.usedSymbolsDown,
+      //   ]),
+      // });
+
+      // 2) Distribute the symbols to the outgoing dependencies
+      // ----------------------------------------------------------
+
+      for (let dep of outgoingDeps) {
+        let depUsedSymbolsDownOld = dep.usedSymbolsDown;
+        dep.usedSymbolsDown = new Set();
+        if (
+          assetNode.value.sideEffects || // <-- TODO add this back
+          // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
+          isEntry ||
+          // If not a single asset is used, we can say the entire subgraph is not used.
+          // This is e.g. needed when some symbol is imported and then used for a export which isn't used (= "semi-weak" reexport)
+          //    index.js:     `import {bar} from "./lib"; ...`
+          //    lib/index.js: `export * from "./foo.js"; export * from "./bar.js";`
+          //    lib/foo.js:   `import { data } from "./bar.js"; export const foo = data + " esm2";`
+          // TODO is this really valid?
+          assetNode.usedSymbols.size > 0 ||
+          namespaceReexportedSymbols.size > 0
+        ) {
+          let depSymbols = dep.value.symbols;
+          if (!depSymbols) continue;
+
+          if (depSymbols.get('*')?.local === '*') {
+            for (let s of namespaceReexportedSymbols) {
+              // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
+              dep.usedSymbolsDown.add(s);
+            }
+          }
+
+          for (let [symbol, {local}] of depSymbols) {
+            // Was already handled above
+            if (local === '*') continue;
+
+            if (!assetSymbolsInverse || !depSymbols.get(symbol)?.isWeak) {
+              // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
+              dep.usedSymbolsDown.add(symbol);
+            } else {
+              let reexportedExportSymbol = assetSymbolsInverse.get(local);
+              if (
+                reexportedExportSymbol == null // not reexported = used in asset itself
+              ) {
+                dep.usedSymbolsDown.add(symbol);
+              } else if (
+                assetNode.usedSymbols.has('*') || // we need everything
+                assetNode.usedSymbols.has(reexportedExportSymbol) // reexported
+              ) {
+                // The symbol is indeed a reexport, so it's not used from the asset itself
+                dep.usedSymbolsDown.add(symbol);
+
+                assetNode.usedSymbols.delete(reexportedExportSymbol);
+              }
+            }
+          }
+
+          if (!equalSet(depUsedSymbolsDownOld, dep.usedSymbolsDown))
+            hasDirtyOutgoingDep = true;
+        }
+
+        // console.log(2, {
+        //   from: assetNode.value.filePath,
+        //   to: dep.value.moduleSpecifier,
+        //   dirty: dep.usedSymbolsDownDirty,
+        //   old: [...depUsedSymbolsDownOld]
+        //     .filter(([, v]) => v.size > 0)
+        //     .map(([k, v]) => [k, ...v]),
+        //   new: [...dep.usedSymbolsDown]
+        //     .filter(([, v]) => v.size > 0)
+        //     .map(([k, v]) => [k, ...v]),
+        // });
+      }
+
+      return hasDirtyOutgoingDep;
+    });
+
+    this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
+      let assetSymbols = assetNode.value.symbols;
+
+      if (!assetSymbols) {
+        for (let dep of incomingDeps) {
+          dep.usedSymbolsUp = new Set(assetNode.usedSymbols);
+        }
+      } else {
+        let assetSymbolsInverse = new Map(
+          [...assetSymbols].map(([key, val]) => [val.local, key]),
+        );
+
+        let reexportedSymbols = new Set<Symbol>();
+        for (let outgoingDep of outgoingDeps) {
+          let outgoingDepSymbols = outgoingDep.value.symbols;
+          if (!outgoingDepSymbols) continue;
+
+          if (outgoingDepSymbols.get('*')?.local === '*') {
+            outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
+          }
+
+          for (let s of outgoingDep.usedSymbolsUp) {
+            if (!outgoingDep.usedSymbolsDown.has(s)) {
+              // usedSymbolsDown is a superset of usedSymbolsUp
+              continue;
+            }
+
+            let local = outgoingDepSymbols.get(s)?.local;
+            if (local == null) {
+              // Caused by '*' => '*', already handledn
+              continue;
+            }
+
+            let reexported = assetSymbolsInverse.get(local);
+            if (reexported != null) {
+              reexportedSymbols.add(reexported);
+            }
+          }
+        }
+
+        for (let incomingDep of incomingDeps) {
+          incomingDep.usedSymbolsUp = new Set();
+          let incomingDepSymbols = incomingDep.value.symbols;
+          if (!incomingDepSymbols) continue;
+
+          // let hasNamespaceReexport =
+          // incomingDepSymbols.get('*')?.local === '*';
+          for (let s of incomingDep.usedSymbolsDown) {
+            if (
+              assetNode.usedSymbols.has(s) ||
+              reexportedSymbols.has(s) ||
+              s === '*'
+            ) {
+              incomingDep.usedSymbolsUp.add(s);
+            }
+
+            // else if (!hasNamespaceReexport) {
+            //   let loc = incomingDep.value.symbols?.get(s)?.loc;
+            //   let [resolution] = this.assetGraph.getNodesConnectedFrom(
+            //     incomingDep,
+            //   );
+            //   invariant(resolution && resolution.type === 'asset_group');
+            //   // $FlowFixMe calm down
+            //   errors.push({
+            //     message: `${escapeMarkdown(
+            //       path.relative(
+            //         this.options.inputFS.cwd(),
+            //         resolution.value.filePath,
+            //       ),
+            //     )} does not export '${s}'`,
+            //     origin: '@parcel/core',
+            //     filePath: loc?.filePath,
+            //     codeFrame: loc
+            //       ? {
+            //           codeHighlights: [
+            //             {
+            //               start: loc.start,
+            //               end: loc.end,
+            //             },
+            //           ],
+            //         }
+            //       : undefined,
+            //   });
+            // }
+          }
+        }
+      }
+    });
+  }
+
+  propagateSymbolsDown(
+    visit: (
+      node: AssetNode,
+      incoming: $ReadOnlyArray<DependencyNode>,
+      outgoing: $ReadOnlyArray<DependencyNode>,
+    ) => boolean,
+  ) {
+    let root = this.assetGraph.getRootNode();
+    if (!root) {
+      throw new Error('A root node is required to traverse');
+    }
+
+    let queue: Array<AssetGraphNode> = [root];
+    let visited = new Set<AssetGraphNode>([root]);
+    let skipped = new Set<AssetGraphNode>();
+
+    // First do a topological BFS to prevent cascading updates...
+    while (queue.length > 0) {
+      let node = queue.shift();
+      let outgoing = this.assetGraph.getNodesConnectedFrom(node);
+      if (
+        node.type !== 'dependency' &&
+        this.assetGraph.getNodesConnectedTo(node).some(d => !visited.has(d))
+      ) {
+        // ... by visiting nodes once all parents were visited, it will be visited again later by the last parent
+        skipped.add(node);
+      } else {
+        if (node.type === 'asset') {
+          visit(
+            node,
+            this.assetGraph.getIncomingDependencies(node.value).map(d => {
+              let dep = this.assetGraph.getNode(d.id);
+              invariant(dep && dep.type === 'dependency');
+              return dep;
+            }),
+            outgoing.map(dep => {
+              invariant(dep.type === 'dependency');
+              return dep;
+            }),
+          );
+        }
+
+        visited.add(node);
+        skipped.delete(node);
+        for (let child of outgoing) {
+          if (!visited.has(child)) {
+            queue.push(child);
+          }
+        }
+      }
+    }
+
+    // For dependency circles in the graph, all nodes in the circle are skipped, so now
+    // traverse remaining and just accept we have to do cascading updates if something changed.
+    queue = [...skipped];
+    let dirty = new Set();
+    while (queue.length > 0) {
+      let node = queue.shift();
+      let outgoing = this.assetGraph.getNodesConnectedFrom(node);
+      let hasDirtyOutgoingDep = false;
+      if (node.type === 'asset') {
+        hasDirtyOutgoingDep = visit(
+          node,
+          this.assetGraph.getIncomingDependencies(node.value).map(d => {
+            let dep = this.assetGraph.getNode(d.id);
+            invariant(dep && dep.type === 'dependency');
+            return dep;
+          }),
+          outgoing.map(dep => {
+            invariant(dep.type === 'dependency');
+            return dep;
+          }),
+        );
+      }
+
+      visited.add(node);
+      let forceVisitChildren =
+        (node.type !== 'asset' && dirty.has(node)) || hasDirtyOutgoingDep;
+      for (let child of outgoing) {
+        if (forceVisitChildren) dirty.add(child);
+        if (forceVisitChildren || !visited.has(child)) {
+          queue.push(child);
+        }
+      }
+      dirty.delete(node);
+    }
+  }
+
+  propagateSymbolsUp(
+    visit: (
+      node: AssetNode,
+      incoming: $ReadOnlyArray<DependencyNode>,
+      outgoing: $ReadOnlyArray<DependencyNode>,
+    ) => void,
+  ): void {
+    // postorder DFS
+    let root = this.assetGraph.getRootNode();
+    if (!root) {
+      throw new Error('A root node is required to traverse');
+    }
+
+    let visited = new Set([root.id]);
+    const walk = (node: AssetGraphNode) => {
+      let outgoing = this.assetGraph.getNodesConnectedFrom(node);
+      for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          walk(child);
+        }
+      }
+      if (node.type === 'asset') {
+        visit(
+          node,
+          this.assetGraph.getIncomingDependencies(node.value).map(d => {
+            let n = this.assetGraph.getNode(d.id);
+            invariant(n && n.type === 'dependency');
+            return n;
+          }),
+          outgoing.map(dep => {
+            invariant(dep.type === 'dependency');
+            return dep;
+          }),
+        );
+      }
+    };
+    walk(root);
   }
 
   // TODO: turn validation into a request
@@ -372,4 +745,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       opts,
     );
   }
+}
+
+function equalSet<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>) {
+  return a.size === b.size && [...a].every(i => b.has(i));
 }

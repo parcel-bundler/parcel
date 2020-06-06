@@ -41,10 +41,13 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     id: dep.id,
     type: 'dependency',
     value: dep,
+    deferred: false,
+    usedSymbolsDown: new Set(),
+    usedSymbolsUp: new Set(),
   };
 }
 
-export function nodeFromAssetGroup(assetGroup: AssetGroup) {
+export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: md5FromObject({
       ...assetGroup,
@@ -56,11 +59,12 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup) {
   };
 }
 
-export function nodeFromAsset(asset: Asset) {
+export function nodeFromAsset(asset: Asset): AssetNode {
   return {
     id: asset.id,
     type: 'asset',
     value: asset,
+    usedSymbols: new Set(),
   };
 }
 
@@ -154,8 +158,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     targets: Array<Target>,
     correspondingRequest: string,
   ) {
-    let depNodes = targets.map(target =>
-      nodeFromDep(
+    let depNodes = targets.map(target => {
+      let node = nodeFromDep(
         createDependency({
           moduleSpecifier: entry.filePath,
           pipeline: target.pipeline,
@@ -163,8 +167,14 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           env: target.env,
           isEntry: true,
         }),
-      ),
-    );
+      );
+      if (target.env.isLibrary) {
+        node.value.symbols = node.value.symbols || new Map();
+        // in library mode, all of the entry's symbols are "used"
+        node.usedSymbolsDown.add('*');
+      }
+      return node;
+    });
 
     let entryNode = nullthrows(this.getNode(nodeFromEntryFile(entry).id));
     invariant(entryNode.type === 'entry_file');
@@ -257,32 +267,39 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   // a huge number of functions since we can avoid even transforming the files that aren't used.
   shouldDeferDependency(dependency: Dependency, sideEffects: ?boolean) {
     let defer = false;
+    let dependencySymbols = dependency.symbols;
     if (
-      dependency.isWeak &&
+      dependencySymbols &&
+      [...dependencySymbols].every(([, {isWeak}]) => isWeak) &&
       sideEffects === false &&
-      !dependency.symbols.has('*')
+      !dependencySymbols.has('*')
     ) {
       let depNode = this.getNode(dependency.id);
       invariant(depNode);
 
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = new Map(
-        [...dependency.symbols].map(([key, val]) => [val.local, key]),
+        [...dependencySymbols].map(([key, val]) => [val.local, key]),
       );
       invariant(assets.length === 1);
       let firstAsset = assets[0];
-      invariant(firstAsset.type === 'asset');
-      let resolvedAsset = firstAsset.value;
-      let deps = this.getIncomingDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
-          !(d.env.isLibrary && d.isEntry) &&
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
-            let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
-            return assetSymbol != null && symbols.has(assetSymbol);
-          }),
-      );
+      if (firstAsset.type === 'entry_file') {
+        defer = false;
+      } else {
+        invariant(firstAsset.type === 'asset');
+        let resolvedAsset = firstAsset.value;
+        let deps = this.getIncomingDependencies(resolvedAsset);
+        defer = deps.every(
+          d =>
+            d.symbols &&
+            !(d.env.isLibrary && d.isEntry) &&
+            !d.symbols.has('*') &&
+            ![...d.symbols.keys()].some(symbol => {
+              let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
+              return assetSymbol != null && symbols.has(assetSymbol);
+            }),
+        );
+      }
     }
     return defer;
   }
