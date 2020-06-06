@@ -298,8 +298,8 @@ describe('css', () => {
     assert.equal(map.file, 'index.css.map');
     assert.equal(map.mappings, 'AAAA,OACA,WACA,CCFA,OACA,SACA');
     assert.deepEqual(map.sources, [
-      'integration/cssnano/local.css',
-      'integration/cssnano/index.css',
+      './integration/cssnano/local.css',
+      './integration/cssnano/index.css',
     ]);
   });
 

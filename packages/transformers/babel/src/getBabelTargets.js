@@ -92,6 +92,6 @@ async function loadBrowserslist(config): Promise<?BrowserslistConfig> {
   );
 
   if (browserslistConfig) {
-    return browserslist.parseConfig(browserslistConfig);
+    return browserslist.parseConfig(browserslistConfig.contents);
   }
 }

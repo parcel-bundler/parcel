@@ -1,5 +1,5 @@
 {
-  "spec": "packages/*/!(parcel-bundler|integration-tests)/test/*.js",
+  "spec": "packages/*/!(parcel-bundler|integration-tests|fs-write-stream-atomic)/test/*.js",
   "require": ["@parcel/babel-register", "@parcel/test-utils/src/mochaSetup.js"],
   // TODO: Remove this when https://github.com/nodejs/node/pull/28788 is resolved
   "exit": true
