@@ -73,9 +73,11 @@ export async function load({
     {packageKey: 'postcss'},
   );
 
-  let configPath = config.resolvedPath;
-  if (configPath) {
-    if (path.extname(configPath) === '.js') {
+  let contents = null;
+  if (configFile) {
+    contents = configFile.contents;
+    let isDynamic = configFile && path.extname(configFile.filePath) === '.js';
+    if (isDynamic) {
       logger.warn({
         message:
           'WARNING: Using a JavaScript PostCSS config file means losing out on caching features of Parcel. Use a .postcssrc(.json) file whenever possible.',
@@ -84,49 +86,47 @@ export async function load({
       config.shouldInvalidateOnStartup();
     }
 
-    if (configFile) {
-      if (typeof configFile !== 'object') {
-        throw new Error('PostCSS config should be an object.');
+    if (typeof contents !== 'object') {
+      throw new Error('PostCSS config should be an object.');
+    }
+
+    if (
+      contents.plugins == null ||
+      typeof contents.plugins !== 'object' ||
+      Object.keys(contents.plugins) === 0
+    ) {
+      throw new Error('PostCSS config must have plugins');
+    }
+
+    let configFilePlugins = Array.isArray(contents.plugins)
+      ? contents.plugins
+      : Object.keys(contents.plugins);
+    for (let p of configFilePlugins) {
+      // JavaScript configs can use an array of functions... opt out of all caching...
+      if (typeof p === 'function') {
+        contents.__contains_functions = true;
+
+        // This should enforce the config to be revalidated as it can contain functions and is JS
+        config.shouldInvalidateOnStartup();
+        config.shouldReload();
       }
 
-      if (
-        configFile.plugins == null ||
-        typeof configFile.plugins !== 'object' ||
-        Object.keys(configFile.plugins) === 0
-      ) {
-        throw new Error('PostCSS config must have plugins');
-      }
+      if (typeof p === 'string') {
+        if (p.startsWith('.')) {
+          logger.warn({
+            message:
+              'WARNING: Using relative PostCSS plugins means losing out on caching features of Parcel. Bundle this plugin up in a package or use a monorepo to resolve this issue.',
+          });
 
-      let configFilePlugins = Array.isArray(configFile.plugins)
-        ? configFile.plugins
-        : Object.keys(configFile.plugins);
-      for (let p of configFilePlugins) {
-        // JavaScript configs can use an array of functions... opt out of all caching...
-        if (typeof p === 'function') {
-          configFile.__contains_functions = true;
-
-          // This should enforce the config to be revalidated as it can contain functions and is JS
           config.shouldInvalidateOnStartup();
-          config.shouldReload();
         }
 
-        if (typeof p === 'string') {
-          if (p.startsWith('.')) {
-            logger.warn({
-              message:
-                'WARNING: Using relative PostCSS plugins means losing out on caching features of Parcel. Bundle this plugin up in a package or use a monorepo to resolve this issue.',
-            });
-
-            config.shouldInvalidateOnStartup();
-          }
-
-          config.addDevDependency(p);
-        }
+        config.addDevDependency(p);
       }
     }
   }
 
-  return configHydrator(configFile, config, options);
+  return configHydrator(contents, config, options);
 }
 
 export function preSerialize(config: Config) {
