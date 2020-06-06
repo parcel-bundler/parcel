@@ -32,6 +32,7 @@ import {relativeBundlePath} from '@parcel/utils';
 import rename from '../renamer';
 import {
   getName,
+  getExportIdentifier,
   removeReplaceBinding,
   getThrowableDiagnosticForNode,
   verifyScopeState,
@@ -130,15 +131,12 @@ export function generateExports(
 ) {
   // maps the bundles's export symbols to the bindings
   let exportedIdentifiers = new Map<Symbol, Symbol>();
+  let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {
-      exportAs,
-      exportSymbol,
-      symbol,
-      asset,
-      loc,
-    } of bundleGraph.getExportedSymbols(entry)) {
+    for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
+      bundleGraph.getExportedSymbols(entry, bundle),
+    )) {
       if (symbol != null) {
         symbol = replacements.get(symbol) || symbol;
 
@@ -159,13 +157,8 @@ export function generateExports(
 
         exportedIdentifiers.set(exportAs, symbol);
       } else if (symbol === null) {
-        // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
-        let relativePath = relative(options.projectRoot, asset.filePath);
-        throw getThrowableDiagnosticForNode(
-          `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
-          entry.filePath,
-          loc,
-        );
+        // `asset.meta.exportsIdentifier[exportSymbol]` should be exported
+        exportedIdentifiersBailout.set(exportAs, [asset, exportSymbol]);
       } else {
         let relativePath = relative(options.projectRoot, asset.filePath);
         throw getThrowableDiagnosticForNode(
@@ -217,6 +210,8 @@ export function generateExports(
       let defaultExport = exportedIdentifiers.get('default');
       if (!ids.includes(defaultExport)) {
         defaultExport = null;
+      } else {
+        exportedIdentifiers.delete('default');
       }
 
       // If all exports in the binding are named exports, export the entire declaration.
@@ -322,8 +317,71 @@ export function generateExports(
           }
         }
       }
+      exportedSymbols.forEach(s => exportedIdentifiers.delete(s));
     },
   });
+
+  // invariant(
+  //   exportedIdentifiers.size === 0,
+  //   [...exportedIdentifiers.keys()].join(', '),
+  // );
+
+  if (exportedIdentifiers.size > 0) {
+    let declarations = [];
+    let exportedIdentifiersSpecifiers = [];
+    for (let [exportAs, symbol] of exportedIdentifiers) {
+      declarations.push(
+        t.variableDeclarator(
+          t.identifier('syntheticExport$' + exportAs),
+          t.identifier(symbol),
+        ),
+      );
+      exportedIdentifiersSpecifiers.push(
+        t.exportSpecifier(
+          t.identifier('syntheticExport$' + exportAs),
+          t.identifier(exportAs),
+        ),
+      );
+    }
+    programPath.pushContainer('body', [
+      t.variableDeclaration('var', declarations),
+      t.exportNamedDeclaration(null, exportedIdentifiersSpecifiers),
+    ]);
+    programPath.scope.crawl();
+  }
+
+  if (exportedIdentifiersBailout.size > 0) {
+    let declarations = [];
+    let exportedIdentifiersBailoutSpecifiers = [];
+    for (let [exportAs, [asset, exportSymbol]] of exportedIdentifiersBailout) {
+      invariant(
+        !programPath.scope.hasBinding(
+          getExportIdentifier(asset, exportSymbol).name,
+        ),
+      );
+      invariant(programPath.scope.hasBinding(getName(asset, 'init')));
+      declarations.push(
+        t.variableDeclarator(
+          getExportIdentifier(asset, exportSymbol),
+          t.memberExpression(
+            t.callExpression(t.identifier(getName(asset, 'init')), []), // it isn't in this bundle, TODO import if not already there
+            t.identifier(exportSymbol),
+          ),
+        ),
+      );
+      exportedIdentifiersBailoutSpecifiers.push(
+        t.exportSpecifier(
+          getExportIdentifier(asset, exportSymbol),
+          t.identifier(exportAs),
+        ),
+      );
+    }
+    programPath.pushContainer('body', [
+      t.variableDeclaration('var', declarations),
+      t.exportNamedDeclaration(null, exportedIdentifiersBailoutSpecifiers),
+    ]);
+    programPath.scope.crawl();
+  }
 
   return exported;
 }

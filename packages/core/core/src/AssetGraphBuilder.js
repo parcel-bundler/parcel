@@ -145,34 +145,38 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let visited = new Set([root.id]);
 
-    const visit = node => {
+    const visit = (parent: ?AssetGraphNode, node: AssetGraphNode) => {
       if (errors.length > 0) {
         return;
       }
 
       if (this.shouldSkipRequest(node)) {
-        visitChildren(node);
+        visitChildren(parent, node);
       } else {
         this.queueCorrespondingRequest(node).then(
-          () => visitChildren(node),
+          () => visitChildren(parent, node),
           error => errors.push(error),
         );
       }
     };
 
-    const visitChildren = node => {
+    const visitChildren = (parent: ?AssetGraphNode, node: AssetGraphNode) => {
       for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
         if (
-          (!visited.has(child.id) || child.hasDeferred) &&
-          this.assetGraph.shouldVisitChild(node, child)
+          this.assetGraph.shouldVisitChild(
+            parent,
+            node,
+            child,
+            visited.has(child.id),
+          )
         ) {
           visited.add(child.id);
-          visit(child);
+          visit(node, child);
         }
       }
     };
 
-    visit(root);
+    visit(null, root);
     await this.queue.run();
 
     if (errors.length) {

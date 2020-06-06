@@ -5,6 +5,7 @@ import type {
   SourceLocation,
   Meta,
   MutableSymbols as IMutableSymbols,
+  Symbol as CodeSymbol,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 
@@ -72,10 +73,6 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isURL;
   }
 
-  get isWeak(): boolean {
-    return !!this.#dep.isWeak;
-  }
-
   get isIsolated(): boolean {
     return !!this.#dep.isIsolated;
   }
@@ -94,6 +91,10 @@ export default class Dependency implements IDependency {
 
   get symbols(): IMutableSymbols {
     return new MutableDependencySymbols(this.#dep);
+  }
+
+  get weakSymbols(): Set<CodeSymbol> {
+    return this.#dep.weakSymbols;
   }
 
   get target(): ?Target {

@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  Asset,
   BuildEvent,
   BundleGraph,
   FilePath,
@@ -119,6 +120,46 @@ export function bundler(
     contentHash: true,
     ...opts,
   });
+}
+
+export function findAsset(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+): ?Asset {
+  return bundleGraph.traverseBundles((bundle, context, actions) => {
+    let asset = bundle.traverseAssets((asset, context, actions) => {
+      if (path.basename(asset.filePath) === assetFileName) {
+        actions.stop();
+        return asset;
+      }
+    });
+    if (asset) {
+      actions.stop();
+      return asset;
+    }
+  });
+}
+
+export function assertDependencyWasDeferred(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): void {
+  let asset = findAsset(bundleGraph, assetFileName);
+  invariant(asset, `Couldn't find asset ${assetFileName}`);
+
+  let dependency = bundleGraph
+    .getDependencies(asset)
+    .find(d => d.moduleSpecifier === moduleSpecifier);
+  invariant(
+    dependency != null,
+    `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
+  );
+
+  invariant(
+    bundleGraph.isDependencyDeferred(dependency),
+    `The dependency wasn't deferred`,
+  );
 }
 
 export async function bundle(

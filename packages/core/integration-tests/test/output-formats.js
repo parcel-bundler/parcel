@@ -382,34 +382,41 @@ describe('output formats', function() {
 
     it('should throw an error on missing export with esmodule input and sideEffects: false', async function() {
       let message = "other.js does not export 'a'";
-      let source = path.join(
-        __dirname,
-        '/integration/formats/commonjs-sideeffects/missing-export.js',
-      );
-      await assert.rejects(() => bundle(source), {
-        name: 'BuildError',
-        message,
-        diagnostics: [
-          {
-            message,
-            origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 10,
-                },
-                end: {
-                  line: 1,
-                  column: 15,
+      let source = 'missing-export.js';
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(
+              __dirname,
+              '/integration/formats/commonjs-sideeffects',
+              source,
+            ),
+          ),
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: {
+                  start: {
+                    line: 1,
+                    column: 10,
+                  },
+                  end: {
+                    line: 1,
+                    column: 15,
+                  },
                 },
               },
             },
-          },
-        ],
-      });
+          ],
+        },
+      );
     });
 
     it('should support commonjs input', async function() {
@@ -622,36 +629,54 @@ describe('output formats', function() {
       assert(async.includes('export const foo'));
     });
 
+    it('should support dynamic imports with chained reexports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-async-chained-reexport/index.js',
+        ),
+      );
+
+      let async = await outputFS.readFile(
+        b.getBundles().find(b => b.name.startsWith('c')).filePath,
+        'utf8',
+      );
+      assert(!/\$export\$default\s+=/.test(async));
+    });
+
     it('should throw an error on missing export with esmodule output and sideEffects: false', async function() {
       let message = "b.js does not export 'a'";
-      let source = path.join(
-        __dirname,
-        '/integration/formats/esm-sideeffects/missing-export.js',
-      );
-      await assert.rejects(() => bundle(source), {
-        name: 'BuildError',
-        message,
-        diagnostics: [
-          {
-            message,
-            origin: '@parcel/packager-js',
-            filePath: source,
-            language: 'js',
-            codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 10,
-                },
-                end: {
-                  line: 1,
-                  column: 15,
+      let source = 'missing-export.js';
+      await assert.rejects(
+        () =>
+          bundle(
+            path.join(__dirname, 'integration/formats/esm-sideeffects', source),
+          ),
+        {
+          name: 'BuildError',
+          message,
+          diagnostics: [
+            {
+              message,
+              origin: '@parcel/packager-js',
+              filePath: source,
+              language: 'js',
+              codeFrame: {
+                codeHighlights: {
+                  start: {
+                    line: 1,
+                    column: 10,
+                  },
+                  end: {
+                    line: 1,
+                    column: 15,
+                  },
                 },
               },
             },
-          },
-        ],
-      });
+          ],
+        },
+      );
     });
 
     it('should support async split bundles', async function() {

@@ -4,6 +4,7 @@ import type {
   BundleGraph,
   MutableAsset,
   NamedBundle,
+  ExportSymbolResolution,
   SourceLocation,
 } from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
@@ -15,6 +16,7 @@ import type {
   ImportNamespaceSpecifier,
   ImportSpecifier,
   Node,
+  Program,
   VariableDeclarator,
 } from '@babel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
@@ -248,6 +250,7 @@ export function verifyScopeState(scope: Scope) {
     invariant(aPath === bPath, name);
     invariant(aId === bId, name);
     invariant(aScope === bScope, name);
+    // console.log(a, b, aReferencePaths.length, bReferencePaths.length);
     invariant.deepStrictEqual(a, b, name);
 
     invariant(aConstantViolations.length === bConstantViolations.length, name);
@@ -318,4 +321,139 @@ export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
       column: end.column,
     },
   };
+}
+
+export function getExportNamespaceExpression(
+  program: NodePath<Program>,
+  bundleGraph: BundleGraph<NamedBundle>,
+  asset: Asset,
+  bundle: NamedBundle,
+) {
+  let exportedSymbols = getExportedSymbolsShallow(bundleGraph, asset, bundle);
+  let namespaceExport = exportedSymbols?.find(({exportAs}) => exportAs === '*');
+  if (!exportedSymbols) {
+    return t.identifier(assertString(asset.meta.exportsIdentifier));
+  } else if (namespaceExport) {
+    return t.identifier(nullthrows(namespaceExport.symbol));
+  } else {
+    return t.objectExpression(
+      exportedSymbols
+        .map(({symbol, exportAs, exportSymbol, asset: symbolAsset}) => {
+          if (symbol != null) {
+            return t.objectProperty(
+              t.identifier(exportAs),
+              t.identifier(symbol),
+            );
+          } else if (exportSymbol === '*') {
+            return t.objectProperty(
+              t.identifier(exportAs),
+              getExportNamespaceExpression(
+                program,
+                bundleGraph,
+                symbolAsset,
+                bundle,
+              ),
+            );
+          } else {
+            // TODO this shouldn't even be in usedSymbols
+            return null;
+          }
+        })
+        .filter(Boolean)
+        .concat(
+          asset.meta.isES6Module
+            ? [
+                // TODO why do shared bundle imports sometimes need interop?
+                t.objectProperty(
+                  t.identifier('__esModule'),
+                  t.booleanLiteral(true),
+                ),
+              ]
+            : [],
+        ),
+    );
+  }
+}
+
+export function getExportedSymbolsShallow(
+  bundleGraph: BundleGraph<NamedBundle>,
+  asset: Asset,
+  boundary: ?NamedBundle,
+): ?Array<ExportSymbolResolution> {
+  let assetSymbols = asset.symbols;
+  if (assetSymbols.isCleared) {
+    return null;
+  }
+
+  let assetSymbolsInverse = new Map(
+    [...assetSymbols].map(([key, val]) => [val.local, key]),
+  );
+  let assetSymbolsUsed = bundleGraph.getUsedSymbolsAsset(asset);
+
+  let symbols = [];
+
+  if (assetSymbolsUsed.size > 0 && assetSymbols.hasExportSymbol('*')) {
+    return [
+      {
+        asset,
+        exportSymbol: '*',
+        symbol: nullthrows(assetSymbols.get('*')).local,
+        loc: nullthrows(assetSymbols.get('*')).loc,
+        exportAs: '*',
+      },
+    ];
+  }
+
+  let assetUsedAll = assetSymbolsUsed.has('*');
+  for (let symbol of assetSymbols.exportSymbols()) {
+    if (assetUsedAll || assetSymbolsUsed.has(symbol)) {
+      // symbols.push({
+      //   ...this.resolveSymbol(asset, symbol, boundary),
+      //   exportAs: symbol,
+      // });
+      symbols.push({
+        asset,
+        exportSymbol: symbol,
+        symbol: nullthrows(assetSymbols.get(symbol)).local,
+        loc: nullthrows(assetSymbols.get(symbol)).loc,
+        exportAs: symbol,
+      });
+    }
+  }
+
+  let deps = bundleGraph.getDependencies(asset);
+  for (let dep of deps) {
+    let depNamespace = dep.symbols.get('*')?.local === '*';
+    for (let symbol of bundleGraph.getUsedSymbolsDependency(dep)) {
+      let resolved = bundleGraph.getDependencyResolution(dep);
+      if (!resolved) continue;
+      let local = dep.symbols.get(symbol)?.local;
+      if (symbol === '*' && local === '*') {
+        let exported = getExportedSymbolsShallow(
+          bundleGraph,
+          resolved,
+          boundary,
+        );
+        if (exported) {
+          symbols.push(
+            ...exported
+              .filter(s => s.exportSymbol !== 'default')
+              .map(s => ({...s, exportAs: s.exportSymbol})),
+          );
+        } else {
+          invariant(false);
+        }
+      } else {
+        let exportAs = assetSymbolsInverse.get(local);
+        if (exportAs != null || (depNamespace && symbol !== '*')) {
+          symbols.push({
+            ...bundleGraph.resolveSymbol(resolved, symbol, boundary),
+            exportAs: exportAs ?? symbol,
+          });
+        }
+      }
+    }
+  }
+
+  return symbols;
 }

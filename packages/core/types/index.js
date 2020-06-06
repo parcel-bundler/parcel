@@ -276,6 +276,7 @@ export interface Symbols // eslint-disable-next-line no-undef
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
+  exportSymbols(): Iterable<Symbol>;
   // Whether static analysis bailed out
   +isCleared: boolean;
 }
@@ -291,13 +292,13 @@ export type DependencyOptions = {|
   +isEntry?: boolean,
   +isOptional?: boolean,
   +isURL?: boolean,
-  +isWeak?: ?boolean,
   +isIsolated?: boolean,
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +weakSymbols?: Set<Symbol>,
 |};
 
 export interface Dependency {
@@ -307,7 +308,6 @@ export interface Dependency {
   +isEntry: ?boolean;
   +isOptional: boolean;
   +isURL: boolean;
-  +isWeak: ?boolean;
   +isIsolated: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
@@ -317,9 +317,10 @@ export interface Dependency {
   +sourcePath: ?string;
   +pipeline: ?string;
 
-  // (imported symbol -> variable that it is used as)
   // TODO make immutable
+  // (imported symbol -> variable that it is used as)
   +symbols: MutableSymbols;
+  +weakSymbols: Set<Symbol>;
 }
 
 export type File = {|
@@ -716,11 +717,16 @@ export interface BundleGraph<TBundle: Bundle> {
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
-  getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
+  getExportedSymbols(
+    asset: Asset,
+    boundary: ?Bundle,
+  ): ?Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
   ): ?TContext;
+  getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol>;
+  getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol>;
 }
 
 export type BundleResult = {|

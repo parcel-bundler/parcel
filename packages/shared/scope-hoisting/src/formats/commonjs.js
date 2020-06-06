@@ -421,13 +421,9 @@ export function generateExports(
         }
       }
     } else {
-      for (let {
-        exportAs,
-        exportSymbol,
-        symbol,
-        asset,
-        loc,
-      } of bundleGraph.getExportedSymbols(entry)) {
+      for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
+        bundleGraph.getExportedSymbols(entry),
+      )) {
         if (symbol != null) {
           let hasReplacement = replacements.get(symbol);
           symbol = hasReplacement ?? symbol;

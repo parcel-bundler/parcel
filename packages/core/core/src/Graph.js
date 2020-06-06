@@ -320,7 +320,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   // Update a node's downstream nodes making sure to prune any orphaned branches
   replaceNodesConnectedTo(
     fromNode: TNode,
-    toNodes: Array<TNode>,
+    toNodes: $ReadOnlyArray<TNode>,
     replaceFilter?: null | (TNode => boolean),
     type?: TEdgeType | null = null,
   ): void {

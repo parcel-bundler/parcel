@@ -17,17 +17,23 @@ import type {
 import * as t from '@babel/types';
 import {
   isAssignmentExpression,
+  // isCallExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isExpression,
+  // isExpressionStatement,
+  // isFunction,
   isFunctionDeclaration,
   isIdentifier,
   isImportDefaultSpecifier,
   isImportNamespaceSpecifier,
   isImportSpecifier,
   isMemberExpression,
+  // isObjectPattern,
+  // isObjectProperty,
+  // isSequenceExpression,
   isStringLiteral,
   isUnaryExpression,
 } from '@babel/types';
@@ -463,12 +469,43 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
+      // if (!isUnusedValue(path) && dep.isAsync) {
+      //   // match `import(xxx).then(({ default: b }) => ...);`
+      //   let {parent} = path;
+      //   if (
+      //     isMemberExpression(parent, {object: path.node}) &&
+      //     isIdentifier(parent.property, {name: 'then'}) &&
+      //     isCallExpression(path.parentPath.parent, {
+      //       callee: parent,
+      //     }) &&
+      //     path.parentPath.parent.arguments.length === 1 &&
+      //     isFunction(path.parentPath.parent.arguments[0]) &&
+      //     // $FlowFixMe
+      //     path.parentPath.parent.arguments[0].params.length === 1 &&
+      //     isObjectPattern(path.parentPath.parent.arguments[0].params[0]) &&
+      //     path.parentPath.parent.arguments[0].params[0].properties.every(
+      //       p => isObjectProperty(p) && isIdentifier(p.key),
+      //     )
+      //   ) {
+      //     for (let imported of path.parentPath.parent.arguments[0].params[0].properties.map(
+      //       // $FlowFixMe
+      //       ({key}) => key.name,
+      //     )) {
+      //       dep.symbols.set(
+      //         imported,
+      //         getName(asset, 'import', imported),
+      //         convertBabelLoc(path.node.loc),
+      //       );
+      //     }
+      //   } else {
       dep.meta.isCommonJS = true;
       dep.symbols.set(
         '*',
         getName(asset, 'require', source),
         convertBabelLoc(path.node.loc),
       );
+      //   }
+      // }
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -607,13 +644,8 @@ const VISITOR: Visitor<MutableAsset> = {
           if (existing) {
             id.name = existing;
           } else {
-            // this will merge with the existing dependency
-            let loc = convertBabelLoc(specifier.loc);
-            asset.addDependency({
-              moduleSpecifier: dep.moduleSpecifier,
-              symbols: new Map([[imported, {local: id.name, loc}]]),
-              isWeak: true,
-            });
+            dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
+            dep.weakSymbols.add(imported);
           }
         }
 
@@ -662,6 +694,7 @@ const VISITOR: Visitor<MutableAsset> = {
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
       dep.symbols.set('*', '*', convertBabelLoc(path.node.loc));
+      dep.weakSymbols.add('*');
     }
 
     path.replaceWith(
@@ -798,3 +831,14 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
     return getExportsIdentifier(asset, scope);
   }
 }
+
+// function isUnusedValue(path) {
+//   let {parent} = path;
+//   return (
+//     isExpressionStatement(parent) ||
+//     (isSequenceExpression(parent) &&
+//       ((Array.isArray(path.container) &&
+//         path.key !== path.container.length - 1) ||
+//         isUnusedValue(path.parentPath)))
+//   );
+// }

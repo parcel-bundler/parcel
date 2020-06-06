@@ -16,7 +16,9 @@ import type {
   FunctionDeclaration,
   Identifier,
   LVal,
+  ObjectExpression,
   ObjectProperty,
+  Program,
   Statement,
   StringLiteral,
   VariableDeclaration,
@@ -30,6 +32,7 @@ import template from '@babel/template';
 import * as t from '@babel/types';
 import {
   isAssignmentExpression,
+  isBooleanLiteral,
   isExpressionStatement,
   isIdentifier,
   isObjectPattern,
@@ -43,6 +46,7 @@ import {
   convertBabelLoc,
   getName,
   getIdentifier,
+  getExportNamespaceExpression,
   getThrowableDiagnosticForNode,
   verifyScopeState,
 } from './utils';
@@ -67,7 +71,7 @@ const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
   Expression,
 >('require.resolve(ID)');
 const FAKE_INIT_TEMPLATE = template.statement<
-  {|INIT: Identifier, EXPORTS: Identifier|},
+  {|INIT: Identifier, EXPORTS: Expression|},
   FunctionDeclaration,
 >(`function INIT(){
   return EXPORTS;
@@ -94,6 +98,8 @@ export function link({
 
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
+
+  // return {ast, referencedAssets}
 
   // If building a library, the target is actually another bundler rather
   // than the final output that could be loaded in a browser. So, loader
@@ -428,6 +434,28 @@ export function link({
     }
   }
 
+  function registerIdOrObject(
+    program: NodePath<Program>,
+    path: NodePath<ObjectExpression | Identifier>,
+  ) {
+    if (path.isIdentifier()) {
+      // TODO Somehow deferred/excluded assets are referenced, causing this function to
+      // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
+      // But a asset that isn't here should never be referenced in the first place.
+      // $FlowFixMe is *is* an Identifier
+      maybeReplaceIdentifier(path);
+      // $FlowFixMe is *is* an Identifier
+      program.scope.getBinding(path.node.name)?.reference(path);
+    } else {
+      for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
+        'properties',
+      )) {
+        if (isBooleanLiteral(prop.node.value)) continue;
+        registerIdOrObject(program, prop.get('value'));
+      }
+    }
+  }
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -463,8 +491,13 @@ export function link({
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
             );
-          } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
-            path.remove();
+          } else if (bundleGraph.isDependencyDeferred(dep)) {
+            if (path.parentPath.isExpressionStatement()) {
+              path.parentPath.remove();
+            } else {
+              // e.g. $parcel$exportWildcard;
+              path.replaceWith(t.objectExpression([]));
+            }
           } else {
             let name = addExternalModule(path, dep);
             if (isUnusedValue(path) || !name) {
@@ -474,7 +507,7 @@ export function link({
             }
           }
         } else {
-          if (mod.meta.id && assets.get(assertString(mod.meta.id))) {
+          if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
             let name = assertString(mod.meta.exportsIdentifier);
 
             let isValueUsed = !isUnusedValue(path);
@@ -621,9 +654,9 @@ export function link({
 
         // If it's a $id$exports.name expression.
         let name = isIdentifier(property) ? property.name : property.value;
-        let {identifier} = resolveSymbol(asset, name);
+        let {identifier} = resolveSymbol(asset, name, bundle);
 
-        if (identifier == null) {
+        if (identifier == null || !path.scope.hasBinding(identifier)) {
           return;
         }
 
@@ -689,23 +722,40 @@ export function link({
             ([...referencedAssets]: Array<Asset>)
               .filter(a => !wrappedAssets.has(a.id))
               .map(a => {
+                // if (
+                //   getIdentifier(a, 'init').name ===
+                //   '$d9e2ac2e43e9b70c7840a9a1a82e9$init'
+                // ) {
+                //   console.log(a.filePath);
+                //   console.log(
+                //     bundleGraph.getExportedSymbols(a, bundle),
+                //     getExportedSymbolsShallow(bundleGraph, a, bundle),
+                //     // getExportNamespaceExpression(path, bundleGraph, a, bundle).properties,
+                //   );
+                // }
                 return FAKE_INIT_TEMPLATE({
                   INIT: getIdentifier(a, 'init'),
-                  EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
+                  EXPORTS: getExportNamespaceExpression(
+                    path,
+                    bundleGraph,
+                    a,
+                    bundle,
+                  ),
                 });
               }),
           );
           for (let decl of decls) {
             path.scope.registerDeclaration(decl);
-            let returnId = decl.get<NodePath<Identifier>>(
-              'body.body.0.argument',
-            );
+            let returnId = decl.get<
+              NodePath<Identifier> | NodePath<ObjectExpression>,
+            >('body.body.0.argument');
 
-            // TODO Somehow deferred/excluded assets are referenced, causing this function to
-            // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
-            // But a asset that isn't here should never be referenced in the first place.
-            path.scope.getBinding(returnId.node.name)?.reference(returnId);
+            registerIdOrObject(path, returnId);
           }
+        }
+
+        if (process.env.PARCEL_BUILD_ENV !== 'production') {
+          verifyScopeState(path.scope);
         }
 
         // Generate exports

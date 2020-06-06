@@ -244,15 +244,24 @@ export default class BundleGraph<TBundle: IBundle>
     };
   }
 
-  getExportedSymbols(asset: IAsset): Array<ExportSymbolResolution> {
-    let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
-    return res.map(e => ({
-      asset: assetFromValue(e.asset, this.#options),
-      exportSymbol: e.exportSymbol,
-      symbol: e.symbol,
-      loc: e.loc,
-      exportAs: e.exportAs,
-    }));
+  getExportedSymbols(
+    asset: IAsset,
+    boundary: ?IBundle,
+  ): ?Array<ExportSymbolResolution> {
+    let res = this.#graph.getExportedSymbols(
+      assetToAssetValue(asset),
+      boundary ? bundleToInternalBundle(boundary) : null,
+    );
+    return (
+      res &&
+      res.map(e => ({
+        asset: assetFromValue(e.asset, this.#options),
+        exportSymbol: e.exportSymbol,
+        symbol: e.symbol,
+        loc: e.loc,
+        exportAs: e.exportAs,
+      }))
+    );
   }
 
   traverseBundles<TContext>(
@@ -283,5 +292,14 @@ export default class BundleGraph<TBundle: IBundle>
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
+  }
+
+  getUsedSymbolsAsset(asset: IAsset): $ReadOnlySet<Symbol> {
+    return this.#graph.getUsedSymbolsAsset(assetToAssetValue(asset));
+  }
+  getUsedSymbolsDependency(dep: IDependency): $ReadOnlySet<Symbol> {
+    return this.#graph.getUsedSymbolsDependency(
+      dependencyToInternalDependency(dep),
+    );
   }
 }
