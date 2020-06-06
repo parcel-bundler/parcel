@@ -8,6 +8,7 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
+import traverse from '@babel/traverse';
 import {
   countLines,
   PromiseQueue,
@@ -53,6 +54,9 @@ export default new Packager({
         options,
         wrappedAssets,
       });
+
+      // Free up memory
+      traverse.cache.clear();
 
       let {contents, map} = generate({
         bundleGraph,
