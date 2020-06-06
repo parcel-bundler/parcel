@@ -1,14 +1,6 @@
 // @flow strict-local
-import type WorkerFarm from '@parcel/workers';
 import type {StaticRunOpts} from '../RequestTracker';
-import type {
-  Asset,
-  AssetRequestInput,
-  AssetRequestResult,
-  Config,
-  ConfigRequestDesc,
-  TransformationOpts,
-} from '../types';
+import type {AssetRequestInput, AssetRequestResult} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import {md5FromObject} from '@parcel/utils';
@@ -40,22 +32,6 @@ export default function createAssetRequest(input: AssetRequestInput) {
   };
 }
 
-let handle;
-function getRunTransform(
-  farm: WorkerFarm,
-): TransformationOpts => Promise<{|
-  assets: Array<Asset>,
-  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
-|}> {
-  if (handle != null) {
-    return handle;
-  }
-
-  handle = farm.createHandle('runTransform');
-  return handle;
-  // ? Could this singleton cause problems
-}
-
 const type = 'asset_request';
 
 function getId(input: AssetRequestInput) {
@@ -71,7 +47,7 @@ async function run({input, api, options, farm}: RunInput) {
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-  let {assets, configRequests} = await getRunTransform(farm)({
+  let {assets, configRequests} = await farm.createHandle('runTransform')({
     configCachePath: cachePath,
     optionsRef,
     request,
