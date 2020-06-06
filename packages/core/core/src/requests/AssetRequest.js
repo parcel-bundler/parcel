@@ -72,17 +72,7 @@ async function run({input, api, options, farm}: RunInput) {
       id,
       type: 'config_request',
       run: ({api}) => {
-        let {
-          resolvedPath,
-          includedFiles,
-          watchGlob,
-          shouldInvalidateOnStartup,
-        } = result;
-        if (resolvedPath != null) {
-          api.invalidateOnFileUpdate(resolvedPath);
-          api.invalidateOnFileDelete(resolvedPath);
-        }
-
+        let {includedFiles, watchGlob, shouldInvalidateOnStartup} = result;
         for (let filePath of includedFiles) {
           api.invalidateOnFileUpdate(filePath);
           api.invalidateOnFileUpdate(filePath);
@@ -103,7 +93,8 @@ async function run({input, api, options, farm}: RunInput) {
     for (let [moduleSpecifier] of result.devDeps) {
       let depVersionRequst = {
         moduleSpecifier,
-        resolveFrom: result.resolvedPath, // TODO: resolveFrom should be nearest package boundary
+        resolveFrom:
+          result.pkgFilePath != null ? result.pkgFilePath : result.searchPath,
       };
       let id = generateRequestId('dep_version_request', depVersionRequst);
       await api.runRequest<null, void>({
