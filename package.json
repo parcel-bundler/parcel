@@ -27,7 +27,8 @@
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=*",
-    "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
+    "tag:alpha": "lerna version --dist-tag=next --exact --force-publish=*",
+    "release": "lerna publish from-git"
   },
   "devDependencies": {
     "@babel/core": "^7.8.7",
