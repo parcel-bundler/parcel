@@ -29,7 +29,7 @@
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push",
-    "release": "lerna publish from-package --dist-tag=next"
+    "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push"
   },
   "devDependencies": {
     "@babel/core": "^7.8.7",
