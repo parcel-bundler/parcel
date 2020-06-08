@@ -308,6 +308,27 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('supports re-exporting a namespace from another module (chained)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-namespace-chained/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        Bar: {
+          A: 1,
+          B: 2,
+        },
+        Foo: {
+          A: 1,
+          B: 2,
+        },
+      });
+    });
+
     it('excludes default when re-exporting a module', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',

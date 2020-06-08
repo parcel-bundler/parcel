@@ -801,7 +801,7 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
-        if (result.symbol != undefined) {
+        if (result.symbol !== undefined) {
           if (assetOutside) {
             // We found the symbol, but `asset` is outside, return `asset` and the original symbol
             maybeFoundInDependencies = true;
@@ -811,7 +811,7 @@ export default class BundleGraph {
           return {
             asset: result.asset,
             symbol: result.symbol,
-            exportSymbol: symbol,
+            exportSymbol: result.exportSymbol,
             loc: resolved.symbols?.get(symbol)?.loc,
           };
         }
