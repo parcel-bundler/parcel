@@ -1,14 +1,12 @@
 // @flow strict-local
 
 import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
-
 import type {Config, Environment} from './types';
 
 type ConfigOpts = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resolvedPath?: FilePath,
   result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   watchGlob?: Glob,
@@ -22,7 +20,6 @@ export function createConfig({
   isSource,
   searchPath,
   env,
-  resolvedPath,
   result,
   includedFiles,
   watchGlob,
@@ -35,11 +32,11 @@ export function createConfig({
     isSource,
     searchPath,
     env,
-    resolvedPath,
     result: result ?? null,
     resultHash: null,
     includedFiles: includedFiles ?? new Set(),
     pkg: null,
+    pkgFilePath: null,
     watchGlob,
     devDeps: devDeps ?? new Map(),
     shouldRehydrate: shouldRehydrate ?? false,
@@ -67,7 +64,7 @@ export function getInvalidations(config: Config) {
     });
   }
 
-  for (let filePath of [config.resolvedPath, ...config.includedFiles]) {
+  for (let filePath of config.includedFiles) {
     invalidations.push({
       action: 'change',
       pattern: filePath,

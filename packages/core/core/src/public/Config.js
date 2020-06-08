@@ -6,7 +6,7 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  ConfigResult,
+  ConfigResultWithFilePath,
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
@@ -50,12 +50,8 @@ export default class PublicConfig implements IConfig {
     return this.#config.isSource;
   }
 
-  get resolvedPath() {
-    return this.#config.resolvedPath;
-  }
-
-  setResolvedPath(filePath: FilePath) {
-    this.#config.resolvedPath = filePath;
+  get includedFiles() {
+    return this.#config.includedFiles;
   }
 
   // $FlowFixMe
@@ -99,7 +95,19 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null> {
+  ): Promise<ConfigResultWithFilePath | null> {
+    let packageKey = options && options.packageKey;
+    if (packageKey != null) {
+      let pkg = await this.getPackage();
+      if (pkg && pkg[packageKey]) {
+        return {
+          contents: pkg[packageKey],
+          // This should be fine as pkgFilePath should be defined by getPackage()
+          filePath: this.#config.pkgFilePath || '',
+        };
+      }
+    }
+
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
@@ -111,15 +119,15 @@ export default class PublicConfig implements IConfig {
       return null;
     }
 
+    let configFilePath = conf.files[0].filePath;
     if (!options || !options.exclude) {
-      if (this.#config.resolvedPath == null) {
-        this.setResolvedPath(conf.files[0].filePath);
-      } else {
-        this.addIncludedFile(conf.files[0].filePath);
-      }
+      this.addIncludedFile(configFilePath);
     }
 
-    return conf.config;
+    return {
+      contents: conf.config,
+      filePath: configFilePath,
+    };
   }
 
   getConfig(
@@ -129,7 +137,7 @@ export default class PublicConfig implements IConfig {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null> {
+  ): Promise<ConfigResultWithFilePath | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
@@ -138,7 +146,14 @@ export default class PublicConfig implements IConfig {
       return this.#config.pkg;
     }
 
-    this.#config.pkg = await this.getConfig(['package.json']);
+    let pkgConfig = await this.getConfig(['package.json']);
+    if (!pkgConfig) {
+      return null;
+    }
+
+    this.#config.pkg = pkgConfig.contents;
+    this.#config.pkgFilePath = pkgConfig.filePath;
+
     return this.#config.pkg;
   }
 }

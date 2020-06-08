@@ -12,6 +12,10 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
+export type ConfigResultWithFilePath = {|
+  contents: ConfigResult,
+  filePath: FilePath,
+|};
 export type EnvMap = typeof process.env;
 
 export type JSONValue =
@@ -78,6 +82,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: string;
+  // The position of e.g. `package.json#main`
   +loc: ?SourceLocation;
 }
 
@@ -193,7 +198,7 @@ export type InitialParcelOptions = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,
-  +serve?: ServerOptions | false,
+  +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
   +profile?: boolean,
@@ -211,6 +216,13 @@ export type InitialParcelOptions = {|
   // global?
 |};
 
+export type InitialServerOptions = {|
+  +publicUrl?: string,
+  +host?: string,
+  +port: number,
+  +https?: HTTPSOptions | boolean,
+|};
+
 export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
@@ -220,7 +232,6 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
-  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -231,6 +242,7 @@ export interface PluginOptions {
 }
 
 export type ServerOptions = {|
+  +distDir: FilePath,
   +host?: string,
   +port: number,
   +https?: HTTPSOptions | boolean,
@@ -383,9 +395,8 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
-  +resolvedPath: ?FilePath;
+  +includedFiles: Set<FilePath>;
 
-  setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
@@ -399,7 +410,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -407,7 +418,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
   shouldReload(): void;
