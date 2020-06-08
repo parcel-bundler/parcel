@@ -113,6 +113,25 @@ describe('html', function() {
     assert(/<link rel="canonical" href="\/index.html">/.test(html));
   });
 
+  it('should support meta tag with none content', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-meta/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(/<meta name="msapplication-config" content="none">/.test(html));
+  });
+
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css/index.html'),

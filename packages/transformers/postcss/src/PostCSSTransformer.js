@@ -48,6 +48,7 @@ export default new Transformer({
   },
 
   async transform({asset, config, options, resolve}) {
+    asset.type = 'css';
     if (!config) {
       return [asset];
     }

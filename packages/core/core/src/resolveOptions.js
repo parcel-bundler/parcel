@@ -59,7 +59,9 @@ export default async function resolveOptions(
   }
   let projectRoot = path.dirname(projectRootFile);
 
+  let inputCwd = inputFS.cwd();
   let outputCwd = outputFS.cwd();
+
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
     // use a default directory resolved relative to the project root.
@@ -80,6 +82,12 @@ export default async function resolveOptions(
         : parseInt(initialOptions.detailedReport, 10);
   }
 
+  let publicUrl = initialOptions.publicUrl ?? '/';
+  let distDir =
+    initialOptions.distDir != null
+      ? path.resolve(inputCwd, initialOptions.distDir)
+      : undefined;
+
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
@@ -97,7 +105,12 @@ export default async function resolveOptions(
     minify,
     autoinstall: initialOptions.autoinstall ?? true,
     hot: initialOptions.hot ?? null,
-    serve: initialOptions.serve ?? false,
+    serve: initialOptions.serve
+      ? {
+          ...initialOptions.serve,
+          distDir: distDir ?? path.join(outputCwd, 'dist'),
+        }
+      : false,
     disableCache: initialOptions.disableCache ?? false,
     killWorkers: initialOptions.killWorkers ?? true,
     profile: initialOptions.profile ?? false,
@@ -109,8 +122,8 @@ export default async function resolveOptions(
     sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
-    publicUrl: initialOptions.publicUrl ?? '/',
-    distDir: path.resolve(initialOptions.distDir ?? 'dist'),
+    publicUrl,
+    distDir,
     logLevel: initialOptions.logLevel ?? 'info',
     projectRoot,
     lockFile,
