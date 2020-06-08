@@ -115,8 +115,12 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       if (
         !Object.keys(attrs).some(attr => {
           let values = META[attr];
-
-          return values && values.includes(attrs[attr]) && attrs.content !== '';
+          return (
+            values &&
+            values.includes(attrs[attr]) &&
+            attrs.content !== '' &&
+            !(attrs.name === 'msapplication-config' && attrs.content === 'none')
+          );
         })
       ) {
         return node;

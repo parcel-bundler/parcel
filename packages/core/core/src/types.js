@@ -143,7 +143,7 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: FilePath,
+  distDir: ?FilePath,
   hot: ?HMROptions,
   serve: ServerOptions | false,
   autoinstall: boolean,
