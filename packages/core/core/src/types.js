@@ -39,8 +39,10 @@ export type ParcelPluginNode = {|
   resolveFrom: FilePath,
 |};
 
-export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
+export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
+export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
+  ParcelPluginNode | '...',
+>;
 
 export type ProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
