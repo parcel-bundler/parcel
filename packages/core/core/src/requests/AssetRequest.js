@@ -75,7 +75,7 @@ async function run({input, api, options, farm}: RunInput) {
         let {includedFiles, watchGlob, shouldInvalidateOnStartup} = result;
         for (let filePath of includedFiles) {
           api.invalidateOnFileUpdate(filePath);
-          api.invalidateOnFileUpdate(filePath);
+          api.invalidateOnFileDelete(filePath);
         }
 
         if (watchGlob != null) {
