@@ -289,7 +289,7 @@ export default class RequestTracker {
     farm,
     options,
   }: {|
-    graph: RequestGraph,
+    graph?: RequestGraph,
     farm: WorkerFarm,
     options: ParcelOptions,
   |}) {
