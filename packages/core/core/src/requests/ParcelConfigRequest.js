@@ -315,7 +315,6 @@ export function mergeConfigs(
   return new ParcelConfig(
     {
       filePath: ext.filePath,
-      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       resolvers: mergePipelines(base.resolvers, ext.resolvers),
       transformers: mergeMaps(
         base.transformers,
@@ -324,12 +323,10 @@ export function mergeConfigs(
       ),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
-      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       namers: mergePipelines(base.namers, ext.namers),
-      runtimes: mergeMaps(base.runtimes, ext.runtimes),
+      runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,
