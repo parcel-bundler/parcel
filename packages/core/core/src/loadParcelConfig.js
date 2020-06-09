@@ -262,7 +262,7 @@ export function mergeConfigs(
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
       namers: mergePipelines(base.namers, ext.namers),
-      runtimes: mergeMaps(base.runtimes, ext.runtimes),
+      runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
       reporters: mergePipelines(base.reporters, ext.reporters),
