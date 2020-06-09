@@ -19,3 +19,4 @@ yarn-error.log*
 tmp
 parcel-bundle-reports/
 .verdaccio_storage/
+sourcemap-info.json
