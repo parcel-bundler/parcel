@@ -29,6 +29,7 @@ import {
   DESCRIPTOR_SCHEMA,
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
+import {BROWSER_ENVS} from '../public/Environment';
 
 export type TargetResolveResult = {|
   targets: Array<Target>,
@@ -182,7 +183,8 @@ export class TargetResolver {
         });
       }
 
-      if (this.options.serve) {
+      let serve = this.options.serve;
+      if (serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -193,7 +195,7 @@ export class TargetResolver {
             },
           });
         }
-        if (targets[0].env.context !== 'browser') {
+        if (!BROWSER_ENVS.has(targets[0].env.context)) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,
@@ -201,6 +203,7 @@ export class TargetResolver {
             },
           });
         }
+        targets[0].distDir = serve.distDir;
       }
     } else {
       // Explicit targets were not provided. Either use a modern target for server
@@ -211,7 +214,7 @@ export class TargetResolver {
         targets = [
           {
             name: 'default',
-            distDir: this.options.distDir,
+            distDir: this.options.serve.distDir,
             publicUrl: this.options.publicUrl ?? '/',
             sourceMap: this.options.sourceMaps ? {} : undefined,
             env: createEnvironment({
@@ -348,7 +351,7 @@ export class TargetResolver {
         } else {
           distDir =
             this.options.distDir ??
-            path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+            path.join(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
         }
 
         let descriptor = parseCommonTargetDescriptor(
@@ -396,20 +399,22 @@ export class TargetResolver {
       }
     }
 
-    // Custom targets
-    for (let targetName in pkgTargets) {
-      if (COMMON_TARGETS.includes(targetName)) {
-        continue;
-      }
+    let customTargets = (Object.keys(pkgTargets): Array<string>).filter(
+      targetName => !COMMON_TARGETS.includes(targetName),
+    );
 
+    // Custom targets
+    for (let targetName of customTargets) {
       let distPath: mixed = pkg[targetName];
       let distDir;
       let distEntry;
       let loc;
       if (distPath == null) {
         distDir =
-          this.options.distDir ??
-          path.resolve(pkgDir, DEFAULT_DIST_DIRNAME, targetName);
+          this.options.distDir ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME);
+        if (customTargets.length >= 2) {
+          distDir = path.join(distDir, targetName);
+        }
       } else {
         if (typeof distPath !== 'string') {
           let contents: string =
@@ -480,8 +485,7 @@ export class TargetResolver {
       targets.set('default', {
         name: 'default',
         distDir:
-          this.options.distDir ??
-          path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
+          this.options.distDir ?? path.join(pkgDir, DEFAULT_DIST_DIRNAME),
         publicUrl: this.options.publicUrl,
         env: createEnvironment({
           engines: pkgEngines,
