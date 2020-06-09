@@ -194,6 +194,97 @@ describe('monorepos', function() {
     assert(contents.includes('._foo'));
   });
 
+  it('should build a single package with an entry file and cwd at a package', async function() {
+    let fixture = path.join(__dirname, '/integration/monorepo/packages/pkg-a');
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(fixture);
+
+    try {
+      let b = await bundle(path.join(fixture, 'src/index.js'), {
+        scopeHoist: true,
+        distDir,
+      });
+
+      assertBundles(b, [
+        {
+          name: 'pkg-a.cjs.js',
+          assets: ['index.js'],
+        },
+        {
+          name: 'pkg-a.module.js',
+          assets: ['index.js'],
+        },
+      ]);
+
+      let contents = await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/monorepo/packages/pkg-a/dist/pkg-a.cjs.js',
+        ),
+        'utf8',
+      );
+      assert(contents.includes('exports.default ='));
+
+      contents = await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/monorepo/packages/pkg-a/dist/pkg-a.module.js',
+        ),
+        'utf8',
+      );
+      assert(contents.includes('export default function'));
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
+  });
+
+  it('should build a single package with an entry file and cwd inside a package', async function() {
+    let fixture = path.join(
+      __dirname,
+      '/integration/monorepo/packages/pkg-a/src',
+    );
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(fixture);
+
+    try {
+      let b = await bundle(path.join(fixture, 'index.js'), {
+        scopeHoist: true,
+        distDir,
+      });
+
+      assertBundles(b, [
+        {
+          name: 'pkg-a.cjs.js',
+          assets: ['index.js'],
+        },
+        {
+          name: 'pkg-a.module.js',
+          assets: ['index.js'],
+        },
+      ]);
+
+      let contents = await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/monorepo/packages/pkg-a/dist/pkg-a.cjs.js',
+        ),
+        'utf8',
+      );
+      assert(contents.includes('exports.default ='));
+
+      contents = await outputFS.readFile(
+        path.join(
+          __dirname,
+          '/integration/monorepo/packages/pkg-a/dist/pkg-a.module.js',
+        ),
+        'utf8',
+      );
+      assert(contents.includes('export default function'));
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
+  });
+
   it('should build multiple packages in a monorepo at once, pointing at a glob of directories', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/monorepo/packages/*'),
