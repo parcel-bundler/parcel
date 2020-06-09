@@ -27,53 +27,55 @@ describe('monorepos', function() {
     }
   });
 
-  it('should build using root targets with entry files inside packages', async function() {
-    let b = await bundle(
-      [
-        path.join(
-          __dirname,
-          '/integration/monorepo/packages/pkg-a/src/index.js',
-        ),
-        path.join(
-          __dirname,
-          '/integration/monorepo/packages/pkg-b/src/index.js',
-        ),
-      ],
-      {scopeHoist: true, distDir},
-    );
+  it('should build using root targets with entry files inside packages and cwd at project root', async function() {
+    let fixture = path.join(__dirname, '/integration/monorepo');
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(fixture);
 
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        name: 'index.js',
-        assets: ['index.js', 'index.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['index.module.css'],
-      },
-    ]);
+    try {
+      let b = await bundle(
+        [
+          path.join(fixture, 'packages/pkg-a/src/index.js'),
+          path.join(fixture, 'packages/pkg-b/src/index.js'),
+        ],
+        {scopeHoist: true, distDir},
+      );
 
-    let contents = await outputFS.readFile(
-      path.join(distDir, '/pkg-a/src/index.js'),
-      'utf8',
-    );
-    assert(contents.includes('exports.default ='));
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: ['index.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'index.module.css'],
+        },
+        {
+          name: 'index.css',
+          assets: ['index.module.css'],
+        },
+      ]);
 
-    contents = await outputFS.readFile(
-      path.join(distDir, '/pkg-b/src/index.js'),
-      'utf8',
-    );
-    assert(contents.includes('require("./index.css")'));
+      let contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-a/src/index.js'),
+        'utf8',
+      );
+      assert(contents.includes('exports.default ='));
 
-    contents = await outputFS.readFile(
-      path.join(distDir, '/pkg-b/src/index.css'),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+      contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-b/src/index.js'),
+        'utf8',
+      );
+      assert(contents.includes('require("./index.css")'));
+
+      contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-b/src/index.css'),
+        'utf8',
+      );
+      assert(contents.includes('._foo'));
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
   });
 
   it('should build multiple packages in a monorepo at once, pointing at directories with "source" field in package.json', async function() {
@@ -154,44 +156,52 @@ describe('monorepos', function() {
     assert(contents.includes('import "./pkg-b.cjs.css"'));
   });
 
-  it('should build using root targets with a glob pointing at files inside packages', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/monorepo/packages/*/src/index.js'),
-      {scopeHoist: true, distDir},
-    );
+  it('should build using root targets with a glob pointing at files inside packages and cwd at project root', async function() {
+    let fixture = path.join(__dirname, '/integration/monorepo');
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(fixture);
 
-    assertBundles(b, [
-      {
-        name: 'index.js',
-        assets: ['index.js'],
-      },
-      {
-        name: 'index.js',
-        assets: ['index.js', 'index.module.css'],
-      },
-      {
-        name: 'index.css',
-        assets: ['index.module.css'],
-      },
-    ]);
+    try {
+      let b = await bundle(path.join(fixture, 'packages/*/src/index.js'), {
+        scopeHoist: true,
+        distDir,
+      });
 
-    let contents = await outputFS.readFile(
-      path.join(distDir, '/pkg-a/src/index.js'),
-      'utf8',
-    );
-    assert(contents.includes('exports.default ='));
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: ['index.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'index.module.css'],
+        },
+        {
+          name: 'index.css',
+          assets: ['index.module.css'],
+        },
+      ]);
 
-    contents = await outputFS.readFile(
-      path.join(distDir, '/pkg-b/src/index.js'),
-      'utf8',
-    );
-    assert(contents.includes('require("./index.css")'));
+      let contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-a/src/index.js'),
+        'utf8',
+      );
+      assert(contents.includes('exports.default ='));
 
-    contents = await outputFS.readFile(
-      path.join(distDir, '/pkg-b/src/index.css'),
-      'utf8',
-    );
-    assert(contents.includes('._foo'));
+      contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-b/src/index.js'),
+        'utf8',
+      );
+      assert(contents.includes('require("./index.css")'));
+
+      contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-b/src/index.css'),
+        'utf8',
+      );
+      assert(contents.includes('._foo'));
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
   });
 
   it('should build a single package with an entry file and cwd at a package', async function() {
