@@ -70,7 +70,7 @@ export default class AssetRequestRunner extends RequestRunner<
     result: AssetRequestResult,
     api: RequestRunnerAPI,
   ) {
-    this.assetGraph.resolveAssetGroup(request, result.assets);
+    this.assetGraph.resolveAssetGroup(request, result.assets, api.getId());
 
     let {assets, configRequests} = result;
 
@@ -100,10 +100,6 @@ export default class AssetRequestRunner extends RequestRunner<
       invariant(subrequestNode.type === 'request');
 
       if (shouldSetupInvalidations) {
-        if (result.resolvedPath != null) {
-          graph.invalidateOnFileUpdate(subrequestNode.id, result.resolvedPath);
-        }
-
         for (let filePath of result.includedFiles) {
           graph.invalidateOnFileUpdate(subrequestNode.id, filePath);
         }
@@ -122,7 +118,8 @@ export default class AssetRequestRunner extends RequestRunner<
       for (let [moduleSpecifier, version] of result.devDeps) {
         let depVersionRequst = {
           moduleSpecifier,
-          resolveFrom: result.resolvedPath, // TODO: resolveFrom should be nearest package boundary
+          resolveFrom:
+            result.pkgFilePath != null ? result.pkgFilePath : result.searchPath,
         };
         let id = generateRequestId('dep_version_request', depVersionRequst);
         let shouldSetupInvalidations =

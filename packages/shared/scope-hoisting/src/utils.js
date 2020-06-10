@@ -1,5 +1,11 @@
 // @flow
-import type {Asset, MutableAsset, Bundle, BundleGraph} from '@parcel/types';
+import type {
+  Asset,
+  BundleGraph,
+  MutableAsset,
+  NamedBundle,
+  SourceLocation,
+} from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
   ClassDeclaration,
@@ -11,12 +17,16 @@ import type {
   Node,
   VariableDeclarator,
 } from '@babel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
 import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -49,7 +59,10 @@ export function getExportIdentifier(asset: Asset | MutableAsset, name: string) {
   return getIdentifier(asset, 'export', name);
 }
 
-export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
+export function needsPrelude(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   if (bundle.env.outputFormat !== 'global') {
     return false;
   }
@@ -69,7 +82,10 @@ export function needsPrelude(bundle: Bundle, bundleGraph: BundleGraph) {
   );
 }
 
-export function isEntry(bundle: Bundle, bundleGraph: BundleGraph) {
+export function isEntry(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
@@ -77,7 +93,10 @@ export function isEntry(bundle: Bundle, bundleGraph: BundleGraph) {
   );
 }
 
-export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
+export function isReferenced(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   let isReferenced = false;
   bundle.traverseAssets((asset, _, actions) => {
     // A bundle is potentially referenced if any of its assets is referenced
@@ -94,8 +113,8 @@ export function isReferenced(bundle: Bundle, bundleGraph: BundleGraph) {
 }
 
 export function hasAsyncDescendant(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   let _hasAsyncDescendant = false;
   bundleGraph.traverseBundles((b, _, actions) => {
@@ -238,4 +257,63 @@ export function verifyScopeState(scope: Scope) {
       invariant(aReferencePaths.indexOf(p) >= 0, name);
     }
   }
+}
+
+export function getThrowableDiagnosticForNode(
+  message: string,
+  filePath: ?string,
+  loc: ?{
+    +start: {|
+      +line: number,
+      +column: number,
+    |},
+    +end: {|
+      +line: number,
+      +column: number,
+    |},
+    ...
+  },
+) {
+  let diagnostic: Diagnostic = {
+    message,
+    language: 'js',
+  };
+
+  if (filePath) {
+    diagnostic.filePath = path.normalize(filePath);
+  }
+  if (loc) {
+    diagnostic.codeFrame = {
+      codeHighlights: {
+        start: {
+          line: loc.start.line,
+          column: loc.start.column + 1,
+        },
+        // - Babel's columns are exclusive, ours are inclusive (column - 1)
+        // - Babel has 0-based columns, ours are 1-based (column + 1)
+        // = +-0
+        end: loc.end,
+      },
+    };
+  }
+  return new ThrowableDiagnostic({
+    diagnostic,
+  });
+}
+
+export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
+  if (!loc || !loc.filename) return null;
+
+  let {filename, start, end} = loc;
+  return {
+    filePath: path.normalize(filename),
+    start: {
+      line: start.line,
+      column: start.column,
+    },
+    end: {
+      line: end.line,
+      column: end.column,
+    },
+  };
 }

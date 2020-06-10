@@ -5,12 +5,12 @@ import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import clone from 'clone';
 
-type ConfigOutput = {|
+export type ConfigOutput = {|
   config: ConfigResult,
   files: Array<File>,
 |};
 
-type ConfigOptions = {|
+export type ConfigOptions = {|
   parse?: boolean,
 |};
 

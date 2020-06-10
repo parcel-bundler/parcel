@@ -618,7 +618,6 @@ describe('babel', function() {
         __dirname,
         '/integration/babel-plugin-upgrade',
       );
-      let distDir = path.resolve(inputDir, './dist');
       await fs.ncp(path.join(fixtureDir), inputDir);
       await fs.rimraf(path.join(__dirname, '.parcel-cache'));
 

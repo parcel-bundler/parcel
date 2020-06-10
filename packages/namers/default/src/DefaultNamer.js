@@ -11,7 +11,7 @@ import nullthrows from 'nullthrows';
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
 export default new Namer({
-  async name({bundle, bundleGraph, options}) {
+  name({bundle, bundleGraph, options}) {
     // If the bundle has an explicit file path given (e.g. by a target), use that.
     if (bundle.filePath != null) {
       // TODO: what about multiple assets in the same dep?
@@ -61,7 +61,6 @@ export default new Namer({
             message: `Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
             filePath: loc.filePath,
             codeFrame: {
-              code: await options.inputFS.readFile(loc.filePath, 'utf8'),
               codeHighlights: {
                 start: loc.start,
                 end: loc.end,

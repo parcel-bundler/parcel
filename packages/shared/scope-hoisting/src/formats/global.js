@@ -1,6 +1,12 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  Bundle,
+  BundleGraph,
+  NamedBundle,
+  Symbol,
+} from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
 import type {
   ExpressionStatement,
@@ -11,13 +17,20 @@ import type {
   StringLiteral,
   CallExpression,
 } from '@babel/types';
+import type {ExternalBundle, ExternalModule} from '../types';
 
 import invariant from 'assert';
 import * as t from '@babel/types';
 import template from '@babel/template';
 import {relativeBundlePath} from '@parcel/utils';
-import {assertString, getName, isEntry, isReferenced} from '../utils';
 import nullthrows from 'nullthrows';
+import {
+  assertString,
+  getName,
+  getThrowableDiagnosticForNode,
+  isEntry,
+  isReferenced,
+} from '../utils';
 
 const IMPORT_TEMPLATE = template.expression<
   {|ASSET_ID: StringLiteral|},
@@ -37,9 +50,8 @@ const IMPORTSCRIPTS_TEMPLATE = template.statement<
 >('importScripts(BUNDLE);');
 
 export function generateBundleImports(
-  from: Bundle,
-  bundle: Bundle,
-  assets: Set<Asset>,
+  from: NamedBundle,
+  {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
 ) {
   let statements = [];
@@ -60,15 +72,17 @@ export function generateBundleImports(
   }
 }
 
-export function generateExternalImport() {
-  throw new Error(
+export function generateExternalImport(_: Bundle, {loc}: ExternalModule) {
+  throw getThrowableDiagnosticForNode(
     'External modules are not supported when building for browser',
+    loc?.filePath,
+    loc,
   );
 }
 
 export function generateExports(
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
 ) {

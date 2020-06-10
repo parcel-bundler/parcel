@@ -1,12 +1,16 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {
+  Asset,
+  BundleGraph,
+  NamedBundle,
+  PluginOptions,
+} from '@parcel/types';
 import type {
   ArrayExpression,
   ExpressionStatement,
   File,
   Statement,
-  StringLiteral,
 } from '@babel/types';
 
 import babelGenerate from '@babel/generator';
@@ -19,7 +23,6 @@ import template from '@babel/template';
 
 const REGISTER_TEMPLATE = template.statement<
   {|
-    ID: StringLiteral,
     REFERENCED_IDS: ArrayExpression,
     STATEMENTS: Array<Statement>,
   |},
@@ -30,7 +33,6 @@ const REGISTER_TEMPLATE = template.statement<
     STATEMENTS;
     $parcel$bundleWrapper._executed = true;
   }
-  parcelRequire.registerBundle(ID, $parcel$bundleWrapper);
   var $parcel$referencedAssets = REFERENCED_IDS;
   for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
     parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
@@ -48,8 +50,8 @@ export function generate({
   referencedAssets,
   options,
 }: {|
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
@@ -61,8 +63,7 @@ export function generate({
     interpreter = _interpreter;
   }
 
-  let entry = bundle.getMainEntry();
-  let isAsync = entry && !isEntry(bundle, bundleGraph);
+  let isAsync = !isEntry(bundle, bundleGraph);
 
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
   // at the right time (after other bundle dependencies are loaded).
@@ -71,10 +72,11 @@ export function generate({
     statements = isAsync
       ? [
           REGISTER_TEMPLATE({
-            ID: t.stringLiteral(nullthrows(entry).id),
             STATEMENTS: statements,
             REFERENCED_IDS: t.arrayExpression(
-              [...referencedAssets].map(asset => t.stringLiteral(asset.id)),
+              [bundle.getMainEntry(), ...referencedAssets]
+                .filter(Boolean)
+                .map(asset => t.stringLiteral(asset.id)),
             ),
           }),
         ]

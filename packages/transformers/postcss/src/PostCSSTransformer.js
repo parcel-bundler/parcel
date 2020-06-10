@@ -11,89 +11,22 @@ import postcss from 'postcss';
 import semver from 'semver';
 import valueParser from 'postcss-value-parser';
 
-import loadPlugins from './loadPlugins';
+import {load, preSerialize, postDeserialize} from './loadConfig';
 
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
-const MODULE_BY_NAME_RE = /\.module\./;
-
-type ParcelPostCSSConfig = {
-  plugins: Array<mixed>,
-  from: FilePath,
-  to: FilePath,
-  ...
-};
 
 export default new Transformer({
-  async getConfig({asset, resolve, options}): Promise<?ParcelPostCSSConfig> {
-    let configFile: mixed = await asset.getConfig(
-      ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
-      {packageKey: 'postcss'},
-    );
+  loadConfig({config, options, logger}) {
+    return load({config, options, logger});
+  },
 
-    // Use a basic, modules-only PostCSS config if the file opts in by a name
-    // like foo.module.css
-    if (configFile == null && asset.filePath.match(MODULE_BY_NAME_RE)) {
-      configFile = {
-        plugins: {
-          'postcss-modules': {},
-        },
-      };
-    }
+  preSerializeConfig({config}) {
+    return preSerialize(config);
+  },
 
-    if (configFile == null) {
-      return;
-    }
-
-    if (typeof configFile !== 'object') {
-      throw new Error('PostCSS config should be an object.');
-    }
-
-    if (
-      configFile.plugins == null ||
-      typeof configFile.plugins !== 'object' ||
-      Object.keys(configFile.plugins) === 0
-    ) {
-      throw new Error('PostCSS config must have plugins');
-    }
-
-    let originalModulesConfig;
-    let configFilePlugins = configFile.plugins;
-    if (
-      configFilePlugins != null &&
-      typeof configFilePlugins === 'object' &&
-      configFilePlugins['postcss-modules'] != null
-    ) {
-      originalModulesConfig = configFilePlugins['postcss-modules'];
-      // $FlowFixMe
-      delete configFilePlugins['postcss-modules'];
-    }
-
-    let plugins = await loadPlugins(configFilePlugins, asset.filePath, options);
-
-    if (originalModulesConfig || configFile.modules) {
-      let postcssModules = await options.packageManager.require(
-        'postcss-modules',
-        asset.filePath,
-        {autoinstall: options.autoinstall},
-      );
-
-      plugins.push(
-        postcssModules({
-          getJSON: (filename, json) => (asset.meta.cssModules = json),
-          Loader: createLoader(asset, resolve),
-          generateScopedName: (name, filename, css) =>
-            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
-          ...originalModulesConfig,
-        }),
-      );
-    }
-
-    return {
-      plugins,
-      from: asset.filePath,
-      to: asset.filePath,
-    };
+  postDeserializeConfig({config, options}) {
+    return postDeserialize(config, options);
   },
 
   canReuseAST({ast}) {
@@ -114,9 +47,29 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, config}) {
+  async transform({asset, config, options, resolve}) {
+    asset.type = 'css';
     if (!config) {
       return [asset];
+    }
+
+    let plugins = [...config.hydrated.plugins];
+    if (config.hydrated.modules) {
+      let postcssModules = await options.packageManager.require(
+        'postcss-modules',
+        asset.filePath,
+        {autoinstall: options.autoinstall},
+      );
+
+      plugins.push(
+        postcssModules({
+          getJSON: (filename, json) => (asset.meta.cssModules = json),
+          Loader: createLoader(asset, resolve),
+          generateScopedName: (name, filename, css) =>
+            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
+          ...config.hydrated.modules,
+        }),
+      );
     }
 
     let ast = nullthrows(await asset.getAST());
@@ -132,7 +85,7 @@ export default new Transformer({
               asset.addDependency({
                 moduleSpecifier: importPath,
                 loc: {
-                  filePath: importPath,
+                  filePath: asset.filePath,
                   start: decl.source.start,
                   end: {
                     line: decl.source.start.line,
@@ -147,9 +100,9 @@ export default new Transformer({
     }
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    let {messages, root} = await postcss(config.plugins).process(
+    let {messages, root} = await postcss(plugins).process(
       ast.program,
-      config,
+      config.hydrated,
     );
     ast.program = root;
     asset.setAST({

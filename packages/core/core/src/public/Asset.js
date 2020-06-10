@@ -20,13 +20,15 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   Stats,
-  Symbol as ISymbol,
+  MutableSymbols as IMutableSymbols,
+  Symbols as ISymbols,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 import Environment from './Environment';
 import Dependency from './Dependency';
+import {Symbols, MutableAssetSymbols} from './Symbols';
 import UncommittedAsset from '../UncommittedAsset';
 import CommittedAsset from '../CommittedAsset';
 import {createEnvironment} from '../Environment';
@@ -127,8 +129,8 @@ class BaseAsset {
     return this.#asset.value.sideEffects;
   }
 
-  get symbols(): Map<ISymbol, ISymbol> {
-    return this.#asset.value.symbols;
+  get symbols(): ISymbols {
+    return new Symbols(this.#asset.value);
   }
 
   get uniqueKey(): ?string {
@@ -254,6 +256,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set isSplittable(isSplittable: ?boolean): void {
     this.#asset.value.isSplittable = isSplittable;
+  }
+
+  get symbols(): IMutableSymbols {
+    return new MutableAssetSymbols(this.#asset.value);
   }
 
   addDependency(dep: DependencyOptions): string {

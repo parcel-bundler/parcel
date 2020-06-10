@@ -39,8 +39,10 @@ export type ParcelPluginNode = {|
   resolveFrom: FilePath,
 |};
 
-export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
+export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
+export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
+  ParcelPluginNode | '...',
+>;
 
 export type ProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
@@ -88,14 +90,13 @@ export type Dependency = {|
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
-  isDeferred: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, Symbol>,
+  symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   pipeline?: ?string,
 |};
 
@@ -120,7 +121,7 @@ export type Asset = {|
   pipeline: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
-  symbols: Map<Symbol, Symbol>,
+  symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects: boolean,
   uniqueKey: ?string,
   configPath?: FilePath,
@@ -144,7 +145,7 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: FilePath,
+  distDir: ?FilePath,
   hot: ?HMROptions,
   serve: ServerOptions | false,
   autoinstall: boolean,
@@ -178,13 +179,20 @@ export interface Node {
   value: any;
 }
 
-export type AssetNode = {|id: string, +type: 'asset', value: Asset|};
+export type AssetNode = {|
+  id: string,
+  +type: 'asset',
+  value: Asset,
+  hasDeferred?: boolean,
+|};
 
 export type DependencyNode = {|
   id: string,
   type: 'dependency',
   value: Dependency,
   complete?: boolean,
+  correspondingRequest?: string,
+  hasDeferred?: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -207,9 +215,10 @@ export type AssetGroup = AssetRequestDesc;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
-  // An asset group node is used to
   value: AssetGroup,
-  deferred: boolean,
+  deferred?: boolean,
+  correspondingRequest?: string,
+  hasDeferred?: boolean,
 |};
 
 export type DepPathRequestNode = {|
@@ -228,6 +237,7 @@ export type EntrySpecifierNode = {|
   id: string,
   +type: 'entry_specifier',
   value: ModuleSpecifier,
+  correspondingRequest?: string,
 |};
 
 export type Entry = {|
@@ -239,6 +249,7 @@ export type EntryFileNode = {|
   id: string,
   +type: 'entry_file',
   value: Entry,
+  correspondingRequest?: string,
 |};
 
 export type AssetGraphNode =
@@ -268,11 +279,11 @@ export type Config = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resolvedPath: ?FilePath,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
+  pkgFilePath: ?FilePath,
   watchGlob: ?Glob,
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,

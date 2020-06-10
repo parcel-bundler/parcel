@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Dependency} from '@parcel/types';
+import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {
   AssetRequestDesc,
   Bundle as InternalBundle,
@@ -51,7 +51,12 @@ export default async function applyRuntimes({
       try {
         let applied = await runtime.plugin.apply({
           bundle: new NamedBundle(bundle, bundleGraph, options),
-          bundleGraph: new BundleGraph(bundleGraph, options),
+          bundleGraph: new BundleGraph<INamedBundle>(
+            bundleGraph,
+            (bundle, bundleGraph, options) =>
+              new NamedBundle(bundle, bundleGraph, options),
+            options,
+          ),
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
         });

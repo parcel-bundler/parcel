@@ -41,7 +41,7 @@ export default class TargetRequestRunner extends RequestRunner<
     result: TargetResolveResult,
     api: RequestRunnerAPI,
   ) {
-    this.assetGraph.resolveTargets(request, result.targets);
+    this.assetGraph.resolveTargets(request, result.targets, api.getId());
 
     // Connect files like package.json that affect the target
     // resolution so we invalidate when they change.

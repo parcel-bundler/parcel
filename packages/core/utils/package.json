@@ -21,8 +21,9 @@
     "@parcel/diagnostic": "^2.0.0-alpha.3.1",
     "@parcel/logger": "^2.0.0-alpha.3.1",
     "@parcel/markdown-ansi": "^2.0.0-alpha.3.1",
-    "@parcel/source-map": "2.0.0-alpha.4.9",
+    "@parcel/source-map": "2.0.0-alpha.4.11",
     "ansi-html": "^0.0.7",
+    "chalk": "^2.4.2",
     "clone": "^2.1.1",
     "fast-glob": "3.1.1",
     "is-glob": "^4.0.0",
@@ -32,10 +33,10 @@
     "micromatch": "^4.0.2",
     "node-forge": "^0.8.1",
     "nullthrows": "^1.1.1",
+    "open": "^7.0.3",
     "resolve": "^1.12.0",
     "serialize-to-js": "^3.0.1",
-    "terser": "^3.7.3",
-    "chalk": "^2.4.2"
+    "terser": "^3.7.3"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",
