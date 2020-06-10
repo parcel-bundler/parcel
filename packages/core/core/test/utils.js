@@ -1,9 +1,10 @@
 // @flow
 import type {ParcelOptions} from '../src/types';
+
 import Cache, {createCacheDir} from '@parcel/cache';
-import tempy from 'tempy';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
+import tempy from 'tempy';
 
 let cacheDir = tempy.directory();
 createCacheDir(outputFS, cacheDir);
@@ -25,7 +26,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   scopeHoist: false,
   minify: false,
   publicUrl: '/',
-  distDir: process.cwd(),
+  distDir: undefined,
   env: {},
   disableCache: false,
   sourceMaps: false,

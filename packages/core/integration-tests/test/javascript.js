@@ -1875,6 +1875,58 @@ describe('javascript', function() {
     assert.equal(output, 'Hello World!');
   });
 
+  it('should not replace toplevel this with undefined in CommonJS without scope-hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-this-commonjs/a.js'),
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [{foo: 2}, 1234]);
+  });
+
+  it('should not replace toplevel this with undefined in CommonJS when scope-hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-this-commonjs/a.js'),
+      {scopeHoist: true},
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [{foo: 2}, 1234]);
+  });
+
+  it('should replace toplevel this with undefined in ESM without scope-hoisting', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/js-this-es6/a.js'));
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [undefined, 1234]);
+  });
+
+  it('should replace toplevel this with undefined in ESM when scope-hoisting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-this-es6/a.js'),
+      {scopeHoist: true},
+    );
+
+    let output;
+    function result(v) {
+      output = v;
+    }
+    await run(b, {result});
+    assert.deepEqual(output, [undefined, 1234]);
+  });
+
   it.skip('should not dedupe imports with different contents', async function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-different-contents/index.js`),

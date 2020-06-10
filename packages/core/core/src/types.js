@@ -39,8 +39,10 @@ export type ParcelPluginNode = {|
   resolveFrom: FilePath,
 |};
 
-export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
+export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
+export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
+  ParcelPluginNode | '...',
+>;
 
 export type ProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
@@ -143,7 +145,7 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: FilePath,
+  distDir: ?FilePath,
   hot: ?HMROptions,
   contentHash: boolean,
   serve: ServerOptions | false,
@@ -278,11 +280,11 @@ export type Config = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resolvedPath: ?FilePath,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
+  pkgFilePath: ?FilePath,
   watchGlob: ?Glob,
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,

@@ -1,36 +1,30 @@
-// @flow strict-local
+// @flow
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
 
+import {load, preSerialize} from './loadConfig';
+
 // E.g: ~library/file.less
 const WEBPACK_ALIAS_RE = /^~[^/]/;
 
+type LessConfig = {
+  sourceMap: any,
+  filename: string,
+  plugins: Array<any>,
+  ...
+};
+
 export default new Transformer({
-  async getConfig({asset, resolve, options}) {
-    let config = await asset.getConfig(['.lessrc', '.lessrc.js'], {
-      packageKey: 'less',
-    });
-
-    if (config === null) {
-      config = {};
-    }
-
-    config.filename = asset.filePath;
-    config.plugins = [
-      ...(config.plugins || []),
-      urlPlugin({asset}),
-      resolvePathPlugin({asset, resolve}),
-    ];
-
-    if (options.sourceMaps) {
-      config.sourceMap = {};
-    }
-
-    return config;
+  loadConfig({config}) {
+    return load({config});
   },
 
-  async transform({asset, options, config}) {
+  preSerializeConfig({config}) {
+    return preSerialize(config);
+  },
+
+  async transform({asset, options, config, resolve}) {
     asset.type = 'css';
     asset.meta.hasDependencies = false;
 
@@ -41,7 +35,20 @@ export default new Transformer({
     let code = await asset.getCode();
     let result;
     try {
-      result = await less.render(code, config);
+      let lessConfig: LessConfig = config ? {...config.config} : {};
+
+      if (options.sourceMaps) {
+        lessConfig.sourceMap = {};
+      }
+
+      lessConfig.filename = asset.filePath;
+      lessConfig.plugins = [
+        ...(lessConfig.plugins || []),
+        urlPlugin({asset}),
+        resolvePathPlugin({asset, resolve}),
+      ];
+
+      result = await less.render(code, lessConfig);
     } catch (err) {
       // For the error reporter
       err.fileName = err.filename;
