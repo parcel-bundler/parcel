@@ -2,7 +2,7 @@
 import type {FilePath, File} from '@parcel/types';
 import type {Entry, ParcelOptions} from './types';
 import path from 'path';
-import {isGlob, glob} from '@parcel/utils';
+import {isDirectoryInside, isGlob, glob} from '@parcel/utils';
 
 export type EntryResult = {|
   entries: Array<Entry>,
@@ -72,12 +72,13 @@ export class EntryResolver {
       throw new Error(`Could not find entry: ${entry}`);
     } else if (stat.isFile()) {
       let projectRoot = this.options.projectRoot;
-      let packagePath;
-      if (this.options.inputFS.cwd() === projectRoot) {
-        packagePath = projectRoot;
-      } else {
-        packagePath = path.dirname(entry);
-      }
+      let packagePath = isDirectoryInside(
+        this.options.inputFS.cwd(),
+        projectRoot,
+      )
+        ? this.options.inputFS.cwd()
+        : projectRoot;
+
       return {
         entries: [{filePath: entry, packagePath: packagePath}],
         files: [],

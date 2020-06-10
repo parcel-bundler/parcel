@@ -204,6 +204,56 @@ describe('monorepos', function() {
     }
   });
 
+  it('should build using root targets with a glob pointing at files inside packages and cwd outside project root', async function() {
+    let oldcwd = inputFS.cwd();
+    inputFS.chdir(path.join(__dirname, '/integration'));
+
+    try {
+      let b = await bundle(
+        path.join(__dirname, '/integration/monorepo/packages/*/src/index.js'),
+        {
+          scopeHoist: true,
+          distDir,
+        },
+      );
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: ['index.js'],
+        },
+        {
+          name: 'index.js',
+          assets: ['index.js', 'index.module.css'],
+        },
+        {
+          name: 'index.css',
+          assets: ['index.module.css'],
+        },
+      ]);
+
+      let contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-a/src/index.js'),
+        'utf8',
+      );
+      assert(contents.includes('exports.default ='));
+
+      contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-b/src/index.js'),
+        'utf8',
+      );
+      assert(contents.includes('require("./index.css")'));
+
+      contents = await outputFS.readFile(
+        path.join(distDir, '/pkg-b/src/index.css'),
+        'utf8',
+      );
+      assert(contents.includes('._foo'));
+    } finally {
+      inputFS.chdir(oldcwd);
+    }
+  });
+
   it('should build a single package with an entry file and cwd at a package', async function() {
     let fixture = path.join(__dirname, '/integration/monorepo/packages/pkg-a');
     let oldcwd = inputFS.cwd();
