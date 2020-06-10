@@ -85,7 +85,7 @@ export default new Transformer({
               asset.addDependency({
                 moduleSpecifier: importPath,
                 loc: {
-                  filePath: importPath,
+                  filePath: asset.filePath,
                   start: decl.source.start,
                   end: {
                     line: decl.source.start.line,
@@ -167,6 +167,7 @@ function createLoader(
   return class ParcelFileSystemLoader extends FileSystemLoader {
     async fetch(composesPath, relativeTo) {
       let importPath = composesPath.replace(/^["']|["']$/g, '');
+      console.log('resolve', relativeTo, importPath);
       let resolved = await resolve(relativeTo, importPath);
       let rootRelativePath = path.resolve(path.dirname(relativeTo), resolved);
       let root = path.resolve('/');
