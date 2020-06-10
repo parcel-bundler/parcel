@@ -8,6 +8,7 @@ import {
   inputFS,
   outputFS,
   shallowEqual,
+  distDir,
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
 
@@ -152,6 +153,52 @@ describe('sourcemaps', function() {
       generated: raw,
       str: '"hello world"',
       sourcePath,
+    });
+  });
+
+  it('Should create a basic browser sourcemap when serving', async function() {
+    let fixture = path.join(__dirname, '/integration/sourcemap');
+    let sourceFilename = path.join(fixture, 'index.js');
+    await bundle(sourceFilename, {serve: {port: 1234}});
+
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    assert.strictEqual(map.sourceRoot, '/__parcel_source_root/');
+    let input = await inputFS.readFile(
+      path.join(fixture, map.sources[0]),
+      'utf8',
+    );
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'function helloWorld',
+      sourcePath: map.sources[0],
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'module.exports = helloWorld;',
+      sourcePath: map.sources[0],
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: '"hello world"',
+      sourcePath: map.sources[0],
     });
   });
 
