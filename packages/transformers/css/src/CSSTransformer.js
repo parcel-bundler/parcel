@@ -95,7 +95,7 @@ export default new Transformer({
         name.value = asset.addURLDependency(moduleSpecifier, {
           loc: createDependencyLocation(
             rule.source.start,
-            moduleSpecifier,
+            asset.filePath,
             0,
             8,
           ),
@@ -167,7 +167,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate({asset, ast}) {
+  async generate({ast, options}) {
     let root = ast.program;
 
     // $FlowFixMe
@@ -194,7 +194,8 @@ export default new Transformer({
     }
 
     let result = await postcss().process(root, {
-      from: asset.filePath,
+      from: undefined,
+      to: options.projectRoot + '/index',
       map: {
         annotation: false,
         inline: false,

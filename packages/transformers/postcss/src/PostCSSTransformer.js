@@ -85,7 +85,7 @@ export default new Transformer({
               asset.addDependency({
                 moduleSpecifier: importPath,
                 loc: {
-                  filePath: importPath,
+                  filePath: asset.filePath,
                   start: decl.source.start,
                   end: {
                     line: decl.source.start.line,
