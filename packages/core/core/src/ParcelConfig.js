@@ -158,7 +158,7 @@ export default class ParcelConfig {
     return this.loadPlugins<Resolver>(this._getResolverNodes());
   }
 
-  _getValidatorNodes(filePath: FilePath): Array<ParcelPluginNode> {
+  _getValidatorNodes(filePath: FilePath): $ReadOnlyArray<ParcelPluginNode> {
     let validators: PureParcelConfigPipeline =
       this.matchGlobMapPipelines(filePath, this.validators) || [];
 
@@ -186,7 +186,7 @@ export default class ParcelConfig {
   _getTransformerNodes(
     filePath: FilePath,
     pipeline?: ?string,
-  ): Array<ParcelPluginNode> {
+  ): $ReadOnlyArray<ParcelPluginNode> {
     let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
       filePath,
       this.transformers,

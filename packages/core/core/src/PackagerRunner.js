@@ -334,8 +334,8 @@ export default class PackagerRunner {
       ) {
         sourceRoot = bundle.target.sourceMap.sourceRoot;
       } else if (
-        bundle.target.env.context === 'browser' &&
-        this.options.mode !== 'production'
+        this.options.serve &&
+        bundle.target.env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
       }
