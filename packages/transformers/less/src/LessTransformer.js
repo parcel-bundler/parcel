@@ -64,7 +64,7 @@ export default new Transformer({
       let {mappings, sources, names} = JSON.parse(result.map);
       map.addRawMappings({
         mappings,
-        sources,
+        sources: sources.map(s => path.relative(options.projectRoot, s)),
         names,
       });
       asset.setMap(map);
