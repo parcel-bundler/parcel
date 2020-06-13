@@ -1,57 +1,45 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
 
-const IMPORT_RE = /^# *import +['"](.*)['"] *;? *$/;
-const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
-
 export default new Transformer({
   async transform({asset, options, resolve}) {
-    // Peer dependency of graphql-tag
-    await options.packageManager.resolve('graphql', asset.filePath);
+    const {
+      parse,
+      print,
+      Source,
+      stripIgnoredCharacters,
+    } = await options.packageManager.require('graphql', asset.filePath, {
+      autoinstall: options.autoinstall,
+    });
 
-    let gql = await options.packageManager.require(
-      'graphql-tag',
+    const {processDocumentImports} = await options.packageManager.require(
+      'graphql-import-macro',
       asset.filePath,
-      {autoinstall: options.autoinstall},
+      {
+        autoinstall: options.autoinstall,
+      },
     );
 
-    let gqlMap = new Map();
-    const traverseImports = (name: string, assetCode: string) => {
-      gqlMap.set(name, assetCode);
+    const document = parse(new Source(await asset.getCode(), asset.filePath));
 
-      return Promise.all(
-        assetCode
-          .split(NEWLINE)
-          .map(line => line.match(IMPORT_RE))
-          .filter(match => !!match)
-          // $FlowFixMe
-          .map(async ([, importName]) => {
-            let resolved = await resolve(name, importName);
+    const expandedDocument = await processDocumentImports(document, loadImport);
 
-            if (gqlMap.has(resolved)) {
-              return;
-            }
+    async function loadImport(to, from) {
+      const filePath = await resolve(to, from);
 
-            let code = await options.inputFS.readFile(resolved, 'utf8');
-            asset.addIncludedFile({
-              filePath: resolved,
-            });
+      asset.addIncludedFile({filePath});
 
-            await traverseImports(resolved, code);
-          }),
+      return parse(
+        new Source(await options.inputFS.readFile(filePath, 'utf-8'), filePath),
       );
-    };
+    }
 
-    await traverseImports(asset.filePath, await asset.getCode());
+    const generated = asset.env.minify
+      ? stripIgnoredCharacters(print(expandedDocument))
+      : print(expandedDocument);
 
     asset.type = 'js';
-    asset.setCode(
-      `module.exports=${JSON.stringify(
-        gql([...gqlMap.values()].join('\n')),
-        null,
-        2,
-      )};`,
-    );
+    asset.setCode(`module.exports=${JSON.stringify(generated)};`);
 
     return [asset];
   },
