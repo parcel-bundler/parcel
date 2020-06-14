@@ -3,13 +3,13 @@
 import type {FilePath} from '@parcel/types';
 import path from 'path';
 
-const SEPARATOR_REGEX = /[/\\]+/;
+const SEPARATOR_REGEX = /[/\\]+/g;
 
 export function normalizeSeparators(
   filePath: FilePath,
   replaceValue: string = path.sep,
 ): FilePath {
-  return filePath.split(SEPARATOR_REGEX).join(replaceValue);
+  return filePath.replace(SEPARATOR_REGEX, replaceValue);
 }
 
 export function relatifyPath(from: string, to: string) {
