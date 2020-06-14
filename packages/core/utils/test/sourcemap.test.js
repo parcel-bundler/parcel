@@ -176,4 +176,36 @@ describe('loadSourceMap', () => {
       },
     ]);
   });
+
+  it('Should remap sources when using sourceRoot', async () => {
+    let filename = path.join(__dirname, './input/sourcemap/referenced-min.js');
+    let contents = fs.readFileSync(filename, 'utf-8');
+
+    let map = await loadSourceMap(filename, contents, {
+      fs,
+      projectRoot: __dirname,
+    });
+
+    assert(!!map);
+
+    let parsedMap = map.getMap();
+    assert.deepEqual(parsedMap.sources, [
+      path.normalize('input/sourcemap/referenced.js'),
+    ]);
+  });
+
+  it('Should remap sources when using sourceRoot', async () => {
+    let filename = path.join(__dirname, './input/sourcemap/source-root.js');
+    let contents = fs.readFileSync(filename, 'utf-8');
+
+    let map = await loadSourceMap(filename, contents, {
+      fs,
+      projectRoot: __dirname,
+    });
+
+    assert(!!map);
+
+    let parsedMap = map.getMap();
+    assert.deepEqual(parsedMap.sources, [path.normalize('input/source.js')]);
+  });
 });

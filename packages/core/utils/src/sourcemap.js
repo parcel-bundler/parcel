@@ -2,6 +2,7 @@
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
+import {normalizeSeparators} from './path';
 
 const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
@@ -50,7 +51,10 @@ export async function loadSourceMap(
     );
 
     let mapSourceRoot = path.dirname(filename);
-    if (map.sourceRoot && !path.isAbsolute(map.sourceRoot)) {
+    if (
+      map.sourceRoot &&
+      !normalizeSeparators(map.sourceRoot, '/').startsWith('/')
+    ) {
       mapSourceRoot = path.join(mapSourceRoot, map.sourceRoot);
     }
 
