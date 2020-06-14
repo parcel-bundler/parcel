@@ -4,4 +4,4 @@ function hello() {
   console.log(l + ' ' + o + '!');
 }
 hello();
-//# sourceMappingURL=main.min.js.map
+
