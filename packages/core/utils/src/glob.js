@@ -6,24 +6,21 @@ import type {FileSystem} from '@parcel/fs';
 import _isGlob from 'is-glob';
 import fastGlob, {type FastGlobOptions} from 'fast-glob';
 import {isMatch} from 'micromatch';
-
-function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/');
-}
+import {normalizeSeparators} from './path';
 
 export function isGlob(p: FilePath) {
-  return _isGlob(normalizePath(p));
+  return _isGlob(normalizeSeparators(p));
 }
 
 export function isGlobMatch(filePath: FilePath, glob: Glob) {
-  return isMatch(filePath, normalizePath(glob));
+  return isMatch(filePath, normalizeSeparators(glob));
 }
 
 export function globSync(
   p: FilePath,
   options: FastGlobOptions<FilePath>,
 ): Array<FilePath> {
-  return fastGlob.sync(normalizePath(p), options);
+  return fastGlob.sync(normalizeSeparators(p), options);
 }
 
 export function glob(
@@ -67,5 +64,5 @@ export function glob(
   };
 
   // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-  return fastGlob(normalizePath(p), options);
+  return fastGlob(normalizeSeparators(p), options);
 }

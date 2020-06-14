@@ -53,7 +53,7 @@ export async function loadSourceMap(
     let mapSourceRoot = path.dirname(filename);
     if (
       map.sourceRoot &&
-      !normalizeSeparators(map.sourceRoot, '/').startsWith('/')
+      !normalizeSeparators(map.sourceRoot).startsWith('/')
     ) {
       mapSourceRoot = path.join(mapSourceRoot, map.sourceRoot);
     }
