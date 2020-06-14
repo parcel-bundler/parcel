@@ -27,8 +27,10 @@
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
     "test": "yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
-    "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=*",
-    "alpha:release": "lerna publish --dist-tag=next --exact --force-publish=*"
+    "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
+    "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push",
+    "tag:release": "lerna version --force-publish=* --no-git-tag-version --no-push",
+    "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push"
   },
   "devDependencies": {
     "@babel/core": "^7.8.7",
