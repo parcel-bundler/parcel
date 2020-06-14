@@ -49,7 +49,7 @@ export async function loadSourceMap(
         : await options.fs.readFile(filename, 'utf8'),
     );
 
-    let mapSourceRoot = path.basename(filename);
+    let mapSourceRoot = path.dirname(filename);
     if (map.sourceRoot && !path.isAbsolute(map.sourceRoot)) {
       mapSourceRoot = path.join(mapSourceRoot, map.sourceRoot);
     }
