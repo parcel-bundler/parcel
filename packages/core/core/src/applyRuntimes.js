@@ -22,6 +22,7 @@ import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {dependencyToInternalDependency} from './public/Dependency';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -109,7 +110,11 @@ export default async function applyRuntimes({
     invariant(runtimeNode.type === 'asset');
 
     let resolution =
-      dependency && bundleGraph.getDependencyResolution(dependency, bundle);
+      dependency &&
+      bundleGraph.getDependencyResolution(
+        dependencyToInternalDependency(dependency),
+        bundle,
+      );
     let duplicatedAssetIds: Set<NodeId> = new Set();
     runtimesGraph.traverse((node, _, actions) => {
       if (node.type !== 'dependency') {
