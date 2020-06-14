@@ -978,6 +978,46 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
+  it('should correctly bundle loaders for nested dynamic imports', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-js-shared-dynamic-nested/index.html',
+      ),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'index.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['simpleHasher.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, ['hasher', ['hasher', 'hasher']]);
+  });
+
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
@@ -1182,13 +1222,7 @@ describe('html', function() {
       insertedBundles.push(bundle);
     }
 
-    assert.equal(insertedBundles.length, 2);
-
-    let js1 = await outputFS.readFile(insertedBundles[0].filePath, 'utf8');
-    let js2 = await outputFS.readFile(insertedBundles[1].filePath, 'utf8');
-
-    let id = js1.match(/parcelRequire\.register\("([a-f0-9]+)",/)[1];
-    assert(new RegExp(`parcelRequire\\("${id}"\\)`).test(js2));
+    assert.equal(insertedBundles.length, 1);
 
     let output = await run(b);
     assert.deepEqual(output, ['client', 'client', 'viewer']);
