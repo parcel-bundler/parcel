@@ -175,8 +175,13 @@ export default new Bundler({
         return;
       }
 
+      // Skip bundles where the entry is reachable in a parent bundle. This can occur when both synchronously and
+      // asynchronously importing an asset from a bundle. This asset will later be internalized into the parent.
       let mainEntry = bundle.getMainEntry();
-      if (mainEntry == null) {
+      if (
+        mainEntry == null ||
+        bundleGraph.isAssetReachableFromBundle(mainEntry, bundle)
+      ) {
         return;
       }
 
