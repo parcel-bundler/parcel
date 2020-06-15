@@ -51,7 +51,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Handle HMR Update
       var handled = false;
       assets.forEach(asset => {
-        var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+        var didAccept =
+          asset.type === 'css' ||
+          hmrAcceptCheck(global.parcelRequire, asset.id);
         if (didAccept) {
           handled = true;
         }
