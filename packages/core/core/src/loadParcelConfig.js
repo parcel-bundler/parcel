@@ -11,7 +11,12 @@ import type {
   ExtendableParcelConfigPipeline,
 } from './types';
 
-import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
+import {
+  isDirectoryInside,
+  resolveConfig,
+  resolve,
+  validateSchema,
+} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
@@ -274,17 +279,10 @@ export function mergeConfigs(
 
 function getResolveFrom(options: ParcelOptions) {
   let cwd = options.inputFS.cwd();
-  let dir = isSubdirectory(cwd, options.projectRoot)
+  let dir = isDirectoryInside(cwd, options.projectRoot)
     ? cwd
     : options.projectRoot;
   return path.join(dir, 'index');
-}
-
-function isSubdirectory(child, parent) {
-  const relative = path.relative(parent, child);
-  return (
-    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
-  );
 }
 
 export function mergePipelines(

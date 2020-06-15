@@ -8,6 +8,7 @@ export {default as generateBuildMetrics} from './generateBuildMetrics';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
 export {default as getRootDir} from './getRootDir';
+export {default as isDirectoryInside} from './isDirectoryInside';
 export {default as isURL} from './is-url';
 export {default as objectHash} from './objectHash';
 export {default as prettifyTime} from './prettifyTime';
