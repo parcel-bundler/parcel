@@ -121,12 +121,7 @@ export default class PackagerRunner {
         }
       }),
     );
-    assignComplexNameHashes(
-      hashRefToNameHash,
-      bundles,
-      bundleInfoMap,
-      this.options,
-    );
+    assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap);
     await Promise.all(
       bundles.map(
         bundle =>
@@ -433,7 +428,8 @@ export default class PackagerRunner {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
     let thisHashReference = bundle.hashReference;
-    if (filePath.includes(thisHashReference)) {
+    // Withouth content hashing, the hash reference is already the correct id
+    if (this.options.contentHash && filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
       bundle.filePath = filePath;
@@ -581,12 +577,7 @@ function getInfoKey(cacheKey: string) {
   return md5FromString(`${cacheKey}:info`);
 }
 
-function assignComplexNameHashes(
-  hashRefToNameHash,
-  bundles,
-  bundleInfoMap,
-  options,
-) {
+function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
   for (let bundle of bundles) {
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
@@ -596,17 +587,12 @@ function assignComplexNameHashes(
       ...getBundlesIncludedInHash(bundle.id, bundleInfoMap),
     ];
 
-    // we want stable names with Hot Module Reloading
-    // we want names based on content during production for cacheability
-    let name = options.contentHash
-      ? md5FromString(
-          includedBundles
-            .map(bundleId => bundleInfoMap[bundleId].hash)
-            .join(':'),
-        ).slice(-8)
-      : includedBundles[0].slice(-8);
-
-    hashRefToNameHash.set(bundle.hashReference, name);
+    hashRefToNameHash.set(
+      bundle.hashReference,
+      md5FromString(
+        includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
+      ).slice(-8),
+    );
   }
 }
 
