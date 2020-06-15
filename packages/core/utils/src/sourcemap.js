@@ -39,29 +39,20 @@ export async function loadSourceMap(
   contents: string,
   options: {fs: FileSystem, projectRoot: string, ...},
 ): Promise<?SourceMap> {
-  let match = matchSourceMappingURL(contents);
-  if (match) {
-    let url = match[1].trim();
-    let dataURLMatch = url.match(DATA_URL_RE);
-    filename = dataURLMatch ? filename : path.join(path.dirname(filename), url);
-    let map = JSON.parse(
-      dataURLMatch
-        ? Buffer.from(dataURLMatch[1], 'base64').toString()
-        : await options.fs.readFile(filename, 'utf8'),
-    );
-
+  let foundMap = await loadSourceMapUrl(options.fs, filename, contents);
+  if (foundMap) {
     let mapSourceRoot = path.dirname(filename);
     if (
-      map.sourceRoot &&
-      !normalizeSeparators(map.sourceRoot).startsWith('/')
+      foundMap.map.sourceRoot &&
+      !normalizeSeparators(foundMap.map.sourceRoot).startsWith('/')
     ) {
-      mapSourceRoot = path.join(mapSourceRoot, map.sourceRoot);
+      mapSourceRoot = path.join(mapSourceRoot, foundMap.map.sourceRoot);
     }
 
     let sourcemapInstance = new SourceMap();
     sourcemapInstance.addRawMappings({
       ...map,
-      sources: map.sources.map(s => {
+      sources: foundMap.map.sources.map(s => {
         return path.relative(options.projectRoot, path.join(mapSourceRoot, s));
       }),
     });
