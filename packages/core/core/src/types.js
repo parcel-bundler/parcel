@@ -243,7 +243,7 @@ export type EntrySpecifierNode = {|
 
 export type Entry = {|
   filePath: FilePath,
-  packagePath?: FilePath,
+  packagePath: FilePath,
 |};
 
 export type EntryFileNode = {|
