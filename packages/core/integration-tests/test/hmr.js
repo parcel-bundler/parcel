@@ -691,7 +691,7 @@ describe('hmr', function() {
           path.join(testDir, 'index.css'),
         );
         assert.equal((await getNextBuild(b)).type, 'buildSuccess');
-        await sleep(100);
+        await sleep(200);
 
         let newHref = window.document.querySelector('link').href;
 
