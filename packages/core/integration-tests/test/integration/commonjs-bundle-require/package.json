@@ -1,0 +1,18 @@
+{
+  "name": "commonjs-bundle-require",
+  "version": "1.2.3",
+  "main": "dist/node/index.js",
+  "bundleSplits": [
+    "local.js"
+  ],
+  "engines": {
+    "node": "8"
+  },
+  "targets": {
+    "main": {
+      "engines": {
+        "node": "8"
+      }
+    }
+  }
+}
