@@ -26,21 +26,16 @@ export default new Transformer({
     );
 
     if (configFile) {
-      // Don't cache JS configs
-      let isJavaScript = path.extname(configFile.filePath) === '.js';
-      if (isJavaScript) {
+      let isJavascript = path.extname(configFile.filePath) === '.js';
+      if (isJavascript) {
         config.shouldInvalidateOnStartup();
-
-        // Check if we can cache this at all
-        // should fail with advanced data types like functions and maps
-        try {
-          JSON.stringify(configFile.contents);
-        } catch (e) {
-          config.shouldReload();
-        }
+        config.shouldReload();
       }
 
-      config.setResult({contents: configFile.contents, isJavaScript});
+      config.setResult({
+        contents: configFile.contents,
+        isSerialisable: !isJavascript,
+      });
     }
   },
 
@@ -48,7 +43,7 @@ export default new Transformer({
     if (!config.result) return;
 
     // Ensure we dont try to serialise functions
-    if (config.result.isJavaScript) {
+    if (!config.result.isSerialisable) {
       config.result.contents = {};
     }
   },
