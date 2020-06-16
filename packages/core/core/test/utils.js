@@ -20,6 +20,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   lockFile: undefined,
   autoinstall: false,
   hot: undefined,
+  contentHash: true,
   serve: false,
   mode: 'development',
   scopeHoist: false,

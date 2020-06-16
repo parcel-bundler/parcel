@@ -429,7 +429,8 @@ export default class PackagerRunner {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
     let thisHashReference = bundle.hashReference;
-    if (filePath.includes(thisHashReference)) {
+    // Without content hashing, the hash reference is already the correct id
+    if (this.options.contentHash && filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
       bundle.filePath = filePath;
