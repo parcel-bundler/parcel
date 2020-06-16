@@ -13,16 +13,35 @@ export default new Transformer({
     });
 
     if (configFile) {
-      // Don't cache JS configs...
-      if (path.extname(configFile.filePath) === '.js') {
+      // Don't cache JS configs
+      let isJavaScript = path.extname(configFile.filePath) === '.js';
+      if (isJavaScript) {
         config.shouldInvalidateOnStartup();
+
+        // Check if we can cache this at all
+        // should fail with advanced data types like functions and maps
+        try {
+          JSON.stringify(configFile.contents);
+        } catch (e) {
+          config.shouldReload();
+        }
       }
 
-      config.setResult(configFile.contents);
+      config.setResult({contents: configFile.contents, isJavaScript});
+    }
+  },
+
+  preSerializeConfig({config}) {
+    if (!config.result) return;
+
+    // Ensure we dont try to serialise functions
+    if (config.result.isJavaScript) {
+      config.result.contents = {};
     }
   },
 
   async transform({asset, resolve, config, options}) {
+    let stylusConfig = config ? config.contents : {};
     // stylus should be installed locally in the module that's being required
     let stylus = await options.packageManager.require(
       'stylus',
@@ -31,7 +50,7 @@ export default new Transformer({
     );
 
     let code = await asset.getCode();
-    let style = stylus(code, config);
+    let style = stylus(code, stylusConfig);
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
