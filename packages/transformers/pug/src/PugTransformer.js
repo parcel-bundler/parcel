@@ -5,10 +5,11 @@ import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
   async loadConfig({config}) {
-    let configFile = await config.getConfig(
-      ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
-      {packageKey: 'postcss'},
-    );
+    let configFile = await config.getConfig([
+      '.pugrc',
+      '.pugrc.js',
+      'pug.config.js',
+    ]);
 
     // Don't cache JS configs...
     if (configFile && path.extname(configFile.filePath) === '.js') {
