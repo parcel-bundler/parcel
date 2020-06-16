@@ -4,13 +4,16 @@ import path from 'path';
 import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
-  async getConfig({asset}) {
-    const config = await asset.getConfig([
-      '.pugrc',
-      '.pugrc.js',
-      'pug.config.js',
-    ]);
-    return config || {};
+  async loadConfig({config}) {
+    let configFile = await config.getConfig(
+      ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
+      {packageKey: 'postcss'},
+    );
+
+    // Don't cache JS configs...
+    if (configFile && path.extname(configFile.filePath) === '.js') {
+      config.shouldInvalidateOnStartup();
+    }
   },
 
   async transform({asset, config, options}) {
