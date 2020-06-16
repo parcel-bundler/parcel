@@ -1924,10 +1924,10 @@
     ora "^2.1.0"
     strip-ansi "^4.0.0"
 
-"@parcel/source-map@2.0.0-alpha.4.12":
-  version "2.0.0-alpha.4.12"
-  resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0-alpha.4.12.tgz#2cfc48427254a80e098ba59485120a3736ce4165"
-  integrity sha512-mhy6L6QMx1aYTNtSs3D22ZueofiB/RjaT8RmWuoEwbTelXckrgo4epzHSPHinDwKfkR6n0PwiOJhz8kpToXj9g==
+"@parcel/source-map@2.0.0-alpha.4.13":
+  version "2.0.0-alpha.4.13"
+  resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0-alpha.4.13.tgz#2b262be6e99a15e9de3f6656df27c0b0c4809b83"
+  integrity sha512-MnIfYmaRqnwK8kRRG9Osu1DkJGl2bVSfJs9SqauJ9N4dOdAXAFGeeDtzXnHvx02DO+HwK7YjsbhBpSvvgZcWHg==
   dependencies:
     node-addon-api "^2.0.0"
     node-gyp-build "^4.2.2"

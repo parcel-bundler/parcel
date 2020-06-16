@@ -21,9 +21,8 @@ export default new Transformer({
     if (options.sourceMaps) {
       let map = null;
       if (output.v3SourceMap) {
-        let parsedMap = JSON.parse(output.v3SourceMap);
         map = new SourceMap();
-        map.addRawMappings(parsedMap);
+        map.addRawMappings(JSON.parse(output.v3SourceMap));
       }
 
       asset.setCode(output.js);

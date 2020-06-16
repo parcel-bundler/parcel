@@ -61,11 +61,10 @@ export default new Transformer({
 
     if (result.map != null) {
       let map = new SourceMap();
-      let {mappings, sources, names} = JSON.parse(result.map);
+      let rawMap = JSON.parse(result.map);
       map.addRawMappings({
-        mappings,
-        sources: sources.map(s => path.relative(options.projectRoot, s)),
-        names,
+        ...rawMap,
+        sources: rawMap.sources.map(s => path.relative(options.projectRoot, s)),
       });
       asset.setMap(map);
     }
