@@ -198,6 +198,7 @@ export type InitialParcelOptions = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,
+  +contentHash?: boolean,
   +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
