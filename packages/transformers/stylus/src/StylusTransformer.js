@@ -7,10 +7,19 @@ import path from 'path';
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 export default new Transformer({
-  getConfig({asset}) {
-    return asset.getConfig(['.stylusrc', '.stylusrc.js'], {
+  async loadConfig({config}) {
+    let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus',
     });
+
+    if (configFile) {
+      // Don't cache JS configs...
+      if (path.extname(configFile.filePath) === '.js') {
+        config.shouldInvalidateOnStartup();
+      }
+
+      config.setResult(configFile.contents);
+    }
   },
 
   async transform({asset, resolve, config, options}) {

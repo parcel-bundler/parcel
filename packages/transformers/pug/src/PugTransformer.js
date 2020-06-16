@@ -11,17 +11,36 @@ export default new Transformer({
       'pug.config.js',
     ]);
 
-    // Don't cache JS configs...
-    if (configFile && path.extname(configFile.filePath) === '.js') {
-      config.shouldInvalidateOnStartup();
+    if (configFile) {
+      // Don't cache JS configs
+      let isJavaScript = path.extname(configFile.filePath) === '.js';
+      if (isJavaScript) {
+        config.shouldInvalidateOnStartup();
+
+        // Check if we can cache this at all
+        // should fail with advanced data types like functions and maps
+        try {
+          JSON.stringify(configFile.contents);
+        } catch (e) {
+          config.shouldReload();
+        }
+      }
+
+      config.setResult({contents: configFile.contents, isJavaScript});
+    }
+  },
+
+  preSerializeConfig({config}) {
+    if (!config.result) return;
+
+    // Ensure we dont try to serialise functions
+    if (config.result.isJavaScript) {
+      config.result.contents = {};
     }
   },
 
   async transform({asset, config, options}) {
-    if (!config) {
-      return [asset];
-    }
-
+    const pugConfig = config ? config.contents : {};
     const pug = await options.packageManager.require('pug', asset.filePath, {
       autoinstall: options.autoinstall,
     });
@@ -31,11 +50,11 @@ export default new Transformer({
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
       filename: asset.filePath,
-      pretty: config.pretty || false,
-      doctype: config.doctype,
-      filters: config.filters,
-      filterOptions: config.filterOptions,
-      filterAliases: config.filterAliases,
+      pretty: pugConfig.pretty || false,
+      doctype: pugConfig.doctype,
+      filters: pugConfig.filters,
+      filterOptions: pugConfig.filterOptions,
+      filterAliases: pugConfig.filterAliases,
     });
 
     for (let filePath of render.dependencies) {
@@ -43,7 +62,7 @@ export default new Transformer({
     }
 
     asset.type = 'html';
-    asset.setCode(render(config.locals));
+    asset.setCode(render(pugConfig.locals));
 
     return [asset];
   },
