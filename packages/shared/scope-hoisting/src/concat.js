@@ -102,8 +102,13 @@ export async function concat({
   // Node: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
-    enter(asset, context) {
+    enter(asset, context, actions) {
       if (shouldSkipAsset(bundleGraph, asset, usedExports)) {
+        // If the used exports set exists but is empty, then we can skip this entire subgraph
+        if (usedExports.get(asset.id)?.size === 0) {
+          actions.skipChildren();
+        }
+
         return context;
       }
 
@@ -200,6 +205,7 @@ function getUsedExports(
   bundleGraph: BundleGraph<NamedBundle>,
 ): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
+  let seen = new Map();
 
   let entry = bundle.getMainEntry();
   if (entry) {
@@ -210,32 +216,13 @@ function getUsedExports(
     }
   }
 
+  // Include dependencies of all entry assets
+  let entries = bundle.getEntryAssets();
+  for (let asset of entries) {
+    addDependencies(asset);
+  }
+
   bundle.traverseAssets(asset => {
-    for (let dep of bundleGraph.getDependencies(asset)) {
-      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
-      if (!resolvedAsset) {
-        continue;
-      }
-
-      for (let [symbol, {local}] of dep.symbols) {
-        if (local === '*') {
-          continue;
-        }
-
-        if (symbol === '*') {
-          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
-            resolvedAsset,
-          )) {
-            if (symbol) {
-              markUsed(asset, symbol);
-            }
-          }
-        }
-
-        markUsed(resolvedAsset, symbol);
-      }
-    }
-
     // If the asset is referenced by another bundle, include all exports.
     if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
       markUsed(asset, '*');
@@ -247,7 +234,7 @@ function getUsedExports(
     }
   });
 
-  function markUsed(asset, symbol) {
+  function markUsed(asset, symbol, includeAll) {
     let resolved = bundleGraph.resolveSymbol(asset, symbol);
 
     let used = usedExports.get(resolved.asset.id);
@@ -257,6 +244,59 @@ function getUsedExports(
     }
 
     used.add(resolved.exportSymbol);
+
+    // Include dependencies of this asset.
+    addDependencies(resolved.asset, includeAll);
+  }
+
+  function addDependencies(asset, includeAll = false) {
+    // If we've seen this asset before, nothing to do.
+    if (seen.get(asset.id) === includeAll) {
+      return;
+    }
+
+    seen.set(asset.id, includeAll);
+
+    // For each dependency, include the symbols in the resolved assets
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
+      if (!resolvedAsset) {
+        continue;
+      }
+
+      let used = false;
+      for (let [symbol, {local}] of dep.symbols) {
+        if (local === '*' && !includeAll) {
+          continue;
+        }
+
+        used = true;
+
+        if (symbol === '*') {
+          // Include all child dependencies (recursively) if an `import *` is seen
+          includeAll = true;
+          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
+            resolvedAsset,
+          )) {
+            if (symbol) {
+              markUsed(asset, symbol, includeAll);
+            }
+          }
+        }
+
+        markUsed(resolvedAsset, symbol, includeAll);
+      }
+
+      // Only add dependencies if there were symbols used and not only re-exported
+      if (used) {
+        addDependencies(resolvedAsset, includeAll);
+      } else {
+        // Mark the resolved asset as unused by setting its used exports to an empty set.
+        if (!usedExports.has(resolvedAsset.id)) {
+          usedExports.set(resolvedAsset.id, new Set());
+        }
+      }
+    }
   }
 
   return usedExports;
@@ -271,11 +311,7 @@ function shouldSkipAsset(
     asset.sideEffects === false &&
     !asset.meta.isCommonJS &&
     (!usedExports.has(asset.id) ||
-      nullthrows(usedExports.get(asset.id)).size === 0) &&
-    !bundleGraph.getIncomingDependencies(asset).find(d =>
-      // Don't exclude assets that was imported as a wildcard
-      d.symbols.hasExportSymbol('*'),
-    )
+      nullthrows(usedExports.get(asset.id)).size === 0)
   );
 }
 
