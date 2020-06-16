@@ -142,7 +142,7 @@ export default new Transformer({
     let sourceMap = null;
     if (map.mappings) {
       sourceMap = new SourceMap();
-      sourceMap.addRawMappings(map.mappings, map.sources, map.names || []);
+      sourceMap.addRawMappings(map);
     }
 
     return [

@@ -21,7 +21,7 @@ import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
 import postHtml from 'posthtml';
 
-import {makeDeferredWithPromise} from '@parcel/utils';
+import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -72,7 +72,7 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export function normalizeFilePath(filePath: string) {
-  return filePath.replace(/[\\/]+/g, '/');
+  return normalizeSeparators(filePath);
 }
 
 export const distDir = path.resolve(

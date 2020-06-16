@@ -208,8 +208,7 @@ export default new Transformer({
     let map;
     if (result.map != null) {
       map = new SourceMap();
-      let {mappings, sources, names} = result.map.toJSON();
-      map.addRawMappings(mappings, sources, names);
+      map.addRawMappings(result.map.toJSON());
     }
 
     return {

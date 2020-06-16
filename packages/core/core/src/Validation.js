@@ -11,7 +11,7 @@ import type {Validator, ValidateResult} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
-import {resolveConfig} from '@parcel/utils';
+import {resolveConfig, normalizeSeparators} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
@@ -194,9 +194,9 @@ export default class Validation {
     let idBase =
       code != null
         ? hash
-        : path
-            .relative(this.options.projectRoot, filePath)
-            .replace(/[\\/]+/g, '/');
+        : normalizeSeparators(
+            path.relative(this.options.projectRoot, filePath),
+          );
     return new UncommittedAsset({
       idBase,
       value: createAsset({

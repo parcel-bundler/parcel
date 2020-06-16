@@ -360,6 +360,7 @@ export default class PackagerRunner {
     // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
+      // $FlowFixMe
       fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources

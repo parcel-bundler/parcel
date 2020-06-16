@@ -82,9 +82,9 @@ const commonOptions = {
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '-p, --port <port>': [
-    'set the port to serve on. defaults to 1234',
+    'set the port to serve on. defaults to $PORT or 1234',
     value => parseInt(value, 10),
-    1234,
+    process.env.PORT || 1234,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',

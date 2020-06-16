@@ -19,7 +19,7 @@
     "@parcel/fs": "^2.0.0-alpha.3.1",
     "@parcel/plugin": "^2.0.0-alpha.3.1",
     "@parcel/utils": "^2.0.0-alpha.3.1",
-    "@parcel/source-map": "2.0.0-alpha.4.11"
+    "@parcel/source-map": "2.0.0-alpha.4.13"
   },
   "devDependencies": {
     "sass": "^1.22.9"
