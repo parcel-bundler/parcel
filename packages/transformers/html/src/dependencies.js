@@ -9,6 +9,7 @@ const ATTRS = {
   src: [
     'script',
     'img',
+    'amp-img',
     'audio',
     'video',
     'source',
