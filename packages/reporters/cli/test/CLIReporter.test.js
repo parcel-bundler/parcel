@@ -20,6 +20,7 @@ const EMPTY_OPTIONS = {
   autoinstall: false,
   hot: undefined,
   serve: false,
+  publicUrl: '/',
   mode: 'development',
   scopeHoist: false,
   minify: false,
