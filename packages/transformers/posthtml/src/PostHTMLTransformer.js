@@ -2,6 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 
+import path from 'path';
 import posthtml from 'posthtml';
 import parse from 'posthtml-parser';
 import render from 'posthtml-render';
@@ -10,22 +11,38 @@ import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
 export default new Transformer({
-  async getConfig({asset, options}) {
-    let config = await asset.getConfig(
+  async loadConfig({config}) {
+    let configFile = await config.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
       {
         packageKey: 'posthtml',
       },
     );
 
-    config = config || {};
+    if (configFile) {
+      let isJavascript = path.extname(configFile.filePath) === '.js';
+      if (isJavascript) {
+        config.shouldInvalidateOnStartup();
+        config.shouldReload();
+      }
 
-    // load plugins
-    config.plugins = await loadPlugins(config.plugins, asset.filePath, options);
+      // tells posthtml that we have already called parse
+      configFile.contents.skipParse = true;
 
-    // tells posthtml that we have already called parse
-    config.skipParse = true;
-    return config;
+      config.setResult({
+        contents: configFile.contents,
+        isSerialisable: !isJavascript,
+      });
+    }
+  },
+
+  preSerializeConfig({config}) {
+    if (!config.result) return;
+
+    // Ensure we dont try to serialise functions
+    if (!config.result.isSerialisable) {
+      config.result.contents = {};
+    }
   },
 
   canReuseAST({ast}) {
@@ -47,13 +64,25 @@ export default new Transformer({
     };
   },
 
-  async transform({asset, config}) {
+  async transform({asset, config, options}) {
     if (!config) {
       return [asset];
     }
 
+    let posthtmlConfig = {...config.contents};
+
+    // load plugins
+    posthtmlConfig.plugins = await loadPlugins(
+      posthtmlConfig.plugins,
+      asset.filePath,
+      options,
+    );
+
     let ast = nullthrows(await asset.getAST());
-    let res = await posthtml(config.plugins).process(ast.program, config);
+    let res = await posthtml(posthtmlConfig.plugins).process(
+      ast.program,
+      posthtmlConfig,
+    );
 
     if (res.messages) {
       await Promise.all(
