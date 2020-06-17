@@ -110,7 +110,7 @@ describe('html', function() {
       'utf8',
     );
 
-    assert(/<link rel="canonical" href="\.\/index.html">/.test(html));
+    assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
   });
 
   it('should support meta tag with none content', async function() {
