@@ -69,20 +69,18 @@ export default new Transformer({
       return [asset];
     }
 
-    let posthtmlConfig = {...config.contents};
-
     // load plugins
-    posthtmlConfig.plugins = await loadPlugins(
-      posthtmlConfig.plugins,
+    const plugins = await loadPlugins(
+      config.contents.plugins,
       asset.filePath,
       options,
     );
 
     let ast = nullthrows(await asset.getAST());
-    let res = await posthtml(posthtmlConfig.plugins).process(
-      ast.program,
-      posthtmlConfig,
-    );
+    let res = await posthtml(plugins).process(ast.program, {
+      ...config.contents,
+      plugins,
+    });
 
     if (res.messages) {
       await Promise.all(
