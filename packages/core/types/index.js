@@ -230,6 +230,7 @@ export interface PluginOptions {
   +env: EnvMap;
   +hot: ?HMROptions;
   +serve: ServerOptions | false;
+  +publicUrl: string;
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;

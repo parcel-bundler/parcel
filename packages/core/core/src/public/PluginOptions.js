@@ -54,6 +54,10 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.serve;
   }
 
+  get publicUrl(): string {
+    return this.#options.publicUrl;
+  }
+
   get autoinstall(): boolean {
     return this.#options.autoinstall;
   }
