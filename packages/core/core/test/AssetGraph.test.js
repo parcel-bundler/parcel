@@ -53,19 +53,30 @@ describe('AssetGraph', () => {
 
     graph.resolveEntry(
       '/path/to/index1',
-      [{filePath: '/path/to/index1/src/main.js'}],
+      [
+        {
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        },
+      ],
       '123',
     );
 
     assert(
       graph.nodes.has(
-        nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
       ),
     );
     assert(
       graph.hasEdge(
         'entry_specifier:/path/to/index1',
-        nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
       ),
     );
   });
@@ -78,22 +89,32 @@ describe('AssetGraph', () => {
 
     graph.resolveEntry(
       '/path/to/index1',
-      [{filePath: '/path/to/index1/src/main.js'}],
+      [
+        {
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        },
+      ],
       '1',
     );
     graph.resolveEntry(
       '/path/to/index2',
-      [{filePath: '/path/to/index2/src/main.js'}],
+      [
+        {
+          filePath: '/path/to/index2/src/main.js',
+          packagePath: '/path/to/index2',
+        },
+      ],
       '2',
     );
 
     graph.resolveTargets(
-      {filePath: '/path/to/index1/src/main.js'},
+      {filePath: '/path/to/index1/src/main.js', packagePath: '/path/to/index1'},
       TARGETS,
       '3',
     );
     graph.resolveTargets(
-      {filePath: '/path/to/index2/src/main.js'},
+      {filePath: '/path/to/index2/src/main.js', packagePath: '/path/to/index2'},
       TARGETS,
       '4',
     );
@@ -131,16 +152,25 @@ describe('AssetGraph', () => {
       },
       {
         from: 'entry_specifier:/path/to/index1',
-        to: nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        to: nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
         type: null,
       },
       {
         from: 'entry_specifier:/path/to/index2',
-        to: nodeFromEntryFile({filePath: '/path/to/index2/src/main.js'}).id,
+        to: nodeFromEntryFile({
+          filePath: '/path/to/index2/src/main.js',
+          packagePath: '/path/to/index2',
+        }).id,
         type: null,
       },
       {
-        from: nodeFromEntryFile({filePath: '/path/to/index1/src/main.js'}).id,
+        from: nodeFromEntryFile({
+          filePath: '/path/to/index1/src/main.js',
+          packagePath: '/path/to/index1',
+        }).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index1/src/main.js',
           pipeline: 'test',
@@ -150,7 +180,10 @@ describe('AssetGraph', () => {
         type: null,
       },
       {
-        from: nodeFromEntryFile({filePath: '/path/to/index2/src/main.js'}).id,
+        from: nodeFromEntryFile({
+          filePath: '/path/to/index2/src/main.js',
+          packagePath: '/path/to/index2',
+        }).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index2/src/main.js',
           pipeline: 'test',
@@ -171,11 +204,11 @@ describe('AssetGraph', () => {
 
     graph.resolveEntry(
       '/path/to/index',
-      [{filePath: '/path/to/index/src/main.js'}],
+      [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
       '1',
     );
     graph.resolveTargets(
-      {filePath: '/path/to/index/src/main.js'},
+      {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
       TARGETS,
       '2',
     );
@@ -213,11 +246,11 @@ describe('AssetGraph', () => {
 
     graph.resolveEntry(
       '/path/to/index',
-      [{filePath: '/path/to/index/src/main.js'}],
+      [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
       '1',
     );
     graph.resolveTargets(
-      {filePath: '/path/to/index/src/main.js'},
+      {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
       TARGETS,
       '2',
     );
@@ -355,11 +388,11 @@ describe('AssetGraph', () => {
 
     graph.resolveEntry(
       './index',
-      [{filePath: '/path/to/index/src/main.js'}],
+      [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
       '1',
     );
     graph.resolveTargets(
-      {filePath: '/path/to/index/src/main.js'},
+      {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
       TARGETS,
       '2',
     );

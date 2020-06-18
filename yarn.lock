@@ -1924,10 +1924,10 @@
     ora "^2.1.0"
     strip-ansi "^4.0.0"
 
-"@parcel/source-map@2.0.0-alpha.4.11":
-  version "2.0.0-alpha.4.11"
-  resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0-alpha.4.11.tgz#1223a060dc7687c00d6bdb27c59e7a3e8642accd"
-  integrity sha512-Vwm6PftbW6oLk2k8MUFzjZOLOpn0cjg5Z0rSiNPlC7vpH1gIKY9GkuWN2K9N9NHwc2nQFvq8KmFKXz7N60otSg==
+"@parcel/source-map@2.0.0-alpha.4.13":
+  version "2.0.0-alpha.4.13"
+  resolved "https://registry.yarnpkg.com/@parcel/source-map/-/source-map-2.0.0-alpha.4.13.tgz#2b262be6e99a15e9de3f6656df27c0b0c4809b83"
+  integrity sha512-MnIfYmaRqnwK8kRRG9Osu1DkJGl2bVSfJs9SqauJ9N4dOdAXAFGeeDtzXnHvx02DO+HwK7YjsbhBpSvvgZcWHg==
   dependencies:
     node-addon-api "^2.0.0"
     node-gyp-build "^4.2.2"
@@ -6678,7 +6678,14 @@ grapheme-breaker@^0.3.2:
     brfs "^1.2.0"
     unicode-trie "^0.3.1"
 
-graphql-tag@^2.10.1, graphql-tag@^2.6.0:
+graphql-import-macro@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/graphql-import-macro/-/graphql-import-macro-1.0.0.tgz#987c62bdebf5f26c77bb0e67a5f67afd7d0b5f42"
+  integrity sha512-YK4g6iP60H++MpP93tb0VwOg7aM5iIC0hdSQKTrEDANeLWf0KFAT9dwlBeMDrhY+jcW7qsAEDtaw58cgVnQXAw==
+  dependencies:
+    graphql "^15.0.0"
+
+graphql-tag@^2.6.0:
   version "2.10.1"
   resolved "https://registry.yarnpkg.com/graphql-tag/-/graphql-tag-2.10.1.tgz#10aa41f1cd8fae5373eaf11f1f67260a3cad5e02"
   integrity sha512-jApXqWBzNXQ8jYa/HLkZJaVw9jgwNqZkywa2zfFn16Iv1Zb7ELNHkJaXHR7Quvd5SIGsy6Ny7SUKATgnu05uEg==
@@ -6689,6 +6696,11 @@ graphql@^0.11.7:
   integrity sha512-x7uDjyz8Jx+QPbpCFCMQ8lltnQa4p4vSYHx6ADe8rVYRTdsyhCJbvSty5DAsLVmU6cGakl+r8HQYolKHxk/tiw==
   dependencies:
     iterall "1.1.3"
+
+graphql@^15.0.0:
+  version "15.0.0"
+  resolved "https://registry.yarnpkg.com/graphql/-/graphql-15.0.0.tgz#042a5eb5e2506a2e2111ce41eb446a8e570b8be9"
+  integrity sha512-ZyVO1xIF9F+4cxfkdhOJINM+51B06Friuv4M66W7HzUOeFd+vNzUn4vtswYINPi6sysjf1M2Ri/rwZALqgwbaQ==
 
 graphviz@^0.0.9:
   version "0.0.9"

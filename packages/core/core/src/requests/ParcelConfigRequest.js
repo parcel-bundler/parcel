@@ -13,10 +13,11 @@ import type {
 } from '../types';
 
 import {
+  isDirectoryInside,
+  md5FromObject,
   resolveConfig,
   resolve,
   validateSchema,
-  md5FromObject,
 } from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 // $FlowFixMe
@@ -336,17 +337,10 @@ export function mergeConfigs(
 
 function getResolveFrom(options: ParcelOptions) {
   let cwd = options.inputFS.cwd();
-  let dir = isSubdirectory(cwd, options.projectRoot)
+  let dir = isDirectoryInside(cwd, options.projectRoot)
     ? cwd
     : options.projectRoot;
   return path.join(dir, 'index');
-}
-
-function isSubdirectory(child, parent) {
-  const relative = path.relative(parent, child);
-  return (
-    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
-  );
 }
 
 export function mergePipelines(

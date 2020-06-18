@@ -147,6 +147,7 @@ export type ParcelOptions = {|
   publicUrl: string,
   distDir: ?FilePath,
   hot: ?HMROptions,
+  contentHash: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -240,7 +241,7 @@ export type EntrySpecifierNode = {|
 
 export type Entry = {|
   filePath: FilePath,
-  packagePath?: FilePath,
+  packagePath: FilePath,
 |};
 
 export type EntryFileNode = {|

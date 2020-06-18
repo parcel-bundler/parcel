@@ -20,7 +20,7 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject} from '@parcel/utils';
+import {md5FromObject, normalizeSeparators} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -164,9 +164,9 @@ export default class Transformation {
     let idBase =
       code != null
         ? hash
-        : path
-            .relative(this.options.projectRoot, filePath)
-            .replace(/[\\/]+/g, '/');
+        : normalizeSeparators(
+            path.relative(this.options.projectRoot, filePath),
+          );
     return new UncommittedAsset({
       idBase,
       value: createAsset({

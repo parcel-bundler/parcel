@@ -7,7 +7,7 @@ import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {PluginLogger} from '@parcel/logger';
-import {escapeMarkdown, relatifyPath} from '@parcel/utils';
+import {escapeMarkdown, relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
@@ -191,7 +191,7 @@ export class ResolverRunner {
     let dir =
       dependency.sourcePath != null
         ? escapeMarkdown(
-            relatifyPath(this.options.projectRoot, dependency.sourcePath),
+            relativePath(this.options.projectRoot, dependency.sourcePath),
           )
         : '';
 
