@@ -231,6 +231,7 @@ export function link({
     }
 
     // Look for an exports object if we bailed out.
+    // TODO remove the first part of the condition once bundleGraph.resolveSymbol().identifier === null covers this
     if ((node === undefined && mod.meta.isCommonJS) || node === null) {
       node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
       if (!node) {

@@ -842,7 +842,8 @@ export default class BundleGraph {
       return {
         asset,
         exportSymbol: symbol,
-        symbol: identifier ?? (bailout ? null : undefined),
+        symbol:
+          identifier ?? (bailout || asset.symbols?.has('*') ? null : undefined),
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
