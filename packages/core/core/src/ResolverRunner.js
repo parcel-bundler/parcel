@@ -5,7 +5,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type ParcelConfig from './ParcelConfig';
 
 import {PluginLogger} from '@parcel/logger';
-import {relatifyPath} from '@parcel/utils';
+import {relativePath} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import path from 'path';
 import URL from 'url';
@@ -141,7 +141,7 @@ export default class ResolverRunner {
 
     let dir = dependency.sourcePath
       ? escapeMarkdown(
-          relatifyPath(this.options.projectRoot, dependency.sourcePath),
+          relativePath(this.options.projectRoot, dependency.sourcePath),
         )
       : '';
 

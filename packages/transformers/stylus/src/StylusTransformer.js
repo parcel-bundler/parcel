@@ -7,13 +7,36 @@ import path from 'path';
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 export default new Transformer({
-  getConfig({asset}) {
-    return asset.getConfig(['.stylusrc', '.stylusrc.js'], {
+  async loadConfig({config}) {
+    let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus',
     });
+
+    if (configFile) {
+      let isJavascript = path.extname(configFile.filePath) === '.js';
+      if (isJavascript) {
+        config.shouldInvalidateOnStartup();
+        config.shouldReload();
+      }
+
+      config.setResult({
+        contents: configFile.contents,
+        isSerialisable: !isJavascript,
+      });
+    }
+  },
+
+  preSerializeConfig({config}) {
+    if (!config.result) return;
+
+    // Ensure we dont try to serialise functions
+    if (!config.result.isSerialisable) {
+      config.result.contents = {};
+    }
   },
 
   async transform({asset, resolve, config, options}) {
+    let stylusConfig = config ? config.contents : {};
     // stylus should be installed locally in the module that's being required
     let stylus = await options.packageManager.require(
       'stylus',
@@ -22,7 +45,7 @@ export default new Transformer({
     );
 
     let code = await asset.getCode();
-    let style = stylus(code, config);
+    let style = stylus(code, stylusConfig);
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
