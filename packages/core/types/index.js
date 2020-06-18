@@ -504,13 +504,6 @@ export type MultiThreadValidator = {|
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
-  // TODO: deprecate getConfig
-  getConfig?: ({|
-    asset: MutableAsset,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
