@@ -56,6 +56,16 @@ describe('elm', function() {
     assert(!js.includes('elm$browser$Debugger'));
   });
 
+  it('should remove debugger when environment variable `PARCEL_ELM_NO_DEBUG` is set to true', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
+      env: {PARCEL_ELM_NO_DEBUG: true},
+    });
+
+    await run(b);
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!js.includes('elm$browser$Debugger'));
+  });
+
   it('should minify Elm in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/elm/index.js'), {
       mode: 'production',
@@ -63,7 +73,6 @@ describe('elm', function() {
     });
 
     await run(b);
-    // assert.equal(typeof output().Elm.Main.init, 'function');
 
     let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!js.includes('elm$core'));
