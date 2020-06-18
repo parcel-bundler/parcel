@@ -10,16 +10,14 @@ import {minify} from 'terser';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default new Transformer({
-  getConfig({asset, options}) {
-    return {
+  async transform({asset, options}) {
+    const config = {
       cwd: path.dirname(asset.filePath),
-      debug: !(options.env.PARCE_ELM_NO_DEBUG || options.mode === 'production'),
+      debug: !(
+        options.env.PARCEL_ELM_NO_DEBUG || options.mode === 'production'
+      ),
       optimize: asset.env.minify,
     };
-  },
-
-  async transform({asset, options, config}) {
-    if (!config) return [asset];
 
     (await elm.findAllDependencies(asset.filePath)).forEach(filePath =>
       asset.addIncludedFile({filePath}),
