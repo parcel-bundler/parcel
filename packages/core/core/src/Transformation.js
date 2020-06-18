@@ -535,18 +535,6 @@ async function runTransformer(
     ).filePath;
   };
 
-  // Load config for the transformer.
-  let config = preloadedConfig;
-  if (transformer.getConfig) {
-    // TODO: deprecate getConfig
-    config = await transformer.getConfig({
-      asset: new MutableAsset(asset),
-      options: pipeline.pluginOptions,
-      resolve,
-      logger,
-    });
-  }
-
   // If an ast exists on the asset, but we cannot reuse it,
   // use the previous transform to generate code that we can re-parse.
   if (
@@ -564,6 +552,9 @@ async function runTransformer(
     asset.content = output.content;
     asset.mapBuffer = output.map?.toBuffer();
   }
+
+  // Load config for the transformer.
+  let config = preloadedConfig;
 
   // Parse if there is no AST available from a previous transform.
   if (!asset.ast && transformer.parse) {
