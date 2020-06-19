@@ -47,7 +47,7 @@ export class MemoryFS implements FileSystem {
   _cwd: FilePath;
   _eventQueue: Array<Event>;
   _watcherTimer: TimeoutID;
-  workers: Array<(WorkerEvent) => Promise<mixed>>;
+  workerHandles: Array<Handle>;
 
   constructor(workerFarm: WorkerFarm) {
     this.farm = workerFarm;
@@ -58,7 +58,7 @@ export class MemoryFS implements FileSystem {
     this.events = [];
     this.id = id++;
     this._cwd = '/';
-    this.workers = [];
+    this.workerHandles = [];
     this._eventQueue = [];
     instances.set(this.id, this);
   }
@@ -507,13 +507,13 @@ export class MemoryFS implements FileSystem {
     }, 50);
   }
 
-  _registerWorker(fn: WorkerEvent => Promise<mixed>) {
-    this.workers.push(fn);
+  _registerWorker(handle: Handle) {
+    this.workerHandles.push(handle);
   }
 
   async _sendWorkerEvent(event: WorkerEvent) {
-    for (let worker of this.workers) {
-      await worker(event);
+    for (let workerHandle of this.workerHandles) {
+      await this.farm.workerApi.runHandle(workerHandle, [event]);
     }
   }
 
@@ -861,14 +861,15 @@ class WorkerFS extends MemoryFS {
   id: number;
   handleFn: HandleFunction;
 
-  constructor(id: number, handleFn: HandleFunction) {
+  constructor(id: number, handle: Handle) {
     // TODO Make this not a subclass
     // $FlowFixMe
     super();
     this.id = id;
-    this.handleFn = handleFn;
+    this.handleFn = (methodName, args) =>
+      WorkerFarm.getWorkerApi().runHandle(handle, [methodName, args]);
 
-    handleFn('_registerWorker', [
+    this.handleFn('_registerWorker', [
       WorkerFarm.getWorkerApi().createReverseHandle(event => {
         switch (event.type) {
           case 'writeFile':
