@@ -300,7 +300,13 @@ export default class NodeResolver {
             ? _Module.findPnpApi(path.dirname(parent))
             : // $FlowFixMe injected at runtime
               require('pnpapi');
-        let res = pnp.resolveToUnqualified(moduleName, parent);
+
+        let res = pnp.resolveToUnqualified(
+          moduleName +
+            // retain slash in `require('assert/')` to force loading builtin from npm
+            (filename.indexOf(path.sep) === moduleName.length ? '/' : ''),
+          parent,
+        );
 
         resolved = {
           moduleName,
