@@ -100,9 +100,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.queue = new PromiseQueue();
 
     this.runValidate = workerFarm.createHandle('runValidate');
-    this.handle = workerFarm.createReverseHandle(() => {
-      // Do nothing, this is here because there is a bug in `@parcel/workers`
-    });
 
     let changes = await this.readFromCache();
     if (!changes) {
