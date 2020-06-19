@@ -87,7 +87,7 @@ For more information on this topic, read [this issue on parcel repository](https
 
 When releasing a new version of Parcel a couple steps should be followed:
 
-1. Run `yarn tag:prerelease <version>` or `yarn tag:release <version>` based on whether it is a prerelease (alpha, beta, nightly, ...) or a stable release
+1. Run `yarn tag:prerelease 2.0.0-alpha.1` or `yarn tag:release 2.4.5` based on whether it is a prerelease (alpha, beta, nightly, ...) or a stable release
 2. Open a PR (or commit directly to the default branch)
 3. Wait for the PR to get merged
 4. Create a [GitHub release](https://github.com/parcel-bundler/parcel/releases) and publish it (this should automatically trigger an npm release, with the current state of the default branch and versions defined in the `package.json` files)
