@@ -717,6 +717,7 @@ export type BundleResult = {|
   +contents: Blob,
   +ast?: AST,
   +map?: ?SourceMap,
+  +type?: string,
 |};
 
 export type ResolveResult = {|
