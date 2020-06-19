@@ -304,7 +304,7 @@ export default class NodeResolver {
         let res = pnp.resolveToUnqualified(
           moduleName +
             // retain slash in `require('assert/')` to force loading builtin from npm
-            (filename.indexOf(path.sep) === moduleName.length ? '/' : ''),
+            (filename[moduleName.length] === '/' ? '/' : ''),
           parent,
         );
 
