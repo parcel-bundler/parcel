@@ -172,7 +172,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveDependency(
     dependency: Dependency,
-    assetGroup: AssetGroup | null | void,
+    assetGroup: ?AssetGroup,
     correspondingRequest: string,
   ) {
     let depNode = nullthrows(this.nodes.get(dependency.id));
