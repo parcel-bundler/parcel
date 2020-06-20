@@ -14,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import path from 'path';
 
-describe('html', function() {
+describe.only('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -1368,6 +1368,73 @@ describe('html', function() {
     checkHtml('e.html');
     checkHtml('f.html');
     checkHtml('g.html');
+  });
+
+  it.only('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-multi-entry/*.html'),
+      {
+        production: true,
+        scopeHoist: true,
+      },
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'a.html',
+        type: 'html',
+        assets: ['a.html'],
+      },
+      {
+        name: 'b.html',
+        type: 'html',
+        assets: ['b.html'],
+      },
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+    ]);
+
+    let firstHtmlFile = await outputFS.readFile(
+      path.join(distDir, 'a.html'),
+      'utf8',
+    );
+
+    let secondHtmlFile = await outputFS.readFile(
+      path.join(distDir, 'b.html'),
+      'utf8',
+    );
+
+    let bundles = b.getBundles();
+    let cssBundle = path.basename(
+      bundles.find(bundle => bundle.filePath.endsWith('.css')).filePath,
+    );
+    let jsBundle = path.basename(
+      bundles.find(bundle => bundle.filePath.endsWith('.js')).filePath,
+    );
+
+    assert(
+      firstHtmlFile.includes(cssBundle),
+      `a.html should include a reference to ${cssBundle}`,
+    );
+    assert(
+      secondHtmlFile.includes(cssBundle),
+      `b.html should include a reference to ${cssBundle}`,
+    );
+
+    assert(
+      firstHtmlFile.includes(jsBundle),
+      `a.html should include a reference to ${jsBundle}`,
+    );
+    assert(
+      secondHtmlFile.includes(jsBundle),
+      `b.html should include a reference to ${jsBundle}`,
+    );
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
