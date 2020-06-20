@@ -289,7 +289,7 @@ export default class PackagerRunner {
 
   async optimize(
     internalBundle: InternalBundle,
-    bundleGraph: InternalBundleGraph,
+    internalBundleGraph: InternalBundleGraph,
     type: string,
     contents: Blob,
     map?: ?SourceMap,
@@ -298,7 +298,17 @@ export default class PackagerRunner {
     contents: Blob,
     map: ?SourceMap,
   |}> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = new NamedBundle(
+      internalBundle,
+      internalBundleGraph,
+      this.options,
+    );
+    let bundleGraph = new BundleGraph<NamedBundleType>(
+      internalBundleGraph,
+      (bundle, bundleGraph, options) =>
+        new NamedBundle(bundle, bundleGraph, options),
+      this.options,
+    );
     let optimizers = await this.config.getOptimizers(
       bundle.filePath,
       internalBundle.pipeline,
@@ -323,6 +333,7 @@ export default class PackagerRunner {
       try {
         let next = await optimizer.plugin.optimize({
           bundle,
+          bundleGraph,
           contents: optimized.contents,
           map: optimized.map,
           getSourceMapReference: map => {

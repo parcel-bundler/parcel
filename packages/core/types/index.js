@@ -782,6 +782,7 @@ export type Packager = {|
 export type Optimizer = {|
   optimize({|
     bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
     contents: Blob,
     map: ?SourceMap,
     options: PluginOptions,
