@@ -57,7 +57,6 @@ async function loadPlugin(
   });
 
   plugin = plugin.default || plugin;
-  plugin = plugin(options);
 
-  return plugin.default || plugin;
+  return plugin(options);
 }
