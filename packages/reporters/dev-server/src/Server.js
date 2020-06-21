@@ -28,7 +28,6 @@ import connect from 'connect';
 import serveHandler from 'serve-handler';
 import httpProxyMiddleware from 'http-proxy-middleware';
 import {URL} from 'url';
-import mime from 'mime';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -245,7 +244,7 @@ export default class Server extends EventEmitter {
 
     setHeaders(res);
 
-    return await serveHandler(
+    return serveHandler(
       req,
       res,
       {
@@ -253,10 +252,9 @@ export default class Server extends EventEmitter {
         cleanUrls: false,
       },
       {
-        lstat: _ => stat,
-        realpath: _ => filePath,
-        createReadStream: (_, options) =>
-          fs.createReadStream(filePath, options),
+        lstat: path => fs.stat(path),
+        realpath: path => fs.realpath(path),
+        createReadStream: (path, options) => fs.createReadStream(path, options),
         readdir: path => fs.readdir(path),
       },
     );
