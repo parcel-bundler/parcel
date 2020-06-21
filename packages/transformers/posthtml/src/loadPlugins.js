@@ -55,15 +55,9 @@ async function loadPlugin(
   let plugin = await packageManager.require(pluginArg, relative, {
     autoinstall,
   });
-  plugin = plugin.default || plugin;
 
-  if (
-    options != null &&
-    typeof options === 'object' &&
-    Object.keys(options).length > 0
-  ) {
-    plugin = plugin(options);
-  }
+  plugin = plugin.default || plugin;
+  plugin = plugin(options);
 
   return plugin.default || plugin;
 }
