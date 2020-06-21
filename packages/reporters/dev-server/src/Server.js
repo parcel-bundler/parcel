@@ -25,6 +25,7 @@ import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
+import serveHandler from 'serve-handler';
 import httpProxyMiddleware from 'http-proxy-middleware';
 import {URL} from 'url';
 import mime from 'mime';
@@ -237,23 +238,28 @@ export default class Server extends EventEmitter {
       return next(req, res);
     }
 
-    setHeaders(res);
-    res.setHeader('Content-Length', '' + stat.size);
-    let mimeType = mime.getType(filePath);
-    if (mimeType != null) {
-      res.setHeader('Content-Type', mimeType + '; charset=utf-8');
-    }
     if (req.method === 'HEAD') {
       res.end();
       return;
     }
 
-    return new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(res)
-        .on('finish', resolve)
-        .on('error', reject);
-    });
+    setHeaders(res);
+
+    return await serveHandler(
+      req,
+      res,
+      {
+        public: root,
+        cleanUrls: false,
+      },
+      {
+        lstat: _ => stat,
+        realpath: _ => filePath,
+        createReadStream: (_, options) =>
+          fs.createReadStream(filePath, options),
+        readdir: path => fs.readdir(path),
+      },
+    );
   }
 
   sendError(res: Response, statusCode: number) {
