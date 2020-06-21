@@ -135,10 +135,13 @@ export default new Bundler({
             bundleGraph.createAssetReference(dependency, asset);
           } else {
             let bundle = bundleGraph.createBundle({
-              entryAsset: asset,
+              uniqueKey: asset.id,
+              env: asset.env,
+              type: asset.type,
               target: bundleGroup.target,
               isEntry: bundleGroupDependency.isEntry,
               isInline: asset.isInline,
+              isSplittable: true,
             });
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
