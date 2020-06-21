@@ -14,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import path from 'path';
 
-describe.only('html', function() {
+describe('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -1370,7 +1370,7 @@ describe.only('html', function() {
     checkHtml('g.html');
   });
 
-  it.only('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
+  it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-multi-entry/*.html'),
       {
