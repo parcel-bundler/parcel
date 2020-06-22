@@ -6,6 +6,10 @@
   "directories": {
     "test": "test"
   },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
   "publishConfig": {
     "access": "public"
   },
