@@ -50,6 +50,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
+  addEntryToBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph.addEntryToBundle(
+      assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
+    );
+  }
+
   createBundleGroup(dependency: IDependency, target: Target): BundleGroup {
     let dependencyNode = this.#graph._graph.getNode(dependency.id);
     if (!dependencyNode) {
@@ -148,7 +155,8 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
           ? environmentToInternalEnvironment(opts.env)
           : nullthrows(entryAsset).env,
         entryAssetIds: entryAsset ? [entryAsset.id] : [],
-        pipeline: entryAsset ? entryAsset.pipeline : null,
+        mainEntryId: entryAsset?.id,
+        pipeline: opts.pipeline ?? entryAsset?.pipeline,
         filePath: null,
         isEntry: opts.isEntry,
         isInline: opts.isInline,

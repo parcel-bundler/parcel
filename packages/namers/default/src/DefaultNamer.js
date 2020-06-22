@@ -35,8 +35,8 @@ export default new Namer({
     }
 
     let mainBundle = nullthrows(
-      bundleGroupBundles.find(
-        b => b.getMainEntry()?.id === bundleGroup.entryAssetId,
+      bundleGroupBundles.find(b =>
+        b.getEntryAssets().some(a => a.id === bundleGroup.entryAssetId),
       ),
     );
 
@@ -88,7 +88,11 @@ export default new Namer({
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
-    let name = nameFromContent(mainBundle, options.rootDir);
+    let name = nameFromContent(
+      mainBundle,
+      bundleGroup.entryAssetId,
+      options.rootDir,
+    );
     if (!bundle.isEntry) {
       name += '.' + bundle.hashReference;
     }
@@ -97,8 +101,14 @@ export default new Namer({
   },
 });
 
-function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
-  let entryFilePath = nullthrows(bundle.getMainEntry()).filePath;
+function nameFromContent(
+  bundle: Bundle,
+  entryAssetId: string,
+  rootDir: FilePath,
+): string {
+  let entryFilePath = nullthrows(
+    bundle.getEntryAssets().find(a => a.id === entryAssetId),
+  ).filePath;
   let name = basenameWithoutExtension(entryFilePath);
 
   // If this is an entry bundle, use the original relative path.

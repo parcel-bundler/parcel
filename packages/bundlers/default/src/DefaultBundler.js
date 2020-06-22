@@ -15,7 +15,7 @@ import nullthrows from 'nullthrows';
 const OPTIONS = {
   minBundles: 1,
   minBundleSize: 30000,
-  maxParallelRequests: 5,
+  maxParallelRequests: 6,
 };
 
 export default new Bundler({
@@ -40,7 +40,6 @@ export default new Bundler({
             ...context,
             bundleGroup: context?.bundleGroup,
             bundleByType: context?.bundleByType,
-            bundleGroupDependency: context?.bundleGroupDependency,
             parentNode: node,
             parentBundle:
               bundlesByEntryAsset.get(node.value) ?? context?.parentBundle,
@@ -54,8 +53,7 @@ export default new Bundler({
         if (
           (dependency.isEntry && resolution) ||
           (dependency.isAsync && resolution) ||
-          resolution?.isIsolated ||
-          resolution?.isInline
+          resolution?.isIsolated
         ) {
           let bundleGroup = bundleGraph.createBundleGroup(
             dependency,
@@ -81,7 +79,6 @@ export default new Bundler({
           return {
             bundleGroup,
             bundleByType,
-            bundleGroupDependency: dependency,
             parentNode: node,
             parentBundle: context?.parentBundle,
           };
@@ -93,7 +90,6 @@ export default new Bundler({
         let parentAsset = context.parentNode.value;
         let parentBundle = context.parentBundle;
         let bundleGroup = nullthrows(context.bundleGroup);
-        let bundleGroupDependency = nullthrows(context.bundleGroupDependency);
         let bundleByType = nullthrows(context.bundleByType);
         let siblingBundles = nullthrows(
           siblingBundlesByAsset.get(parentAsset.id),
@@ -128,20 +124,26 @@ export default new Bundler({
           }
 
           let existingBundle = bundleByType.get(asset.type);
-          if (existingBundle) {
+          if (existingBundle && !dependency.isIsolated) {
             // If a bundle of this type has already been created in this group,
             // merge this subgraph into it.
             nullthrows(bundleRoots.get(existingBundle)).push(asset);
+            bundlesByEntryAsset.set(asset, existingBundle);
             bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.createBundleReference(parentBundle, existingBundle);
           } else {
             let bundle = bundleGraph.createBundle({
               uniqueKey: asset.id,
               env: asset.env,
               type: asset.type,
               target: bundleGroup.target,
-              isEntry: bundleGroupDependency.isEntry,
+              isEntry:
+                asset.isIsolated || dependency.isEntry === false
+                  ? false
+                  : parentBundle.isEntry,
               isInline: asset.isInline,
               isSplittable: true,
+              pipeline: asset.pipeline,
             });
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
@@ -166,7 +168,7 @@ export default new Bundler({
 
     for (let [bundle, rootAssets] of bundleRoots) {
       for (let asset of rootAssets) {
-        bundleGraph.addAssetGraphToBundle(asset, bundle);
+        bundleGraph.addEntryToBundle(asset, bundle);
       }
     }
   },
@@ -180,9 +182,11 @@ export default new Bundler({
 
       // Skip bundles where the entry is reachable in a parent bundle. This can occur when both synchronously and
       // asynchronously importing an asset from a bundle. This asset will later be internalized into the parent.
-      let mainEntry = bundle.getMainEntry();
+      let entries = bundle.getEntryAssets();
+      let mainEntry = entries[0];
       if (
         mainEntry == null ||
+        entries.length !== 1 ||
         bundleGraph.isAssetReachableFromBundle(mainEntry, bundle)
       ) {
         return;
@@ -209,8 +213,9 @@ export default new Bundler({
         if (
           Array.from(bundleGroups).every(
             group =>
-              bundleGraph.getBundlesInBundleGroup(group).length <
-              OPTIONS.maxParallelRequests,
+              bundleGraph
+                .getBundlesInBundleGroup(group)
+                .filter(b => !b.isInline).length < OPTIONS.maxParallelRequests,
           )
         ) {
           bundleGraph.removeAssetGraphFromBundle(mainEntry, candidate);
@@ -249,12 +254,12 @@ export default new Bundler({
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
         .filter(b => {
-          let mainEntry = b.getMainEntry();
+          let entries = b.getEntryAssets();
 
           return (
             !b.isEntry &&
             b.isSplittable &&
-            (mainEntry == null || mainEntry.id !== asset.id)
+            entries.every(entry => entry.id !== asset.id)
           );
         });
 
@@ -310,8 +315,8 @@ export default new Bundler({
       if (
         Array.from(bundleGroups).every(
           group =>
-            bundleGraph.getBundlesInBundleGroup(group).length >=
-            OPTIONS.maxParallelRequests,
+            bundleGraph.getBundlesInBundleGroup(group).filter(b => !b.isInline)
+              .length >= OPTIONS.maxParallelRequests,
         )
       ) {
         continue;
@@ -341,7 +346,9 @@ export default new Bundler({
           if (
             bundleGroups.every(
               bundleGroup =>
-                bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
+                bundleGraph
+                  .getBundlesInBundleGroup(bundleGroup)
+                  .filter(b => !b.isInline).length <
                 OPTIONS.maxParallelRequests,
             )
           ) {
@@ -354,8 +361,9 @@ export default new Bundler({
       for (let bundleGroup of bundleGroups) {
         // If the bundle group is within the parallel request limit, then add the shared bundle.
         if (
-          bundleGraph.getBundlesInBundleGroup(bundleGroup).length <
-          OPTIONS.maxParallelRequests
+          bundleGraph
+            .getBundlesInBundleGroup(bundleGroup)
+            .filter(b => !b.isInline).length < OPTIONS.maxParallelRequests
         ) {
           bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
         }
@@ -387,9 +395,7 @@ export default new Bundler({
         return;
       }
 
-      let externalResolution = bundleGraph.resolveExternalDependency(
-        dependency,
-      );
+      let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
       invariant(externalResolution?.type === 'bundle_group');
       asyncBundleGroups.add(externalResolution.value);
 
@@ -416,11 +422,17 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
   bundleGraph.traverse(node => {
     if (node.type === 'asset') {
       let asset = node.value;
-      let bundles = bundleGraph.findBundlesWithAsset(asset);
+      // Search in reverse order, so bundles that are loaded keep the duplicated asset, not later ones.
+      // This ensures that the earlier bundle is able to execute before the later one.
+      let bundles = bundleGraph.findBundlesWithAsset(asset).reverse();
       for (let bundle of bundles) {
         // If a bundle's environment is isolated, it can't access assets present
         // in any ancestor bundles. Don't deduplicate any assets.
-        if (bundle.env.isIsolated() || !bundle.isSplittable) {
+        if (
+          bundle.env.isIsolated() ||
+          !bundle.isSplittable ||
+          bundle.isInline
+        ) {
           continue;
         }
 
