@@ -1,5 +1,5 @@
 // @flow
-import type {BundleGraph, FilePath} from '@parcel/types';
+import type {BundleGraph, FilePath, NamedBundle} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 
 import {generateBuildMetrics, prettifyTime} from '@parcel/utils';
@@ -19,7 +19,7 @@ const COLUMNS = [
 ];
 
 export default async function bundleReport(
-  bundleGraph: BundleGraph,
+  bundleGraph: BundleGraph<NamedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
   assetCount: number,
@@ -53,13 +53,20 @@ export default async function bundleReport(
     if (assetCount > 0) {
       let largestAssets = bundle.assets.slice(0, assetCount);
       for (let asset of largestAssets) {
-        // Add a row for the asset.
-        rows.push([
-          (asset == largestAssets[largestAssets.length - 1] ? '└── ' : '├── ') +
-            formatFilename(asset.filePath, chalk.reset),
+        let columns: Array<string> = [
+          asset == largestAssets[largestAssets.length - 1] ? '└── ' : '├── ',
           chalk.dim(prettifySize(asset.size)),
           chalk.dim(chalk.green(prettifyTime(asset.time))),
-        ]);
+        ];
+
+        if (asset.filePath !== '') {
+          columns[0] += formatFilename(asset.filePath, chalk.reset);
+        } else {
+          columns[0] += 'Code from unknown sourcefiles';
+        }
+
+        // Add a row for the asset.
+        rows.push(columns);
       }
 
       if (bundle.assets.length > largestAssets.length) {

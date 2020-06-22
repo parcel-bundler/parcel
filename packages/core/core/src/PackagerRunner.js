@@ -6,6 +6,7 @@ import type {
   BundleResult,
   Bundle as BundleType,
   BundleGraph as BundleGraphType,
+  NamedBundle as NamedBundleType,
   Async,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
@@ -237,7 +238,12 @@ export default class PackagerRunner {
     try {
       return await packager.plugin.package({
         bundle,
-        bundleGraph: new BundleGraph(bundleGraph, this.options),
+        bundleGraph: new BundleGraph<NamedBundleType>(
+          bundleGraph,
+          (bundle, bundleGraph, options) =>
+            new NamedBundle(bundle, bundleGraph, options),
+          this.options,
+        ),
         getSourceMapReference: map => {
           return this.getSourceMapReference(bundle, map);
         },
@@ -245,7 +251,7 @@ export default class PackagerRunner {
         logger: new PluginLogger({origin: packager.name}),
         getInlineBundleContents: async (
           bundle: BundleType,
-          bundleGraph: BundleGraphType,
+          bundleGraph: BundleGraphType<NamedBundleType>,
         ) => {
           if (!bundle.isInline) {
             throw new Error(
@@ -255,6 +261,7 @@ export default class PackagerRunner {
 
           let res = await this.getBundleResult(
             bundleToInternalBundle(bundle),
+            // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
           );
 
@@ -328,8 +335,8 @@ export default class PackagerRunner {
       ) {
         sourceRoot = bundle.target.sourceMap.sourceRoot;
       } else if (
-        bundle.target.env.context === 'browser' &&
-        this.options.mode !== 'production'
+        this.options.serve &&
+        bundle.target.env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
       }
@@ -353,6 +360,7 @@ export default class PackagerRunner {
     // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
+      // $FlowFixMe
       fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources
@@ -421,7 +429,8 @@ export default class PackagerRunner {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
     let thisHashReference = bundle.hashReference;
-    if (filePath.includes(thisHashReference)) {
+    // Without content hashing, the hash reference is already the correct id
+    if (this.options.contentHash && filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
       bundle.filePath = filePath;
@@ -519,10 +528,18 @@ function writeFileStream(
       ? stream.pipe(replaceStream(hashRefToNameHash))
       : stream;
     let fsStream = fs.createWriteStream(filePath, options);
+    let fsStreamClosed = new Promise(resolve => {
+      fsStream.on('close', () => resolve());
+    });
+    let bytesWritten = 0;
     initialStream
+      .pipe(
+        new TapStream(buf => {
+          bytesWritten += buf.length;
+        }),
+      )
       .pipe(fsStream)
-      // $FlowFixMe
-      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('finish', () => resolve(fsStreamClosed.then(() => bytesWritten)))
       .on('error', reject);
   });
 }

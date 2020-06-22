@@ -308,6 +308,27 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('supports re-exporting a namespace from another module (chained)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-namespace-chained/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        Bar: {
+          A: 1,
+          B: 2,
+        },
+        Foo: {
+          A: 1,
+          B: 2,
+        },
+      });
+    });
+
     it('excludes default when re-exporting a module', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
@@ -422,6 +443,17 @@ describe('scope hoisting', function() {
       assert.equal(await run(b), 123);
     });
 
+    it('supports named exports before the variable declaration', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-before-declaration/a.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), {x: 2});
+    });
+
     it('should not export function arguments', async function() {
       let b = await bundle(
         path.join(
@@ -512,7 +544,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it('supports exporting an import from a wrapped asset', async function() {
+    it('supports importing from a wrapped asset', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -521,7 +553,19 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output, true);
+      assert.deepEqual(output, ['a', true]);
+    });
+
+    it('supports importing from a wrapped asset with multiple bailouts', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-wrapped-bailout/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['b', true]);
     });
 
     it('supports requiring a re-exported and renamed ES6 import', async function() {
@@ -746,6 +790,18 @@ describe('scope hoisting', function() {
       // TODO (from PR #4385) - maybe comply to this once we have better symbol information?
       //assert(!called, 'side effect called');
       assert.deepEqual(output, 'bar');
+    });
+
+    it('correctly handles excluded and wrapped reexport assets with sideEffects: false', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false-wrap-excluded/a.js',
+        ),
+      );
+      let output = await run(b);
+
+      assert.deepEqual(output, 4);
     });
 
     it('supports the package.json sideEffects flag with an array', async function() {
@@ -1653,15 +1709,42 @@ describe('scope hoisting', function() {
       });
     });
 
-    it('supports mutations of the exports objects', async function() {
+    it('supports mutations of the exports object by the importer', async function() {
       let b = await bundle(
         path.join(
           __dirname,
-          '/integration/scope-hoisting/commonjs/mutated-exports-object/index.js',
+          '/integration/scope-hoisting/commonjs/mutated-exports-object-importer/index.js',
         ),
       );
 
+      assert.deepEqual(await run(b), [43, {foo: 43}]);
+    });
+
+    it('supports mutations of the exports object by a different asset', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-object-different/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('$exports'));
       assert.equal(await run(b), 43);
+    });
+
+    it('supports mutations of the exports object inside an expression', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/mutated-exports-object-expression/index.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), [{foo: 3}, 3, 3]);
     });
 
     it('supports require.resolve calls for excluded modules', async function() {

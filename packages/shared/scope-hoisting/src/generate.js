@@ -1,6 +1,11 @@
 // @flow
 
-import type {Asset, Bundle, BundleGraph, PluginOptions} from '@parcel/types';
+import type {
+  Asset,
+  BundleGraph,
+  NamedBundle,
+  PluginOptions,
+} from '@parcel/types';
 import type {
   ArrayExpression,
   ExpressionStatement,
@@ -45,8 +50,8 @@ export function generate({
   referencedAssets,
   options,
 }: {|
-  bundleGraph: BundleGraph,
-  bundle: Bundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,

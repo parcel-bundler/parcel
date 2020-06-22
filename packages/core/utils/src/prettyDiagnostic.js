@@ -18,6 +18,7 @@ export type AnsiDiagnosticResult = {|
 export default async function prettyDiagnostic(
   diagnostic: Diagnostic,
   options?: PluginOptions,
+  terminalWidth?: number,
 ): Promise<AnsiDiagnosticResult> {
   let {
     origin,
@@ -60,6 +61,7 @@ export default async function prettyDiagnostic(
         language:
           // $FlowFixMe sketchy null checks do not matter here...
           language || (filePath ? path.extname(filePath).substr(1) : undefined),
+        terminalWidth,
       });
 
       result.codeframe +=

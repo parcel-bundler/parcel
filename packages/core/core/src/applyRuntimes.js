@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Dependency} from '@parcel/types';
+import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {
   AssetRequestDesc,
   Bundle as InternalBundle,
@@ -22,6 +22,7 @@ import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {dependencyToInternalDependency} from './public/Dependency';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -51,7 +52,12 @@ export default async function applyRuntimes({
       try {
         let applied = await runtime.plugin.apply({
           bundle: new NamedBundle(bundle, bundleGraph, options),
-          bundleGraph: new BundleGraph(bundleGraph, options),
+          bundleGraph: new BundleGraph<INamedBundle>(
+            bundleGraph,
+            (bundle, bundleGraph, options) =>
+              new NamedBundle(bundle, bundleGraph, options),
+            options,
+          ),
           options: pluginOptions,
           logger: new PluginLogger({origin: runtime.name}),
         });
@@ -103,6 +109,12 @@ export default async function applyRuntimes({
     let runtimeNode = assetGroupAssets[0];
     invariant(runtimeNode.type === 'asset');
 
+    let resolution =
+      dependency &&
+      bundleGraph.getDependencyResolution(
+        dependencyToInternalDependency(dependency),
+        bundle,
+      );
     let duplicatedAssetIds: Set<NodeId> = new Set();
     runtimesGraph.traverse((node, _, actions) => {
       if (node.type !== 'dependency') {
@@ -115,7 +127,10 @@ export default async function applyRuntimes({
       });
 
       for (let asset of assets) {
-        if (bundleGraph.isAssetReachableFromBundle(asset, bundle)) {
+        if (
+          bundleGraph.isAssetReachableFromBundle(asset, bundle) ||
+          resolution?.id === asset.id
+        ) {
           duplicatedAssetIds.add(asset.id);
           actions.skipChildren();
         }

@@ -1,0 +1,24 @@
+// @flow
+
+// Derived from the README and source of fs-write-stream-atomic located at
+// https://github.com/npm/fs-write-stream-atomic
+// Which is licensed ISC
+
+declare module 'fs-write-stream-atomic' {
+  import type {Writable} from 'stream';
+
+  declare type FsWriteStreamAtomicOptions = $Shape<{|
+    chown: $Shape<{|
+      uid: number,
+      gid: number,
+    |}>,
+    encoding: buffer$Encoding,
+    mode: number,
+    flags: string,
+  |}>;
+
+  declare module.exports: (
+    filename: string,
+    options: FsWriteStreamAtomicOptions,
+  ) => Writable;
+}

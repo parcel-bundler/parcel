@@ -900,7 +900,7 @@ targets = {
     isLibrary: true
   },
   browser: {
-      engines: {
+    engines: {
       browsers: value("package.json#browserslist")
     },
     isLibrary: true
@@ -1390,11 +1390,6 @@ asset graph. They mostly call out to different compilers and preprocessors.
 import {Transform} from '@parcel/plugin';
 
 export default new Transform({
-  async getConfig({asset}) {
-    // ...
-    return config;
-  },
-
   async parse({asset}) {
     // ...
     return ast;

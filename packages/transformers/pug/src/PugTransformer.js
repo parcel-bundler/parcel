@@ -4,20 +4,38 @@ import path from 'path';
 import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
-  async getConfig({asset}) {
-    const config = await asset.getConfig([
+  async loadConfig({config}) {
+    let configFile = await config.getConfig([
       '.pugrc',
       '.pugrc.js',
       'pug.config.js',
     ]);
-    return config || {};
+
+    if (configFile) {
+      let isJavascript = path.extname(configFile.filePath) === '.js';
+      if (isJavascript) {
+        config.shouldInvalidateOnStartup();
+        config.shouldReload();
+      }
+
+      config.setResult({
+        contents: configFile.contents,
+        isSerialisable: !isJavascript,
+      });
+    }
+  },
+
+  preSerializeConfig({config}) {
+    if (!config.result) return;
+
+    // Ensure we dont try to serialise functions
+    if (!config.result.isSerialisable) {
+      config.result.contents = {};
+    }
   },
 
   async transform({asset, config, options}) {
-    if (!config) {
-      return [asset];
-    }
-
+    const pugConfig = config ? config.contents : {};
     const pug = await options.packageManager.require('pug', asset.filePath, {
       autoinstall: options.autoinstall,
     });
@@ -27,11 +45,11 @@ export default new Transformer({
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
       filename: asset.filePath,
-      pretty: config.pretty || false,
-      doctype: config.doctype,
-      filters: config.filters,
-      filterOptions: config.filterOptions,
-      filterAliases: config.filterAliases,
+      pretty: pugConfig.pretty || false,
+      doctype: pugConfig.doctype,
+      filters: pugConfig.filters,
+      filterOptions: pugConfig.filterOptions,
+      filterAliases: pugConfig.filterAliases,
     });
 
     for (let filePath of render.dependencies) {
@@ -39,7 +57,7 @@ export default new Transformer({
     }
 
     asset.type = 'html';
-    asset.setCode(render(config.locals));
+    asset.setCode(render(pugConfig.locals));
 
     return [asset];
   },

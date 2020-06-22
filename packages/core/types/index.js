@@ -12,6 +12,10 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
+export type ConfigResultWithFilePath = {|
+  contents: ConfigResult,
+  filePath: FilePath,
+|};
 export type EnvMap = typeof process.env;
 
 export type JSONValue =
@@ -78,6 +82,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: string;
+  // The position of e.g. `package.json#main`
   +loc: ?SourceLocation;
 }
 
@@ -193,7 +198,8 @@ export type InitialParcelOptions = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,
-  +serve?: ServerOptions | false,
+  +contentHash?: boolean,
+  +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
   +profile?: boolean,
@@ -211,6 +217,13 @@ export type InitialParcelOptions = {|
   // global?
 |};
 
+export type InitialServerOptions = {|
+  +publicUrl?: string,
+  +host?: string,
+  +port: number,
+  +https?: HTTPSOptions | boolean,
+|};
+
 export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
@@ -220,7 +233,6 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
-  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -231,6 +243,7 @@ export interface PluginOptions {
 }
 
 export type ServerOptions = {|
+  +distDir: FilePath,
   +host?: string,
   +port: number,
   +https?: HTTPSOptions | boolean,
@@ -383,9 +396,8 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
-  +resolvedPath: ?FilePath;
+  +includedFiles: Set<FilePath>;
 
-  setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
@@ -399,7 +411,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -407,7 +419,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
   shouldReload(): void;
@@ -492,13 +504,6 @@ export type MultiThreadValidator = {|
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
-  // TODO: deprecate getConfig
-  getConfig?: ({|
-    asset: MutableAsset,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
@@ -616,12 +621,11 @@ export interface Bundle {
   +hashReference: string;
   +type: string;
   +env: Environment;
+  +filePath: ?FilePath;
   +isEntry: ?boolean;
   +isInline: ?boolean;
   +isSplittable: ?boolean;
   +target: Target;
-  +filePath: ?FilePath;
-  +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
@@ -644,7 +648,7 @@ export type BundleGroup = {|
   bundleIds: Array<string>,
 |};
 
-export interface MutableBundleGraph extends BundleGraph {
+export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addAssetGraphToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
@@ -665,14 +669,14 @@ export interface MutableBundleGraph extends BundleGraph {
   ): ?TContext;
 }
 
-export interface BundleGraph {
-  getBundles(): Array<Bundle>;
+export interface BundleGraph<TBundle: Bundle> {
+  getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  getChildBundles(bundle: Bundle): Array<Bundle>;
-  getParentBundles(bundle: Bundle): Array<Bundle>;
-  getSiblingBundles(bundle: Bundle): Array<Bundle>;
-  getReferencedBundles(bundle: Bundle): Array<Bundle>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+  getChildBundles(bundle: Bundle): Array<TBundle>;
+  getParentBundles(bundle: Bundle): Array<TBundle>;
+  getSiblingBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(bundle: Bundle): Array<TBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   resolveExternalDependency(
@@ -684,10 +688,10 @@ export interface BundleGraph {
   );
   isDependencyDeferred(dependency: Dependency): boolean;
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  findBundlesWithAsset(Asset): Array<Bundle>;
-  findBundlesWithDependency(Dependency): Array<Bundle>;
+  findBundlesWithAsset(Asset): Array<TBundle>;
+  findBundlesWithDependency(Dependency): Array<TBundle>;
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle;
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
   isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
@@ -704,7 +708,7 @@ export interface BundleGraph {
   ): SymbolResolution;
   getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
   traverseBundles<TContext>(
-    visit: GraphVisitor<Bundle, TContext>,
+    visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
   ): ?TContext;
 }
@@ -738,7 +742,7 @@ export type Bundler = {|
 export type Namer = {|
   name({|
     bundle: Bundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<Bundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<?FilePath>,
@@ -754,7 +758,7 @@ export type RuntimeAsset = {|
 export type Runtime = {|
   apply({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void | RuntimeAsset | Array<RuntimeAsset>>,
@@ -763,10 +767,13 @@ export type Runtime = {|
 export type Packager = {|
   package({|
     bundle: NamedBundle,
-    bundleGraph: BundleGraph,
+    bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
-    getInlineBundleContents: (Bundle, BundleGraph) => Async<{|contents: Blob|}>,
+    getInlineBundleContents: (
+      Bundle,
+      BundleGraph<NamedBundle>,
+    ) => Async<{|contents: Blob|}>,
     getSourceMapReference: (map: ?SourceMap) => Async<?string>,
   |}): Async<BundleResult>,
 |};
@@ -862,7 +869,7 @@ export type BuildProgressEvent =
 
 export type BuildSuccessEvent = {|
   +type: 'buildSuccess',
-  +bundleGraph: BundleGraph,
+  +bundleGraph: BundleGraph<NamedBundle>,
   +buildTime: number,
   +changedAssets: Map<string, Asset>,
 |};

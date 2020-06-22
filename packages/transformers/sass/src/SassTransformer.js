@@ -1,93 +1,79 @@
 // @flow
-import type {FilePath} from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
-import type {PluginLogger} from '@parcel/logger';
-
 import {Transformer} from '@parcel/plugin';
-import {promisify, resolve} from '@parcel/utils';
-import {dirname, join as joinPath} from 'path';
+import {promisify} from '@parcel/utils';
+import path from 'path';
 import {EOL} from 'os';
 import SourceMap from '@parcel/source-map';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
 
-let didWarnAboutNodeSass = false;
-async function warnAboutNodeSassBeingUnsupported(
-  fs: FileSystem,
-  filePath: FilePath,
-  logger: PluginLogger,
-) {
-  if (!didWarnAboutNodeSass) {
-    try {
-      await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
-      logger.warn({
-        origin: '@parcel/transformer-sass',
-        message:
-          '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`',
-      });
-    } catch (err) {
-      if (err.code !== 'MODULE_NOT_FOUND') {
-        throw err;
-      }
-    } finally {
-      didWarnAboutNodeSass = true;
-    }
-  }
-}
-
 export default new Transformer({
-  async getConfig({asset, resolve, options}) {
-    let config = await asset.getConfig(['.sassrc', '.sassrc.js'], {
+  async loadConfig({config, options}) {
+    let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
       packageKey: 'sass',
     });
 
-    if (config === null) {
-      config = {};
+    let configResult = {
+      contents: configFile ? configFile.contents : {},
+      isSerialisable: true,
+    };
+
+    if (configFile && path.extname(configFile.filePath) === '.js') {
+      config.shouldInvalidateOnStartup();
+      config.shouldReload();
+
+      configResult.isSerialisable = false;
     }
 
-    const code = await asset.getCode();
-    config.data = config.data ? config.data + EOL + code : code;
-    config.file = asset.filePath;
-
-    if (config.importer === undefined) {
-      config.importer = [];
-    } else if (!Array.isArray(config.importer)) {
-      config.importer = [config.importer];
+    if (configResult.contents.importer === undefined) {
+      configResult.contents.importer = [];
+    } else if (!Array.isArray(configResult.contents.importer)) {
+      configResult.contents.importer = [configResult.contents.importer];
     }
 
-    config.importer = [...config.importer, resolvePathImporter({resolve})];
+    // Always emit sourcemap
+    configResult.contents.sourceMap = true;
+    // sources are created relative to the directory of outFile
+    configResult.contents.outFile = path.join(
+      options.projectRoot,
+      'style.css.map',
+    );
+    configResult.contents.omitSourceMapUrl = true;
+    configResult.contents.sourceMapContents = false;
 
-    config.indentedSyntax =
-      typeof config.indentedSyntax === 'boolean'
-        ? config.indentedSyntax
-        : asset.type === 'sass';
-
-    if (options.sourceMaps) {
-      config.sourceMap = true;
-      // sources are created relative to the directory of outFile
-      config.outFile = joinPath(options.projectRoot, 'style.css.map');
-      config.omitSourceMapUrl = true;
-      config.sourceMapContents = false;
-    }
-
-    return config;
+    config.setResult(configResult);
   },
 
-  async transform({asset, options, config, logger}) {
-    await warnAboutNodeSassBeingUnsupported(
-      options.inputFS,
-      asset.filePath,
-      logger,
-    );
+  preSerializeConfig({config}) {
+    if (!config.result) return;
+
+    // Ensure we dont try to serialise functions
+    if (!config.result.isSerialisable) {
+      config.result.contents = {};
+    }
+  },
+
+  async transform({asset, options, config, resolve}) {
+    let rawConfig = config ? config.contents : {};
     let sass = await options.packageManager.require('sass', asset.filePath, {
       autoinstall: options.autoinstall,
     });
-    const sassRender = promisify(sass.render.bind(sass));
 
+    const sassRender = promisify(sass.render.bind(sass));
     let css;
     try {
-      let result = await sassRender(config);
+      let code = await asset.getCode();
+      let result = await sassRender({
+        ...rawConfig,
+        file: asset.filePath,
+        data: rawConfig.data ? rawConfig.data + EOL + code : code,
+        importer: [...rawConfig.importer, resolvePathImporter({resolve})],
+        indentedSyntax:
+          typeof rawConfig.indentedSyntax === 'boolean'
+            ? rawConfig.indentedSyntax
+            : asset.type === 'sass',
+      });
 
       css = result.css;
       for (let included of result.stats.includedFiles) {
@@ -98,8 +84,7 @@ export default new Transformer({
 
       if (result.map != null) {
         let map = new SourceMap();
-        let {mappings, sources, names} = JSON.parse(result.map);
-        map.addRawMappings(mappings, sources, names);
+        map.addRawMappings(JSON.parse(result.map));
         asset.setMap(map);
       }
     } catch (err) {

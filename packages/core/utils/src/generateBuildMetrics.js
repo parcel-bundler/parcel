@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, Bundle, FilePath} from '@parcel/types';
+import type {FilePath, NamedBundle} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import nullthrows from 'nullthrows';
@@ -38,45 +38,46 @@ async function getSourcemapSizes(
 
   let rawMap = mapUrlData.map;
   let sourceMap = new SourceMap();
-  sourceMap.addRawMappings(rawMap.mappings, rawMap.sources, rawMap.names);
+  sourceMap.addRawMappings(rawMap);
   let parsedMapData = sourceMap.getMap();
 
   if (parsedMapData.mappings.length > 2) {
-    let sources = parsedMapData.sources.map(s => path.join(projectRoot, s));
+    let sources = parsedMapData.sources.map(s =>
+      path.normalize(path.join(projectRoot, s)),
+    );
     let currLine = 1;
     let currColumn = 0;
     let currMappingIndex = 0;
     let currMapping = parsedMapData.mappings[currMappingIndex];
     let nextMapping = parsedMapData.mappings[currMappingIndex + 1];
     let sourceSizes = new Array(sources.length).fill(0);
+    let unknownOrigin: number = 0;
     for (let i = 0; i < bundleContents.length; i++) {
-      // Update currMapping to be the next mapping with a source
+      let character = bundleContents[i];
+
       while (
-        !currMapping.source ||
-        currMapping.source < 0 ||
+        nextMapping &&
+        nextMapping.generated.line === currLine &&
         nextMapping.generated.column <= currColumn
       ) {
         currMappingIndex++;
-        if (currMappingIndex > parsedMapData.mappings.length - 2) {
-          break;
-        }
         currMapping = parsedMapData.mappings[currMappingIndex];
         nextMapping = parsedMapData.mappings[currMappingIndex + 1];
       }
 
-      let c = bundleContents[i];
+      let currentSource = currMapping.source;
+      let charSize = Buffer.byteLength(character, 'utf8');
       if (
+        currentSource != null &&
         currMapping.generated.line === currLine &&
-        currMapping.generated.column <= currColumn &&
-        (nextMapping.generated.line > currLine ||
-          (nextMapping.generated.line === currLine &&
-            nextMapping.generated.column > currColumn))
+        currMapping.generated.column <= currColumn
       ) {
-        // $FlowFixMe flow got confused
-        sourceSizes[currMapping.source] += Buffer.byteLength(c, 'utf8');
+        sourceSizes[currentSource] += charSize;
+      } else {
+        unknownOrigin += charSize;
       }
 
-      if (c === '\n') {
+      if (character === '\n') {
         currColumn = 0;
         currLine++;
       } else {
@@ -89,43 +90,50 @@ async function getSourcemapSizes(
       sizeMap.set(sources[i], sourceSizes[i]);
     }
 
+    sizeMap.set('', unknownOrigin);
+
     return sizeMap;
   }
 }
 
 async function createBundleStats(
-  bundle: Bundle,
+  bundle: NamedBundle,
   fs: FileSystem,
   projectRoot: FilePath,
 ) {
-  let filePath = nullthrows(bundle.filePath);
+  let filePath = bundle.filePath;
   let sourcemapSizes = await getSourcemapSizes(filePath, fs, projectRoot);
 
-  let assets: Array<Asset> = [];
+  let assets: Map<string, AssetStats> = new Map();
   bundle.traverseAssets(asset => {
-    assets.push(asset);
+    let filePath = path.normalize(asset.filePath);
+    assets.set(filePath, {
+      filePath,
+      size: asset.stats.size,
+      originalSize: asset.stats.size,
+      time: asset.stats.time,
+    });
   });
 
-  let index = {};
-  let assetsReport: Array<AssetStats> = assets
-    .filter(a => {
-      if (!index[a.filePath]) {
-        index[a.filePath] = true;
-        return true;
-      } else {
-        return false;
-      }
-    })
-    .map(asset => {
-      let foundSize = sourcemapSizes && sourcemapSizes.get(asset.filePath);
+  let assetsReport: Array<AssetStats> = [];
+  if (sourcemapSizes && sourcemapSizes.size) {
+    assetsReport = Array.from(sourcemapSizes.keys()).map((filePath: string) => {
+      let foundSize = sourcemapSizes.get(filePath) || 0;
+      let stats = assets.get(filePath) || {
+        filePath,
+        size: foundSize,
+        originalSize: foundSize,
+        time: 0,
+      };
 
       return {
-        filePath: asset.filePath,
-        size: foundSize ? foundSize : asset.stats.size,
-        originalSize: asset.stats.size,
-        time: asset.stats.time,
+        ...stats,
+        size: foundSize,
       };
     });
+  } else {
+    assetsReport = Array.from(assets.values());
+  }
 
   return {
     filePath: nullthrows(bundle.filePath),
@@ -136,7 +144,7 @@ async function createBundleStats(
 }
 
 export default async function generateBuildMetrics(
-  bundles: Array<Bundle>,
+  bundles: Array<NamedBundle>,
   fs: FileSystem,
   projectRoot: FilePath,
 ): Promise<BuildMetrics> {

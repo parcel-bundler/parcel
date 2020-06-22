@@ -11,7 +11,12 @@ import type {
   ExtendableParcelConfigPipeline,
 } from './types';
 
-import {resolveConfig, resolve, validateSchema} from '@parcel/utils';
+import {
+  isDirectoryInside,
+  resolveConfig,
+  resolve,
+  validateSchema,
+} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {parse} from 'json5';
 import path from 'path';
@@ -19,6 +24,8 @@ import assert from 'assert';
 
 import ParcelConfig from './ParcelConfig';
 import ParcelConfigSchema from './ParcelConfig.schema';
+
+const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -253,21 +260,19 @@ export function mergeConfigs(
   return new ParcelConfig(
     {
       filePath: ext.filePath,
-      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       resolvers: mergePipelines(base.resolvers, ext.resolvers),
       transformers: mergeMaps(
         base.transformers,
         ext.transformers,
         mergePipelines,
+        true,
       ),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
-      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       namers: mergePipelines(base.namers, ext.namers),
-      runtimes: mergeMaps(base.runtimes, ext.runtimes),
+      runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
       packagers: mergeMaps(base.packagers, ext.packagers),
       optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-      // $FlowFixMe this seems like a flow bug, ExtendableParcelConfigPipeline is compatible with PureParcelConfigPipeline
       reporters: mergePipelines(base.reporters, ext.reporters),
     },
     base.packageManager,
@@ -277,17 +282,10 @@ export function mergeConfigs(
 
 function getResolveFrom(options: ParcelOptions) {
   let cwd = options.inputFS.cwd();
-  let dir = isSubdirectory(cwd, options.projectRoot)
+  let dir = isDirectoryInside(cwd, options.projectRoot)
     ? cwd
     : options.projectRoot;
   return path.join(dir, 'index');
-}
-
-function isSubdirectory(child, parent) {
-  const relative = path.relative(parent, child);
-  return (
-    relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
-  );
 }
 
 export function mergePipelines(
@@ -319,10 +317,11 @@ export function mergePipelines(
   return ext;
 }
 
-export function mergeMaps<K, V>(
+export function mergeMaps<K: string, V>(
   base: ?ConfigMap<K, V>,
   ext: ?ConfigMap<K, V>,
   merger?: (a: V, b: V) => V,
+  hasNamedPipelines: boolean = false,
 ): ConfigMap<K, V> {
   if (!ext) {
     return base || {};
@@ -332,8 +331,29 @@ export function mergeMaps<K, V>(
     return ext;
   }
 
-  // Add the extension options first so they have higher precedence in the output glob map
   let res: ConfigMap<K, V> = {};
+  if (hasNamedPipelines) {
+    // in res, all named pipelines should come before the other pipelines
+    for (let k in ext) {
+      // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
+      let key: K = (k: any);
+      if (NAMED_PIPELINE_REGEX.test(key)) {
+        res[key] = merger && base[key] ? merger(base[key], ext[key]) : ext[key];
+      }
+    }
+
+    // Add base options that aren't defined in the extension
+    for (let k in base) {
+      let key: K = (k: any);
+      if (NAMED_PIPELINE_REGEX.test(key)) {
+        if (!res[key]) {
+          res[key] = base[key];
+        }
+      }
+    }
+  }
+
+  // Add the extension options first so they have higher precedence in the output glob map
   for (let k in ext) {
     // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
     let key: K = (k: any);

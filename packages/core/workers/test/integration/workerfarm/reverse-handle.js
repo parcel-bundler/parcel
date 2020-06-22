@@ -1,5 +1,5 @@
-function run(_, handle) {
-  return handle();
+function run(workerApi, handle) {
+  return workerApi.runHandle(handle, []);
 }
 
 exports.run = run;
