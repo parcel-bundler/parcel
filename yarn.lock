@@ -10875,6 +10875,11 @@ posthtml-include@^1.1.0:
     posthtml "^0.12.0"
     posthtml-parser "^0.4.2"
 
+posthtml-obfuscate@^0.1.5:
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/posthtml-obfuscate/-/posthtml-obfuscate-0.1.5.tgz#d65f6642c96349002d33a2208845b2f7517d0fc8"
+  integrity sha1-1l9mQsljSQAtM6IgiEWy91F9D8g=
+
 posthtml-parser@^0.3.0:
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/posthtml-parser/-/posthtml-parser-0.3.3.tgz#3fe986fca9f00c0f109d731ba590b192f26e776d"
