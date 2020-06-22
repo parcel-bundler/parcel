@@ -900,7 +900,7 @@ targets = {
     isLibrary: true
   },
   browser: {
-      engines: {
+    engines: {
       browsers: value("package.json#browserslist")
     },
     isLibrary: true
