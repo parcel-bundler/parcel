@@ -25,6 +25,8 @@ import assert from 'assert';
 import ParcelConfig from './ParcelConfig';
 import ParcelConfigSchema from './ParcelConfig.schema';
 
+const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
+
 type ConfigMap<K, V> = {[K]: V, ...};
 
 export default async function loadParcelConfig(options: ParcelOptions) {
@@ -263,6 +265,7 @@ export function mergeConfigs(
         base.transformers,
         ext.transformers,
         mergePipelines,
+        true,
       ),
       validators: mergeMaps(base.validators, ext.validators, mergePipelines),
       bundler: ext.bundler || base.bundler,
@@ -314,10 +317,11 @@ export function mergePipelines(
   return ext;
 }
 
-export function mergeMaps<K, V>(
+export function mergeMaps<K: string, V>(
   base: ?ConfigMap<K, V>,
   ext: ?ConfigMap<K, V>,
   merger?: (a: V, b: V) => V,
+  hasNamedPipelines: boolean = false,
 ): ConfigMap<K, V> {
   if (!ext) {
     return base || {};
@@ -327,8 +331,29 @@ export function mergeMaps<K, V>(
     return ext;
   }
 
-  // Add the extension options first so they have higher precedence in the output glob map
   let res: ConfigMap<K, V> = {};
+  if (hasNamedPipelines) {
+    // in res, all named pipelines should come before the other pipelines
+    for (let k in ext) {
+      // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
+      let key: K = (k: any);
+      if (NAMED_PIPELINE_REGEX.test(key)) {
+        res[key] = merger && base[key] ? merger(base[key], ext[key]) : ext[key];
+      }
+    }
+
+    // Add base options that aren't defined in the extension
+    for (let k in base) {
+      let key: K = (k: any);
+      if (NAMED_PIPELINE_REGEX.test(key)) {
+        if (!res[key]) {
+          res[key] = base[key];
+        }
+      }
+    }
+  }
+
+  // Add the extension options first so they have higher precedence in the output glob map
   for (let k in ext) {
     // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
     let key: K = (k: any);
