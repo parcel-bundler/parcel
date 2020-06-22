@@ -46,6 +46,30 @@ describe('posthtml', function() {
     ]);
   });
 
+  it('Should be able to process an html file with plugins without any params for plugin', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/posthtml-plugins/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf-8',
+    );
+    assert(
+      html.includes(
+        '&#115;&#97;&#109;&#64;&#115;&#109;&#105;&#116;&#104;&#46;&#99;&#111;&#109;',
+      ),
+    );
+    assert(!html.includes('sam@smith.com'));
+  });
+
   it.skip('should add dependencies referenced by posthtml-include', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/posthtml-assets/index.html'),
