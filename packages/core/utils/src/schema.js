@@ -10,6 +10,7 @@ export type SchemaEntity =
   | SchemaArray
   | SchemaBoolean
   | SchemaString
+  | SchemaNumber
   | SchemaEnum
   | SchemaOneOf
   | SchemaAllOf
@@ -38,6 +39,11 @@ export type SchemaString = {|
   type: 'string',
   enum?: Array<string>,
   __validate?: (val: string) => ?string,
+  __type?: string,
+|};
+export type SchemaNumber = {|
+  type: 'number',
+  enum?: Array<number>,
   __type?: string,
 |};
 export type SchemaEnum = {|
@@ -166,6 +172,23 @@ function validateSchema(schema: SchemaEntity, data: mixed): Array<SchemaError> {
                   dataType: 'value',
                   dataPath,
                   message: validationError,
+                  actualValue: value,
+                  ancestors: schemaAncestors,
+                };
+              }
+            }
+            break;
+          }
+          case 'number': {
+            // $FlowFixMe type was already checked
+            let value: number = dataNode;
+            if (schemaNode.enum) {
+              if (!schemaNode.enum.includes(value)) {
+                return {
+                  type: 'enum',
+                  dataType: 'value',
+                  dataPath,
+                  expectedValues: schemaNode.enum,
                   actualValue: value,
                   ancestors: schemaAncestors,
                 };
@@ -384,7 +407,7 @@ validateSchema.diagnostic = function(
             .map(v => JSON.stringify(v))
             .join(', ')}?`;
         } else if (expectedValues.length > 0) {
-          message = `Possible values: ${expectedValues
+          message = `Possible values: ${e.expectedValues
             .map(v => JSON.stringify(v))
             .join(', ')}`;
         } else {
