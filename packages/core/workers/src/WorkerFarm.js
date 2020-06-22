@@ -122,6 +122,11 @@ export default class WorkerFarm extends EventEmitter {
           retries: 0,
         });
       }),
+    runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
+      this.workerApi.callChild(nullthrows(handle.childId), {
+        handle: handle.id,
+        args,
+      }),
     getSharedReference: (ref: number) => this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
@@ -258,7 +263,7 @@ export default class WorkerFarm extends EventEmitter {
     let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
     if (handleId != null) {
-      mod = nullthrows(this.handles.get(handleId)).fn;
+      mod = nullthrows(this.handles.get(handleId)?.fn);
     } else if (location) {
       // $FlowFixMe this must be dynamic
       mod = require(location);
@@ -365,7 +370,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   createReverseHandle(fn: HandleFunction) {
-    let handle = new Handle({fn, workerApi: this.workerApi});
+    let handle = new Handle({fn});
     this.handles.set(handle.id, handle);
     return handle;
   }
