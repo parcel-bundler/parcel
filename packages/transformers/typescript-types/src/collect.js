@@ -74,6 +74,11 @@ export function collect(
       }
     }
 
+    // Handle `export default name;`
+    if (ts.isExportAssignment(node) && ts.isIdentifier(node.expression)) {
+      currentModule.addExport('default', node.expression.text);
+    }
+
     if (isDeclaration(ts, node)) {
       if (node.name) {
         currentModule.addLocal(node.name.text, node);
