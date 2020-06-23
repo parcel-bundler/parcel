@@ -11,5 +11,7 @@ export interface Params {
 }
 export var a: number, b: number;
 export function toUpperCase(foo: string): string;
+declare const _default: "test";
+export default _default;
 
 //# sourceMappingURL=types.d.ts.map
