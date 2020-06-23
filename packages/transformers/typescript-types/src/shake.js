@@ -233,7 +233,9 @@ function generateImports(ts: TypeScriptModule, moduleGraph: TSModuleGraph) {
     if (defaultSpecifier || namedSpecifiers.length > 0) {
       let importClause = ts.createImportClause(
         defaultSpecifier,
-        ts.createNamedImports(namedSpecifiers),
+        namedSpecifiers.length > 0
+          ? ts.createNamedImports(namedSpecifiers)
+          : undefined,
       );
       importStatements.push(
         ts.createImportDeclaration(
