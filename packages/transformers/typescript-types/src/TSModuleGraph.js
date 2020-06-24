@@ -89,7 +89,11 @@ export class TSModuleGraph {
         return null;
       }
 
-      return {module: exp.module, imported: exp.name, name: exportName};
+      return {
+        module: exp.module,
+        imported: exp.imported || exp.name,
+        name: exportName,
+      };
     }
 
     // Import and then export
