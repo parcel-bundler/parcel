@@ -74,6 +74,11 @@ export class MemoryFS implements FileSystem {
 
   static deserialize(opts: SerializedMemoryFS) {
     if (instances.has(opts.id)) {
+      // Correct the count of worker instances since serialization assumes a new instance is created
+      WorkerFarm.getWorkerApi().runHandle(opts.handle, [
+        'decrementWorkerInstance',
+        [],
+      ]);
       return instances.get(opts.id);
     }
 
@@ -94,7 +99,7 @@ export class MemoryFS implements FileSystem {
       );
     }
 
-    // This works because we only send the options once to each worker
+    // If a worker instance already exists, it will decrement this number
     this.numWorkerInstances++;
 
     return {
@@ -105,6 +110,10 @@ export class MemoryFS implements FileSystem {
       files: this.files,
       symlinks: this.symlinks,
     };
+  }
+
+  decrementWorkerInstance() {
+    this.numWorkerInstances--;
   }
 
   cwd() {
