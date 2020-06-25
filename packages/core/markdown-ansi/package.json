@@ -5,6 +5,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
