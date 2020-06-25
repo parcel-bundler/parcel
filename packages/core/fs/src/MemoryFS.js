@@ -35,6 +35,14 @@ type WorkerEvent = {|
   target?: FilePath,
 |};
 
+function sleep(ms) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve();
+    }, ms);
+  });
+}
+
 export class MemoryFS implements FileSystem {
   dirs: Map<FilePath, Directory>;
   files: Map<FilePath, File>;
@@ -47,6 +55,7 @@ export class MemoryFS implements FileSystem {
   _cwd: FilePath;
   _eventQueue: Array<Event>;
   _watcherTimer: TimeoutID;
+  numWorkerInstances: number = 0;
   workerHandles: Array<Handle>;
 
   constructor(workerFarm: WorkerFarm) {
@@ -84,6 +93,9 @@ export class MemoryFS implements FileSystem {
         },
       );
     }
+
+    // This works because we only send the options once to each worker
+    this.numWorkerInstances++;
 
     return {
       $$raw: false,
@@ -512,6 +524,11 @@ export class MemoryFS implements FileSystem {
   }
 
   async _sendWorkerEvent(event: WorkerEvent) {
+    // Wait for worker instances to register their handles
+    while (this.workerHandles.length < this.numWorkerInstances) {
+      await sleep(0);
+    }
+
     for (let workerHandle of this.workerHandles) {
       await this.farm.workerApi.runHandle(workerHandle, [event]);
     }
