@@ -876,6 +876,7 @@ class WorkerFS extends MemoryFS {
       WorkerFarm.getWorkerApi().createReverseHandle(event => {
         switch (event.type) {
           case 'writeFile':
+            console.log('WRITING FILE IN WORKER', event.path);
             this.files.set(event.path, event.entry);
             break;
           case 'unlink':
