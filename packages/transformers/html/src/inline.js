@@ -84,8 +84,6 @@ export default function extractInlineAssets(
 
         asset.addDependency({
           moduleSpecifier: parcelKey,
-          isIsolated: true,
-          isEntry: false,
         });
 
         parts.push({
@@ -107,8 +105,6 @@ export default function extractInlineAssets(
     if (style != null) {
       asset.addDependency({
         moduleSpecifier: parcelKey,
-        isIsolated: true,
-        isEntry: false,
       });
 
       parts.push({

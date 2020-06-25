@@ -960,7 +960,6 @@ export default class BundleGraph {
         hash.update(childBundle.id);
         traversal.skipChildren();
       }
-      return {parentBundle: childBundle.id};
     }, bundle);
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));

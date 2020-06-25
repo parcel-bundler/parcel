@@ -446,13 +446,13 @@ export default class PackagerRunner {
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
     let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
-    let writeOptions = publicBundle.env.isBrowser()
-      ? undefined
-      : {
-          mode: (
-            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
-          ).mode,
-        };
+    let mainEntry = publicBundle.getMainEntry();
+    let writeOptions =
+      publicBundle.env.isBrowser() || !mainEntry
+        ? undefined
+        : {
+            mode: (await inputFS.stat(mainEntry.filePath)).mode,
+          };
     let cacheKeys = info.cacheKeys;
     let contentStream = this.options.cache.getStream(cacheKeys.content);
     let size = await writeFileStream(

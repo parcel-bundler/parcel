@@ -50,22 +50,41 @@ export default new Bundler({
         let assets = bundleGraph.getDependencyAssets(dependency);
         let resolution = bundleGraph.getDependencyResolution(dependency);
 
+        // Create a new bundle for entries, async deps, isolated assets, and inline assets.
         if (
           (dependency.isEntry && resolution) ||
           (dependency.isAsync && resolution) ||
-          resolution?.isIsolated
+          (dependency.isIsolated && resolution) ||
+          resolution?.isIsolated ||
+          resolution?.isInline
         ) {
-          let bundleGroup = bundleGraph.createBundleGroup(
-            dependency,
-            nullthrows(dependency.target ?? context?.bundleGroup?.target),
-          );
+          let bundleGroup = context?.bundleGroup;
+          let bundleByType: Map<string, Bundle> =
+            context?.bundleByType ?? new Map();
 
-          let bundleByType: Map<string, Bundle> = new Map();
+          // Only create a new bundle group for entries, async dependencies, and isolated assets.
+          // Otherwise, the bundle is loaded together with the parent bundle.
+          if (
+            !bundleGroup ||
+            dependency.isEntry ||
+            dependency.isAsync ||
+            resolution.isIsolated
+          ) {
+            bundleGroup = bundleGraph.createBundleGroup(
+              dependency,
+              nullthrows(dependency.target ?? context?.bundleGroup?.target),
+            );
+
+            bundleByType = new Map();
+          }
 
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry: asset.isIsolated ? false : Boolean(dependency.isEntry),
+              isEntry:
+                asset.isIsolated || asset.isInline
+                  ? false
+                  : Boolean(dependency.isEntry),
               isInline: asset.isInline,
               target: bundleGroup.target,
             });
@@ -74,6 +93,17 @@ export default new Bundler({
             bundlesByEntryAsset.set(asset, bundle);
             siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+            // If the bundle is in the same bundle group as the parent, create an asset reference
+            // between the dependency and the asset, and a bundle reference between the parent bundle
+            // and the child bundle.
+            if (bundleGroup === context?.bundleGroup) {
+              bundleGraph.createAssetReference(dependency, asset);
+              bundleGraph.createBundleReference(
+                nullthrows(context?.parentBundle),
+                bundle,
+              );
+            }
           }
 
           return {
@@ -124,13 +154,12 @@ export default new Bundler({
           }
 
           let existingBundle = bundleByType.get(asset.type);
-          if (existingBundle && !dependency.isIsolated) {
+          if (existingBundle) {
             // If a bundle of this type has already been created in this group,
             // merge this subgraph into it.
             nullthrows(bundleRoots.get(existingBundle)).push(asset);
             bundlesByEntryAsset.set(asset, existingBundle);
             bundleGraph.createAssetReference(dependency, asset);
-            bundleGraph.createBundleReference(parentBundle, existingBundle);
           } else {
             let bundle = bundleGraph.createBundle({
               uniqueKey: asset.id,
@@ -138,11 +167,11 @@ export default new Bundler({
               type: asset.type,
               target: bundleGroup.target,
               isEntry:
-                asset.isIsolated || dependency.isEntry === false
+                asset.isInline || dependency.isEntry === false
                   ? false
                   : parentBundle.isEntry,
               isInline: asset.isInline,
-              isSplittable: true,
+              isSplittable: asset.isSplittable ?? true,
               pipeline: asset.pipeline,
             });
             bundleByType.set(bundle.type, bundle);
