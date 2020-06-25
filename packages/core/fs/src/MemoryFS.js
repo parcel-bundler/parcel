@@ -79,6 +79,7 @@ export class MemoryFS implements FileSystem {
   }
 
   serialize(): SerializedMemoryFS {
+    console.log('SERIALIZING');
     if (!this.handle) {
       this.handle = this.farm.createReverseHandle(
         (fn: string, args: Array<mixed>) => {
