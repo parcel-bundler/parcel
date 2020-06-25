@@ -46,7 +46,7 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
-  console.log('LOADING CONFIG', threadId);
+  //console.log('LOADING CONFIG', threadId);
   let processedConfig =
     parcelConfigCache.get(cachePath) ??
     nullthrows(await options.cache.get(cachePath));

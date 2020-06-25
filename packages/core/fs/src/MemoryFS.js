@@ -50,6 +50,7 @@ export class MemoryFS implements FileSystem {
   _eventQueue: Array<Event>;
   _watcherTimer: TimeoutID;
   workerHandles: Array<Handle>;
+  numWorkerInstances: number;
 
   constructor(workerFarm: WorkerFarm) {
     this.farm = workerFarm;
@@ -66,7 +67,7 @@ export class MemoryFS implements FileSystem {
   }
 
   static deserialize(opts: SerializedMemoryFS) {
-    console.log('DESERIALIZING', threadId);
+    //console.log('DESERIALIZING', threadId);
     if (instances.has(opts.id)) {
       return instances.get(opts.id);
     }
@@ -79,7 +80,8 @@ export class MemoryFS implements FileSystem {
   }
 
   serialize(): SerializedMemoryFS {
-    console.log('SERIALIZING');
+    //console.log('SERIALIZING');
+    this.numWorkerInstances++;
     if (!this.handle) {
       this.handle = this.farm.createReverseHandle(
         (fn: string, args: Array<mixed>) => {
@@ -516,6 +518,14 @@ export class MemoryFS implements FileSystem {
   }
 
   async _sendWorkerEvent(event: WorkerEvent) {
+    while (this.workerHandles.length < this.numWorkerInstances) {
+      await new Promise(resolve => {
+        setTimeout(() => {
+          resolve();
+        }, 10);
+      });
+    }
+
     for (let workerHandle of this.workerHandles) {
       await this.farm.workerApi.runHandle(workerHandle, [event]);
     }
@@ -877,7 +887,7 @@ class WorkerFS extends MemoryFS {
       WorkerFarm.getWorkerApi().createReverseHandle(event => {
         switch (event.type) {
           case 'writeFile':
-            console.log('WRITING FILE IN WORKER', event.path);
+            //console.log('WRITING FILE IN WORKER', event.path);
             this.files.set(event.path, event.entry);
             break;
           case 'unlink':
@@ -893,7 +903,7 @@ class WorkerFS extends MemoryFS {
             break;
         }
       }),
-    ]).then(() => console.log('WORKERFS REGISTERED', threadId));
+    ]); //.then(() => console.log('WORKERFS REGISTERED', threadId));
   }
 
   static deserialize(opts: SerializedMemoryFS) {
