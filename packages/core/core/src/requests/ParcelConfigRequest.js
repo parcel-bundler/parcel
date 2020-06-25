@@ -72,6 +72,7 @@ export default function createParcelConfigRequest() {
       }
 
       let cachePath = md5FromObject(processedConfig);
+      console.log('CACHE PATH', cachePath);
       await options.cache.set(cachePath, processedConfig);
       let result = {config: processedConfig, cachePath};
       // TODO: don't store config twice (once in the graph and once in a separate cache entry)

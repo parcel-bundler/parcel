@@ -16,6 +16,8 @@ import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
 import '@parcel/fs';
 
+import {threadId} from 'worker_threads';
+
 registerCoreWithSerializer();
 
 // Remove the workerApi type from the TransformationOpts and ValidationOpts types:
@@ -44,6 +46,7 @@ function loadOptions(ref, workerApi) {
 }
 
 async function loadConfig(cachePath, options) {
+  console.log('LOADING CONFIG', threadId);
   let processedConfig =
     parcelConfigCache.get(cachePath) ??
     nullthrows(await options.cache.get(cachePath));

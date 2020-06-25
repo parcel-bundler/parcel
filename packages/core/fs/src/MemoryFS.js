@@ -15,6 +15,8 @@ import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
 
+import {threadId} from 'worker_threads';
+
 const instances = new Map();
 let id = 0;
 
@@ -64,6 +66,7 @@ export class MemoryFS implements FileSystem {
   }
 
   static deserialize(opts: SerializedMemoryFS) {
+    console.log('DESERIALIZING', threadId);
     if (instances.has(opts.id)) {
       return instances.get(opts.id);
     }
@@ -888,7 +891,7 @@ class WorkerFS extends MemoryFS {
             break;
         }
       }),
-    ]);
+    ]).then(() => console.log('WORKERFS REGISTERED', threadId));
   }
 
   static deserialize(opts: SerializedMemoryFS) {
