@@ -89,7 +89,11 @@ async function run({input, api, options}: RunOpts) {
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
 
-  let parcelConfig = new ParcelConfig(config, options.packageManager, options.autoinstall);
+  let parcelConfig = new ParcelConfig(
+    config,
+    options.packageManager,
+    options.autoinstall,
+  );
 
   // Find named pipelines for each target.
   let pipelineNames = new Set(parcelConfig.getNamedPipelines());
@@ -112,7 +116,7 @@ export class TargetResolver {
   fs: FileSystem;
   options: ParcelOptions;
 
-  constructor( options: ParcelOptions) {
+  constructor(options: ParcelOptions) {
     this.fs = options.inputFS;
     this.options = options;
   }
