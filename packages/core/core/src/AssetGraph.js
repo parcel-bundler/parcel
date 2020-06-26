@@ -172,7 +172,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   resolveDependency(
     dependency: Dependency,
-    assetGroup: AssetGroup | null,
+    assetGroup: ?AssetGroup,
     correspondingRequest: string,
   ) {
     let depNode = nullthrows(this.nodes.get(dependency.id));
@@ -184,12 +184,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return;
     }
 
-    let assetGroupNode = nodeFromAssetGroup(assetGroup);
-    let existingAssetGroupNode = this.getNode(assetGroupNode.id);
-
-    this.replaceNodesConnectedTo(depNode, [
-      existingAssetGroupNode ?? assetGroupNode,
-    ]);
+    this.replaceNodesConnectedTo(depNode, [nodeFromAssetGroup(assetGroup)]);
   }
 
   shouldVisitChild(node: AssetGraphNode, childNode: AssetGraphNode) {
@@ -341,14 +336,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {
       let depNode = nodeFromDep(dep);
-      let depNodeExisting = this.nodes.get(depNode.id);
-      if (depNodeExisting) {
-        invariant(depNodeExisting.type === 'dependency');
-        depNodeExisting.value = dep;
-        depNodes.push(depNodeExisting);
-      } else {
-        depNodes.push(depNode);
-      }
       let dependentAsset = dependentAssets.find(
         a => a.uniqueKey === dep.moduleSpecifier,
       );
@@ -356,6 +343,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         depNode.complete = true;
         depNodesWithAssets.push([depNode, nodeFromAsset(dependentAsset)]);
       }
+      depNodes.push(depNode);
     }
     this.replaceNodesConnectedTo(assetNode, depNodes);
 

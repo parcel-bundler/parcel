@@ -71,7 +71,11 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   addNode(node: TNode): TNode {
-    this.nodes.set(node.id, node);
+    let existingNode = this.nodes.get(node.id);
+    if (existingNode) {
+      existingNode.value = node.value;
+    }
+    this.nodes.set(node.id, existingNode ?? node);
     return node;
   }
 
