@@ -39,7 +39,7 @@ export default new Transformer({
 
 function getExports(code) {
   // match default
-  let exports = [...code.matchAll(/^(\s*)export\s+default\s+/m)].length
+  let exports = [...code.matchAll(/^(\s*)export\s+default\s+/gm)].length
     ? ['default']
     : [];
   // match named
