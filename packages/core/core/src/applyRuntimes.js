@@ -2,7 +2,7 @@
 
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {
-  AssetRequestDesc,
+  AssetGroup,
   Bundle as InternalBundle,
   NodeId,
   ParcelOptions,
@@ -26,7 +26,7 @@ import {dependencyToInternalDependency} from './public/Dependency';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
-  assetRequest: AssetRequestDesc,
+  assetGroup: AssetGroup,
   dependency: ?Dependency,
   isEntry: ?boolean,
 |};
@@ -65,7 +65,7 @@ export default async function applyRuntimes({
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
           for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
-            let assetRequest = {
+            let assetGroup = {
               code,
               filePath,
               env: bundle.env,
@@ -75,7 +75,7 @@ export default async function applyRuntimes({
             };
             connections.push({
               bundle,
-              assetRequest,
+              assetGroup,
               dependency: dependency,
               isEntry,
             });
@@ -100,8 +100,8 @@ export default async function applyRuntimes({
   // the node to it.
   bundleGraph._graph.merge(runtimesGraph);
 
-  for (let {bundle, assetRequest, dependency, isEntry} of connections) {
-    let assetGroupNode = nodeFromAssetGroup(assetRequest);
+  for (let {bundle, assetGroup, dependency, isEntry} of connections) {
+    let assetGroupNode = nodeFromAssetGroup(assetGroup);
     let assetGroupAssets = runtimesAssetGraph.getNodesConnectedFrom(
       assetGroupNode,
     );
@@ -176,7 +176,7 @@ async function reconcileNewRuntimes(
 
   let assetRequestNodesById = new Map(
     connections
-      .map(t => t.assetRequest)
+      .map(t => t.assetGroup)
       .map(request => {
         let node = nodeFromAssetGroup(request);
         return [node.id, node];
