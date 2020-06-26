@@ -32,6 +32,24 @@ In the newly created example run `yarn parcel build index.html` to build.
 
 After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case it more complex.
 
+Use `yarn test` to run all unit and integration tests. Make sure all tests pass before submitting a pull request.
+
+Use `yarn format` to make sure we keep the code format consistent.
+
+Use `yarn lint` to check for stylistic or unwanted errors.
+
+## Notes and things to be aware of
+
+If you're just getting started to understand how the internals work, start from `/packages/core/core/src/Parcel.js`
+
+The `packages/core/parcel-bundler` is the source of v1, kept for reference and will be removed
+
+⚠️ You can set `PARCEL_WORKERS` to the number of worker processes to spawn. `PARCEL_WORKERS=1` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
+
+⚠️ When developing plugins or new `Asset` types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
+
+You can set `PARCEL_MAX_CONCURRENT_CALLS` to change the limit of concurrent calls per worker.
+
 ## Pull requests
 
 For significant changes, it is recommended that you first [propose your solution](https://github.com/parcel-bundler/parcel/discussions) and gather feedback.
@@ -55,11 +73,6 @@ When releasing a new version of Parcel a couple steps should be followed:
 After these steps are completed there should be a new version of Parcel published on npm.
 
 In case the automatic npm release failed or you want to do a manual release for any other reason you can also run `yarn run release`
-
-## Notes and things to be aware of
-
-- if you're just getting started to understand how the internals work, start from `/packages/core/core/src/Parcel.js`
-- the `packages/core/parcel-bundler` is the source of v1, kept for reference and will be removed
 
 ## Become a backer or sponsor
 
