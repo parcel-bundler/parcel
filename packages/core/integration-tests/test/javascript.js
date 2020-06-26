@@ -2236,7 +2236,7 @@ describe('javascript', function() {
           'index.js',
           'JSRuntime.js',
           'bundle-manifest.js',
-          '0a6afa6dbd29817944b95eca15ba16c6.js',
+          b.getBundles().find(b => b.isInline).id + '.js',
         ],
       },
       {

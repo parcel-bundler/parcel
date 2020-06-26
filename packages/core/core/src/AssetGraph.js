@@ -154,7 +154,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     targets: Array<Target>,
     correspondingRequest: string,
   ) {
-    let depNodes = targets.map((target, i) =>
+    let depNodes = targets.map(target =>
       nodeFromDep(
         createDependency({
           moduleSpecifier: entry.filePath,
