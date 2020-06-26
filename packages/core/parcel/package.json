@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.38",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -17,8 +17,8 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.18",
-    "@parcel/config-default": "^2.0.0-frontbucket.37",
+    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.19",
+    "@parcel/config-default": "^2.0.0-frontbucket.38",
     "@parcel/core": "^2.0.0-frontbucket.28",
     "@parcel/diagnostic": "^2.0.0-frontbucket.13",
     "@parcel/fs": "^2.0.0-frontbucket.25",

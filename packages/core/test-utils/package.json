@@ -1,6 +1,6 @@
 {
   "name": "@parcel/test-utils",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.38",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "private": true,
@@ -14,7 +14,7 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-frontbucket.37",
+    "@parcel/config-default": "^2.0.0-frontbucket.38",
     "@parcel/core": "^2.0.0-frontbucket.28",
     "@parcel/fs": "^2.0.0-frontbucket.25",
     "@parcel/package-manager": "^2.0.0-frontbucket.25",

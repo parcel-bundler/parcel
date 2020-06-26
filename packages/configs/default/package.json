@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-default",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.38",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -14,7 +14,7 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "^2.0.0-frontbucket.33",
+    "@atlassian/parcel-reporter-analytics": "^2.0.0-frontbucket.34",
     "@parcel/bundler-default": "^2.0.0-frontbucket.28",
     "@parcel/namer-default": "^2.0.0-frontbucket.26",
     "@parcel/optimizer-cssnano": "^2.0.0-frontbucket.27",
@@ -58,7 +58,7 @@
     "@parcel/transformer-sugarss": "^2.0.0-frontbucket.26",
     "@parcel/transformer-toml": "^2.0.0-frontbucket.26",
     "@parcel/transformer-typescript-types": "^2.0.0-frontbucket.28",
-    "@parcel/transformer-workerize": "^2.0.0-frontbucket.31",
+    "@parcel/transformer-workerize": "^2.0.0-frontbucket.32",
     "@parcel/transformer-yaml": "^2.0.0-frontbucket.26"
   },
   "peerDependencies": {
