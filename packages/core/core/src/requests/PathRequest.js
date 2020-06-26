@@ -146,9 +146,6 @@ export class ResolverRunner {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
-      if (pipeline == null) {
-        pipeline = 'url';
-      }
     }
 
     let errors: Array<ThrowableDiagnostic> = [];
@@ -172,6 +169,7 @@ export class ResolverRunner {
             code: result.code,
             env: dependency.env,
             pipeline: pipeline ?? dependency.pipeline,
+            isURL: dependency.isURL,
           };
         }
       } catch (e) {

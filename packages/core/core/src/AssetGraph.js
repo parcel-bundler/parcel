@@ -46,7 +46,11 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup) {
   return {
-    id: md5FromObject(assetGroup),
+    id: md5FromObject({
+      ...assetGroup,
+      // if only the isURL property is different, no need to re-run transformation.
+      isURL: undefined,
+    }),
     type: 'asset_group',
     value: assetGroup,
   };
@@ -150,11 +154,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     targets: Array<Target>,
     correspondingRequest: string,
   ) {
-    let depNodes = targets.map(target =>
+    let depNodes = targets.map((target, i) =>
       nodeFromDep(
         createDependency({
           moduleSpecifier: entry.filePath,
-          pipeline: target.name,
+          pipeline: target.pipeline,
           target: target,
           env: target.env,
           isEntry: true,

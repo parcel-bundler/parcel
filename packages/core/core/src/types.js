@@ -80,6 +80,7 @@ export type Target = {|
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
+  pipeline?: string,
 |};
 
 export type Dependency = {|
@@ -206,6 +207,7 @@ export type AssetRequestInput = {|
   code?: string,
   pipeline?: ?string,
   optionsRef: number,
+  isURL?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -295,6 +297,7 @@ export type ConfigRequestDesc = {|
   env: Environment,
   isSource: boolean,
   pipeline?: ?string,
+  isURL?: boolean,
   plugin?: PackageName,
   meta: JSONObject,
 |};
