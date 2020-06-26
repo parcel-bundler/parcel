@@ -1,9 +1,10 @@
 // @flow strict-local
-import invariant from 'assert';
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
-import BundleGraph from './BundleGraph';
 import type {WorkerApi} from '@parcel/workers';
 
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
+import BundleGraph from './BundleGraph';
 import Transformation, {type TransformationOpts} from './Transformation';
 import {reportWorker} from './ReporterRunner';
 import PackagerRunner from './PackagerRunner';
@@ -22,32 +23,47 @@ registerCoreWithSerializer();
 type WorkerTransformationOpts = {|
   ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 type WorkerValidationOpts = {|
   ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
-export function runTransform(
-  workerApi: WorkerApi,
-  opts: WorkerTransformationOpts,
-) {
-  let {optionsRef, configRef, ...rest} = opts;
-  let options = ((workerApi.getSharedReference(
-    optionsRef,
-    // $FlowFixMe
-  ): any): ParcelOptions);
-  let processedConfig = ((workerApi.getSharedReference(
-    configRef,
-    // $FlowFixMe
-  ): any): ProcessedParcelConfig);
+// TODO: this should eventually be replaced by an in memory cache layer
+let parcelConfigCache = new Map();
+
+function loadOptions(ref, workerApi) {
+  return nullthrows(
+    ((workerApi.getSharedReference(
+      ref,
+      // $FlowFixMe
+    ): any): ParcelOptions),
+  );
+}
+
+async function loadConfig(cachePath, options) {
+  let processedConfig =
+    parcelConfigCache.get(cachePath) ??
+    nullthrows(await options.cache.get(cachePath));
   let config = new ParcelConfig(
-    processedConfig,
+    // $FlowFixMe
+    ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
     options.autoinstall,
   );
+  parcelConfigCache.set(cachePath, config);
+  return config;
+}
+
+export async function runTransform(
+  workerApi: WorkerApi,
+  opts: WorkerTransformationOpts,
+) {
+  let {optionsRef, configCachePath, ...rest} = opts;
+  let options = loadOptions(optionsRef, workerApi);
+  let config = await loadConfig(configCachePath, options);
 
   return new Transformation({
     workerApi,
@@ -58,21 +74,13 @@ export function runTransform(
   }).run();
 }
 
-export function runValidate(workerApi: WorkerApi, opts: WorkerValidationOpts) {
-  let {optionsRef, configRef, ...rest} = opts;
-  let options = ((workerApi.getSharedReference(
-    optionsRef,
-    // $FlowFixMe
-  ): any): ParcelOptions);
-  let processedConfig = ((workerApi.getSharedReference(
-    configRef,
-    // $FlowFixMe
-  ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(
-    processedConfig,
-    options.packageManager,
-    options.autoinstall,
-  );
+export async function runValidate(
+  workerApi: WorkerApi,
+  opts: WorkerValidationOpts,
+) {
+  let {optionsRef, configCachePath, ...rest} = opts;
+  let options = loadOptions(optionsRef, workerApi);
+  let config = await loadConfig(configCachePath, options);
 
   return new Validation({
     workerApi,
@@ -105,10 +113,7 @@ export function runPackage(
 ) {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
-  let options = ((workerApi.getSharedReference(
-    optionsRef,
-    // $FlowFixMe
-  ): any): ParcelOptions);
+  let options = loadOptions(optionsRef, workerApi);
   let processedConfig = ((workerApi.getSharedReference(
     configRef,
     // $FlowFixMe

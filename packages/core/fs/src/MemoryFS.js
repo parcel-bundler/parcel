@@ -14,6 +14,7 @@ import {registerSerializableClass} from '@parcel/core';
 import packageJSON from '../package.json';
 import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
+import EventEmitter from 'events';
 
 const instances = new Map();
 let id = 0;
@@ -35,6 +36,8 @@ type WorkerEvent = {|
   target?: FilePath,
 |};
 
+type ResolveFunction = () => mixed;
+
 export class MemoryFS implements FileSystem {
   dirs: Map<FilePath, Directory>;
   files: Map<FilePath, File>;
@@ -47,7 +50,10 @@ export class MemoryFS implements FileSystem {
   _cwd: FilePath;
   _eventQueue: Array<Event>;
   _watcherTimer: TimeoutID;
-  workerHandles: Array<Handle>;
+  _numWorkerInstances: number = 0;
+  _workerHandles: Array<Handle>;
+  _workerRegisterResolves: Array<ResolveFunction> = [];
+  _emitter: EventEmitter = new EventEmitter();
 
   constructor(workerFarm: WorkerFarm) {
     this.farm = workerFarm;
@@ -58,13 +64,24 @@ export class MemoryFS implements FileSystem {
     this.events = [];
     this.id = id++;
     this._cwd = '/';
-    this.workerHandles = [];
+    this._workerHandles = [];
     this._eventQueue = [];
     instances.set(this.id, this);
+    this._emitter.on('allWorkersRegistered', () => {
+      for (let resolve of this._workerRegisterResolves) {
+        resolve();
+      }
+      this._workerRegisterResolves = [];
+    });
   }
 
   static deserialize(opts: SerializedMemoryFS) {
     if (instances.has(opts.id)) {
+      // Correct the count of worker instances since serialization assumes a new instance is created
+      WorkerFarm.getWorkerApi().runHandle(opts.handle, [
+        'decrementWorkerInstance',
+        [],
+      ]);
       return instances.get(opts.id);
     }
 
@@ -85,6 +102,9 @@ export class MemoryFS implements FileSystem {
       );
     }
 
+    // If a worker instance already exists, it will decrement this number
+    this._numWorkerInstances++;
+
     return {
       $$raw: false,
       id: this.id,
@@ -93,6 +113,13 @@ export class MemoryFS implements FileSystem {
       files: this.files,
       symlinks: this.symlinks,
     };
+  }
+
+  decrementWorkerInstance() {
+    this._numWorkerInstances--;
+    if (this._numWorkerInstances === this._workerHandles.length) {
+      this._emitter.emit('allWorkersRegistered');
+    }
   }
 
   cwd() {
@@ -508,13 +535,23 @@ export class MemoryFS implements FileSystem {
   }
 
   _registerWorker(handle: Handle) {
-    this.workerHandles.push(handle);
+    this._workerHandles.push(handle);
+    if (this._numWorkerInstances === this._workerHandles.length) {
+      this._emitter.emit('allWorkersRegistered');
+    }
   }
 
   async _sendWorkerEvent(event: WorkerEvent) {
-    for (let workerHandle of this.workerHandles) {
-      await this.farm.workerApi.runHandle(workerHandle, [event]);
+    // Wait for worker instances to register their handles
+    while (this._workerHandles.length < this._numWorkerInstances) {
+      await new Promise(resolve => this._workerRegisterResolves.push(resolve));
     }
+
+    await Promise.all(
+      this._workerHandles.map(workerHandle =>
+        this.farm.workerApi.runHandle(workerHandle, [event]),
+      ),
+    );
   }
 
   watch(

@@ -241,6 +241,20 @@ export default class BundleGraph {
       this._graph.removeEdge(bundle.id, asset.id);
     }
 
+    // Remove bundle node if it no longer has any entry assets
+    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
+    if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
+      let bundleGroupNodes = this._graph.getNodesConnectedTo(bundleNode);
+      this._graph.removeNode(bundleNode);
+
+      // Remove bundle group node if it no longer has any bundles
+      for (let bundleGroupNode of bundleGroupNodes) {
+        if (this._graph.getNodesConnectedTo(bundleGroupNode).length === 0) {
+          this._graph.removeNode(bundleGroupNode);
+        }
+      }
+    }
+
     this._bundleContentHashes.delete(bundle.id);
   }
 
