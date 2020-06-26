@@ -271,10 +271,6 @@ const VISITOR: Visitor<MutableAsset> = {
       path.replaceWith(t.identifier('null'));
     }
 
-    if (t.matchesPattern(path.node, 'module.require') && !asset.env.isNode()) {
-      path.replaceWith(t.identifier('null'));
-    }
-
     if (t.matchesPattern(path.node, 'module.bundle')) {
       path.replaceWith(t.identifier('parcelRequire'));
     }

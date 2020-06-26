@@ -603,6 +603,17 @@ export function link({
       },
     },
     MemberExpression: {
+      enter(path) {
+        const isCommonJS = bundle.env.outputFormat == 'commonjs';
+
+        if (t.matchesPattern(path.node, 'module.require') && !isCommonJS) {
+          path.replaceWith(t.identifier('null'));
+        }
+
+        if (t.matchesPattern(path.node, 'require.cache') && !isCommonJS) {
+          path.replaceWith(t.objectExpression([]));
+        }
+      },
       exit(path) {
         let {object, property, computed} = path.node;
         if (

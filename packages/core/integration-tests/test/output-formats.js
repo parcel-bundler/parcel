@@ -42,6 +42,16 @@ describe('output formats', function() {
       assert.equal((await run(b)).bar, 5);
     });
 
+    it('should support commonjs output with require.cache', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/commonjs/require-cache.js'),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+      assert(dist.includes('require.cache'));
+    });
+
     it('should support commonjs output from esmodule input (re-export rename)', async function() {
       let b = await bundle(
         path.join(
@@ -438,6 +448,16 @@ describe('output formats', function() {
   });
 
   describe('esmodule', function() {
+    it('should support esmodule output (stub require.cache)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/formats/esm/require-cache.js'),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+      assert(!dist.includes('require.cache'));
+    });
+
     it('should support esmodule output (named export)', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm/named.js'),
@@ -1029,6 +1049,19 @@ describe('output formats', function() {
   });
 
   describe('global', function() {
+    it('should support global module output (stub require.cache)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/global-require-cache/index.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+
+      assert(!dist.includes('require.cache'));
+    });
+
     it('should support async split bundles for workers', async function() {
       await bundle(
         path.join(

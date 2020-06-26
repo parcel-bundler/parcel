@@ -2110,17 +2110,6 @@ describe('javascript', function() {
     assert(output.includes('Other page'));
   });
 
-  it.skip('should stub require.cache', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/node_require_cache/main.js'),
-      {
-        target: 'node',
-      },
-    );
-
-    await run(b);
-  });
-
   it('should support async importing the same module from different bundles', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-bundlegroup/index.js'),
