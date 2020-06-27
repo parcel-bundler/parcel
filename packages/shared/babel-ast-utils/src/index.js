@@ -5,7 +5,7 @@ import type {AST, BaseAsset, PluginOptions} from '@parcel/types';
 import babelGenerate from '@babel/generator';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
-import {relativeUrl} from '@parcel/utils';
+import {relativeUrl, loadSourceMap} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
 
 export {babelErrorEnhancer};
@@ -64,6 +64,19 @@ export async function generate({
     let originalMap = await asset.getMapBuffer();
     if (originalMap) {
       map.extends(originalMap);
+    } else {
+      let inlineMap = await loadSourceMap(
+        asset.filePath,
+        await asset.getCode(),
+        {
+          fs: options.inputFS,
+          projectRoot: options.projectRoot,
+        },
+      );
+
+      if (inlineMap) {
+        map.extends(inlineMap.toBuffer());
+      }
     }
   }
 

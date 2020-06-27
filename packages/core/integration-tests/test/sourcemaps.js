@@ -105,7 +105,7 @@ function checkSourceMapping({
   );
 }
 
-describe('sourcemaps', function() {
+describe.only('sourcemaps', function() {
   it('Should create a basic browser sourcemap', async function() {
     let sourceFilename = path.join(
       __dirname,
@@ -948,6 +948,95 @@ describe('sourcemaps', function() {
     );
   });
 
+  it('should load existing sourcemaps of libraries', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-existing/index.js',
+    );
+    let b = await bundle(sourceFilename);
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let sourcemapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!sourcemapData) {
+      throw new Error('Could not load map');
+    }
+
+    let map = sourcemapData.map;
+    assert.equal(map.sourceRoot, '../test/');
+    assert.equal(map.sources.length, 3);
+    for (let source of map.sources) {
+      if (path.extname(source) !== '.coffee') {
+        assert(
+          await inputFS.exists(
+            path.join(path.basename(filename), map.sourceRoot, source),
+          ),
+          `Source File ${source} should exist`,
+        );
+      }
+    }
+
+    assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b');
+  });
+
+  it('should load inline sourcemaps of libraries', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-inline/index.js',
+    );
+    let b = await bundle(sourceFilename);
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let sourcemapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!sourcemapData) {
+      throw new Error('Could not load map');
+    }
+
+    let map = sourcemapData.map;
+    assert.equal(map.sourceRoot, '../test/');
+    assert.equal(map.sources.length, 3);
+    for (let source of map.sources) {
+      if (path.extname(source) !== '.coffee') {
+        assert(
+          await inputFS.exists(
+            path.join(path.basename(filename), map.sourceRoot, source),
+          ),
+          `Source File ${source} should exist`,
+        );
+      }
+    }
+
+    assert.equal(map.sourcesContent[2], 'module.exports = (a, b) => a + b\n');
+  });
+
+  it('should load referenced contents of sourcemaps', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-external-contents/index.js',
+    );
+    let b = await bundle(sourceFilename);
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let sourcemapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!sourcemapData) {
+      throw new Error('Could not load map');
+    }
+
+    let map = sourcemapData.map;
+    assert.equal(map.sourceRoot, '../test/');
+    assert.equal(map.sources.length, 3);
+    for (let source of map.sources) {
+      assert(
+        await inputFS.exists(
+          path.join(path.basename(filename), map.sourceRoot, source),
+        ),
+        `Source File ${source} should exist`,
+      );
+    }
+  });
+
   it.skip('should load existing sourcemaps for CSS files', async function() {
     async function test(minify) {
       let b = await bundle(
@@ -1050,110 +1139,5 @@ describe('sourcemaps', function() {
     }
     await test(false);
     await test(true);
-  });
-
-  it.skip('should load existing sourcemaps of libraries', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-existing/index.js'),
-    );
-
-    assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'sum.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
-
-    let jsOutput = await outputFS.readFile(b.name, 'utf8');
-
-    let sourcemapReference = path.join(
-      __dirname,
-      '/dist/',
-      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22),
-    );
-
-    assert(
-      await outputFS.exists(path.join(sourcemapReference)),
-      'referenced sourcemap should exist',
-    );
-
-    let map = await outputFS.readFile(path.join(sourcemapReference), 'utf8');
-    assert(
-      map.indexOf('module.exports = (a, b) => a + b') > -1,
-      'Sourcemap should contain the existing sourcemap',
-    );
-  });
-
-  it.skip('should load inline sourcemaps of libraries', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-inline/index.js'),
-    );
-
-    assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'sum.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
-
-    let jsOutput = await outputFS.readFile(b.name, 'utf8');
-
-    let sourcemapReference = path.join(
-      __dirname,
-      '/dist/',
-      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22),
-    );
-
-    assert(
-      await outputFS.exists(path.join(sourcemapReference)),
-      'referenced sourcemap should exist',
-    );
-
-    let map = await outputFS.readFile(path.join(sourcemapReference), 'utf8');
-    assert(
-      map.indexOf('module.exports = (a, b) => a + b') > -1,
-      'Sourcemap should contain the existing sourcemap',
-    );
-  });
-
-  it.skip('should load referenced contents of sourcemaps', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-external-contents/index.js'),
-    );
-
-    assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'sum.js'],
-      childBundles: [
-        {
-          type: 'map',
-        },
-      ],
-    });
-
-    let jsOutput = await outputFS.readFile(b.name, 'utf8');
-
-    let sourcemapReference = path.join(
-      __dirname,
-      '/dist/',
-      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22),
-    );
-
-    assert(
-      await outputFS.exists(path.join(sourcemapReference)),
-      'referenced sourcemap should exist',
-    );
-
-    let map = await outputFS.readFile(path.join(sourcemapReference), 'utf8');
-    assert(
-      map.indexOf('module.exports = (a, b) => a + b') > -1,
-      'Sourcemap should contain the existing sourcemap',
-    );
   });
 });
