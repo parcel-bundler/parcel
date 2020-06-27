@@ -39,6 +39,10 @@ export default new Bundler({
   // 5. If the sub-graph from an asset is >= 30kb, and the number of parallel requests in the bundle group is < 5, create a new bundle containing the sub-graph.
   // 6. If two assets are always seen together, put them in the same extracted bundle
 
+  loadConfig({options}) {
+    return loadBundlerConfig(options);
+  },
+
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
@@ -214,9 +218,8 @@ export default new Bundler({
     }
   },
 
-  async optimize({bundleGraph, options}) {
-    // TODO: make this invalidate the cache once bundling is a request.
-    let config = await loadBundlerConfig(bundleGraph, options);
+  optimize({bundleGraph, config}) {
+    invariant(config != null);
 
     // Step 2: Remove asset graphs that begin with entries to other bundles.
     bundleGraph.traverseBundles(bundle => {
@@ -509,10 +512,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
   },
 };
 
-async function loadBundlerConfig(
-  bundleGraph: MutableBundleGraph,
-  options: PluginOptions,
-) {
+async function loadBundlerConfig(options: PluginOptions) {
   let result = await loadConfig(
     options.inputFS,
     path.join(options.projectRoot, 'index'),
@@ -521,7 +521,10 @@ async function loadBundlerConfig(
 
   let config = result?.config['@parcel/bundler-default'];
   if (!config) {
-    return HTTP_OPTIONS['2'];
+    return {
+      config: HTTP_OPTIONS['2'],
+      files: result?.files ?? [],
+    };
   }
 
   invariant(result != null);
@@ -540,9 +543,12 @@ async function loadBundlerConfig(
   let defaults = HTTP_OPTIONS[http];
 
   return {
-    minBundles: config.minBundles ?? defaults.minBundles,
-    minBundleSize: config.minBundleSize ?? defaults.minBundleSize,
-    maxParallelRequests:
-      config.maxParallelRequests ?? defaults.maxParallelRequests,
+    config: {
+      minBundles: config.minBundles ?? defaults.minBundles,
+      minBundleSize: config.minBundleSize ?? defaults.minBundleSize,
+      maxParallelRequests:
+        config.maxParallelRequests ?? defaults.maxParallelRequests,
+    },
+    files: result.files,
   };
 }
