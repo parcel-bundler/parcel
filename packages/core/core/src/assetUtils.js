@@ -127,6 +127,7 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     ast,
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),
+    loadPreviousMap: () => Promise.resolve(null),
   });
 
   let mapBuffer = map?.toBuffer();
