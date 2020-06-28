@@ -105,7 +105,7 @@ function checkSourceMapping({
   );
 }
 
-describe.only('sourcemaps', function() {
+describe('sourcemaps', function() {
   it('Should create a basic browser sourcemap', async function() {
     let sourceFilename = path.join(
       __dirname,
@@ -1039,58 +1039,33 @@ describe.only('sourcemaps', function() {
 
   it.skip('should load existing sourcemaps for CSS files', async function() {
     async function test(minify) {
-      let b = await bundle(
-        path.join(__dirname, '/integration/sourcemap-css-existing/style.css'),
-        {minify},
+      let sourceFilename = path.join(
+        __dirname,
+        '/integration/sourcemap-css-existing/style.css',
       );
+      let b = await bundle(sourceFilename, {minify});
 
-      await assertBundleTree(b, {
-        name: 'style.css',
-        assets: ['style.css', 'library.css'],
-        childBundles: [
-          {
-            name: 'style.css.map',
-            type: 'map',
-          },
-        ],
-      });
+      let filename = b.getBundles()[0].filePath;
+      let raw = await outputFS.readFile(filename, 'utf8');
+      let sourcemapData = await loadSourceMapUrl(outputFS, filename, raw);
+      if (!sourcemapData) {
+        throw new Error('Could not load map');
+      }
 
-      let style = await inputFS.readFile(
-        path.join(__dirname, '/integration/sourcemap-css-existing/style.css'),
-        'utf8',
-      );
-      let library = await inputFS.readFile(
-        path.join(
-          __dirname,
-          '/integration/sourcemap-css-existing/test/library.raw.scss',
-        ),
-        'utf8',
-      );
-      let raw = await outputFS.readFile(
-        path.join(__dirname, '/dist/style.css'),
-        'utf8',
-      );
-      let map = JSON.parse(
-        await outputFS.readFile(
-          path.join(__dirname, '/dist/style.css.map'),
-          'utf8',
-        ),
-      );
+      let map = sourcemapData.map;
+      console.log(map);
+      assert.equal(map.sourceRoot, '../test/');
+      assert.equal(map.sources.length, 3);
+      for (let source of map.sources) {
+        assert(
+          await inputFS.exists(
+            path.join(path.basename(filename), map.sourceRoot, source),
+          ),
+          `Source File ${source} should exist`,
+        );
+      }
 
-      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert.equal(
-        map.sourceRoot,
-        path.normalize('../integration/sourcemap-css-existing'),
-      );
-
-      let sourceMap = await new SourceMap().addMap(map);
-      assert.equal(Object.keys(sourceMap.sources).length, 2);
-      assert.equal(sourceMap.sources['./style.css'], style);
-      assert.equal(
-        sourceMap.sources[path.normalize('test/library.scss')],
-        library.replace(new RegExp(os.EOL, 'g'), '\n'),
-      );
-
+      /*
       checkSourceMapping({
         map: sourceMap,
         source: style,
@@ -1135,8 +1110,9 @@ describe.only('sourcemaps', function() {
         str: 'background-color',
         sourcePath: './test/library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
-      });
+      });*/
     }
+
     await test(false);
     await test(true);
   });
