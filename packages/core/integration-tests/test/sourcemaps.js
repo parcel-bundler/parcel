@@ -1,10 +1,8 @@
 import assert from 'assert';
 import path from 'path';
-import os from 'os';
 import SourceMap from '@parcel/source-map';
 import {
   bundle as _bundle,
-  assertBundleTree,
   inputFS,
   outputFS,
   shallowEqual,
@@ -1053,7 +1051,6 @@ describe('sourcemaps', function() {
       }
 
       let map = sourcemapData.map;
-      console.log(map);
       assert.equal(map.sourceRoot, '../test/');
       assert.equal(map.sources.length, 3);
       for (let source of map.sources) {

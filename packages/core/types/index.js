@@ -463,6 +463,8 @@ export type Async<T> = T | Promise<T>;
 
 export type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
+export type LoadPreviousMapFn = () => Promise<?SourceMap>;
+
 type ResolveConfigFn = (
   configNames: Array<FilePath>,
 ) => Promise<FilePath | null>;
@@ -529,6 +531,7 @@ export type Transformer = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    loadPreviousMap: LoadPreviousMapFn,
   |}) => Async<?AST>,
   transform({|
     asset: MutableAsset,
@@ -536,12 +539,14 @@ export type Transformer = {|
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
+    loadPreviousMap: LoadPreviousMapFn,
   |}): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({|
     asset: Asset,
     ast: AST,
     options: PluginOptions,
     logger: PluginLogger,
+    loadPreviousMap: LoadPreviousMapFn,
   |}) => Async<GenerateOutput>,
   postProcess?: ({|
     assets: Array<MutableAsset>,

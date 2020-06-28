@@ -5,7 +5,7 @@ import type {AST, BaseAsset, PluginOptions} from '@parcel/types';
 import babelGenerate from '@babel/generator';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
-import {relativeUrl, loadSourceMap} from '@parcel/utils';
+import {relativeUrl} from '@parcel/utils';
 import {babelErrorEnhancer} from './babelErrorUtils';
 
 export {babelErrorEnhancer};
@@ -40,10 +40,12 @@ export async function generate({
   asset,
   ast,
   options,
+  loadPreviousMap,
 }: {|
   asset: BaseAsset,
   ast: AST,
   options: PluginOptions,
+  loadPreviousMap: () => Promise<?SourceMap>,
 |}) {
   let sourceFileName: string = relativeUrl(options.projectRoot, asset.filePath);
   let generated;
@@ -57,27 +59,15 @@ export async function generate({
   }
 
   let map = null;
+  let originalSourceMap = await loadPreviousMap();
   if (generated.rawMappings) {
     map = new SourceMap();
     map.addIndexedMappings(generated.rawMappings);
-
-    let originalMap = await asset.getMapBuffer();
-    if (originalMap) {
-      map.extends(originalMap);
-    } else {
-      let inlineMap = await loadSourceMap(
-        asset.filePath,
-        await asset.getCode(),
-        {
-          fs: options.inputFS,
-          projectRoot: options.projectRoot,
-        },
-      );
-
-      if (inlineMap) {
-        map.extends(inlineMap.toBuffer());
-      }
+    if (originalSourceMap) {
+      map.extends(originalSourceMap.toBuffer());
     }
+  } else {
+    map = originalSourceMap;
   }
 
   return {

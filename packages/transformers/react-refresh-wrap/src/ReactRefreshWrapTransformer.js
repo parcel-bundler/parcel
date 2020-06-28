@@ -82,7 +82,7 @@ export default new Transformer({
     return [asset];
   },
 
-  generate({asset, ast, options}) {
-    return generate({asset, ast, options});
+  generate({asset, ast, options, loadPreviousMap}) {
+    return generate({asset, ast, options, loadPreviousMap});
   },
 });

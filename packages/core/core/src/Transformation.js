@@ -20,7 +20,7 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject, normalizeSeparators} from '@parcel/utils';
+import {md5FromObject, normalizeSeparators, loadSourceMap} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -536,6 +536,23 @@ async function runTransformer(
     ).filePath;
   };
 
+  const loadPreviousMap = async (asset: Asset | MutableAsset) => {
+    let originalMap = await asset.getMap();
+    if (originalMap) {
+      return originalMap;
+    } else {
+      let inlineMap = await loadSourceMap(
+        asset.filePath,
+        await asset.getCode(),
+        {
+          fs: pipeline.pluginOptions.inputFS,
+          projectRoot: pipeline.pluginOptions.projectRoot,
+        },
+      );
+      return inlineMap;
+    }
+  };
+
   // If an ast exists on the asset, but we cannot reuse it,
   // use the previous transform to generate code that we can re-parse.
   if (
@@ -559,12 +576,14 @@ async function runTransformer(
 
   // Parse if there is no AST available from a previous transform.
   if (!asset.ast && transformer.parse) {
+    let mutableAsset = new MutableAsset(asset);
     let ast = await transformer.parse({
-      asset: new MutableAsset(asset),
+      asset: mutableAsset,
       config,
       options: pipeline.pluginOptions,
       resolve,
       logger,
+      loadPreviousMap: () => loadPreviousMap(mutableAsset),
     });
     if (ast) {
       asset.setAST(ast);
@@ -573,26 +592,30 @@ async function runTransformer(
   }
 
   // Transform.
+  let mutableAsset = new MutableAsset(asset);
   let results = await normalizeAssets(
     // $FlowFixMe
     await transformer.transform({
-      asset: new MutableAsset(asset),
+      asset: mutableAsset,
       ast: asset.ast,
       config,
       options: pipeline.pluginOptions,
       resolve,
       logger,
+      loadPreviousMap: () => loadPreviousMap(mutableAsset),
     }),
   );
 
   // Create generate and postProcess functions that can be called later
   pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
+    let pluginAsset = new Asset(input);
     if (transformer.generate && input.ast) {
       let generated = transformer.generate({
-        asset: new Asset(input),
+        asset: pluginAsset,
         ast: input.ast,
         options: pipeline.pluginOptions,
         logger,
+        loadPreviousMap: () => loadPreviousMap(pluginAsset),
       });
       input.clearAST();
       return Promise.resolve(generated);
