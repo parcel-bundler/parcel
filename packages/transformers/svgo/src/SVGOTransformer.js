@@ -52,7 +52,7 @@ export default new Transformer({
     let svgoConfig = config ? config.contents : {};
     let code = await asset.getCode();
     let svgo = new SVGO({...defaultConfig, ...svgoConfig});
-    let res = await svgo.optimize(code);
+    let res = await svgo.optimize(code, { path: asset.id });
 
     asset.setCode(res.data);
 
