@@ -17,16 +17,23 @@ import type {
   Node,
   VariableDeclarator,
 } from '@babel/types';
+import {parse as babelParse} from '@babel/parser';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
-import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
+import {
+  isIdentifier,
+  isFunctionDeclaration,
+  isVariableDeclarator,
+  isVariableDeclaration,
+} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import fs from 'fs';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -316,4 +323,44 @@ export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
       column: end.column,
     },
   };
+}
+
+export function parse(code: string, sourceFilename: string) {
+  let ast = babelParse(code, {
+    sourceFilename,
+    allowReturnOutsideFunction: true,
+    plugins: ['dynamicImport'],
+  });
+
+  return ast.program.body;
+}
+
+let helpersCache;
+export function getHelpers(): Map<string, BabelNode> {
+  if (helpersCache != null) {
+    return helpersCache;
+  }
+
+  let helpersPath = path.join(__dirname, 'helpers.js');
+  let statements = parse(fs.readFileSync(helpersPath, 'utf8'), helpersPath);
+
+  helpersCache = new Map();
+  for (let statement of statements) {
+    if (isVariableDeclaration(statement)) {
+      if (
+        statement.declarations.length !== 1 ||
+        !isIdentifier(statement.declarations[0].id)
+      ) {
+        throw new Error('Unsupported helper');
+      }
+
+      helpersCache.set(statement.declarations[0].id.name, statement);
+    } else if (isFunctionDeclaration(statement) && isIdentifier(statement.id)) {
+      helpersCache.set(statement.id.name, statement);
+    } else {
+      throw new Error('Unsupported helper');
+    }
+  }
+
+  return helpersCache;
 }

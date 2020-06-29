@@ -272,8 +272,12 @@ export type Meta = JSONObject;
 
 export type Symbol = string;
 export interface Symbols // eslint-disable-next-line no-undef
-  extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
+  extends Iterable<
+    [Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}],
+  > {
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   // Whether static analysis bailed out
@@ -282,7 +286,12 @@ export interface Symbols // eslint-disable-next-line no-undef
 export interface MutableSymbols extends Symbols {
   // Static analysis bailed out
   clear(): void;
-  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    meta?: ?Meta,
+  ): void;
 }
 
 export type DependencyOptions = {|
@@ -453,7 +462,10 @@ export type TransformerResult = {|
   +meta?: Meta,
   +pipeline?: ?string,
   +sideEffects?: boolean,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  +symbols?: $ReadOnlyMap<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|},
+  >,
   +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
@@ -630,6 +642,7 @@ export interface Bundle {
   getEntryAssets(): Array<Asset>;
   getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
+  hasDependency(Dependency): boolean;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>,

@@ -1,77 +1,40 @@
 // @flow
 import type {Node} from '@babel/types';
-import type {Visitors, VisitorsExploded} from './index';
+import type {VisitorFunc, Visitors, VisitorsExploded} from './types';
 
 import * as t from '@babel/types';
-import invariant from 'assert';
 import explode from './explode.js';
 
-class Path {
-  node: Node;
-  parent: Node;
-  listkey: ?string;
-  key: number | string;
-  _skipped: boolean = false;
-  _removed: boolean = false;
+export const SKIP = Symbol('traverse.SKIP');
+export const REMOVE = Symbol('traverse.REMOVE');
 
-  constructor(
-    node: Node,
-    parent: Node,
-    listkey: ?string,
-    key: number | string,
-  ) {
-    this.node = node;
-    this.parent = parent;
-    this.listkey = listkey;
-    this.key = key;
-  }
-  replaceWith(n: Node) {
-    this.node = n;
-
-    // $FlowFixMe
-    let p = this.listkey ? this.parent[this.listkey] : this.parent;
-    // $FlowFixMe
-    p[this.key] = this.node;
-  }
-  skip() {
-    this._skipped = true;
-  }
-  remove() {
-    this._removed = true;
-    invariant(this.listkey && typeof this.key === 'number');
-    // $FlowFixMe
-    this.parent[this.listkey].splice(this.key, 1);
-  }
-}
-
-export default function traverse<T>(
-  node: Node,
-  visitors: Visitors<(Path, T) => void>,
-  state: T,
-) {
-  traverseWalk(explode(visitors), state, node, null, null, null);
+export function traverse<T>(node: Node, visitors: Visitors<T>, state: T) {
+  let ancestors = [];
+  traverseWalk(explode((visitors: any)), ancestors, state, node);
 }
 
 function traverseWalk<T>(
-  visitors: VisitorsExploded<(Path, T) => void>,
+  visitors: VisitorsExploded<VisitorFunc<Node, T>>,
+  ancestors: Node[],
   state: T,
   node: Node,
-  parent: ?Node,
-  listkey,
-  key,
 ) {
-  if (!node || (visitors.shouldSkip && visitors.shouldSkip(node) === true))
+  if (!node || (visitors.shouldSkip && visitors.shouldSkip(node) === true)) {
     return;
+  }
+
+  let isNew = node != ancestors[ancestors.length - 1];
+  if (isNew) ancestors.push(node);
 
   const {enter, exit} = visitors[node.type] || {};
 
-  // $FlowFixMe
-  const path = new Path(node, parent, listkey, key);
-
   if (enter) {
     for (let visitor of enter) {
-      visitor(path, state);
-      if (path._skipped || path._removed) return path._removed;
+      let res = visitor(node, state, ancestors);
+      if (res != null) {
+        if (isNew) ancestors.pop();
+        return res;
+      }
     }
   }
 
@@ -80,18 +43,43 @@ function traverseWalk<T>(
     let subNode: Node | Array<Node> = node[key];
     if (Array.isArray(subNode)) {
       for (let i = 0; i < subNode.length; i++) {
-        if (traverseWalk(visitors, state, subNode[i], node, key, i) === true) {
+        let res = traverseWalk(visitors, ancestors, state, subNode[i]);
+        if (res === REMOVE) {
+          subNode.splice(i, 1);
           i--;
+        } else if (res !== SKIP && res != null) {
+          if (Array.isArray(res)) {
+            subNode.splice(i, 1, ...res);
+            if (res.length === 0) {
+              i--;
+            }
+          } else {
+            // $FlowFixMe
+            subNode[i] = res;
+          }
         }
       }
     } else {
-      traverseWalk(visitors, state, subNode, node, null, key);
+      let res = traverseWalk(visitors, ancestors, state, subNode);
+      if (res === REMOVE) {
+        if (isNew) ancestors.pop();
+        return REMOVE;
+      } else if (res !== SKIP && res != null) {
+        // $FlowFixMe
+        node[key] = res;
+      }
     }
   }
 
   if (exit) {
     for (let visitor of exit) {
-      visitor(path, state);
+      let res = visitor(node, state, ancestors);
+      if (res != null) {
+        if (isNew) ancestors.pop();
+        return res;
+      }
     }
   }
+
+  if (isNew) ancestors.pop();
 }

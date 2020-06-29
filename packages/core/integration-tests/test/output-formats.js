@@ -456,7 +456,8 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(!dist.includes('function')); // no iife
-      assert(dist.includes('export default $'));
+      assert(dist.includes('var _default = $'));
+      assert(dist.includes('export default _default'));
     });
 
     it('should support esmodule output (default function)', async function() {
@@ -484,8 +485,8 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export { foo, other, other as test };'));
-      assert(dist.includes('export default other;'));
+      assert(dist.includes('export { test, test as other, foo };'));
+      assert(dist.includes('export default test;'));
     });
 
     it('should support esmodule output (re-export)', async function() {
@@ -670,7 +671,7 @@ describe('output formats', function() {
         .getBundles()
         .find(b => b.name.startsWith('async1') && !index.includes(b.name));
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-      assert(shared.includes('export function $'));
+      assert(/export { \$[a-f0-9]+\$init, \$[a-f0-9]+\$init }/.test(shared));
 
       let async1 = await outputFS.readFile(
         b
@@ -714,7 +715,7 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(/export function \$[a-f0-9]+\$init\(\)/.test(mainBundleContents));
+      assert(/export { \$[a-f0-9]+\$init }/.test(mainBundleContents));
       assert(
         /import { \$[a-f0-9]+\$init } from "\.\/index\.js"/.test(
           childBundleContents,
@@ -918,7 +919,7 @@ describe('output formats', function() {
       assert(!entry.includes('Promise.all')); // not needed - esmodules will wait for shared bundle
 
       let shared = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-      assert(shared.includes('export function $'));
+      assert(/export { \$[a-f0-9]+\$init, \$[a-f0-9]+\$init }/.test(shared));
 
       let async1 = await outputFS.readFile(async1Bundle.filePath, 'utf8');
       assert(
@@ -955,7 +956,7 @@ describe('output formats', function() {
         'utf8',
       );
 
-      let exportName = dist1.match(/export function\s*([a-z0-9$]+)\(\)/)[1];
+      let exportName = dist1.match(/export { ([a-z0-9$]+) }/)[1];
       assert(exportName);
 
       assert.equal(
@@ -992,6 +993,7 @@ describe('output formats', function() {
         // The last line is a sourcemap comment -- test the second-to-last line
         lines[lines.length - 2].startsWith('export default'),
       );
+      assert.equal(dist.match(/export default/g).length, 1);
     });
 
     it("doesn't support require.resolve calls for excluded assets without commonjs", async function() {

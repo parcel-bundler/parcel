@@ -7,7 +7,7 @@ import type {
   PluginOptions,
 } from '@parcel/types';
 import type {Node} from '@babel/types';
-import type {Visitors} from '@parcel/babylon-walk';
+import type {SimpleVisitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
 import {
@@ -173,7 +173,7 @@ export default ({
       }
     },
   },
-}: Visitors<
+}: SimpleVisitors<
   (
     any,
     {|asset: MutableAsset, ast: AST, options: PluginOptions|},

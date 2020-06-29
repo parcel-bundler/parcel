@@ -1,6 +1,7 @@
 // @flow
 import type {
   Symbol,
+  Meta,
   MutableSymbols as IMutableSymbols,
   Symbols as ISymbols,
   SourceLocation,
@@ -19,7 +20,7 @@ let valueToSymbols: WeakMap<Asset, Symbols> = new WeakMap();
 
 export class Symbols implements ISymbols {
   /*::
-  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value; // Asset
 
@@ -33,7 +34,9 @@ export class Symbols implements ISymbols {
     valueToSymbols.set(asset, this);
   }
 
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|} {
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|} {
     return this.#value.symbols?.get(exportSymbol);
   }
 
@@ -69,7 +72,7 @@ let valueToMutableSymbols: WeakMap<
 
 class MutableSymbols {
   /*::
-  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
+  @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}]> { return ({}: any); }
   */
   #value; // Asset
 
@@ -77,14 +80,16 @@ class MutableSymbols {
     this.#value = asset;
   }
 
-  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation) {
+  set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation, meta?: ?Meta) {
     nullthrows(
       this.#value.symbols,
       'Cannot set symbol on cleared Symbols',
-    ).set(exportSymbol, {local, loc});
+    ).set(exportSymbol, {local, loc, meta});
   }
 
-  get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|} {
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|} {
     return this.#value.symbols?.get(exportSymbol);
   }
 

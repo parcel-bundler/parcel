@@ -48,7 +48,7 @@ type AssetOptions = {|
   outputHash?: ?string,
   pipeline?: ?string,
   stats: Stats,
-  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation, meta?: ?Meta|}>,
   sideEffects?: boolean,
   uniqueKey?: ?string,
   plugin?: PackageName,
