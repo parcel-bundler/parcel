@@ -1,6 +1,6 @@
-export const foo = 'bar'
+exports.foo = 'bar'
 
-export function getExports() {
+function getExports() {
     return exports
 }
 

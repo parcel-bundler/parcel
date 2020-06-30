@@ -246,7 +246,7 @@ export default class UncommittedAsset {
     } else {
       this.value.dependencies.set(dep.id, dep);
     }
-    return dep.id;
+    return dep;
   }
 
   addIncludedFile(file: File) {

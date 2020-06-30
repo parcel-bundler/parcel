@@ -381,7 +381,7 @@ export interface MutableAsset extends BaseAsset {
   isSplittable: ?boolean;
   type: string;
 
-  addDependency(dep: DependencyOptions): string;
+  addDependency(dep: DependencyOptions): Dependency;
   addIncludedFile(file: File): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 

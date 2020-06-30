@@ -345,13 +345,13 @@ const FIND_REQUIRES_VISITOR = {
     }
 
     if (callee.name === '$parcel$require') {
-      let [, src] = args;
-      invariant(isStringLiteral(src));
+      let [id] = args;
+      invariant(isStringLiteral(id));
       let dep = bundleGraph
         .getDependencies(asset)
-        .find(dep => dep.moduleSpecifier === src.value);
+        .find(dep => dep.id === id.value);
       if (!dep) {
-        throw new Error(`Could not find dep for "${src.value}`);
+        throw new Error(`Could not find dep for "${id.value}`);
       }
       // can be undefined if AssetGraph#resolveDependency optimized
       // ("deferred") this dependency away as an unused reexport

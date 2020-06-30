@@ -262,8 +262,8 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return new MutableAssetSymbols(this.#asset.value);
   }
 
-  addDependency(dep: DependencyOptions): string {
-    return this.#asset.addDependency(dep);
+  addDependency(dep: DependencyOptions): IDependency {
+    return new Dependency(this.#asset.addDependency(dep));
   }
 
   addIncludedFile(file: File): void {
@@ -296,7 +296,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
       isURL: true,
       isAsync: true, // The browser has native loaders for url dependencies
       ...opts,
-    });
+    }).id;
   }
 
   setEnvironment(env: EnvironmentOpts): void {

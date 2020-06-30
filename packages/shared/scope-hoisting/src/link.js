@@ -81,6 +81,7 @@ export function link({
   let assets: Map<string, Asset> = new Map();
   let exportsMap: Map<Symbol, Asset> = new Map();
   let scope = new Scope();
+  let dependencyMap = new Map();
 
   let helpers = getHelpers();
 
@@ -109,6 +110,7 @@ export function link({
     exportsMap.set(assertString(asset.meta.exportsIdentifier), asset);
 
     for (let dep of bundleGraph.getDependencies(asset)) {
+      dependencyMap.set(dep.id, dep);
       let resolved = bundleGraph.getDependencyResolution(dep, bundle);
 
       // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
@@ -540,30 +542,23 @@ export function link({
 
       // each require('module') call gets replaced with $parcel$require(id, 'module')
       if (callee.name === '$parcel$require') {
-        let [id, source] = args;
-        if (
-          args.length !== 2 ||
-          !isStringLiteral(id) ||
-          !isStringLiteral(source)
-        ) {
+        let [depId] = args;
+        if (args.length !== 1 || !isStringLiteral(depId)) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require(number, string)',
+            'invariant: invalid signature, expected : $parcel$require(string)',
           );
         }
 
-        let asset = nullthrows(assets.get(id.value));
-        let dep = nullthrows(
-          bundleGraph
-            .getDependencies(asset)
-            .find(dep => dep.moduleSpecifier === source.value),
-        );
+        let dep = nullthrows(dependencyMap.get(depId.value));
 
         let mod = bundleGraph.getDependencyResolution(dep, bundle);
         let newNode;
 
         if (!mod) {
           if (dep.isOptional) {
-            return THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)});
+            return THROW_TEMPLATE({
+              MODULE: t.stringLiteral(dep.moduleSpecifier),
+            });
           } else if (dep.isWeak && bundleGraph.isDependencyDeferred(dep)) {
             return REMOVE;
           } else {
@@ -600,23 +595,19 @@ export function link({
           }
         }
       } else if (callee.name === '$parcel$require$resolve') {
-        let [id, source] = args;
+        let [assetId, depId] = args;
         if (
           args.length !== 2 ||
-          !isStringLiteral(id) ||
-          !isStringLiteral(source)
+          !isStringLiteral(assetId) ||
+          !isStringLiteral(depId)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require$resolve(number, string)',
+            'invariant: invalid signature, expected : $parcel$require$resolve(string, string)',
           );
         }
 
-        let mapped = nullthrows(assets.get(id.value));
-        let dep = nullthrows(
-          bundleGraph
-            .getDependencies(mapped)
-            .find(dep => dep.moduleSpecifier === source.value),
-        );
+        let mapped = nullthrows(assets.get(assetId.value));
+        let dep = nullthrows(dependencyMap.get(depId.value));
         if (!bundleGraph.getDependencyResolution(dep, bundle)) {
           // was excluded from bundling (e.g. includeNodeModules = false)
           if (bundle.env.outputFormat !== 'commonjs') {
@@ -628,7 +619,7 @@ export function link({
           }
 
           return REQUIRE_RESOLVE_CALL_TEMPLATE({
-            ID: t.stringLiteral(source.value),
+            ID: t.stringLiteral(dep.moduleSpecifier),
           });
         } else {
           throw getThrowableDiagnosticForNode(
@@ -821,6 +812,10 @@ export function link({
         }
 
         if (!needsExportsIdentifier(object.name)) {
+          if (!isExpressionStatement(ancestors[ancestors.length - 2])) {
+            return node.right;
+          }
+
           return REMOVE;
         }
 
@@ -886,6 +881,10 @@ export function link({
           if (exp) {
             left.name = exp[0].local;
             return format.generateMainExport(node, exp);
+          }
+
+          if (!needsDeclaration(left.name)) {
+            return REMOVE;
           }
         }
       },

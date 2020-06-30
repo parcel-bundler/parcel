@@ -10,12 +10,18 @@ export const REMOVE = Symbol('traverse.REMOVE');
 
 export function traverse<T>(node: Node, visitors: Visitors<T>, state: T) {
   let ancestors = [];
-  traverseWalk(explode((visitors: any)), ancestors, state, node);
+  let revisit = [];
+  traverseWalk(explode((visitors: any)), ancestors, revisit, state, node);
+
+  for (let fn of revisit) {
+    fn();
+  }
 }
 
 function traverseWalk<T>(
   visitors: VisitorsExploded<VisitorFunc<Node, T>>,
   ancestors: Node[],
+  revisit: any[],
   state: T,
   node: Node,
 ) {
@@ -43,30 +49,38 @@ function traverseWalk<T>(
     let subNode: Node | Array<Node> = node[key];
     if (Array.isArray(subNode)) {
       for (let i = 0; i < subNode.length; i++) {
-        let res = traverseWalk(visitors, ancestors, state, subNode[i]);
+        let res = traverseWalk(visitors, ancestors, revisit, state, subNode[i]);
         if (res === REMOVE) {
           subNode.splice(i, 1);
           i--;
         } else if (res !== SKIP && res != null) {
-          if (Array.isArray(res)) {
-            subNode.splice(i, 1, ...res);
-            if (res.length === 0) {
-              i--;
-            }
+          if (typeof res === 'function') {
+            revisit.push(() => {
+              replaceArray(subNode, i, res());
+            });
           } else {
-            // $FlowFixMe
-            subNode[i] = res;
+            i = replaceArray(subNode, i, res);
           }
         }
       }
     } else {
-      let res = traverseWalk(visitors, ancestors, state, subNode);
+      let res = traverseWalk(visitors, ancestors, revisit, state, subNode);
       if (res === REMOVE) {
         if (isNew) ancestors.pop();
         return REMOVE;
       } else if (res !== SKIP && res != null) {
-        // $FlowFixMe
-        node[key] = res;
+        if (typeof res === 'function') {
+          revisit.push(() => {
+            let n = res();
+            if (n != null) {
+              // $FlowFixMe
+              node[key] = n;
+            }
+          });
+        } else {
+          // $FlowFixMe
+          node[key] = res;
+        }
       }
     }
   }
@@ -82,4 +96,20 @@ function traverseWalk<T>(
   }
 
   if (isNew) ancestors.pop();
+}
+
+function replaceArray(subNode, i, res) {
+  if (Array.isArray(res)) {
+    subNode.splice(i, 1, ...res);
+    if (res.length === 0) {
+      i--;
+    } else if (res.length > 1) {
+      i += res.length - 1;
+    }
+  } else if (res != null) {
+    // $FlowFixMe
+    subNode[i] = res;
+  }
+
+  return i;
 }

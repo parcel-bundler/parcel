@@ -5,7 +5,12 @@ export type VisitorFunc<N, S> = (
   N,
   S,
   Array<t.Node>,
-) => void | t.Node | Array<t.Node> | symbol;
+) =>
+  | void
+  | t.Node
+  | Array<t.Node>
+  | symbol
+  | (() => void | t.Node | Array<t.Node>);
 type SingleVisitor<N, S> =
   | VisitorFunc<N, S>
   | {|
