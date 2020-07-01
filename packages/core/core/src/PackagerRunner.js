@@ -335,8 +335,8 @@ export default class PackagerRunner {
       ) {
         sourceRoot = bundle.target.sourceMap.sourceRoot;
       } else if (
-        bundle.target.env.context === 'browser' &&
-        this.options.mode !== 'production'
+        this.options.serve &&
+        bundle.target.env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
       }
@@ -360,6 +360,7 @@ export default class PackagerRunner {
     // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
+      // $FlowFixMe
       fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources
@@ -428,7 +429,8 @@ export default class PackagerRunner {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
     let thisHashReference = bundle.hashReference;
-    if (filePath.includes(thisHashReference)) {
+    // Without content hashing, the hash reference is already the correct id
+    if (this.options.contentHash && filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
       bundle.filePath = filePath;

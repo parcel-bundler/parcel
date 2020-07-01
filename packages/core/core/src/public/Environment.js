@@ -12,7 +12,7 @@ import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
 
-const BROWSER_ENVS = new Set([
+export const BROWSER_ENVS = new Set<string>([
   'browser',
   'web-worker',
   'service-worker',

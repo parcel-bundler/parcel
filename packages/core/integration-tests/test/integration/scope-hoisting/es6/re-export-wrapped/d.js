@@ -1,3 +1,4 @@
-export var foo = (function () {
-	return !!module;
-})();
+export function run() {
+	if (!module) return false;
+	else return true;
+}

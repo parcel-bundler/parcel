@@ -39,8 +39,10 @@ export type ParcelPluginNode = {|
   resolveFrom: FilePath,
 |};
 
-export type PureParcelConfigPipeline = Array<ParcelPluginNode>;
-export type ExtendableParcelConfigPipeline = Array<ParcelPluginNode | '...'>;
+export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
+export type ExtendableParcelConfigPipeline = $ReadOnlyArray<
+  ParcelPluginNode | '...',
+>;
 
 export type ProcessedParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
@@ -144,8 +146,9 @@ export type ParcelOptions = {|
   scopeHoist: boolean,
   sourceMaps: boolean,
   publicUrl: string,
-  distDir: FilePath,
+  distDir: ?FilePath,
   hot: ?HMROptions,
+  contentHash: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -196,21 +199,19 @@ export type DependencyNode = {|
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
-export type AssetRequestDesc = {|
+export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
+  optionsRef: number,
 |};
 
-export type AssetRequestResult = {|
-  assets: Array<Asset>,
-  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
-|};
+export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = AssetRequestDesc;
+export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -229,7 +230,7 @@ export type DepPathRequestNode = {|
 export type AssetRequestNode = {|
   id: string,
   +type: 'asset_request',
-  value: AssetRequestDesc,
+  value: AssetRequestInput,
 |};
 
 export type EntrySpecifierNode = {|
@@ -241,7 +242,7 @@ export type EntrySpecifierNode = {|
 
 export type Entry = {|
   filePath: FilePath,
-  packagePath?: FilePath,
+  packagePath: FilePath,
 |};
 
 export type EntryFileNode = {|
@@ -278,11 +279,11 @@ export type Config = {|
   isSource: boolean,
   searchPath: FilePath,
   env: Environment,
-  resolvedPath: ?FilePath,
   resultHash: ?string,
   result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
+  pkgFilePath: ?FilePath,
   watchGlob: ?Glob,
   devDeps: Map<PackageName, ?string>,
   shouldRehydrate: boolean,
@@ -367,15 +368,15 @@ export type BundleGroupNode = {|
 |};
 
 export type TransformationOpts = {|
-  request: AssetRequestDesc,
+  request: AssetGroup,
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ValidationOpts = {|
-  requests: AssetRequestDesc[],
+  requests: AssetGroup[],
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

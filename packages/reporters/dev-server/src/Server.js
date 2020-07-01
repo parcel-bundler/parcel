@@ -25,9 +25,9 @@ import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
+import serveHandler from 'serve-handler';
 import httpProxyMiddleware from 'http-proxy-middleware';
 import {URL} from 'url';
-import mime from 'mime';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -237,23 +237,27 @@ export default class Server extends EventEmitter {
       return next(req, res);
     }
 
-    setHeaders(res);
-    res.setHeader('Content-Length', '' + stat.size);
-    let mimeType = mime.getType(filePath);
-    if (mimeType != null) {
-      res.setHeader('Content-Type', mimeType + '; charset=utf-8');
-    }
     if (req.method === 'HEAD') {
       res.end();
       return;
     }
 
-    return new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(res)
-        .on('finish', resolve)
-        .on('error', reject);
-    });
+    setHeaders(res);
+
+    return serveHandler(
+      req,
+      res,
+      {
+        public: root,
+        cleanUrls: false,
+      },
+      {
+        lstat: path => fs.stat(path),
+        realpath: path => fs.realpath(path),
+        createReadStream: (path, options) => fs.createReadStream(path, options),
+        readdir: path => fs.readdir(path),
+      },
+    );
   }
 
   sendError(res: Response, statusCode: number) {

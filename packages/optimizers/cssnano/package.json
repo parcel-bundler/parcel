@@ -5,6 +5,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
@@ -16,7 +20,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.26",
-    "@parcel/source-map": "2.0.0-alpha.4.11",
+    "@parcel/source-map": "2.0.0-alpha.4.13",
     "cssnano": "^4.1.10",
     "postcss": "^7.0.5"
   }

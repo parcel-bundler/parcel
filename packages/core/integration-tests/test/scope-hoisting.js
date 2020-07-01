@@ -308,6 +308,27 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('supports re-exporting a namespace from another module (chained)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-namespace-chained/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        Bar: {
+          A: 1,
+          B: 2,
+        },
+        Foo: {
+          A: 1,
+          B: 2,
+        },
+      });
+    });
+
     // ATLASSIAN: Warn and return an empty object expression for unresolvable
     // imports.
     it.skip('excludes default when re-exporting a module', async function() {
@@ -527,7 +548,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it('supports exporting an import from a wrapped asset', async function() {
+    it('supports importing from a wrapped asset', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -536,7 +557,19 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output, true);
+      assert.deepEqual(output, ['a', true]);
+    });
+
+    it('supports importing from a wrapped asset with multiple bailouts', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-wrapped-bailout/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, ['b', true]);
     });
 
     it('supports requiring a re-exported and renamed ES6 import', async function() {
@@ -959,6 +992,18 @@ describe('scope hoisting', function() {
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/re-export-commonjs/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
+    });
+
+    it('support chained namespace reexports of CommonJS', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-commonjs-wildcard/a.js',
         ),
       );
 

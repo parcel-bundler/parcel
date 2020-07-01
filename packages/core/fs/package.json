@@ -6,6 +6,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
@@ -16,10 +20,10 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
+    "@parcel/fs-write-stream-atomic": "2.0.0-beta.1",
     "@parcel/utils": "^2.0.0-frontbucket.24",
     "@parcel/watcher": "^2.0.0-alpha.5",
     "@parcel/workers": "^2.0.0-frontbucket.24",
-    "fs-write-stream-atomic": "github:atlassian-forks/fs-write-stream-atomic#4edf1a95433a9936229c7f768c9ea9bb5884b487",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",

@@ -24,7 +24,7 @@
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.less": ["@parcel/transformer-less"],
-    "*.css": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
+    "*.{css,pcss}": ["@parcel/transformer-postcss", "@parcel/transformer-css"],
     "*.sss": ["@parcel/transformer-sugarss"],
     "*.{htm,html}": [
       "@parcel/transformer-posthtml",
@@ -70,6 +70,7 @@
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
     "@parcel/reporter-bundle-analyzer",
-    "@parcel/reporter-react-loadable"
+    "@parcel/reporter-react-loadable",
+    "@parcel/reporter-bundle-buddy"
   ]
 }

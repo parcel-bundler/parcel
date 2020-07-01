@@ -203,6 +203,20 @@ export default class BundleGraph {
       this._graph.removeEdge(bundle.id, asset.id);
     }
 
+    // Remove bundle node if it no longer has any entry assets
+    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
+    if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
+      let bundleGroupNodes = this._graph.getNodesConnectedTo(bundleNode);
+      this._graph.removeNode(bundleNode);
+
+      // Remove bundle group node if it no longer has any bundles
+      for (let bundleGroupNode of bundleGroupNodes) {
+        if (this._graph.getNodesConnectedTo(bundleGroupNode).length === 0) {
+          this._graph.removeNode(bundleGroupNode);
+        }
+      }
+    }
+
     this._bundleContentHashes.delete(bundle.id);
   }
 
@@ -754,8 +768,9 @@ export default class BundleGraph {
       };
     }
 
-    let maybeFoundInDependencies = !asset.symbols;
+    let bailout = !asset.symbols;
     let deps = this.getDependencies(asset).reverse();
+    let potentialResults = [];
     for (let dep of deps) {
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
@@ -766,13 +781,13 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) {
           // External module
-          maybeFoundInDependencies = true;
+          bailout = true;
           break;
         }
 
         if (assetOutside) {
           // We found the symbol, but `asset` is outside, return `asset` and the original symbol
-          maybeFoundInDependencies = true;
+          bailout = true;
           break;
         }
 
@@ -802,34 +817,51 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
+
+        // We found the symbol
         if (result.symbol != undefined) {
           if (assetOutside) {
-            // We found the symbol, but `asset` is outside, return `asset` and the original symbol
-            maybeFoundInDependencies = true;
+            // ..., but `asset` is outside, return `asset` and the original symbol
+            bailout = true;
             break;
           }
 
           return {
             asset: result.asset,
             symbol: result.symbol,
-            exportSymbol: symbol,
+            exportSymbol: result.exportSymbol,
             loc: resolved.symbols?.get(symbol)?.loc,
           };
         }
-        if (!result.asset.symbols) {
+        if (!result.asset.symbols || result.symbol === null) {
           // We didn't find it in this dependency, but it might still be there: bailout.
-          maybeFoundInDependencies = true;
-          break;
+          // Continue searching though, with the assumption that there are no conficting reexports
+          // and there might be a another (re)export (where we might statically find the symbol).
+          potentialResults.push({
+            asset: result.asset,
+            symbol: result.symbol,
+            exportSymbol: result.exportSymbol,
+            loc: resolved.symbols?.get(symbol)?.loc,
+          });
+          bailout = true;
         }
       }
     }
 
-    return {
-      asset,
-      exportSymbol: symbol,
-      symbol: identifier ?? (maybeFoundInDependencies ? null : undefined),
-      loc: asset.symbols?.get(symbol)?.loc,
-    };
+    // We didn't find the exact symbol...
+    if (potentialResults.length == 1) {
+      // ..., but if it does exist, it's has to be behind this one reexport.
+      return potentialResults[0];
+    } else {
+      // ... and there is no single reexport, but `bailout` tells us if it might still be exported.
+      return {
+        asset,
+        exportSymbol: symbol,
+        symbol:
+          identifier ?? (bailout || asset.symbols?.has('*') ? null : undefined),
+        loc: asset.symbols?.get(symbol)?.loc,
+      };
+    }
   }
 
   getExportedSymbols(asset: Asset) {

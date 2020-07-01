@@ -15,6 +15,7 @@ const ATTRS = {
     'track',
     'iframe',
     'embed',
+    'amp-img',
   ],
   // Using href with <script> is described here: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/script
   href: ['link', 'a', 'use', 'script'],
@@ -115,8 +116,12 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       if (
         !Object.keys(attrs).some(attr => {
           let values = META[attr];
-
-          return values && values.includes(attrs[attr]) && attrs.content !== '';
+          return (
+            values &&
+            values.includes(attrs[attr]) &&
+            attrs.content !== '' &&
+            !(attrs.name === 'msapplication-config' && attrs.content === 'none')
+          );
         })
       ) {
         return node;

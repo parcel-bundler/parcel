@@ -3,7 +3,7 @@ on:
   schedule:
     - cron: '0 0 * * *'
 jobs:
-  build-and-test:
+  build-and-release:
     runs-on: ubuntu-latest
     name: Build and release nightly
     steps:
