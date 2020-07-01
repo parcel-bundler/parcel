@@ -999,18 +999,6 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foo');
     });
 
-    it('support chained namespace reexports of CommonJS', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/re-export-commonjs-wildcard/a.js',
-        ),
-      );
-
-      let output = await run(b);
-      assert.deepEqual(output, 'foo');
-    });
-
     it('should support named imports on wrapped modules', async function() {
       let b = await bundle(
         path.join(

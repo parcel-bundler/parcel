@@ -818,10 +818,13 @@ export default class BundleGraph {
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
 
-        // We found the symbol
-        if (result.symbol != undefined) {
+        // Either result.symbol is a string (found) or null with a wildcard (found)
+        if (
+          result.symbol != undefined ||
+          (result.symbol === null && result.exportSymbol === '*')
+        ) {
           if (assetOutside) {
-            // ..., but `asset` is outside, return `asset` and the original symbol
+            // We found the symbol, but `asset` is outside, return `asset` and the original symbol
             bailout = true;
             break;
           }
@@ -833,7 +836,7 @@ export default class BundleGraph {
             loc: resolved.symbols?.get(symbol)?.loc,
           };
         }
-        if (!result.asset.symbols || result.symbol === null) {
+        if (!result.asset.symbols) {
           // We didn't find it in this dependency, but it might still be there: bailout.
           // Continue searching though, with the assumption that there are no conficting reexports
           // and there might be a another (re)export (where we might statically find the symbol).
@@ -857,8 +860,7 @@ export default class BundleGraph {
       return {
         asset,
         exportSymbol: symbol,
-        symbol:
-          identifier ?? (bailout || asset.symbols?.has('*') ? null : undefined),
+        symbol: identifier ?? (bailout ? null : undefined),
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
