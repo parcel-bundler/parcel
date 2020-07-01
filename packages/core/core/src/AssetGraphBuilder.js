@@ -165,35 +165,6 @@ export default class AssetGraphBuilder extends EventEmitter {
           },
         );
       }
-      result.then(() => {
-        if (node.type === 'asset') {
-          let incomingDeps = this.assetGraph
-            .getIncomingDependencies(node.value)
-            .map(d => {
-              let n = this.assetGraph.getNode(d.id);
-              invariant(n && n.type === 'dependency');
-              return n;
-            });
-          let outgoingDepsSymbols = new Set<string>();
-          for (let dep of this.assetGraph.getIncomingDependencies(node.value)) {
-            let depNode = this.assetGraph.getNode(dep.id);
-            invariant(depNode && depNode.type === 'dependency');
-            depNode.usedSymbolsUp.forEach(s => outgoingDepsSymbols.add(s));
-          }
-
-          for (let dep of incomingDeps) {
-            for (let s of dep.usedSymbolsDown) {
-              if (
-                node.usedSymbols.has(s) ||
-                outgoingDepsSymbols.has(s) ||
-                s === '*'
-              ) {
-                dep.usedSymbolsUp.add(s);
-              }
-            }
-          }
-        }
-      });
       return result;
     };
 
@@ -224,6 +195,66 @@ export default class AssetGraphBuilder extends EventEmitter {
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
+
+    let walkSymbolsVisited = new Set();
+    const walkSymbols = (node: AssetGraphNode) => {
+      for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
+        if (!walkSymbolsVisited.has(child.id)) {
+          walkSymbolsVisited.add(child.id);
+          walkSymbols(child);
+        }
+      }
+
+      if (node.type === 'asset') {
+        let assetSymbols = node.value.symbols;
+        let incomingDeps = this.assetGraph
+          .getIncomingDependencies(node.value)
+          .map(d => {
+            let n = this.assetGraph.getNode(d.id);
+            invariant(n && n.type === 'dependency');
+            return n;
+          });
+
+        if (!assetSymbols) {
+          for (let dep of incomingDeps) {
+            dep.usedSymbolsUp = dep.usedSymbolsDown;
+          }
+        } else {
+          let assetSymbolsInverse = new Map(
+            [...assetSymbols].map(([key, val]) => [val.local, key]),
+          );
+
+          let reexportedSymbols = new Set<string>();
+          for (let depNode of this.assetGraph.getNodesConnectedFrom(node)) {
+            invariant(depNode && depNode.type === 'dependency');
+            if (depNode.value.symbols.get('*')?.local === '*') {
+              depNode.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
+            } else {
+              for (let s of depNode.usedSymbolsUp) {
+                let reexported = assetSymbolsInverse.get(
+                  nullthrows(depNode.value.symbols.get(s)).local,
+                );
+                if (reexported != null) {
+                  reexportedSymbols.add(reexported);
+                }
+              }
+            }
+          }
+          for (let dep of incomingDeps) {
+            for (let s of dep.usedSymbolsDown) {
+              if (
+                node.usedSymbols.has(s) ||
+                reexportedSymbols.has(s) ||
+                s === '*'
+              ) {
+                dep.usedSymbolsUp.add(s);
+              }
+            }
+          }
+        }
+      }
+    };
+    walkSymbols(root);
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381

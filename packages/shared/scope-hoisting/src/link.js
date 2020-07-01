@@ -438,7 +438,6 @@ export function link({
     program: NodePath<Program>,
     path: NodePath<ObjectExpression | Identifier>,
   ) {
-    console.log(path.node);
     if (path.isIdentifier()) {
       // TODO Somehow deferred/excluded assets are referenced, causing this function to
       // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
