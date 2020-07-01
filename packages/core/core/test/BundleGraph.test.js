@@ -49,11 +49,11 @@ function createMockAssetGraph(ids: [string, string]) {
 
   graph.resolveEntry(
     './index',
-    [{filePath: '/path/to/index/src/main.js'}],
+    [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
     '1',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main.js'},
+    {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
     DEFAULT_TARGETS,
     '2',
   );

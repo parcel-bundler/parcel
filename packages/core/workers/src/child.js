@@ -60,6 +60,8 @@ export class Child {
     ): Promise<mixed> => this.addCall(request, awaitResponse),
     createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
       this.createReverseHandle(fn),
+    runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
+      this.workerApi.callMaster({handle: handle.id, args}, true),
     getSharedReference: (ref: number) => this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
@@ -106,7 +108,7 @@ export class Child {
     let result;
     if (handleId != null) {
       try {
-        let fn = nullthrows(this.handles.get(handleId)).fn;
+        let fn = nullthrows(this.handles.get(handleId)?.fn);
         result = responseFromContent(fn(...args));
       } catch (e) {
         result = errorResponseFromError(e);
@@ -245,7 +247,6 @@ export class Child {
   createReverseHandle(fn: (...args: Array<any>) => mixed) {
     let handle = new Handle({
       fn,
-      workerApi: this.workerApi,
       childId: this.childId,
     });
     this.handles.set(handle.id, handle);

@@ -59,21 +59,21 @@ function createMockAssetGraph() {
 
   graph.resolveEntry(
     './index',
-    [{filePath: '/path/to/index/src/main.js'}],
+    [{filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'}],
     '1',
   );
   graph.resolveEntry(
     './index2',
-    [{filePath: '/path/to/index/src/main2.js'}],
+    [{filePath: '/path/to/index/src/main2.js', packagePath: '/path/to/index'}],
     '2',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main.js'},
+    {filePath: '/path/to/index/src/main.js', packagePath: '/path/to/index'},
     DEFAULT_TARGETS,
     '3',
   );
   graph.resolveTargets(
-    {filePath: '/path/to/index/src/main2.js'},
+    {filePath: '/path/to/index/src/main2.js', packagePath: '/path/to/index'},
     DEFAULT_TARGETS,
     '4',
   );

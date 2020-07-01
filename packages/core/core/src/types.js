@@ -148,6 +148,7 @@ export type ParcelOptions = {|
   publicUrl: string,
   distDir: ?FilePath,
   hot: ?HMROptions,
+  contentHash: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -198,21 +199,19 @@ export type DependencyNode = {|
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
-export type AssetRequestDesc = {|
+export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
+  optionsRef: number,
 |};
 
-export type AssetRequestResult = {|
-  assets: Array<Asset>,
-  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
-|};
+export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = AssetRequestDesc;
+export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -231,7 +230,7 @@ export type DepPathRequestNode = {|
 export type AssetRequestNode = {|
   id: string,
   +type: 'asset_request',
-  value: AssetRequestDesc,
+  value: AssetRequestInput,
 |};
 
 export type EntrySpecifierNode = {|
@@ -243,7 +242,7 @@ export type EntrySpecifierNode = {|
 
 export type Entry = {|
   filePath: FilePath,
-  packagePath?: FilePath,
+  packagePath: FilePath,
 |};
 
 export type EntryFileNode = {|
@@ -370,15 +369,15 @@ export type BundleGroupNode = {|
 |};
 
 export type TransformationOpts = {|
-  request: AssetRequestDesc,
+  request: AssetGroup,
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ValidationOpts = {|
-  requests: AssetRequestDesc[],
+  requests: AssetGroup[],
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

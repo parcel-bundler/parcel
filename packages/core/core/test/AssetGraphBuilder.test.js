@@ -32,7 +32,7 @@ describe('AssetGraphBuilder', function() {
     });
   });
 
-  it('creates an AssetGraphBuilder', () => {
+  it.skip('creates an AssetGraphBuilder', () => {
     invariant(builder.assetGraph.nodes.has('entry_specifier:./module-b'));
   });
 });

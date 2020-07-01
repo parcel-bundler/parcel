@@ -1,24 +1,33 @@
 // @flow strict-local
-
 import type {FilePath} from '@parcel/types';
 import path from 'path';
 
-const COMMON_SEPARATORS = ['/', '\\'];
+const SEPARATOR_REGEX = /[\\]+/g;
 
 export function normalizeSeparators(filePath: FilePath): FilePath {
-  let ret = filePath;
-
-  for (let separator of COMMON_SEPARATORS) {
-    ret = ret.split(separator).join(path.sep);
-  }
-
-  return ret;
+  return filePath.replace(SEPARATOR_REGEX, '/');
 }
 
-export function relatifyPath(from: string, to: string) {
-  let filename = path.relative(from, to);
-  if (filename[0] !== '.') {
-    filename = './' + filename;
+export type PathOptions = {
+  noLeadingDotSlash?: boolean,
+  ...
+};
+
+export function normalizePath(
+  filePath: FilePath,
+  leadingDotSlash: boolean = true,
+): FilePath {
+  if (leadingDotSlash && filePath[0] !== '.' && filePath[0] !== '/') {
+    return normalizeSeparators('./' + filePath);
+  } else {
+    return normalizeSeparators(filePath);
   }
-  return filename.replace(/\\+/g, '/');
+}
+
+export function relativePath(
+  from: string,
+  to: string,
+  leadingDotSlash: boolean = true,
+) {
+  return normalizePath(path.relative(from, to), leadingDotSlash);
 }

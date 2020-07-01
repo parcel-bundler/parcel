@@ -198,6 +198,7 @@ export type InitialParcelOptions = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,
+  +contentHash?: boolean,
   +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -504,13 +505,6 @@ export type MultiThreadValidator = {|
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
-  // TODO: deprecate getConfig
-  getConfig?: ({|
-    asset: MutableAsset,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,

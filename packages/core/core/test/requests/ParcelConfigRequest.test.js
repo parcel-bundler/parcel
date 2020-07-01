@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import ParcelConfig from '../src/ParcelConfig';
+import ParcelConfig from '../../src/ParcelConfig';
 import {
   validateConfigFile,
   mergePipelines,
@@ -11,9 +11,9 @@ import {
   readAndProcessConfigChain,
   resolveParcelConfig,
   processConfig,
-} from '../src/loadParcelConfig';
-import {validatePackageName} from '../src/ParcelConfig.schema';
-import {DEFAULT_OPTIONS} from './test-utils';
+} from '../../src/requests/ParcelConfigRequest';
+import {validatePackageName} from '../../src/ParcelConfig.schema';
+import {DEFAULT_OPTIONS} from '../test-utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
@@ -436,14 +436,23 @@ describe('loadParcelConfig', () => {
     });
 
     it('should ensure that extension properties have a higher precidence than base properties', () => {
-      assert.deepEqual(
-        mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'}),
-        {'*.js': 'ext-js', '*.{js,jsx}': 'base-js'},
+      let merged = mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'});
+      assert.deepEqual(merged, {'*.js': 'ext-js', '*.{js,jsx}': 'base-js'});
+      assert.deepEqual(Object.keys(merged), ['*.js', '*.{js,jsx}']);
+    });
+
+    it('should ensure that named pipelines have a higher precidence than extension properties', () => {
+      let merged = mergeMaps(
+        {'types:*.ts': 'base-types-ts'},
+        {'*.ts': 'ext-ts'},
+        undefined,
+        true,
       );
-      assert.deepEqual(
-        Object.keys(mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'})),
-        ['*.js', '*.{js,jsx}'],
-      );
+      assert.deepEqual(merged, {
+        'types:*.ts': 'base-types-ts',
+        '*.ts': 'ext-ts',
+      });
+      assert.deepEqual(Object.keys(merged), ['types:*.ts', '*.ts']);
     });
 
     it('should call a merger function if provided', () => {

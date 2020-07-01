@@ -2,7 +2,7 @@
 
 import type {Dependency, NamedBundle as INamedBundle} from '@parcel/types';
 import type {
-  AssetRequestDesc,
+  AssetGroup,
   Bundle as InternalBundle,
   NodeId,
   ParcelOptions,
@@ -21,10 +21,11 @@ import {NamedBundle} from './public/Bundle';
 import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {dependencyToInternalDependency} from './public/Dependency';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
-  assetRequest: AssetRequestDesc,
+  assetGroup: AssetGroup,
   dependency: ?Dependency,
   isEntry: ?boolean,
 |};
@@ -62,7 +63,7 @@ export default async function applyRuntimes({
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
           for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
-            let assetRequest = {
+            let assetGroup = {
               code,
               filePath,
               env: bundle.env,
@@ -72,7 +73,7 @@ export default async function applyRuntimes({
             };
             connections.push({
               bundle,
-              assetRequest,
+              assetGroup,
               dependency: dependency,
               isEntry,
             });
@@ -106,8 +107,8 @@ export default async function applyRuntimes({
     bundleGraph._assetPublicIds.add(publicId);
   }
 
-  for (let {bundle, assetRequest, dependency, isEntry} of connections) {
-    let assetGroupNode = nodeFromAssetGroup(assetRequest);
+  for (let {bundle, assetGroup, dependency, isEntry} of connections) {
+    let assetGroupNode = nodeFromAssetGroup(assetGroup);
     let assetGroupAssets = runtimesAssetGraph.getNodesConnectedFrom(
       assetGroupNode,
     );
@@ -115,6 +116,12 @@ export default async function applyRuntimes({
     let runtimeNode = assetGroupAssets[0];
     invariant(runtimeNode.type === 'asset');
 
+    let resolution =
+      dependency &&
+      bundleGraph.getDependencyResolution(
+        dependencyToInternalDependency(dependency),
+        bundle,
+      );
     let duplicatedAssetIds: Set<NodeId> = new Set();
     runtimesGraph._graph.traverse((node, _, actions) => {
       if (node.type !== 'dependency') {
@@ -129,7 +136,10 @@ export default async function applyRuntimes({
         });
 
       for (let asset of assets) {
-        if (bundleGraph.isAssetReachableFromBundle(asset, bundle)) {
+        if (
+          bundleGraph.isAssetReachableFromBundle(asset, bundle) ||
+          resolution?.id === asset.id
+        ) {
           duplicatedAssetIds.add(asset.id);
           actions.skipChildren();
         }
@@ -175,7 +185,7 @@ async function reconcileNewRuntimes(
 
   let assetRequestNodesById = new Map(
     connections
-      .map(t => t.assetRequest)
+      .map(t => t.assetGroup)
       .map(request => {
         let node = nodeFromAssetGroup(request);
         return [node.id, node];

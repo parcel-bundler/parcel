@@ -51,7 +51,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Handle HMR Update
       var handled = false;
       assets.forEach(asset => {
-        var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+        var didAccept =
+          asset.type === 'css' ||
+          hmrAcceptCheck(global.parcelRequire, asset.id);
         if (didAccept) {
           handled = true;
         }
@@ -172,6 +174,39 @@ function getParents(bundle, id) {
   return parents;
 }
 
+function updateLink(link) {
+  var newLink = link.cloneNode();
+  newLink.onload = function() {
+    if (link.parentNode !== null) {
+      link.parentNode.removeChild(link);
+    }
+  };
+  newLink.setAttribute(
+    'href',
+    link.getAttribute('href').split('?')[0] + '?' + Date.now(),
+  );
+  link.parentNode.insertBefore(newLink, link.nextSibling);
+}
+
+var cssTimeout = null;
+function reloadCSS() {
+  if (cssTimeout) {
+    return;
+  }
+
+  cssTimeout = setTimeout(function() {
+    var links = document.querySelectorAll('link[rel="stylesheet"]');
+    for (var i = 0; i < links.length; i++) {
+      var absolute = /^https?:\/\//i.test(links[i].getAttribute('href'));
+      if (!absolute) {
+        updateLink(links[i]);
+      }
+    }
+
+    cssTimeout = null;
+  }, 50);
+}
+
 function hmrApply(bundle, asset) {
   var modules = bundle.modules;
   if (!modules) {
@@ -180,9 +215,7 @@ function hmrApply(bundle, asset) {
 
   if (modules[asset.id] || !bundle.parent) {
     if (asset.type === 'css') {
-      var newStyle = document.createElement('style');
-      newStyle.innerHTML = asset.output;
-      document.body.appendChild(newStyle);
+      reloadCSS();
     } else {
       var fn = new Function('require', 'module', 'exports', asset.output);
       modules[asset.id] = [fn, asset.depsByBundle[bundle.HMR_BUNDLE_ID]];

@@ -1,44 +1,93 @@
-// @flow
-
-import type {AssetRequestDesc, Dependency, ParcelOptions} from './types';
+// @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type ParcelConfig from './ParcelConfig';
+import type {Async} from '@parcel/types';
+import type {StaticRunOpts} from '../RequestTracker';
+import type {AssetGroup, Dependency, ParcelOptions} from '../types';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
-import {PluginLogger} from '@parcel/logger';
-import {relatifyPath} from '@parcel/utils';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {PluginLogger} from '@parcel/logger';
+import {escapeMarkdown, relativePath} from '@parcel/utils';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
+import {report} from '../ReporterRunner';
+import PublicDependency from '../public/Dependency';
+import PluginOptions from '../public/PluginOptions';
+import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest from './ParcelConfigRequest';
 
-import {report} from './ReporterRunner';
-import PublicDependency from './public/Dependency';
-import PluginOptions from './public/PluginOptions';
+export type PathRequestResult = AssetGroup | null | void;
 
-import {escapeMarkdown} from '@parcel/utils';
+export type PathRequest = {|
+  id: string,
+  +type: 'path_request',
+  run: RunOpts => Promise<PathRequestResult>,
+  input: Dependency,
+|};
 
-type Opts = {|
+type RunOpts = {|
+  input: Dependency,
+  ...StaticRunOpts,
+|};
+
+const type = 'path_request';
+
+export default function createPathRequest(input: Dependency) {
+  return {
+    id: input.id,
+    type,
+    run,
+    input,
+  };
+}
+async function run({input, api, options}: RunOpts) {
+  let {config} = nullthrows(
+    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+  );
+  let resolverRunner = new ResolverRunner({
+    options,
+    config: new ParcelConfig(
+      config,
+      options.packageManager,
+      options.autoinstall,
+    ),
+  });
+  let assetGroup = await resolverRunner.resolve(input);
+
+  if (assetGroup != null) {
+    api.invalidateOnFileDelete(assetGroup.filePath);
+  }
+
+  return assetGroup;
+}
+
+type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
 |};
 
-export default class ResolverRunner {
+export class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
 
-  constructor({config, options}: Opts) {
+  constructor({config, options}: ResolverRunnerOpts) {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async getThrowableDiagnostic(dependency: Dependency, message: string) {
+  async getThrowableDiagnostic(
+    dependency: Dependency,
+    message: string,
+  ): Async<ThrowableDiagnostic> {
     let diagnostic: Diagnostic = {
       message,
       origin: '@parcel/core',
     };
 
-    if (dependency.loc && dependency.sourcePath) {
+    if (dependency.loc && dependency.sourcePath != null) {
       diagnostic.filePath = dependency.sourcePath;
       diagnostic.codeFrame = {
         code: await this.options.inputFS.readFile(
@@ -54,7 +103,7 @@ export default class ResolverRunner {
     return new ThrowableDiagnostic({diagnostic});
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetRequestDesc> {
+  async resolve(dependency: Dependency): Promise<?AssetGroup> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
@@ -97,7 +146,7 @@ export default class ResolverRunner {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
-      if (!pipeline) {
+      if (pipeline == null) {
         pipeline = 'url';
       }
     }
@@ -116,7 +165,7 @@ export default class ResolverRunner {
           return null;
         }
 
-        if (result && result.filePath) {
+        if (result?.filePath != null) {
           return {
             filePath: result.filePath,
             sideEffects: result.sideEffects,
@@ -139,15 +188,17 @@ export default class ResolverRunner {
       return null;
     }
 
-    let dir = dependency.sourcePath
-      ? escapeMarkdown(
-          relatifyPath(this.options.projectRoot, dependency.sourcePath),
-        )
-      : '';
+    let dir =
+      dependency.sourcePath != null
+        ? escapeMarkdown(
+            relativePath(this.options.projectRoot, dependency.sourcePath),
+          )
+        : '';
 
     let specifier = escapeMarkdown(dependency.moduleSpecifier || '');
 
-    let err: any = await this.getThrowableDiagnostic(
+    // $FlowFixMe because of the err.code assignment
+    let err = await this.getThrowableDiagnostic(
       dependency,
       `Failed to resolve '${specifier}' ${dir ? `from '${dir}'` : ''}`,
     );

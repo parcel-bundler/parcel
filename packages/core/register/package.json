@@ -1,9 +1,13 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0-alpha.3.2",
+  "version": "2.0.0-beta.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
   },
   "repository": {
     "type": "git",
@@ -19,11 +23,11 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-alpha.3.1",
-    "@parcel/core": "^2.0.0-alpha.3.2",
-    "@parcel/fs": "^2.0.0-alpha.3.1",
-    "@parcel/package-manager": "^2.0.0-alpha.3.1",
-    "pirates": "^4.0.0",
-    "deasync": "^0.1.14"
+    "@parcel/config-default": "2.0.0-beta.1",
+    "@parcel/core": "2.0.0-beta.1",
+    "@parcel/fs": "2.0.0-beta.1",
+    "@parcel/package-manager": "2.0.0-beta.1",
+    "deasync": "^0.1.14",
+    "pirates": "^4.0.0"
   }
 }
