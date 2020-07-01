@@ -197,8 +197,10 @@ export type DependencyNode = {|
   complete?: boolean,
   correspondingRequest?: string,
   deferred: boolean,
-  usedSymbols: Set<Symbol>,
-  usedSymbolsDirty: boolean,
+  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsUpDirty: boolean,
+  usedSymbolsUp: Set<Symbol>,
+  usedSymbolsDownDirty: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};

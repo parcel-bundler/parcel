@@ -30,10 +30,14 @@ export default async function dumpGraphToGraphViz(
 ): Promise<void> {
   if (
     process.env.PARCEL_BUILD_ENV === 'production' ||
-    process.env.PARCEL_DUMP_GRAPHVIZ == null
+    process.env.PARCEL_DUMP_GRAPHVIZ == null ||
+    // $FlowFixMe
+    process.env.PARCEL_DUMP_GRAPHVIZ == false
   ) {
     return;
   }
+  let detailedSymbols = process.env.PARCEL_DUMP_GRAPHVIZ === 'symbols';
+
   const graphviz = require('graphviz');
   const tempy = require('tempy');
   let g = graphviz.digraph('G');
@@ -54,30 +58,39 @@ export default async function dumpGraphToGraphViz(
       if (node.deferred) parts.push('deferred');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      if (node.value.symbols.size) {
-        label +=
-          '\nsymbols: ' +
-          [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
-      }
-      if (node.value.weakSymbols.size) {
-        label += '\nweakSymbols: ' + [...node.value.weakSymbols].join(',');
-      }
-      if (node.usedSymbols.size) {
-        label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
-      }
-      if (node.usedSymbolsDirty) parts.push('\nusedSymbolsDirty');
-    } else if (node.type === 'asset') {
-      label += path.basename(node.value.filePath) + '#' + node.value.type;
-      if (node.value.symbols) {
-        if (node.value.symbols.size)
+      if (detailedSymbols) {
+        if (node.value.symbols.size) {
           label +=
             '\nsymbols: ' +
             [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
-      } else {
-        label += '\nsymbols: cleared';
+        }
+        if (node.value.weakSymbols.size) {
+          label += '\nweakSymbols: ' + [...node.value.weakSymbols].join(',');
+        }
+        if (node.usedSymbolsDown.size) {
+          label += '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+        }
+        if (node.usedSymbolsUp.size) {
+          label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+        }
+        if (node.usedSymbolsDownDirty) parts.push('\nusedSymbolsDirty');
       }
-      if (node.usedSymbols.size) {
-        label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
+    } else if (node.type === 'asset') {
+      label += path.basename(node.value.filePath) + '#' + node.value.type;
+      if (detailedSymbols) {
+        if (node.value.symbols) {
+          if (node.value.symbols.size)
+            label +=
+              '\nsymbols: ' +
+              [...node.value.symbols]
+                .map(([e, {local}]) => [e, local])
+                .join(';');
+        } else {
+          label += '\nsymbols: cleared';
+        }
+        if (node.usedSymbols.size) {
+          label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
+        }
       }
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);

@@ -19,6 +19,7 @@ import type {EntryResult} from './requests/EntryRequest';
 import type {TargetResolveResult} from './requests/TargetRequest';
 
 import EventEmitter from 'events';
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
@@ -145,22 +146,62 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let visited = new Set([root.id]);
 
-    const visit = (parent: ?AssetGraphNode, node: AssetGraphNode) => {
+    const visit = (
+      parent: ?AssetGraphNode,
+      node: AssetGraphNode,
+    ): void | Promise<void> => {
       if (errors.length > 0) {
         return;
       }
 
+      let result;
       if (this.shouldSkipRequest(node)) {
-        visitChildren(parent, node);
+        result = Promise.all(visitChildren(parent, node)).then(() => undefined);
       } else {
-        this.queueCorrespondingRequest(node).then(
-          () => visitChildren(parent, node),
-          error => errors.push(error),
+        result = this.queueCorrespondingRequest(node).then(
+          () => Promise.all(visitChildren(parent, node)).then(() => undefined),
+          error => {
+            errors.push(error);
+          },
         );
       }
+      result.then(() => {
+        if (node.type === 'asset') {
+          let incomingDeps = this.assetGraph
+            .getIncomingDependencies(node.value)
+            .map(d => {
+              let n = this.assetGraph.getNode(d.id);
+              invariant(n && n.type === 'dependency');
+              return n;
+            });
+          let outgoingDepsSymbols = new Set<string>();
+          for (let dep of this.assetGraph.getIncomingDependencies(node.value)) {
+            let depNode = this.assetGraph.getNode(dep.id);
+            invariant(depNode && depNode.type === 'dependency');
+            depNode.usedSymbolsUp.forEach(s => outgoingDepsSymbols.add(s));
+          }
+
+          for (let dep of incomingDeps) {
+            for (let s of dep.usedSymbolsDown) {
+              if (
+                node.usedSymbols.has(s) ||
+                outgoingDepsSymbols.has(s) ||
+                s === '*'
+              ) {
+                dep.usedSymbolsUp.add(s);
+              }
+            }
+          }
+        }
+      });
+      return result;
     };
 
-    const visitChildren = (parent: ?AssetGraphNode, node: AssetGraphNode) => {
+    const visitChildren = (
+      parent: ?AssetGraphNode,
+      node: AssetGraphNode,
+    ): $ReadOnlyArray<void | Promise<void>> => {
+      let children = [];
       for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
         if (
           this.assetGraph.shouldVisitChild(
@@ -171,9 +212,10 @@ export default class AssetGraphBuilder extends EventEmitter {
           )
         ) {
           visited.add(child.id);
-          visit(node, child);
+          children.push(visit(node, child));
         }
       }
+      return children;
     };
 
     visit(null, root);

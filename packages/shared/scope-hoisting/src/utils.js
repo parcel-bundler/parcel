@@ -355,8 +355,8 @@ export function getExportNamespaceExpression(
               ),
             );
           } else {
+            invariant(false);
             // TODO this shouldn't even be in usedSymbols
-            return null;
           }
         })
         .filter(Boolean)
