@@ -23,7 +23,7 @@ function traverseWalk<T>(
     return;
   }
 
-  let isNew = node != ancestors[ancestors.length - 1];
+  let isNew = node !== ancestors[ancestors.length - 1];
   if (isNew) ancestors.push(node);
 
   const {enter, exit} = visitors[node.type] || {};
