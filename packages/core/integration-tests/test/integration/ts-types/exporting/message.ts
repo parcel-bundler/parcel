@@ -8,3 +8,5 @@ export class Message {
 export function createMessage(msg: string) {
   return new Message(msg);
 }
+
+export default 'unused';

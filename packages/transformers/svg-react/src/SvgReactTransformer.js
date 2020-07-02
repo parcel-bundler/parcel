@@ -28,7 +28,7 @@ export default new Transformer({
     }
     `;
 
-    asset.type = 'js';
+    asset.type = 'jsx';
     asset.setCode(code);
 
     return [asset];

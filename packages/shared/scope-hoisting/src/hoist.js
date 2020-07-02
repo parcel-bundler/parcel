@@ -299,8 +299,12 @@ const VISITOR: Visitor<MutableAsset> = {
 
   ThisExpression(path, asset: MutableAsset) {
     if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
-      path.replaceWith(getExportsIdentifier(asset, path.scope));
-      asset.meta.isCommonJS = true;
+      if (asset.meta.isES6Module) {
+        path.replaceWith(t.identifier('undefined'));
+      } else {
+        path.replaceWith(getExportsIdentifier(asset, path.scope));
+        asset.meta.isCommonJS = true;
+      }
     }
   },
 

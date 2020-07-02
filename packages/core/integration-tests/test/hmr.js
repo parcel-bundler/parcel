@@ -5,13 +5,15 @@ import {
   bundler,
   defaultConfig,
   getNextBuild,
-  overlayFS,
-  outputFS,
   ncp,
+  outputFS,
+  overlayFS,
+  sleep,
 } from '@parcel/test-utils';
 import WebSocket from 'ws';
 import json5 from 'json5';
 import getPort from 'get-port';
+import JSDOM from 'jsdom';
 
 const config = {
   ...defaultConfig,
@@ -40,25 +42,27 @@ async function nextWSMessage(ws: WebSocket) {
 
 describe('hmr', function() {
   let subscription;
-  let ws;
-
-  beforeEach(async function() {
-    await outputFS.rimraf(path.join(__dirname, '/input'));
-    await ncp(
-      path.join(__dirname, '/integration/commonjs'),
-      path.join(__dirname, '/input'),
-    );
-  });
-
   afterEach(async () => {
     if (subscription) {
       await subscription.unsubscribe();
     }
     subscription = null;
-    await closeSocket(ws);
   });
 
   describe('hmr server', () => {
+    let ws;
+    beforeEach(async function() {
+      await outputFS.rimraf(path.join(__dirname, '/input'));
+      await ncp(
+        path.join(__dirname, '/integration/commonjs'),
+        path.join(__dirname, '/input'),
+      );
+    });
+
+    afterEach(async () => {
+      await closeSocket(ws);
+    });
+
     it('should emit an HMR update for the file that changed', async function() {
       let port = await getPort();
       let b = bundler(path.join(__dirname, '/input/index.js'), {
@@ -633,5 +637,70 @@ describe('hmr', function() {
       assert(logs[0].trim().startsWith('[parcel] 🚨'));
       assert(logs[1].trim().startsWith('[parcel] ✨'));
     });*/
+
+    it('should update CSS link tags when a CSS asset is changed', async () => {
+      let testDir = path.join(__dirname, '/input');
+      await overlayFS.rimraf(testDir);
+      await overlayFS.mkdirp(testDir);
+      await ncp(path.join(__dirname, '/integration/hmr-css'), testDir);
+
+      let port = await getPort();
+      let b = bundler(path.join(testDir, 'index.html'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS,
+        serve: {
+          https: false,
+          port,
+          host: '127.0.0.1',
+        },
+        hot: {port},
+        defaultConfig: {
+          ...defaultConfig,
+          reporters: ['@parcel/reporter-dev-server'],
+        },
+      });
+
+      subscription = await b.watch();
+      let bundleEvent = await getNextBuild(b);
+      assert.equal(bundleEvent.type, 'buildSuccess');
+
+      let window;
+      try {
+        let dom = await JSDOM.JSDOM.fromURL(
+          'http://127.0.0.1:' + port + '/index.html',
+          {
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+          },
+        );
+        window = dom.window;
+        window.WebSocket = WebSocket;
+        await new Promise(res =>
+          dom.window.document.addEventListener('load', () => {
+            res();
+          }),
+        );
+        window.console.clear = () => {};
+        window.console.warn = () => {};
+
+        let initialHref = window.document.querySelector('link').href;
+
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.2.css'),
+          path.join(testDir, 'index.css'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+        await sleep(200);
+
+        let newHref = window.document.querySelector('link').href;
+
+        assert.notStrictEqual(initialHref, newHref);
+      } finally {
+        if (window) {
+          window.close();
+        }
+      }
+    });
   });
 });

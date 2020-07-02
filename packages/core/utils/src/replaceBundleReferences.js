@@ -64,8 +64,13 @@ export function replaceURLReferences({
     }
 
     invariant(resolved.type === 'bundle_group');
-    let entryBundle = bundleGraph.getBundlesInBundleGroup(resolved.value).pop();
-    if (entryBundle.isInline) {
+    let entryAssetId = resolved.value.entryAssetId;
+    let entryBundle = bundleGraph
+      .getBundlesInBundleGroup(resolved.value)
+      .find(b => {
+        return !!b.getEntryAssets().find(a => a.id === entryAssetId);
+      });
+    if (!entryBundle || entryBundle.isInline) {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;

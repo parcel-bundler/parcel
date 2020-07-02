@@ -9,7 +9,12 @@ import type {
 
 import invariant from 'assert';
 import path from 'path';
-import {isGlob, fuzzySearch, relatifyPath} from '@parcel/utils';
+import {
+  isGlob,
+  fuzzySearch,
+  relativePath,
+  normalizeSeparators,
+} from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
@@ -201,12 +206,12 @@ export default class NodeResolver {
     return Promise.all(
       dirContent.map(async item => {
         let fullPath = path.join(dir, item);
-        let relativePath = relatifyPath(basedir, fullPath);
-        if (relativePath.length < maxlength) {
+        let relativeFilePath = relativePath(basedir, fullPath);
+        if (relativeFilePath.length < maxlength) {
           let stats = await this.options.inputFS.stat(fullPath);
           let isDir = stats.isDirectory();
           if (isDir || stats.isFile()) {
-            collected.push(relativePath);
+            collected.push(relativeFilePath);
           }
 
           // If it's a directory, run over each item within said directory...
@@ -300,7 +305,13 @@ export default class NodeResolver {
             ? _Module.findPnpApi(path.dirname(parent))
             : // $FlowFixMe injected at runtime
               require('pnpapi');
-        let res = pnp.resolveToUnqualified(moduleName, parent);
+
+        let res = pnp.resolveToUnqualified(
+          moduleName +
+            // retain slash in `require('assert/')` to force loading builtin from npm
+            (filename[moduleName.length] === '/' ? '/' : ''),
+          parent,
+        );
 
         resolved = {
           moduleName,
@@ -442,7 +453,7 @@ export default class NodeResolver {
 
     if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
-      let relativeFileSpecifier = relatifyPath(parentdir, filename);
+      let relativeFileSpecifier = relativePath(parentdir, filename);
       let potentialFiles = await this.findAlternativeFiles(
         relativeFileSpecifier,
         parentdir,
@@ -450,7 +461,7 @@ export default class NodeResolver {
 
       throw new ThrowableDiagnostic({
         diagnostic: {
-          message: `Cannot load file '${relativeFileSpecifier}' in '${relatifyPath(
+          message: `Cannot load file '${relativeFileSpecifier}' in '${relativePath(
             this.options.projectRoot,
             parentdir,
           )}'.`,
@@ -601,7 +612,7 @@ export default class NodeResolver {
           return indexFallback;
         }
 
-        let fileSpecifier = relatifyPath(dir, failedEntry.filename);
+        let fileSpecifier = relativePath(dir, failedEntry.filename);
         let alternatives = await this.findAlternativeFiles(
           fileSpecifier,
           pkg.pkgdir,
@@ -802,13 +813,13 @@ export default class NodeResolver {
 
     // If filename is an absolute path, get one relative to the package.json directory.
     if (path.isAbsolute(filename)) {
-      filename = relatifyPath(dir, filename);
+      filename = relativePath(dir, filename);
       alias = await this.lookupAlias(aliases, filename, dir);
     } else {
       // It is a node_module. First try the entire filename as a key.
       alias = await this.lookupAlias(
         aliases,
-        filename.replace(/\\/g, '/'),
+        normalizeSeparators(filename),
         dir,
       );
       if (alias == null) {
@@ -894,10 +905,10 @@ export default class NodeResolver {
       splitOn = name.indexOf(path.sep, splitOn + 1);
     }
     if (splitOn < 0) {
-      return [name.replace(/\\/g, '/'), undefined];
+      return [normalizeSeparators(name), undefined];
     } else {
       return [
-        name.substring(0, splitOn).replace(/\\/g, '/'),
+        normalizeSeparators(name.substring(0, splitOn)),
         name.substring(splitOn + 1) || undefined,
       ];
     }

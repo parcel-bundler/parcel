@@ -26,12 +26,6 @@ export default new Optimizer({
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
       ...userConfig?.config,
-      compress: {
-        ...userConfig?.config?.compress,
-        toplevel:
-          bundle.env.outputFormat === 'esmodule' ||
-          bundle.env.outputFormat === 'commonjs',
-      },
       sourceMap: options.sourceMaps
         ? {
             filename: path.relative(options.projectRoot, bundle.filePath),
@@ -39,6 +33,9 @@ export default new Optimizer({
             content: originalMap,
           }
         : false,
+      toplevel:
+        bundle.env.outputFormat === 'esmodule' ||
+        bundle.env.outputFormat === 'commonjs',
       module: bundle.env.outputFormat === 'esmodule',
     };
 
@@ -93,11 +90,7 @@ export default new Optimizer({
     let minifiedContents: string = nullthrows(result.code);
     if (result.map && typeof result.map !== 'string') {
       sourceMap = new SourceMap();
-      sourceMap.addRawMappings(
-        result.map.mappings,
-        result.map.sources,
-        result.map.names || [],
-      );
+      sourceMap.addRawMappings(result.map);
       let sourcemapReference = await getSourceMapReference(sourceMap);
       if (sourcemapReference) {
         minifiedContents += `\n//# sourceMappingURL=${sourcemapReference}\n`;

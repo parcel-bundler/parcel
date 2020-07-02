@@ -70,7 +70,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.rootDir;
   }
 
-  get distDir(): FilePath {
+  get distDir(): ?FilePath {
     return this.#options.distDir;
   }
 

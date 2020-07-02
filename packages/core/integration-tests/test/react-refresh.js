@@ -2,9 +2,10 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  overlayFS as fs,
-  getNextBuild,
   defaultConfig,
+  getNextBuild,
+  overlayFS as fs,
+  sleep,
 } from '@parcel/test-utils';
 import getPort from 'get-port';
 import JSDOM from 'jsdom';
@@ -48,7 +49,7 @@ if (MessageChannel) {
         assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
         // Wait for the hmr-runtime to process the event
-        await new Promise(res => setTimeout(res, 100));
+        await sleep(100);
 
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
@@ -68,7 +69,7 @@ if (MessageChannel) {
         assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
         // Wait for the hmr-runtime to process the event
-        await new Promise(res => setTimeout(res, 100));
+        await sleep(100);
 
         let [
           ,
@@ -96,7 +97,7 @@ if (MessageChannel) {
         assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
         // Wait for the hmr-runtime to process the event
-        await new Promise(res => setTimeout(res, 100));
+        await sleep(100);
 
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
@@ -141,7 +142,7 @@ if (MessageChannel) {
         assert.equal((await getNextBuild(b)).type, 'buildSuccess');
 
         // Wait for the hmr-runtime to process the event
-        await new Promise(res => setTimeout(res, 100));
+        await sleep(100);
 
         let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
           /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,
@@ -175,7 +176,9 @@ async function setup(entry) {
       port,
       host: '127.0.0.1',
     },
-    hot: true,
+    hot: {
+      port,
+    },
     defaultConfig: {
       ...defaultConfig,
       reporters: ['@parcel/reporter-dev-server'],
@@ -211,7 +214,7 @@ async function setup(entry) {
   );
   // ReactDOM.render
   await window.parcelRequire(bundle.getMainEntry().id).default();
-  await new Promise(res => setTimeout(res, 100));
+  await sleep(100);
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
     /^([\d.]+) ([\d.]+) ([\w]+):([\d.]+)$/,

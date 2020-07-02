@@ -8,6 +8,7 @@ import {
   inputFS,
   outputFS,
   shallowEqual,
+  distDir,
 } from '@parcel/test-utils';
 import {loadSourceMapUrl} from '@parcel/utils';
 
@@ -122,15 +123,12 @@ describe('sourcemaps', function() {
     }
     let map = mapUrlData.map;
 
-    assert.equal(
-      map.sourceRoot,
-      '/__parcel_source_root/',
-      'sourceRoot should be the project root mounted to dev server.',
-    );
-
     let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
-    let input = await inputFS.readFile(sourceFilename, 'utf8');
+    sourceMap.addRawMappings(map);
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+      'utf8',
+    );
     let sourcePath = './index.js';
 
     checkSourceMapping({
@@ -158,6 +156,52 @@ describe('sourcemaps', function() {
     });
   });
 
+  it('Should create a basic browser sourcemap when serving', async function() {
+    let fixture = path.join(__dirname, '/integration/sourcemap');
+    let sourceFilename = path.join(fixture, 'index.js');
+    await bundle(sourceFilename, {serve: {port: 1234}});
+
+    let filename = path.join(distDir, 'index.js');
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let mapUrlData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!mapUrlData) {
+      throw new Error('Could not load map');
+    }
+    let map = mapUrlData.map;
+
+    let sourceMap = new SourceMap();
+    sourceMap.addRawMappings(map);
+    assert.strictEqual(map.sourceRoot, '/__parcel_source_root/');
+    let input = await inputFS.readFile(
+      path.join(fixture, map.sources[0]),
+      'utf8',
+    );
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'function helloWorld',
+      sourcePath: map.sources[0],
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'module.exports = helloWorld;',
+      sourcePath: map.sources[0],
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: '"hello world"',
+      sourcePath: map.sources[0],
+    });
+  });
+
   it('Should create a basic node sourcemap', async function() {
     let sourceFilename = path.join(
       __dirname,
@@ -182,7 +226,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    sourceMap.addRawMappings(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = './index.js';
     let mapData = sourceMap.getMap();
@@ -240,7 +284,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    sourceMap.addRawMappings(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
 
@@ -329,7 +373,7 @@ describe('sourcemaps', function() {
     );
 
     let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    sourceMap.addRawMappings(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
 
@@ -411,16 +455,19 @@ describe('sourcemaps', function() {
 
     assert.equal(map.file, 'index.js.map');
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
-    assert.equal(map.sourceRoot, '/__parcel_source_root/');
+    // assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
     let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 1);
     assert.deepEqual(mapData.sources, ['./index.ts']);
 
-    let input = await inputFS.readFile(inputFilePath, 'utf-8');
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+      'utf8',
+    );
     checkSourceMapping({
       map: sourceMap,
       source: input,
@@ -448,16 +495,18 @@ describe('sourcemaps', function() {
 
     assert.equal(map.file, 'index.js.map');
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
-    assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
     let sourceMap = new SourceMap();
-    sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+    sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 2);
     assert.deepEqual(mapData.sources, ['./index.ts', './local.ts']);
 
-    let input = await inputFS.readFile(inputFilePath, 'utf-8');
+    let input = await inputFS.readFile(
+      path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+      'utf8',
+    );
     checkSourceMapping({
       map: sourceMap,
       source: input,
@@ -498,12 +547,14 @@ describe('sourcemaps', function() {
 
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
-      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
       let sourceMap = new SourceMap();
-      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+      sourceMap.addRawMappings(map);
 
-      let input = await inputFS.readFile(inputFilePath, 'utf-8');
+      let input = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        'utf8',
+      );
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, 1);
@@ -551,42 +602,36 @@ describe('sourcemaps', function() {
 
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
-      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
       let sourceMap = new SourceMap();
-      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
-
-      let style = await inputFS.readFile(inputFilePath, 'utf-8');
-      let otherStyle = await inputFS.readFile(
-        path.join(
-          __dirname,
-          '/integration/sourcemap-css-import/other-style.css',
-        ),
-        'utf-8',
-      );
-      let anotherStyle = await inputFS.readFile(
-        path.join(
-          __dirname,
-          '/integration/sourcemap-css-import/another-style.css',
-        ),
-        'utf-8',
-      );
+      sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
-      assert.equal(mapData.sources.length, 3);
       assert.deepEqual(mapData.sources, [
         './other-style.css',
         './another-style.css',
-        // TODO: Is this a bug?
-        './test/integration/sourcemap-css-import/style.css',
+        './style.css',
       ]);
+
+      let otherStyle = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        'utf-8',
+      );
+      let anotherStyle = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[1]),
+        'utf-8',
+      );
+      let style = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[2]),
+        'utf8',
+      );
 
       checkSourceMapping({
         map: sourceMap,
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: './test/integration/sourcemap-css-import/style.css',
+        sourcePath: './style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -595,7 +640,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'background-color',
-        sourcePath: './test/integration/sourcemap-css-import/style.css',
+        sourcePath: './style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -659,15 +704,18 @@ describe('sourcemaps', function() {
 
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
-      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
       let sourceMap = new SourceMap();
-      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+      sourceMap.addRawMappings(map);
 
-      let input = await inputFS.readFile(inputFilePath, 'utf-8');
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, minify ? 2 : 1);
-      assert.deepEqual(mapData.sources[0], './style.scss');
+      assert.strictEqual(mapData.sources[0], './style.scss');
+
+      let input = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        'utf-8',
+      );
 
       checkSourceMapping({
         map: sourceMap,
@@ -711,23 +759,27 @@ describe('sourcemaps', function() {
 
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
-      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
       let sourceMap = new SourceMap();
-      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+      sourceMap.addRawMappings(map);
 
-      let style = await inputFS.readFile(inputFilePath, 'utf-8');
-      let other = await inputFS.readFile(
-        path.join(__dirname, '/integration/sourcemap-sass-imported/other.scss'),
-        'utf-8',
-      );
       let mapData = sourceMap.getMap();
+      // TODO: htmlnano inserts `./<input css 1>`
       assert.equal(mapData.sources.length, minify ? 3 : 2);
       assert.deepEqual(mapData.sources[0], './other.scss');
-      // TODO: Figure out why this happens?
-      assert.deepEqual(
-        mapData.sources[minify ? 2 : 1],
-        './test/integration/sourcemap-sass-imported/style.css',
+      assert.deepEqual(mapData.sources[minify ? 2 : 1], './style.css');
+
+      let style = await inputFS.readFile(
+        path.join(
+          path.dirname(filename),
+          map.sourceRoot,
+          map.sources[minify ? 2 : 1],
+        ),
+        'utf-8',
+      );
+      let other = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        'utf-8',
       );
 
       checkSourceMapping({
@@ -735,7 +787,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: './test/integration/sourcemap-sass-imported/style.css',
+        sourcePath: './style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -744,7 +796,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'color',
-        sourcePath: './test/integration/sourcemap-sass-imported/style.css',
+        sourcePath: './style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification',
       });
 
@@ -789,15 +841,17 @@ describe('sourcemaps', function() {
 
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
-      assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
       let sourceMap = new SourceMap();
-      sourceMap.addRawMappings(map.mappings, map.sources, map.names);
+      sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
       assert.equal(mapData.sources.length, minify ? 2 : 1);
       assert.deepEqual(mapData.sources[0], './style.less');
-      let input = await inputFS.readFile(inputFilePath, 'utf-8');
+      let input = await inputFS.readFile(
+        path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
+        'utf-8',
+      );
 
       checkSourceMapping({
         map: sourceMap,
