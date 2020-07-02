@@ -146,33 +146,21 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let visited = new Set([root.id]);
 
-    const visit = (
-      parent: ?AssetGraphNode,
-      node: AssetGraphNode,
-    ): void | Promise<void> => {
+    const visit = (parent: ?AssetGraphNode, node: AssetGraphNode) => {
       if (errors.length > 0) {
         return;
       }
 
-      let result;
       if (this.shouldSkipRequest(node)) {
-        result = Promise.all(visitChildren(parent, node)).then(() => undefined);
+        visitChildren(parent, node);
       } else {
-        result = this.queueCorrespondingRequest(node).then(
-          () => Promise.all(visitChildren(parent, node)).then(() => undefined),
-          error => {
-            errors.push(error);
-          },
+        this.queueCorrespondingRequest(node).then(
+          () => visitChildren(parent, node),
+          error => errors.push(error),
         );
       }
-      return result;
     };
-
-    const visitChildren = (
-      parent: ?AssetGraphNode,
-      node: AssetGraphNode,
-    ): $ReadOnlyArray<void | Promise<void>> => {
-      let children = [];
+    const visitChildren = (parent: ?AssetGraphNode, node: AssetGraphNode) => {
       for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
         if (
           this.assetGraph.shouldVisitChild(
@@ -183,13 +171,12 @@ export default class AssetGraphBuilder extends EventEmitter {
           )
         ) {
           visited.add(child.id);
-          children.push(visit(node, child));
+          visit(node, child);
         }
       }
-      return children;
     };
-
     visit(null, root);
+
     await this.queue.run();
 
     if (errors.length) {

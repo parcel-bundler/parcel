@@ -207,14 +207,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     child: AssetGraphNode,
     wasVisited: boolean,
   ): ?boolean {
-    if (child.type === 'dependency' && child.usedSymbolsDownDirty) return true;
+    if (
+      (node.type === 'dependency' && node.usedSymbolsDownDirty) ||
+      (child.type === 'dependency' && child.usedSymbolsDownDirty)
+    )
+      return true;
 
     if (node.type === 'dependency' && child.type === 'asset_group') {
       let dependency = node;
       let sideEffects = child.value.sideEffects;
+      let wasDeferred = dependency.deferred;
       let defer = this.shouldDeferDependency(dependency, sideEffects);
       dependency.deferred = defer;
-      return !defer;
+      return wasDeferred ? !defer : !wasVisited;
     }
 
     if (
@@ -476,13 +481,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // console.log(
     //   3,
     //   assetNode.value.filePath,
-    //   isEntry,
     //   hasDirtyOutgoingDep,
-    //   // changedIncomingDeps.map(d => [
-    //   //   d.value.sourcePath + ':' + d.value.moduleSpecifier,
-    //   //   d.id,
-    //   //   ...d.usedSymbolsDown.keys(),
-    //   // ]),
+    //   changedIncomingDeps.map(d => [
+    //     d.value.sourcePath + ':' + d.value.moduleSpecifier,
+    //     d.id,
+    //     ...d.usedSymbolsDown.keys(),
+    //   ]),
     // );
     return hasDirtyOutgoingDep;
   }
@@ -581,6 +585,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     for (let d of oldDepNodes) {
       invariant(d.type === 'dependency');
       if (!depNodes.find(d2 => d.id === d2.id)) {
+        // will be removed
         let assetGroups = this.getNodesConnectedFrom(d);
         invariant(assetGroups.length === 1);
         let [assetGroup] = assetGroups;
@@ -592,6 +597,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         this.setUsedSymbolsAssetRemoveDependency(d, asset);
       }
     }
+    // for (let d of depNodes) {
+    //   if (!oldDepNodes.find(d2 => d.id === d2.id)) {
+    //     // was added
+    //     d.usedSymbolsDownDirty = true;
+    //   }
+    // }
     this.replaceNodesConnectedTo(assetNode, depNodes);
 
     this.setUsedSymbolsAssetAddDependency(
