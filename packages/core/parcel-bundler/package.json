@@ -32,7 +32,7 @@
     "@parcel/fs": "^1.11.0",
     "@parcel/logger": "^1.11.0",
     "@parcel/utils": "^1.11.0",
-    "@parcel/watcher": "^2.0.0-alpha.5",
+    "@parcel/watcher": "^2.0.0-alpha.7",
     "@parcel/workers": "^2.0.0-frontbucket.24",
     "ansi-to-html": "^0.6.4",
     "babel-types": "^6.26.0",
