@@ -452,8 +452,8 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(!dist.includes('function')); // no iife
-      assert(dist.includes('export const foo'));
-      assert(dist.includes('export const bar = foo + 3'));
+      assert(dist.includes('export { syntheticExport$foo as foo }'));
+      assert(/export const bar = .+ \+ 3/.test(dist));
     });
 
     it('should support esmodule output (default identifier)', async function() {
@@ -511,7 +511,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export var foo'));
+      assert(dist.includes('export { syntheticExport$foo as foo }'));
       assert(!dist.includes('export default'));
     });
 

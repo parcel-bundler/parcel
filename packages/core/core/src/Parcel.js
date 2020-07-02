@@ -257,11 +257,9 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      // console.time('Assetgraph');
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
         signal,
       );
-      // console.timeEnd('Assetgraph');
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381

@@ -217,19 +217,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return !defer;
     }
 
-    // if (
-    //   parent &&
-    //   parent.type === 'dependency' &&
-    //   node.type === 'asset_group' &&
-    //   child.type === 'asset'
-    // )
-    //   console.log(
-    //     'hey',
-    //     parent.value.sourcePath,
-    //     parent.value.moduleSpecifier,
-    //     child.value.filePath,
-    //     parent.usedSymbolsDownDirty,
-    //   );
     if (
       parent &&
       parent.type === 'dependency' &&

@@ -353,7 +353,6 @@ export function generateExports(
     for (let d of decl.get<Array<NodePath<VariableDeclarator>>>(
       'declarations',
     )) {
-      console.log(d.node);
       maybeReplaceIdentifier(d.get<NodePath<Identifier>>('init'));
     }
     programPath.scope.crawl();
