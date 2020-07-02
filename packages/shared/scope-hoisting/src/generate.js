@@ -46,13 +46,15 @@ const WRAPPER_TEMPLATE = template.statement<
 export function generate({
   bundleGraph,
   bundle,
-  ast,
+  // ast,
+  code,
   referencedAssets,
   options,
 }: {|
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
-  ast: File,
+  // ast: File,
+  code: string,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
 |}) {
@@ -67,42 +69,64 @@ export function generate({
 
   // Wrap async bundles in a closure and register with parcelRequire so they are executed
   // at the right time (after other bundle dependencies are loaded).
-  let statements = ast.program.body;
+  // let statements = ast.program.body;
   if (bundle.env.outputFormat === 'global') {
-    statements = isAsync
-      ? [
-          REGISTER_TEMPLATE({
-            STATEMENTS: statements,
-            REFERENCED_IDS: t.arrayExpression(
-              [bundle.getMainEntry(), ...referencedAssets]
-                .filter(Boolean)
-                .map(asset => t.stringLiteral(asset.id)),
-            ),
-          }),
-        ]
-      : [WRAPPER_TEMPLATE({STATEMENTS: statements})];
+    if (isAsync) {
+      code = `(function() {
+  function $parcel$bundleWrapper() {
+    if ($parcel$bundleWrapper._executed) return;
+    ${code};
+    $parcel$bundleWrapper._executed = true;
+  }
+  var $parcel$referencedAssets = ${JSON.stringify(
+    [bundle.getMainEntry(), ...referencedAssets]
+      .filter(Boolean)
+      .map(asset => asset.id),
+  )};
+  for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
+    parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+  }
+})()`;
+    } else {
+      code = `(function () {
+  ${code};
+})()`;
+    }
+
+    // statements = isAsync
+    //   ? [
+    //       REGISTER_TEMPLATE({
+    //         STATEMENTS: statements,
+    //         REFERENCED_IDS: t.arrayExpression(
+    //           [bundle.getMainEntry(), ...referencedAssets]
+    //             .filter(Boolean)
+    //             .map(asset => t.stringLiteral(asset.id)),
+    //         ),
+    //       }),
+    //     ]
+    //   : [WRAPPER_TEMPLATE({STATEMENTS: statements})];
   }
 
-  ast = t.file(
-    t.program(
-      statements,
-      [],
-      bundle.env.outputFormat === 'esmodule' ? 'module' : 'script',
-      interpreter ? t.interpreterDirective(interpreter) : null,
-    ),
-  );
+  // ast = t.file(
+  //   t.program(
+  //     statements,
+  //     [],
+  //     bundle.env.outputFormat === 'esmodule' ? 'module' : 'script',
+  //     interpreter ? t.interpreterDirective(interpreter) : null,
+  //   ),
+  // );
 
-  let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: options.sourceMaps,
-    minified: bundle.env.minify,
-    comments: true, // retain /*@__PURE__*/ comments for terser
-  });
+  // let {code, rawMappings} = babelGenerate(ast, {
+  //   sourceMaps: options.sourceMaps,
+  //   minified: bundle.env.minify,
+  //   comments: true, // retain /*@__PURE__*/ comments for terser
+  // });
 
   let map = null;
-  if (options.sourceMaps && rawMappings != null) {
-    map = new SourceMap();
-    map.addIndexedMappings(rawMappings);
-  }
+  // if (options.sourceMaps && rawMappings != null) {
+  //   map = new SourceMap();
+  //   map.addIndexedMappings(rawMappings);
+  // }
 
   return {
     contents: code,

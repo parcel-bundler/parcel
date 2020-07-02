@@ -57,6 +57,7 @@ export default class BundleGraph {
   |}) {
     this._graph = graph;
     this._bundleContentHashes = bundleContentHashes || new Map();
+    this.resolveSymbolCache = new Map();
   }
 
   static deserialize(opts: {|
@@ -649,6 +650,21 @@ export default class BundleGraph {
     return bundles;
   }
 
+  getBundleById(id: string): Bundle {
+    let node = this._graph.getNode(id);
+    invariant(
+      node != null && node.type === 'bundle',
+      'invalid bundle id ' + id,
+    );
+    return node.value;
+  }
+
+  getAssetById(id: string): Asset {
+    let node = this._graph.getNode(id);
+    invariant(node != null && node.type === 'asset', 'invalid asset id ' + id);
+    return node.value;
+  }
+
   getTotalSize(asset: Asset): number {
     let size = 0;
     this._graph.traverse((node, _, actions) => {
@@ -755,16 +771,25 @@ export default class BundleGraph {
   }
 
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
+    let k = `${asset.id}:${symbol}:${boundary?.id ?? ''}`;
+    let cached = this.resolveSymbolCache.get(k);
+    if (cached) {
+      return cached;
+    }
+
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols?.get(symbol)?.local;
     if (symbol === '*') {
-      return {
+      let res = {
         asset,
         exportSymbol: '*',
         symbol: identifier ?? null,
         loc: asset.symbols?.get(symbol)?.loc,
       };
+
+      this.resolveSymbolCache.set(k, res);
+      return res;
     }
 
     let bailout = !asset.symbols;
@@ -802,12 +827,15 @@ export default class BundleGraph {
           loc = asset.symbols?.get(symbol)?.loc;
         }
 
-        return {
+        let res = {
           asset: resolvedAsset,
           symbol: resolvedSymbol,
           exportSymbol,
           loc,
         };
+
+        this.resolveSymbolCache.set(k, res);
+        return res;
       }
 
       // If this module exports wildcards, resolve the original module.
@@ -825,12 +853,15 @@ export default class BundleGraph {
             break;
           }
 
-          return {
+          let res = {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: result.exportSymbol,
             loc: resolved.symbols?.get(symbol)?.loc,
           };
+
+          this.resolveSymbolCache.set(k, res);
+          return res;
         }
         if (!result.asset.symbols || result.symbol === null) {
           // We didn't find it in this dependency, but it might still be there: bailout.
@@ -850,16 +881,21 @@ export default class BundleGraph {
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
       // ..., but if it does exist, it's has to be behind this one reexport.
-      return potentialResults[0];
+      let res = potentialResults[0];
+      this.resolveSymbolCache.set(k, res);
+      return res;
     } else {
       // ... and there is no single reexport, but `bailout` tells us if it might still be exported.
-      return {
+      let res = {
         asset,
         exportSymbol: symbol,
         symbol:
           identifier ?? (bailout || asset.symbols?.has('*') ? null : undefined),
         loc: asset.symbols?.get(symbol)?.loc,
       };
+
+      this.resolveSymbolCache.set(k, res);
+      return res;
     }
   }
 

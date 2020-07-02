@@ -17,15 +17,17 @@ const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
 const bundler = (name, opts = {}) =>
   _bundler(name, {scopeHoist: true, ...opts});
 
-describe('scope hoisting', function() {
+describe.only('scope hoisting', function() {
   describe('es6', function() {
-    it('supports default imports and exports of expressions', async function() {
+    it.only('supports default imports and exports of expressions', async function() {
       let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/default-export-expression/a.js',
         ),
       );
+
+      console.log(outputFS.readFileSync(b.getBundles()[0].filePath, 'utf8'));
 
       let output = await run(b);
       assert.equal(output, 2);
@@ -2372,10 +2374,9 @@ describe('scope hoisting', function() {
 
   it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
     let b = await bundle(
-      [
-        'same-bundle-scope-hoisting.js',
-        'get-dep-scope-hoisting.js',
-      ].map(entry => path.join(__dirname, '/integration/sync-async/', entry)),
+      ['same-bundle-scope-hoisting.js', 'get-dep-scope-hoisting.js'].map(
+        entry => path.join(__dirname, '/integration/sync-async/', entry),
+      ),
     );
 
     assertBundles(b, [

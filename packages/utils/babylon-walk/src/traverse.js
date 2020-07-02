@@ -66,8 +66,9 @@ function traverseWalk<T>(
     } else {
       let res = traverseWalk(visitors, ancestors, revisit, state, subNode);
       if (res === REMOVE) {
-        if (isNew) ancestors.pop();
-        return REMOVE;
+        // return REMOVE;
+        // $FlowFixMe
+        node[key] = null;
       } else if (res !== SKIP && res != null) {
         if (typeof res === 'function') {
           revisit.push(() => {

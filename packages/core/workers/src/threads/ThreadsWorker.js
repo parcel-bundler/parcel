@@ -54,10 +54,10 @@ export default class ThreadsWorker implements WorkerImpl {
   }
 
   handleMessage(data: WorkerMessage) {
-    this.onMessage(restoreDeserializedObject(data));
+    this.onMessage(data.raw ? data : restoreDeserializedObject(data));
   }
 
-  send(data: WorkerMessage) {
-    this.worker.postMessage(prepareForSerialization(data));
+  send(data: WorkerMessage, raw?: boolean) {
+    this.worker.postMessage(raw ? data : prepareForSerialization(data));
   }
 }

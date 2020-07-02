@@ -28,6 +28,7 @@ export default new Packager({
     bundleGraph,
     getInlineBundleContents,
     getSourceMapReference,
+    generateAssetForBundle,
     options,
   }) {
     function replaceReferences({contents, map}) {
@@ -47,30 +48,41 @@ export default new Packager({
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
       let wrappedAssets = new Set<string>();
-      let {ast, referencedAssets} = link({
+      console.time('concat');
+      let res = await concat({
         bundle,
         bundleGraph,
-        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
         options,
         wrappedAssets,
+        generateAssetForBundle,
       });
+      console.timeEnd('concat');
+      // console.time('link')
+      // let {ast, referencedAssets} = link({
+      //   bundle,
+      //   bundleGraph,
+      //   ast: res,
+      //   options,
+      //   wrappedAssets,
+      // });
+      // console.timeEnd('link');
 
-      // Free up memory
-      traverse.cache.clear();
+      // // Free up memory
+      // traverse.cache.clear();
 
+      // console.time('generate');
       let {contents, map} = generate({
         bundleGraph,
         bundle,
-        ast,
-        referencedAssets,
+        code: res,
+        referencedAssets: new Set(),
         options,
       });
+      // console.timeEnd('generate');
       return replaceReferences({
-        contents:
-          contents +
-          '\n' +
-          (await getSourceMapSuffix(getSourceMapReference, map)),
-        map,
+        contents: contents + '\n', // +
+        // (await getSourceMapSuffix(getSourceMapReference, map)),
+        // map,
       });
     }
 

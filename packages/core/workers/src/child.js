@@ -8,6 +8,7 @@ import type {
   WorkerRequest,
   WorkerResponse,
   ChildImpl,
+  LocationCallRequest,
 } from './types';
 import type {IDisposable} from '@parcel/types';
 import type {WorkerApi} from './WorkerFarm';
@@ -25,10 +26,17 @@ type ChildCall = WorkerRequest & {|
   reject: (error: any) => void,
 |};
 
+type ChildOptions = {|
+  farmId: number,
+  patchConsole?: boolean,
+|};
+
 export class Child {
   callQueue: Array<ChildCall> = [];
+  farmId: ?number;
   childId: ?number;
   maxConcurrentCalls: number = 10;
+  moduleLocation: ?string;
   module: ?any;
   responseId = 0;
   responseQueue: Map<number, ChildCall> = new Map();
@@ -54,6 +62,10 @@ export class Child {
   }
 
   workerApi = {
+    getWorkerInfo: () => ({
+      farmId: this.farmId,
+      workerId: this.childId,
+    }),
     callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -65,6 +77,32 @@ export class Child {
     getSharedReference: (ref: number) => this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
+    callWorker: async (
+      request: LocationCallRequest,
+      awaitResponse: ?boolean = true,
+    ): Promise<mixed> => {
+      let {farmId, workerId, ...options} = request;
+      if (farmId !== this.farmId || workerId == null) {
+        farmId = this.farmId;
+        workerId = null;
+      }
+
+      if (workerId === this.childId) {
+        await new Promise((resolve, reject) => process.nextTick(resolve));
+        return this.handleLocationRequest({
+          type: 'request',
+          idx: 0,
+          child: this.childId,
+          ...options,
+        });
+      }
+
+      return this.addCall({
+        method: 'callWorker',
+        args: [request],
+        raw: request.raw,
+      });
+    },
   };
 
   messageListener(message: WorkerMessage): void | Promise<void> {
@@ -79,10 +117,12 @@ export class Child {
     this.child.send(data);
   }
 
-  childInit(module: string, childId: number): void {
+  childInit(module: string, childId: number, childOptions: ChildOptions): void {
     // $FlowFixMe this must be dynamic
     this.module = require(module);
+    this.moduleLocation = module;
     this.childId = childId;
+    this.farmId = childOptions.farmId;
   }
 
   async handleRequest(data: WorkerRequest): Promise<void> {
@@ -95,6 +135,7 @@ export class Child {
       type: 'response',
       contentType: 'data',
       content,
+      raw: data.raw,
     });
 
     const errorResponseFromError = (e: Error): WorkerErrorResponse => ({
@@ -103,6 +144,7 @@ export class Child {
       type: 'response',
       contentType: 'error',
       content: anyToDiagnostic(e),
+      raw: true,
     });
 
     let result;
@@ -122,7 +164,9 @@ export class Child {
           unpatchConsole();
         }
 
-        result = responseFromContent(this.childInit(moduleName, child));
+        result = responseFromContent(
+          this.childInit(moduleName, child, childOptions),
+        );
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -150,16 +194,26 @@ export class Child {
       result = responseFromContent(null);
     } else {
       try {
-        result = responseFromContent(
-          // $FlowFixMe
-          await this.module[method](this.workerApi, ...args),
-        );
+        result = responseFromContent(await this.handleLocationRequest(data));
       } catch (e) {
         result = errorResponseFromError(e);
       }
     }
 
     this.send(result);
+  }
+
+  async handleLocationRequest(data: WorkerRequest) {
+    let {location, method, args} = data;
+    invariant(method != null);
+    if (location == null || location === this.moduleLocation) {
+      // $FlowFixMe
+      return await this.module[method](this.workerApi, ...args);
+    } else {
+      // $FlowFixMe
+      let module = require(location);
+      return await module[method](this.workerApi, ...args);
+    }
   }
 
   handleResponse(data: WorkerResponse): void {
@@ -227,6 +281,7 @@ export class Child {
       method: call.method,
       args: call.args,
       awaitResponse: call.awaitResponse,
+      raw: call.raw,
     });
   }
 

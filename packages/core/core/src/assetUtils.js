@@ -11,6 +11,7 @@ import type {
   Symbol,
   SourceLocation,
   Transformer,
+  NamedBundle as INamedBundle,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment} from './types';
 import type {ConfigOutput} from '@parcel/utils';
@@ -25,6 +26,8 @@ import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {blobToStream, loadConfig, md5FromString} from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
+import {NamedBundle} from './public/Bundle';
+import BundleGraph from './public/BundleGraph';
 
 type AssetOptions = {|
   id?: string,
@@ -96,16 +99,22 @@ const generateResults: WeakMap<Asset, Promise<GenerateOutput>> = new WeakMap();
 
 export function generateFromAST(
   asset: CommittedAsset | UncommittedAsset,
+  bundleGraph,
+  bundle,
 ): Promise<GenerateOutput> {
   let output = generateResults.get(asset.value);
   if (output == null) {
-    output = _generateFromAST(asset);
+    output = _generateFromAST(asset, bundleGraph, bundle);
     generateResults.set(asset.value, output);
   }
   return output;
 }
 
-async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
+async function _generateFromAST(
+  asset: CommittedAsset | UncommittedAsset,
+  bundleGraph,
+  bundle,
+) {
   let ast = await asset.getAST();
   if (ast == null) {
     throw new Error('Asset has no AST');
@@ -122,9 +131,16 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     throw new Error(`${pluginName} does not have a generate method`);
   }
 
-  let {content, map} = await plugin.generate({
+  let {content, map} = await plugin.generateForBundle({
     asset: new PublicAsset(asset),
     ast,
+    bundleGraph: new BundleGraph<NamedBundle>(
+      bundleGraph,
+      (bundle, bundleGraph, options) =>
+        new NamedBundle(bundle, bundleGraph, options),
+      asset.options,
+    ),
+    bundle: new NamedBundle(bundle, bundleGraph, asset.options),
     options: new PluginOptions(asset.options),
     logger: new PluginLogger({origin: pluginName}),
   });

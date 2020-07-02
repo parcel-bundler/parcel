@@ -8,6 +8,7 @@ import type {
   WorkerDataResponse,
   WorkerErrorResponse,
   BackendType,
+  LocationCallRequest,
 } from './types';
 import type {HandleFunction} from './Handle';
 
@@ -55,6 +56,7 @@ export type WorkerApi = {|
   getSharedReference(ref: number): mixed,
   resolveSharedReference(value: mixed): ?number,
   callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>,
+  callWorker(LocationCallRequest, ?boolean): Promise<mixed>,
 |};
 
 export {Handle};
@@ -75,6 +77,7 @@ export default class WorkerFarm extends EventEmitter {
   sharedReferences: Map<number, mixed> = new Map();
   sharedReferencesByValue: Map<mixed, number> = new Map();
   profiler: ?Profiler;
+  farmId: number;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
     super();
@@ -95,11 +98,16 @@ export default class WorkerFarm extends EventEmitter {
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
     this.run = this.createHandle('run');
+    this.farmId = Date.now();
 
     this.startMaxWorkers();
   }
 
   workerApi = {
+    getWorkerInfo: () => ({
+      farmId: this.farmId,
+      workerId: -1,
+    }),
     callMaster: async (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -122,6 +130,39 @@ export default class WorkerFarm extends EventEmitter {
           retries: 0,
         });
       }),
+    callWorker: async (
+      request: LocationCallRequest,
+      awaitResponse: ?boolean = true,
+    ): Promise<mixed> => {
+      let {farmId, workerId, ...options} = request;
+      if (
+        farmId !== this.farmId ||
+        workerId == null ||
+        !this.workers.has(workerId)
+      ) {
+        farmId = this.farmId;
+        workerId = null;
+      }
+
+      return new Promise((resolve, reject) => {
+        if (workerId != null) {
+          nullthrows(this.workers.get(workerId)).call({
+            ...options,
+            resolve,
+            reject,
+            retries: 0,
+          });
+        } else {
+          this.callQueue.push({
+            ...options,
+            retries: 0,
+            resolve,
+            reject,
+          });
+          this.processQueue();
+        }
+      });
+    },
     runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
       this.workerApi.callChild(nullthrows(handle.childId), {
         handle: handle.id,
@@ -160,21 +201,23 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createHandle(method: string): HandleFunction {
+  createHandle(method: string, raw?: boolean): HandleFunction {
     return (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
       if (this.shouldUseRemoteWorkers()) {
-        return this.addCall(method, [...args, false]);
+        return this.addCall(method, [...args, false], raw);
       } else {
         if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
           this.warmupWorker(method, args);
         }
 
-        let processedArgs = restoreDeserializedObject(
-          prepareForSerialization([...args, false]),
-        );
+        let processedArgs = raw
+          ? args
+          : restoreDeserializedObject(
+              prepareForSerialization([...args, false]),
+            );
         return this.localWorker[method](this.workerApi, ...processedArgs);
       }
     };
@@ -191,10 +234,12 @@ export default class WorkerFarm extends EventEmitter {
 
   startChild() {
     let worker = new Worker({
+      farmId: this.farmId,
       forcedKillTime: this.options.forcedKillTime,
       backend: this.options.backend,
       patchConsole: this.options.patchConsole,
       sharedReferences: this.sharedReferences,
+      maxConcurrentCallsPerWorker: this.options.maxConcurrentCallsPerWorker,
     });
 
     worker.fork(nullthrows(this.options.workerPath));
@@ -259,7 +304,7 @@ export default class WorkerFarm extends EventEmitter {
       location: FilePath,
     |} & $Shape<WorkerRequest>,
     worker?: Worker,
-  ): Promise<?string> {
+  ): Promise<?mixed> {
     let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
     if (handleId != null) {
@@ -267,7 +312,7 @@ export default class WorkerFarm extends EventEmitter {
     } else if (location) {
       // $FlowFixMe this must be dynamic
       mod = require(location);
-    } else {
+    } else if (method !== 'callWorker') {
       throw new Error('Unknown request');
     }
 
@@ -289,6 +334,13 @@ export default class WorkerFarm extends EventEmitter {
     if (method == null) {
       try {
         result = responseFromContent(await mod(...args));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'callWorker') {
+      try {
+        // $FlowFixMe
+        result = responseFromContent(await this.workerApi.callWorker(args[0]));
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -318,7 +370,7 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(method: string, args: Array<any>): Promise<any> {
+  addCall(method: string, args: Array<any>, raw?: boolean): Promise<any> {
     if (this.ending) {
       throw new Error('Cannot add a worker call if workerfarm is ending.');
     }
@@ -330,6 +382,7 @@ export default class WorkerFarm extends EventEmitter {
         retries: 0,
         resolve,
         reject,
+        raw,
       });
       this.processQueue();
     });

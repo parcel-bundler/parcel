@@ -11,6 +11,9 @@ import PackagerRunner from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
+import {astCache} from './UncommittedAsset';
+import CommittedAsset from './CommittedAsset';
+import {generateFromAST} from './assetUtils';
 
 import '@parcel/cache'; // register with serializer
 import '@parcel/package-manager';
@@ -128,5 +131,40 @@ export function runPackage(
     config,
     options,
     report: reportWorker.bind(null, workerApi),
+    workerApi,
+    bundleGraphReference,
+    configRef,
+    optionsRef,
   }).getBundleInfo(bundle, bundleGraph, cacheKeys);
+}
+
+export async function runGenerate(
+  workerApi: WorkerApi,
+  {
+    bundleGraphRef,
+    bundleId,
+    assetId,
+    configRef,
+    optionsRef,
+  }: {|
+    bundleGraphRef: number,
+    bundleId: string,
+    assetId: string,
+    configRef: number,
+    optionsRef: number,
+  |},
+) {
+  let bundleGraph = workerApi.getSharedReference(bundleGraphRef);
+  invariant(bundleGraph instanceof BundleGraph);
+  let bundle = bundleGraph.getBundleById(bundleId);
+  let asset = bundleGraph.getAssetById(assetId);
+  let options = loadOptions(optionsRef, workerApi);
+  let committedAsset = new CommittedAsset(asset, options);
+  let ast = astCache.get(asset.id);
+  if (ast) {
+    committedAsset.ast = ast;
+  }
+
+  // console.log(bundleGraph, bundle, asset, ast)
+  await generateFromAST(committedAsset, bundleGraph, bundle);
 }

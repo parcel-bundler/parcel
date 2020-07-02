@@ -22,7 +22,8 @@ import nullthrows from 'nullthrows';
 import invariant from 'assert';
 import {relative} from 'path';
 import template from '@babel/template';
-import * as t from '@babel/types';
+import * as _t from '@babel/types';
+let t = {..._t};
 import {
   isAssignmentExpression,
   isExpressionStatement,
@@ -61,9 +62,12 @@ const FAKE_INIT_TEMPLATE = template.statement<
   return EXPORTS;
 }`);
 
+const bundleCache = new Map();
+
 export function link({
   bundle,
   bundleGraph,
+  asset,
   ast,
   options,
   wrappedAssets,
@@ -88,6 +92,7 @@ export function link({
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
   let reexports = new Set();
+  let bundleNeedsMainExportsIdentifier = false;
 
   // If building a library, the target is actually another bundler rather
   // than the final output that could be loaded in a browser. So, loader
@@ -104,39 +109,60 @@ export function link({
     }
   }
 
-  // Build a mapping of all imported identifiers to replace.
-  bundle.traverseAssets(asset => {
-    assets.set(assertString(asset.meta.id), asset);
-    exportsMap.set(assertString(asset.meta.exportsIdentifier), asset);
+  let cached = bundleCache.get(bundle);
+  if (cached) {
+    assets = cached.assets;
+    exportsMap = cached.exportsMap;
+    dependencyMap = cached.dependencyMap;
+    referencedAssets = cached.referencedAssets;
+    bundleNeedsMainExportsIdentifier = cached.bundleNeedsMainExportsIdentifier;
+  } else {
+    // Build a mapping of all imported identifiers to replace.
+    bundle.traverseAssets(asset => {
+      assets.set(assertString(asset.meta.id), asset);
+      exportsMap.set(assertString(asset.meta.exportsIdentifier), asset);
 
-    for (let dep of bundleGraph.getDependencies(asset)) {
-      dependencyMap.set(dep.id, dep);
-      let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+      for (let dep of bundleGraph.getDependencies(asset)) {
+        dependencyMap.set(dep.id, dep);
+        let resolved = bundleGraph.getDependencyResolution(dep, bundle);
 
-      // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
-      // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
-        for (let [imported, {local, loc}] of dep.symbols) {
-          imports.set(local, resolved ? [resolved, imported, loc] : null);
+        // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
+        // If the dependency was excluded, it will be replaced by the output format at the very end.
+        if (resolved || bundleGraph.isDependencyDeferred(dep)) {
+          for (let [imported, {local, loc}] of dep.symbols) {
+            imports.set(local, resolved ? [resolved, imported, loc] : null);
+          }
         }
       }
-    }
 
-    for (let [symbol, {local}] of asset.symbols) {
-      exports.set(local, [asset, symbol]);
-    }
+      for (let [symbol, {local}] of asset.symbols) {
+        exports.set(local, [asset, symbol]);
+      }
 
-    if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
-      referencedAssets.add(asset);
-    }
-  });
+      if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
+        referencedAssets.add(asset);
+      }
+    });
+
+    bundleNeedsMainExportsIdentifier =
+      bundle.env.outputFormat === 'global' &&
+      (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph));
+
+    bundleCache.set(bundle, {
+      assets,
+      exportsMap,
+      dependencyMap,
+      referencedAssets,
+      bundleNeedsMainExportsIdentifier,
+    });
+  }
 
   let entry = bundle.getMainEntry();
   let exportedSymbols: Map<
     string,
     Array<{|exportAs: string, local: string|}>,
   > = new Map();
-  if (entry) {
+  if (entry && entry === asset) {
     if (entry.meta.isCommonJS) {
       if (bundle.env.outputFormat === 'commonjs') {
         exportedSymbols.set(assertString(entry.meta.exportsIdentifier), [
@@ -244,9 +270,6 @@ export function link({
   }
 
   let needsExportsIdentifierCache = new Map();
-  let bundleNeedsMainExportsIdentifier =
-    bundle.env.outputFormat === 'global' &&
-    (!isEntry(bundle, bundleGraph) || isReferenced(bundle, bundleGraph));
 
   function needsExportsIdentifier(name: string) {
     let asset = exportsMap.get(name);
@@ -533,7 +556,49 @@ export function link({
     }
   }
 
+  let requiresInStatement = new Set();
+  function generatePlaceholders(ancestors, node) {
+    if (
+      requiresInStatement.size === 0 ||
+      !t.isProgram(ancestors[ancestors.length - 2])
+    ) {
+      if (node === REMOVE) {
+        return REMOVE;
+      }
+
+      return;
+    }
+
+    let res = [];
+    for (let id of requiresInStatement) {
+      // res.push(t.expressionStatement(t.callExpression(t.identifier('$parcel$asset$placeholder'), [t.stringLiteral(id)])));
+      res.push(
+        t.expressionStatement(t.identifier('PARCEL_ASSET_PLACEHOLDER_' + id)),
+      );
+    }
+
+    if (node !== REMOVE) {
+      res.push(node);
+    }
+
+    requiresInStatement.clear();
+    return res;
+  }
+
   traverse(ast, {
+    Statement: {
+      enter(node, state, ancestors) {
+        if (t.isProgram(ancestors[ancestors.length - 2])) {
+          requiresInStatement.clear();
+        }
+      },
+      exit(node, state, ancestors) {
+        if (t.isProgram(ancestors[ancestors.length - 2])) {
+          return generatePlaceholders(ancestors, node);
+        }
+      },
+    },
+
     CallExpression(node, state, ancestors) {
       let {arguments: args, callee} = node;
       if (!isIdentifier(callee)) {
@@ -584,6 +649,8 @@ export function link({
             else if (isValueUsed) {
               newNode = t.identifier(replacements.get(name) || name);
             }
+
+            requiresInStatement.add(mod.id);
           } else if (mod.type === 'js') {
             newNode = addBundleImport(mod, node, ancestors);
           }
@@ -870,7 +937,11 @@ export function link({
       }
     },
     ExpressionStatement: {
-      exit(node) {
+      exit(node, state, ancestors) {
+        if (node.expression == null) {
+          return generatePlaceholders(ancestors, REMOVE);
+        }
+
         // Handle exported declarations using output format specific logic.
         if (
           isAssignmentExpression(node.expression) &&
@@ -884,9 +955,11 @@ export function link({
           }
 
           if (!needsDeclaration(left.name)) {
-            return REMOVE;
+            return generatePlaceholders(ancestors, REMOVE);
           }
         }
+
+        return generatePlaceholders(ancestors, node);
       },
     },
     Program: {
@@ -894,20 +967,20 @@ export function link({
         // $FlowFixMe
         let statements: Array<BabelNode> = node.body;
 
-        for (let file of importedFiles.values()) {
-          if (file.bundle) {
-            let res = format.generateBundleImports(
-              bundleGraph,
-              bundle,
-              file,
-              scope,
-            );
-            statements = res.concat(statements);
-          } else {
-            let res = format.generateExternalImport(bundle, file, scope);
-            statements = res.concat(statements);
-          }
-        }
+        // for (let file of importedFiles.values()) {
+        //   if (file.bundle) {
+        //     let res = format.generateBundleImports(
+        //       bundleGraph,
+        //       bundle,
+        //       file,
+        //       scope,
+        //     );
+        //     statements = res.concat(statements);
+        //   } else {
+        //     let res = format.generateExternalImport(bundle, file, scope);
+        //     statements = res.concat(statements);
+        //   }
+        // }
 
         if (referencedAssets.size > 0) {
           // Insert fake init functions that will be imported in other bundles,
@@ -926,14 +999,14 @@ export function link({
         }
 
         // Generate exports
-        let exported = format.generateBundleExports(
-          bundleGraph,
-          bundle,
-          referencedAssets,
-          reexports,
-        );
+        // let exported = format.generateBundleExports(
+        //   bundleGraph,
+        //   bundle,
+        //   referencedAssets,
+        //   reexports,
+        // );
 
-        statements = statements.concat(exported);
+        // statements = statements.concat(exported);
 
         for (let name of scope.names) {
           let helper = helpers.get(name);

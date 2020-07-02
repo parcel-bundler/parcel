@@ -28,11 +28,13 @@ export default class ThreadsChild implements ChildImpl {
   }
 
   handleMessage(data: WorkerMessage) {
-    this.onMessage(restoreDeserializedObject(data));
+    this.onMessage(data.raw ? data : restoreDeserializedObject(data));
   }
 
   send(data: WorkerMessage) {
-    nullthrows(parentPort).postMessage(prepareForSerialization(data));
+    nullthrows(parentPort).postMessage(
+      data.raw ? data : prepareForSerialization(data),
+    );
   }
 }
 

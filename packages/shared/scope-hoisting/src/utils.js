@@ -364,3 +364,28 @@ export function getHelpers(): Map<string, BabelNode> {
 
   return helpersCache;
 }
+
+export function findParentIndex(
+  ancestors: Array<BabelNode>,
+  predicate: (node: BabelNode) => boolean,
+) {
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    if (predicate(ancestors[i])) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+export function findParent(
+  ancestors: Array<BabelNode>,
+  predicate: (node: BabelNode) => boolean,
+) {
+  let idx = findParentIndex(ancestors, predicate);
+  if (idx !== -1) {
+    return ancestors[idx];
+  }
+
+  return null;
+}

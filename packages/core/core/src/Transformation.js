@@ -363,13 +363,14 @@ export default class Transformation {
             impactfulOptions: this.impactfulOptions,
             configs: getImpactfulConfigInfo(configs),
           }),
+          this.workerApi,
         ),
       ),
     );
-    this.options.cache.set(
-      cacheKey,
-      assets.map(a => a.value),
-    );
+    // this.options.cache.set(
+    //   cacheKey,
+    //   assets.map(a => a.value),
+    // );
   }
 
   getCacheKey(assets: Array<UncommittedAsset>, configs: ConfigMap): string {

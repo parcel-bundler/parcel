@@ -87,19 +87,19 @@ export default class CommittedAsset {
 
   getMapBuffer(): Promise<?Buffer> {
     let mapKey = this.value.mapKey;
-    if (mapKey != null && this.mapBuffer == null) {
-      this.mapBuffer = (async () => {
-        try {
-          return await this.options.cache.getBlob(mapKey);
-        } catch (err) {
-          if (err.code === 'ENOENT' && this.value.astKey != null) {
-            return (await generateFromAST(this)).map?.toBuffer();
-          } else {
-            throw err;
-          }
-        }
-      })();
-    }
+    // if (mapKey != null && this.mapBuffer == null && !this.isGenerating) {
+    //   this.mapBuffer = (async () => {
+    //     try {
+    //       return await this.options.cache.getBlob(mapKey);
+    //     } catch (err) {
+    //       if (err.code === 'ENOENT' && this.value.astKey != null) {
+    //         return (await generateFromAST(this)).map?.toBuffer();
+    //       } else {
+    //         throw err;
+    //       }
+    //     }
+    //   })();
+    // }
 
     return this.mapBuffer ?? Promise.resolve();
   }
@@ -152,7 +152,7 @@ export default class CommittedAsset {
       parse?: boolean,
     |},
   ): Promise<ConfigResult | null> {
-    return (await getConfig(this, filePaths, options))?.config;
+    return await getConfig(this, filePaths, options)?.config;
   }
 
   getPackage(): Promise<PackageJSON | null> {

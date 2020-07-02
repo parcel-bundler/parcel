@@ -12,6 +12,7 @@ import type {
   TransformerResult,
 } from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
+import type {WorkerApi} from '@parcel/workers';
 
 import v8 from 'v8';
 import {Readable} from 'stream';
@@ -37,6 +38,8 @@ type UncommittedAssetOptions = {|
   isASTDirty?: ?boolean,
   idBase?: ?string,
 |};
+
+export const astCache = new Map();
 
 export default class UncommittedAsset {
   value: Asset;
@@ -70,7 +73,7 @@ export default class UncommittedAsset {
    * Prepares the asset for being serialized to the cache by commiting its
    * content and map of the asset to the cache.
    */
-  async commit(pipelineKey: string): Promise<void> {
+  async commit(pipelineKey: string, workerApi: WorkerApi): Promise<void> {
     // If there is a dirty AST, clear out any old content and map as these
     // must be regenerated later and shouldn't be committed.
     if (this.ast != null && this.isASTDirty) {
@@ -79,17 +82,15 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    let contentKey =
-      this.content == null ? null : this.getCacheKey('content' + pipelineKey);
-    let mapKey =
-      this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
+    let contentKey = this.getCacheKey('content' + pipelineKey);
+    let mapKey = this.getCacheKey('map' + pipelineKey);
     let astKey =
       this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
-      contentKey != null &&
+      this.content != null &&
         this.options.cache.setStream(
           contentKey,
           this.getStream().pipe(
@@ -101,13 +102,24 @@ export default class UncommittedAsset {
       this.mapBuffer != null &&
         mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
-      astKey != null &&
+      // astKey != null &&
+      //   this.options.cache.setBlob(
+      //     astKey,
+      //     // $FlowFixMe
+      //     v8.serialize(this.ast),
+      //   ),
+    ]);
+
+    if (astKey != null) {
+      process.nextTick(() => {
         this.options.cache.setBlob(
           astKey,
           // $FlowFixMe
           v8.serialize(this.ast),
-        ),
-    ]);
+        );
+      });
+    }
+
     this.value.contentKey = contentKey;
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
@@ -117,6 +129,14 @@ export default class UncommittedAsset {
 
     if (this.content != null) {
       this.value.stats.size = size;
+    }
+
+    let info = workerApi.getWorkerInfo();
+    this.value.farmId = info.farmId;
+    this.value.workerId = info.workerId;
+
+    if (this.ast != null) {
+      astCache.set(this.value.id, this.ast);
     }
 
     this.value.committed = true;

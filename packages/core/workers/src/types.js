@@ -6,6 +6,8 @@ export type LocationCallRequest = {|
   args: $ReadOnlyArray<mixed>,
   location: string,
   method?: string,
+  farmId?: number,
+  workerId?: number,
 |};
 
 export type HandleCallRequest = {|

@@ -8,13 +8,19 @@ import type {
   BundleGraph as BundleGraphType,
   NamedBundle as NamedBundleType,
   Async,
+  Asset,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
-import type WorkerFarm from '@parcel/workers';
-import type {Bundle as InternalBundle, ParcelOptions, ReportFn} from './types';
+import type {
+  Asset as AssetValue,
+  Bundle as InternalBundle,
+  ParcelOptions,
+  ReportFn,
+} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
+import type {WorkerApi, Handle} from '@parcel/workers';
 
 import {
   md5FromObject,
@@ -30,7 +36,9 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 import crypto from 'crypto';
+import WorkerFarm from '@parcel/workers';
 
+import {assetToAssetValue} from './public/Asset';
 import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
 import BundleGraph, {
   bundleGraphToInternalBundleGraph,
@@ -45,6 +53,8 @@ type Opts = {|
   options: ParcelOptions,
   optionsRef?: number,
   report: ReportFn,
+  workerApi?: WorkerApi,
+  bundleGraphReference?: number,
 |};
 
 type BundleInfo = {|
@@ -60,6 +70,7 @@ type CacheKeyMap = {|
 |};
 
 const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
+const WORKER_LOCATION = require.resolve('./worker');
 
 export default class PackagerRunner {
   config: ParcelConfig;
@@ -78,13 +89,26 @@ export default class PackagerRunner {
     cacheKeys: CacheKeyMap,
     optionsRef: number,
   |}) => Promise<BundleInfo>;
+  workerApi: ?WorkerApi;
+  bundleGraphReference: ?number;
 
-  constructor({config, configRef, farm, options, optionsRef, report}: Opts) {
+  constructor({
+    config,
+    configRef,
+    farm,
+    options,
+    optionsRef,
+    report,
+    workerApi,
+    bundleGraphReference,
+  }: Opts) {
     this.config = config;
     this.configRef = configRef;
     this.options = options;
     this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
+    this.workerApi = workerApi;
+    this.bundleGraphReference = bundleGraphReference;
 
     this.farm = farm;
     this.report = report;
@@ -267,6 +291,13 @@ export default class PackagerRunner {
 
           return {contents: res.contents};
         },
+        generateAssetForBundle: (asset: Asset) => {
+          return this.generateAssetForBundle(
+            assetToAssetValue(asset),
+            internalBundle,
+            bundleGraph,
+          );
+        },
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
@@ -378,9 +409,9 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
     let {version: packager} = await this.config.getPackager(filePath);
-    let optimizers = (
-      await this.config.getOptimizers(filePath)
-    ).map(({name, version}) => [name, version]);
+    let optimizers = (await this.config.getOptimizers(filePath)).map(
+      ({name, version}) => [name, version],
+    );
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
@@ -449,9 +480,9 @@ export default class PackagerRunner {
     let writeOptions = publicBundle.env.isBrowser()
       ? undefined
       : {
-          mode: (
-            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
-          ).mode,
+          mode: (await inputFS.stat(
+            nullthrows(publicBundle.getMainEntry()).filePath,
+          )).mode,
         };
     let cacheKeys = info.cacheKeys;
     let contentStream = this.options.cache.getStream(cacheKeys.content);
@@ -512,6 +543,30 @@ export default class PackagerRunner {
     let info = {size, hash: hash.digest('hex'), hashReferences};
     await this.options.cache.set(cacheKeys.info, info);
     return info;
+  }
+
+  async generateAssetForBundle(
+    asset: AssetValue,
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
+  ) {
+    if (this.workerApi) {
+      await this.workerApi.callWorker({
+        location: WORKER_LOCATION,
+        method: 'runGenerate',
+        farmId: asset.farmId,
+        workerId: asset.workerId,
+        args: [
+          {
+            bundleGraphRef: this.bundleGraphReference,
+            bundleId: bundle.id,
+            assetId: asset.id,
+            configRef: this.configRef,
+            optionsRef: this.optionsRef,
+          },
+        ],
+      });
+    }
   }
 }
 

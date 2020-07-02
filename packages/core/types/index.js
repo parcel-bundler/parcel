@@ -555,6 +555,14 @@ export type Transformer = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
+  generateForBundle?: ({|
+    asset: Asset,
+    bundleGraph: BundleGraph<NamedBundle>,
+    bundle: NamedBundle,
+    ast: AST,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<GenerateOutput>,
   postProcess?: ({|
     assets: Array<MutableAsset>,
     config: ?ConfigResult,

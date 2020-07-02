@@ -12,8 +12,9 @@ import insertGlobals from './visitors/globals';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import * as babelCore from '@babel/core';
-import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
+import {hoist, link, processAsset} from '@parcel/scope-hoisting';
+import * as t from '@babel/types';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -171,5 +172,35 @@ export default new Transformer({
 
   generate({asset, ast, options}) {
     return generate({asset, ast, options});
+  },
+
+  async generateForBundle({asset, ast, options, bundleGraph, bundle}) {
+    let [id, statements] = await processAsset(
+      options,
+      bundleGraph,
+      bundle,
+      asset,
+      ast,
+      new Set(),
+    );
+    let file = t.file(t.program(statements));
+    let {ast: linkedAst, referencedAssets} = await link({
+      ast: file,
+      bundle,
+      bundleGraph,
+      asset,
+      options,
+      wrappedAssets: new Set(),
+    });
+
+    return await generate({
+      asset,
+      ast: linkedAst,
+      options,
+    });
+
+    return {
+      content: res,
+    };
   },
 });

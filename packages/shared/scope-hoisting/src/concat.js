@@ -51,10 +51,9 @@ import {
 } from './utils';
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = parse(
-  fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
-  PRELUDE_PATH,
-);
+const PRELUDE = fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'); //parse(
+// PRELUDE_PATH,
+// );
 
 const DEFAULT_INTEROP_TEMPLATE = template.statement<
   {|
@@ -69,7 +68,7 @@ const ESMODULE_TEMPLATE = template.statement<
   Statement,
 >(`$parcel$defineInteropFlag(EXPORTS);`);
 
-type AssetASTMap = Map<string, Array<Statement>>;
+type AssetASTMap = Map<string, string>;
 type TraversalContext = {|
   parent: ?AssetASTMap,
   children: AssetASTMap,
@@ -81,6 +80,7 @@ export async function concat({
   bundleGraph,
   options,
   wrappedAssets,
+  generateAssetForBundle,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
@@ -104,16 +104,22 @@ export async function concat({
         }
         break;
       case 'asset':
-        queue.add(() =>
-          processAsset(options, bundleGraph, bundle, node.value, wrappedAssets),
+        queue.add(async () =>
+          // processAsset(options, bundleGraph, bundle, node.value, wrappedAssets),
+          {
+            await generateAssetForBundle(node.value);
+            return [node.value.id, await node.value.getCode()];
+          },
         );
     }
   });
 
-  let outputs = new Map<string, Array<Statement>>(await queue.run());
-  let result = [];
+  let outputs = new Map<string, string>(await queue.run());
+  // let result = [];
+  let result = '';
   if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...PRELUDE);
+    // result.unshift(...PRELUDE);
+    result += PRELUDE;
   }
 
   let usedExports = getUsedExports(bundle, bundleGraph);
@@ -136,63 +142,82 @@ export async function concat({
         return;
       }
 
-      let statements = nullthrows(outputs.get(asset.id));
-      let statementIndices: Map<string, number> = new Map();
-      for (let i = 0; i < statements.length; i++) {
-        let statement = statements[i];
-        if (
-          isVariableDeclaration(statement) ||
-          isExpressionStatement(statement)
-        ) {
-          for (let depAsset of findRequires(
-            bundle,
-            bundleGraph,
-            asset,
-            statement,
-          )) {
-            if (!statementIndices.has(depAsset.id)) {
-              statementIndices.set(depAsset.id, i);
-            }
-          }
-        }
-      }
+      let code = nullthrows(outputs.get(asset.id));
+      // let statementIndices: Map<string, number> = new Map();
+      // for (let i = 0; i < statements.length; i++) {
+      //   let statement = statements[i];
+      //   if (
+      //     isVariableDeclaration(statement) ||
+      //     isExpressionStatement(statement)
+      //   ) {
+      //     for (let depAsset of findRequires(
+      //       bundle,
+      //       bundleGraph,
+      //       asset,
+      //       statement,
+      //     )) {
+      //       if (!statementIndices.has(depAsset.id)) {
+      //         statementIndices.set(depAsset.id, i);
+      //       }
+      //     }
+      //   }
+      // }
 
-      for (let [assetId, ast] of [...context.children].reverse()) {
-        let index = statementIndices.has(assetId)
-          ? nullthrows(statementIndices.get(assetId))
-          : 0;
-        statements.splice(index, 0, ...ast);
+      // for (let [assetId, ast] of [...context.children].reverse()) {
+      //   let index = statementIndices.has(assetId)
+      //     ? nullthrows(statementIndices.get(assetId))
+      //     : 0;
+      //   statements.splice(index, 0, ...ast);
+      // }
+
+      let found = new Set();
+      code = code.replace(
+        /PARCEL_ASSET_PLACEHOLDER_([a-z0-9]+);(\n?)/g,
+        (m, id, newline) => {
+          found.add(id);
+          return (context.children.get(id) ?? '') + newline;
+        },
+      );
+
+      for (let [assetId, childCode] of [...context.children].reverse()) {
+        if (!found.has(assetId)) {
+          code = childCode + '\n' + code;
+        }
       }
 
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
 
       if (context.parent) {
-        context.parent.set(asset.id, statements);
+        context.parent.set(asset.id, code);
       } else {
-        result.push(...statements);
+        // result.push(...statements);
+        result += code;
       }
     },
   });
 
-  return t.file(t.program(result));
+  // return t.file(t.program(result));
+  return result;
 }
 
-async function processAsset(
+export async function processAsset(
   options: PluginOptions,
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   asset: Asset,
+  ast,
   wrappedAssets: Set<string>,
 ) {
   let statements: Array<Statement>;
-  if (asset.astGenerator && asset.astGenerator.type === 'babel') {
-    let ast = await asset.getAST();
-    statements = t.cloneNode(nullthrows(ast).program.program).body;
-  } else {
-    let code = await asset.getCode();
-    statements = parse(code, relativeUrl(options.projectRoot, asset.filePath));
-  }
+  // if (asset.astGenerator && asset.astGenerator.type === 'babel') {
+  //   let ast = await asset.getAST();
+  //   statements = t.cloneNode(nullthrows(ast).program.program).body;
+  // } else {
+  //   let code = await asset.getCode();
+  //   statements = parse(code, relativeUrl(options.projectRoot, asset.filePath));
+  // }
+  statements = nullthrows(ast).program.program.body;
 
   // If this is a CommonJS module, add an interop default declaration if there are any ES6 default
   // import dependencies in the same bundle for that module.

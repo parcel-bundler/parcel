@@ -8,6 +8,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
+  location?: string,
   method?: string,
   handle?: number,
   args: $ReadOnlyArray<any>,
@@ -17,10 +18,12 @@ export type WorkerCall = {|
 |};
 
 type WorkerOpts = {|
+  farmId: number,
   forcedKillTime: number,
   backend: BackendType,
   patchConsole?: boolean,
   sharedReferences: Map<number, mixed>,
+  maxConcurrentCallsPerWorker: number,
 |};
 
 let WORKER_ID = 0;
@@ -30,6 +33,7 @@ export default class Worker extends EventEmitter {
   id: number = WORKER_ID++;
   sharedReferences: Map<number, mixed> = new Map();
 
+  callQueue: Array<WorkerCall> = [];
   calls: Map<number, WorkerCall> = new Map();
   exitCode = null;
   callId = 0;
@@ -91,6 +95,7 @@ export default class Worker extends EventEmitter {
         args: [
           forkModule,
           {
+            farmId: this.options.farmId,
             patchConsole: !!this.options.patchConsole,
           },
         ],
@@ -147,9 +152,17 @@ export default class Worker extends EventEmitter {
       idx: idx,
       child: this.id,
       handle: call.handle,
+      location: call.location,
       method: call.method,
       args: call.args,
+      raw: call.raw,
     });
+  }
+
+  processQueue(): void {
+    while (this.calls.size < this.options.maxConcurrentCallsPerWorker) {
+      this.call(this.callQueue.shift());
+    }
   }
 
   receive(message: WorkerMessage): void {

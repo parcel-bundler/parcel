@@ -126,6 +126,8 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  farmId?: number,
+  workerId?: number,
 |};
 
 export type ParcelOptions = {|
