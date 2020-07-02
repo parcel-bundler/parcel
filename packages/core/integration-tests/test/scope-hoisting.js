@@ -881,73 +881,143 @@ describe('scope hoisting', function() {
       assert.equal(await output, 42);
     });
 
-    it('correctly updates used symbols on changes', async function() {
-      let testDir = path.join(
-        __dirname,
-        '/integration/scope-hoisting/es6/update-used-symbols',
-      );
+    describe('correctly updates used symbols on changes', () => {
+      it('dependency symbols change', async function() {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-dependency-symbols',
+        );
 
-      let b = bundler(path.join(testDir, 'index.js'), {
-        inputFS: overlayFS,
-        outputFS: overlayFS,
+        let b = bundler(path.join(testDir, 'index.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.1.js'),
+          path.join(testDir, 'index.js'),
+        );
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert(bundleEvent.type === 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [123]);
+
+          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.2.js'),
+            path.join(testDir, 'index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [123, 789]);
+
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(['c']),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.1.js'),
+            path.join(testDir, 'index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [123]);
+
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(),
+          );
+        } finally {
+          await subscription.unsubscribe();
+        }
       });
 
-      await overlayFS.mkdirp(testDir);
-      await overlayFS.copyFile(
-        path.join(testDir, 'index.1.js'),
-        path.join(testDir, 'index.js'),
-      );
+      it.only('add and remove dependency', async function() {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-dependency',
+        );
 
-      let subscription = await b.watch();
+        let b = bundler(path.join(testDir, 'index.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
 
-      let bundleEvent = await getNextBuild(b);
-      assert(bundleEvent.type === 'buildSuccess');
-      console.log();
-      let output = await run(bundleEvent.bundleGraph);
-      assert.deepEqual(output, [123]);
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.1.js'),
+          path.join(testDir, 'index.js'),
+        );
 
-      let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
-      assert.deepStrictEqual(
-        bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
-        new Set(),
-      );
+        let subscription = await b.watch();
 
-      await overlayFS.copyFile(
-        path.join(testDir, 'index.2.js'),
-        path.join(testDir, 'index.js'),
-      );
+        try {
+          let bundleEvent = await getNextBuild(b);
+          console.log();
+          assert(bundleEvent.type === 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [123]);
 
-      bundleEvent = await getNextBuild(b);
-      assert.strictEqual(bundleEvent.type, 'buildSuccess');
-      console.log();
-      output = await run(bundleEvent.bundleGraph);
-      assert.deepEqual(output, [123, 789]);
+          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(['a']),
+          );
 
-      assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
-      assert.deepStrictEqual(
-        bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
-        new Set(['c']),
-      );
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.2.js'),
+            path.join(testDir, 'index.js'),
+          );
 
-      await overlayFS.copyFile(
-        path.join(testDir, 'index.1.js'),
-        path.join(testDir, 'index.js'),
-      );
+          bundleEvent = await getNextBuild(b);
+          console.log();
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [123, 789]);
 
-      bundleEvent = await getNextBuild(b);
-      console.log(bundleEvent);
-      assert.strictEqual(bundleEvent.type, 'buildSuccess');
-      console.log();
-      output = await run(bundleEvent.bundleGraph);
-      assert.deepEqual(output, [123]);
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(['a', 'b']),
+          );
 
-      assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
-      assert.deepStrictEqual(
-        bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
-        new Set(),
-      );
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.1.js'),
+            path.join(testDir, 'index.js'),
+          );
 
-      await subscription.unsubscribe();
+          bundleEvent = await getNextBuild(b);
+          console.log();
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [123]);
+
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(['a']),
+          );
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
     });
 
     describe('sideEffects: false', function() {
