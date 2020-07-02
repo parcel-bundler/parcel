@@ -766,6 +766,7 @@ export function link({
           path,
           replacements,
           options,
+          maybeReplaceIdentifier,
         );
 
         if (process.env.PARCEL_BUILD_ENV !== 'production') {

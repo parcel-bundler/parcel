@@ -990,9 +990,12 @@ export default class BundleGraph {
 
     let symbols = [];
 
-    for (let symbol of asset.symbols.keys()) {
+    for (let [symbol, {local, loc}] of asset.symbols) {
       symbols.push({
-        ...this.resolveSymbol(asset, symbol, boundary),
+        asset,
+        symbol: local,
+        exportSymbol: symbol,
+        loc,
         exportAs: symbol,
       });
     }

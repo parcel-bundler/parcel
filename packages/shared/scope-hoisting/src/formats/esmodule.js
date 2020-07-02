@@ -15,6 +15,7 @@ import type {
   Identifier,
   ImportDeclaration,
   Program,
+  VariableDeclarator,
 } from '@babel/types';
 import type {ExternalBundle, ExternalModule} from '../types';
 
@@ -128,6 +129,7 @@ export function generateExports(
   programPath: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
+  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
 ) {
   // maps the bundles's export symbols to the bindings
   let exportedIdentifiers = new Map<Symbol, Symbol>();
@@ -343,10 +345,17 @@ export function generateExports(
         ),
       );
     }
-    programPath.pushContainer('body', [
+    let [decl] = programPath.pushContainer('body', [
       t.variableDeclaration('var', declarations),
       t.exportNamedDeclaration(null, exportedIdentifiersSpecifiers),
     ]);
+    invariant(isVariableDeclaration(decl.node));
+    for (let d of decl.get<Array<NodePath<VariableDeclarator>>>(
+      'declarations',
+    )) {
+      console.log(d.node);
+      maybeReplaceIdentifier(d.get<NodePath<Identifier>>('init'));
+    }
     programPath.scope.crawl();
   }
 

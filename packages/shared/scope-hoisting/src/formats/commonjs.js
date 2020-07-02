@@ -374,6 +374,7 @@ export function generateExports(
   path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
+  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
 ) {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
@@ -434,39 +435,52 @@ export function generateExports(
             rename(path.scope, exportAs, path.scope.generateUid(exportAs));
           }
 
-          let binding = nullthrows(path.scope.getBinding(symbol));
-          if (!hasReplacement) {
-            let id = !t.isValidIdentifier(exportAs)
-              ? path.scope.generateUid(exportAs)
-              : exportAs;
-            // rename only once, avoid having to update `replacements` transitively
-            rename(path.scope, symbol, id);
-            replacements.set(symbol, id);
-            symbol = id;
-          }
-
-          let [stmt] = binding.path.getStatementParent().insertAfter(
-            EXPORT_TEMPLATE({
-              NAME: t.identifier(exportAs),
-              IDENTIFIER: t.identifier(symbol),
-            }),
-          );
-          binding.reference(stmt.get<NodePath<Identifier>>('expression.right'));
-
-          // Exports other than the default export are live bindings. Insert an assignment
-          // after each constant violation so this remains true.
-          if (exportAs !== 'default') {
-            for (let path of binding.constantViolations) {
-              let [stmt] = path.insertAfter(
-                EXPORT_TEMPLATE({
-                  NAME: t.identifier(exportAs),
-                  IDENTIFIER: t.identifier(symbol),
-                }),
-              );
-              binding.reference(
-                stmt.get<NodePath<Identifier>>('expression.right'),
-              );
+          let binding = path.scope.getBinding(symbol);
+          if (binding) {
+            if (!hasReplacement) {
+              let id = !t.isValidIdentifier(exportAs)
+                ? path.scope.generateUid(exportAs)
+                : exportAs;
+              // rename only once, avoid having to update `replacements` transitively
+              rename(path.scope, symbol, id);
+              replacements.set(symbol, id);
+              symbol = id;
             }
+
+            let [stmt] = binding.path.getStatementParent().insertAfter(
+              EXPORT_TEMPLATE({
+                NAME: t.identifier(exportAs),
+                IDENTIFIER: t.identifier(symbol),
+              }),
+            );
+            binding.reference(
+              stmt.get<NodePath<Identifier>>('expression.right'),
+            );
+
+            // Exports other than the default export are live bindings. Insert an assignment
+            // after each constant violation so this remains true.
+            if (exportAs !== 'default') {
+              for (let path of binding.constantViolations) {
+                let [stmt] = path.insertAfter(
+                  EXPORT_TEMPLATE({
+                    NAME: t.identifier(exportAs),
+                    IDENTIFIER: t.identifier(symbol),
+                  }),
+                );
+                binding.reference(
+                  stmt.get<NodePath<Identifier>>('expression.right'),
+                );
+              }
+            }
+          } else {
+            let [decl] = path.pushContainer('body', [
+              EXPORT_TEMPLATE({
+                NAME: t.identifier(exportAs),
+                IDENTIFIER: t.identifier(symbol),
+              }),
+            ]);
+            maybeReplaceIdentifier(decl.get('expression.right'));
+            path.scope.crawl();
           }
         } else if (symbol === null) {
           // TODO `meta.exportsIdentifier[exportSymbol]` should be exported

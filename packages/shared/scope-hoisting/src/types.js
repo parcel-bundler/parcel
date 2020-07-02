@@ -9,7 +9,7 @@ import type {
   SourceLocation,
 } from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
-import type {Program} from '@babel/types';
+import type {Identifier, Program} from '@babel/types';
 
 export type ExternalModule = {|
   source: ModuleSpecifier,
@@ -42,5 +42,6 @@ export type OutputFormat = {|
     path: NodePath<Program>,
     replacements: Map<Symbol, Symbol>,
     options: PluginOptions,
+    maybeReplaceIdentifier: (NodePath<Identifier>) => void,
   ): Set<Symbol>,
 |};
