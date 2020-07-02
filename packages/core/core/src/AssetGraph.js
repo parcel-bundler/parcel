@@ -214,6 +214,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return !defer;
     }
 
+    // if (
+    //   parent &&
+    //   parent.type === 'dependency' &&
+    //   node.type === 'asset_group' &&
+    //   child.type === 'asset'
+    // )
+    //   console.log(
+    //     'hey',
+    //     parent.value.sourcePath,
+    //     parent.value.moduleSpecifier,
+    //     child.value.filePath,
+    //     parent.usedSymbolsDownDirty,
+    //   );
     if (
       parent &&
       parent.type === 'dependency' &&
@@ -275,15 +288,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     assetNode: AssetNode,
     outgoingDeps: $ReadOnlyArray<DependencyNode>,
   ) {
-    let hasDirtyOutgoingDep = false;
-    function outgoingDepAddSymbol(dep, symbol) {
-      if (!dep.usedSymbolsDown.has(symbol)) {
-        dep.usedSymbolsDown.add(symbol);
-        dep.usedSymbolsDownDirty = true;
-        hasDirtyOutgoingDep = true;
-      }
-    }
-
     let incomingDeps = this.getIncomingDependencies(assetNode.value).map(d => {
       let n = this.getNode(d.id);
       invariant(n && n.type === 'dependency');
@@ -310,8 +314,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     // Symbols that have to be namespace reexported by asset.
     let namespaceReexportedSymbols = new Set<string>();
     for (let incomingDep of incomingDeps) {
-      if (incomingDep.value.isEntry || incomingDep.value.isAsync)
+      if (incomingDep.value.isEntry || incomingDep.value.isAsync) {
         isEntry = true;
+      }
 
       for (let exportSymbol of incomingDep.usedSymbolsDown) {
         if (exportSymbol === '*') {
@@ -344,6 +349,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       namespaceReexportedSymbols = new Set(['*']);
     }
 
+    let hasDirtyOutgoingDep = false;
+
     if (
       // For entries, we still need to add dep.value.symbols of the entry (which "used" but not by according to symbols data)
       isEntry ||
@@ -357,10 +364,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       namespaceReexportedSymbols.size > 0
     ) {
       for (let dep of outgoingDeps) {
+        let depUsedSymbolsDownOld = dep.usedSymbolsDown;
+        dep.usedSymbolsDown = new Set();
         if (dep.value.symbols.get('*')?.local === '*') {
           for (let s of namespaceReexportedSymbols) {
             // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
-            outgoingDepAddSymbol(dep, s);
+            dep.usedSymbolsDown.add(s);
           }
         }
 
@@ -370,7 +379,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
           if (!assetSymbolsInverse || !dep.value.weakSymbols.has(symbol)) {
             // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
-            outgoingDepAddSymbol(dep, symbol);
+            dep.usedSymbolsDown.add(symbol);
           } else {
             let reexportedExportSymbol = assetSymbolsInverse.get(local);
             if (
@@ -382,37 +391,32 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
                 // The symbol is indeed a reexport, so it's not used from the assset itself
                 assetUsedSymbols.delete(reexportedExportSymbol);
               }
-              outgoingDepAddSymbol(dep, symbol);
+              dep.usedSymbolsDown.add(symbol);
             }
           }
         }
+
+        dep.usedSymbolsDownDirty =
+          depUsedSymbolsDownOld.size !== dep.usedSymbolsDown.size ||
+          [...dep.usedSymbolsDown].some(s => !depUsedSymbolsDownOld.has(s));
+
+        if (dep.usedSymbolsDownDirty) {
+          dep.usedSymbolsUp = new Set();
+          hasDirtyOutgoingDep = true;
+        }
+
+        // console.log(
+        //   assetNode.value.filePath,
+        //   dep.value.moduleSpecifier,
+        //   dep.usedSymbolsDown,
+        // );
       }
     }
     assetNode.usedSymbols = assetUsedSymbols;
 
+    // console.log(assetNode.value.filePath, hasDirtyOutgoingDep);
     return hasDirtyOutgoingDep;
   }
-
-  // propagateUsedSymbolsUp(
-  //   incomingDeps: Map<string, DependencyNode>,
-  //   assetNode: AssetNode,
-  // ) {
-  // console.log(
-  //   assetNode.value.filePath,
-  //   [...incomingDeps.keys()],
-  //   assetNode.value.symbols,
-  //   assetNode.usedSymbols,
-  // );
-  // if (assetNode.value.symbols) {
-  //   for (let s of assetNode.usedSymbols) {
-  //     if (!assetNode.value.symbols.has(s)) {
-  //       console.log(s);
-  //       let d = incomingDeps.get(s);
-  //       console.log(d.value.sourcePath, d.value.moduleSpecifier);
-  //     }
-  //   }
-  // }
-  // }
 
   resolveAssetGroup(
     assetGroup: AssetGroup,

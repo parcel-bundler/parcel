@@ -892,10 +892,17 @@ describe('scope hoisting', function() {
         outputFS: overlayFS,
       });
 
+      await overlayFS.mkdirp(testDir);
+      await overlayFS.copyFile(
+        path.join(testDir, 'index.1.js'),
+        path.join(testDir, 'index.js'),
+      );
+
       let subscription = await b.watch();
 
       let bundleEvent = await getNextBuild(b);
       assert(bundleEvent.type === 'buildSuccess');
+      console.log();
       let output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, [123]);
 
@@ -905,14 +912,14 @@ describe('scope hoisting', function() {
         new Set(),
       );
 
-      await overlayFS.mkdirp(testDir);
       await overlayFS.copyFile(
         path.join(testDir, 'index.2.js'),
         path.join(testDir, 'index.js'),
       );
 
       bundleEvent = await getNextBuild(b);
-      assert(bundleEvent.type === 'buildSuccess');
+      assert.strictEqual(bundleEvent.type, 'buildSuccess');
+      console.log();
       output = await run(bundleEvent.bundleGraph);
       assert.deepEqual(output, [123, 789]);
 
@@ -920,6 +927,24 @@ describe('scope hoisting', function() {
       assert.deepStrictEqual(
         bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
         new Set(['c']),
+      );
+
+      await overlayFS.copyFile(
+        path.join(testDir, 'index.1.js'),
+        path.join(testDir, 'index.js'),
+      );
+
+      bundleEvent = await getNextBuild(b);
+      console.log(bundleEvent);
+      assert.strictEqual(bundleEvent.type, 'buildSuccess');
+      console.log();
+      output = await run(bundleEvent.bundleGraph);
+      assert.deepEqual(output, [123]);
+
+      assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+      assert.deepStrictEqual(
+        bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+        new Set(),
       );
 
       await subscription.unsubscribe();
