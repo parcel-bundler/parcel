@@ -14,7 +14,7 @@ import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
-import InternalBundleGraph, {removeAssetGroups} from './BundleGraph';
+import InternalBundleGraph from './BundleGraph';
 import MutableBundleGraph from './public/MutableBundleGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
@@ -68,10 +68,9 @@ export default class BundlerRunner {
       }
     }
 
-    let bundleGraph = removeAssetGroups(graph);
+    let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
     // $FlowFixMe
-    let internalBundleGraph = new InternalBundleGraph({graph: bundleGraph});
-    await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
       this.options,
@@ -92,7 +91,8 @@ export default class BundlerRunner {
     }
     assertSignalNotAborted(signal);
 
-    await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
+    // $FlowFixMe
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     try {
       await bundler.optimize({
         bundleGraph: mutableBundleGraph,
@@ -106,7 +106,8 @@ export default class BundlerRunner {
     }
     assertSignalNotAborted(signal);
 
-    await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
+    // $FlowFixMe
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
 
     await applyRuntimes({
@@ -117,7 +118,8 @@ export default class BundlerRunner {
       pluginOptions: this.pluginOptions,
     });
     assertSignalNotAborted(signal);
-    await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
+    // $FlowFixMe
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
     if (cacheKey != null) {
       await this.options.cache.set(cacheKey, internalBundleGraph);
@@ -165,11 +167,10 @@ export default class BundlerRunner {
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
   ): Promise<void> {
-    let bundle = new Bundle(internalBundle, internalBundleGraph, this.options);
+    let bundle = Bundle.get(internalBundle, internalBundleGraph, this.options);
     let bundleGraph = new BundleGraph<IBundle>(
       internalBundleGraph,
-      (bundle, bundleGraph, options) =>
-        new NamedBundle(bundle, bundleGraph, options),
+      NamedBundle.get,
       this.options,
     );
 
