@@ -68,7 +68,9 @@ export function generateBundleImports(
     // `var ${id};` was inserted already, add RHS
     nullthrows(path.scope.getBinding(getName(asset, 'init')))
       .path.get('init')
-      .replaceWith(IMPORT_TEMPLATE({ASSET_ID: t.stringLiteral(asset.id)}));
+      .replaceWith(
+        IMPORT_TEMPLATE({ASSET_ID: t.stringLiteral(asset.publicId)}),
+      );
   }
 }
 
@@ -95,7 +97,7 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
-        ASSET_ID: t.stringLiteral(asset.id),
+        ASSET_ID: t.stringLiteral(asset.publicId),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
@@ -114,7 +116,7 @@ export function generateExports(
       // Export a function returning the exports, as other cases of global output
       // register init functions.
       EXPORT_FN_TEMPLATE({
-        ASSET_ID: t.stringLiteral(entry.id),
+        ASSET_ID: t.stringLiteral(entry.publicId),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),
     );

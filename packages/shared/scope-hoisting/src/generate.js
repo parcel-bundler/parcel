@@ -76,7 +76,7 @@ export function generate({
             REFERENCED_IDS: t.arrayExpression(
               [bundle.getMainEntry(), ...referencedAssets]
                 .filter(Boolean)
-                .map(asset => t.stringLiteral(asset.id)),
+                .map(asset => t.stringLiteral(asset.publicId)),
             ),
           }),
         ]
