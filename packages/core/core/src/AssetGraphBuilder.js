@@ -217,7 +217,11 @@ export default class AssetGraphBuilder extends EventEmitter {
 
         if (!assetSymbols) {
           for (let dep of incomingDeps) {
-            dep.usedSymbolsUp = dep.usedSymbolsDown;
+            dep.usedSymbolsUp = new Set(
+              [...node.usedSymbols]
+                .filter(([, v]) => v.size > 0)
+                .map(([v]) => v),
+            );
           }
         } else {
           let assetSymbolsInverse = new Map(
@@ -225,14 +229,19 @@ export default class AssetGraphBuilder extends EventEmitter {
           );
 
           let reexportedSymbols = new Set<string>();
-          for (let depNode of this.assetGraph.getNodesConnectedFrom(node)) {
-            invariant(depNode && depNode.type === 'dependency');
-            if (depNode.value.symbols.get('*')?.local === '*') {
-              depNode.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
+          for (let outgoingDep of this.assetGraph.getNodesConnectedFrom(node)) {
+            invariant(outgoingDep && outgoingDep.type === 'dependency');
+            if (outgoingDep.value.symbols.get('*')?.local === '*') {
+              outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
             } else {
-              for (let s of depNode.usedSymbolsUp) {
+              for (let s of outgoingDep.usedSymbolsUp) {
+                if (outgoingDep.usedSymbolsDown.get(s).size === 0) {
+                  // usedSymbolsDown is a superset of usedSymbolsUp
+                  continue;
+                }
+
                 let reexported = assetSymbolsInverse.get(
-                  nullthrows(depNode.value.symbols.get(s)).local,
+                  nullthrows(outgoingDep.value.symbols.get(s)).local,
                 );
                 if (reexported != null) {
                   reexportedSymbols.add(reexported);
@@ -240,14 +249,19 @@ export default class AssetGraphBuilder extends EventEmitter {
               }
             }
           }
-          for (let dep of incomingDeps) {
-            for (let s of dep.usedSymbolsDown) {
+
+          for (let incomingDep of incomingDeps) {
+            for (let [s, causes] of incomingDep.usedSymbolsDown) {
+              if (causes.size === 0) {
+                continue;
+              }
+
               if (
                 node.usedSymbols.has(s) ||
                 reexportedSymbols.has(s) ||
                 s === '*'
               ) {
-                dep.usedSymbolsUp.add(s);
+                incomingDep.usedSymbolsUp.add(s);
               }
             }
           }

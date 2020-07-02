@@ -1078,7 +1078,9 @@ export default class BundleGraph {
   getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol> {
     let node = this._graph.getNode(asset.id);
     invariant(node && node.type === 'asset');
-    return node.usedSymbols;
+    return new Set(
+      [...node.usedSymbols].filter(([, v]) => v.size > 0).map(([v]) => v),
+    );
   }
   getUsedSymbolsDependency(dep: Dependency): Set<Symbol> {
     let node = this._graph.getNode(dep.id);

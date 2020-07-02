@@ -903,7 +903,7 @@ describe('scope hoisting', function() {
 
         try {
           let bundleEvent = await getNextBuild(b);
-          assert(bundleEvent.type === 'buildSuccess');
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
           let output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
 
@@ -949,7 +949,7 @@ describe('scope hoisting', function() {
         }
       });
 
-      it.only('add and remove dependency', async function() {
+      it('add and remove dependency', async function() {
         let testDir = path.join(
           __dirname,
           '/integration/scope-hoisting/es6/update-used-symbols-dependency',
@@ -970,7 +970,6 @@ describe('scope hoisting', function() {
 
         try {
           let bundleEvent = await getNextBuild(b);
-          console.log();
           assert(bundleEvent.type === 'buildSuccess');
           let output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
@@ -987,7 +986,6 @@ describe('scope hoisting', function() {
           );
 
           bundleEvent = await getNextBuild(b);
-          console.log();
           assert.strictEqual(bundleEvent.type, 'buildSuccess');
           output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123, 789]);
@@ -1004,7 +1002,6 @@ describe('scope hoisting', function() {
           );
 
           bundleEvent = await getNextBuild(b);
-          console.log();
           assert.strictEqual(bundleEvent.type, 'buildSuccess');
           output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);

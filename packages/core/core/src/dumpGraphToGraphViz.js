@@ -67,8 +67,11 @@ export default async function dumpGraphToGraphViz(
         if (node.value.weakSymbols.size) {
           label += '\nweakSymbols: ' + [...node.value.weakSymbols].join(',');
         }
-        if (node.usedSymbolsDown.size) {
-          label += '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
+        let usedSymbolsDown = [...node.usedSymbolsDown]
+          .filter(([, v]) => v.size > 0)
+          .map(([v]) => v);
+        if (usedSymbolsDown.length) {
+          label += '\nusedSymbolsDown: ' + usedSymbolsDown.join(',');
         }
         if (node.usedSymbolsUp.size) {
           label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
@@ -88,8 +91,11 @@ export default async function dumpGraphToGraphViz(
         } else {
           label += '\nsymbols: cleared';
         }
-        if (node.usedSymbols.size) {
-          label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
+        let usedSymbols = [...node.usedSymbols]
+          .filter(([, v]) => v.size > 0)
+          .map(([v]) => v);
+        if (usedSymbols.length) {
+          label += '\nusedSymbols: ' + usedSymbols.join(',');
         }
       }
     } else if (node.type === 'file') {
