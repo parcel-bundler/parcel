@@ -16,6 +16,7 @@ describe('Public Bundle', () => {
       id: '123',
       hashReference: '@@HASH_REFERENCE_123',
       entryAssetIds: [],
+      mainEntryId: null,
       type: 'js',
       env,
       filePath: null,

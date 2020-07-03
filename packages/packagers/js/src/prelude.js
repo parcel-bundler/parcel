@@ -6,7 +6,7 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
-(function(modules, cache, entry, globalName) {
+(function(modules, cache, entry, mainEntry, globalName) {
   /* eslint-disable no-undef */
   var globalObject =
     typeof globalThis !== 'undefined'
@@ -111,10 +111,10 @@
     newRequire(entry[i]);
   }
 
-  if (entry.length) {
+  if (mainEntry) {
     // Expose entry point to Node, AMD or browser globals
     // Based on https://github.com/ForbesLindesay/umd/blob/master/template.js
-    var mainExports = newRequire(entry[entry.length - 1]);
+    var mainExports = newRequire(mainEntry);
 
     // CommonJS
     if (typeof exports === 'object' && typeof module !== 'undefined') {

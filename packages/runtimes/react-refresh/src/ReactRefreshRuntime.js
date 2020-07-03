@@ -24,9 +24,9 @@ export default new Runtime({
       return;
     }
 
-    let mainEntry = bundle.getMainEntry();
-    if (mainEntry) {
-      let pkg = await mainEntry.getPackage();
+    let entries = bundle.getEntryAssets();
+    for (let entry of entries) {
+      let pkg = await entry.getPackage();
       if (pkg && pkg.dependencies && pkg.dependencies['react']) {
         return {
           filePath: __filename,

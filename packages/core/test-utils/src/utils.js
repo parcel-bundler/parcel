@@ -163,7 +163,9 @@ export async function runBundles(
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
-    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+    bundles
+      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .filter(Boolean)[0],
   );
   let env = entryAsset.env;
   let target = entryAsset.env.context;
