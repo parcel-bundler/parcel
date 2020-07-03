@@ -315,7 +315,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       namespaceReexportedSymbols.add('*');
     } else {
       for (let incomingDep of changedIncomingDeps) {
-        if (incomingDep.value.isEntry || incomingDep.value.isAsync) {
+        // TODO isIsolated?
+        if (incomingDep.value.isEntry || incomingDep.value.isIsolated) {
           isEntry = true;
         }
 

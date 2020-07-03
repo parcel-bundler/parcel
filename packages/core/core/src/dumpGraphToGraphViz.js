@@ -55,6 +55,8 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isEntry) parts.push('entry');
       if (node.value.isAsync) parts.push('async');
       if (node.value.isOptional) parts.push('optional');
+      if (node.value.isIsolated) parts.push('isolated');
+      if (node.value.isURL) parts.push('url');
       if (node.deferred) parts.push('deferred');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
