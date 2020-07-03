@@ -21,7 +21,7 @@ import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
-import {getBundleGroupId} from '../utils';
+import {getBundleGroupId, getPublicId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
@@ -31,14 +31,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
   #graph; // InternalBundleGraph
   #options; // ParcelOptions
+  #bundlePublicIds = new Set<string>();
 
   constructor(graph: InternalBundleGraph, options: ParcelOptions) {
-    super(
-      graph,
-      (bundle, bundleGraph, options) =>
-        new Bundle(bundle, bundleGraph, options),
-      options,
-    );
+    super(graph, Bundle.get, options);
     this.#graph = graph;
     this.#options = options;
   }
@@ -142,6 +138,18 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
         target.distDir,
     );
+
+    let existing = this.#graph._graph.getNode(bundleId);
+    if (existing != null) {
+      invariant(existing.type === 'bundle');
+      return Bundle.get(existing.value, this.#graph, this.#options);
+    }
+
+    let publicId = getPublicId(bundleId, existing =>
+      this.#bundlePublicIds.has(existing),
+    );
+    this.#bundlePublicIds.add(publicId);
+
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
@@ -164,6 +172,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         target,
         name: null,
         displayName: null,
+        publicId,
         stats: {size: 0, time: 0},
       },
     };
@@ -173,7 +182,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     if (opts.entryAsset) {
       this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
     }
-    return new Bundle(bundleNode.value, this.#graph, this.#options);
+    return Bundle.get(bundleNode.value, this.#graph, this.#options);
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
@@ -239,7 +248,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getParentBundlesOfBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
+      .map(bundle => Bundle.get(bundle, this.#graph, this.#options));
   }
 
   getTotalSize(asset: IAsset): number {

@@ -215,7 +215,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.id);
+          return ctx.parcelRequire(entryAsset.publicId);
         }
         return;
       case 'commonjs':

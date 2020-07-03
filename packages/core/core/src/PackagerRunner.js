@@ -227,7 +227,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -240,8 +240,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
-          (bundle, bundleGraph, options) =>
-            new NamedBundle(bundle, bundleGraph, options),
+          NamedBundle.get,
           this.options,
         ),
         getSourceMapReference: map => {
@@ -281,7 +280,7 @@ export default class PackagerRunner {
     contents: Blob,
     map?: ?SourceMap,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     let optimizers = await this.config.getOptimizers(
       bundle.filePath,
       internalBundle.pipeline,
@@ -378,9 +377,9 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
     let {version: packager} = await this.config.getPackager(filePath);
-    let optimizers = (
-      await this.config.getOptimizers(filePath)
-    ).map(({name, version}) => [name, version]);
+    let optimizers = (await this.config.getOptimizers(filePath)).map(
+      ({name, version}) => [name, version],
+    );
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
@@ -445,7 +444,7 @@ export default class PackagerRunner {
 
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
+    let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
     let mainEntry = publicBundle.getMainEntry();
     let writeOptions =
       publicBundle.env.isBrowser() || !mainEntry

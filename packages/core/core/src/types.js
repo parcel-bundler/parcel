@@ -120,6 +120,7 @@ export type Asset = {|
   mapKey: ?string,
   outputHash: ?string,
   pipeline: ?string,
+  publicId: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
   symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
@@ -340,6 +341,7 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
