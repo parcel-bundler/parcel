@@ -186,9 +186,7 @@ export default class BundlerRunner {
         if (name != null) {
           if (path.extname(name).slice(1) !== bundle.type) {
             throw new Error(
-              `Destination name ${name} extension does not match bundle type "${
-                bundle.type
-              }"`,
+              `Destination name ${name} extension does not match bundle type "${bundle.type}"`,
             );
           }
 

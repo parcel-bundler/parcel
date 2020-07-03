@@ -238,9 +238,7 @@ function getLoaderRuntimes({
 
             loader = nullthrows(
               loaders.IMPORT_POLYFILL,
-              `No import() polyfill available for context '${
-                bundle.env.context
-              }'`,
+              `No import() polyfill available for context '${bundle.env.context}'`,
             );
           } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
             return `Promise.resolve(require("./" + ${relativePathExpr}))`;

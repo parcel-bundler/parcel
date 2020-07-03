@@ -377,9 +377,9 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
     let {version: packager} = await this.config.getPackager(filePath);
-    let optimizers = (await this.config.getOptimizers(filePath)).map(
-      ({name, version}) => [name, version],
-    );
+    let optimizers = (
+      await this.config.getOptimizers(filePath)
+    ).map(({name, version}) => [name, version]);
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
