@@ -7,7 +7,7 @@ import type {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import * as bundledBabelCore from '@babel/core';
-import {md5FromObject, resolveConfig} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
