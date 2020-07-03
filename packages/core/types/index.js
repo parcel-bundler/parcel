@@ -736,14 +736,25 @@ export type ResolveResult = {|
   +code?: string,
 |};
 
+export type ConfigOutput = {|
+  config: ConfigResult,
+  files: Array<File>,
+|};
+
 export type Bundler = {|
+  loadConfig?: ({|
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<ConfigOutput>,
   bundle({|
     bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
