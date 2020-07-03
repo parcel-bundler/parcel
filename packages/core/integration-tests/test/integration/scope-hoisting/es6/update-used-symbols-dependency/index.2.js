@@ -1,4 +1,4 @@
 import {a} from "./a.js";
-import {b} from "./b.js";
+import {b, d} from "./b.js";
 
-output = [a, b];
+output = [a, b, d];

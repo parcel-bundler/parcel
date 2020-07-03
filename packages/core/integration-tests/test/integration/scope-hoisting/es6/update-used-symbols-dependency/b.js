@@ -1,1 +1,1 @@
-export {a, b} from "./c.js";
+export {a, b, d} from "./c.js";

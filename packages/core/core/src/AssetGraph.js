@@ -324,11 +324,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           if (causes.size === 0) continue;
 
           if (exportSymbol === '*') {
-            // There is no point in continuing with the loop here, everything is used anyway.
-            assetUsedSymbols.clear();
-            assetUsedSymbols.get('*').add(null);
-            namespaceReexportedSymbols = new Set(['*']);
-            break;
+            assetUsedSymbols.get('*').add(incomingDep.id);
+            namespaceReexportedSymbols.add('*');
           }
           if (
             !assetSymbols ||

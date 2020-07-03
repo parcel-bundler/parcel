@@ -988,12 +988,24 @@ describe('scope hoisting', function() {
           bundleEvent = await getNextBuild(b);
           assert.strictEqual(bundleEvent.type, 'buildSuccess');
           output = await run(bundleEvent.bundleGraph);
-          assert.deepEqual(output, [123, 789]);
+          assert.deepEqual(output, [
+            123,
+            789,
+            {
+              d1: 1,
+              d2: 2,
+            },
+          ]);
 
           assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a', 'b']),
+          );
+          let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
+            new Set(['*']),
           );
 
           await overlayFS.copyFile(
@@ -1010,6 +1022,11 @@ describe('scope hoisting', function() {
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a']),
+          );
+          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd.js'));
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
+            new Set(),
           );
         } finally {
           await subscription.unsubscribe();
