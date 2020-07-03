@@ -34,6 +34,8 @@ type SerializedParcelConfig = {|
   autoinstall: boolean,
 |};
 
+const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
+
 export default class ParcelConfig {
   packageManager: PackageManager;
   filePath: FilePath;
@@ -355,12 +357,19 @@ export default class ParcelConfig {
     globMap: {[Glob]: ExtendableParcelConfigPipeline, ...},
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
+    let matchesPipeline = [];
     let matches = [];
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern, pipeline)) {
-        matches.push(globMap[pattern]);
+        if (NAMED_PIPELINE_REGEX.test(pattern)) {
+          matchesPipeline.push(globMap[pattern]);
+        } else {
+          matches.push(globMap[pattern]);
+        }
       }
     }
+
+    matches = matchesPipeline.concat(matches);
 
     let flatten = () => {
       let pipeline = matches.shift() || [];

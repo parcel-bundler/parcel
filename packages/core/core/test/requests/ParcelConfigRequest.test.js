@@ -435,24 +435,10 @@ describe('loadParcelConfig', () => {
       );
     });
 
-    it('should ensure that extension properties have a higher precidence than base properties', () => {
+    it('should ensure that extension properties have a higher precedence than base properties', () => {
       let merged = mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'});
       assert.deepEqual(merged, {'*.js': 'ext-js', '*.{js,jsx}': 'base-js'});
       assert.deepEqual(Object.keys(merged), ['*.js', '*.{js,jsx}']);
-    });
-
-    it('should ensure that named pipelines have a higher precidence than extension properties', () => {
-      let merged = mergeMaps(
-        {'types:*.ts': 'base-types-ts'},
-        {'*.ts': 'ext-ts'},
-        undefined,
-        true,
-      );
-      assert.deepEqual(merged, {
-        'types:*.ts': 'base-types-ts',
-        '*.ts': 'ext-ts',
-      });
-      assert.deepEqual(Object.keys(merged), ['types:*.ts', '*.ts']);
     });
 
     it('should call a merger function if provided', () => {
