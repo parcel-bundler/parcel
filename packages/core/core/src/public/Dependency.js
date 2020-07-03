@@ -4,8 +4,7 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  MutableSymbols as IMutableSymbols,
-  Symbol as CodeSymbol,
+  MutableDependencySymbols as IMutableDependencySymbols,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 
@@ -89,12 +88,8 @@ export default class Dependency implements IDependency {
     return this.#dep.meta;
   }
 
-  get symbols(): IMutableSymbols {
+  get symbols(): IMutableDependencySymbols {
     return new MutableDependencySymbols(this.#dep);
-  }
-
-  get weakSymbols(): Set<CodeSymbol> {
-    return this.#dep.weakSymbols;
   }
 
   get target(): ?Target {

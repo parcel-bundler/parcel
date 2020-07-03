@@ -644,8 +644,12 @@ const VISITOR: Visitor<MutableAsset> = {
           if (existing) {
             id.name = existing;
           } else {
-            dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
-            dep.weakSymbols.add(imported);
+            dep.symbols.set(
+              imported,
+              id.name,
+              convertBabelLoc(specifier.loc),
+              true,
+            );
           }
         }
 
@@ -693,8 +697,7 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
-      dep.symbols.set('*', '*', convertBabelLoc(path.node.loc));
-      dep.weakSymbols.add('*');
+      dep.symbols.set('*', '*', convertBabelLoc(path.node.loc), true);
     }
 
     path.replaceWith(

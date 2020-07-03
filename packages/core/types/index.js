@@ -271,7 +271,7 @@ export type SourceLocation = {|
 export type Meta = JSONObject;
 
 export type Symbol = string;
-export interface Symbols // eslint-disable-next-line no-undef
+export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
@@ -280,10 +280,27 @@ export interface Symbols // eslint-disable-next-line no-undef
   // Whether static analysis bailed out
   +isCleared: boolean;
 }
-export interface MutableSymbols extends Symbols {
+export interface MutableAssetSymbols extends AssetSymbols {
   // Static analysis bailed out
   clear(): void;
   set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+}
+export interface MutableDependencySymbols // eslint-disable-next-line no-undef
+  extends Iterable<
+    [Symbol, {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|}],
+  > {
+  get(
+    exportSymbol: Symbol,
+  ): ?{|local: Symbol, loc: ?SourceLocation, isWeak: boolean|};
+  hasExportSymbol(exportSymbol: Symbol): boolean;
+  hasLocalSymbol(local: Symbol): boolean;
+  exportSymbols(): Iterable<Symbol>;
+  set(
+    exportSymbol: Symbol,
+    local: Symbol,
+    loc: ?SourceLocation,
+    isWeak: ?boolean,
+  ): void;
 }
 
 export type DependencyOptions = {|
@@ -297,8 +314,10 @@ export type DependencyOptions = {|
   +env?: EnvironmentOpts,
   +meta?: Meta,
   +target?: Target,
-  +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
-  +weakSymbols?: Set<Symbol>,
+  +symbols?: $ReadOnlyMap<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+  >,
 |};
 
 export interface Dependency {
@@ -319,8 +338,7 @@ export interface Dependency {
 
   // TODO make immutable
   // (imported symbol -> variable that it is used as)
-  +symbols: MutableSymbols;
-  +weakSymbols: Set<Symbol>;
+  +symbols: MutableDependencySymbols;
 }
 
 export type File = {|
@@ -350,7 +368,7 @@ export interface BaseAsset {
   +pipeline: ?string;
 
   // (symbol exported by this -> name of binding to export)
-  +symbols: Symbols;
+  +symbols: AssetSymbols;
 
   getAST(): Promise<?AST>;
   getCode(): Promise<string>;
@@ -380,7 +398,7 @@ export interface MutableAsset extends BaseAsset {
   addIncludedFile(file: File): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 
-  +symbols: MutableSymbols;
+  +symbols: MutableAssetSymbols;
 
   isASTDirty(): boolean;
   setAST(AST): void;

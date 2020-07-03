@@ -421,7 +421,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           // Was already handled above
           if (local === '*') continue;
 
-          if (!assetSymbolsInverse || !dep.value.weakSymbols.has(symbol)) {
+          if (!assetSymbolsInverse || !dep.value.symbols.get(symbol)?.isWeak) {
             // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
             dep.usedSymbolsDown.get(symbol).add(null);
           } else {

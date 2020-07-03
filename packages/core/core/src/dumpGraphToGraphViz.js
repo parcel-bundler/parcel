@@ -66,8 +66,11 @@ export default async function dumpGraphToGraphViz(
             '\nsymbols: ' +
             [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
         }
-        if (node.value.weakSymbols.size) {
-          label += '\nweakSymbols: ' + [...node.value.weakSymbols].join(',');
+        let weakSymbols = [...node.value.symbols]
+          .filter(([, {isWeak}]) => isWeak)
+          .map(([s]) => s);
+        if (weakSymbols.length) {
+          label += '\nweakSymbols: ' + weakSymbols.join(',');
         }
         let usedSymbolsDown = [...node.usedSymbolsDown]
           .filter(([, v]) => v.size > 0)
