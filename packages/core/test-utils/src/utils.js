@@ -4,6 +4,7 @@ import type {
   Asset,
   BuildEvent,
   BundleGraph,
+  Dependency,
   FilePath,
   InitialParcelOptions,
   NamedBundle,
@@ -140,11 +141,11 @@ export function findAsset(
   });
 }
 
-export function assertDependencyWasDeferred(
+export function findDependency(
   bundleGraph: BundleGraph<NamedBundle>,
   assetFileName: string,
   moduleSpecifier: string,
-): void {
+): Dependency {
   let asset = findAsset(bundleGraph, assetFileName);
   invariant(asset, `Couldn't find asset ${assetFileName}`);
 
@@ -155,9 +156,18 @@ export function assertDependencyWasDeferred(
     dependency != null,
     `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
   );
+  return dependency;
+}
 
+export function assertDependencyWasDeferred(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): void {
   invariant(
-    bundleGraph.isDependencyDeferred(dependency),
+    bundleGraph.isDependencyDeferred(
+      findDependency(bundleGraph, assetFileName, moduleSpecifier),
+    ),
     `The dependency wasn't deferred`,
   );
 }

@@ -137,6 +137,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   removeNode(node: AssetGraphNode) {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
+
+    if (node.type === 'dependency') {
+      this.setUsedSymbolsAssetRemoveDependency(node);
+    }
+
     return super.removeNode(node);
   }
 
@@ -208,18 +213,28 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     wasVisited: boolean,
   ): ?boolean {
     if (
-      (node.type === 'dependency' && node.usedSymbolsDownDirty) ||
-      (child.type === 'dependency' && child.usedSymbolsDownDirty)
-    )
-      return true;
-
-    if (node.type === 'dependency' && child.type === 'asset_group') {
+      !wasVisited &&
+      node.type === 'dependency' &&
+      child.type === 'asset_group'
+    ) {
       let dependency = node;
       let sideEffects = child.value.sideEffects;
       let wasDeferred = dependency.deferred;
       let defer = this.shouldDeferDependency(dependency, sideEffects);
       dependency.deferred = defer;
-      return wasDeferred ? !defer : !wasVisited;
+      if (wasDeferred && !defer) {
+        return true;
+      }
+      if (defer) {
+        return false;
+      }
+    }
+
+    if (
+      (node.type === 'dependency' && node.usedSymbolsDownDirty) ||
+      (child.type === 'dependency' && child.usedSymbolsDownDirty)
+    ) {
+      return true;
     }
 
     if (
@@ -307,12 +322,15 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       DefaultMapSet,
     );
     // Symbols that have to be namespace reexported by outgoingDeps.
-    let namespaceReexportedSymbols: Set<string> = new Set();
+    let namespaceReexportedSymbols: DefaultMap<
+      string,
+      Set<?string>,
+    > = new DefaultMap(DefaultMapSet);
 
     if (changedIncomingDeps.length === 0) {
       // Root in the runtimes Graph
       assetUsedSymbols.get('*').add(null);
-      namespaceReexportedSymbols.add('*');
+      namespaceReexportedSymbols.get('*').add(null);
     } else {
       for (let incomingDep of changedIncomingDeps) {
         // TODO isIsolated?
@@ -325,7 +343,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
           if (exportSymbol === '*') {
             assetUsedSymbols.get('*').add(incomingDep.id);
-            namespaceReexportedSymbols.add('*');
+            namespaceReexportedSymbols.get('*').add(incomingDep.id);
           }
           if (
             !assetSymbols ||
@@ -340,18 +358,17 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           // This usually happens with a reexporting asset with many namespace exports which means that
           // we cannot match up the correct asset with the used symbol at this level.)
           else if (hasNamespaceOutgoingDeps) {
-            namespaceReexportedSymbols.add(exportSymbol);
+            namespaceReexportedSymbols.get(exportSymbol).add(incomingDep.id);
           }
         }
       }
     }
 
-    // console.log(
-    //   1,
-    //   assetNode.value.filePath,
+    // console.log(1, {
+    //   asset: assetNode.value.filePath,
     //   assetUsedSymbols,
     //   namespaceReexportedSymbols,
-    // );
+    // });
 
     // 2) Reconcile
 
@@ -363,8 +380,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         [...depUsedSymbolsDownOld].map(([k, v]) => [k, new Set(v)]),
       );
       for (let [, cause] of dep.usedSymbolsDown) {
-        cause.delete(null);
-
         // old dependencies
         for (let c of cause) {
           if (c != null && !this.hasNode(c)) {
@@ -376,7 +391,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       if (
         // For entries, we still need to add dep.value.symbols of the entry (which "used" but not by according to symbols data)
         isEntry ||
-        // If not a single asset is used, we can say the entires subgraph is not used.
+        // If not a single asset is used, we can say the entire subgraph is not used.
         // This is e.g. needed when some symbol is imported and then used for a export which isn't used (= "semi-weak" reexport)
         //    index.js:     `import {bar} from "./lib"; ...`
         //    lib/index.js: `export * from "./foo.js"; export * from "./bar.js";`
@@ -395,9 +410,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         }
 
         if (dep.value.symbols.get('*')?.local === '*') {
-          for (let s of namespaceReexportedSymbols) {
+          for (let [s, cause] of namespaceReexportedSymbols) {
             // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
-            dep.usedSymbolsDown.get(s).add(null);
+            let set = dep.usedSymbolsDown.get(s);
+            cause.forEach(incomingDep => set.add(incomingDep));
           }
         }
 
@@ -447,24 +463,17 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           hasDirtyOutgoingDep = true;
         }
 
-        // console.log(
-        //   2,
-        //   assetNode.value.filePath,
-        //   dep.value.moduleSpecifier,
-        //   dep.usedSymbolsDownDirty,
-        //   // new Set(
-        //   // [...depUsedSymbolsDownOld]
-        //   //   .filter(([, v]) => v.size > 0)
-        //   //   .map(([k, v]) => [k, ...v]),
-        //   // .map(([v]) => v),
-        //   // ),
-        //   // new Set(
-        //   // [...dep.usedSymbolsDown]
-        //   //   .filter(([, v]) => v.size > 0)
-        //   //   .map(([k, v]) => [k, ...v]),
-        //   // .map(([v]) => v),
-        //   // ),
-        // );
+        // console.log(2, {
+        //   from: assetNode.value.filePath,
+        //   to: dep.value.moduleSpecifier,
+        //   dirty: dep.usedSymbolsDownDirty,
+        //   old: [...depUsedSymbolsDownOld]
+        //     .filter(([, v]) => v.size > 0)
+        //     .map(([k, v]) => [k, ...v]),
+        //   new: [...dep.usedSymbolsDown]
+        //     .filter(([, v]) => v.size > 0)
+        //     .map(([k, v]) => [k, ...v]),
+        // });
       }
     }
 
@@ -489,11 +498,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return hasDirtyOutgoingDep;
   }
 
-  setUsedSymbolsAssetRemoveDependency(
-    removedIncomingDep: DependencyNode,
-    assetNode: AssetNode,
-  ) {
-    for (let dep of this.getNodesConnectedFrom(assetNode)) {
+  setUsedSymbolsAssetRemoveDependency(removedIncomingDep: DependencyNode) {
+    // will be removed
+    let assetGroups = this.getNodesConnectedFrom(removedIncomingDep);
+    invariant(assetGroups.length === 1);
+    let [assetGroup] = assetGroups;
+    invariant(assetGroup.type === 'asset_group');
+    let assets = this.getNodesConnectedFrom(assetGroup);
+    invariant(assets.length === 1);
+    let [asset] = assets;
+    invariant(asset.type === 'asset');
+
+    for (let dep of this.getNodesConnectedFrom(asset)) {
       invariant(dep.type === 'dependency');
       let changed = false;
       for (let [, cause] of dep.usedSymbolsDown) {
@@ -584,23 +600,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       invariant(d.type === 'dependency');
       if (!depNodes.find(d2 => d.id === d2.id)) {
         // will be removed
-        let assetGroups = this.getNodesConnectedFrom(d);
-        invariant(assetGroups.length === 1);
-        let [assetGroup] = assetGroups;
-        invariant(assetGroup.type === 'asset_group');
-        let assets = this.getNodesConnectedFrom(assetGroup);
-        invariant(assets.length === 1);
-        let [asset] = assets;
-        invariant(asset.type === 'asset');
-        this.setUsedSymbolsAssetRemoveDependency(d, asset);
+        this.setUsedSymbolsAssetRemoveDependency(d);
       }
     }
-    // for (let d of depNodes) {
-    //   if (!oldDepNodes.find(d2 => d.id === d2.id)) {
-    //     // was added
-    //     d.usedSymbolsDownDirty = true;
-    //   }
-    // }
+
     this.replaceNodesConnectedTo(assetNode, depNodes);
 
     this.setUsedSymbolsAssetAddDependency(

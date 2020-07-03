@@ -8,6 +8,7 @@ import {
   bundler as _bundler,
   distDir,
   findAsset,
+  findDependency,
   getNextBuild,
   outputFS,
   overlayFS,
@@ -952,7 +953,7 @@ describe('scope hoisting', function() {
       it('add and remove dependency', async function() {
         let testDir = path.join(
           __dirname,
-          '/integration/scope-hoisting/es6/update-used-symbols-dependency',
+          '/integration/scope-hoisting/es6/update-used-symbols-dependency-add',
         );
 
         let b = bundler(path.join(testDir, 'index.js'), {
@@ -1026,6 +1027,107 @@ describe('scope hoisting', function() {
           assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
+            new Set(),
+          );
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
+
+      it('add and remove dependency with namespace', async function() {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/update-used-symbols-dependency-add-namespace',
+        );
+
+        let b = bundler(path.join(testDir, 'index.html'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        await overlayFS.mkdirp(testDir);
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.1.js'),
+          path.join(testDir, 'index.js'),
+        );
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert(bundleEvent.type === 'buildSuccess');
+          let output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, {akGridSize: 8});
+
+          let asset = nullthrows(
+            findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+          );
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(asset),
+            new Set(['gridSize']),
+          );
+          assertDependencyWasDeferred(
+            bundleEvent.bundleGraph,
+            'theme.js',
+            './themeColors',
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.2.js'),
+            path.join(testDir, 'index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, [
+            {akGridSize: 8},
+            {akEmojiSelectedBackgroundColor: '#EBECF0'},
+          ]);
+
+          asset = nullthrows(
+            findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+          );
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(asset),
+            new Set(['borderRadius', 'gridSize']),
+          );
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsDependency(
+              findDependency(
+                bundleEvent.bundleGraph,
+                'theme.js',
+                './themeColors',
+              ),
+            ),
+            new Set('*'),
+          );
+
+          await overlayFS.copyFile(
+            path.join(testDir, 'index.1.js'),
+            path.join(testDir, 'index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          output = await run(bundleEvent.bundleGraph);
+          assert.deepEqual(output, {akGridSize: 8});
+
+          asset = nullthrows(
+            findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+          );
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsAsset(asset),
+            new Set(['gridSize']),
+          );
+          assert.deepStrictEqual(
+            bundleEvent.bundleGraph.getUsedSymbolsDependency(
+              findDependency(
+                bundleEvent.bundleGraph,
+                'theme.js',
+                './themeColors',
+              ),
+            ),
             new Set(),
           );
         } finally {
