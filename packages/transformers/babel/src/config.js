@@ -24,23 +24,9 @@ export async function load(
   options: PluginOptions,
   logger: PluginLogger,
 ) {
-  // Don't look for a custom babel config if inside node_modules
+  // Don't transpile inside node_modules
   if (!config.isSource) {
-    return buildDefaultBabelConfig(options, config);
-  }
-
-  // If we are in a monorepo, also find .babelrc configs in the sub packages.
-  let babelrcRoots = [options.projectRoot];
-  let packageJSONPath = await resolveConfig(
-    options.inputFS,
-    config.searchPath,
-    ['package.json'],
-  );
-  if (packageJSONPath) {
-    let packageRoot = path.dirname(packageJSONPath);
-    if (packageRoot && packageRoot !== options.projectRoot) {
-      babelrcRoots.push(packageRoot);
-    }
+    return;
   }
 
   let babelCore = await options.packageManager.require(
@@ -50,9 +36,7 @@ export async function load(
   );
   let partialConfig = babelCore.loadPartialConfig({
     filename: config.searchPath,
-    cwd: path.dirname(config.searchPath),
-    root: options.projectRoot,
-    babelrcRoots,
+    cwd: options.projectRoot,
     envName:
       options.env.BABEL_ENV ??
       process.env.BABEL_ENV ??
@@ -133,7 +117,7 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
   } else {
-    babelOptions = getFlowOptions(config);
+    babelOptions = await getFlowOptions(config, options);
   }
 
   let babelTargets;
@@ -222,7 +206,7 @@ function isLocal(/* configItemPath */) {
 }
 
 export function preSerialize(config: Config) {
-  let babelConfig = config.result.config;
+  let babelConfig = config.result?.config;
   if (babelConfig == null) {
     return;
   }

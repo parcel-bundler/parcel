@@ -41,21 +41,6 @@ type RunOpts = {|
   ...StaticRunOpts,
 |};
 
-const DEFAULT_DEVELOPMENT_ENGINES = {
-  node: 'current',
-  browsers: [
-    'last 1 Chrome version',
-    'last 1 Safari version',
-    'last 1 Firefox version',
-    'last 1 Edge version',
-  ],
-};
-
-const DEFAULT_PRODUCTION_ENGINES = {
-  browsers: ['>= 0.25%'],
-  node: '8',
-};
-
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 
@@ -217,9 +202,7 @@ export class TargetResolver {
             sourceMap: this.options.sourceMaps ? {} : undefined,
             env: createEnvironment({
               context: 'browser',
-              engines: {
-                browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers,
-              },
+              engines: {},
               minify: this.options.minify,
               scopeHoist: this.options.scopeHoist,
             }),
@@ -296,18 +279,22 @@ export class TargetResolver {
     let moduleContext =
       pkg.browser ?? pkgTargets.browser ? 'browser' : mainContext;
 
-    let defaultEngines =
-      this.options.defaultEngines ??
-      (this.options.mode === 'production'
-        ? DEFAULT_PRODUCTION_ENGINES
-        : DEFAULT_DEVELOPMENT_ENGINES);
+    let defaultEngines = this.options.defaultEngines;
     let context = browsers ?? !node ? 'browser' : 'node';
-    if (context === 'browser' && pkgEngines.browsers == null) {
+    if (
+      context === 'browser' &&
+      pkgEngines.browsers == null &&
+      defaultEngines?.browsers != null
+    ) {
       pkgEngines = {
         ...pkgEngines,
         browsers: defaultEngines.browsers,
       };
-    } else if (context === 'node' && pkgEngines.node == null) {
+    } else if (
+      context === 'node' &&
+      pkgEngines.node == null &&
+      defaultEngines?.node != null
+    ) {
       pkgEngines = {
         ...pkgEngines,
         node: defaultEngines.node,

@@ -117,15 +117,14 @@ describe('babel', function() {
     assert.deepEqual(messages, []);
   });
 
-  it('should compile with babel with default engines if no config', async function() {
+  it('should not compile with babel if no targets are defined', async function() {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
-      mode: 'production',
       defaultEngines: null,
       minify: false,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('function Foo'));
-    assert(file.includes('function Bar'));
+    assert(file.includes('class Foo'));
+    assert(file.includes('class Bar'));
   });
 
   it('should support compiling with babel using browserlist', async function() {
@@ -208,7 +207,7 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should compile node_modules with browserslist to app target', async function() {
+  it.skip('should compile node_modules with browserslist to app target', async function() {
     await bundle(
       path.join(
         __dirname,
@@ -221,7 +220,7 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should compile node_modules when symlinked with a source field in package.json', async function() {
+  it.skip('should compile node_modules when symlinked with a source field in package.json', async function() {
     const inputDir = path.join(__dirname, '/input');
     await fs.rimraf(inputDir);
     await fs.mkdirp(path.join(inputDir, 'node_modules'));
@@ -299,7 +298,7 @@ describe('babel', function() {
     assert(file.includes('h("div"'));
   });
 
-  it('should strip away flow types of node modules', async function() {
+  it('should strip away flow types', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-strip-flow-types/index.js'),
     );
