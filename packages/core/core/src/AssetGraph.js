@@ -502,6 +502,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (removedIncomingDep.deferred) return;
 
     let assetGroups = this.getNodesConnectedFrom(removedIncomingDep);
+    if (assetGroups.length === 0) return;
     invariant(assetGroups.length === 1);
     let [assetGroup] = assetGroups;
     invariant(assetGroup.type === 'asset_group');

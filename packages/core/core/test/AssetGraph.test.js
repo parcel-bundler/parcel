@@ -216,7 +216,7 @@ describe('AssetGraph', () => {
     assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req2).id));
   });
 
-  it.only('resolveAssetGroup should update the asset and dep nodes a file is connected to', () => {
+  it('resolveAssetGroup should update the asset and dep nodes a file is connected to', () => {
     let graph = new AssetGraph();
     graph.initialize({
       targets: DEFAULT_TARGETS,
