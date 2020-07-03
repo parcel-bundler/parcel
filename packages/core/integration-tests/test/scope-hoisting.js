@@ -1383,6 +1383,57 @@ describe('scope hoisting', function() {
         assert.deepEqual(output, 4);
       });
 
+      it('supports removing a deferred dependency', async function() {
+        let testDir = path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false',
+        );
+
+        let b = bundler(path.join(testDir, 'a.js'), {
+          inputFS: overlayFS,
+          outputFS: overlayFS,
+        });
+
+        let subscription = await b.watch();
+
+        try {
+          let bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          let called = false;
+          let output = await run(bundleEvent.bundleGraph, {
+            sideEffect: () => {
+              called = true;
+            },
+          });
+          assert(!called, 'side effect called');
+          assert.deepEqual(output, 4);
+          assertDependencyWasDeferred(
+            bundleEvent.bundleGraph,
+            'index.js',
+            './bar',
+          );
+
+          await overlayFS.mkdirp(path.join(testDir, 'node_modules/bar'));
+          await overlayFS.copyFile(
+            path.join(testDir, 'node_modules/bar/index.1.js'),
+            path.join(testDir, 'node_modules/bar/index.js'),
+          );
+
+          bundleEvent = await getNextBuild(b);
+          assert.strictEqual(bundleEvent.type, 'buildSuccess');
+          called = false;
+          output = await run(bundleEvent.bundleGraph, {
+            sideEffect: () => {
+              called = true;
+            },
+          });
+          assert(!called, 'side effect called');
+          assert.deepEqual(output, 4);
+        } finally {
+          await subscription.unsubscribe();
+        }
+      });
+
       it('supports wildcards', async function() {
         let b = await bundle(
           path.join(

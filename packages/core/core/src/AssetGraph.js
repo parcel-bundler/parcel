@@ -499,7 +499,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 
   setUsedSymbolsAssetRemoveDependency(removedIncomingDep: DependencyNode) {
-    // will be removed
+    if (removedIncomingDep.deferred) return;
+
     let assetGroups = this.getNodesConnectedFrom(removedIncomingDep);
     invariant(assetGroups.length === 1);
     let [assetGroup] = assetGroups;
