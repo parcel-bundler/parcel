@@ -396,7 +396,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      generatedStr: 'const f',
+      generatedStr: 'const t',
       sourcePath: './index.js',
     });
 
@@ -405,7 +405,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      generatedStr: 'f.a',
+      generatedStr: 't.a',
       sourcePath: './index.js',
     });
 

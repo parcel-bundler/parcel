@@ -184,7 +184,7 @@ export default new Packager({
         '},{},' +
         JSON.stringify(entries.map(asset => asset.publicId)) +
         ', ' +
-        JSON.stringify(mainEntry?.id ?? null) +
+        JSON.stringify(mainEntry?.publicId ?? null) +
         ', ' +
         'null' +
         ')' +
