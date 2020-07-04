@@ -5,7 +5,12 @@ import path from 'path';
 
 export default new Reporter({
   async report({event, options}) {
-    if (event.type !== 'buildSuccess' || process.env.BUNDLE_BUDDY == null) {
+    if (
+      event.type !== 'buildSuccess' ||
+      process.env.BUNDLE_BUDDY == null ||
+      // $FlowFixMe
+      process.env.BUNDLE_BUDDY == false
+    ) {
       return;
     }
 
