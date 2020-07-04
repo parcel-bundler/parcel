@@ -615,7 +615,16 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output, 4 * 123);
+      assert.deepEqual(output, 5 * 123);
+
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'e.js')),
+        new Set(['default']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'e2.js')),
+        new Set(['default']),
+      );
     });
 
     it('supports importing a namespace from a commonjs module when code split', async function() {

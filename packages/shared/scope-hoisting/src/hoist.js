@@ -552,9 +552,8 @@ const VISITOR: Visitor<MutableAsset> = {
         let existing = dep.symbols.get(imported)?.local;
         if (existing) {
           id.name = existing;
-        } else {
-          dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
         }
+        dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
       }
       rename(path.scope, specifier.local.name, id.name);
     }
@@ -643,14 +642,13 @@ const VISITOR: Visitor<MutableAsset> = {
           let existing = dep.symbols.get(imported)?.local;
           if (existing) {
             id.name = existing;
-          } else {
-            dep.symbols.set(
-              imported,
-              id.name,
-              convertBabelLoc(specifier.loc),
-              true,
-            );
           }
+          dep.symbols.set(
+            imported,
+            id.name,
+            convertBabelLoc(specifier.loc),
+            true,
+          );
         }
 
         asset.symbols.set(

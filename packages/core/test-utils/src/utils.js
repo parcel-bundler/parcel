@@ -126,19 +126,22 @@ export function bundler(
 export function findAsset(
   bundleGraph: BundleGraph<NamedBundle>,
   assetFileName: string,
-): ?Asset {
-  return bundleGraph.traverseBundles((bundle, context, actions) => {
-    let asset = bundle.traverseAssets((asset, context, actions) => {
-      if (path.basename(asset.filePath) === assetFileName) {
+): Asset {
+  return nullthrows(
+    bundleGraph.traverseBundles((bundle, context, actions) => {
+      let asset = bundle.traverseAssets((asset, context, actions) => {
+        if (path.basename(asset.filePath) === assetFileName) {
+          actions.stop();
+          return asset;
+        }
+      });
+      if (asset) {
         actions.stop();
         return asset;
       }
-    });
-    if (asset) {
-      actions.stop();
-      return asset;
-    }
-  });
+    }),
+    `Couldn't find asset ${assetFileName}`,
+  );
 }
 
 export function findDependency(
@@ -147,7 +150,6 @@ export function findDependency(
   moduleSpecifier: string,
 ): Dependency {
   let asset = findAsset(bundleGraph, assetFileName);
-  invariant(asset, `Couldn't find asset ${assetFileName}`);
 
   let dependency = bundleGraph
     .getDependencies(asset)

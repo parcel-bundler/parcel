@@ -161,10 +161,16 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     loc: ?SourceLocation,
     isWeak: ?boolean,
   ) {
-    nullthrows(
-      this.#value.symbols,
-      'Cannot set symbol on cleared Symbols',
-    ).set(exportSymbol, {local, loc, isWeak: isWeak ?? false});
+    nullthrows(this.#value.symbols, 'Cannot set symbol on cleared Symbols').set(
+      exportSymbol,
+      {
+        local,
+        loc,
+        isWeak:
+          (this.#value.symbols.get(exportSymbol)?.isWeak ?? true) &&
+          (isWeak ?? false),
+      },
+    );
   }
 
   get(
