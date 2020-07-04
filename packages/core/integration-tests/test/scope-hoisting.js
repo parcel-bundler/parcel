@@ -917,10 +917,10 @@ describe('scope hoisting', function() {
           let output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
 
-          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
-          assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
-            new Set(),
+          assertDependencyWasDeferred(
+            bundleEvent.bundleGraph,
+            'a.js',
+            './c.js',
           );
 
           await overlayFS.copyFile(
@@ -933,7 +933,7 @@ describe('scope hoisting', function() {
           output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123, 789]);
 
-          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['c']),
@@ -984,10 +984,15 @@ describe('scope hoisting', function() {
           let output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
 
-          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a']),
+          );
+          assertDependencyWasDeferred(
+            bundleEvent.bundleGraph,
+            'c.js',
+            './d2.js',
           );
 
           await overlayFS.copyFile(
@@ -1007,12 +1012,12 @@ describe('scope hoisting', function() {
             },
           ]);
 
-          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a', 'b']),
           );
-          let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd.js'));
+          let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
             new Set(['*']),
@@ -1028,12 +1033,12 @@ describe('scope hoisting', function() {
           output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
 
-          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'c.js'));
+          assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a']),
           );
-          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd.js'));
+          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
             new Set(),

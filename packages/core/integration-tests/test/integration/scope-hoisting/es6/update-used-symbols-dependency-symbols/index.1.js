@@ -1,3 +1,3 @@
-import {b} from "./a.js";
+import {b} from "./library/a.js";
 
 output = [b];
