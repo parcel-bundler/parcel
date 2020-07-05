@@ -202,7 +202,6 @@ export type DependencyNode = {|
   usedSymbolsDown: DefaultMap<Symbol, Set<?string>>,
   usedSymbolsDownDirty: boolean,
   usedSymbolsUp: Set<Symbol>,
-  // usedSymbolsUpDirty: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};

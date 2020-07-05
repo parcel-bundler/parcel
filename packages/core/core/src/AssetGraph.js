@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {GraphVisitor} from '@parcel/types';
+import type {GraphVisitor, Symbol} from '@parcel/types';
 import type {
   Asset,
   AssetGraphNode,
@@ -244,7 +244,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       node.type === 'asset_group' &&
       child.type === 'asset'
     ) {
-      parent.usedSymbolsDownDirty = false;
       parent.usedSymbolsUp = new Set();
       let outgoingDepsChanged = this.setUsedSymbolsAssetAddDependency(
         [parent],
@@ -267,7 +266,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     dependency: DependencyNode,
     sideEffects: ?boolean,
   ): boolean {
-    return !!(sideEffects === false && dependency.usedSymbolsDown.size == 0);
+    return !!(
+      sideEffects === false &&
+      ![...dependency.usedSymbolsDown].some(([, v]) => v.size > 0)
+    );
 
     // TODO do we really want this?:
     // one module does `export * from './esm.js'`.
@@ -318,12 +320,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let isEntry = false;
     // Used symbols that are exported or reexported (symbol will be removed again later) by asset.
-    let assetUsedSymbols: DefaultMap<string, Set<?string>> = new DefaultMap(
+    let assetUsedSymbols: DefaultMap<Symbol, Set<?string>> = new DefaultMap(
       DefaultMapSet,
     );
     // Symbols that have to be namespace reexported by outgoingDeps.
     let namespaceReexportedSymbols: DefaultMap<
-      string,
+      Symbol,
       Set<?string>,
     > = new DefaultMap(DefaultMapSet);
 
@@ -333,6 +335,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       namespaceReexportedSymbols.get('*').add(null);
     } else {
       for (let incomingDep of changedIncomingDeps) {
+        incomingDep.usedSymbolsDownDirty = false;
+
         // TODO isIsolated?
         if (incomingDep.value.isEntry || incomingDep.value.isIsolated) {
           isEntry = true;
@@ -431,8 +435,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
             ) {
               dep.usedSymbolsDown.get(symbol).add(null);
             } else if (
-              assetUsedSymbols.get('*').size > 0 || // we need everything
-              assetUsedSymbols.get(reexportedExportSymbol).size > 0 // reexported
+              usedSymbolsHas(assetUsedSymbols, '*') || // we need everything
+              usedSymbolsHas(assetUsedSymbols, reexportedExportSymbol) // reexported
             ) {
               // The symbol is indeed a reexport, so it's not used from the asset itself
               let causes = dep.usedSymbolsDown.get(symbol);
@@ -446,18 +450,16 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           }
         }
 
-        dep.usedSymbolsDownDirty = !equalSet(
-          new Set(
+        dep.usedSymbolsDownDirty =
+          dep.usedSymbolsDownDirty ||
+          !equalSet(
             [...depUsedSymbolsDownOld]
               .filter(([, v]) => v.size > 0)
               .map(([v]) => v),
-          ),
-          new Set(
             [...dep.usedSymbolsDown]
               .filter(([, v]) => v.size > 0)
               .map(([v]) => v),
-          ),
-        );
+          );
 
         if (dep.usedSymbolsDownDirty) {
           hasDirtyOutgoingDep = true;
@@ -612,7 +614,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       this.getIncomingDependencies(assetNode.value).map(d => {
         let n = this.getNode(d.id);
         invariant(n && n.type === 'dependency');
-        n.usedSymbolsDownDirty = false;
         return n;
       }),
       assetNode,
@@ -690,6 +691,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 }
 
-function equalSet<T>(a: $ReadOnlySet<T>, b: $ReadOnlySet<T>) {
-  return a.size === b.size && [...a].every(i => b.has(i));
+function equalSet<T>(a: $ReadOnlyArray<T>, b: $ReadOnlyArray<T>) {
+  let bSet = new Set(b);
+  return a.length === b.length && a.every(i => bSet.has(i));
+}
+
+function usedSymbolsHas(map: Map<Symbol, Set<?string>>, symbol: Symbol) {
+  let set = map.get(symbol);
+  return set && set.size > 0;
 }

@@ -222,7 +222,7 @@ export default class AssetGraphBuilder extends EventEmitter {
               outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
             } else {
               for (let s of outgoingDep.usedSymbolsUp) {
-                if (outgoingDep.usedSymbolsDown.get(s).size === 0) {
+                if (usedSymbolsHas(outgoingDep.usedSymbolsDown, s)) {
                   // usedSymbolsDown is a superset of usedSymbolsUp
                   continue;
                 }
@@ -450,4 +450,9 @@ export default class AssetGraphBuilder extends EventEmitter {
       opts,
     );
   }
+}
+
+function usedSymbolsHas(map: Map<string, Set<?string>>, symbol: string) {
+  let set = map.get(symbol);
+  return set && set.size > 0;
 }
