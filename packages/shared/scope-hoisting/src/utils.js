@@ -334,12 +334,14 @@ export function getExportNamespaceExpression(
   if (!exportedSymbols) {
     return t.identifier(assertString(asset.meta.exportsIdentifier));
   } else if (namespaceExport) {
-    return t.identifier(nullthrows(namespaceExport.symbol));
+    let {symbol} = namespaceExport;
+    invariant(symbol != null && symbol !== false);
+    return t.identifier(symbol);
   } else {
     return t.objectExpression(
       exportedSymbols
         .map(({symbol, exportAs, exportSymbol, asset: symbolAsset}) => {
-          if (symbol != null) {
+          if (symbol != null && symbol !== false) {
             return t.objectProperty(
               t.identifier(exportAs),
               t.identifier(symbol),

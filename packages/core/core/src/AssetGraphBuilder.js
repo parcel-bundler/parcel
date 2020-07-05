@@ -203,12 +203,18 @@ export default class AssetGraphBuilder extends EventEmitter {
       // exportSymbol -> identifier
       let assetSymbols = assetNode.value.symbols;
       // identifier -> exportSymbol
-      let assetSymbolsInverse = assetNode.value.symbols
-        ? new Map(
-            [...assetNode.value.symbols].map(([key, val]) => [val.local, key]),
-          )
-        : null;
-
+      let assetSymbolsInverse;
+      if (assetSymbols) {
+        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+        for (let [s, {local}] of assetSymbols) {
+          let set = assetSymbolsInverse.get(local);
+          if (!set) {
+            set = new Set();
+            assetSymbolsInverse.set(local, set);
+          }
+          set.add(s);
+        }
+      }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
         d => d.value.symbols?.get('*')?.local === '*',
       );
@@ -306,19 +312,30 @@ export default class AssetGraphBuilder extends EventEmitter {
               // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
               dep.usedSymbolsDown.add(symbol);
             } else {
-              let reexportedExportSymbol = assetSymbolsInverse.get(local);
-              if (
-                reexportedExportSymbol == null // not reexported = used in asset itself
-              ) {
+              let reexportedExportSymbols = assetSymbolsInverse.get(local);
+              if (reexportedExportSymbols == null) {
+                // not reexported = used in asset itself
                 dep.usedSymbolsDown.add(symbol);
-              } else if (
-                assetNode.usedSymbols.has('*') || // we need everything
-                assetNode.usedSymbols.has(reexportedExportSymbol) // reexported
-              ) {
-                // The symbol is indeed a reexport, so it's not used from the asset itself
+              } else if (assetNode.usedSymbols.has('*')) {
+                // we need everything
                 dep.usedSymbolsDown.add(symbol);
 
-                assetNode.usedSymbols.delete(reexportedExportSymbol);
+                [...reexportedExportSymbols].forEach(s =>
+                  assetNode.usedSymbols.delete(s),
+                );
+              } else {
+                let x = [...reexportedExportSymbols].filter(s =>
+                  assetNode.usedSymbols.has(s),
+                );
+                if (
+                  // reexported
+                  x.length > 0
+                ) {
+                  // The symbol is indeed a reexport, so it's not used from the asset itself
+                  dep.usedSymbolsDown.add(symbol);
+
+                  x.forEach(s => assetNode.usedSymbols.delete(s));
+                }
               }
             }
           }
@@ -330,18 +347,15 @@ export default class AssetGraphBuilder extends EventEmitter {
         // console.log(2, {
         //   from: assetNode.value.filePath,
         //   to: dep.value.moduleSpecifier,
-        //   dirty: dep.usedSymbolsDownDirty,
-        //   old: [...depUsedSymbolsDownOld]
-        //     .filter(([, v]) => v.size > 0)
-        //     .map(([k, v]) => [k, ...v]),
-        //   new: [...dep.usedSymbolsDown]
-        //     .filter(([, v]) => v.size > 0)
-        //     .map(([k, v]) => [k, ...v]),
+        //   old: [...depUsedSymbolsDownOld],
+        //   new: [...dep.usedSymbolsDown],
         // });
       }
 
       return hasDirtyOutgoingDep;
     });
+
+    dumpToGraphViz(this.assetGraph, 'AssetGraph1');
 
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols = assetNode.value.symbols;
@@ -351,9 +365,15 @@ export default class AssetGraphBuilder extends EventEmitter {
           dep.usedSymbolsUp = new Set(assetNode.usedSymbols);
         }
       } else {
-        let assetSymbolsInverse = new Map(
-          [...assetSymbols].map(([key, val]) => [val.local, key]),
-        );
+        let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+        for (let [s, {local}] of assetSymbols) {
+          let set = assetSymbolsInverse.get(local);
+          if (!set) {
+            set = new Set();
+            assetSymbolsInverse.set(local, set);
+          }
+          set.add(s);
+        }
 
         let reexportedSymbols = new Set<Symbol>();
         for (let outgoingDep of outgoingDeps) {
@@ -378,7 +398,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
             let reexported = assetSymbolsInverse.get(local);
             if (reexported != null) {
-              reexportedSymbols.add(reexported);
+              reexported.forEach(s => reexportedSymbols.add(s));
             }
           }
         }
@@ -427,6 +447,22 @@ export default class AssetGraphBuilder extends EventEmitter {
             //       : undefined,
             //   });
             // }
+          }
+
+          incomingDep.excluded = false;
+          if (incomingDep.usedSymbolsUp.size === 0) {
+            let assetGroups = this.assetGraph.getNodesConnectedFrom(
+              incomingDep,
+            );
+            if (assetGroups.length === 1) {
+              let [assetGroup] = assetGroups;
+              invariant(assetGroup.type === 'asset_group');
+              if (assetGroup.value.sideEffects === false) {
+                incomingDep.excluded = true;
+              }
+            } else {
+              invariant(assetGroups.length === 0);
+            }
           }
         }
       }

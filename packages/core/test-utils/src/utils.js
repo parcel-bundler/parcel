@@ -126,22 +126,19 @@ export function bundler(
 export function findAsset(
   bundleGraph: BundleGraph<NamedBundle>,
   assetFileName: string,
-): Asset {
-  return nullthrows(
-    bundleGraph.traverseBundles((bundle, context, actions) => {
-      let asset = bundle.traverseAssets((asset, context, actions) => {
-        if (path.basename(asset.filePath) === assetFileName) {
-          actions.stop();
-          return asset;
-        }
-      });
-      if (asset) {
+): ?Asset {
+  return bundleGraph.traverseBundles((bundle, context, actions) => {
+    let asset = bundle.traverseAssets((asset, context, actions) => {
+      if (path.basename(asset.filePath) === assetFileName) {
         actions.stop();
         return asset;
       }
-    }),
-    `Couldn't find asset ${assetFileName}`,
-  );
+    });
+    if (asset) {
+      actions.stop();
+      return asset;
+    }
+  });
 }
 
 export function findDependency(
@@ -149,7 +146,10 @@ export function findDependency(
   assetFileName: string,
   moduleSpecifier: string,
 ): Dependency {
-  let asset = findAsset(bundleGraph, assetFileName);
+  let asset = nullthrows(
+    findAsset(bundleGraph, assetFileName),
+    `Couldn't find asset ${assetFileName}`,
+  );
 
   let dependency = bundleGraph
     .getDependencies(asset)
@@ -167,7 +167,7 @@ export function assertDependencyWasDeferred(
   moduleSpecifier: string,
 ): void {
   invariant(
-    bundleGraph.isDependencyDeferred(
+    bundleGraph.isDependencySkipped(
       findDependency(bundleGraph, assetFileName, moduleSpecifier),
     ),
     `The dependency wasn't deferred`,
@@ -298,7 +298,7 @@ export async function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
-): Promise<mixed> {
+): Promise<any> {
   let bundles = bundleGraph.getBundles();
   let bundle = nullthrows(
     bundles.find(b => b.type === 'js' || b.type === 'html'),

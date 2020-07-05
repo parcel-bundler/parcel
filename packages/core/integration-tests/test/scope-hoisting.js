@@ -987,12 +987,7 @@ describe('scope hoisting', function() {
           output = await run(bundleEvent.bundleGraph);
           assert.deepEqual(output, [123]);
 
-          assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(
-              findAsset(bundleEvent.bundleGraph, 'c.js'),
-            ),
-            new Set(),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'c.js'));
         } finally {
           await subscription.unsubscribe();
         }
@@ -1028,11 +1023,7 @@ describe('scope hoisting', function() {
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a']),
           );
-          let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
-          assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
-            new Set([]),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'd2.js'));
 
           await overlayFS.copyFile(
             path.join(testDir, 'index.2.js'),
@@ -1056,7 +1047,7 @@ describe('scope hoisting', function() {
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a', 'b']),
           );
-          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
+          let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
           assert.deepStrictEqual(
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
             new Set(['*']),
@@ -1077,11 +1068,7 @@ describe('scope hoisting', function() {
             bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
             new Set(['a']),
           );
-          assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
-          assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
-            new Set(),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'd2.js'));
         } finally {
           await subscription.unsubscribe();
         }
@@ -1128,12 +1115,7 @@ describe('scope hoisting', function() {
             ),
             new Set(),
           );
-          assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(
-              findAsset(bundleEvent.bundleGraph, 'themeColors.js'),
-            ),
-            new Set([]),
-          );
+          assert(!findAsset(bundleEvent.bundleGraph, 'themeColors.js'));
 
           await overlayFS.copyFile(
             path.join(testDir, 'index.2.js'),
@@ -1207,10 +1189,7 @@ describe('scope hoisting', function() {
         );
 
         assertDependencyWasDeferred(b, 'index.js', './message2.js');
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'message3.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'message3.js'));
 
         let calls = [];
         let output = await run(b, {
@@ -1231,15 +1210,8 @@ describe('scope hoisting', function() {
           ),
         );
 
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'message1.js')),
-          new Set([]),
-        );
-
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'message3.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'message1.js'));
+        assert(!findAsset(b, 'message3.js'));
 
         let calls = [];
         let output = await run(b, {
@@ -1260,10 +1232,7 @@ describe('scope hoisting', function() {
           ),
         );
 
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'message1.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'message1.js'));
         assertDependencyWasDeferred(b, 'index.js', './message2.js');
 
         let calls = [];
@@ -1285,15 +1254,9 @@ describe('scope hoisting', function() {
           ),
         );
 
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'message1.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'message1.js'));
         assertDependencyWasDeferred(b, 'index.js', './message2.js');
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'message3.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'message13js'));
 
         let calls = [];
         let output = await run(b, {
@@ -1304,6 +1267,27 @@ describe('scope hoisting', function() {
 
         assert.deepEqual(calls, ['index']);
         assert.deepEqual(output, 'Message 4');
+      });
+
+      it('supports chained ES6 re-exports', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-chained/index.js',
+          ),
+        );
+
+        assert(!findAsset(b, 'bar.js'));
+
+        let calls = [];
+        let output = await run(b, {
+          sideEffect: caller => {
+            calls.push(caller);
+          },
+        });
+
+        assert.deepEqual(calls, ['key', 'foo', 'index']);
+        assert.deepEqual(output, ['key', 'foo']);
       });
 
       it('should not optimize away an unused ES6 re-export and an used import', async function() {
@@ -1593,6 +1577,17 @@ describe('scope hoisting', function() {
         assert.deepEqual(await run(b), 581);
       });
 
+      it('supports the package.json sideEffects: false flag with shared dependencies and code splitting II', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-split2/a.js',
+          ),
+        );
+
+        assert.deepEqual(await run(b), [{default: 123, foo: 2}, 581]);
+      });
+
       it('missing exports should be replaced with an empty object', async function() {
         let b = await bundle(
           path.join(
@@ -1637,10 +1632,7 @@ describe('scope hoisting', function() {
           ),
         );
 
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'symbol1.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'symbol1.js'));
 
         let calls = [];
         let output = await run(b, {
@@ -1661,10 +1653,7 @@ describe('scope hoisting', function() {
           ),
         );
 
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(findAsset(b, 'other.js')),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'other.js'));
 
         let calls = [];
         let output = await run(b, {
@@ -1696,6 +1685,54 @@ describe('scope hoisting', function() {
 
         assert.deepEqual(calls, ['message1']);
         assert.deepEqual(output, 'Message 1');
+      });
+
+      it('supports named and renamed reexports of the same asset (default used)', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-same2/a.js',
+          ),
+        );
+
+        assert.deepStrictEqual(
+          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(['bar']),
+        );
+
+        let calls = [];
+        let output = await run(b, {
+          sideEffect: caller => {
+            calls.push(caller);
+          },
+        });
+
+        assert.deepEqual(calls, ['other']);
+        assert.deepEqual(output, 'bar');
+      });
+
+      it('supports named and renamed reexports of the same asset (named used)', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-rename-same2/b.js',
+          ),
+        );
+
+        assert.deepStrictEqual(
+          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(['bar']),
+        );
+
+        let calls = [];
+        let output = await run(b, {
+          sideEffect: caller => {
+            calls.push(caller);
+          },
+        });
+
+        assert.deepEqual(calls, ['other']);
+        assert.deepEqual(output, 'bar');
       });
 
       it('supports named and namespace exports of the same asset (named used)', async function() {
@@ -1835,10 +1872,7 @@ describe('scope hoisting', function() {
           ),
         );
 
-        assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'esm.js'))),
-          new Set([]),
-        );
+        assert(!findAsset(b, 'esm.js'));
         assert.deepStrictEqual(
           b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'commonjs.js'))),
           new Set(['message2']),

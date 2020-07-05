@@ -153,6 +153,15 @@ export default class BundleGraph {
         return;
       }
 
+      if (
+        node.type === 'dependency' &&
+        node.value.symbols != null &&
+        node.excluded
+      ) {
+        actions.skipChildren();
+        return;
+      }
+
       if (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) {
         bundle.stats.size += node.value.stats.size;
       }
@@ -188,10 +197,10 @@ export default class BundleGraph {
     this.removeExternalDependency(bundle, dependency);
   }
 
-  isDependencyDeferred(dependency: Dependency): boolean {
+  isDependencySkipped(dependency: Dependency): boolean {
     let node = this._graph.getNode(dependency.id);
     invariant(node && node.type === 'dependency');
-    return !!node.hasDeferred;
+    return !!node.hasDeferred || node.excluded;
   }
 
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
@@ -876,26 +885,38 @@ export default class BundleGraph {
       };
     }
 
-    let bailout = !asset.symbols;
+    let found = !asset.symbols;
+    let skipped = false;
     let deps = this.getDependencies(asset).reverse();
     let potentialResults = [];
     for (let dep of deps) {
+      let depSymbols = dep.symbols;
+      if (!depSymbols) {
+        found = true;
+        continue;
+      }
       // If this is a re-export, find the original module.
       let symbolLookup = new Map(
-        [...dep.symbols].map(([key, val]) => [val.local, key]),
+        [...depSymbols].map(([key, val]) => [val.local, key]),
       );
       let depSymbol = symbolLookup.get(identifier);
       if (depSymbol != null) {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) {
           // External module
-          bailout = true;
+          found = true;
           break;
         }
 
         if (assetOutside) {
           // We found the symbol, but `asset` is outside, return `asset` and the original symbol
-          bailout = true;
+          found = true;
+          break;
+        }
+
+        if (this.isDependencySkipped(dep)) {
+          // We found the symbol and `dep` was skipped
+          skipped = true;
           break;
         }
 
@@ -921,7 +942,7 @@ export default class BundleGraph {
 
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
-      if (dep.symbols.get('*')?.local === '*' && symbol !== 'default') {
+      if (depSymbols.get('*')?.local === '*' && symbol !== 'default') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
@@ -930,7 +951,12 @@ export default class BundleGraph {
         if (result.symbol != undefined) {
           if (assetOutside) {
             // ..., but `asset` is outside, return `asset` and the original symbol
-            bailout = true;
+            found = true;
+            break;
+          }
+          if (this.isDependencySkipped(dep)) {
+            // We found the symbol and `dep` was skipped
+            skipped = true;
             break;
           }
 
@@ -951,7 +977,7 @@ export default class BundleGraph {
             exportSymbol: result.exportSymbol,
             loc: resolved.symbols?.get(symbol)?.loc,
           });
-          bailout = true;
+          found = true;
         }
       }
     }
@@ -966,7 +992,12 @@ export default class BundleGraph {
         asset,
         exportSymbol: symbol,
         symbol:
-          identifier ?? (bailout || asset.symbols?.has('*') ? null : undefined),
+          identifier ??
+          (skipped
+            ? false
+            : found || asset.symbols?.has('*')
+            ? null
+            : undefined),
         loc: asset.symbols?.get(symbol)?.loc,
       };
     }
@@ -1010,7 +1041,10 @@ export default class BundleGraph {
 
     let deps = this.getDependencies(asset);
     for (let dep of deps) {
-      if (dep.symbols.get('*')?.local === '*') {
+      let depSymbols = dep.symbols;
+      if (!depSymbols) continue;
+
+      if (depSymbols.get('*')?.local === '*') {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let exported = this.getExportedSymbols(resolved, boundary)

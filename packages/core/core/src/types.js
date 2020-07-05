@@ -202,6 +202,7 @@ export type DependencyNode = {|
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
+  excluded: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};

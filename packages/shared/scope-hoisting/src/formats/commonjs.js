@@ -425,7 +425,7 @@ export function generateExports(
       for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
         bundleGraph.getExportedSymbols(entry),
       )) {
-        if (symbol != null) {
+        if (symbol != null && symbol !== false) {
           let hasReplacement = replacements.get(symbol);
           symbol = hasReplacement ?? symbol;
 

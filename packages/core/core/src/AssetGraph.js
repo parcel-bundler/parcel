@@ -42,6 +42,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     type: 'dependency',
     value: dep,
     deferred: false,
+    excluded: false,
     usedSymbolsDown: new Set(),
     usedSymbolsUp: new Set(),
   };

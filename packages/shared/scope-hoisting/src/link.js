@@ -123,12 +123,16 @@ export function link({
 
     for (let dep of bundleGraph.getDependencies(asset)) {
       let resolved = bundleGraph.getDependencyResolution(dep, bundle);
+      let skipped = bundleGraph.isDependencySkipped(dep);
 
-      // If the dependency was deferred, the `...$import$..` identifier needs to be removed.
+      // If the dependency was skipped, the `...$import$..` identifier needs to be removed.
       // If the dependency was excluded, it will be replaced by the output format at the very end.
-      if (resolved || bundleGraph.isDependencyDeferred(dep)) {
+      if (resolved || skipped) {
         for (let [imported, {local, loc}] of dep.symbols) {
-          imports.set(local, resolved ? [resolved, imported, loc] : null);
+          imports.set(
+            local,
+            resolved && !skipped ? [resolved, imported, loc] : null,
+          );
         }
       }
     }
@@ -222,6 +226,11 @@ export function link({
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
+      if (node === false) {
+        // Asset was skipped
+        return null;
+      }
+
       node = addBundleImport(mod, path);
       return node ? interop(mod, symbol, path, node) : null;
     }
@@ -486,52 +495,48 @@ export function link({
         let mod = bundleGraph.getDependencyResolution(dep, bundle);
         let node;
 
-        if (!mod) {
-          if (dep.isOptional) {
-            path.replaceWith(
-              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}),
-            );
-          } else if (bundleGraph.isDependencyDeferred(dep)) {
-            if (path.parentPath.isExpressionStatement()) {
-              path.parentPath.remove();
+        if (!bundleGraph.isDependencySkipped(dep)) {
+          if (!mod) {
+            if (dep.isOptional) {
+              node = THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)});
             } else {
-              // e.g. $parcel$exportWildcard;
-              path.replaceWith(t.objectExpression([]));
+              let name = addExternalModule(path, dep);
+              if (!isUnusedValue(path) && name) {
+                node = t.identifier(name);
+              }
             }
           } else {
-            let name = addExternalModule(path, dep);
-            if (isUnusedValue(path) || !name) {
-              path.remove();
-            } else {
-              path.replaceWith(t.identifier(name));
+            if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
+              let name = assertString(mod.meta.exportsIdentifier);
+
+              let isValueUsed = !isUnusedValue(path);
+              if (asset.meta.isCommonJS && isValueUsed) {
+                maybeAddEsModuleFlag(path.scope, mod);
+              }
+              // We need to wrap the module in a function when a require
+              // call happens inside a non top-level scope, e.g. in a
+              // function, if statement, or conditional expression.
+              if (wrappedAssets.has(mod.id)) {
+                node = t.callExpression(getIdentifier(mod, 'init'), []);
+              }
+              // Replace with nothing if the require call's result is not used.
+              else if (isValueUsed) {
+                node = t.identifier(replacements.get(name) || name);
+              }
+            } else if (mod.type === 'js') {
+              node = addBundleImport(mod, path);
             }
           }
+        }
+
+        if (node) {
+          path.replaceWith(node);
         } else {
-          if (mod.meta.id && assets.has(assertString(mod.meta.id))) {
-            let name = assertString(mod.meta.exportsIdentifier);
-
-            let isValueUsed = !isUnusedValue(path);
-            if (asset.meta.isCommonJS && isValueUsed) {
-              maybeAddEsModuleFlag(path.scope, mod);
-            }
-            // We need to wrap the module in a function when a require
-            // call happens inside a non top-level scope, e.g. in a
-            // function, if statement, or conditional expression.
-            if (wrappedAssets.has(mod.id)) {
-              node = t.callExpression(getIdentifier(mod, 'init'), []);
-            }
-            // Replace with nothing if the require call's result is not used.
-            else if (isValueUsed) {
-              node = t.identifier(replacements.get(name) || name);
-            }
-          } else if (mod.type === 'js') {
-            node = addBundleImport(mod, path);
-          }
-
-          if (node) {
-            path.replaceWith(node);
+          if (path.parentPath.isExpressionStatement()) {
+            path.parentPath.remove();
           } else {
-            path.remove();
+            // e.g. $parcel$exportWildcard;
+            path.replaceWith(t.objectExpression([]));
           }
         }
       } else if (callee.name === '$parcel$require$resolve') {
@@ -656,7 +661,11 @@ export function link({
         let name = isIdentifier(property) ? property.name : property.value;
         let {identifier} = resolveSymbol(asset, name, bundle);
 
-        if (identifier == null || !path.scope.hasBinding(identifier)) {
+        if (
+          identifier == null ||
+          identifier === false ||
+          !path.scope.hasBinding(identifier)
+        ) {
           return;
         }
 

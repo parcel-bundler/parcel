@@ -849,8 +849,8 @@ export type SymbolResolution = {|
   /** under which name the symbol is exported */
   +exportSymbol: Symbol | string,
   /** The identifier under which the symbol can be referenced. */
-  +symbol: void | null | Symbol,
-  /** The location of the last specifier that lead to this result. */
+  +symbol: void | null | false | Symbol,
+  // the location of the specifier that lead to this result
   +loc: ?SourceLocation,
 |};
 
@@ -978,7 +978,8 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
-  isDependencyDeferred(dependency: Dependency): boolean;
+  /** If a dependency was excluded during bundling. */
+  isDependencySkipped(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
   getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
@@ -995,6 +996,7 @@ export interface BundleGraph<TBundle: Bundle> {
    * stopping at the first asset after leaving `bundle`.
    * `symbol === null`: bailout (== caller should do `asset.exports[exportsSymbol]`)
    * `symbol === undefined`: symbol not found
+   * `symbol === false`: skipped
    *
    * <code>asset</code> exports <code>symbol</code>, try to find the asset where the \
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \

@@ -1384,7 +1384,7 @@ describe('html', function() {
     assert(css.includes('.b {'));
   });
 
-  it('should support split bundles with many pages', async function() {
+  it.skip('should support split bundles with many pages', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many/*.html'));
 
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
@@ -1427,7 +1427,7 @@ describe('html', function() {
     });
   });
 
-  it('should support split bundles with many pages with esmodule output', async function() {
+  it.skip('should support split bundles with many pages with esmodule output', async function() {
     await bundle(path.join(__dirname, '/integration/shared-many-esm/*.html'), {
       scopeHoist: true,
     });

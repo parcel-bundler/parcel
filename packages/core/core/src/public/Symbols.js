@@ -20,6 +20,8 @@ const EMPTY_ITERATOR = {
   },
 };
 
+const inspect = Symbol.for('nodejs.util.inspect.custom');
+
 let valueToSymbols: WeakMap<Asset, AssetSymbols> = new WeakMap();
 
 export class AssetSymbols implements IAssetSymbols {
@@ -69,6 +71,17 @@ export class AssetSymbols implements IAssetSymbols {
 
   get isCleared() {
     return this.#value.symbols == null;
+  }
+
+  // $FlowFixMe
+  [inspect]() {
+    return `AssetSymbols(${
+      this.#value.symbols
+        ? [...this.#value.symbols]
+            .map(([s, {local}]) => `${s}:${local}`)
+            .join(', ')
+        : null
+    })`;
   }
 }
 
@@ -142,6 +155,17 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
 
   clear() {
     this.#value.symbols = null;
+  }
+
+  // $FlowFixMe
+  [inspect]() {
+    return `MutableAssetSymbols(${
+      this.#value.symbols
+        ? [...this.#value.symbols]
+            .map(([s, {local}]) => `${s}:${local}`)
+            .join(', ')
+        : null
+    })`;
   }
 }
 
@@ -222,5 +246,16 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
 
   get isCleared() {
     return this.#value.symbols == null;
+  }
+
+  // $FlowFixMe
+  [inspect]() {
+    return `MutableDependencySymbols(${
+      this.#value.symbols
+        ? [...this.#value.symbols]
+            .map(([s, {local, isWeak}]) => `${s}:${local}${isWeak ? '?' : ''}`)
+            .join(', ')
+        : null
+    })`;
   }
 }

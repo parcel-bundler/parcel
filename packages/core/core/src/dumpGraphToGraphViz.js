@@ -58,6 +58,7 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isIsolated) parts.push('isolated');
       if (node.value.isURL) parts.push('url');
       if (node.hasDeferred) parts.push('deferred');
+      if (node.excluded) parts.push('excluded');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       let depSymbols = node.value.symbols;

@@ -139,7 +139,7 @@ export function generateExports(
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
       bundleGraph.getExportedSymbols(entry, bundle),
     )) {
-      if (symbol != null) {
+      if (symbol != null && symbol !== false) {
         symbol = replacements.get(symbol) || symbol;
 
         // Map CommonJS module.exports assignments to default ESM exports for interop
