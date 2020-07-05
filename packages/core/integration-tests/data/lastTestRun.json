@@ -783,7 +783,7 @@
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/javascript.js",
-      "title": "should bundle node_modules for a node environment if includeNodeModules is specified",
+      "title": "should bundle node_modules for a node environment if excludeNodeModules is specified",
       "status": "passing"
     },
     {
@@ -795,7 +795,7 @@
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/javascript.js",
-      "title": "should not bundle builtins for a node environment if includeNodeModules is specified",
+      "title": "should not bundle builtins for a node environment if excludeNodeModules is specified",
       "status": "passing"
     },
     {

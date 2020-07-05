@@ -519,7 +519,7 @@ export function link({
             .find(dep => dep.moduleSpecifier === source.value),
         );
         if (!bundleGraph.getDependencyResolution(dep, bundle)) {
-          // was excluded from bundling (e.g. includeNodeModules = false)
+          // was excluded from bundling (e.g. excludeNodeModules = true)
           if (bundle.env.outputFormat !== 'commonjs') {
             throw getThrowableDiagnosticForNode(
               "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",

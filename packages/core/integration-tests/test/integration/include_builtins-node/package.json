@@ -2,7 +2,7 @@
   "targets": {
     "default": {
       "context": "node",
-      "includeNodeModules": true
+      "excludeNodeModules": false
     }
   }
 }

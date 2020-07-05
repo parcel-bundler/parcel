@@ -11,7 +11,7 @@ const DEFAULT_ENGINES = {
 export function createEnvironment({
   context,
   engines,
-  includeNodeModules,
+  excludeNodeModules,
   outputFormat,
   minify = false,
   isLibrary = false,
@@ -48,18 +48,18 @@ export function createEnvironment({
     }
   }
 
-  if (includeNodeModules == null) {
+  if (excludeNodeModules == null) {
     switch (context) {
       case 'node':
       case 'electron-main':
       case 'electron-renderer':
-        includeNodeModules = false;
+        excludeNodeModules = true;
         break;
       case 'browser':
       case 'web-worker':
       case 'service-worker':
       default:
-        includeNodeModules = true;
+        excludeNodeModules = false;
         break;
     }
   }
@@ -80,7 +80,7 @@ export function createEnvironment({
   return {
     context,
     engines,
-    includeNodeModules,
+    excludeNodeModules,
     outputFormat,
     isLibrary,
     minify,
@@ -108,7 +108,7 @@ export function getEnvironmentHash(env: Environment) {
   // Different engines should be sufficient to distinguish multi-target builds.
   return md5FromObject({
     engines: env.engines,
-    includeNodeModules: env.includeNodeModules,
+    excludeNodeModules: env.excludeNodeModules,
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
   });

@@ -79,7 +79,7 @@ describe('TargetResolver', () => {
             distDir: path.resolve('customA'),
             env: {
               context: 'browser',
-              includeNodeModules: true,
+              excludeNodeModules: false,
               engines: {
                 browsers: ['> 0.25%'],
               },
@@ -96,7 +96,7 @@ describe('TargetResolver', () => {
             distDir: path.resolve('customB'),
             env: {
               context: 'node',
-              includeNodeModules: false,
+              excludeNodeModules: true,
               engines: {
                 node: '>= 8.0.0',
               },
@@ -132,7 +132,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'commonjs',
               isLibrary: true,
               minify: false,
@@ -164,7 +164,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'esmodule',
               isLibrary: true,
               minify: false,
@@ -198,7 +198,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'commonjs',
               isLibrary: true,
               minify: false,
@@ -247,7 +247,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'commonjs',
               isLibrary: false,
               minify: false,
@@ -293,7 +293,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'commonjs',
               isLibrary: true,
               minify: false,
@@ -325,7 +325,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
-              includeNodeModules: true,
+              excludeNodeModules: false,
               outputFormat: 'global',
               isLibrary: false,
               minify: false,
@@ -357,7 +357,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['ie11'],
               },
-              includeNodeModules: true,
+              excludeNodeModules: false,
               outputFormat: 'global',
               isLibrary: false,
               minify: false,
@@ -401,7 +401,7 @@ describe('TargetResolver', () => {
                 'last 1 Edge version',
               ],
             },
-            includeNodeModules: false,
+            excludeNodeModules: true,
             isLibrary: true,
             outputFormat: 'commonjs',
             minify: false,
@@ -445,7 +445,7 @@ describe('TargetResolver', () => {
                 'last 1 Edge version',
               ],
             },
-            includeNodeModules: true,
+            excludeNodeModules: false,
             isLibrary: false,
             outputFormat: 'global',
             minify: false,
@@ -491,7 +491,7 @@ describe('TargetResolver', () => {
               engines: {
                 node: '>= 8.0.0',
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'commonjs',
               isLibrary: true,
               minify: false,
@@ -523,7 +523,7 @@ describe('TargetResolver', () => {
               engines: {
                 browsers: ['last 1 version'],
               },
-              includeNodeModules: false,
+              excludeNodeModules: true,
               outputFormat: 'commonjs',
               isLibrary: true,
               minify: false,
@@ -571,7 +571,7 @@ describe('TargetResolver', () => {
                   'last 1 Edge version',
                 ],
               },
-              includeNodeModules: true,
+              excludeNodeModules: false,
               outputFormat: 'global',
               isLibrary: false,
               minify: false,
@@ -590,7 +590,7 @@ describe('TargetResolver', () => {
       '{\n' +
       '\t"targets": {\n' +
       '\t\t"main": {\n' +
-      '\t\t\t"includeNodeModules": [\n' +
+      '\t\t\t"excludeNodeModules": [\n' +
       '\t\t\t\t"react",\n' +
       '\t\t\t\ttrue\n' +
       '\t\t\t],\n' +

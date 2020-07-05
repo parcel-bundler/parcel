@@ -2,7 +2,7 @@
   "targets": {
     "default": {
       "context": "browser",
-      "includeNodeModules": true
+      "excludeNodeModules": false
     }
   }
 }

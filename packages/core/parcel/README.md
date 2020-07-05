@@ -872,7 +872,7 @@ Inside each of those targets contains the target's environment configuration:
 | Option               | Possible values | Description |
 | -------------------- | --------------- | ----------- |
 | `context`            | `'node' \| 'browser' \| 'web-worker' \| 'electron-main' \| 'electron-renderer'` | Where the bundle should run |
-| `includeNodeModules` | `boolean \| [String]` | Whether to bundle all/none/some `node_module` dependency  |
+| `excludeNodeModules` | `boolean \| [String] \| {packageName: boolean \| string}` | Whether to bundle all/none/some `node_module` dependency  |
 | `outputFormat`       | `'global' \| 'esmodule' \| 'commonjs'` | Which type of imports/exports should be emitted|
 | `publicUrl`          | `string` | The public url of the bundle at runtime |
 | `isLibrary`          | `boolean` | Library as in 'npm library' |

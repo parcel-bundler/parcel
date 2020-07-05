@@ -181,7 +181,7 @@ describe('javascript', function() {
     await outputFS.rimraf(path.join(fixturePath, 'dist'));
   });
 
-  it('should bundle node_modules for a node environment if includeNodeModules is specified', async function() {
+  it('should bundle node_modules for a node environment if excludeNodeModules is specified', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/include_node_modules/main.js'),
     );
@@ -218,7 +218,7 @@ describe('javascript', function() {
     assert.deepEqual(Object.keys(fs), Object.keys({}));
   });
 
-  it('should not bundle builtins for a node environment if includeNodeModules is specified', async function() {
+  it('should not bundle builtins for a node environment if excludeNodeModules is specified', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/include_builtins-node/main.js'),
     );

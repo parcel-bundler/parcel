@@ -93,11 +93,11 @@ export default class Environment implements IEnvironment {
     return this.#environment.engines;
   }
 
-  get includeNodeModules():
+  get excludeNodeModules():
     | boolean
     | Array<PackageName>
-    | {[PackageName]: boolean, ...} {
-    return this.#environment.includeNodeModules;
+    | {[PackageName]: boolean | string, ...} {
+    return this.#environment.excludeNodeModules;
   }
 
   get outputFormat(): OutputFormat {

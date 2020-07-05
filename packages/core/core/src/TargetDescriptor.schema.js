@@ -37,7 +37,7 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
         'electron-renderer',
       ],
     },
-    includeNodeModules: {
+    excludeNodeModules: {
       oneOf: [
         {
           type: 'boolean',
@@ -53,7 +53,14 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
           type: 'object',
           properties: {},
           additionalProperties: {
-            type: 'boolean',
+            oneOf: [
+              {
+                type: 'boolean'
+              },
+              {
+                type: 'string'
+              },
+            ],
           },
         },
       ],

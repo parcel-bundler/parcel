@@ -60,10 +60,10 @@ export type ProcessedParcelConfig = {|
 export type Environment = {|
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules:
+  excludeNodeModules:
     | boolean
     | Array<PackageName>
-    | {[PackageName]: boolean, ...},
+    | {[PackageName]: boolean | string, ...},
   outputFormat: OutputFormat,
   isLibrary: boolean,
   minify: boolean,

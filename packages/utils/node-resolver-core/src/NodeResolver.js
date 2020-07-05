@@ -270,8 +270,13 @@ export default class NodeResolver {
       };
     }
 
-    if (!this.shouldIncludeNodeModule(env, filename)) {
+    let shouldInclude = this.shouldIncludeNodeModule(env, filename);
+    if (!shouldInclude) {
       return null;
+    } else if (typeof shouldInclude === 'string') {
+      return {
+        code: `module.exports=${shouldInclude}`
+      };
     }
 
     let builtin = this.findBuiltin(filename, env);
@@ -338,21 +343,23 @@ export default class NodeResolver {
     return resolved;
   }
 
-  shouldIncludeNodeModule({includeNodeModules}: Environment, name: string) {
-    if (includeNodeModules === false) {
+  shouldIncludeNodeModule({excludeNodeModules}: Environment, name: string) {
+    if (excludeNodeModules === true) {
       return false;
     }
 
-    if (Array.isArray(includeNodeModules)) {
+    if (Array.isArray(excludeNodeModules)) {
       let [moduleName] = this.getModuleParts(name);
-      return includeNodeModules.includes(moduleName);
+      return !excludeNodeModules.includes(moduleName);
     }
 
-    if (includeNodeModules && typeof includeNodeModules === 'object') {
+    if (excludeNodeModules && typeof excludeNodeModules === 'object') {
       let [moduleName] = this.getModuleParts(name);
-      let include = includeNodeModules[moduleName];
-      if (include != null) {
-        return !!include;
+      let include = excludeNodeModules[moduleName];
+      if (typeof include === 'boolean') {
+        return !include;
+      } else if (typeof include === 'string') {
+        return include;
       }
     }
 

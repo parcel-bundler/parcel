@@ -6,7 +6,7 @@
   },
   "targets": {
     "module": {
-      "includeNodeModules": "react",
+      "excludeNodeModules": "react",
       "outputFormat": "esmodule",
       "publicURL": "dist",
       "engines": {

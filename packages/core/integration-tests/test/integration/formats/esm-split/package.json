@@ -4,7 +4,7 @@
   "module": "dist/index.js",
   "targets": {
     "module": {
-      "includeNodeModules": true
+      "excludeNodeModules": false
     }
   }
 }
