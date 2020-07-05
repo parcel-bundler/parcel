@@ -59,6 +59,7 @@ const commonOptions = {
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-autoinstall': 'disable autoinstall',
+  '--no-content-hash': 'disable content hashing',
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
@@ -81,9 +82,9 @@ const commonOptions = {
 var hmrOptions = {
   '--no-hmr': 'disable hot module replacement',
   '-p, --port <port>': [
-    'set the port to serve on. defaults to 1234',
+    'set the port to serve on. defaults to $PORT or 1234',
     value => parseInt(value, 10),
-    1234,
+    parseInt(process.env.PORT, 10) || 1234,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',
@@ -321,6 +322,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     publicUrl: command.publicUrl,
     distDir: command.distDir,
     hot: hmr,
+    contentHash: hmr ? false : command.contentHash,
     serve,
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall ?? true,

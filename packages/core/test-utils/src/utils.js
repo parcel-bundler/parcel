@@ -21,7 +21,7 @@ import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
 import postHtml from 'posthtml';
 
-import {makeDeferredWithPromise} from '@parcel/utils';
+import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
@@ -72,7 +72,7 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export function normalizeFilePath(filePath: string) {
-  return filePath.replace(/[\\/]+/g, '/');
+  return normalizeSeparators(filePath);
 }
 
 export const distDir = path.resolve(
@@ -110,11 +110,13 @@ export function bundler(
     inputFS,
     outputFS,
     workerFarm,
+    distDir,
     packageManager: new NodePackageManager(inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
       node: '8',
     },
+    contentHash: true,
     ...opts,
   });
 }
@@ -161,7 +163,9 @@ export async function runBundles(
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
-    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+    bundles
+      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .filter(Boolean)[0],
   );
   let env = entryAsset.env;
   let target = entryAsset.env.context;
@@ -211,7 +215,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.id);
+          return ctx.parcelRequire(entryAsset.publicId);
         }
         return;
       case 'commonjs':

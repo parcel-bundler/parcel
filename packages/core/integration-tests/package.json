@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "2.0.0-alpha.3.2",
+  "version": "2.0.0-beta.1",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -24,8 +24,7 @@
     "core-js": "^3.2.1",
     "cross-env": "^7.0.0",
     "get-port": "^5.0.0",
-    "graphql": "^0.11.7",
-    "graphql-tag": "^2.6.0",
+    "graphql": "^15.0.0",
     "http-proxy-middleware": "^0.19.1",
     "jsdom": "^15.2.1",
     "json5": "^1.0.1",
@@ -33,8 +32,8 @@
     "lodash": "^4.17.15",
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
-    "parcel": "^2.0.0-alpha.3.2",
-    "parcel-bundler": "^2.0.0-alpha.3.1",
+    "parcel": "2.0.0-beta.1",
+    "parcel-bundler": "2.0.0-beta.1",
     "postcss-custom-properties": "^8.0.9",
     "postcss-import": "^12.0.1",
     "react": "^16.11.0",
@@ -42,6 +41,7 @@
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
     "tempy": "^0.3.0",
-    "ws": "^5.1.1"
+    "ws": "^5.1.1",
+    "posthtml-obfuscate": "^0.1.5"
   }
 }

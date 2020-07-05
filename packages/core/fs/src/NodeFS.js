@@ -14,7 +14,7 @@ import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
 import {promisify} from '@parcel/utils';
 import {registerSerializableClass} from '@parcel/core';
-import fsWriteStreamAtomic from 'fs-write-stream-atomic';
+import fsWriteStreamAtomic from '@parcel/fs-write-stream-atomic';
 import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 

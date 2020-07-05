@@ -227,7 +227,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -240,8 +240,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
-          (bundle, bundleGraph, options) =>
-            new NamedBundle(bundle, bundleGraph, options),
+          NamedBundle.get,
           this.options,
         ),
         getSourceMapReference: map => {
@@ -281,7 +280,7 @@ export default class PackagerRunner {
     contents: Blob,
     map?: ?SourceMap,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     let optimizers = await this.config.getOptimizers(
       bundle.filePath,
       internalBundle.pipeline,
@@ -335,8 +334,8 @@ export default class PackagerRunner {
       ) {
         sourceRoot = bundle.target.sourceMap.sourceRoot;
       } else if (
-        bundle.target.env.context === 'browser' &&
-        this.options.mode !== 'production'
+        this.options.serve &&
+        bundle.target.env.context === 'browser'
       ) {
         sourceRoot = '/__parcel_source_root';
       }
@@ -360,6 +359,7 @@ export default class PackagerRunner {
     // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
       file: path.basename(mapFilename),
+      // $FlowFixMe
       fs: this.options.inputFS,
       rootDir: this.options.projectRoot,
       sourceRoot: !inlineSources
@@ -428,7 +428,8 @@ export default class PackagerRunner {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
     let thisHashReference = bundle.hashReference;
-    if (filePath.includes(thisHashReference)) {
+    // Without content hashing, the hash reference is already the correct id
+    if (this.options.contentHash && filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
       bundle.filePath = filePath;
@@ -443,14 +444,14 @@ export default class PackagerRunner {
 
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
-    let writeOptions = publicBundle.env.isBrowser()
-      ? undefined
-      : {
-          mode: (
-            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
-          ).mode,
-        };
+    let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
+    let mainEntry = publicBundle.getMainEntry();
+    let writeOptions =
+      publicBundle.env.isBrowser() || !mainEntry
+        ? undefined
+        : {
+            mode: (await inputFS.stat(mainEntry.filePath)).mode,
+          };
     let cacheKeys = info.cacheKeys;
     let contentStream = this.options.cache.getStream(cacheKeys.content);
     let size = await writeFileStream(

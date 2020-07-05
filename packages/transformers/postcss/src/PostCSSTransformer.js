@@ -48,6 +48,7 @@ export default new Transformer({
   },
 
   async transform({asset, config, options, resolve}) {
+    asset.type = 'css';
     if (!config) {
       return [asset];
     }
@@ -84,7 +85,7 @@ export default new Transformer({
               asset.addDependency({
                 moduleSpecifier: importPath,
                 loc: {
-                  filePath: importPath,
+                  filePath: asset.filePath,
                   start: decl.source.start,
                   end: {
                     line: decl.source.start.line,

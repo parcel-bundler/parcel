@@ -14,16 +14,16 @@ describe('jsonld', function() {
 
     assertBundles(b, [
       {
+        type: 'jsonld',
+        assets: ['index.html'],
+      },
+      {
         name: 'index.html',
         assets: ['index.html'],
       },
       {
         type: 'css',
         assets: ['other.css'],
-      },
-      {
-        type: 'jsonld',
-        assets: ['index.html'],
       },
       {
         type: 'png',

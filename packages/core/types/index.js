@@ -12,6 +12,10 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
+export type ConfigResultWithFilePath = {|
+  contents: ConfigResult,
+  filePath: FilePath,
+|};
 export type EnvMap = typeof process.env;
 
 export type JSONValue =
@@ -78,6 +82,7 @@ export interface Target {
   +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: string;
+  // The position of e.g. `package.json#main`
   +loc: ?SourceLocation;
 }
 
@@ -193,7 +198,8 @@ export type InitialParcelOptions = {|
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,
-  +serve?: ServerOptions | false,
+  +contentHash?: boolean,
+  +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
   +profile?: boolean,
@@ -211,6 +217,13 @@ export type InitialParcelOptions = {|
   // global?
 |};
 
+export type InitialServerOptions = {|
+  +publicUrl?: string,
+  +host?: string,
+  +port: number,
+  +https?: HTTPSOptions | boolean,
+|};
+
 export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
@@ -220,7 +233,6 @@ export interface PluginOptions {
   +autoinstall: boolean;
   +logLevel: LogLevel;
   +rootDir: FilePath;
-  +distDir: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
@@ -231,6 +243,7 @@ export interface PluginOptions {
 }
 
 export type ServerOptions = {|
+  +distDir: FilePath,
   +host?: string,
   +port: number,
   +https?: HTTPSOptions | boolean,
@@ -279,6 +292,7 @@ export type DependencyOptions = {|
   +isOptional?: boolean,
   +isURL?: boolean,
   +isWeak?: ?boolean,
+  +isIsolated?: boolean,
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
@@ -290,10 +304,11 @@ export interface Dependency {
   +id: string;
   +moduleSpecifier: ModuleSpecifier;
   +isAsync: boolean;
-  +isEntry: boolean;
+  +isEntry: ?boolean;
   +isOptional: boolean;
   +isURL: boolean;
   +isWeak: ?boolean;
+  +isIsolated: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
@@ -331,6 +346,7 @@ export interface BaseAsset {
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
+  +pipeline: ?string;
 
   // (symbol exported by this -> name of binding to export)
   +symbols: Symbols;
@@ -375,6 +391,7 @@ export interface MutableAsset extends BaseAsset {
 }
 
 export interface Asset extends BaseAsset {
+  +publicId: string;
   +stats: Stats;
 }
 
@@ -383,9 +400,8 @@ export interface Config {
   +searchPath: FilePath;
   +result: ConfigResult;
   +env: Environment;
-  +resolvedPath: ?FilePath;
+  +includedFiles: Set<FilePath>;
 
-  setResolvedPath(filePath: FilePath): void;
   setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
@@ -399,7 +415,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -407,7 +423,7 @@ export interface Config {
       parse?: boolean,
       exclude?: boolean,
     |},
-  ): Promise<ConfigResult | null>;
+  ): Promise<ConfigResultWithFilePath | null>;
   getPackage(): Promise<PackageJSON | null>;
   shouldRehydrate(): void;
   shouldReload(): void;
@@ -492,13 +508,6 @@ export type MultiThreadValidator = {|
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
 export type Transformer = {|
-  // TODO: deprecate getConfig
-  getConfig?: ({|
-    asset: MutableAsset,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<ConfigResult | void>,
   loadConfig?: ({|
     config: Config,
     options: PluginOptions,
@@ -584,6 +593,7 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       +type?: ?string,
       +env?: ?Environment,
+      +pipeline?: ?string,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -596,6 +606,7 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       +type: string,
       +env: Environment,
+      +pipeline?: ?string,
     |};
 
 export type SymbolResolution = {|
@@ -632,6 +643,7 @@ export interface Bundle {
 }
 
 export interface NamedBundle extends Bundle {
+  +publicId: string;
   +filePath: FilePath;
   +name: string;
   +displayName: string;
@@ -645,6 +657,7 @@ export type BundleGroup = {|
 
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addAssetGraphToBundle(Asset, Bundle): void;
+  addEntryToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
   createBundleReference(Bundle, Bundle): void;
@@ -665,6 +678,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
 }
 
 export interface BundleGraph<TBundle: Bundle> {
+  getAssetById(id: string): Asset;
   getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
@@ -674,7 +688,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getReferencedBundles(bundle: Bundle): Array<TBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
-  resolveExternalDependency(
+  resolveAsyncDependency(
     dependency: Dependency,
     bundle: ?Bundle,
   ): ?(
@@ -683,6 +697,7 @@ export interface BundleGraph<TBundle: Bundle> {
   );
   isDependencyDeferred(dependency: Dependency): boolean;
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
   findBundlesWithAsset(Asset): Array<TBundle>;
   findBundlesWithDependency(Dependency): Array<TBundle>;
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
@@ -721,14 +736,25 @@ export type ResolveResult = {|
   +code?: string,
 |};
 
+export type ConfigOutput = {|
+  config: ConfigResult,
+  files: Array<File>,
+|};
+
 export type Bundler = {|
+  loadConfig?: ({|
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<ConfigOutput>,
   bundle({|
     bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,

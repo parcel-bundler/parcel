@@ -1,0 +1,15 @@
+name: tag-release
+on:
+  release:
+    types: [published]
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    name: Build and release the tagged version
+    steps:
+      - uses: actions/checkout@v1
+      - uses: bahmutov/npm-install@v1.1.0
+      - run: echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: yarn release

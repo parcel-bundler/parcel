@@ -2,7 +2,7 @@
 
 import type {WorkerApi} from '@parcel/workers';
 import type {
-  AssetRequestDesc,
+  AssetGroup,
   ConfigRequestDesc,
   ParcelOptions,
   ReportFn,
@@ -11,7 +11,7 @@ import type {Validator, ValidateResult} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
-import {resolveConfig} from '@parcel/utils';
+import {resolveConfig, normalizeSeparators} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
@@ -30,7 +30,7 @@ export type ValidationOpts = {|
    */
   dedicatedThread?: boolean,
   options: ParcelOptions,
-  requests: AssetRequestDesc[],
+  requests: AssetGroup[],
   report: ReportFn,
   workerApi?: WorkerApi,
 |};
@@ -45,7 +45,7 @@ export default class Validation {
   options: ParcelOptions;
   parcelConfig: ParcelConfig;
   report: ReportFn;
-  requests: AssetRequestDesc[];
+  requests: AssetGroup[];
   workerApi: ?WorkerApi;
 
   constructor({
@@ -182,11 +182,11 @@ export default class Validation {
     }
   }
 
-  async loadAsset(request: AssetRequestDesc): Promise<UncommittedAsset> {
+  async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
     let {filePath, env, code, sideEffects} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
-      request,
+      {filePath: request.filePath},
     );
 
     // If the transformer request passed code rather than a filename,
@@ -194,9 +194,9 @@ export default class Validation {
     let idBase =
       code != null
         ? hash
-        : path
-            .relative(this.options.projectRoot, filePath)
-            .replace(/[\\/]+/g, '/');
+        : normalizeSeparators(
+            path.relative(this.options.projectRoot, filePath),
+          );
     return new UncommittedAsset({
       idBase,
       value: createAsset({

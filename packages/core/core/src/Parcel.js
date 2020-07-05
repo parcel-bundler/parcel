@@ -28,7 +28,7 @@ import nullthrows from 'nullthrows';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
-import loadParcelConfig from './loadParcelConfig';
+import {loadParcelConfig} from './requests/ParcelConfigRequest';
 import ReporterRunner, {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
@@ -278,12 +278,7 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(
-          bundleGraph,
-          (bundle, bundleGraph, options) =>
-            new NamedBundle(bundle, bundleGraph, options),
-          options,
-        ),
+        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
       };
 

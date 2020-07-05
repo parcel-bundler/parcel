@@ -110,7 +110,26 @@ describe('html', function() {
       'utf8',
     );
 
-    assert(/<link rel="canonical" href="\/index.html">/.test(html));
+    assert(/<link rel="canonical" href="\.?\/index.html">/.test(html));
+  });
+
+  it('should support meta tag with none content', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-meta/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+    assert(/<meta name="msapplication-config" content="none">/.test(html));
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
@@ -138,9 +157,7 @@ describe('html', function() {
       'utf8',
     );
     assert(
-      /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
-        html,
-      ),
+      /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">/.test(html),
     );
   });
 
@@ -169,7 +186,7 @@ describe('html', function() {
       'utf8',
     );
     assert(
-      /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
+      /<html>\s*<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">\s*<body>/.test(
         html,
       ),
     );
@@ -238,7 +255,7 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
+    assert(/<script src="[/\\]{1}index\.[a-f0-9]+\.js">/.test(html));
   });
 
   it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
@@ -274,10 +291,80 @@ describe('html', function() {
     );
 
     assert(
-      /^<link rel="stylesheet" href="[/\\]html-css-optional-elements\.[a-f0-9]+\.css">\s*<script src="[/\\]other\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
+      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script src="[/\\]index\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
+  });
+
+  it('should combine sibling CSS from multiple script tags into one bundle', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css-multi/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+      {
+        type: 'css',
+        assets: ['a.css', 'b.css'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    assert.equal(
+      html.match(
+        /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+?\.css">/g,
+      ).length,
+      1,
+    );
+
+    assert.equal(
+      html.match(/<script src="[/\\]{1}index\.[a-f0-9]+?\.js">/g).length,
+      2,
+    );
+  });
+
+  it('should deduplicate shared code between script tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-dedup/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['component-1.js', 'obj.js'],
+      },
+      {
+        type: 'js',
+        assets: ['component-2.js'],
+      },
+    ]);
+
+    let o = [];
+    await run(b, {
+      output: v => o.push(v),
+    });
+
+    assert.deepEqual(o, ['component-1', 'component-2']);
   });
 
   it('should minify HTML in production mode', async function() {
@@ -959,6 +1046,46 @@ describe('html', function() {
     assert(html.includes('document.write("Hello world")'));
   });
 
+  it('should correctly bundle loaders for nested dynamic imports', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-js-shared-dynamic-nested/index.html',
+      ),
+      {production: true, scopeHoist: true},
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: [
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'cacheLoader.js',
+          'index.js',
+          'index.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['simpleHasher.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.deepEqual(output, ['hasher', ['hasher', 'hasher']]);
+  });
+
   it('should support shared bundles between multiple inline scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js-shared/index.html'),
@@ -1036,9 +1163,7 @@ describe('html', function() {
     ]);
 
     let lodashSibling = path.basename(
-      b
-        .getChildBundles(b.getBundles().find(v => v.isEntry))
-        .find(v => v.getEntryAssets().length === 0).filePath,
+      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
     );
 
     let html = await outputFS.readFile(
@@ -1099,9 +1224,7 @@ describe('html', function() {
     ]);
 
     let lodashSibling = path.basename(
-      b
-        .getChildBundles(b.getBundles().find(v => v.isEntry))
-        .find(v => v.getEntryAssets().length === 0).filePath,
+      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
     );
 
     let html = await outputFS.readFile(
@@ -1163,13 +1286,7 @@ describe('html', function() {
       insertedBundles.push(bundle);
     }
 
-    assert.equal(insertedBundles.length, 2);
-
-    let js1 = await outputFS.readFile(insertedBundles[0].filePath, 'utf8');
-    let js2 = await outputFS.readFile(insertedBundles[1].filePath, 'utf8');
-
-    let id = js1.match(/parcelRequire\.register\("([a-f0-9]+)",/)[1];
-    assert(new RegExp(`parcelRequire\\("${id}"\\)`).test(js2));
+    assert.equal(insertedBundles.length, 1);
 
     let output = await run(b);
     assert.deepEqual(output, ['client', 'client', 'viewer']);
@@ -1315,6 +1432,73 @@ describe('html', function() {
     checkHtml('e.html');
     checkHtml('f.html');
     checkHtml('g.html');
+  });
+
+  it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-multi-entry/*.html'),
+      {
+        production: true,
+        scopeHoist: true,
+      },
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'a.html',
+        type: 'html',
+        assets: ['a.html'],
+      },
+      {
+        name: 'b.html',
+        type: 'html',
+        assets: ['b.html'],
+      },
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js'],
+      },
+    ]);
+
+    let firstHtmlFile = await outputFS.readFile(
+      path.join(distDir, 'a.html'),
+      'utf8',
+    );
+
+    let secondHtmlFile = await outputFS.readFile(
+      path.join(distDir, 'b.html'),
+      'utf8',
+    );
+
+    let bundles = b.getBundles();
+    let cssBundle = path.basename(
+      bundles.find(bundle => bundle.filePath.endsWith('.css')).filePath,
+    );
+    let jsBundle = path.basename(
+      bundles.find(bundle => bundle.filePath.endsWith('.js')).filePath,
+    );
+
+    assert(
+      firstHtmlFile.includes(cssBundle),
+      `a.html should include a reference to ${cssBundle}`,
+    );
+    assert(
+      secondHtmlFile.includes(cssBundle),
+      `b.html should include a reference to ${cssBundle}`,
+    );
+
+    assert(
+      firstHtmlFile.includes(jsBundle),
+      `a.html should include a reference to ${jsBundle}`,
+    );
+    assert(
+      secondHtmlFile.includes(jsBundle),
+      `b.html should include a reference to ${jsBundle}`,
+    );
   });
 
   it('should invalidate parent bundle when inline bundles change', async function() {
