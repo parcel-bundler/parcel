@@ -2232,12 +2232,7 @@ describe('javascript', function() {
     assertBundles(b, [
       {
         name: 'index.js',
-        assets: [
-          'index.js',
-          'JSRuntime.js',
-          'bundle-manifest.js',
-          b.getBundles().find(b => b.isInline).id + '.js',
-        ],
+        assets: ['index.js', b.getBundles().find(b => b.isInline).id + '.js'],
       },
       {
         name: 'index.css',
