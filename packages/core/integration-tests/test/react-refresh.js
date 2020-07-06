@@ -206,12 +206,10 @@ async function setup(entry) {
   root = window.document.getElementById('root');
 
   let bundle = nullthrows(
-    bundleEvent.bundleGraph.getChildBundles(
-      bundleEvent.bundleGraph.getBundles().find(b => b.type === 'html'),
-    )[0],
+    bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
   );
   // ReactDOM.render
-  await window.parcelRequire(bundle.getMainEntry().id).default();
+  await window.parcelRequire(bundle.getEntryAssets().pop().publicId).default();
   await sleep(100);
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(
