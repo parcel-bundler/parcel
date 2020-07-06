@@ -193,7 +193,6 @@ describe('AssetGraph', () => {
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
@@ -235,7 +234,6 @@ describe('AssetGraph', () => {
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
       sourcePath: '',
