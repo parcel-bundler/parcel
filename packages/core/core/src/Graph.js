@@ -409,6 +409,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     };
 
     let walk = (node, context) => {
+      if (!this.hasNode(node.id)) return;
       visited.add(node);
 
       skipped = false;

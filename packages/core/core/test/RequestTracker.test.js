@@ -4,7 +4,7 @@ import assert from 'assert';
 import nullthrows from 'nullthrows';
 import RequestTracker from '../src/RequestTracker';
 import WorkerFarm from '@parcel/workers';
-import {DEFAULT_OPTIONS} from './utils';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 const options = DEFAULT_OPTIONS;
 const farm = new WorkerFarm({workerPath: require.resolve('../src/worker.js')});

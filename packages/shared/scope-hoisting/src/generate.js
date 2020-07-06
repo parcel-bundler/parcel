@@ -15,7 +15,6 @@ import type {
 
 import babelGenerate from '@babel/generator';
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import {isEntry} from './utils';
 import SourceMap from '@parcel/source-map';
 import * as t from '@babel/types';
@@ -57,8 +56,9 @@ export function generate({
   referencedAssets: Set<Asset>,
 |}) {
   let interpreter;
-  if (!bundle.target.env.isBrowser()) {
-    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+  let mainEntry = bundle.getMainEntry();
+  if (mainEntry && !bundle.target.env.isBrowser()) {
+    let _interpreter = mainEntry.meta.interpreter;
     invariant(_interpreter == null || typeof _interpreter === 'string');
     interpreter = _interpreter;
   }
@@ -74,9 +74,9 @@ export function generate({
           REGISTER_TEMPLATE({
             STATEMENTS: statements,
             REFERENCED_IDS: t.arrayExpression(
-              [bundle.getMainEntry(), ...referencedAssets]
+              [mainEntry, ...referencedAssets]
                 .filter(Boolean)
-                .map(asset => t.stringLiteral(asset.id)),
+                .map(asset => t.stringLiteral(asset.publicId)),
             ),
           }),
         ]

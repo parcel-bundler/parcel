@@ -48,29 +48,47 @@ export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
   return nullthrows(_bundleToInternalBundleGraph.get(bundle));
 }
 
+// Require this private object to be present when invoking these constructors,
+// preventing others from using them. They should use the static `get` method.
+let _private = {};
+
 export class Bundle implements IBundle {
   #bundle; // InternalBundle
   #bundleGraph; // BundleGraph
   #options; // ParcelOptions
 
   constructor(
+    sentinel: mixed,
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
   ) {
-    let existingMap = internalBundleToBundle.get(options).get(bundleGraph);
-    let existing = existingMap.get(bundle);
-    if (existing != null) {
-      return existing;
+    if (sentinel !== _private) {
+      throw new Error('Unexpected public usage');
     }
 
     this.#bundle = bundle;
     this.#bundleGraph = bundleGraph;
     this.#options = options;
+  }
 
-    _bundleToInternalBundle.set(this, bundle);
-    _bundleToInternalBundleGraph.set(this, bundleGraph);
-    existingMap.set(bundle, this);
+  static get(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+  ): Bundle {
+    let existingMap = internalBundleToBundle.get(options).get(bundleGraph);
+    let existing = existingMap.get(internalBundle);
+    if (existing != null) {
+      return existing;
+    }
+
+    let bundle = new Bundle(_private, internalBundle, bundleGraph, options);
+    _bundleToInternalBundle.set(bundle, internalBundle);
+    _bundleToInternalBundleGraph.set(bundle, bundleGraph);
+    existingMap.set(internalBundle, bundle);
+
+    return bundle;
   }
 
   get id(): string {
@@ -133,8 +151,13 @@ export class Bundle implements IBundle {
   }
 
   getMainEntry(): ?IAsset {
-    // The main entry is the last one to execute
-    return this.getEntryAssets().pop();
+    if (this.#bundle.mainEntryId != null) {
+      let assetNode = this.#bundleGraph._graph.getNode(
+        this.#bundle.mainEntryId,
+      );
+      invariant(assetNode != null && assetNode.type === 'asset');
+      return assetFromValue(assetNode.value, this.#options);
+    }
   }
 
   traverse<TContext>(
@@ -168,20 +191,38 @@ export class NamedBundle extends Bundle implements INamedBundle {
   #bundleGraph; // BundleGraph
 
   constructor(
+    sentinel: mixed,
     bundle: InternalBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions,
   ) {
+    super(sentinel, bundle, bundleGraph, options);
+    this.#bundle = bundle; // Repeating for flow
+    this.#bundleGraph = bundleGraph; // Repeating for flow
+  }
+
+  static get(
+    internalBundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions,
+  ): NamedBundle {
     let existingMap = internalBundleToNamedBundle.get(options).get(bundleGraph);
-    let existing = existingMap.get(bundle);
+    let existing = existingMap.get(internalBundle);
     if (existing != null) {
       return existing;
     }
 
-    super(bundle, bundleGraph, options);
-    this.#bundle = bundle; // Repeating for flow
-    this.#bundleGraph = bundleGraph; // Repeating for flow
-    existingMap.set(bundle, this);
+    let namedBundle = new NamedBundle(
+      _private,
+      internalBundle,
+      bundleGraph,
+      options,
+    );
+    _bundleToInternalBundle.set(namedBundle, internalBundle);
+    _bundleToInternalBundleGraph.set(namedBundle, bundleGraph);
+    existingMap.set(internalBundle, namedBundle);
+
+    return namedBundle;
   }
 
   get filePath(): FilePath {
@@ -194,5 +235,9 @@ export class NamedBundle extends Bundle implements INamedBundle {
 
   get displayName(): string {
     return nullthrows(this.#bundle.displayName);
+  }
+
+  get publicId(): string {
+    return nullthrows(this.#bundle.publicId);
   }
 }

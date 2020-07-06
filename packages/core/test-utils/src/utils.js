@@ -163,7 +163,9 @@ export async function runBundles(
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
-    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+    bundles
+      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .filter(Boolean)[0],
   );
   let env = entryAsset.env;
   let target = entryAsset.env.context;
@@ -213,7 +215,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.id);
+          return ctx.parcelRequire(entryAsset.publicId);
         }
         return;
       case 'commonjs':
@@ -327,7 +329,8 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  const byAssets = (a, b) =>
+    a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(
