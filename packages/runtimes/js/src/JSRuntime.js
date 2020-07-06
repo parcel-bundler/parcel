@@ -84,7 +84,7 @@ export default new Runtime({
 
     let assets = [];
     for (let dependency of asyncDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (resolved == null) {
         continue;
       }
@@ -114,7 +114,24 @@ export default new Runtime({
     }
 
     for (let dependency of otherDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      // Resolve the dependency to a bundle. If inline, export the dependency id,
+      // which will be replaced with the contents of that bundle later.
+      let referencedBundle = bundleGraph.getReferencedBundle(
+        dependency,
+        bundle,
+      );
+      if (referencedBundle?.isInline) {
+        assets.push({
+          filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
+          code: `module.exports = ${JSON.stringify(dependency.id)};`,
+          dependency,
+        });
+        continue;
+      }
+
+      // Otherwise, try to resolve the dependency to an external bundle group
+      // and insert a URL to that bundle.
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (dependency.isURL && resolved == null) {
         // If a URL dependency was not able to be resolved, add a runtime that
         // exports the original moduleSpecifier.
@@ -135,19 +152,10 @@ export default new Runtime({
       let bundleGroup = resolved.value;
       let mainBundle = nullthrows(
         bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
-          let main = b.getMainEntry();
-          return main && bundleGroup.entryAssetId === main.id;
+          let entries = b.getEntryAssets();
+          return entries.some(e => bundleGroup.entryAssetId === e.id);
         }),
       );
-
-      if (mainBundle.isInline) {
-        assets.push({
-          filePath: path.join(__dirname, `/bundles/${mainBundle.id}.js`),
-          code: `module.exports = ${JSON.stringify(dependency.id)};`,
-          dependency,
-        });
-        continue;
-      }
 
       // URL dependency or not, fall back to including a runtime that exports the url
       assets.push(getURLRuntime(dependency, bundle, mainBundle));
@@ -282,14 +290,14 @@ function isNewContext(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
+  let parents = bundleGraph.getParentBundles(bundle);
   return (
     bundle.isEntry ||
-    bundleGraph
-      .getParentBundles(bundle)
-      .some(
-        parent =>
-          parent.env.context !== bundle.env.context || parent.type !== 'js',
-      )
+    parents.length === 0 ||
+    parents.some(
+      parent =>
+        parent.env.context !== bundle.env.context || parent.type !== 'js',
+    )
   );
 }
 

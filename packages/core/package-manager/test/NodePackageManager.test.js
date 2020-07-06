@@ -11,11 +11,14 @@ import {MockPackageInstaller, NodePackageManager} from '../';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
-describe('NodePackageManager', () => {
+describe('NodePackageManager', function() {
   let fs;
   let packageManager;
   let packageInstaller;
   let workerFarm;
+
+  // These can sometimes take a lil while
+  this.timeout(20000);
 
   beforeEach(() => {
     workerFarm = new WorkerFarm({

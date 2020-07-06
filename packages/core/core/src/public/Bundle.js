@@ -151,8 +151,13 @@ export class Bundle implements IBundle {
   }
 
   getMainEntry(): ?IAsset {
-    // The main entry is the last one to execute
-    return this.getEntryAssets().pop();
+    if (this.#bundle.mainEntryId != null) {
+      let assetNode = this.#bundleGraph._graph.getNode(
+        this.#bundle.mainEntryId,
+      );
+      invariant(assetNode != null && assetNode.type === 'asset');
+      return assetFromValue(assetNode.value, this.#options);
+    }
   }
 
   traverse<TContext>(

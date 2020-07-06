@@ -109,14 +109,14 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
-  resolveExternalDependency(
+  resolveAsyncDependency(
     dependency: IDependency,
     bundle: ?IBundle,
   ): ?(
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: IAsset|}
   ) {
-    let resolved = this.#graph.resolveExternalDependency(
+    let resolved = this.#graph.resolveAsyncDependency(
       dependencyToInternalDependency(dependency),
       bundle && bundleToInternalBundle(bundle),
     );
@@ -131,6 +131,17 @@ export default class BundleGraph<TBundle: IBundle>
       type: 'asset',
       value: assetFromValue(resolved.value, this.#options),
     };
+  }
+
+  getReferencedBundle(dependency: IDependency, bundle: IBundle): ?TBundle {
+    let result = this.#graph.getReferencedBundle(
+      dependencyToInternalDependency(dependency),
+      bundleToInternalBundle(bundle),
+    );
+
+    if (result != null) {
+      return this.#createBundle.call(null, result, this.#graph, this.#options);
+    }
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {

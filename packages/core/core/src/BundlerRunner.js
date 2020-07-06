@@ -1,6 +1,11 @@
 // @flow strict-local
 
-import type {Bundle as IBundle, Namer, FilePath} from '@parcel/types';
+import type {
+  Bundle as IBundle,
+  Namer,
+  FilePath,
+  ConfigOutput,
+} from '@parcel/types';
 import type {Bundle as InternalBundle, ParcelOptions} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
@@ -57,9 +62,27 @@ export default class BundlerRunner {
       phase: 'bundling',
     });
 
+    let {plugin: bundler} = await this.config.getBundler();
+
+    let configResult: ?ConfigOutput;
+    if (bundler.loadConfig != null) {
+      try {
+        configResult = await nullthrows(bundler.loadConfig)({
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        });
+
+        // TODO: add invalidations once bundling is a request
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        });
+      }
+    }
+
     let cacheKey;
     if (!this.options.disableCache) {
-      cacheKey = await this.getCacheKey(graph);
+      cacheKey = await this.getCacheKey(graph, configResult);
       let cachedBundleGraph = await this.options.cache.get(cacheKey);
       assertSignalNotAborted(signal);
 
@@ -76,11 +99,10 @@ export default class BundlerRunner {
       this.options,
     );
 
-    let {plugin: bundler} = await this.config.getBundler();
-
     try {
       await bundler.bundle({
         bundleGraph: mutableBundleGraph,
+        config: configResult?.config,
         options: this.pluginOptions,
         logger: new PluginLogger({origin: this.config.getBundlerName()}),
       });
@@ -96,6 +118,7 @@ export default class BundlerRunner {
     try {
       await bundler.optimize({
         bundleGraph: mutableBundleGraph,
+        config: configResult?.config,
         options: this.pluginOptions,
         logger: new PluginLogger({origin: this.config.getBundlerName()}),
       });
@@ -129,7 +152,7 @@ export default class BundlerRunner {
     return internalBundleGraph;
   }
 
-  async getCacheKey(assetGraph: AssetGraph) {
+  async getCacheKey(assetGraph: AssetGraph, configResult: ?ConfigOutput) {
     let name = this.config.getBundlerName();
     let {version} = await this.config.getBundler();
 
@@ -138,6 +161,7 @@ export default class BundlerRunner {
       name,
       version,
       hash: assetGraph.getHash(),
+      config: configResult?.config,
     });
   }
 
