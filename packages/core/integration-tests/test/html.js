@@ -157,9 +157,7 @@ describe('html', function() {
       'utf8',
     );
     assert(
-      /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
-        html,
-      ),
+      /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">/.test(html),
     );
   });
 
@@ -188,7 +186,7 @@ describe('html', function() {
       'utf8',
     );
     assert(
-      /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
+      /<html>\s*<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+\.css">\s*<body>/.test(
         html,
       ),
     );
@@ -257,7 +255,7 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
+    assert(/<script src="[/\\]{1}index\.[a-f0-9]+\.js">/.test(html));
   });
 
   it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
@@ -293,10 +291,80 @@ describe('html', function() {
     );
 
     assert(
-      /^<link rel="stylesheet" href="[/\\]html-css-optional-elements\.[a-f0-9]+\.css">\s*<script src="[/\\]other\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
+      /^<link rel="stylesheet" href="[/\\]index\.[a-f0-9]+\.css">\s*<script src="[/\\]index\.[a-f0-9]+\.js"><\/script>\s*<h1>Hello/m.test(
         html,
       ),
     );
+  });
+
+  it('should combine sibling CSS from multiple script tags into one bundle', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css-multi/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js'],
+      },
+      {
+        type: 'js',
+        assets: ['b.js'],
+      },
+      {
+        type: 'css',
+        assets: ['a.css', 'b.css'],
+      },
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8',
+    );
+
+    assert.equal(
+      html.match(
+        /<link rel="stylesheet" href="[/\\]{1}index\.[a-f0-9]+?\.css">/g,
+      ).length,
+      1,
+    );
+
+    assert.equal(
+      html.match(/<script src="[/\\]{1}index\.[a-f0-9]+?\.js">/g).length,
+      2,
+    );
+  });
+
+  it('should deduplicate shared code between script tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-dedup/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['component-1.js', 'obj.js'],
+      },
+      {
+        type: 'js',
+        assets: ['component-2.js'],
+      },
+    ]);
+
+    let o = [];
+    await run(b, {
+      output: v => o.push(v),
+    });
+
+    assert.deepEqual(o, ['component-1', 'component-2']);
   });
 
   it('should minify HTML in production mode', async function() {
@@ -1095,9 +1163,7 @@ describe('html', function() {
     ]);
 
     let lodashSibling = path.basename(
-      b
-        .getChildBundles(b.getBundles().find(v => v.isEntry))
-        .find(v => v.getEntryAssets().length === 0).filePath,
+      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
     );
 
     let html = await outputFS.readFile(
@@ -1158,9 +1224,7 @@ describe('html', function() {
     ]);
 
     let lodashSibling = path.basename(
-      b
-        .getChildBundles(b.getBundles().find(v => v.isEntry))
-        .find(v => v.getEntryAssets().length === 0).filePath,
+      b.getBundles().find(v => v.getEntryAssets().length === 0).filePath,
     );
 
     let html = await outputFS.readFile(

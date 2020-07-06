@@ -141,6 +141,10 @@ class BaseAsset {
     return this.#asset.value.astGenerator;
   }
 
+  get pipeline(): ?string {
+    return this.#asset.value.pipeline;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -204,6 +208,10 @@ export class Asset extends BaseAsset implements IAsset {
 
   get stats(): Stats {
     return this.#asset.value.stats;
+  }
+
+  get publicId(): string {
+    return nullthrows(this.#asset.value.publicId);
   }
 }
 
