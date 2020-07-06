@@ -1,13 +1,14 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {File, FilePath, Glob} from '@parcel/types';
+import type {Async, File, FilePath, Glob} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
-import type {NodeId} from './types';
+import type WorkerFarm from '@parcel/workers';
+import type {NodeId, ParcelOptions} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {isGlobMatch, md5FromObject} from '@parcel/utils';
+import {isGlobMatch} from '@parcel/utils';
 import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted} from './utils';
 
@@ -21,17 +22,25 @@ type SerializedRequestGraph = {|
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
-export type Request = {|
+
+type Request<TInput, TResult> = {|
   id: string,
   +type: string,
-  request: mixed,
+  input: TInput,
+  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
+|};
+
+type StoredRequest = {|
+  id: string,
+  +type: string,
+  input: mixed,
   result?: mixed,
 |};
 
 type RequestNode = {|
   id: string,
   +type: 'request',
-  value: Request,
+  value: StoredRequest,
 |};
 type RequestGraphNode = RequestNode | FileNode | GlobNode;
 
@@ -40,6 +49,23 @@ type RequestGraphEdgeType =
   | 'invalidated_by_update'
   | 'invalidated_by_delete'
   | 'invalidated_by_create';
+
+type RunAPI = {|
+  invalidateOnFileCreate: Glob => void,
+  invalidateOnFileDelete: FilePath => void,
+  invalidateOnFileUpdate: FilePath => void,
+  invalidateOnStartup: () => void,
+  storeResult: (result: mixed) => void,
+  runRequest: <TInput, TResult>(
+    subRequest: Request<TInput, TResult>,
+  ) => Async<TResult>,
+|};
+
+export type StaticRunOpts = {|
+  farm: WorkerFarm,
+  options: ParcelOptions,
+  api: RunAPI,
+|};
 
 const nodeFromFilePath = (filePath: string) => ({
   id: filePath,
@@ -53,7 +79,7 @@ const nodeFromGlob = (glob: Glob) => ({
   value: glob,
 });
 
-const nodeFromRequest = (request: Request) => ({
+const nodeFromRequest = (request: StoredRequest) => ({
   id: request.id,
   type: 'request',
   value: request,
@@ -112,24 +138,13 @@ export class RequestGraph extends Graph<
     return super.removeNode(node);
   }
 
-  // TODO: deprecate
-  addRequest(request: Request) {
-    let requestNode = nodeFromRequest(request);
-    if (!this.hasNode(requestNode.id)) {
-      this.addNode(requestNode);
-    } else {
-      requestNode = this.getNode(requestNode.id);
-    }
-    return requestNode;
-  }
-
   getRequestNode(id: string) {
     let node = nullthrows(this.getNode(id));
     invariant(node.type === 'request');
     return node;
   }
 
-  completeRequest(request: Request) {
+  completeRequest(request: StoredRequest) {
     this.invalidNodeIds.delete(request.id);
     this.incompleteNodeIds.delete(request.id);
   }
@@ -141,10 +156,6 @@ export class RequestGraph extends Graph<
     let requestNode = this.getRequestNode(requestId);
     if (!this.hasNode(requestId)) {
       this.addNode(requestNode);
-    }
-
-    for (let subrequestNode of subrequestNodes) {
-      this.invalidNodeIds.delete(subrequestNode.id);
     }
 
     this.replaceNodesConnectedTo(
@@ -269,31 +280,40 @@ export class RequestGraph extends Graph<
 
 export default class RequestTracker {
   graph: RequestGraph;
+  farm: WorkerFarm;
+  options: ParcelOptions;
+  signal: ?AbortSignal;
 
-  constructor({graph}: {|graph: RequestGraph|}) {
+  constructor({
+    graph,
+    farm,
+    options,
+  }: {|
+    graph?: RequestGraph,
+    farm: WorkerFarm,
+    options: ParcelOptions,
+  |}) {
     this.graph = graph || new RequestGraph();
+    this.farm = farm;
+    this.options = options;
   }
 
-  isTracked(id: string) {
-    return this.graph.hasNode(id);
+  // TODO: refactor (abortcontroller should be created by RequestTracker)
+  setSignal(signal?: AbortSignal) {
+    this.signal = signal;
   }
 
-  getRequest(id: string) {
-    return nullthrows(this.graph.getNode(id));
-  }
-
-  trackRequest(request: Request) {
-    if (this.isTracked(request.id)) {
-      return;
+  startRequest(request: StoredRequest) {
+    if (!this.graph.hasNode(request.id)) {
+      let node = nodeFromRequest(request);
+      this.graph.addNode(node);
     }
 
     this.graph.incompleteNodeIds.add(request.id);
     this.graph.invalidNodeIds.delete(request.id);
-    let node = nodeFromRequest(request);
-    this.graph.addNode(node);
   }
 
-  untrackRequest(id: string) {
+  removeRequest(id: string) {
     this.graph.removeById(id);
   }
 
@@ -312,10 +332,12 @@ export default class RequestTracker {
     );
   }
 
-  getRequestResult(id: string) {
+  getRequestResult<T>(id: string): T {
     let node = nullthrows(this.graph.getNode(id));
     invariant(node.type === 'request');
-    return node.value.result;
+    // $FlowFixMe
+    let result: T = (node.value.result: any);
+    return result;
   }
 
   completeRequest(id: string) {
@@ -338,7 +360,7 @@ export default class RequestTracker {
     return this.graph.invalidNodeIds.size > 0;
   }
 
-  getInvalidRequests(): Array<Request> {
+  getInvalidRequests(): Array<StoredRequest> {
     let invalidRequests = [];
     for (let id of this.graph.invalidNodeIds) {
       let node = nullthrows(this.graph.getNode(id));
@@ -354,104 +376,64 @@ export default class RequestTracker {
   ) {
     this.graph.replaceSubrequests(requestId, subrequestNodes);
   }
-}
 
-type RequestRunnerOpts = {
-  tracker: RequestTracker,
-  ...
-};
+  async runRequest<TInput, TResult>(
+    request: Request<TInput, TResult>,
+  ): Async<TResult> {
+    let id = request.id;
 
-export type RunRequestOpts = {|
-  signal?: ?AbortSignal,
-  parentId?: string,
-|};
+    if (this.hasValidResult(id)) {
+      return this.getRequestResult<TResult>(id);
+    }
 
-export type RequestRunnerAPI = {|
-  invalidateOnFileCreate: Glob => void,
-  invalidateOnFileDelete: FilePath => void,
-  invalidateOnFileUpdate: FilePath => void,
-  invalidateOnStartup: () => void,
-  replaceSubrequests: (Array<RequestGraphNode>) => void,
-  storeResult: (result: mixed) => void,
-  getId: () => string,
-|};
-
-export function generateRequestId(type: string, request: mixed) {
-  return md5FromObject({type, request});
-}
-
-export class RequestRunner<TRequest, TResult> {
-  type: string;
-  tracker: RequestTracker;
-
-  constructor({tracker}: RequestRunnerOpts) {
-    this.tracker = tracker;
-  }
-
-  async runRequest(
-    requestDesc: TRequest,
-    {signal}: RunRequestOpts = {},
-  ): Promise<TResult | void> {
-    let id = this.generateRequestId(requestDesc);
+    let {api, subRequests} = this.createAPI(id);
     try {
-      let api = this.createAPI(id);
+      this.startRequest({id, type: request.type, input: request.input});
+      let result = await request.run({
+        input: request.input,
+        api,
+        farm: this.farm,
+        options: this.options,
+      });
 
-      this.tracker.trackRequest({id, type: this.type, request: requestDesc});
-      let result: TResult = this.tracker.hasValidResult(id)
-        ? // $FlowFixMe
-          (this.tracker.getRequestResult(id): any)
-        : await this.run(requestDesc, api);
-      assertSignalNotAborted(signal);
-      // Request may have been removed by a parent request
-      if (!this.tracker.isTracked(id)) {
-        return;
-      }
-      await this.onComplete(requestDesc, result, api);
-      this.tracker.completeRequest(id);
+      assertSignalNotAborted(this.signal);
+      this.completeRequest(id);
 
       return result;
     } catch (err) {
-      this.tracker.rejectRequest(id);
+      this.rejectRequest(id);
       throw err;
+    } finally {
+      this.graph.replaceSubrequests(
+        id,
+        [...subRequests].map(subRequestId =>
+          nullthrows(this.graph.getNode(subRequestId)),
+        ),
+      );
     }
   }
 
-  // unused vars are used for types
-  // eslint-disable-next-line no-unused-vars
-  run(request: TRequest, api: RequestRunnerAPI): Promise<TResult> {
-    throw new Error(
-      `RequestRunner for type ${this.type} did not implement run()`,
-    );
-  }
-
-  // unused vars are used for types
-  // eslint-disable-next-line no-unused-vars
-  onComplete(request: TRequest, result: TResult, api: RequestRunnerAPI) {
-    // Do nothing, this is defined for flow if extended classes implement this function
-  }
-
-  generateRequestId(request: TRequest) {
-    return md5FromObject({type: this.type, request});
-  }
-
-  createAPI(requestId: string): RequestRunnerAPI {
+  createAPI(requestId: string): {|api: RunAPI, subRequests: Set<NodeId>|} {
+    let subRequests = new Set();
     let api = {
       invalidateOnFileCreate: glob =>
-        this.tracker.graph.invalidateOnFileCreate(requestId, glob),
+        this.graph.invalidateOnFileCreate(requestId, glob),
       invalidateOnFileDelete: filePath =>
-        this.tracker.graph.invalidateOnFileDelete(requestId, filePath),
+        this.graph.invalidateOnFileDelete(requestId, filePath),
       invalidateOnFileUpdate: filePath =>
-        this.tracker.graph.invalidateOnFileUpdate(requestId, filePath),
-      invalidateOnStartup: () =>
-        this.tracker.graph.invalidateOnStartup(requestId),
-      replaceSubrequests: subrequestNodes =>
-        this.tracker.graph.replaceSubrequests(requestId, subrequestNodes),
+        this.graph.invalidateOnFileUpdate(requestId, filePath),
+      invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
       storeResult: result => {
-        this.tracker.storeResult(requestId, result);
+        this.storeResult(requestId, result);
       },
-      getId: () => requestId,
+      runRequest: <TInput, TResult>(
+        subRequest: Request<TInput, TResult>,
+      ): Async<TResult> => {
+        subRequests.add(subRequest.id);
+        return this.runRequest<TInput, TResult>(subRequest);
+      },
     };
 
-    return api;
+    return {api, subRequests};
   }
 }

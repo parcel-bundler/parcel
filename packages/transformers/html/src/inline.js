@@ -90,7 +90,6 @@ export default function extractInlineAssets(
           type,
           content: value,
           uniqueKey: parcelKey,
-          isIsolated: true,
           isInline: true,
           env,
           meta: {
@@ -112,7 +111,6 @@ export default function extractInlineAssets(
         type: 'css',
         content: style,
         uniqueKey: parcelKey,
-        isIsolated: true,
         isInline: true,
         meta: {
           type: 'attr',

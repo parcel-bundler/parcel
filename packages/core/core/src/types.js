@@ -86,10 +86,11 @@ export type Dependency = {|
   id: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync: boolean,
-  isEntry: boolean,
+  isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
+  isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -119,6 +120,7 @@ export type Asset = {|
   mapKey: ?string,
   outputHash: ?string,
   pipeline: ?string,
+  publicId: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
   symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
@@ -198,21 +200,19 @@ export type DependencyNode = {|
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
-export type AssetRequestDesc = {|
+export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
+  optionsRef: number,
 |};
 
-export type AssetRequestResult = {|
-  assets: Array<Asset>,
-  configRequests: Array<{|request: ConfigRequestDesc, result: Config|}>,
-|};
+export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = AssetRequestDesc;
+export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -231,7 +231,7 @@ export type DepPathRequestNode = {|
 export type AssetRequestNode = {|
   id: string,
   +type: 'asset_request',
-  value: AssetRequestDesc,
+  value: AssetRequestInput,
 |};
 
 export type EntrySpecifierNode = {|
@@ -341,10 +341,12 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
+  mainEntryId: ?string,
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
@@ -369,15 +371,15 @@ export type BundleGroupNode = {|
 |};
 
 export type TransformationOpts = {|
-  request: AssetRequestDesc,
+  request: AssetGroup,
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ValidationOpts = {|
-  requests: AssetRequestDesc[],
+  requests: AssetGroup[],
   optionsRef: number,
-  configRef: number,
+  configCachePath: string,
 |};
 
 export type ReportFn = (event: ReporterEvent) => void;

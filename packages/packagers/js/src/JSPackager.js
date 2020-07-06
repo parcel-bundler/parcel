@@ -3,7 +3,6 @@
 import type {BundleGraph, NamedBundle, Async} from '@parcel/types';
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -105,21 +104,16 @@ export default new Packager({
     let prefix = getPrefix(bundle, bundleGraph);
     let lineOffset = countLines(prefix);
 
-    let stubsWritten = new Set();
     bundle.traverse(node => {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
         let resolved = bundleGraph.getDependencyResolution(node.value, bundle);
-        if (
-          resolved &&
-          resolved.type !== 'js' &&
-          !stubsWritten.has(resolved.id)
-        ) {
+        if (resolved && resolved.type !== 'js') {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
           invariant(!bundle.hasAsset(resolved));
-          wrapped += JSON.stringify(resolved.id) + ':[function() {},{}]';
+          wrapped += JSON.stringify(resolved.publicId) + ':[function() {},{}]';
         } else {
           return;
         }
@@ -137,14 +131,14 @@ export default new Packager({
         for (let dep of dependencies) {
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
-            deps[dep.moduleSpecifier] = resolved.id;
+            deps[dep.moduleSpecifier] = resolved.publicId;
           }
         }
 
         let {code, mapBuffer} = results[i];
         let output = code || '';
         wrapped +=
-          JSON.stringify(asset.id) +
+          JSON.stringify(asset.publicId) +
           ':[function(require,module,exports) {\n' +
           output +
           '\n},';
@@ -174,10 +168,12 @@ export default new Packager({
     });
 
     let entries = bundle.getEntryAssets();
+    let mainEntry = bundle.getMainEntry();
     if (!isEntry(bundle, bundleGraph) && bundle.env.outputFormat === 'global') {
-      // The last entry is the main entry, but in async bundles we don't want it to execute until we require it
+      // In async bundles we don't want the main entry to execute until we require it
       // as there might be dependencies in a sibling bundle that hasn't loaded yet.
-      entries.pop();
+      entries = entries.filter(a => a.id !== mainEntry?.id);
+      mainEntry = null;
     }
 
     return replaceReferences({
@@ -186,7 +182,9 @@ export default new Packager({
         '({' +
         assets +
         '},{},' +
-        JSON.stringify(entries.map(asset => asset.id)) +
+        JSON.stringify(entries.map(asset => asset.publicId)) +
+        ', ' +
+        JSON.stringify(mainEntry?.publicId ?? null) +
         ', ' +
         'null' +
         ')' +
@@ -202,8 +200,13 @@ function getPrefix(
   bundleGraph: BundleGraph<NamedBundle>,
 ): string {
   let interpreter: ?string;
-  if (isEntry(bundle, bundleGraph) && !bundle.target.env.isBrowser()) {
-    let _interpreter = nullthrows(bundle.getMainEntry()).meta.interpreter;
+  let mainEntry = bundle.getMainEntry();
+  if (
+    mainEntry &&
+    isEntry(bundle, bundleGraph) &&
+    !bundle.target.env.isBrowser()
+  ) {
+    let _interpreter = mainEntry.meta.interpreter;
     invariant(_interpreter == null || typeof _interpreter === 'string');
     interpreter = _interpreter;
   }
@@ -227,7 +230,9 @@ function isEntry(
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
   return (
-    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated
   );
 }
 

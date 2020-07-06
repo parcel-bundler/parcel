@@ -89,7 +89,9 @@ export function isEntry(
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
-    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated
   );
 }
 

@@ -31,7 +31,7 @@ describe('content hashing', function() {
       'utf8',
     );
     let filename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/,
+      /<link rel="stylesheet" href="[/\\]{1}(index\.[a-f0-9]+\.css)">/,
     )[1];
     assert(await outputFS.exists(path.join(distDir, filename)));
 
@@ -43,7 +43,7 @@ describe('content hashing', function() {
 
     html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
     let newFilename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/,
+      /<link rel="stylesheet" href="[/\\]{1}(index\.[a-f0-9]+\.css)">/,
     )[1];
     assert(await outputFS.exists(path.join(distDir, newFilename)));
 

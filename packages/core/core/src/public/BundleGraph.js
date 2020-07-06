@@ -16,7 +16,7 @@ import type InternalBundleGraph from '../BundleGraph';
 
 import nullthrows from 'nullthrows';
 
-import {assetFromValue, assetToAssetValue} from './Asset';
+import {assetFromValue, assetToAssetValue, Asset} from './Asset';
 import {bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
@@ -59,6 +59,10 @@ export default class BundleGraph<TBundle: IBundle>
     this.#createBundle = createBundle;
     // $FlowFixMe
     _bundleGraphToInternalBundleGraph.set(this, graph);
+  }
+
+  getAssetById(id: string): Asset {
+    return assetFromValue(this.#graph.getAssetById(id), this.#options);
   }
 
   isDependencyDeferred(dep: IDependency): boolean {
@@ -105,14 +109,14 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
-  resolveExternalDependency(
+  resolveAsyncDependency(
     dependency: IDependency,
     bundle: ?IBundle,
   ): ?(
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: IAsset|}
   ) {
-    let resolved = this.#graph.resolveExternalDependency(
+    let resolved = this.#graph.resolveAsyncDependency(
       dependencyToInternalDependency(dependency),
       bundle && bundleToInternalBundle(bundle),
     );
@@ -127,6 +131,17 @@ export default class BundleGraph<TBundle: IBundle>
       type: 'asset',
       value: assetFromValue(resolved.value, this.#options),
     };
+  }
+
+  getReferencedBundle(dependency: IDependency, bundle: IBundle): ?TBundle {
+    let result = this.#graph.getReferencedBundle(
+      dependencyToInternalDependency(dependency),
+      bundleToInternalBundle(bundle),
+    );
+
+    if (result != null) {
+      return this.#createBundle.call(null, result, this.#graph, this.#options);
+    }
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {
