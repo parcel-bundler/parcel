@@ -239,7 +239,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -252,8 +252,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
-          (bundle, bundleGraph, options) =>
-            new NamedBundle(bundle, bundleGraph, options),
+          NamedBundle.get,
           this.options,
         ),
         getSourceMapReference: map => {
@@ -293,20 +292,15 @@ export default class PackagerRunner {
     type: string,
     contents: Blob,
     map?: ?SourceMap,
-  ): Promise<{|
-    type: string,
-    contents: Blob,
-    map: ?SourceMap,
-  |}> {
-    let bundle = new NamedBundle(
+  ): Promise<BundleResult> {
+    let bundle = NamedBundle.get(
       internalBundle,
       internalBundleGraph,
       this.options,
     );
     let bundleGraph = new BundleGraph<NamedBundleType>(
       internalBundleGraph,
-      (bundle, bundleGraph, options) =>
-        new NamedBundle(bundle, bundleGraph, options),
+      NamedBundle.get,
       this.options,
     );
     let optimizers = await this.config.getOptimizers(
@@ -490,14 +484,14 @@ export default class PackagerRunner {
 
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
-    let writeOptions = publicBundle.env.isBrowser()
-      ? undefined
-      : {
-          mode: (
-            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
-          ).mode,
-        };
+    let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
+    let mainEntry = publicBundle.getMainEntry();
+    let writeOptions =
+      publicBundle.env.isBrowser() || !mainEntry
+        ? undefined
+        : {
+            mode: (await inputFS.stat(mainEntry.filePath)).mode,
+          };
     let cacheKeys = info.cacheKeys;
     let contentStream = this.options.cache.getStream(cacheKeys.content);
     let size = await writeFileStream(

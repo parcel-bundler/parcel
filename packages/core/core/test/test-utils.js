@@ -1,10 +1,12 @@
 // @flow
+
 import type {ParcelOptions} from '../src/types';
 
 import Cache, {createCacheDir} from '@parcel/cache';
+import tempy from 'tempy';
 import {inputFS, outputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
-import tempy from 'tempy';
+import {createEnvironment} from '../src/Environment';
 
 let cacheDir = tempy.directory();
 createCacheDir(outputFS, cacheDir);
@@ -38,3 +40,20 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   packageManager: new NodePackageManager(inputFS),
   instanceId: 'test',
 };
+
+export const DEFAULT_ENV = createEnvironment({
+  context: 'browser',
+  engines: {
+    browsers: ['> 1%'],
+  },
+});
+
+export const DEFAULT_TARGETS = [
+  {
+    name: 'test',
+    distDir: 'dist',
+    distEntry: 'out.js',
+    env: DEFAULT_ENV,
+    publicUrl: '/',
+  },
+];

@@ -278,12 +278,7 @@ export default class Parcel {
             assetFromValue(asset, options),
           ]),
         ),
-        bundleGraph: new BundleGraph(
-          bundleGraph,
-          (bundle, bundleGraph, options) =>
-            new NamedBundle(bundle, bundleGraph, options),
-          options,
-        ),
+        bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
       };
 
