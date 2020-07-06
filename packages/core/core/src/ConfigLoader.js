@@ -47,7 +47,7 @@ export default class ConfigLoader {
   }
 
   loadParcelConfig(configRequest: ConfigRequestDesc) {
-    let {filePath, isSource, env, pipeline} = configRequest;
+    let {filePath, isSource, env, pipeline, isURL} = configRequest;
     let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
     let searchPath = path.join(dir, 'index');
     let config = createConfig({
@@ -60,7 +60,11 @@ export default class ConfigLoader {
     let devDeps = [];
     switch (configRequest.meta.actionType) {
       case 'transformation':
-        devDeps = this.parcelConfig.getTransformerNames(filePath, pipeline);
+        devDeps = this.parcelConfig.getTransformerNames(
+          filePath,
+          pipeline,
+          isURL,
+        );
         break;
       case 'validation':
         devDeps = this.parcelConfig.getValidatorNames(filePath);
