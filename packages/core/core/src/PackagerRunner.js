@@ -204,17 +204,19 @@ export default class PackagerRunner {
     await initSourcemaps;
 
     let packaged = await this.package(bundle, bundleGraph);
+    let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
       bundle,
       bundleGraph,
-      packaged.type ?? bundle.type,
+      type,
       packaged.contents,
       packaged.map,
     );
 
-    let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+    let map =
+      res.map != null ? await this.generateSourceMap(bundle, res.map) : null;
     return {
-      type: res.type,
+      type: res.type ?? type,
       contents: res.contents,
       map,
     };
