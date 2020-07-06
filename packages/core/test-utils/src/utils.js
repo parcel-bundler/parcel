@@ -329,7 +329,8 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  const byAssets = (a, b) =>
+    a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(
