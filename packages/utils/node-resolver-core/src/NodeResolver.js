@@ -23,7 +23,6 @@ import builtins from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
-import {env} from 'process';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
