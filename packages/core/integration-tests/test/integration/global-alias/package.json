@@ -1,8 +1,6 @@
 {
   "main": "dist/index.js",
   "alias": {
-    "react": { "global": "React" },
-    "jquery": "$",
-    "lodash": ["global", "_"]
+    "react": { "global": "React" }
   }
 }

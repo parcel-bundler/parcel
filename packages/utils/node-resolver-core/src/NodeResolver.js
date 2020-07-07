@@ -338,14 +338,6 @@ export default class NodeResolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
-      // If the alias was a string, it could have been a global alias
-      if (typeof alias === 'string') {
-        return {
-          filePath: `${alias}.js`,
-          code: `module.exports=${alias};`,
-        };
-      }
-
       let [moduleName, subPath] = this.getModuleParts(filename);
       resolved = {
         moduleName,
@@ -881,14 +873,9 @@ export default class NodeResolver {
       }
     }
 
-    if (
-      (Array.isArray(alias) &&
-        ['global', 'file'].includes(alias[0]) &&
-        typeof alias[1] === 'string') ||
-      alias === false ||
-      typeof alias === 'string'
-    ) {
-      return alias;
+    if (typeof alias === 'string') {
+      // Assume file
+      return ['file', alias];
     }
 
     return null;

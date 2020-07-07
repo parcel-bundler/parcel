@@ -3,7 +3,7 @@ import path from 'path';
 import {bundle, outputFS} from '@parcel/test-utils';
 
 describe('global alias', function() {
-  it('should support all alias syntax', async function() {
+  it('should support global alias syntax', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-alias/index.js'),
     );
@@ -14,7 +14,5 @@ describe('global alias', function() {
     );
 
     assert(/module\.exports\ =\ React/.test(index));
-    assert(/module\.exports\ =\ \$/.test(index));
-    assert(/module\.exports\ =\ \_/.test(index));
   });
 });
