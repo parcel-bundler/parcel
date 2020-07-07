@@ -105,10 +105,14 @@ export default new Bundler({
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
-            bundleRoots.set(bundle, [asset]);
             bundlesByEntryAsset.set(asset, bundle);
             siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+            // The bundle may have already been created, and the graph gave us back the original one...
+            if (!bundleRoots.has(bundle)) {
+              bundleRoots.set(bundle, [asset]);
+            }
 
             // If the bundle is in the same bundle group as the parent, create an asset reference
             // between the dependency and the asset, and a bundle reference between the parent bundle
@@ -192,11 +196,15 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
-            bundleRoots.set(bundle, [asset]);
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
             bundleGraph.createBundleReference(parentBundle, bundle);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+            // The bundle may have already been created, and the graph gave us back the original one...
+            if (!bundleRoots.has(bundle)) {
+              bundleRoots.set(bundle, [asset]);
+            }
           }
 
           if (!siblings) {
