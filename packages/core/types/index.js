@@ -727,6 +727,7 @@ export type BundleResult = {|
   +contents: Blob,
   +ast?: AST,
   +map?: ?SourceMap,
+  +type?: string,
 |};
 
 export type ResolveResult = {|
@@ -802,6 +803,7 @@ export type Packager = {|
 export type Optimizer = {|
   optimize({|
     bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
     contents: Blob,
     map: ?SourceMap,
     options: PluginOptions,
