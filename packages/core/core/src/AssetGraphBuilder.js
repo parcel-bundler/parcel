@@ -197,6 +197,17 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   propagateSymbols() {
+    // TODO: make this incremental at some point (with isDirty...)
+    let usedSymbolsDown = new Map<DependencyNode, Set<Symbol>>();
+    function getUsedSymbolsDown(dep: DependencyNode) {
+      let set = usedSymbolsDown.get(dep);
+      if (!set) {
+        set = new Set();
+        usedSymbolsDown.set(dep, set);
+      }
+      return set;
+    }
+
     this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
       let hasDirtyOutgoingDep = false;
 
@@ -241,7 +252,7 @@ export default class AssetGraphBuilder extends EventEmitter {
             continue;
           }
 
-          for (let exportSymbol of incomingDep.usedSymbolsDown) {
+          for (let exportSymbol of getUsedSymbolsDown(incomingDep)) {
             if (exportSymbol === '*') {
               assetNode.usedSymbols.add('*');
               namespaceReexportedSymbols.add('*');
@@ -279,8 +290,9 @@ export default class AssetGraphBuilder extends EventEmitter {
       // ----------------------------------------------------------
 
       for (let dep of outgoingDeps) {
-        let depUsedSymbolsDownOld = dep.usedSymbolsDown;
-        dep.usedSymbolsDown = new Set();
+        let depUsedSymbolsDownOld = getUsedSymbolsDown(dep);
+        let depUsedSymbolsDown = new Set();
+        usedSymbolsDown.set(dep, depUsedSymbolsDown);
         if (
           assetNode.value.sideEffects || // <-- TODO add this back
           // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
@@ -300,7 +312,7 @@ export default class AssetGraphBuilder extends EventEmitter {
           if (depSymbols.get('*')?.local === '*') {
             for (let s of namespaceReexportedSymbols) {
               // We need to propagate the namespaceReexportedSymbols to all namespace dependencies (= even wrong ones because we don't know yet)
-              dep.usedSymbolsDown.add(s);
+              depUsedSymbolsDown.add(s);
             }
           }
 
@@ -310,15 +322,15 @@ export default class AssetGraphBuilder extends EventEmitter {
 
             if (!assetSymbolsInverse || !depSymbols.get(symbol)?.isWeak) {
               // Bailout or non-weak symbol (= used in the asset itself = not a reexport)
-              dep.usedSymbolsDown.add(symbol);
+              depUsedSymbolsDown.add(symbol);
             } else {
               let reexportedExportSymbols = assetSymbolsInverse.get(local);
               if (reexportedExportSymbols == null) {
                 // not reexported = used in asset itself
-                dep.usedSymbolsDown.add(symbol);
+                depUsedSymbolsDown.add(symbol);
               } else if (assetNode.usedSymbols.has('*')) {
                 // we need everything
-                dep.usedSymbolsDown.add(symbol);
+                depUsedSymbolsDown.add(symbol);
 
                 [...reexportedExportSymbols].forEach(s =>
                   assetNode.usedSymbols.delete(s),
@@ -332,7 +344,7 @@ export default class AssetGraphBuilder extends EventEmitter {
                   x.length > 0
                 ) {
                   // The symbol is indeed a reexport, so it's not used from the asset itself
-                  dep.usedSymbolsDown.add(symbol);
+                  depUsedSymbolsDown.add(symbol);
 
                   x.forEach(s => assetNode.usedSymbols.delete(s));
                 }
@@ -340,7 +352,7 @@ export default class AssetGraphBuilder extends EventEmitter {
             }
           }
 
-          if (!equalSet(depUsedSymbolsDownOld, dep.usedSymbolsDown))
+          if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown))
             hasDirtyOutgoingDep = true;
         }
 
@@ -353,16 +365,14 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
 
       return hasDirtyOutgoingDep;
-    });
-
-    dumpToGraphViz(this.assetGraph, 'AssetGraph1');
+    }, getUsedSymbolsDown);
 
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols = assetNode.value.symbols;
 
       if (!assetSymbols) {
         for (let dep of incomingDeps) {
-          dep.usedSymbolsUp = new Set(assetNode.usedSymbols);
+          dep.usedSymbols = new Set(assetNode.usedSymbols);
         }
       } else {
         let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
@@ -381,11 +391,11 @@ export default class AssetGraphBuilder extends EventEmitter {
           if (!outgoingDepSymbols) continue;
 
           if (outgoingDepSymbols.get('*')?.local === '*') {
-            outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
+            outgoingDep.usedSymbols.forEach(s => reexportedSymbols.add(s));
           }
 
-          for (let s of outgoingDep.usedSymbolsUp) {
-            if (!outgoingDep.usedSymbolsDown.has(s)) {
+          for (let s of outgoingDep.usedSymbols) {
+            if (!getUsedSymbolsDown(outgoingDep).has(s)) {
               // usedSymbolsDown is a superset of usedSymbolsUp
               continue;
             }
@@ -404,19 +414,19 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
 
         for (let incomingDep of incomingDeps) {
-          incomingDep.usedSymbolsUp = new Set();
+          incomingDep.usedSymbols = new Set();
           let incomingDepSymbols = incomingDep.value.symbols;
           if (!incomingDepSymbols) continue;
 
           // let hasNamespaceReexport =
           // incomingDepSymbols.get('*')?.local === '*';
-          for (let s of incomingDep.usedSymbolsDown) {
+          for (let s of getUsedSymbolsDown(incomingDep)) {
             if (
               assetNode.usedSymbols.has(s) ||
               reexportedSymbols.has(s) ||
               s === '*'
             ) {
-              incomingDep.usedSymbolsUp.add(s);
+              incomingDep.usedSymbols.add(s);
             }
 
             // else if (!hasNamespaceReexport) {
@@ -450,7 +460,7 @@ export default class AssetGraphBuilder extends EventEmitter {
           }
 
           incomingDep.excluded = false;
-          if (incomingDep.usedSymbolsUp.size === 0) {
+          if (incomingDep.usedSymbols.size === 0) {
             let assetGroups = this.assetGraph.getNodesConnectedFrom(
               incomingDep,
             );
@@ -475,6 +485,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => boolean,
+    getUsedSymbolsDown: DependencyNode => Set<Symbol>,
   ) {
     let root = this.assetGraph.getRootNode();
     if (!root) {
@@ -509,6 +520,14 @@ export default class AssetGraphBuilder extends EventEmitter {
               return dep;
             }),
           );
+        } else if (node.type === 'entry_file') {
+          let dep = nullthrows(outgoing[0]);
+          invariant(dep.type === 'dependency');
+
+          if (dep.value.env.isLibrary) {
+            // in library mode, all of the entry's symbols are "used"
+            getUsedSymbolsDown(dep).add('*');
+          }
         }
 
         visited.add(node);

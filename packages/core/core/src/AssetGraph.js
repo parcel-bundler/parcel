@@ -43,8 +43,8 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     value: dep,
     deferred: false,
     excluded: false,
-    usedSymbolsDown: new Set(),
-    usedSymbolsUp: new Set(),
+    // usedSymbolsDown: new Set(),
+    usedSymbols: new Set(),
   };
 }
 
@@ -167,13 +167,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           target: target,
           env: target.env,
           isEntry: true,
+          symbols: target.env.isLibrary
+            ? new Map([['*', {local: '*', isWeak: true, loc: null}]])
+            : undefined,
         }),
       );
-      if (target.env.isLibrary) {
-        node.value.symbols = node.value.symbols || new Map();
-        // in library mode, all of the entry's symbols are "used"
-        node.usedSymbolsDown.add('*');
-      }
       return node;
     });
 

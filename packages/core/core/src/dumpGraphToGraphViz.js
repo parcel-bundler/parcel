@@ -75,12 +75,8 @@ export default async function dumpGraphToGraphViz(
           if (weakSymbols.length) {
             label += '\nweakSymbols: ' + weakSymbols.join(',');
           }
-          if (node.usedSymbolsDown.size) {
-            label +=
-              '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
-          }
-          if (node.usedSymbolsUp.size) {
-            label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+          if (node.usedSymbols.size) {
+            label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
           }
         } else {
           label += '\nsymbols: cleared';
