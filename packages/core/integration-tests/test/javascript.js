@@ -2219,8 +2219,32 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/data-url/binary.js'),
     );
+    ``;
 
     assert((await run(b)).default.startsWith('data:image/webp;base64,UklGR'));
+  });
+
+  it('should support both pipeline and non-pipeline imports', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/multi-pipeline/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', b.getBundles().find(b => b.isInline).id + '.js'],
+      },
+      {
+        name: 'index.css',
+        assets: ['style.css'],
+      },
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
+    ]);
+
+    assert((await run(b)).default.startsWith('.test'));
   });
 
   it('should detect typescript style async requires in commonjs', async () => {

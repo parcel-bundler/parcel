@@ -16,4 +16,12 @@ parcel-transformer-a
 parcel-transformer-b`,
     );
   });
+
+  it('should allow optimizer plugins to change the output file type', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/optimizer-changing-type/index.js'),
+    );
+
+    assert.deepEqual(fs.readdirSync(distDir), ['index.test']);
+  });
 });

@@ -60,7 +60,6 @@ function createMockAssetGraph(ids: [string, string]) {
 
   let dep = createDependency({
     moduleSpecifier: '/path/to/index/src/main.js',
-    pipeline: 'test',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
