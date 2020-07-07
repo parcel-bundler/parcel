@@ -386,9 +386,7 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
-    let isInlineMap =
-      bundle.isInline ||
-      (bundle.target.sourceMap && bundle.target.sourceMap.inline);
+    let isInlineMap = bundle.target.sourceMap && bundle.target.sourceMap.inline;
 
     // $FlowFixMe format is never object so it's always a string...
     return map.stringify({
