@@ -23,6 +23,7 @@ import builtins from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
+import {env} from 'process';
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
@@ -104,6 +105,10 @@ export default class NodeResolver {
     let module = await this.resolveModule({filename, parent, isURL, env});
     if (!module) {
       return {isExcluded: true};
+    }
+
+    if (module.code) {
+      return module;
     }
 
     let resolved;
@@ -266,7 +271,18 @@ export default class NodeResolver {
     }
 
     // Resolve aliases in the parent module for this file.
-    filename = await this.loadAlias(filename, dir, env);
+    let alias = await this.loadAlias(filename, dir, env);
+    if (Array.isArray(alias)) {
+      if (alias[0] === 'global') {
+        return {
+          filePath: `${alias[1]}.js`,
+          code: `module.exports=${alias[1]};`,
+        };
+      }
+      filename = alias[1];
+    } else if (typeof alias === 'string') {
+      filename = alias;
+    }
 
     // Return just the file path if this is a file, not in node_modules
     if (path.isAbsolute(filename)) {
@@ -323,6 +339,14 @@ export default class NodeResolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (resolved === undefined) {
+      // If the alias was a string, it could have been a global alias
+      if (typeof alias === 'string') {
+        return {
+          filePath: `${alias}.js`,
+          code: `module.exports=${alias};`,
+        };
+      }
+
       let [moduleName, subPath] = this.getModuleParts(filename);
       resolved = {
         moduleName,
@@ -747,7 +771,14 @@ export default class NodeResolver {
       let f = file + ext;
 
       if (expandAliases) {
-        let alias = await this.resolveAliases(file + ext, env, pkg);
+        let alias = await this.resolveAliases(f, env, pkg);
+        if (Array.isArray(alias)) {
+          if (alias[0] === 'global') {
+            alias = f;
+          } else {
+            alias = alias[1];
+          }
+        }
         if (alias !== f) {
           res = res.concat(
             await this.expandFile(alias, extensions, env, pkg, false),
@@ -766,12 +797,19 @@ export default class NodeResolver {
     env: Environment,
     pkg: InternalPackageJSON | null,
   ) {
+    let localAliases = await this.resolvePackageAliases(filename, env, pkg);
+    if (Array.isArray(localAliases)) {
+      if (localAliases[0] === 'global') {
+        return localAliases;
+      }
+      localAliases = localAliases[1];
+    }
+
+    if (!(typeof localAliases === 'string')) {
+      localAliases = filename;
+    }
     // First resolve local package aliases, then project global ones.
-    return this.resolvePackageAliases(
-      await this.resolvePackageAliases(filename, env, pkg),
-      env,
-      this.rootPackage,
-    );
+    return this.resolvePackageAliases(localAliases, env, this.rootPackage);
   }
 
   async resolvePackageAliases(
@@ -783,14 +821,15 @@ export default class NodeResolver {
       return filename;
     }
 
-    // Resolve aliases in the package.source, package.alias, and package.browser fields.
-    return (
-      (await this.getAlias(filename, pkg.pkgdir, pkg.source)) ||
-      (await this.getAlias(filename, pkg.pkgdir, pkg.alias)) ||
-      (env.isBrowser() &&
-        (await this.getAlias(filename, pkg.pkgdir, pkg.browser))) ||
-      filename
-    );
+    let pkgKeys = ['source', 'alias'];
+    if (env.isBrowser()) pkgKeys.push('browser');
+
+    for (let pkgKey of pkgKeys) {
+      let alias = await this.getAlias(filename, pkg.pkgdir, pkg[pkgKey]);
+      if (alias != null) return alias;
+    }
+
+    return filename;
   }
 
   async getAlias(filename: FilePath, dir: FilePath, aliases: ?Aliases) {
@@ -824,10 +863,36 @@ export default class NodeResolver {
 
     // If the alias is set to `false`, return an empty file.
     if (alias === false) {
-      return EMPTY_SHIM;
+      return ['file', EMPTY_SHIM];
     }
 
-    return alias;
+    if (alias instanceof Object) {
+      if (alias.global) {
+        if (typeof alias.global !== 'string' || alias.global.length === 0) {
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `The global alias for ${filename} is invalid.`,
+              hints: [`Only nonzero-length strings are valid global aliases.`],
+            },
+          });
+        }
+        return ['global', alias.global];
+      } else if (alias.fileName) {
+        return ['file', alias.fileName];
+      }
+    }
+
+    if (
+      (Array.isArray(alias) &&
+        ['global', 'file'].includes(alias[0]) &&
+        typeof alias[1] === 'string') ||
+      alias === false ||
+      typeof alias === 'string'
+    ) {
+      return alias;
+    }
+
+    return null;
   }
 
   lookupAlias(aliases: Aliases, filename: FilePath, dir: FilePath) {
@@ -851,13 +916,7 @@ export default class NodeResolver {
       }
     }
 
-    if (typeof alias === 'string') {
-      return this.resolveFilename(alias, dir);
-    } else if (alias === false) {
-      return false;
-    }
-
-    return null;
+    return alias;
   }
 
   async findPackage(dir: string) {
