@@ -105,7 +105,6 @@ describe('AssetGraph', () => {
       graph.nodes.has(
         createDependency({
           moduleSpecifier: '/path/to/index1/src/main.js',
-          pipeline: 'test',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -115,7 +114,6 @@ describe('AssetGraph', () => {
       graph.nodes.has(
         createDependency({
           moduleSpecifier: '/path/to/index2/src/main.js',
-          pipeline: 'test',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -155,7 +153,6 @@ describe('AssetGraph', () => {
         }).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index1/src/main.js',
-          pipeline: 'test',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -168,7 +165,6 @@ describe('AssetGraph', () => {
         }).id,
         to: createDependency({
           moduleSpecifier: '/path/to/index2/src/main.js',
-          pipeline: 'test',
           target: DEFAULT_TARGETS[0],
           env: DEFAULT_ENV,
         }).id,
@@ -197,7 +193,6 @@ describe('AssetGraph', () => {
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
@@ -239,7 +234,6 @@ describe('AssetGraph', () => {
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
       sourcePath: '',
@@ -381,7 +375,6 @@ describe('AssetGraph', () => {
 
     let dep = createDependency({
       moduleSpecifier: '/path/to/index/src/main.js',
-      pipeline: 'test',
       env: DEFAULT_ENV,
       target: DEFAULT_TARGETS[0],
     });

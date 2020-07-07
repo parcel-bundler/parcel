@@ -11,6 +11,7 @@ import type {
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions, Target} from '../types';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -19,11 +20,14 @@ import ThrowableDiagnostic, {
 import path from 'path';
 import {loadConfig, md5FromObject, validateSchema} from '@parcel/utils';
 import {createEnvironment} from '../Environment';
+import createParcelConfigRequest from './ParcelConfigRequest';
+import ParcelConfig from '../ParcelConfig';
 // $FlowFixMe
 import browserslist from 'browserslist';
 // $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {
   COMMON_TARGET_DESCRIPTOR_SCHEMA,
   DESCRIPTOR_SCHEMA,
@@ -80,6 +84,24 @@ export default function createTargetRequest(input: Entry) {
 async function run({input, api, options}: RunOpts) {
   let targetResolver = new TargetResolver(options);
   let result = await targetResolver.resolve(input.packagePath);
+
+  let {config} = nullthrows(
+    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+  );
+
+  let parcelConfig = new ParcelConfig(
+    config,
+    options.packageManager,
+    options.autoinstall,
+  );
+
+  // Find named pipelines for each target.
+  let pipelineNames = new Set(parcelConfig.getNamedPipelines());
+  for (let target of result.targets) {
+    if (pipelineNames.has(target.name)) {
+      target.pipeline = target.name;
+    }
+  }
 
   // Connect files like package.json that affect the target
   // resolution so we invalidate when they change.
