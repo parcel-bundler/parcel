@@ -106,8 +106,7 @@ export default class PackagerRunner {
     let bundleInfoMap = {};
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
-    // skip inline bundles, they will be processed via the parent bundle
-    let bundles = bundleGraph.getBundles().filter(bundle => !bundle.isInline);
+    let bundles = bundleGraph.getBundles();
     await Promise.all(
       bundles.map(async bundle => {
         let info = await this.processBundle(bundle, bundleGraph, ref);
@@ -224,10 +223,7 @@ export default class PackagerRunner {
 
   getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
     if (map && this.options.sourceMaps) {
-      if (
-        bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-      ) {
+      if (bundle.target.sourceMap && bundle.target.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
         return path.basename(bundle.filePath) + '.map';
@@ -476,36 +472,38 @@ export default class PackagerRunner {
       name = name.replace(thisHashReference, thisNameHash);
     }
 
-    bundle.filePath = filePath;
-    bundle.name = name;
-
     let dir = path.dirname(filePath);
     await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
 
-    // Use the file mode from the entry asset as the file mode for the bundle.
-    // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
-    let mainEntry = publicBundle.getMainEntry();
-    let writeOptions =
-      publicBundle.env.isBrowser() || !mainEntry
-        ? undefined
-        : {
-            mode: (await inputFS.stat(mainEntry.filePath)).mode,
-          };
     let cacheKeys = info.cacheKeys;
-    let contentStream = this.options.cache.getStream(cacheKeys.content);
-    let size = await writeFileStream(
-      outputFS,
-      filePath,
-      contentStream,
-      info.hashReferences,
-      hashRefToNameHash,
-      writeOptions,
-    );
-    bundle.stats = {
-      size,
-      time: info.time ?? 0,
-    };
+    if (!bundle.isInline) {
+      bundle.filePath = filePath;
+      bundle.name = name;
+
+      // Use the file mode from the entry asset as the file mode for the bundle.
+      // Don't do this for browser builds, as the executable bit in particular is unnecessary.
+      let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
+      let mainEntry = publicBundle.getMainEntry();
+      let writeOptions =
+        publicBundle.env.isBrowser() || !mainEntry
+          ? undefined
+          : {
+              mode: (await inputFS.stat(mainEntry.filePath)).mode,
+            };
+      let contentStream = this.options.cache.getStream(cacheKeys.content);
+      let size = await writeFileStream(
+        outputFS,
+        filePath,
+        contentStream,
+        info.hashReferences,
+        hashRefToNameHash,
+        writeOptions,
+      );
+      bundle.stats = {
+        size,
+        time: info.time ?? 0,
+      };
+    }
 
     let mapKey = cacheKeys.map;
     if (
