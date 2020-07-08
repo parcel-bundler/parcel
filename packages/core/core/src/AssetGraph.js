@@ -219,12 +219,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (!previouslyDeferred && defer) {
       this.markParentsWithHasDeferred(node);
     } else if (previouslyDeferred && !defer) {
-      this.unmarkParentsWithHasDeferred(node);
+      this.unmarkParentsWithHasDeferred(childNode);
     }
 
     return !defer;
   }
 
+  // Dependency: mark parent Asset <- AssetGroup with hasDeferred false
   markParentsWithHasDeferred(node: DependencyNode) {
     this.traverseAncestors(node, (_node, _, actions) => {
       if (_node.type === 'asset') {
@@ -238,7 +239,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     });
   }
 
-  unmarkParentsWithHasDeferred(node: DependencyNode) {
+  // AssetGroup: update hasDeferred of all parent Dependency <- Asset <- AssetGroup
+  unmarkParentsWithHasDeferred(node: AssetGroupNode) {
     this.traverseAncestors(node, (_node, ctx, actions) => {
       if (_node.type === 'asset') {
         let hasDeferred = this.getNodesConnectedFrom(_node).some(_childNode =>
@@ -248,11 +250,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
           delete _node.hasDeferred;
         }
         return {hasDeferred};
-      } else if (_node.type === 'asset_group') {
+      } else if (_node.type === 'asset_group' && node !== _node) {
         if (!ctx?.hasDeferred) {
           delete _node.hasDeferred;
         }
         actions.skipChildren();
+      } else if (_node.type === 'dependency') {
+        _node.hasDeferred = false;
       } else if (node !== _node) {
         actions.skipChildren();
       }
