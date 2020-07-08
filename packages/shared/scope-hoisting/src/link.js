@@ -33,8 +33,11 @@ import * as t from '@babel/types';
 import {
   isAssignmentExpression,
   isBooleanLiteral,
+  isCallExpression,
   isExpressionStatement,
   isIdentifier,
+  isMemberExpression,
+  isObjectExpression,
   isObjectPattern,
   isSequenceExpression,
   isStringLiteral,
@@ -47,6 +50,7 @@ import {
   getName,
   getIdentifier,
   getExportNamespaceExpression,
+  dereferenceIdentifier,
   getThrowableDiagnosticForNode,
   verifyScopeState,
 } from './utils';
@@ -206,8 +210,37 @@ export function link({
         }
       }
       path.replaceWith(node);
+      if (isObjectExpression(node)) {
+        invariant(node.properties.length === 0);
+      } else if (isIdentifier(node)) {
+        nullthrows(path.scope.getBinding(node.name)).reference(path);
+      } else {
+        if (isCallExpression(node)) {
+          // $id$init()
+          invariant(isIdentifier(node.callee));
+          nullthrows(path.scope.getBinding(node.callee.name)).reference(
+            path.get<NodePath<Identifier>>('callee'),
+          );
+        } else {
+          invariant(isMemberExpression(node));
+          if (isIdentifier(node.object)) {
+            nullthrows(path.scope.getBinding(node.object.name)).reference(
+              path.get<NodePath<Identifier>>('object'),
+            );
+          } else {
+            // $id$init().prop
+            invariant(isCallExpression(node.object));
+            let {callee} = node.object;
+            invariant(isIdentifier(callee));
+            nullthrows(path.scope.getBinding(callee.name)).reference(
+              path.get<NodePath<Identifier>>('object.callee'),
+            );
+          }
+        }
+      }
     } else if (exportsMap.has(name) && !path.scope.hasBinding(name)) {
       // If it's an undefined $id$exports identifier.
+      dereferenceIdentifier(path.node, path.scope);
       path.replaceWith(t.objectExpression([]));
     }
   }
@@ -747,8 +780,6 @@ export function link({
 
             registerIdOrObject(path, returnId);
           }
-          // FIXME
-          path.scope.crawl();
         }
 
         if (process.env.PARCEL_BUILD_ENV !== 'production') {

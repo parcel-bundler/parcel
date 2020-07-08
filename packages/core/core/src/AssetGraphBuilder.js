@@ -214,6 +214,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       return set;
     }
 
+    // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
       let hasDirtyOutgoingDep = false;
 
@@ -356,6 +357,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       return hasDirtyOutgoingDep;
     }, getUsedSymbolsDown);
 
+    // Because namespace imports introduce ambiguity, go up the graph from the leaves to the
+    // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols: $ReadOnlyMap<
         Symbol,

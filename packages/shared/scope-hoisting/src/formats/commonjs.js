@@ -480,8 +480,6 @@ export function generateExports(
               }),
             ]);
             maybeReplaceIdentifier(decl.get('expression.right'));
-            // FIXME
-            path.scope.crawl();
           }
         } else if (symbol === null) {
           // TODO `meta.exportsIdentifier[exportSymbol]` should be exported

@@ -13,6 +13,7 @@ import type {
   ClassDeclaration,
   FunctionDeclaration,
   Identifier,
+  ExportSpecifier,
   ImportDeclaration,
   Program,
   VariableDeclarator,
@@ -22,6 +23,7 @@ import type {ExternalBundle, ExternalModule} from '../types';
 import * as t from '@babel/types';
 import {
   isClassDeclaration,
+  isExportNamedDeclaration,
   isFunctionDeclaration,
   isImportDeclaration,
   isVariableDeclaration,
@@ -323,14 +325,14 @@ export function generateExports(
     },
   });
 
-  // invariant(
-  //   exportedIdentifiers.size === 0,
-  //   [...exportedIdentifiers.keys()].join(', '),
-  // );
-
   if (exportedIdentifiers.size > 0) {
     let declarations = [];
     let exportedIdentifiersSpecifiers = [];
+    // `export { $id$init().foo as foo};` is not valid, so instead do:
+    // ```
+    // let syntheticExport$foo = $id$init().foo;
+    // export { syntheticExport$foo as foo};
+    // ```
     for (let [exportAs, symbol] of exportedIdentifiers) {
       declarations.push(
         t.variableDeclarator(
@@ -345,18 +347,24 @@ export function generateExports(
         ),
       );
     }
-    let [decl] = programPath.pushContainer('body', [
+    let [decl, exports] = programPath.pushContainer('body', [
       t.variableDeclaration('var', declarations),
       t.exportNamedDeclaration(null, exportedIdentifiersSpecifiers),
     ]);
     invariant(isVariableDeclaration(decl.node));
+    programPath.scope.registerDeclaration(decl);
     for (let d of decl.get<Array<NodePath<VariableDeclarator>>>(
       'declarations',
     )) {
       maybeReplaceIdentifier(d.get<NodePath<Identifier>>('init'));
     }
-    // FIXME
-    programPath.scope.crawl();
+    invariant(isExportNamedDeclaration(exports.node));
+    programPath.scope.registerDeclaration(exports);
+    for (let e of exports.get<Array<NodePath<ExportSpecifier>>>('specifiers')) {
+      nullthrows(programPath.scope.getBinding(e.node.local.name)).reference(
+        e.get<NodePath<Identifier>>('local'),
+      );
+    }
   }
 
   if (exportedIdentifiersBailout.size > 0) {

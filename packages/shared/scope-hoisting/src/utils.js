@@ -163,7 +163,7 @@ export function pathRemove(path: NodePath<Node>) {
   path.remove();
 }
 
-function dereferenceIdentifier(node, scope) {
+export function dereferenceIdentifier(node: Identifier, scope: Scope) {
   let binding = scope.getBinding(node.name);
   if (binding) {
     let i = binding.referencePaths.findIndex(v => v.node === node);

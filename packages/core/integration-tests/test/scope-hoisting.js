@@ -1,6 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {escapeMarkdown} from '@parcel/utils';
 import {
   assertBundles,
   assertDependencyWasDeferred,
@@ -354,13 +355,12 @@ describe('scope hoisting', function() {
       });
     });
 
-    // FIXME escaping of Windows paths is wrong
     it('throws when reexporting a missing symbol', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-missing/a.js',
       );
-      let message = `${path.normalize(
-        'integration/scope-hoisting/es6/re-export-missing/c.js',
+      let message = `${escapeMarkdown(
+        path.normalize('integration/scope-hoisting/es6/re-export-missing/c.js'),
       )} does not export 'foo'`;
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
