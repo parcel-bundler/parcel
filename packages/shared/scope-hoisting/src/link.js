@@ -221,30 +221,7 @@ export function link({
       originalName,
       bundle,
     );
-    if (
-      originalModule.filePath ===
-        '/Users/niklas/Documents/_dev/_git/parcel/parcel-benchmark-action/benchmarks/ak-editor/node_modules/@atlaskit/editor-core/dist/esm/plugins/analytics/index.js' &&
-      originalName === 'withAnalytics'
-    ) {
-      console.log(1, {
-        originalModule,
-        originalName,
-        mod,
-        symbol,
-        identifier,
-      });
-    }
-
     let node = identifier ? findSymbol(path, identifier) : identifier;
-    if (
-      originalModule.filePath ===
-        '/Users/niklas/Documents/_dev/_git/parcel/parcel-benchmark-action/benchmarks/ak-editor/node_modules/@atlaskit/editor-core/dist/esm/plugins/analytics/index.js' &&
-      originalName === 'withAnalytics'
-    ) {
-      console.log(2, {
-        node,
-      });
-    }
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
@@ -783,6 +760,8 @@ export function link({
 
             registerIdOrObject(path, returnId);
           }
+          // FIXME
+          path.scope.crawl();
         }
 
         if (process.env.PARCEL_BUILD_ENV !== 'production') {

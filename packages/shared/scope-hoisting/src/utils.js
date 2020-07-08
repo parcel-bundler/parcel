@@ -438,10 +438,13 @@ export function getExportedSymbolsShallow(
       } else {
         let exportAs = assetSymbolsInverse.get(local);
         if (exportAs != null || (depNamespace && symbol !== '*')) {
-          symbols.push({
-            ...bundleGraph.resolveSymbol(resolved, symbol, boundary),
-            exportAs: exportAs ?? symbol,
-          });
+          let s = bundleGraph.resolveSymbol(resolved, symbol, boundary);
+          if (s.symbol != null) {
+            symbols.push({
+              ...s,
+              exportAs: exportAs ?? symbol,
+            });
+          }
         }
       }
     }

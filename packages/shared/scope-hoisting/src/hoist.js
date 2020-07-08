@@ -202,8 +202,9 @@ const VISITOR: Visitor<MutableAsset> = {
       });
 
       if (!asset.meta.isCommonJS && !asset.meta.isES6Module) {
-        // We still need an exports object
+        // Assume CommonJS (still needs exports object)
         asset.meta.isCommonJS = true;
+        asset.symbols.set('*', getName(asset, 'exports'));
       }
 
       path.scope.setData('shouldWrap', shouldWrap);
@@ -252,7 +253,7 @@ const VISITOR: Visitor<MutableAsset> = {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
         }
 
-        if (asset.meta.isCommonJS) {
+        if (asset.meta.isCommonJS && asset.meta.resolveExportsBailedOut) {
           asset.symbols.set('*', exportsIdentifier.name);
         }
       }
@@ -473,7 +474,10 @@ const VISITOR: Visitor<MutableAsset> = {
         return;
       }
 
-      asset.meta.isCommonJS = true;
+      if (!dep.isAsync) {
+        // the dependencies visitor replaces import() with require()
+        asset.meta.isCommonJS = true;
+      }
 
       // If this require call does not occur in the top-level, e.g. in a function
       // or inside an if statement, or if it might potentially happen conditionally,

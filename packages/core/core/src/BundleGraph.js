@@ -153,11 +153,7 @@ export default class BundleGraph {
         return;
       }
 
-      if (
-        node.type === 'dependency' &&
-        node.value.symbols != null &&
-        node.excluded
-      ) {
+      if (node.type === 'dependency' && this.isDependencySkipped(node.value)) {
         actions.skipChildren();
         return;
       }
@@ -991,13 +987,11 @@ export default class BundleGraph {
       return {
         asset,
         exportSymbol: symbol,
-        symbol:
-          identifier ??
-          (skipped
-            ? false
-            : found || asset.symbols.has('*')
-            ? null
-            : undefined),
+        symbol: skipped
+          ? false
+          : found || asset.symbols.has('*')
+          ? null
+          : identifier,
         loc: asset.symbols.get(symbol)?.loc,
       };
     }

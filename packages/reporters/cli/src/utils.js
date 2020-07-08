@@ -15,8 +15,8 @@ process.stdout.on('resize', function() {
 
 export function getProgressMessage(event: BuildProgressEvent): ?string {
   switch (event.phase) {
-    // case 'transforming':
-    //   return `Building ${path.basename(event.filePath)}...`;
+    case 'transforming':
+      return `Building ${path.basename(event.filePath)}...`;
 
     case 'bundling':
       return 'Bundling...';

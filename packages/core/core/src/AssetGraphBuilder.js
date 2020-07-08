@@ -1,7 +1,12 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {FilePath, ModuleSpecifier, Symbol} from '@parcel/types';
+import type {
+  FilePath,
+  ModuleSpecifier,
+  Symbol,
+  SourceLocation,
+} from '@parcel/types';
 import type WorkerFarm, {Handle} from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
 import type {
@@ -185,11 +190,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
-    dumpToGraphViz(this.assetGraph, 'AssetGraph1');
 
     this.propagateSymbols();
 
-    dumpToGraphViz(this.assetGraph, 'AssetGraph2');
+    dumpToGraphViz(this.assetGraph, 'AssetGraph');
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
@@ -200,7 +204,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   propagateSymbols() {
-    // TODO: make this incremental at some point (with isDirty...)
+    // TODO: make this incremental at some point (with isDirty and store in asset graph)
     let usedSymbolsDown = new Map<DependencyNode, Set<Symbol>>();
     function getUsedSymbolsDown(dep: DependencyNode) {
       let set = usedSymbolsDown.get(dep);
@@ -215,7 +219,10 @@ export default class AssetGraphBuilder extends EventEmitter {
       let hasDirtyOutgoingDep = false;
 
       // exportSymbol -> identifier
-      let assetSymbols = assetNode.value.symbols;
+      let assetSymbols: $ReadOnlyMap<
+        Symbol,
+        {|local: Symbol, loc: ?SourceLocation|},
+      > = assetNode.value.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
       assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
@@ -295,7 +302,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         let depUsedSymbolsDown = new Set();
         usedSymbolsDown.set(dep, depUsedSymbolsDown);
         if (
-          assetNode.value.sideEffects || // <-- TODO add this back
+          assetNode.value.sideEffects ||
           // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
           isEntry ||
           // If not a single asset is used, we can say the entire subgraph is not used.
@@ -370,7 +377,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     }, getUsedSymbolsDown);
 
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
-      let assetSymbols = assetNode.value.symbols;
+      let assetSymbols: $ReadOnlyMap<
+        Symbol,
+        {|local: Symbol, loc: ?SourceLocation|},
+      > = assetNode.value.symbols;
 
       let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
       for (let [s, {local}] of assetSymbols) {
@@ -456,7 +466,10 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
 
         incomingDep.excluded = false;
-        if (incomingDep.usedSymbols.size === 0) {
+        if (
+          incomingDep.value.symbols != null &&
+          incomingDep.usedSymbols.size === 0
+        ) {
           let assetGroups = this.assetGraph.getNodesConnectedFrom(incomingDep);
           if (assetGroups.length === 1) {
             let [assetGroup] = assetGroups;
