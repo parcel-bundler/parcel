@@ -1180,6 +1180,74 @@ describe('scope hoisting', function() {
     });
 
     describe('sideEffects: false', function() {
+      it('supports excluding unused CSS imports', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-css/index.html',
+          ),
+        );
+
+        assertBundles(b, [
+          {
+            name: 'index.html',
+            assets: ['index.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index.js', 'a.js', 'b1.js'],
+          },
+          {
+            type: 'css',
+            assets: ['b1.css'],
+          },
+        ]);
+
+        let calls = [];
+        let output = await run(b, {
+          sideEffect: caller => {
+            calls.push(caller);
+          },
+        });
+        assert.deepEqual(calls, ['b1']);
+        assert.deepEqual(output, 2);
+
+        let css = await outputFS.readFile(
+          b.getBundles().find(bundle => bundle.type === 'css').filePath,
+          'utf8',
+        );
+        assert(!css.includes('.b2'));
+      });
+
+      it("doesn't create new bundles for dynamic imports in excluded assets", async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-no-new-bundle/index.html',
+          ),
+        );
+
+        assertBundles(b, [
+          {
+            name: 'index.html',
+            assets: ['index.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index.js', 'a.js', 'b1.js'],
+          },
+        ]);
+
+        let calls = [];
+        let output = await run(b, {
+          sideEffect: caller => {
+            calls.push(caller);
+          },
+        });
+        assert.deepEqual(calls, ['b1']);
+        assert.deepEqual(output, 2);
+      });
+
       it('supports deferring an unused ES6 re-exports (namespace used)', async function() {
         let b = await bundle(
           path.join(
