@@ -250,7 +250,6 @@ export function verifyScopeState(scope: Scope) {
     invariant(aPath === bPath, name);
     invariant(aId === bId, name);
     invariant(aScope === bScope, name);
-    // console.log(a, b, aReferencePaths.length, bReferencePaths.length);
     invariant.deepStrictEqual(a, b, name);
 
     invariant(aConstantViolations.length === bConstantViolations.length, name);
@@ -399,10 +398,6 @@ export function getExportedSymbolsShallow(
   let assetUsedAll = assetSymbolsUsed.has('*');
   for (let symbol of assetSymbols.exportSymbols()) {
     if (assetUsedAll || assetSymbolsUsed.has(symbol)) {
-      // symbols.push({
-      //   ...this.resolveSymbol(asset, symbol, boundary),
-      //   exportAs: symbol,
-      // });
       symbols.push({
         asset,
         exportSymbol: symbol,

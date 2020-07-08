@@ -43,7 +43,6 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     value: dep,
     deferred: false,
     excluded: false,
-    // usedSymbolsDown: new Set(),
     usedSymbols: new Set(),
   };
 }

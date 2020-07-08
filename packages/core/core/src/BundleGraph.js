@@ -1116,9 +1116,9 @@ export default class BundleGraph {
     invariant(node && node.type === 'asset');
     return new Set(node.usedSymbols);
   }
-  getUsedSymbolsDependency(dep: Dependency): Set<Symbol> {
+  getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol> {
     let node = this._graph.getNode(dep.id);
     invariant(node && node.type === 'dependency');
-    return node.usedSymbols;
+    return new Set(node.usedSymbols);
   }
 }

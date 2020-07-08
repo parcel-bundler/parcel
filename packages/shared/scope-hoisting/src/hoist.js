@@ -17,23 +17,17 @@ import type {
 import * as t from '@babel/types';
 import {
   isAssignmentExpression,
-  // isCallExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isExpression,
-  // isExpressionStatement,
-  // isFunction,
   isFunctionDeclaration,
   isIdentifier,
   isImportDefaultSpecifier,
   isImportNamespaceSpecifier,
   isImportSpecifier,
   isMemberExpression,
-  // isObjectPattern,
-  // isObjectProperty,
-  // isSequenceExpression,
   isStringLiteral,
   isUnaryExpression,
 } from '@babel/types';
@@ -490,6 +484,17 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
+      // TODO this would enable treeshaking import().then(({x}) => ...) calls
+      // function isUnusedValue(path) {
+      //   let {parent} = path;
+      //   return (
+      //     isExpressionStatement(parent) ||
+      //     (isSequenceExpression(parent) &&
+      //       ((Array.isArray(path.container) &&
+      //         path.key !== path.container.length - 1) ||
+      //         isUnusedValue(path.parentPath)))
+      //   );
+      // }
       // if (!isUnusedValue(path) && dep.isAsync) {
       //   // match `import(xxx).then(({ default: b }) => ...);`
       //   let {parent} = path;
@@ -855,14 +860,3 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
     return getExportsIdentifier(asset, scope);
   }
 }
-
-// function isUnusedValue(path) {
-//   let {parent} = path;
-//   return (
-//     isExpressionStatement(parent) ||
-//     (isSequenceExpression(parent) &&
-//       ((Array.isArray(path.container) &&
-//         path.key !== path.container.length - 1) ||
-//         isUnusedValue(path.parentPath)))
-//   );
-// }

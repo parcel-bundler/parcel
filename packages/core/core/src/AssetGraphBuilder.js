@@ -194,7 +194,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.propagateSymbols();
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
-
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
@@ -284,16 +283,6 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
       }
 
-      // console.log(1, {
-      //   asset: assetNode.value.filePath,
-      //   used: assetNode.usedSymbols,
-      //   namespaceReexportedSymbols,
-      //   incomingDeps: incomingDeps.map(d => [
-      //     d.value.moduleSpecifier,
-      //     ...getUsedSymbolsDown(d),
-      //   ]),
-      // });
-
       // 2) Distribute the symbols to the outgoing dependencies
       // ----------------------------------------------------------
 
@@ -344,17 +333,16 @@ export default class AssetGraphBuilder extends EventEmitter {
                   assetNode.usedSymbols.delete(s),
                 );
               } else {
-                let x = [...reexportedExportSymbols].filter(s =>
-                  assetNode.usedSymbols.has(s),
-                );
-                if (
-                  // reexported
-                  x.length > 0
-                ) {
+                let usedReexportedExportSymbols = [
+                  ...reexportedExportSymbols,
+                ].filter(s => assetNode.usedSymbols.has(s));
+                if (usedReexportedExportSymbols.length > 0) {
                   // The symbol is indeed a reexport, so it's not used from the asset itself
                   depUsedSymbolsDown.add(symbol);
 
-                  x.forEach(s => assetNode.usedSymbols.delete(s));
+                  usedReexportedExportSymbols.forEach(s =>
+                    assetNode.usedSymbols.delete(s),
+                  );
                 }
               }
             }
@@ -363,14 +351,6 @@ export default class AssetGraphBuilder extends EventEmitter {
           if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown))
             hasDirtyOutgoingDep = true;
         }
-
-        // console.log(2, {
-        //   from: assetNode.value.filePath,
-        //   to: dep.value.moduleSpecifier,
-        //   symbols: dep.value.moduleSpecifier,
-        //   old: [...depUsedSymbolsDownOld],
-        //   new: [...depUsedSymbolsDown],
-        // });
       }
 
       return hasDirtyOutgoingDep;
@@ -510,7 +490,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         node.type !== 'dependency' &&
         this.assetGraph.getNodesConnectedTo(node).some(d => !visited.has(d))
       ) {
-        // ... by visiting nodes once all parents were visited, it will be visited again later by the last parent
+        // ... by visiting nodes once all parents were visited, it will be visited again later by the last parent.
         skipped.add(node);
       } else {
         if (node.type === 'asset') {
@@ -589,7 +569,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => void,
   ): void {
-    // postorder DFS
+    // Simple postorder DFS
+
     let root = this.assetGraph.getRootNode();
     if (!root) {
       throw new Error('A root node is required to traverse');

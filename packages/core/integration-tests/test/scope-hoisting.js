@@ -354,6 +354,7 @@ describe('scope hoisting', function() {
       });
     });
 
+    // FIXME escaping of Windows paths is wrong
     it('throws when reexporting a missing symbol', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-missing/a.js',

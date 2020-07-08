@@ -85,15 +85,10 @@ export default async function dumpGraphToGraphViz(
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
       if (detailedSymbols) {
-        if (node.value.symbols) {
-          if (node.value.symbols.size)
-            label +=
-              '\nsymbols: ' +
-              [...node.value.symbols]
-                .map(([e, {local}]) => [e, local])
-                .join(';');
-        } else {
-          label += '\nsymbols: cleared';
+        if (node.value.symbols.size) {
+          label +=
+            '\nsymbols: ' +
+            [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');
         }
         if (node.usedSymbols.size) {
           label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');

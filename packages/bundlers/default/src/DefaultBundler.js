@@ -30,19 +30,6 @@ const HTTP_OPTIONS = {
   },
 };
 
-// function shouldSkipDependencySubgraph(
-//   bundleGraph: MutableBundleGraph,
-//   dep: Dependency,
-// ) {
-//   if (
-//     !dep.symbols.isCleared &&
-//     bundleGraph.getUsedSymbolsDependency(dep).size === 0
-//   ) {
-//     let assetGroup = bundleGraph.getDependencyResolution(dep);
-//     return assetGroup && assetGroup.sideEffects === false;
-//   }
-// }
-
 export default new Bundler({
   // RULES:
   // 1. If dep.isAsync or dep.isEntry, start a new bundle group.
@@ -315,7 +302,7 @@ export default new Bundler({
       |},
     > = new Map();
 
-    bundleGraph.traverse((node, ctx, actions) => {
+    bundleGraph.traverseContents((node, ctx, actions) => {
       if (node.type !== 'asset') {
         return;
       }
@@ -452,7 +439,7 @@ export default new Bundler({
     // the bundle and the bundle group providing that asset. If all connections
     // to that bundle group are removed, remove that bundle group.
     let asyncBundleGroups: Set<BundleGroup> = new Set();
-    bundleGraph.traverseContents((node, _, actions) => {
+    bundleGraph.traverse((node, _, actions) => {
       if (
         node.type !== 'dependency' ||
         node.value.isEntry ||

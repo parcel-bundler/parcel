@@ -99,8 +99,6 @@ export function link({
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
 
-  // return {ast, referencedAssets}
-
   // If building a library, the target is actually another bundler rather
   // than the final output that could be loaded in a browser. So, loader
   // runtimes are excluded, and instead we add imports into the entry bundle
@@ -730,17 +728,6 @@ export function link({
             ([...referencedAssets]: Array<Asset>)
               .filter(a => !wrappedAssets.has(a.id))
               .map(a => {
-                // if (
-                //   getIdentifier(a, 'init').name ===
-                //   '$d9e2ac2e43e9b70c7840a9a1a82e9$init'
-                // ) {
-                //   console.log(a.filePath);
-                //   console.log(
-                //     bundleGraph.getExportedSymbols(a, bundle),
-                //     getExportedSymbolsShallow(bundleGraph, a, bundle),
-                //     // getExportNamespaceExpression(path, bundleGraph, a, bundle).properties,
-                //   );
-                // }
                 return FAKE_INIT_TEMPLATE({
                   INIT: getIdentifier(a, 'init'),
                   EXPORTS: getExportNamespaceExpression(

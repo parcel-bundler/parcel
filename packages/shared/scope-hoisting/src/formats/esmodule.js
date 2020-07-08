@@ -355,6 +355,7 @@ export function generateExports(
     )) {
       maybeReplaceIdentifier(d.get<NodePath<Identifier>>('init'));
     }
+    // FIXME
     programPath.scope.crawl();
   }
 
