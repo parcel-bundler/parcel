@@ -294,7 +294,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
             !(d.env.isLibrary && d.isEntry) &&
             !d.symbols.has('*') &&
             ![...d.symbols.keys()].some(symbol => {
-              let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
+              let assetSymbol = resolvedAsset.symbols.get(symbol)?.local;
               return assetSymbol != null && symbols.has(assetSymbol);
             }),
         );

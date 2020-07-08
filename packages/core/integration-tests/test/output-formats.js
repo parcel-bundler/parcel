@@ -398,7 +398,7 @@ describe('output formats', function() {
           diagnostics: [
             {
               message,
-              origin: '@parcel/packager-js',
+              origin: '@parcel/core',
               filePath: source,
               language: 'js',
               codeFrame: {
@@ -673,7 +673,7 @@ describe('output formats', function() {
           diagnostics: [
             {
               message,
-              origin: '@parcel/packager-js',
+              origin: '@parcel/core',
               filePath: source,
               language: 'js',
               codeFrame: {

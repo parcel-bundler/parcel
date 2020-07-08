@@ -351,13 +351,9 @@ export interface AssetSymbols // eslint-disable-next-line no-undef
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
-  // Whether static analysis bailed out
-  +isCleared: boolean;
 }
 export interface MutableAssetSymbols extends AssetSymbols {
-  // Static analysis bailed out
   clear(): void;
-  ensure(): void;
   set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
 }
 export interface MutableDependencySymbols // eslint-disable-next-line no-undef

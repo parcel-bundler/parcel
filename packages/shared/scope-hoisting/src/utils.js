@@ -290,13 +290,7 @@ export function getThrowableDiagnosticForNode(
   if (loc) {
     diagnostic.codeFrame = {
       codeHighlights: {
-        start: {
-          line: loc.start.line,
-          column: loc.start.column + 1,
-        },
-        // - Babel's columns are exclusive, ours are inclusive (column - 1)
-        // - Babel has 0-based columns, ours are 1-based (column + 1)
-        // = +-0
+        start: loc.start,
         end: loc.end,
       },
     };
@@ -314,12 +308,12 @@ export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
     filePath: path.normalize(filename),
     start: {
       line: start.line,
-      column: start.column,
+      column: start.column + 1,
     },
-    end: {
-      line: end.line,
-      column: end.column,
-    },
+    // - Babel's columns are exclusive, ours are inclusive (column - 1)
+    // - Babel has 0-based columns, ours are 1-based (column + 1)
+    // = +-0
+    end,
   };
 }
 
@@ -383,10 +377,6 @@ export function getExportedSymbolsShallow(
   boundary: ?NamedBundle,
 ): ?Array<ExportSymbolResolution> {
   let assetSymbols = asset.symbols;
-  if (assetSymbols.isCleared) {
-    return null;
-  }
-
   let assetSymbolsInverse = new Map(
     [...assetSymbols].map(([key, val]) => [val.local, key]),
   );

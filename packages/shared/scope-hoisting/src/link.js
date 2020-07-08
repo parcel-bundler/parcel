@@ -221,8 +221,30 @@ export function link({
       originalName,
       bundle,
     );
+    if (
+      originalModule.filePath ===
+        '/Users/niklas/Documents/_dev/_git/parcel/parcel-benchmark-action/benchmarks/ak-editor/node_modules/@atlaskit/editor-core/dist/esm/plugins/analytics/index.js' &&
+      originalName === 'withAnalytics'
+    ) {
+      console.log(1, {
+        originalModule,
+        originalName,
+        mod,
+        symbol,
+        identifier,
+      });
+    }
 
     let node = identifier ? findSymbol(path, identifier) : identifier;
+    if (
+      originalModule.filePath ===
+        '/Users/niklas/Documents/_dev/_git/parcel/parcel-benchmark-action/benchmarks/ak-editor/node_modules/@atlaskit/editor-core/dist/esm/plugins/analytics/index.js' &&
+      originalName === 'withAnalytics'
+    ) {
+      console.log(2, {
+        node,
+      });
+    }
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && (!mod.meta.id || !assets.has(assertString(mod.meta.id)))) {
@@ -563,7 +585,7 @@ export function link({
             throw getThrowableDiagnosticForNode(
               "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
               mapped.filePath,
-              path.node.loc,
+              convertBabelLoc(path.node.loc),
             );
           }
 
@@ -574,7 +596,7 @@ export function link({
           throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
             mapped.filePath,
-            path.node.loc,
+            convertBabelLoc(path.node.loc),
           );
         }
       }

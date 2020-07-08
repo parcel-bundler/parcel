@@ -875,17 +875,17 @@ export default class BundleGraph {
   resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
-    let identifier = asset.symbols?.get(symbol)?.local;
+    let identifier = asset.symbols.get(symbol)?.local;
     if (symbol === '*') {
       return {
         asset,
         exportSymbol: '*',
         symbol: identifier ?? null,
-        loc: asset.symbols?.get(symbol)?.loc,
+        loc: asset.symbols.get(symbol)?.loc,
       };
     }
 
-    let found = !asset.symbols;
+    let found = false;
     let skipped = false;
     let deps = this.getDependencies(asset).reverse();
     let potentialResults = [];
@@ -929,7 +929,7 @@ export default class BundleGraph {
 
         if (!loc) {
           // Remember how we got there
-          loc = asset.symbols?.get(symbol)?.loc;
+          loc = asset.symbols.get(symbol)?.loc;
         }
 
         return {
@@ -964,10 +964,10 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: result.exportSymbol,
-            loc: resolved.symbols?.get(symbol)?.loc,
+            loc: resolved.symbols.get(symbol)?.loc,
           };
         }
-        if (!result.asset.symbols || result.symbol === null) {
+        if (result.symbol === null) {
           // We didn't find it in this dependency, but it might still be there: bailout.
           // Continue searching though, with the assumption that there are no conficting reexports
           // and there might be a another (re)export (where we might statically find the symbol).
@@ -975,7 +975,7 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: result.exportSymbol,
-            loc: resolved.symbols?.get(symbol)?.loc,
+            loc: resolved.symbols.get(symbol)?.loc,
           });
           found = true;
         }
@@ -995,10 +995,10 @@ export default class BundleGraph {
           identifier ??
           (skipped
             ? false
-            : found || asset.symbols?.has('*')
+            : found || asset.symbols.has('*')
             ? null
             : undefined),
-        loc: asset.symbols?.get(symbol)?.loc,
+        loc: asset.symbols.get(symbol)?.loc,
       };
     }
   }

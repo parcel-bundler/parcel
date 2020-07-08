@@ -88,7 +88,7 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols,
+    symbols: options.symbols || new Map(),
     sideEffects: options.sideEffects ?? true,
     uniqueKey: uniqueKey,
     plugin: options.plugin,

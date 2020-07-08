@@ -91,8 +91,6 @@ export function hoist(asset: MutableAsset, ast: AST) {
     throw new Error('Asset does not have a babel AST');
   }
 
-  asset.symbols.ensure();
-
   traverse(ast.program, VISITOR, null, asset);
   asset.setAST(ast);
 }
@@ -108,6 +106,12 @@ const VISITOR: Visitor<MutableAsset> = {
 
       let shouldWrap = false;
       path.traverse({
+        ImportDeclaration() {
+          asset.meta.isES6Module = true;
+        },
+        ExportDeclaration() {
+          asset.meta.isES6Module = true;
+        },
         CallExpression(path) {
           // If we see an `eval` call, wrap the module in a function.
           // Otherwise, local variables accessed inside the eval won't work.
@@ -159,17 +163,17 @@ const VISITOR: Visitor<MutableAsset> = {
           // We must disable resolving $..$exports.foo if `exports`
           // is referenced as a free identifier rather
           // than a statically resolvable member expression.
-          if (
-            node.name === 'exports' &&
-            !isAssignmentExpression(parent, {left: node}) &&
-            (!isMemberExpression(parent) ||
-              !(isIdentifier(parent.property) && !parent.computed) ||
-              isStringLiteral(parent.property)) &&
-            !path.scope.hasBinding('exports') &&
-            !path.scope.getData('shouldWrap')
-          ) {
+          if (node.name === 'exports' && !path.scope.hasBinding('exports')) {
             asset.meta.isCommonJS = true;
-            asset.meta.resolveExportsBailedOut = true;
+            if (
+              !isAssignmentExpression(parent, {left: node}) &&
+              (!isMemberExpression(parent) ||
+                !(isIdentifier(parent.property) && !parent.computed) ||
+                isStringLiteral(parent.property)) &&
+              !path.scope.getData('shouldWrap')
+            ) {
+              asset.meta.resolveExportsBailedOut = true;
+            }
           }
         },
 
@@ -181,17 +185,26 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             t.matchesPattern(node, 'module.exports') &&
-            !isAssignmentExpression(parent, {left: node}) &&
-            (!isMemberExpression(parent) ||
-              !(isIdentifier(parent.property) && !parent.computed) ||
-              isStringLiteral(parent.property)) &&
-            !path.scope.hasBinding('module') &&
-            !path.scope.getData('shouldWrap')
+            !path.scope.hasBinding('module')
           ) {
-            asset.meta.resolveExportsBailedOut = true;
+            asset.meta.isCommonJS = true;
+            if (
+              !isAssignmentExpression(parent, {left: node}) &&
+              (!isMemberExpression(parent) ||
+                !(isIdentifier(parent.property) && !parent.computed) ||
+                isStringLiteral(parent.property)) &&
+              !path.scope.getData('shouldWrap')
+            ) {
+              asset.meta.resolveExportsBailedOut = true;
+            }
           }
         },
       });
+
+      if (!asset.meta.isCommonJS && !asset.meta.isES6Module) {
+        // We still need an exports object
+        asset.meta.isCommonJS = true;
+      }
 
       path.scope.setData('shouldWrap', shouldWrap);
       path.scope.setData('cjsExportsReassigned', false);
@@ -200,6 +213,7 @@ const VISITOR: Visitor<MutableAsset> = {
     exit(path, asset: MutableAsset) {
       let scope = path.scope;
 
+      let exportsIdentifier = getIdentifier(asset, 'exports');
       if (scope.getData('shouldWrap')) {
         if (asset.meta.isES6Module) {
           path.unshiftContainer('body', [ESMODULE_TEMPLATE()]);
@@ -208,13 +222,13 @@ const VISITOR: Visitor<MutableAsset> = {
         path.replaceWith(
           t.program([
             WRAPPER_TEMPLATE({
-              NAME: getIdentifier(asset, 'exports'),
+              NAME: exportsIdentifier,
               BODY: path.node.body,
             }),
           ]),
         );
 
-        asset.symbols.clear();
+        asset.symbols.set('*', exportsIdentifier.name);
         asset.meta.isCommonJS = true;
         asset.meta.isES6Module = false;
       } else {
@@ -230,14 +244,16 @@ const VISITOR: Visitor<MutableAsset> = {
           }
         }
 
-        let exportsIdentifier = getIdentifier(asset, 'exports');
-
         // Add variable that represents module.exports if it is referenced and not declared.
         if (
           scope.hasGlobal(exportsIdentifier.name) &&
           !scope.hasBinding(exportsIdentifier.name)
         ) {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
+        }
+
+        if (asset.meta.isCommonJS) {
+          asset.symbols.set('*', exportsIdentifier.name);
         }
       }
 
@@ -261,7 +277,6 @@ const VISITOR: Visitor<MutableAsset> = {
     if (t.matchesPattern(path.node, 'module.exports')) {
       let exportsId = getExportsIdentifier(asset, path.scope);
       path.replaceWith(exportsId);
-      asset.meta.isCommonJS = true;
       asset.symbols.set('*', exportsId.name, convertBabelLoc(path.node.loc));
 
       if (!path.scope.hasBinding(exportsId.name)) {

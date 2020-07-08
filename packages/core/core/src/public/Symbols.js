@@ -41,47 +41,35 @@ export class AssetSymbols implements IAssetSymbols {
   }
 
   get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
-    return this.#value.symbols?.get(exportSymbol);
+    return this.#value.symbols.get(exportSymbol);
   }
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.has(exportSymbol));
+    return Boolean(this.#value.symbols.has(exportSymbol));
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
-    if (this.#value.symbols) {
-      for (let s of this.#value.symbols.values()) {
-        if (local === s.local) return true;
-      }
+    for (let s of this.#value.symbols.values()) {
+      if (local === s.local) return true;
     }
     return false;
   }
 
   // $FlowFixMe
   [Symbol.iterator]() {
-    return this.#value.symbols
-      ? this.#value.symbols[Symbol.iterator]()
-      : EMPTY_ITERATOR;
+    return this.#value.symbols[Symbol.iterator]();
   }
 
   exportSymbols(): Iterable<ISymbol> {
     // $FlowFixMe
-    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
-  }
-
-  get isCleared() {
-    return this.#value.symbols == null;
+    return this.#value.symbols.keys();
   }
 
   // $FlowFixMe
   [inspect]() {
-    return `AssetSymbols(${
-      this.#value.symbols
-        ? [...this.#value.symbols]
-            .map(([s, {local}]) => `${s}:${local}`)
-            .join(', ')
-        : null
-    })`;
+    return `AssetSymbols(${[...this.#value.symbols]
+      .map(([s, {local}]) => `${s}:${local}`)
+      .join(', ')})`;
   }
 }
 
@@ -103,58 +91,37 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
     this.#value = asset;
   }
 
-  ensure(): void {
-    let symbols = this.#value.symbols;
-    if (this.#value.symbols == null) {
-      symbols = new Map();
-      this.#value.symbols = symbols;
-    }
+  clear() {
+    this.#value.symbols.clear();
   }
 
   set(exportSymbol: ISymbol, local: ISymbol, loc: ?SourceLocation) {
-    let symbols = this.#value.symbols;
-    if (symbols == null) {
-      symbols = new Map();
-      this.#value.symbols = symbols;
-    }
-    symbols.set(exportSymbol, {local, loc});
+    this.#value.symbols.set(exportSymbol, {local, loc});
   }
 
   get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
-    return this.#value.symbols?.get(exportSymbol);
+    return this.#value.symbols.get(exportSymbol);
   }
 
   hasExportSymbol(exportSymbol: ISymbol): boolean {
-    return Boolean(this.#value.symbols?.has(exportSymbol));
+    return Boolean(this.#value.symbols.has(exportSymbol));
   }
 
   hasLocalSymbol(local: ISymbol): boolean {
-    if (this.#value.symbols) {
-      for (let s of this.#value.symbols.values()) {
-        if (local === s.local) return true;
-      }
+    for (let s of this.#value.symbols.values()) {
+      if (local === s.local) return true;
     }
     return false;
   }
 
   // $FlowFixMe
   [Symbol.iterator]() {
-    return this.#value.symbols
-      ? this.#value.symbols[Symbol.iterator]()
-      : EMPTY_ITERATOR;
+    return this.#value.symbols[Symbol.iterator]();
   }
 
   exportSymbols(): Iterable<ISymbol> {
     // $FlowFixMe
-    return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
-  }
-
-  get isCleared() {
-    return this.#value.symbols == null;
-  }
-
-  clear() {
-    this.#value.symbols = null;
+    return this.#value.symbols.keys();
   }
 
   // $FlowFixMe

@@ -367,7 +367,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message,
-            origin: '@parcel/packager-js',
+            origin: '@parcel/core',
             filePath: path.normalize(
               'integration/scope-hoisting/es6/re-export-missing/b.js',
             ),

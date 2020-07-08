@@ -24,7 +24,13 @@ import EventEmitter from 'events';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import {md5FromObject, md5FromString, PromiseQueue} from '@parcel/utils';
+import {
+  escapeMarkdown,
+  md5FromObject,
+  md5FromString,
+  PromiseQueue,
+} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import AssetGraph from './AssetGraph';
 import RequestTracker, {RequestGraph} from './RequestTracker';
 import {PARCEL_VERSION} from './constants';
@@ -179,14 +185,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     if (errors.length) {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
+    dumpToGraphViz(this.assetGraph, 'AssetGraph1');
 
     this.propagateSymbols();
 
-    dumpToGraphViz(this.assetGraph, 'AssetGraph');
-
-    // if (symbolsErrors.length > 0) {
-    // throw new ThrowableDiagnostic({diagnostic: symbolsErrors});
-    // }
+    dumpToGraphViz(this.assetGraph, 'AssetGraph2');
 
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
@@ -215,16 +218,14 @@ export default class AssetGraphBuilder extends EventEmitter {
       let assetSymbols = assetNode.value.symbols;
       // identifier -> exportSymbol
       let assetSymbolsInverse;
-      if (assetSymbols) {
-        assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
-          if (!set) {
-            set = new Set();
-            assetSymbolsInverse.set(local, set);
-          }
-          set.add(s);
+      assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+      for (let [s, {local}] of assetSymbols) {
+        let set = assetSymbolsInverse.get(local);
+        if (!set) {
+          set = new Set();
+          assetSymbolsInverse.set(local, set);
         }
+        set.add(s);
       }
       let hasNamespaceOutgoingDeps = outgoingDeps.some(
         d => d.value.symbols?.get('*')?.local === '*',
@@ -282,7 +283,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       //   namespaceReexportedSymbols,
       //   incomingDeps: incomingDeps.map(d => [
       //     d.value.moduleSpecifier,
-      //     ...d.usedSymbolsDown,
+      //     ...getUsedSymbolsDown(d),
       //   ]),
       // });
 
@@ -359,8 +360,9 @@ export default class AssetGraphBuilder extends EventEmitter {
         // console.log(2, {
         //   from: assetNode.value.filePath,
         //   to: dep.value.moduleSpecifier,
+        //   symbols: dep.value.moduleSpecifier,
         //   old: [...depUsedSymbolsDownOld],
-        //   new: [...dep.usedSymbolsDown],
+        //   new: [...depUsedSymbolsDown],
         // });
       }
 
@@ -370,109 +372,100 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols = assetNode.value.symbols;
 
-      if (!assetSymbols) {
-        for (let dep of incomingDeps) {
-          dep.usedSymbols = new Set(assetNode.usedSymbols);
+      let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
+      for (let [s, {local}] of assetSymbols) {
+        let set = assetSymbolsInverse.get(local);
+        if (!set) {
+          set = new Set();
+          assetSymbolsInverse.set(local, set);
         }
-      } else {
-        let assetSymbolsInverse = new Map<Symbol, Set<Symbol>>();
-        for (let [s, {local}] of assetSymbols) {
-          let set = assetSymbolsInverse.get(local);
-          if (!set) {
-            set = new Set();
-            assetSymbolsInverse.set(local, set);
-          }
-          set.add(s);
-        }
+        set.add(s);
+      }
 
-        let reexportedSymbols = new Set<Symbol>();
-        for (let outgoingDep of outgoingDeps) {
-          let outgoingDepSymbols = outgoingDep.value.symbols;
-          if (!outgoingDepSymbols) continue;
+      let reexportedSymbols = new Set<Symbol>();
+      for (let outgoingDep of outgoingDeps) {
+        let outgoingDepSymbols = outgoingDep.value.symbols;
+        if (!outgoingDepSymbols) continue;
 
-          if (outgoingDepSymbols.get('*')?.local === '*') {
-            outgoingDep.usedSymbols.forEach(s => reexportedSymbols.add(s));
-          }
-
-          for (let s of outgoingDep.usedSymbols) {
-            if (!getUsedSymbolsDown(outgoingDep).has(s)) {
-              // usedSymbolsDown is a superset of usedSymbolsUp
-              continue;
-            }
-
-            let local = outgoingDepSymbols.get(s)?.local;
-            if (local == null) {
-              // Caused by '*' => '*', already handledn
-              continue;
-            }
-
-            let reexported = assetSymbolsInverse.get(local);
-            if (reexported != null) {
-              reexported.forEach(s => reexportedSymbols.add(s));
-            }
-          }
+        if (outgoingDepSymbols.get('*')?.local === '*') {
+          outgoingDep.usedSymbols.forEach(s => reexportedSymbols.add(s));
         }
 
-        for (let incomingDep of incomingDeps) {
-          incomingDep.usedSymbols = new Set();
-          let incomingDepSymbols = incomingDep.value.symbols;
-          if (!incomingDepSymbols) continue;
-
-          // let hasNamespaceReexport =
-          // incomingDepSymbols.get('*')?.local === '*';
-          for (let s of getUsedSymbolsDown(incomingDep)) {
-            if (
-              assetNode.usedSymbols.has(s) ||
-              reexportedSymbols.has(s) ||
-              s === '*'
-            ) {
-              incomingDep.usedSymbols.add(s);
-            }
-
-            // else if (!hasNamespaceReexport) {
-            //   let loc = incomingDep.value.symbols?.get(s)?.loc;
-            //   let [resolution] = this.assetGraph.getNodesConnectedFrom(
-            //     incomingDep,
-            //   );
-            //   invariant(resolution && resolution.type === 'asset_group');
-            //   // $FlowFixMe calm down
-            //   errors.push({
-            //     message: `${escapeMarkdown(
-            //       path.relative(
-            //         this.options.inputFS.cwd(),
-            //         resolution.value.filePath,
-            //       ),
-            //     )} does not export '${s}'`,
-            //     origin: '@parcel/core',
-            //     filePath: loc?.filePath,
-            //     codeFrame: loc
-            //       ? {
-            //           codeHighlights: [
-            //             {
-            //               start: loc.start,
-            //               end: loc.end,
-            //             },
-            //           ],
-            //         }
-            //       : undefined,
-            //   });
-            // }
+        for (let s of outgoingDep.usedSymbols) {
+          if (!getUsedSymbolsDown(outgoingDep).has(s)) {
+            // usedSymbolsDown is a superset of usedSymbolsUp
+            continue;
           }
 
-          incomingDep.excluded = false;
-          if (incomingDep.usedSymbols.size === 0) {
-            let assetGroups = this.assetGraph.getNodesConnectedFrom(
+          let local = outgoingDepSymbols.get(s)?.local;
+          if (local == null) {
+            // Caused by '*' => '*', already handledn
+            continue;
+          }
+
+          let reexported = assetSymbolsInverse.get(local);
+          if (reexported != null) {
+            reexported.forEach(s => reexportedSymbols.add(s));
+          }
+        }
+      }
+
+      for (let incomingDep of incomingDeps) {
+        incomingDep.usedSymbols = new Set();
+        let incomingDepSymbols = incomingDep.value.symbols;
+        if (!incomingDepSymbols) continue;
+
+        let hasNamespaceReexport = incomingDepSymbols.get('*')?.local === '*';
+        for (let s of getUsedSymbolsDown(incomingDep)) {
+          if (
+            assetNode.usedSymbols.has(s) ||
+            reexportedSymbols.has(s) ||
+            s === '*'
+          ) {
+            incomingDep.usedSymbols.add(s);
+          } else if (!hasNamespaceReexport) {
+            let loc = incomingDep.value.symbols?.get(s)?.loc;
+            let [resolution] = this.assetGraph.getNodesConnectedFrom(
               incomingDep,
             );
-            if (assetGroups.length === 1) {
-              let [assetGroup] = assetGroups;
-              invariant(assetGroup.type === 'asset_group');
-              if (assetGroup.value.sideEffects === false) {
-                incomingDep.excluded = true;
-              }
-            } else {
-              invariant(assetGroups.length === 0);
+            invariant(resolution && resolution.type === 'asset_group');
+
+            // TODO we could collect all errors and throw them all at once
+            throw new ThrowableDiagnostic({
+              diagnostic: {
+                message: `${escapeMarkdown(
+                  path.relative(
+                    this.options.projectRoot,
+                    resolution.value.filePath,
+                  ),
+                )} does not export '${s}'`,
+                origin: '@parcel/core',
+                filePath: loc?.filePath,
+                language: assetNode.value.type,
+                codeFrame: loc
+                  ? {
+                      codeHighlights: {
+                        start: loc.start,
+                        end: loc.end,
+                      },
+                    }
+                  : undefined,
+              },
+            });
+          }
+        }
+
+        incomingDep.excluded = false;
+        if (incomingDep.usedSymbols.size === 0) {
+          let assetGroups = this.assetGraph.getNodesConnectedFrom(incomingDep);
+          if (assetGroups.length === 1) {
+            let [assetGroup] = assetGroups;
+            invariant(assetGroup.type === 'asset_group');
+            if (assetGroup.value.sideEffects === false) {
+              incomingDep.excluded = true;
             }
+          } else {
+            invariant(assetGroups.length === 0);
           }
         }
       }
