@@ -34,8 +34,6 @@ type SerializedParcelConfig = {|
   autoinstall: boolean,
 |};
 
-const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
-
 export default class ParcelConfig {
   packageManager: PackageManager;
   filePath: FilePath;
@@ -335,10 +333,16 @@ export default class ParcelConfig {
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string) {
-    let prefix = pipeline ? `${pipeline}:` : '';
+    let [patternPipeline, patternGlob] = pattern.split(':');
+    if (!patternGlob) {
+      patternGlob = patternPipeline;
+      patternPipeline = null;
+    }
+
     return (
-      isMatch(prefix + filePath, pattern) ||
-      isMatch(prefix + basename(filePath), pattern)
+      (pipeline === patternPipeline || (!pipeline && !patternPipeline)) &&
+      (isMatch(filePath, patternGlob) ||
+        isMatch(basename(filePath), patternGlob))
     );
   }
 
@@ -357,19 +361,23 @@ export default class ParcelConfig {
     globMap: {[Glob]: ExtendableParcelConfigPipeline, ...},
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
-    let matchesPipeline = [];
-    let matches = [];
+    let exactMatch;
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern, pipeline)) {
-        if (NAMED_PIPELINE_REGEX.test(pattern)) {
-          matchesPipeline.push(globMap[pattern]);
-        } else {
-          matches.push(globMap[pattern]);
-        }
+        exactMatch = globMap[pattern];
+        break;
       }
     }
+    if (!exactMatch) {
+      return [];
+    }
 
-    matches = matchesPipeline.concat(matches);
+    let matches = [exactMatch];
+    for (let pattern in globMap) {
+      if (this.isGlobMatch(filePath, pattern)) {
+        matches.push(globMap[pattern]);
+      }
+    }
 
     let flatten = () => {
       let pipeline = matches.shift() || [];
