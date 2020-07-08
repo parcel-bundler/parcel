@@ -2,7 +2,7 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, distDir, outputFS, inputFS} from '@parcel/test-utils';
+import {bundle, distDir, outputFS, inputFS, run} from '@parcel/test-utils';
 
 const configPath = path.join(__dirname, '/integration/blob-url/.parcelrc');
 
@@ -11,16 +11,50 @@ const config = {
   filePath: configPath,
 };
 
+class Blob {
+  data;
+  constructor(data) {
+    this.data = data;
+  }
+}
+
+const URL = {
+  createObjectURL(blob) {
+    assert(blob instanceof Blob);
+    return `data:application/javascript,${encodeURIComponent(blob.data)}`;
+  },
+};
+
 describe('blob urls', () => {
   it('should inline compiled content as a blob url with `blob-url:*` imports', async () => {
-    await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      config,
+    let b = await bundle(
+      path.join(__dirname, '/integration/blob-url/index.js'),
+      {
+        config,
+      },
+    );
+
+    class Worker {
+      constructor(src) {
+        created.push(src);
+      }
+      postMessage() {}
+    }
+
+    let created = [];
+    await run(b, {
+      Worker,
+      Blob,
+      URL,
     });
+    assert.equal(created.length, 1);
+    assert(created[0].startsWith('data:application/javascript,'));
 
     let bundleContent = await outputFS.readFile(
       path.join(distDir, 'index.js'),
       'utf8',
     );
+    // console.log(bundleContent);
     assert(bundleContent.includes('new Worker(require("blob-url:./worker"))'));
     assert(
       bundleContent.includes(
@@ -35,10 +69,29 @@ describe('blob urls', () => {
   });
 
   it('should inline minified content as a blob url with `blob-url:*` imports', async () => {
-    await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      config,
-      minify: true,
+    let b = await bundle(
+      path.join(__dirname, '/integration/blob-url/index.js'),
+      {
+        config,
+        minify: true,
+      },
+    );
+
+    class Worker {
+      constructor(src) {
+        created.push(src);
+      }
+      postMessage() {}
+    }
+
+    let created = [];
+    await run(b, {
+      Worker,
+      Blob,
+      URL,
     });
+    assert.equal(created.length, 1);
+    assert(created[0].startsWith('data:application/javascript,'));
 
     let bundleContent = await outputFS.readFile(
       path.join(distDir, 'index.js'),
