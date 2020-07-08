@@ -1,6 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, outputFS} from '@parcel/test-utils';
+import {bundle, run} from '@parcel/test-utils';
 
 describe('global alias', function() {
   it('should support global alias syntax', async function() {
@@ -8,11 +8,15 @@ describe('global alias', function() {
       path.join(__dirname, '/integration/global-alias/index.js'),
     );
 
-    let index = await outputFS.readFile(
-      b.getBundles().find(b => b.name.startsWith('index')).filePath,
-      'utf8',
+    assert.equal(
+      await run(b, {
+        React: {
+          createElement: function() {
+            return 'ok';
+          },
+        },
+      }),
+      'ok',
     );
-
-    assert(/module\.exports\ =\ React/.test(index));
   });
 });

@@ -1,3 +1,3 @@
 import React from 'react';
 
-React.createElement('div');
+module.exports = React.createElement('div');
