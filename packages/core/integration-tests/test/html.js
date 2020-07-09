@@ -14,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import path from 'path';
 
-describe('html', function() {
+describe.only('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -395,7 +395,7 @@ describe('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it.only('should read .htmlnanorc and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
@@ -774,7 +774,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should process inline JS', async function() {
+  it.only('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {minify: true},
@@ -801,7 +801,7 @@ describe('html', function() {
     assert(!html.includes('someArgument'));
   });
 
-  it('should add an inline sourcemap to inline JS', async function() {
+  it.only('should add an inline sourcemap to inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {minify: false},
@@ -899,7 +899,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should process inline styles using lang', async function() {
+  it.only('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
       {minify: true},
