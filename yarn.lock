@@ -1937,10 +1937,10 @@
   resolved "https://registry.yarnpkg.com/@parcel/utils/-/utils-1.11.0.tgz#539e08fff8af3b26eca11302be80b522674b51ea"
   integrity sha512-cA3p4jTlaMeOtAKR/6AadanOPvKeg8VwgnHhOyfi0yClD0TZS/hi9xu12w4EzA/8NtHu0g6o4RDfcNjqN8l1AQ==
 
-"@parcel/watcher@^2.0.0-alpha.7":
-  version "2.0.0-alpha.7"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/watcher/-/watcher-2.0.0-alpha.7.tgz#377f273adde0655c29b46d6249a08c0fa06dcfc5"
-  integrity sha1-N38nOt3gZVwptG1iSaCMD6Btz8U=
+"@parcel/watcher@^2.0.0-alpha.8":
+  version "2.0.0-alpha.8"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/@parcel/watcher/-/watcher-2.0.0-alpha.8.tgz#7aee9504b87eebc73c794c611a6673e58b81e0b1"
+  integrity sha1-eu6VBLh+68c8eUxhGmZz5YuB4LE=
   dependencies:
     lint-staged "^10.0.8"
     node-addon-api "^3.0.0"

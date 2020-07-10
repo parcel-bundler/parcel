@@ -22,7 +22,7 @@
   "dependencies": {
     "@parcel/fs-write-stream-atomic": "2.0.0-beta.1",
     "@parcel/utils": "^2.0.0-frontbucket.24",
-    "@parcel/watcher": "^2.0.0-alpha.7",
+    "@parcel/watcher": "^2.0.0-alpha.8",
     "@parcel/workers": "^2.0.0-frontbucket.24",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
