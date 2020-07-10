@@ -769,6 +769,8 @@ export default class NodeResolver {
           } else {
             alias = alias[1];
           }
+        } else if (alias === false) {
+          alias = f;
         }
         if (alias !== f) {
           res = res.concat(
@@ -789,18 +791,12 @@ export default class NodeResolver {
     pkg: InternalPackageJSON | null,
   ) {
     let localAliases = await this.resolvePackageAliases(filename, env, pkg);
-    if (Array.isArray(localAliases)) {
-      if (localAliases[0] === 'global') {
-        return localAliases;
-      }
-      localAliases = localAliases[1];
+    if (Array.isArray(localAliases) || typeof localAliases === 'boolean') {
+      return localAliases;
     }
 
-    if (!(typeof localAliases === 'string')) {
-      localAliases = filename;
-    }
     // First resolve local package aliases, then project global ones.
-    return this.resolvePackageAliases(localAliases, env, this.rootPackage);
+    return this.resolvePackageAliases(filename, env, this.rootPackage);
   }
 
   async resolvePackageAliases(
@@ -819,7 +815,6 @@ export default class NodeResolver {
       let alias = await this.getAlias(filename, pkg.pkgdir, pkg[pkgKey]);
       if (alias != null) return alias;
     }
-
     return filename;
   }
 
@@ -869,13 +864,13 @@ export default class NodeResolver {
         }
         return ['global', alias.global];
       } else if (alias.fileName) {
-        return ['file', alias.fileName];
+        alias = alias.fileName;
       }
     }
 
     if (typeof alias === 'string') {
       // Assume file
-      return ['file', alias];
+      return ['file', await this.resolveFilename(alias, dir)];
     }
 
     return null;
@@ -901,7 +896,6 @@ export default class NodeResolver {
         }
       }
     }
-
     return alias;
   }
 
