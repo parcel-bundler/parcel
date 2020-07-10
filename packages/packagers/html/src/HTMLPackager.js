@@ -5,7 +5,12 @@ import assert from 'assert';
 import {Readable} from 'stream';
 import {Packager} from '@parcel/plugin';
 import posthtml from 'posthtml';
-import {bufferStream, replaceURLReferences, urlJoin} from '@parcel/utils';
+import {
+  bufferStream,
+  replaceInlineReferences,
+  replaceURLReferences,
+  urlJoin,
+} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -57,11 +62,23 @@ export default new Packager({
       ),
     ]).process(code);
 
-    return replaceURLReferences({
+    let {contents, map} = replaceURLReferences({
       bundle,
       bundleGraph,
       contents: html,
       relative: false,
+    });
+
+    return replaceInlineReferences({
+      bundle,
+      bundleGraph,
+      contents,
+      getInlineBundleContents,
+      getInlineReplacement: (dep, inlineType, contents) => ({
+        from: dep.id,
+        to: contents,
+      }),
+      map,
     });
   },
 });
