@@ -512,6 +512,7 @@ export interface MutableAsset extends BaseAsset {
   getAST(): Promise<?AST>;
   setAST(AST): void;
   setBuffer(Buffer): void;
+  setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
   setEnvironment(opts: EnvironmentOpts): void;
