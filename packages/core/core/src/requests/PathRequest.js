@@ -163,7 +163,7 @@ export class ResolverRunner {
             return null;
           }
 
-          if (result.filePath) {
+          if (result.filePath != null) {
             return {
               filePath: result.filePath,
               sideEffects: result.sideEffects,

@@ -46,6 +46,7 @@ type Module = {|
   subPath?: string,
   moduleDir?: FilePath,
   filePath?: FilePath,
+  code?: string,
 |};
 
 /**
@@ -106,14 +107,16 @@ export default class NodeResolver {
       return {isExcluded: true};
     }
 
-    if (module.code) {
-      return module;
-    }
-
     let resolved;
     if (module.moduleDir) {
       resolved = await this.loadNodeModules(module, extensions, env);
     } else if (module.filePath) {
+      if (module.code != null) {
+        return {
+          filePath: module.filePath,
+          code: module.code,
+        };
+      }
       resolved = await this.loadRelative(
         module.filePath,
         extensions,
@@ -828,18 +831,14 @@ export default class NodeResolver {
     // If filename is an absolute path, get one relative to the package.json directory.
     if (path.isAbsolute(filename)) {
       filename = relativePath(dir, filename);
-      alias = await this.lookupAlias(aliases, filename, dir);
+      alias = await this.lookupAlias(aliases, filename);
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = await this.lookupAlias(
-        aliases,
-        normalizeSeparators(filename),
-        dir,
-      );
+      alias = await this.lookupAlias(aliases, normalizeSeparators(filename));
       if (alias == null) {
         // If it didn't match, try only the module name.
         let [moduleName, subPath] = this.getModuleParts(filename);
-        alias = await this.lookupAlias(aliases, moduleName, dir);
+        alias = await this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
           // Append the filename back onto the aliased module.
           alias = path.join(alias, subPath);
@@ -876,7 +875,7 @@ export default class NodeResolver {
     return null;
   }
 
-  lookupAlias(aliases: Aliases, filename: FilePath, dir: FilePath) {
+  lookupAlias(aliases: Aliases, filename: FilePath) {
     if (typeof aliases !== 'object') {
       return null;
     }
