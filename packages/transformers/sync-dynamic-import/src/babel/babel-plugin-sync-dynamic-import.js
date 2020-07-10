@@ -57,10 +57,14 @@ module.exports = function({template, types: t}) {
           (leadingComments &&
             leadingComments.length > 0 &&
             leadingComments.some(comment => {
-              return comment.value && comment.value.includes('webpackPrefetch');
+              return (
+                comment.value &&
+                (comment.value.includes('webpackPrefetch') ||
+                  comment.value.includes('webpackPreload'))
+              );
             }))
         ) {
-          // don't rewrite prefetch imports
+          // don't rewrite prefetch or preload imports
           asyncImport.parentPath.replaceWithMultiple(dummyTemplate());
           return;
         }
