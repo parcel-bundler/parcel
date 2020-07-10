@@ -114,7 +114,7 @@ export default class Transformation {
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
-      this.request.pipeline,
+      this.request,
     );
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
@@ -253,6 +253,10 @@ export default class Transformation {
     pipeline: Pipeline,
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
+    if (pipeline.transformers.length === 0) {
+      return [initialAsset];
+    }
+
     let initialType = initialAsset.value.type;
     let inputAssets = [initialAsset];
     let resultingAssets = [];
@@ -391,13 +395,14 @@ export default class Transformation {
   async loadPipeline(
     filePath: FilePath,
     isSource: boolean,
-    pipelineName?: ?string,
+    request?: AssetRequestInput,
   ): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
       isSource,
-      pipeline: pipelineName,
+      pipeline: request?.pipeline,
+      isURL: request?.isURL,
       meta: {
         actionType: 'transformation',
       },
@@ -410,7 +415,8 @@ export default class Transformation {
 
     let transformers = await this.parcelConfig.getTransformers(
       filePath,
-      pipelineName,
+      request?.pipeline,
+      request?.isURL,
     );
 
     for (let {name, resolveFrom} of transformers) {
@@ -461,7 +467,7 @@ export default class Transformation {
     let nextPipeline = await this.loadPipeline(
       nextFilePath,
       isSource,
-      this.request.pipeline,
+      this.request,
     );
 
     if (nextPipeline.id === currentPipeline.id) {

@@ -81,14 +81,12 @@ function createMockAssetGraph() {
   let dep1 = createDependency({
     moduleSpecifier: '/path/to/index/src/main.js',
     isEntry: true,
-    pipeline: 'test',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
   let dep2 = createDependency({
     moduleSpecifier: '/path/to/index/src/main2.js',
     isEntry: true,
-    pipeline: 'test',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
