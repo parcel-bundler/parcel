@@ -1605,4 +1605,22 @@ describe('html', function() {
     assert(html.includes('module.exports = "foo bar"'));
     assert(html.includes('console.log'));
   });
+
+  it('should inline data-urls', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/data-url/index.html'),
+      {
+        sourceMaps: false,
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+    assert.equal(
+      contents.trim(),
+      `<img src="data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A">`,
+    );
+  });
 });
