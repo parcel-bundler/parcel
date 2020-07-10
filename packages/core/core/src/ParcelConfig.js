@@ -361,18 +361,23 @@ export default class ParcelConfig {
     globMap: {[Glob]: ExtendableParcelConfigPipeline, ...},
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
-    let exactMatch;
-    for (let pattern in globMap) {
-      if (this.isGlobMatch(filePath, pattern, pipeline)) {
-        exactMatch = globMap[pattern];
-        break;
+    let matches = [];
+    if (pipeline) {
+      // If a pipeline is requested, a the glob needs to match exactly
+      let exactMatch;
+      for (let pattern in globMap) {
+        if (this.isGlobMatch(filePath, pattern, pipeline)) {
+          exactMatch = globMap[pattern];
+          break;
+        }
+      }
+      if (!exactMatch) {
+        return [];
+      } else {
+        matches.push(exactMatch);
       }
     }
-    if (!exactMatch) {
-      return [];
-    }
 
-    let matches = [exactMatch];
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern)) {
         matches.push(globMap[pattern]);
