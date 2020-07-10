@@ -29,6 +29,7 @@ export type OutputFormat = {|
     from: NamedBundle,
     external: ExternalBundle,
     path: NodePath<Program>,
+    bundleGraph: BundleGraph<NamedBundle>,
   ): void,
   generateExternalImport(
     bundle: NamedBundle,

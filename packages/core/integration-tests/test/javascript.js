@@ -2527,8 +2527,12 @@ describe('javascript', function() {
     let sameBundle = bundles.find(b => b.name === 'same-bundle.js');
     let getDep = bundles.find(b => b.name === 'get-dep.js');
 
-    assert.deepEqual(await (await runBundle(sameBundle)).default, [42, 42, 42]);
-    assert.deepEqual(await (await runBundle(getDep)).default, 42);
+    assert.deepEqual(await (await runBundle(b, sameBundle)).default, [
+      42,
+      42,
+      42,
+    ]);
+    assert.deepEqual(await (await runBundle(b, getDep)).default, 42);
   });
 
   it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
