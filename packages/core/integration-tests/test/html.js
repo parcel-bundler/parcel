@@ -14,7 +14,7 @@ import {
 } from '@parcel/test-utils';
 import path from 'path';
 
-describe.only('html', function() {
+describe('html', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -395,7 +395,7 @@ describe.only('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it.only('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it('should read .htmlnanorc and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
@@ -415,8 +415,8 @@ describe.only('html', function() {
 
     // mergeStyles
     assert(
-      html.match(
-        /<style>h1{color:red}div{font-size:20px}\n\/\*# sourceMappingURL=.*\*\/<\/style><style media="print">div{color:#00f}\n\/\*# sourceMappingURL=.*\*\/<\/style>/,
+      html.includes(
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
       ),
     );
 
@@ -774,7 +774,7 @@ describe.only('html', function() {
     ]);
   });
 
-  it.only('should process inline JS', async function() {
+  it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {minify: true},
@@ -799,37 +799,6 @@ describe.only('html', function() {
     );
 
     assert(!html.includes('someArgument'));
-  });
-
-  it.only('should add an inline sourcemap to inline JS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {minify: false},
-    );
-
-    // inline bundles are not output, but are apart of the bundleGraph
-    assertBundles(b, [
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {name: 'index.html', assets: ['index.html']},
-    ]);
-
-    let files = await outputFS.readdir(distDir);
-    // assert that the inline js files are not output
-    assert(!files.some(filename => filename.includes('js')));
-
-    let html = await outputFS.readFile(
-      path.join(distDir, 'index.html'),
-      'utf-8',
-    );
-
-    assert(
-      html.includes(
-        '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,ey',
-      ),
-    );
   });
 
   it('should process inline styles', async function() {
@@ -899,7 +868,7 @@ describe.only('html', function() {
     ]);
   });
 
-  it.only('should process inline styles using lang', async function() {
+  it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
       {minify: true},
@@ -920,11 +889,7 @@ describe.only('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(
-      html.match(
-        /<style>.index{color:#00f}\n\/\*# sourceMappingURL=.*<\/style>/,
-      ),
-    );
+    assert(html.includes('<style>.index{color:#00f}</style>'));
   });
 
   it('should process inline non-js scripts', async function() {
