@@ -20,7 +20,7 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject, normalizeSeparators, loadSourceMap} from '@parcel/utils';
+import {md5FromObject, normalizeSeparators} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -542,23 +542,6 @@ async function runTransformer(
     ).filePath;
   };
 
-  const loadPreviousMap = async (asset: Asset | MutableAsset) => {
-    let originalMap = await asset.getMap();
-    if (originalMap) {
-      return originalMap;
-    } else {
-      let inlineMap = await loadSourceMap(
-        asset.filePath,
-        await asset.getCode(),
-        {
-          fs: pipeline.pluginOptions.inputFS,
-          projectRoot: pipeline.pluginOptions.projectRoot,
-        },
-      );
-      return inlineMap;
-    }
-  };
-
   // If an ast exists on the asset, but we cannot reuse it,
   // use the previous transform to generate code that we can re-parse.
   if (
@@ -589,7 +572,6 @@ async function runTransformer(
       options: pipeline.pluginOptions,
       resolve,
       logger,
-      loadPreviousMap: () => loadPreviousMap(mutableAsset),
     });
     if (ast) {
       asset.setAST(ast);
@@ -608,7 +590,6 @@ async function runTransformer(
       options: pipeline.pluginOptions,
       resolve,
       logger,
-      loadPreviousMap: () => loadPreviousMap(mutableAsset),
     }),
   );
 
@@ -621,7 +602,6 @@ async function runTransformer(
         ast: input.ast,
         options: pipeline.pluginOptions,
         logger,
-        loadPreviousMap: () => loadPreviousMap(pluginAsset),
       });
       input.clearAST();
       return Promise.resolve(generated);

@@ -22,6 +22,7 @@ import {
   blobToStream,
   streamFromPromise,
   TapStream,
+  loadSourceMap,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -122,13 +123,8 @@ export default class UncommittedAsset {
     this.value.committed = true;
   }
 
-  async getCode(): Promise<string> {
-    if (this.ast != null && this.isASTDirty) {
-      throw new Error(
-        'Cannot call getCode() on an asset with a dirty AST. For transformers, implement canReuseAST() and check asset.isASTDirty.',
-      );
-    }
-
+  // Please do not use this outside of uncomittedasset. Thanks :)
+  async __INTERNAL_getContent(): Promise<string> {
     let content = await this.content;
     if (typeof content === 'string' || content instanceof Buffer) {
       return content.toString();
@@ -138,6 +134,16 @@ export default class UncommittedAsset {
     }
 
     return '';
+  }
+
+  getCode(): Promise<string> {
+    if (this.ast != null && this.isASTDirty) {
+      throw new Error(
+        'Cannot call getCode() on an asset with a dirty AST. For transformers, implement canReuseAST() and check asset.isASTDirty.',
+      );
+    }
+
+    return this.__INTERNAL_getContent();
   }
 
   async getBuffer(): Promise<Buffer> {
@@ -182,8 +188,32 @@ export default class UncommittedAsset {
     this.clearAST();
   }
 
-  getMapBuffer(): Promise<?Buffer> {
-    return Promise.resolve(this.mapBuffer);
+  async loadExistingSourcemap(): Promise<?SourceMap> {
+    if (this.map) {
+      return this.map;
+    }
+
+    let code = await this.__INTERNAL_getContent();
+    let map = await loadSourceMap(this.value.filePath, code, {
+      fs: this.options.inputFS,
+      projectRoot: this.options.projectRoot,
+    });
+
+    if (map) {
+      this.map = map;
+      this.mapBuffer = map.toBuffer();
+    }
+
+    return this.map;
+  }
+
+  async getMapBuffer(): Promise<?Buffer> {
+    if (!this.mapBuffer) {
+      // load any existing sourcemaps from asset content
+      await this.loadExistingSourcemap();
+    }
+
+    return this.mapBuffer;
   }
 
   async getMap(): Promise<?SourceMap> {
@@ -194,6 +224,9 @@ export default class UncommittedAsset {
         let map = new SourceMap();
         map.addBufferMappings(mapBuffer);
         this.map = map;
+      } else {
+        // load any existing sourcemaps from asset content
+        return this.loadExistingSourcemap();
       }
     }
 
