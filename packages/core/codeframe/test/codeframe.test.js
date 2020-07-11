@@ -425,41 +425,10 @@ describe('codeframe', () => {
     assert.equal(lines[6], '  102 | test');
   });
 
-  it('should properly pad numbers', () => {
-    let codeframeString = codeframe('test\n'.repeat(1000), [
-      {
-        start: {
-          column: 2,
-          line: 7,
-        },
-        end: {
-          column: 2,
-          line: 7,
-        },
-        message: 'test',
-      },
-      {
-        start: {
-          column: 2,
-          line: 12,
-        },
-        end: {
-          column: 2,
-          line: 12,
-        },
-        message: 'test',
-      },
-    ]);
-
-    let lines = codeframeString.split(LINE_END);
-    assert.equal(lines.length, 11);
-    assert.equal(lines[0], '  6  | test');
-    assert.equal(lines[10], '  14 | test');
-  });
-
   it('should properly use maxLines', () => {
+    let line = 'test '.repeat(100);
     let codeframeString = codeframe(
-      'test\n'.repeat(100),
+      `${line}\n`.repeat(100),
       [
         {
           start: {
@@ -487,14 +456,16 @@ describe('codeframe', () => {
       {
         useColor: false,
         maxLines: 10,
+        terminalWidth: 5,
       },
     );
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 13);
-    assert.equal(lines[0], '  4  | test');
-    assert.equal(lines[11], '> 13 | test');
-    assert.equal(lines[12], '>    | ^^^^');
+    assert.equal(lines[0], '  4  | test test ');
+    assert.equal(lines[7], '  10 | test test ');
+    assert.equal(lines[11], '> 13 | test test ');
+    assert.equal(lines[12], '>    | ^^^^^^^^^^');
   });
 
   it('should be able to handle tabs', () => {
