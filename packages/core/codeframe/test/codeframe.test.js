@@ -423,8 +423,8 @@ describe('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 7);
-    assert.equal(lines[0], '  98  | test');
-    assert.equal(lines[1], '> 99  | test');
+    assert.equal(lines[0], '   98 | test');
+    assert.equal(lines[1], '>  99 | test');
     assert.equal(lines[2], '>     |  ^ test');
     assert.equal(lines[3], '> 100 | test');
     assert.equal(lines[4], '>     |  ^ test 2');
@@ -460,8 +460,8 @@ describe('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 11);
-    assert.equal(lines[0], '  6  | test');
-    assert.equal(lines[4], '  9  | test');
+    assert.equal(lines[0], '   6 | test');
+    assert.equal(lines[4], '   9 | test');
     assert.equal(lines[5], '  10 | test');
     assert.equal(lines[6], '  11 | test');
     assert.equal(lines[10], '  14 | test');
@@ -504,7 +504,7 @@ describe('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 13);
-    assert.equal(lines[0], '  4  | test test ');
+    assert.equal(lines[0], '   4 | test test ');
     assert.equal(lines[7], '  10 | test test ');
     assert.equal(lines[11], '> 13 | test test ');
     assert.equal(lines[12], '>    | ^^^^^^^^^^');
@@ -784,16 +784,16 @@ describe('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 5);
-    assert.equal(lines[0], '  7  |  */');
+    assert.equal(lines[0], '   7 |  */');
     assert.equal(
       lines[1],
-      `> 8  | import { unstable_CompositeItem as CompositeItem } from 'reakit/Composite';`,
+      `>  8 | import { unstable_CompositeItem as CompositeItem } from 'reakit/Composite';`,
     );
     assert.equal(
       lines[2],
       '>    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^',
     );
-    assert.equal(lines[3], '  9  | /**');
+    assert.equal(lines[3], '   9 | /**');
     assert.equal(lines[4], '  10 |  * Internal dependencies');
   });
 });

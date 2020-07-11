@@ -78,7 +78,7 @@ export default function codeFrame(
 
     return `${isHighlighted ? highlighter('>') : ' '} ${
       lineNumber
-        ? lineNumber.padEnd(lineNumberLength, ' ')
+        ? lineNumber.padStart(lineNumberLength, ' ')
         : ' '.repeat(lineNumberLength)
     } | `;
   };
