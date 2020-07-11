@@ -48,9 +48,11 @@ type Opts = {|
 |};
 
 type BundleInfo = {|
+  +type: string,
+  +size: number,
   +hash: string,
   +hashReferences: Array<string>,
-  +time: number,
+  +time?: number,
 |};
 
 type CacheKeyMap = {|
@@ -153,7 +155,7 @@ export default class PackagerRunner {
       map: getMapKey(cacheKey),
       info: getInfoKey(cacheKey),
     };
-    let {hash, hashReferences} =
+    let {type, size, hash, hashReferences} =
       (await this.getBundleInfoFromCache(cacheKeys.info)) ??
       (await this.getBundleInfoFromWorker({
         bundle,
@@ -163,7 +165,14 @@ export default class PackagerRunner {
         configRef: nullthrows(this.configRef),
       }));
 
-    return {time: Date.now() - start, hash, hashReferences, cacheKeys};
+    return {
+      type,
+      size,
+      time: Date.now() - start,
+      hash,
+      hashReferences,
+      cacheKeys,
+    };
   }
 
   getBundleInfoFromCache(infoKey: string) {
@@ -178,31 +187,36 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     cacheKeys: CacheKeyMap,
-  ) {
-    let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
+  ): Promise<BundleInfo> {
+    let {type, contents, map} = await this.getBundleResult(bundle, bundleGraph);
 
-    return this.writeToCache(cacheKeys, contents, map);
+    return this.writeToCache(cacheKeys, type, contents, map);
   }
 
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<{|
+    type: string,
     contents: Blob,
     map: ?string,
   |}> {
     await initSourcemaps;
 
     let packaged = await this.package(bundle, bundleGraph);
+    let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
       bundle,
       bundleGraph,
+      type,
       packaged.contents,
       packaged.map,
     );
 
-    let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+    let map =
+      res.map != null ? await this.generateSourceMap(bundle, res.map) : null;
     return {
+      type: res.type ?? type,
       contents: res.contents,
       map,
     };
@@ -227,7 +241,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -240,8 +254,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
-          (bundle, bundleGraph, options) =>
-            new NamedBundle(bundle, bundleGraph, options),
+          NamedBundle.get,
           this.options,
         ),
         getSourceMapReference: map => {
@@ -277,17 +290,27 @@ export default class PackagerRunner {
 
   async optimize(
     internalBundle: InternalBundle,
-    bundleGraph: InternalBundleGraph,
+    internalBundleGraph: InternalBundleGraph,
+    type: string,
     contents: Blob,
     map?: ?SourceMap,
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle, bundleGraph, this.options);
+    let bundle = NamedBundle.get(
+      internalBundle,
+      internalBundleGraph,
+      this.options,
+    );
+    let bundleGraph = new BundleGraph<NamedBundleType>(
+      internalBundleGraph,
+      NamedBundle.get,
+      this.options,
+    );
     let optimizers = await this.config.getOptimizers(
       bundle.filePath,
       internalBundle.pipeline,
     );
     if (!optimizers.length) {
-      return {contents, map};
+      return {type: bundle.type, contents, map};
     }
 
     this.report({
@@ -296,11 +319,17 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let optimized = {contents, map};
+    let optimized = {
+      type,
+      contents,
+      map,
+    };
+
     for (let optimizer of optimizers) {
       try {
-        optimized = await optimizer.plugin.optimize({
+        let next = await optimizer.plugin.optimize({
           bundle,
+          bundleGraph,
           contents: optimized.contents,
           map: optimized.map,
           getSourceMapReference: map => {
@@ -309,6 +338,10 @@ export default class PackagerRunner {
           options: this.pluginOptions,
           logger: new PluginLogger({origin: optimizer.name}),
         });
+
+        optimized.type = next.type ?? optimized.type;
+        optimized.contents = next.contents;
+        optimized.map = next.map;
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, optimizer.name),
@@ -428,31 +461,39 @@ export default class PackagerRunner {
   |}) {
     let {inputFS, outputFS} = this.options;
     let filePath = nullthrows(bundle.filePath);
+    let name = nullthrows(bundle.name);
     let thisHashReference = bundle.hashReference;
+
+    if (info.type !== bundle.type) {
+      filePath =
+        filePath.slice(0, -path.extname(filePath).length) + '.' + info.type;
+      name = name.slice(0, -path.extname(name).length) + '.' + info.type;
+      bundle.type = info.type;
+    }
+
     // Without content hashing, the hash reference is already the correct id
     if (this.options.contentHash && filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
-      bundle.filePath = filePath;
-      bundle.name = nullthrows(bundle.name).replace(
-        thisHashReference,
-        thisNameHash,
-      );
+      name = name.replace(thisHashReference, thisNameHash);
     }
+
+    bundle.filePath = filePath;
+    bundle.name = name;
 
     let dir = path.dirname(filePath);
     await outputFS.mkdirp(dir); // ? Got rid of dist exists, is this an expensive operation
 
     // Use the file mode from the entry asset as the file mode for the bundle.
     // Don't do this for browser builds, as the executable bit in particular is unnecessary.
-    let publicBundle = new NamedBundle(bundle, bundleGraph, this.options);
-    let writeOptions = publicBundle.env.isBrowser()
-      ? undefined
-      : {
-          mode: (
-            await inputFS.stat(nullthrows(publicBundle.getMainEntry()).filePath)
-          ).mode,
-        };
+    let publicBundle = NamedBundle.get(bundle, bundleGraph, this.options);
+    let mainEntry = publicBundle.getMainEntry();
+    let writeOptions =
+      publicBundle.env.isBrowser() || !mainEntry
+        ? undefined
+        : {
+            mode: (await inputFS.stat(mainEntry.filePath)).mode,
+          };
     let cacheKeys = info.cacheKeys;
     let contentStream = this.options.cache.getStream(cacheKeys.content);
     let size = await writeFileStream(
@@ -465,7 +506,7 @@ export default class PackagerRunner {
     );
     bundle.stats = {
       size,
-      time: info.time,
+      time: info.time ?? 0,
     };
 
     let mapKey = cacheKeys.map;
@@ -486,7 +527,12 @@ export default class PackagerRunner {
     }
   }
 
-  async writeToCache(cacheKeys: CacheKeyMap, contents: Blob, map: ?Blob) {
+  async writeToCache(
+    cacheKeys: CacheKeyMap,
+    type: string,
+    contents: Blob,
+    map: ?Blob,
+  ): Promise<BundleInfo> {
     let size = 0;
     let hash = crypto.createHash('md5');
     let boundaryStr = '';
@@ -509,7 +555,7 @@ export default class PackagerRunner {
     if (map != null) {
       await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
     }
-    let info = {size, hash: hash.digest('hex'), hashReferences};
+    let info = {type, size, hash: hash.digest('hex'), hashReferences};
     await this.options.cache.set(cacheKeys.info, info);
     return info;
   }

@@ -186,6 +186,7 @@ export default class ParcelConfig {
   _getTransformerNodes(
     filePath: FilePath,
     pipeline?: ?string,
+    allowEmpty?: boolean,
   ): $ReadOnlyArray<ParcelPluginNode> {
     let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
       filePath,
@@ -193,20 +194,36 @@ export default class ParcelConfig {
       pipeline,
     );
     if (!transformers || transformers.length === 0) {
+      if (allowEmpty) {
+        return [];
+      }
+
       throw new Error(`No transformers found for "${filePath}".`);
     }
 
     return transformers;
   }
 
-  getTransformerNames(filePath: FilePath, pipeline?: ?string): Array<string> {
-    let transformers = this._getTransformerNodes(filePath, pipeline);
+  getTransformerNames(
+    filePath: FilePath,
+    pipeline?: ?string,
+    allowEmpty?: boolean,
+  ): Array<string> {
+    let transformers = this._getTransformerNodes(
+      filePath,
+      pipeline,
+      allowEmpty,
+    );
     return transformers.map(t => t.packageName);
   }
 
-  getTransformers(filePath: FilePath, pipeline?: ?string) {
+  getTransformers(
+    filePath: FilePath,
+    pipeline?: ?string,
+    allowEmpty?: boolean,
+  ) {
     return this.loadPlugins<Transformer>(
-      this._getTransformerNodes(filePath, pipeline),
+      this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
   }
 

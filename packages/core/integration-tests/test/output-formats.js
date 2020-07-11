@@ -731,13 +731,7 @@ describe('output formats', function() {
       );
 
       let workerBundle = nullthrows(
-        b.getChildBundles(
-          nullthrows(
-            b.getChildBundles(
-              nullthrows(b.getBundles().find(b => b.type === 'html')),
-            )[0],
-          ),
-        )[0],
+        b.getBundles().find(b => b.env.context === 'web-worker'),
       );
       let workerBundleContents = await outputFS.readFile(
         workerBundle.filePath,
@@ -772,10 +766,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/esm-browser'));
+      assert(html.includes('<script type="module" src="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('esm-browser')).filePath,
+        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
+          .filePath,
         'utf8',
       );
 
@@ -809,10 +804,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/esm-browser'));
+      assert(html.includes('<script type="module" src="/index'));
 
       let entry = await outputFS.readFile(
-        b.getBundles().find(b => b.name.startsWith('esm-browser')).filePath,
+        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
+          .filePath,
         'utf8',
       );
       assert(entry.includes('function importModule'));
@@ -839,13 +835,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(html.includes('<script type="module" src="/esm-browser-css'));
-      assert(html.includes('<link rel="stylesheet" href="/esm-browser-css'));
+      assert(html.includes('<script type="module" src="/index'));
+      assert(html.includes('<link rel="stylesheet" href="/index'));
 
       let entry = await outputFS.readFile(
-        b
-          .getBundles()
-          .find(b => b.type === 'js' && b.name.startsWith('esm-browser-css'))
+        b.getBundles().find(b => b.name === html.match(/src="\/(.*?)"/)[1])
           .filePath,
         'utf8',
       );
@@ -889,14 +883,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(
-        html.includes('<script type="module" src="/esm-browser-split-bundle'),
-      );
+      assert(html.includes('<script type="module" src="/index'));
 
       let bundles = b.getBundles();
       let entry = await outputFS.readFile(
-        bundles.find(b => b.name.startsWith('esm-browser-split-bundle'))
-          .filePath,
+        bundles.find(b => b.name === html.match(/src="\/(.*?)"/)[1]).filePath,
         'utf8',
       );
 

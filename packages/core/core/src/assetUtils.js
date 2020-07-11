@@ -63,7 +63,11 @@ export function createAsset(options: AssetOptions): Asset {
       options.id != null
         ? options.id
         : md5FromString(
-            idBase + options.type + getEnvironmentHash(options.env) + uniqueKey,
+            idBase +
+              options.type +
+              getEnvironmentHash(options.env) +
+              uniqueKey +
+              (options.pipeline ?? ''),
           ),
     committed: options.committed ?? false,
     hash: options.hash,
@@ -80,6 +84,7 @@ export function createAsset(options: AssetOptions): Asset {
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
     outputHash: options.outputHash,
+    publicId: null,
     pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
