@@ -292,6 +292,7 @@ export type DependencyOptions = {|
   +isOptional?: boolean,
   +isURL?: boolean,
   +isWeak?: ?boolean,
+  +isIsolated?: boolean,
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
@@ -303,10 +304,11 @@ export interface Dependency {
   +id: string;
   +moduleSpecifier: ModuleSpecifier;
   +isAsync: boolean;
-  +isEntry: boolean;
+  +isEntry: ?boolean;
   +isOptional: boolean;
   +isURL: boolean;
   +isWeak: ?boolean;
+  +isIsolated: boolean;
   +loc: ?SourceLocation;
   +env: Environment;
   +meta: Meta;
@@ -344,6 +346,7 @@ export interface BaseAsset {
   +sideEffects: boolean;
   +uniqueKey: ?string;
   +astGenerator: ?ASTGenerator;
+  +pipeline: ?string;
 
   // (symbol exported by this -> name of binding to export)
   +symbols: Symbols;
@@ -595,6 +598,7 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       +type?: ?string,
       +env?: ?Environment,
+      +pipeline?: ?string,
     |}
   // If an entryAsset is not provided, a bundle id, type, and environment must
   // be provided.
@@ -607,6 +611,7 @@ export type CreateBundleOpts =
       +isSplittable?: ?boolean,
       +type: string,
       +env: Environment,
+      +pipeline?: ?string,
     |};
 
 export type SymbolResolution = {|
@@ -657,6 +662,7 @@ export type BundleGroup = {|
 
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addAssetGraphToBundle(Asset, Bundle): void;
+  addEntryToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
   createBundleReference(Bundle, Bundle): void;
@@ -687,7 +693,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getReferencedBundles(bundle: Bundle): Array<TBundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
-  resolveExternalDependency(
+  resolveAsyncDependency(
     dependency: Dependency,
     bundle: ?Bundle,
   ): ?(
@@ -696,6 +702,7 @@ export interface BundleGraph<TBundle: Bundle> {
   );
   isDependencyDeferred(dependency: Dependency): boolean;
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
   findBundlesWithAsset(Asset): Array<TBundle>;
   findBundlesWithDependency(Dependency): Array<TBundle>;
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
@@ -725,6 +732,7 @@ export type BundleResult = {|
   +contents: Blob,
   +ast?: AST,
   +map?: ?SourceMap,
+  +type?: string,
 |};
 
 export type ResolveResult = {|
@@ -734,14 +742,25 @@ export type ResolveResult = {|
   +code?: string,
 |};
 
+export type ConfigOutput = {|
+  config: ConfigResult,
+  files: Array<File>,
+|};
+
 export type Bundler = {|
+  loadConfig?: ({|
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<ConfigOutput>,
   bundle({|
     bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
+    config: ?ConfigResult,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
@@ -789,6 +808,7 @@ export type Packager = {|
 export type Optimizer = {|
   optimize({|
     bundle: NamedBundle,
+    bundleGraph: BundleGraph<NamedBundle>,
     contents: Blob,
     map: ?SourceMap,
     options: PluginOptions,

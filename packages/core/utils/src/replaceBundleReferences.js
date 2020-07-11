@@ -10,7 +10,6 @@ import type {
   NamedBundle,
 } from '@parcel/types';
 
-import invariant from 'assert';
 import {Readable} from 'stream';
 import nullthrows from 'nullthrows';
 import URL from 'url';
@@ -54,7 +53,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+    let resolved = bundleGraph.getReferencedBundle(dependency, bundle);
     if (resolved == null) {
       replacements.set(dependency.id, {
         from: dependency.id,
@@ -63,14 +62,7 @@ export function replaceURLReferences({
       continue;
     }
 
-    invariant(resolved.type === 'bundle_group');
-    let entryAssetId = resolved.value.entryAssetId;
-    let entryBundle = bundleGraph
-      .getBundlesInBundleGroup(resolved.value)
-      .find(b => {
-        return !!b.getEntryAssets().find(a => a.id === entryAssetId);
-      });
-    if (!entryBundle || entryBundle.isInline) {
+    if (!resolved || resolved.isInline) {
       // If a bundle is inline, it should be replaced with inline contents,
       // not a URL.
       continue;
@@ -81,7 +73,7 @@ export function replaceURLReferences({
       getURLReplacement({
         dependency,
         fromBundle: bundle,
-        toBundle: entryBundle,
+        toBundle: resolved,
         relative,
       }),
     );
@@ -126,13 +118,8 @@ export async function replaceInlineReferences({
   });
 
   for (let dependency of dependencies) {
-    let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
-    if (resolved == null || resolved.type === 'asset') {
-      continue;
-    }
-
-    let [entryBundle] = bundleGraph.getBundlesInBundleGroup(resolved.value);
-    if (!entryBundle.isInline) {
+    let entryBundle = bundleGraph.getReferencedBundle(dependency, bundle);
+    if (!entryBundle?.isInline) {
       continue;
     }
 
@@ -145,7 +132,8 @@ export async function replaceInlineReferences({
       : packagedBundle.contents
     ).toString();
 
-    let inlineType = nullthrows(entryBundle.getMainEntry()).meta.inlineType;
+    let inlineType = nullthrows(entryBundle.getEntryAssets()[0]).meta
+      .inlineType;
     if (inlineType == null || inlineType === 'string') {
       replacements.set(
         dependency.id,

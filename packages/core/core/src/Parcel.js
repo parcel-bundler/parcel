@@ -381,7 +381,7 @@ export default class Parcel {
   _getResolvedParcelOptions() {
     return nullthrows(
       this.#resolvedOptions,
-      'Resolved options is null, please let parcel intitialise before accessing this.',
+      'Resolved options is null, please let parcel initialise before accessing this.',
     );
   }
 }
