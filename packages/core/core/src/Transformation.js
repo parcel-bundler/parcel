@@ -565,9 +565,8 @@ async function runTransformer(
 
   // Parse if there is no AST available from a previous transform.
   if (!asset.ast && transformer.parse) {
-    let mutableAsset = new MutableAsset(asset);
     let ast = await transformer.parse({
-      asset: mutableAsset,
+      asset: new MutableAsset(asset),
       config,
       options: pipeline.pluginOptions,
       resolve,
@@ -580,11 +579,10 @@ async function runTransformer(
   }
 
   // Transform.
-  let mutableAsset = new MutableAsset(asset);
   let results = await normalizeAssets(
     // $FlowFixMe
     await transformer.transform({
-      asset: mutableAsset,
+      asset: new MutableAsset(asset),
       ast: asset.ast,
       config,
       options: pipeline.pluginOptions,
@@ -595,10 +593,9 @@ async function runTransformer(
 
   // Create generate and postProcess functions that can be called later
   pipeline.generate = (input: UncommittedAsset): Promise<GenerateOutput> => {
-    let pluginAsset = new Asset(input);
     if (transformer.generate && input.ast) {
       let generated = transformer.generate({
-        asset: pluginAsset,
+        asset: new Asset(input),
         ast: input.ast,
         options: pipeline.pluginOptions,
         logger,
