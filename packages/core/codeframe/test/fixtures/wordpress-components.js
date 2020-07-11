@@ -18,6 +18,7 @@ import VisuallyHidden from '../visually-hidden';
 
 import { ALIGNMENT_LABEL } from './utils';
 import { Cell as CellView, Point } from './styles/alignment-matrix-control-styles';
+
 export default function Cell(_ref) {
   var _ref$isActive = _ref.isActive,
       isActive = _ref$isActive === void 0 ? false : _ref$isActive,
