@@ -1,10 +1,12 @@
 import assert from 'assert';
+import {readFileSync} from 'fs';
+import {join as joinPath} from 'path';
 
 import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe('codeframe', () => {
+describe.only('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -751,5 +753,47 @@ describe('codeframe', () => {
     assert.equal(lines[1], '>   |  ^^^^^^^^^^^^^^^^^^');
     assert.equal(lines[2], '> 2 | ew line new line ne');
     assert.equal(lines[3], '>   | ^^^^^^ I have a message');
+  });
+
+  it('Should pad properly, T-650', () => {
+    let fileContent = readFileSync(
+      joinPath(__dirname, './fixtures/wordpress-components.js'),
+      'utf8',
+    );
+    let codeframeString = codeframe(
+      fileContent,
+      [
+        {
+          start: {
+            line: 8,
+            column: 10,
+          },
+          end: {
+            line: 8,
+            column: 48,
+          },
+        },
+      ],
+      {
+        useColor: false,
+        syntaxHighlighting: false,
+        language: 'js',
+        terminalWidth: 100,
+      },
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 5);
+    assert.equal(lines[0], '  7  |  */');
+    assert.equal(
+      lines[1],
+      `> 8  | import { unstable_CompositeItem as CompositeItem } from 'reakit/Composite';`,
+    );
+    assert.equal(
+      lines[2],
+      '>    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^',
+    );
+    assert.equal(lines[3], '  9  | /**');
+    assert.equal(lines[4], '  10 |  * Internal dependencies');
   });
 });
