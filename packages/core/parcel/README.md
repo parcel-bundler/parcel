@@ -181,6 +181,7 @@ console.log("Hello World");
   - [URLs](#urls)
   - [Tilde Paths](#tilde-paths)
   - [Aliases](#aliases)
+  - [Externals](#externals)
 - [Plugins](#plugins)
   - [Resolvers](#resolvers)
   - [Transformers](#transformers)
@@ -414,8 +415,8 @@ When you do need to configure Parcel, it will be in one of 3 places.
     }
   },
   "alias": {
-    "react": "preact-compat",
-    "react-dom": "preact-compat"
+    "react": "preact/compat",
+    "react-dom": "preact/compat"
   }
 }
 ```
@@ -545,13 +546,13 @@ See [Targets](#targets)
 
 #### `package.json#alias`
 
-Aliases asset names/paths to other assets.
+Aliases asset names/paths to other assets or global variables.
 
 ```json
 {
   "alias": {
-    "react": "preact-compat",
-    "react-dom": "preact-compat"
+    "react": "preact/compat",
+    "react-dom": "preact/compat"
   }
 }
 ```
@@ -872,7 +873,7 @@ Inside each of those targets contains the target's environment configuration:
 | Option               | Possible values | Description |
 | -------------------- | --------------- | ----------- |
 | `context`            | `'node' \| 'browser' \| 'web-worker' \| 'electron-main' \| 'electron-renderer'` | Where the bundle should run |
-| `includeNodeModules` | `boolean \| [String]` | Whether to bundle all/none/some `node_module` dependency  |
+| `includeNodeModules` | `boolean \| [String] \| {packageName: boolean}` | Whether to bundle all/none/some `node_module` dependencies  |
 | `outputFormat`       | `'global' \| 'esmodule' \| 'commonjs'` | Which type of imports/exports should be emitted|
 | `publicUrl`          | `string` | The public url of the bundle at runtime |
 | `isLibrary`          | `boolean` | Library as in 'npm library' |
@@ -1026,19 +1027,22 @@ Then it follows the [Node module resolution algorithm](https://nodejs.org/api/mo
 
 ### Aliases
 
-Aliases come in two forms:
+Aliases come in three forms:
 
-1. Package Aliases: `react -> preact`
+1. Package Aliases: `react` -> `preact`
 2. File/Directory Aliases: `utils` -> `./src/utils`
+3. Global Aliases: `jquery` -> `window.jQuery`
 
 ```json
 {
   "name": "my-project",
   "alias": {
-    "react": "preact-compat",
-    "react-dom": "preact-compat",
+    "react": "preact/compat",
+    "react-dom": "preact/compat",
     "utils": "./src/utils",
-    "components": "./src/components"
+    "components": { "fileName": "./src/components" },
+    "jquery": { "global": "window.jQuery" },
+    "lodash": { "global": "_" }
   }
 }
 ```
@@ -1049,7 +1053,27 @@ There are a couple of rules:
 2. Aliases specified outside of `node_modules` will affect assets inside of `node_modules`.
 3. Aliases cannot build off of other aliases.
 4. Only one alias will be applied at a time.
-5. Aliases must be valid npm package names.
+5. Package aliases must be valid npm package names.
+6. Global aliases will cause the package they reference to not be bundled.
+7. The variables specified in global aliases must exist in the runtime environment (e.g. as defined by a CDN script) or the bundled code will break.
+8. Prefixing global variables with `window.` or `globalThis.` could fail with multi-platform builds and is not recommended.
+9. Although file aliases can be strings instead of `{ "fileName": "path/to/file" }`, globals must use the `{ "global": "name" }` format.
+
+### Externals
+
+Externals must be configured on a target-by-target basis with `includeNodeModules`. Like global aliases, externals will not be bundled, but they will instead be `require`d at runtime.
+
+```json
+{
+  "targets": {
+    "main": {
+      "includeNodeModules": {
+        "react": false
+      }
+    }
+  }
+}
+```
 
 ## Plugins
 
