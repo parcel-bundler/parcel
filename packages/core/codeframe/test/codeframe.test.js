@@ -4,7 +4,7 @@ import codeframe from '../src/codeframe';
 
 const LINE_END = '\n';
 
-describe('codeframe', () => {
+describe.only('codeframe', () => {
   it('should create a codeframe', () => {
     let codeframeString = codeframe(
       'hello world',
@@ -393,7 +393,7 @@ describe('codeframe', () => {
     assert.equal(lines[7], '  9 | test');
   });
 
-  it('should properly pad numbers', () => {
+  it('should properly pad numbers for large files', () => {
     let codeframeString = codeframe('test\n'.repeat(1000), [
       {
         start: {
@@ -415,14 +415,54 @@ describe('codeframe', () => {
           column: 2,
           line: 100,
         },
-        message: 'test',
+        message: 'test 2',
       },
     ]);
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 7);
     assert.equal(lines[0], '  98  | test');
+    assert.equal(lines[1], '> 99  | test');
+    assert.equal(lines[2], '>     |  ^ test');
+    assert.equal(lines[3], '> 100 | test');
+    assert.equal(lines[4], '>     |  ^ test 2');
+    assert.equal(lines[5], '  101 | test');
     assert.equal(lines[6], '  102 | test');
+  });
+
+  it('should properly pad numbers for short files', () => {
+    let codeframeString = codeframe('test\n'.repeat(1000), [
+      {
+        start: {
+          column: 2,
+          line: 7,
+        },
+        end: {
+          column: 2,
+          line: 7,
+        },
+        message: 'test',
+      },
+      {
+        start: {
+          column: 2,
+          line: 12,
+        },
+        end: {
+          column: 2,
+          line: 12,
+        },
+        message: 'test',
+      },
+    ]);
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 11);
+    assert.equal(lines[0], '  6  | test');
+    assert.equal(lines[4], '  9  | test');
+    assert.equal(lines[5], '  10 | test');
+    assert.equal(lines[6], '  11 | test');
+    assert.equal(lines[10], '  14 | test');
   });
 
   it('should properly use maxLines', () => {
