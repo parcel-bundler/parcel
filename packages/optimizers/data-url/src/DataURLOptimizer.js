@@ -5,6 +5,12 @@ import {blobToBuffer} from '@parcel/utils';
 import mime from 'mime';
 import {isBinaryFile} from 'isbinaryfile';
 
+const fixedEncodeURIComponent = (str: string): string => {
+  return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
+};
+
 export default new Optimizer({
   async optimize({bundle, contents}) {
     let bufferContents = await blobToBuffer(contents);
@@ -14,7 +20,7 @@ export default new Optimizer({
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     let mimeType = mime.getType(bundle.filePath) ?? '';
     let encoding = hasBinaryContent ? ';base64' : '';
-    let content = encodeURIComponent(
+    let content = fixedEncodeURIComponent(
       hasBinaryContent
         ? bufferContents.toString('base64')
         : bufferContents.toString(),
