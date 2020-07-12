@@ -166,6 +166,7 @@ export class ResolverRunner {
           if (result.filePath != null) {
             return {
               filePath: result.filePath,
+              query: result.query || {},
               sideEffects: result.sideEffects,
               code: result.code,
               env: dependency.env,
