@@ -146,9 +146,6 @@ export class ResolverRunner {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
-      if (pipeline == null) {
-        pipeline = 'url';
-      }
     }
 
     let errors: Array<ThrowableDiagnostic> = [];
@@ -161,18 +158,21 @@ export class ResolverRunner {
           logger: new PluginLogger({origin: resolver.name}),
         });
 
-        if (result && result.isExcluded) {
-          return null;
-        }
+        if (result) {
+          if (result.isExcluded) {
+            return null;
+          }
 
-        if (result?.filePath != null) {
-          return {
-            filePath: result.filePath,
-            sideEffects: result.sideEffects,
-            code: result.code,
-            env: dependency.env,
-            pipeline: pipeline ?? dependency.pipeline,
-          };
+          if (result.filePath != null) {
+            return {
+              filePath: result.filePath,
+              sideEffects: result.sideEffects,
+              code: result.code,
+              env: dependency.env,
+              pipeline: pipeline ?? dependency.pipeline,
+              isURL: dependency.isURL,
+            };
+          }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset

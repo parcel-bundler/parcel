@@ -80,16 +80,18 @@ export type Target = {|
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
+  pipeline?: string,
 |};
 
 export type Dependency = {|
   id: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync: boolean,
-  isEntry: boolean,
+  isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
+  isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -206,6 +208,7 @@ export type AssetRequestInput = {|
   code?: string,
   pipeline?: ?string,
   optionsRef: number,
+  isURL?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
@@ -295,6 +298,7 @@ export type ConfigRequestDesc = {|
   env: Environment,
   isSource: boolean,
   pipeline?: ?string,
+  isURL?: boolean,
   plugin?: PackageName,
   meta: JSONObject,
 |};
@@ -339,10 +343,12 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
+  mainEntryId: ?string,
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,

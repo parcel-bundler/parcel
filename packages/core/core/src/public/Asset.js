@@ -141,6 +141,10 @@ class BaseAsset {
     return this.#asset.value.astGenerator;
   }
 
+  get pipeline(): ?string {
+    return this.#asset.value.pipeline;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|

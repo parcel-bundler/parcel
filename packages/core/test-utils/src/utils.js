@@ -157,13 +157,16 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
+  bundleGraph: BundleGraph<NamedBundle>,
   parent: NamedBundle,
   bundles: Array<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
-    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+    bundles
+      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .filter(Boolean)[0],
   );
   let env = entryAsset.env;
   let target = entryAsset.env.context;
@@ -213,7 +216,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.id);
+          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
         }
         return;
       case 'commonjs':
@@ -230,11 +233,12 @@ export async function runBundles(
 }
 
 export function runBundle(
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  return runBundles(bundle, [bundle], globals, opts);
+  return runBundles(bundleGraph, bundle, [bundle], globals, opts);
 }
 
 export async function run(
@@ -263,13 +267,14 @@ export async function run(
       return node;
     });
     return runBundles(
+      bundleGraph,
       bundle,
       scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
       globals,
       opts,
     );
   } else {
-    return runBundle(bundle, globals, opts);
+    return runBundle(bundleGraph, bundle, globals, opts);
   }
 }
 
@@ -327,7 +332,8 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  const byAssets = (a, b) =>
+    a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(

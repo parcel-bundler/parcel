@@ -60,8 +60,8 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isAsync;
   }
 
-  get isEntry(): boolean {
-    return !!this.#dep.isEntry;
+  get isEntry(): ?boolean {
+    return this.#dep.isEntry;
   }
 
   get isOptional(): boolean {
@@ -74,6 +74,10 @@ export default class Dependency implements IDependency {
 
   get isWeak(): boolean {
     return !!this.#dep.isWeak;
+  }
+
+  get isIsolated(): boolean {
+    return !!this.#dep.isIsolated;
   }
 
   get loc(): ?SourceLocation {
