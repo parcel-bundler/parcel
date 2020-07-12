@@ -757,7 +757,7 @@ describe('codeframe', () => {
 
   it('Should pad properly, T-650', () => {
     let fileContent = readFileSync(
-      joinPath(__dirname, './fixtures/wordpress-components.js'),
+      joinPath(__dirname, './fixtures/a.js'),
       'utf8',
     );
     let codeframeString = codeframe(
@@ -784,16 +784,16 @@ describe('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 5);
-    assert.equal(lines[0], '   7 |  */');
+    assert.equal(lines[0], `   7 | import Tooltip from '../tooltip';`);
     assert.equal(
       lines[1],
-      `>  8 | import { unstable_CompositeItem as CompositeItem } from 'reakit/Composite';`,
+      `>  8 | import VisuallyHidden from '../visually-hidden';`,
     );
     assert.equal(
       lines[2],
       '>    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^',
     );
-    assert.equal(lines[3], '   9 | /**');
-    assert.equal(lines[4], '  10 |  * Internal dependencies');
+    assert.equal(lines[3], '   9 | ');
+    assert.equal(lines[4], '  10 | /**');
   });
 });
