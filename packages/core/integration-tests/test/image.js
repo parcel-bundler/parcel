@@ -1,15 +1,32 @@
 import assert from 'assert';
 import {bundle, distDir, outputFS} from '@parcel/test-utils';
 import path from 'path';
+import sharp from 'sharp';
 
-describe.skip('image', function() {
+describe('image', function() {
+  this.timeout(10000);
+
   it('Should be able to resize images', async () => {
     await bundle(path.join(__dirname, '/integration/image/resized.js'));
 
     let dirContent = await outputFS.readdir(distDir);
-    console.log(dirContent);
+    let imagePath = '';
+    let foundExtensions = [];
+    for (let filename of dirContent) {
+      let ext = path.extname(filename);
+      foundExtensions.push(ext);
+      if (ext === '.jpg') {
+        imagePath = path.join(distDir, filename);
+      }
+    }
+    assert.deepStrictEqual(
+      foundExtensions.sort(),
+      ['.jpg', '.js', '.map'].sort(),
+    );
 
-    assert.equal(dirContent.length, 8);
+    let buffer = await outputFS.readFile(imagePath);
+    let image = await sharp(buffer).metadata();
+    assert.equal(image.width, 600);
   });
 
   it('Should be able to change image format', async () => {
@@ -17,12 +34,12 @@ describe.skip('image', function() {
 
     let dirContent = await outputFS.readdir(distDir);
     let foundExtensions = [];
-    for (let i of dirContent) {
-      foundExtensions.push(path.extname(i));
+    for (let filename of dirContent) {
+      foundExtensions.push(path.extname(filename));
     }
     assert.deepStrictEqual(
       foundExtensions.sort(),
-      ['.png', '.jpg', '.webp', '.tiff', '.js', '.map'].sort(),
+      ['.webp', '.js', '.map'].sort(),
     );
   });
 });
