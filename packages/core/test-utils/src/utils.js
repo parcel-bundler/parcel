@@ -157,6 +157,7 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
+  bundleGraph: BundleGraph<NamedBundle>,
   parent: NamedBundle,
   bundles: Array<NamedBundle>,
   globals: mixed,
@@ -215,7 +216,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.publicId);
+          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
         }
         return;
       case 'commonjs':
@@ -232,11 +233,12 @@ export async function runBundles(
 }
 
 export function runBundle(
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  return runBundles(bundle, [bundle], globals, opts);
+  return runBundles(bundleGraph, bundle, [bundle], globals, opts);
 }
 
 export async function run(
@@ -265,13 +267,14 @@ export async function run(
       return node;
     });
     return runBundles(
+      bundleGraph,
       bundle,
       scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
       globals,
       opts,
     );
   } else {
-    return runBundle(bundle, globals, opts);
+    return runBundle(bundleGraph, bundle, globals, opts);
   }
 }
 

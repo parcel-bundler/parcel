@@ -84,7 +84,6 @@ export function createAsset(options: AssetOptions): Asset {
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
     outputHash: options.outputHash,
-    publicId: null,
     pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},

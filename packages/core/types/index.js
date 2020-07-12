@@ -527,7 +527,6 @@ export interface Asset extends BaseAsset {
   /** Throws if there is no AST.*/
   getAST(): Promise<?AST>;
 
-  +publicId: string;
   +stats: Stats;
 }
 
@@ -932,6 +931,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  */
 export interface BundleGraph<TBundle: Bundle> {
   getAssetById(id: string): Asset;
+  getAssetPublicId(asset: Asset): string;
   getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
