@@ -1410,6 +1410,51 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 2);
   });
 
+  it('should not add CSS to a worker bundle group', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling-worker-css/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'css',
+        assets: ['style.css'],
+      },
+      {
+        type: 'html',
+        assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.js', 'worker.js'],
+      },
+      {
+        type: 'js',
+        assets: [
+          'a.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'get-worker-url.js',
+          'index.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+        ],
+      },
+    ]);
+
+    let htmlBundle = b.getBundles().find(b => b.type === 'html');
+    let htmlSiblings = b.getSiblingBundles(htmlBundle);
+    assert.equal(htmlSiblings.length, 2);
+    assert(htmlSiblings.some(b => b.type === 'js'));
+    assert(htmlSiblings.some(b => b.type === 'css'));
+
+    let worker = b.getChildBundles(htmlSiblings.find(b => b.type === 'js'));
+    assert.equal(worker.length, 1);
+    let workerSiblings = b.getSiblingBundles(worker[0]);
+    assert.equal(workerSiblings.length, 0);
+  });
+
   it('should remove duplicate assets from sibling bundles', async function() {
     let bundleGraph = await bundle(
       path.join(__dirname, '/integration/shared-sibling-duplicate/*.html'),
@@ -1477,7 +1522,7 @@ describe('html', function() {
       },
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'a.html',
         type: 'html',
