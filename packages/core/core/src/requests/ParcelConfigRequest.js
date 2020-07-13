@@ -256,15 +256,27 @@ export async function processConfigChain(
     let exts = Array.isArray(configFile.extends)
       ? configFile.extends
       : [configFile.extends];
-    for (let ext of exts) {
-      let resolved = await resolveExtends(ext, filePath, options);
-      extendedFiles.push(resolved);
+    if (exts.length !== 0) {
+      let [extStart, ...otherExts] = exts;
+      let extStartResolved = await resolveExtends(extStart, filePath, options);
+      extendedFiles.push(extStartResolved);
       let {
-        extendedFiles: moreExtendedFiles,
-        config: baseConfig,
-      } = await readAndProcessConfigChain(resolved, options);
-      extendedFiles = extendedFiles.concat(moreExtendedFiles);
-      config = mergeConfigs(baseConfig, resolvedFile);
+        extendedFiles: extStartMoreExtendedFiles,
+        config: extStartConfig,
+      } = await readAndProcessConfigChain(extStartResolved, options);
+      extendedFiles = extendedFiles.concat(extStartMoreExtendedFiles);
+      for (let ext of otherExts) {
+        let resolved = await resolveExtends(ext, filePath, options);
+        extendedFiles.push(resolved);
+        let {
+          extendedFiles: moreExtendedFiles,
+          config: nextConfig,
+        } = await readAndProcessConfigChain(resolved, options);
+        extendedFiles = extendedFiles.concat(moreExtendedFiles);
+        extStartConfig = mergeConfigs(extStartConfig, nextConfig);
+      }
+      // Merge with the inline config last
+      config = mergeConfigs(extStartConfig, resolvedFile);
     }
   }
 
@@ -313,7 +325,7 @@ export function validateNotEmpty(
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: ProcessedParcelConfig,
+  ext: ProcessedParcelConfig | ParcelConfig,
 ): ParcelConfig {
   return new ParcelConfig(
     {
@@ -351,7 +363,7 @@ export function mergePipelines(
   ext: ?ExtendableParcelConfigPipeline,
   // $FlowFixMe
 ): any {
-  if (!ext) {
+  if (!ext || ext.length === 0) {
     return base || [];
   }
 
@@ -382,7 +394,7 @@ export function mergeMaps<K: string, V>(
   merger?: (a: V, b: V) => V,
   hasNamedPipelines: boolean = false,
 ): ConfigMap<K, V> {
-  if (!ext) {
+  if (!ext || Object.keys(ext).length === 0) {
     return base || {};
   }
 
