@@ -188,4 +188,22 @@ describe('typescript types', function() {
     );
     assert.equal(dist, expected);
   });
+
+  it('should correctly reference unbuilt monorepo packages', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/ts-types/monorepo/a'),
+    );
+    assertBundles(b, [
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(b.getBundles()[0].filePath, 'utf8')
+    ).replace(/\r\n/g, '\n');
+
+    assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
+  });
 });
