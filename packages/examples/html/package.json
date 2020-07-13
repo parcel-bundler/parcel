@@ -1,6 +1,6 @@
 {
   "name": "@parcel/html-example",
-  "version": "2.0.0-frontbucket.38",
+  "version": "2.0.0-frontbucket.39",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -13,7 +13,7 @@
   ],
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.14",
-    "parcel": "^2.0.0-frontbucket.38"
+    "parcel": "^2.0.0-frontbucket.39"
   },
   "dependencies": {
     "lodash": "^4.17.11",
