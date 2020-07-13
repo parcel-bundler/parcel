@@ -114,14 +114,16 @@ export default class HMRServer {
               bundle,
             );
             if (resolved) {
-              deps[dep.moduleSpecifier] = resolved.publicId;
+              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
+                resolved,
+              );
             }
           }
           depsByBundle[bundle.id] = deps;
         }
 
         return {
-          id: asset.publicId,
+          id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
           output: await asset.getCode(),
           envHash: md5FromObject(asset.env),

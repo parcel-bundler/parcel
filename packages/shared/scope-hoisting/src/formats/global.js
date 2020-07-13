@@ -53,6 +53,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let statements = [];
   if (from.env.isWorker()) {
@@ -69,7 +70,9 @@ export function generateBundleImports(
     nullthrows(path.scope.getBinding(getName(asset, 'init')))
       .path.get('init')
       .replaceWith(
-        IMPORT_TEMPLATE({ASSET_ID: t.stringLiteral(asset.publicId)}),
+        IMPORT_TEMPLATE({
+          ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+        }),
       );
   }
 }
@@ -97,7 +100,7 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
-        ASSET_ID: t.stringLiteral(asset.publicId),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
@@ -116,7 +119,7 @@ export function generateExports(
       // Export a function returning the exports, as other cases of global output
       // register init functions.
       EXPORT_FN_TEMPLATE({
-        ASSET_ID: t.stringLiteral(entry.publicId),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(entry)),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),
     );

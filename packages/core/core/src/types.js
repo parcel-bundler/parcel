@@ -121,7 +121,6 @@ export type Asset = {|
   mapKey: ?string,
   outputHash: ?string,
   pipeline: ?string,
-  publicId: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
   symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,

@@ -81,18 +81,17 @@ export default class BundleGraph {
     let assetGroupIds = new Set();
     for (let [, node] of assetGraph.nodes) {
       if (node.type === 'asset') {
-        let asset = node.value;
+        let {id: assetId} = node.value;
         // Generate a new, short public id for this asset to use.
         // If one already exists, use it.
-        let publicId = publicIdByAssetId.get(asset.id);
+        let publicId = publicIdByAssetId.get(assetId);
         if (publicId == null) {
-          publicId = getPublicId(asset.id, existing =>
+          publicId = getPublicId(assetId, existing =>
             assetPublicIds.has(existing),
           );
-          publicIdByAssetId.set(asset.id, publicId);
+          publicIdByAssetId.set(assetId, publicId);
           assetPublicIds.add(publicId);
         }
-        asset.publicId = publicId;
       }
 
       // Don't copy over asset groups into the bundle graph.
@@ -984,6 +983,15 @@ export default class BundleGraph {
     return node.value;
   }
 
+  getAssetPublicId(asset: Asset): string {
+    let publicId = this._publicIdByAssetId.get(asset.id);
+    if (publicId == null) {
+      throw new Error("Asset or it's public id not found");
+    }
+
+    return publicId;
+  }
+
   getExportedSymbols(asset: Asset) {
     if (!asset.symbols) {
       return [];
@@ -1021,7 +1029,7 @@ export default class BundleGraph {
     this.traverseAssets(bundle, asset => {
       hash.update(
         [
-          asset.publicId,
+          this.getAssetPublicId(asset),
           asset.outputHash,
           asset.filePath,
           asset.type,

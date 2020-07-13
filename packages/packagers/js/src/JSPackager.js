@@ -113,7 +113,9 @@ export default new Packager({
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
           invariant(!bundle.hasAsset(resolved));
-          wrapped += JSON.stringify(resolved.publicId) + ':[function() {},{}]';
+          wrapped +=
+            JSON.stringify(bundleGraph.getAssetPublicId(resolved)) +
+            ':[function() {},{}]';
         } else {
           return;
         }
@@ -131,14 +133,14 @@ export default new Packager({
         for (let dep of dependencies) {
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
-            deps[dep.moduleSpecifier] = resolved.publicId;
+            deps[dep.moduleSpecifier] = bundleGraph.getAssetPublicId(resolved);
           }
         }
 
         let {code, mapBuffer} = results[i];
         let output = code || '';
         wrapped +=
-          JSON.stringify(asset.publicId) +
+          JSON.stringify(bundleGraph.getAssetPublicId(asset)) +
           ':[function(require,module,exports) {\n' +
           output +
           '\n},';
@@ -182,9 +184,13 @@ export default new Packager({
         '({' +
         assets +
         '},{},' +
-        JSON.stringify(entries.map(asset => asset.publicId)) +
+        JSON.stringify(
+          entries.map(asset => bundleGraph.getAssetPublicId(asset)),
+        ) +
         ', ' +
-        JSON.stringify(mainEntry?.publicId ?? null) +
+        JSON.stringify(
+          mainEntry ? bundleGraph.getAssetPublicId(mainEntry) : null,
+        ) +
         ', ' +
         'null' +
         ')' +
