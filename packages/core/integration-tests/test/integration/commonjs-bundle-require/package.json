@@ -7,12 +7,5 @@
   ],
   "engines": {
     "node": "8"
-  },
-  "targets": {
-    "main": {
-      "engines": {
-        "node": "8"
-      }
-    }
   }
 }
