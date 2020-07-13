@@ -1,6 +1,13 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles, outputFS, inputFS} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle,
+  inputFS,
+  outputFS,
+  symlinkPrivilegeWarning,
+} from '@parcel/test-utils';
+import {symlinkSync} from 'fs';
 
 describe('typescript types', function() {
   it('should generate a typescript declaration file', async function() {
@@ -190,20 +197,39 @@ describe('typescript types', function() {
   });
 
   it('should correctly reference unbuilt monorepo packages', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/ts-types/monorepo/a'),
+    let inputDir = path.join(__dirname, '/input');
+    await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+    await inputFS.ncp(
+      path.join(__dirname, '/integration/ts-types/monorepo'),
+      inputDir,
     );
-    assertBundles(b, [
-      {
-        type: 'ts',
-        assets: ['index.ts'],
-      },
-    ]);
+    try {
+      // Create the symlink here to prevent cross platform and git issues
+      symlinkSync(
+        path.join(inputDir, 'b'),
+        path.join(inputDir, 'node_modules/b'),
+      );
 
-    let dist = (
-      await outputFS.readFile(b.getBundles()[0].filePath, 'utf8')
-    ).replace(/\r\n/g, '\n');
+      let b = await bundle(path.join(inputDir, 'a'));
+      assertBundles(b, [
+        {
+          type: 'ts',
+          assets: ['index.ts'],
+        },
+      ]);
 
-    assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
+      let dist = (
+        await outputFS.readFile(b.getBundles()[0].filePath, 'utf8')
+      ).replace(/\r\n/g, '\n');
+
+      assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
+    } catch (e) {
+      if (e.code == 'EPERM') {
+        symlinkPrivilegeWarning();
+        this.skip();
+      } else {
+        throw e;
+      }
+    }
   });
 });

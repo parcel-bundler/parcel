@@ -5,6 +5,7 @@ import type {PluginLogger} from '@parcel/logger';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import typeof {ScriptTarget} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions} from 'typescript';
+
 import path from 'path';
 import {FSHost} from './FSHost';
 
@@ -27,10 +28,13 @@ export class CompilerHost extends FSHost {
       if (
         json.types != null &&
         json.source != null &&
-        !super.fileExists(path.join(path.dirname(filePath), json.types))
+        !super.fileExists(
+          path.posix.join(path.posix.dirname(filePath), json.types),
+        )
       ) {
-        let source = path.join(path.dirname(filePath), json.source);
-        let fakeTypes = source.slice(0, -path.extname(source).length) + '.d.ts';
+        let source = path.posix.join(path.posix.dirname(filePath), json.source);
+        let fakeTypes =
+          source.slice(0, -path.posix.extname(source).length) + '.d.ts';
         this.redirectTypes.set(fakeTypes, source);
         json.types = fakeTypes;
         this.logger.verbose({
