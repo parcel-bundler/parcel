@@ -20,8 +20,8 @@ const internalConfigToConfig: DefaultWeakMap<
 > = new DefaultWeakMap(() => new WeakMap());
 
 export default class PublicConfig implements IConfig {
-  #config; // Config;
-  #options; // ParcelOptions
+  #config /*: Config */;
+  #options /*: ParcelOptions */;
 
   constructor(config: Config, options: ParcelOptions): PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);

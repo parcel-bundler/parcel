@@ -16,7 +16,7 @@ export function targetToInternalTarget(target: ITarget): TargetValue {
 }
 
 export default class Target implements ITarget {
-  #target; // TargetValue
+  #target /*: TargetValue */;
 
   constructor(target: TargetValue): Target {
     let existing = internalTargetToTarget.get(target);

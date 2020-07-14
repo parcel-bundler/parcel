@@ -14,6 +14,7 @@ import type {AssetRequestResult, ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+// eslint-disable-next-line no-unused-vars
 import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
@@ -55,6 +56,7 @@ export default class Parcel {
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
+  #runPackage /*: (...args: Array<any>) => any */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -389,7 +391,7 @@ export default class Parcel {
   }
 
   // This is mainly for integration tests and it not public api!
-  _getResolvedParcelOptions() {
+  _getResolvedParcelOptions(): ParcelOptions {
     return nullthrows(
       this.#resolvedOptions,
       'Resolved options is null, please let parcel initialise before accessing this.',

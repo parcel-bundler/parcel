@@ -21,7 +21,7 @@ export class Symbols implements ISymbols {
   /*::
   @@iterator(): Iterator<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> { return ({}: any); }
   */
-  #value; // Asset
+  #value /*: Asset */;
 
   constructor(asset: Asset): Symbols {
     let existing = valueToSymbols.get(asset);

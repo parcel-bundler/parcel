@@ -30,7 +30,7 @@ export function dependencyToInternalDependency(
 }
 
 export default class Dependency implements IDependency {
-  #dep; // InternalDependency
+  #dep /*: InternalDependency */;
 
   constructor(dep: InternalDependency): Dependency {
     let existing = internalDependencyToDependency.get(dep);

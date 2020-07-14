@@ -72,7 +72,7 @@ export function environmentToInternalEnvironment(
 }
 
 export default class Environment implements IEnvironment {
-  #environment; // InternalEnvironment
+  #environment /*: InternalEnvironment */;
 
   constructor(env: InternalEnvironment): Environment {
     let existing = internalEnvironmentToEnvironment.get(env);
