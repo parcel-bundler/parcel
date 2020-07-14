@@ -56,7 +56,6 @@ export default class Parcel {
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
-  #runPackage /*: (...args: Array<any>) => any */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -155,7 +154,6 @@ export default class Parcel {
       report,
     });
 
-    this.#runPackage = this.#farm.createHandle('runPackage');
     this.#initialized = true;
   }
 
