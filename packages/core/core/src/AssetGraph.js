@@ -44,7 +44,16 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
   };
 }
 
-export function nodeFromAssetGroup(assetGroup: AssetGroup) {
+export function nodeFromAssetGroup(
+  assetGroup: AssetGroup,
+): {|
+  correspondingRequest?: string,
+  deferred?: boolean,
+  hasDeferred?: boolean,
+  id: string,
+  +type: 'asset_group',
+  value: AssetGroup,
+|} {
   return {
     id: md5FromObject({
       ...assetGroup,
@@ -56,7 +65,9 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup) {
   };
 }
 
-export function nodeFromAsset(asset: Asset) {
+export function nodeFromAsset(
+  asset: Asset,
+): {|hasDeferred?: boolean, id: string, +type: 'asset', value: Asset|} {
   return {
     id: asset.id,
     type: 'asset',
@@ -72,7 +83,14 @@ export function nodeFromEntrySpecifier(entry: string) {
   };
 }
 
-export function nodeFromEntryFile(entry: Entry) {
+export function nodeFromEntryFile(
+  entry: Entry,
+): {|
+  correspondingRequest?: string,
+  id: string,
+  +type: 'entry_file',
+  value: Entry,
+|} {
   return {
     id: 'entry_file:' + md5FromObject(entry),
     type: 'entry_file',

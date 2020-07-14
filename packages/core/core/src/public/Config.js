@@ -23,7 +23,7 @@ export default class PublicConfig implements IConfig {
   #config; // Config;
   #options; // ParcelOptions
 
-  constructor(config: Config, options: ParcelOptions) {
+  constructor(config: Config, options: ParcelOptions): void | PublicConfig {
     let existing = internalConfigToConfig.get(options).get(config);
     if (existing != null) {
       return existing;
@@ -34,11 +34,11 @@ export default class PublicConfig implements IConfig {
     internalConfigToConfig.get(options).set(config, this);
   }
 
-  get env() {
+  get env(): Environment {
     return new Environment(this.#config.env);
   }
 
-  get searchPath() {
+  get searchPath(): FilePath {
     return this.#config.searchPath;
   }
 
@@ -46,11 +46,11 @@ export default class PublicConfig implements IConfig {
     return this.#config.result;
   }
 
-  get isSource() {
+  get isSource(): boolean {
     return this.#config.isSource;
   }
 
-  get includedFiles() {
+  get includedFiles(): Set<FilePath> {
     return this.#config.includedFiles;
   }
 

@@ -40,11 +40,15 @@ export class NodePackageManager implements PackageManager {
     this.installer = installer;
   }
 
-  static deserialize(opts: any) {
+  static deserialize(opts: any): NodePackageManager {
     return new NodePackageManager(opts.fs, opts.installer);
   }
 
-  serialize() {
+  serialize(): {|
+    $$raw: boolean,
+    fs: FileSystem,
+    installer: ?PackageInstaller,
+  |} {
     return {
       $$raw: false,
       fs: this.fs,
@@ -56,17 +60,17 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     opts: ?{|range?: SemverRange, autoinstall?: boolean, saveDev?: boolean|},
-  ) {
+  ): Promise<any> {
     let {resolved} = await this.resolve(name, from, opts);
     return this.load(resolved, from);
   }
 
-  requireSync(name: ModuleSpecifier, from: FilePath) {
+  requireSync(name: ModuleSpecifier, from: FilePath): any {
     let {resolved} = this.resolveSync(name, from);
     return this.load(resolved, from);
   }
 
-  load(resolved: FilePath, from: FilePath) {
+  load(resolved: FilePath, from: FilePath): any {
     if (!path.isAbsolute(resolved)) {
       // Node builtin module
       // $FlowFixMe
@@ -220,7 +224,7 @@ export class NodePackageManager implements PackageManager {
     return resolved;
   }
 
-  resolveSync(name: ModuleSpecifier, from: FilePath) {
+  resolveSync(name: ModuleSpecifier, from: FilePath): ResolveResult {
     let basedir = path.dirname(from);
     return resolveSync(this.fs, name, {
       basedir,

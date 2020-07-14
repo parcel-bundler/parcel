@@ -75,7 +75,7 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  static deserialize(opts: SerializedMemoryFS) {
+  static deserialize(opts: SerializedMemoryFS): void | MemoryFS | WorkerFS {
     if (instances.has(opts.id)) {
       // Correct the count of worker instances since serialization assumes a new instance is created
       WorkerFarm.getWorkerApi().runHandle(opts.handle, [
@@ -122,7 +122,7 @@ export class MemoryFS implements FileSystem {
     }
   }
 
-  cwd() {
+  cwd(): FilePath {
     return this._cwd;
   }
 
@@ -217,7 +217,7 @@ export class MemoryFS implements FileSystem {
     await this.writeFile(destination, contents);
   }
 
-  statSync(filePath: FilePath) {
+  statSync(filePath: FilePath): Stat {
     filePath = this._normalizePath(filePath);
 
     let dir = this.dirs.get(filePath);
@@ -234,7 +234,7 @@ export class MemoryFS implements FileSystem {
   }
 
   // eslint-disable-next-line require-await
-  async stat(filePath: FilePath) {
+  async stat(filePath: FilePath): Promise<Stat> {
     return this.statSync(filePath);
   }
 
@@ -283,7 +283,7 @@ export class MemoryFS implements FileSystem {
     return this.readdirSync(dir, opts);
   }
 
-  async unlink(filePath: FilePath) {
+  async unlink(filePath: FilePath): any | Promise<void> {
     filePath = this._normalizePath(filePath);
     if (!this.files.has(filePath) && !this.dirs.has(filePath)) {
       throw new FSError('ENOENT', filePath, 'does not exist');
@@ -306,7 +306,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve();
   }
 
-  async mkdirp(dir: FilePath) {
+  async mkdirp(dir: FilePath): any | Promise<void> {
     dir = this._normalizePath(dir);
     if (this.dirs.has(dir)) {
       return Promise.resolve();
@@ -339,7 +339,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve();
   }
 
-  async rimraf(filePath: FilePath) {
+  async rimraf(filePath: FilePath): any | Promise<void> {
     filePath = this._normalizePath(filePath);
 
     if (this.dirs.has(filePath)) {
@@ -468,20 +468,20 @@ export class MemoryFS implements FileSystem {
     }
   }
 
-  createReadStream(filePath: FilePath) {
+  createReadStream(filePath: FilePath): ReadStream {
     return new ReadStream(this, filePath);
   }
 
-  createWriteStream(filePath: FilePath, options: ?FileOptions) {
+  createWriteStream(filePath: FilePath, options: ?FileOptions): WriteStream {
     return new WriteStream(this, filePath, options);
   }
 
-  realpathSync(filePath: FilePath) {
+  realpathSync(filePath: FilePath): FilePath {
     return this._normalizePath(filePath);
   }
 
   // eslint-disable-next-line require-await
-  async realpath(filePath: FilePath) {
+  async realpath(filePath: FilePath): Promise<FilePath> {
     return this.realpathSync(filePath);
   }
 
@@ -496,13 +496,13 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  existsSync(filePath: FilePath) {
+  existsSync(filePath: FilePath): boolean {
     filePath = this._normalizePath(filePath);
     return this.files.has(filePath) || this.dirs.has(filePath);
   }
 
   // eslint-disable-next-line require-await
-  async exists(filePath: FilePath) {
+  async exists(filePath: FilePath): Promise<boolean> {
     return this.existsSync(filePath);
   }
 
@@ -737,11 +737,11 @@ class Entry {
     this.mode = mode;
   }
 
-  getSize() {
+  getSize(): number {
     return 0;
   }
 
-  stat() {
+  stat(): Stat {
     return new Stat(this);
   }
 }
@@ -863,7 +863,7 @@ class File extends Entry {
     this.buffer = buffer;
   }
 
-  getSize() {
+  getSize(): number {
     return this.buffer.byteLength;
   }
 }

@@ -75,7 +75,7 @@ class Logger {
   }
 }
 
-const logger = new Logger();
+const logger: Logger = new Logger();
 export default logger;
 
 export type PluginLoggerOpts = {|

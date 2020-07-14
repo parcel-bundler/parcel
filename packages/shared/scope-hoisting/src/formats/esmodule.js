@@ -127,7 +127,7 @@ export function generateExports(
   programPath: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
-) {
+): Set<Symbol> {
   // maps the bundles's export symbols to the bindings
   let exportedIdentifiers = new Map<Symbol, Symbol>();
   let entry = bundle.getMainEntry();

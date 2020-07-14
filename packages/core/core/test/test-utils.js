@@ -10,7 +10,7 @@ import {createEnvironment} from '../src/Environment';
 
 let cacheDir = tempy.directory();
 createCacheDir(outputFS, cacheDir);
-export let cache = new Cache(outputFS, cacheDir);
+export let cache: Cache = new Cache(outputFS, cacheDir);
 
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: '.parcel-cache',

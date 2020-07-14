@@ -16,7 +16,7 @@ import {load, preSerialize, postDeserialize} from './loadConfig';
 const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
 const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
 
-export default new Transformer({
+export default (new Transformer({
   loadConfig({config, options, logger}) {
     return load({config, options, logger});
   },
@@ -158,7 +158,7 @@ export default new Transformer({
       content: code,
     };
   },
-});
+}): Transformer);
 
 function createLoader(
   asset: MutableAsset,

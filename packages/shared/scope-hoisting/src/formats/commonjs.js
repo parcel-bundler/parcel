@@ -374,7 +374,7 @@ export function generateExports(
   path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
-) {
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 

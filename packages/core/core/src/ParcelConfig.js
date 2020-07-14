@@ -69,7 +69,7 @@ export default class ParcelConfig {
     this.autoinstall = autoinstall;
   }
 
-  static deserialize(serialized: SerializedParcelConfig) {
+  static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
     return new ParcelConfig(
       serialized.config,
       serialized.packageManager,
@@ -142,7 +142,7 @@ export default class ParcelConfig {
     );
   }
 
-  _getResolverNodes() {
+  _getResolverNodes(): PureParcelConfigPipeline {
     if (this.resolvers.length === 0) {
       throw new Error('No resolver plugins specified in .parcelrc config');
     }
@@ -154,7 +154,14 @@ export default class ParcelConfig {
     return this._getResolverNodes().map(r => r.packageName);
   }
 
-  getResolvers() {
+  getResolvers(): Promise<
+    Array<{|
+      name: string,
+      plugin: Resolver,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     return this.loadPlugins<Resolver>(this._getResolverNodes());
   }
 
@@ -172,7 +179,16 @@ export default class ParcelConfig {
     return validators.map(v => v.packageName);
   }
 
-  getValidators(filePath: FilePath) {
+  getValidators(
+    filePath: FilePath,
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Validator,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     let validators = this._getValidatorNodes(filePath);
     return this.loadPlugins<Validator>(validators);
   }
@@ -221,7 +237,14 @@ export default class ParcelConfig {
     filePath: FilePath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ) {
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Transformer,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     return this.loadPlugins<Transformer>(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
@@ -243,7 +266,14 @@ export default class ParcelConfig {
     return this.loadPlugin<Bundler>(this.bundler);
   }
 
-  getNamers() {
+  getNamers(): Promise<
+    Array<{|
+      name: string,
+      plugin: Namer,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
@@ -298,7 +328,10 @@ export default class ParcelConfig {
     };
   }
 
-  _getOptimizerNodes(filePath: FilePath, pipeline: ?string) {
+  _getOptimizerNodes(
+    filePath: FilePath,
+    pipeline: ?string,
+  ): PureParcelConfigPipeline {
     return (
       this.matchGlobMapPipelines(filePath, this.optimizers, pipeline) ?? []
     );
@@ -328,11 +361,18 @@ export default class ParcelConfig {
     return this.loadPlugins<Optimizer>(optimizers);
   }
 
-  getReporters() {
+  getReporters(): Promise<
+    Array<{|
+      name: string,
+      plugin: Reporter,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     return this.loadPlugins<Reporter>(this.reporters);
   }
 
-  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string) {
+  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): any {
     let prefix = pipeline ? `${pipeline}:` : '';
     return (
       isMatch(prefix + filePath, pattern) ||
@@ -340,7 +380,7 @@ export default class ParcelConfig {
     );
   }
 
-  matchGlobMap(filePath: FilePath, globMap: {[Glob]: any, ...}) {
+  matchGlobMap(filePath: FilePath, globMap: {[Glob]: any, ...}): any | null {
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern)) {
         return globMap[pattern];

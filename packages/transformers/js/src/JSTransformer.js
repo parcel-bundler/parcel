@@ -36,7 +36,7 @@ function canHaveDependencies(code) {
   );
 }
 
-export default new Transformer({
+export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
@@ -172,4 +172,4 @@ export default new Transformer({
   generate({asset, ast, options}) {
     return generate({asset, ast, options});
   },
-});
+}): Transformer);

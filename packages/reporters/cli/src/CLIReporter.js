@@ -161,8 +161,8 @@ async function writeDiagnostic(
   }
 }
 
-export default new Reporter({
+export default (new Reporter({
   report({event, options}) {
     return _report(event, options);
   },
-});
+}): Reporter);

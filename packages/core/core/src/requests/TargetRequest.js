@@ -256,7 +256,9 @@ export class TargetResolver {
     return {targets, files};
   }
 
-  async resolvePackageTargets(rootDir: FilePath) {
+  async resolvePackageTargets(
+    rootDir: FilePath,
+  ): Promise<{|files: Array<File>, targets: Map<string, Target>|}> {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json',
     ]);

@@ -44,7 +44,7 @@ export async function generate({
   asset: BaseAsset,
   ast: AST,
   options: PluginOptions,
-|}) {
+|}): Promise<{|content: string, map: null | SourceMap|}> {
   let sourceFileName: string = relativeUrl(options.projectRoot, asset.filePath);
   let generated;
   try {

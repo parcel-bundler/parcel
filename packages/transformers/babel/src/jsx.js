@@ -33,7 +33,21 @@ const JSX_PRAGMA = {
 export default async function getJSXOptions(
   options: PluginOptions,
   config: Config,
-) {
+):
+  | Promise<void>
+  | Promise<null>
+  | Promise<{|
+      presets: Array<
+        Array<
+          | string
+          | {|
+              development: boolean,
+              pragma: $FlowFixMe | void | string,
+              pragmaFrag: $FlowFixMe | void | string,
+            |},
+        >,
+      >,
+    |}> {
   if (!config.isSource) {
     return null;
   }

@@ -40,8 +40,8 @@ import {PromiseQueue} from '@parcel/utils';
 
 registerCoreWithSerializer();
 
-export const INTERNAL_TRANSFORM = Symbol('internal_transform');
-export const INTERNAL_RESOLVE = Symbol('internal_resolve');
+export const INTERNAL_TRANSFORM: symbol = Symbol('internal_transform');
+export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
@@ -316,7 +316,7 @@ export default class Parcel {
     filePath: FilePath,
     env: EnvironmentOpts,
     code?: string,
-  |}) {
+  |}): $FlowFixMe {
     let [result] = await Promise.all([
       this.#assetGraphBuilder.runTransform({
         filePath,
@@ -394,7 +394,9 @@ export class BuildError extends ThrowableDiagnostic {
   }
 }
 
-export function createWorkerFarm(options: $Shape<FarmOptions> = {}) {
+export function createWorkerFarm(
+  options: $Shape<FarmOptions> = {},
+): WorkerFarm {
   return new WorkerFarm({
     ...options,
     workerPath: require.resolve('./worker'),

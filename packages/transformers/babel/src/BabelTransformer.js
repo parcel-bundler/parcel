@@ -6,7 +6,7 @@ import semver from 'semver';
 import babel7 from './babel7';
 import {load, preSerialize, postDeserialize} from './config';
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config, options, logger}) {
     await load(config, options, logger);
   },
@@ -46,4 +46,4 @@ export default new Transformer({
   generate({asset, ast, options}) {
     return generate({asset, ast, options});
   },
-});
+}): Transformer);

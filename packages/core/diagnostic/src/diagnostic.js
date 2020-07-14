@@ -179,7 +179,13 @@ export function generateJSONCodeHighlights(
   });
 }
 
-export function getJSONSourceLocation(pos: any, type?: ?'key' | 'value') {
+export function getJSONSourceLocation(
+  pos: any,
+  type?: ?'key' | 'value',
+): {|
+  end: {|+column: number, +line: number|},
+  start: {|+column: number, +line: number|},
+|} {
   if (!type && pos.value) {
     // key and value
     return {

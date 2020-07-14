@@ -9,14 +9,17 @@ export class CompilerHost extends FSHost {
   outputCode: ?string;
   outputMap: ?string;
 
-  getSourceFile(filePath: FilePath, languageVersion: $Values<ScriptTarget>) {
+  getSourceFile(
+    filePath: FilePath,
+    languageVersion: $Values<ScriptTarget>,
+  ): void | SourceFile {
     const sourceText = this.readFile(filePath);
     return sourceText !== undefined
       ? this.ts.createSourceFile(filePath, sourceText, languageVersion)
       : undefined;
   }
 
-  getDefaultLibFileName(options: CompilerOptions) {
+  getDefaultLibFileName(options: CompilerOptions): string {
     return this.ts.getDefaultLibFilePath(options);
   }
 
@@ -28,17 +31,17 @@ export class CompilerHost extends FSHost {
     }
   }
 
-  getCanonicalFileName(fileName: FilePath) {
+  getCanonicalFileName(fileName: FilePath): FilePath | string {
     return this.ts.sys.useCaseSensitiveFileNames
       ? fileName
       : fileName.toLowerCase();
   }
 
-  useCaseSensitiveFileNames() {
+  useCaseSensitiveFileNames(): boolean {
     return this.ts.sys.useCaseSensitiveFileNames;
   }
 
-  getNewLine() {
+  getNewLine(): string {
     return this.ts.sys.newLine;
   }
 }

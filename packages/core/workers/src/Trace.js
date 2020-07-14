@@ -15,7 +15,7 @@ export default class Trace {
     this.init();
   }
 
-  getEventId() {
+  getEventId(): number {
     return this.eventId++;
   }
 
@@ -111,7 +111,7 @@ export default class Trace {
     });
   }
 
-  pipe(writable: Writable) {
+  pipe(writable: Writable): stream$Writable {
     return this.tracer.pipe(writable);
   }
 

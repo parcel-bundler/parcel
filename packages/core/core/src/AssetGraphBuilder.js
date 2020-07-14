@@ -234,7 +234,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     await Promise.all(promises);
   }
 
-  shouldSkipRequest(node: AssetGraphNode) {
+  shouldSkipRequest(node: AssetGraphNode): boolean {
     return (
       node.complete === true ||
       !typesWithRequests.has(node.type) ||
@@ -244,7 +244,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     );
   }
 
-  queueCorrespondingRequest(node: AssetGraphNode) {
+  queueCorrespondingRequest(node: AssetGraphNode): Promise<mixed> {
     switch (node.type) {
       case 'entry_specifier':
         return this.queue.add(() => this.runEntryRequest(node.value));
@@ -311,11 +311,14 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  respondToFSEvents(events: Array<Event>) {
+  respondToFSEvents(events: Array<Event>): boolean {
     return this.requestGraph.respondToFSEvents(events);
   }
 
-  getWatcherOptions() {
+  getWatcherOptions(): {|
+    backend?: 'fs-events' | 'watchman' | 'inotify' | 'windows' | 'brute-force',
+    ignore?: Array<FilePath>,
+  |} {
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(this.options.projectRoot, dir),
     );
@@ -323,7 +326,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {ignore};
   }
 
-  getCacheKeys() {
+  getCacheKeys(): {|
+    assetGraphKey: string,
+    requestGraphKey: string,
+    snapshotKey: string,
+  |} {
     let assetGraphKey = md5FromString(`${this.cacheKey}:assetGraph`);
     let requestGraphKey = md5FromString(`${this.cacheKey}:requestGraph`);
     let snapshotKey = md5FromString(`${this.cacheKey}:snapshot`);

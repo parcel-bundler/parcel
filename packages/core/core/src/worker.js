@@ -77,7 +77,7 @@ export async function runTransform(
 export async function runValidate(
   workerApi: WorkerApi,
   opts: WorkerValidationOpts,
-) {
+): Promise<void> {
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);

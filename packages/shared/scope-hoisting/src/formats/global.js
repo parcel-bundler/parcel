@@ -90,7 +90,7 @@ export function generateExports(
   bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
-) {
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 

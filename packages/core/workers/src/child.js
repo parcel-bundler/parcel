@@ -30,7 +30,7 @@ export class Child {
   childId: ?number;
   maxConcurrentCalls: number = 10;
   module: ?any;
-  responseId = 0;
+  responseId: number = 0;
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
   child: ChildImpl;
@@ -53,7 +53,16 @@ export class Child {
     });
   }
 
-  workerApi = {
+  workerApi: {|
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    getSharedReference: (ref: number) => mixed,
+    resolveSharedReference: (value: mixed) => void | number,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} = {
     callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -244,7 +253,7 @@ export class Child {
     this.loggerDisposable.dispose();
   }
 
-  createReverseHandle(fn: (...args: Array<any>) => mixed) {
+  createReverseHandle(fn: (...args: Array<any>) => mixed): Handle {
     let handle = new Handle({
       fn,
       childId: this.childId,

@@ -1,7 +1,7 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     let [mdx, code] = await Promise.all([
       options.packageManager.require('@mdx-js/mdx', asset.filePath, {
@@ -25,4 +25,4 @@ ${compiled}
 
     return [asset];
   },
-});
+}): Transformer);

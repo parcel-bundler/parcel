@@ -32,7 +32,7 @@ export function dependencyToInternalDependency(
 export default class Dependency implements IDependency {
   #dep; // InternalDependency
 
-  constructor(dep: InternalDependency) {
+  constructor(dep: InternalDependency): void | Dependency {
     let existing = internalDependencyToDependency.get(dep);
     if (existing != null) {
       return existing;
@@ -44,7 +44,7 @@ export default class Dependency implements IDependency {
   }
 
   // $FlowFixMe
-  [inspect]() {
+  [inspect](): any {
     return `Dependency(${String(this.sourcePath)} -> ${this.moduleSpecifier})`;
   }
 

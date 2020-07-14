@@ -82,7 +82,9 @@ export default function createParcelConfigRequest() {
   };
 }
 
-export async function loadParcelConfig(options: ParcelOptions) {
+export async function loadParcelConfig(
+  options: ParcelOptions,
+): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -110,7 +112,11 @@ export async function loadParcelConfig(options: ParcelOptions) {
   return parcelConfig;
 }
 
-export async function resolveParcelConfig(options: ParcelOptions) {
+export async function resolveParcelConfig(
+  options: ParcelOptions,
+):
+  | Promise<null>
+  | Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
   let filePath = getResolveFrom(options);
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
@@ -125,14 +131,14 @@ export async function resolveParcelConfig(options: ParcelOptions) {
 export function create(
   config: ResolvedParcelConfigFile,
   options: ParcelOptions,
-) {
+): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
   return processConfigChain(config, config.filePath, options);
 }
 
 export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
   let contents = await options.inputFS.readFile(configPath, 'utf8');
   let config: RawParcelConfig;
   try {
@@ -235,7 +241,7 @@ export async function processConfigChain(
   configFile: RawParcelConfig | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<{|config: ParcelConfig, extendedFiles: Array<FilePath>|}> {
   // Validate config...
   let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
@@ -275,7 +281,7 @@ export async function resolveExtends(
   ext: string,
   configPath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<FilePath> | Promise<string> {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {

@@ -72,7 +72,7 @@ export function enginesToBabelTargets(env: Environment): BabelTargets {
 
 // TODO: Replace with `minVersion` (https://github.com/npm/node-semver#ranges-1)
 //       once semver has been upgraded across Parcel.
-export function getMinSemver(version: string) {
+export function getMinSemver(version: string): null | string {
   try {
     let range = new semver.Range(version);
     let sorted = range.set.sort((a, b) => a[0].semver.compare(b[0].semver));

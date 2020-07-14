@@ -7,7 +7,9 @@ import {normalizeSeparators} from './path';
 const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
-export function matchSourceMappingURL(contents: string) {
+export function matchSourceMappingURL(
+  contents: string,
+): null | RegExp$matchResult {
   return contents.match(SOURCEMAP_RE);
 }
 
@@ -15,7 +17,7 @@ export async function loadSourceMapUrl(
   fs: FileSystem,
   filename: string,
   contents: string,
-) {
+): Promise<void> | Promise<{|filename: string, map: any, url: string|}> {
   let match = matchSourceMappingURL(contents);
   if (match) {
     let url = match[1].trim();
