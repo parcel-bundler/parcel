@@ -10,6 +10,8 @@ import type {
   Dependency,
   DependencyNode,
   Entry,
+  EntryFileNode,
+  EntrySpecifierNode,
   Target,
 } from './types';
 
@@ -44,16 +46,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
   };
 }
 
-export function nodeFromAssetGroup(
-  assetGroup: AssetGroup,
-): {|
-  correspondingRequest?: string,
-  deferred?: boolean,
-  hasDeferred?: boolean,
-  id: string,
-  +type: 'asset_group',
-  value: AssetGroup,
-|} {
+export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: md5FromObject({
       ...assetGroup,
@@ -65,9 +58,7 @@ export function nodeFromAssetGroup(
   };
 }
 
-export function nodeFromAsset(
-  asset: Asset,
-): {|hasDeferred?: boolean, id: string, +type: 'asset', value: Asset|} {
+export function nodeFromAsset(asset: Asset): AssetNode {
   return {
     id: asset.id,
     type: 'asset',
@@ -75,7 +66,7 @@ export function nodeFromAsset(
   };
 }
 
-export function nodeFromEntrySpecifier(entry: string) {
+export function nodeFromEntrySpecifier(entry: string): EntrySpecifierNode {
   return {
     id: 'entry_specifier:' + entry,
     type: 'entry_specifier',
@@ -83,14 +74,7 @@ export function nodeFromEntrySpecifier(entry: string) {
   };
 }
 
-export function nodeFromEntryFile(
-  entry: Entry,
-): {|
-  correspondingRequest?: string,
-  id: string,
-  +type: 'entry_file',
-  value: Entry,
-|} {
+export function nodeFromEntryFile(entry: Entry): EntryFileNode {
   return {
     id: 'entry_file:' + md5FromObject(entry),
     type: 'entry_file',
@@ -142,12 +126,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.replaceNodesConnectedTo(rootNode, nodes);
   }
 
-  addNode(node: AssetGraphNode) {
+  addNode(node: AssetGraphNode): AssetGraphNode {
     this.hash = null;
     return super.addNode(node);
   }
 
-  removeNode(node: AssetGraphNode) {
+  removeNode(node: AssetGraphNode): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
@@ -209,7 +193,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.replaceNodesConnectedTo(depNode, [nodeFromAssetGroup(assetGroup)]);
   }
 
-  shouldVisitChild(node: AssetGraphNode, childNode: AssetGraphNode) {
+  shouldVisitChild(node: AssetGraphNode, childNode: AssetGraphNode): boolean {
     if (
       node.type !== 'dependency' ||
       childNode.type !== 'asset_group' ||
@@ -273,7 +257,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   // using a wildcard and isn't an entry (in library mode).
   // This helps with performance building large libraries like `lodash-es`, which re-exports
   // a huge number of functions since we can avoid even transforming the files that aren't used.
-  shouldDeferDependency(dependency: Dependency, sideEffects: ?boolean) {
+  shouldDeferDependency(
+    dependency: Dependency,
+    sideEffects: ?boolean,
+  ): boolean {
     let defer = false;
     if (
       dependency.isWeak &&
@@ -420,7 +407,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return entries;
   }
 
-  getHash() {
+  getHash(): string {
     if (this.hash != null) {
       return this.hash;
     }

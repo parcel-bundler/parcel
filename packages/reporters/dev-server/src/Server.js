@@ -9,6 +9,7 @@ import type {
 } from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
+import type {HTTPServer} from '@parcel/utils';
 
 import invariant from 'assert';
 import EventEmitter from 'events';
@@ -108,10 +109,7 @@ export default class Server extends EventEmitter {
     );
   }
 
-  respond(
-    req: Request,
-    res: Response,
-  ): void | Promise<void> | Promise<mixed> | ServerResponse | ServerResponse {
+  respond(req: Request, res: Response): mixed {
     let {pathname} = url.parse(req.originalUrl || req.url);
 
     if (pathname == null) {
@@ -200,7 +198,7 @@ export default class Server extends EventEmitter {
     req: Request,
     res: Response,
     next: NextFunction,
-  ): Promise<void> | Promise<mixed> {
+  ): Promise<mixed> {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       // method not allowed
       res.statusCode = 405;
@@ -279,7 +277,7 @@ export default class Server extends EventEmitter {
     res.end(TEMPLATE_404);
   }
 
-  send500(req: Request, res: Response): void | ServerResponse | ServerResponse {
+  send500(req: Request, res: Response): void | Response {
     setHeaders(res);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -345,7 +343,7 @@ export default class Server extends EventEmitter {
     return this;
   }
 
-  async start(): Promise<Server | Server> {
+  async start(): Promise<HTTPServer> {
     const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 

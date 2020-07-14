@@ -17,7 +17,7 @@ export async function loadSourceMapUrl(
   fs: FileSystem,
   filename: string,
   contents: string,
-): Promise<void> | Promise<{|filename: string, map: any, url: string|}> {
+): Promise<?{|filename: string, map: any, url: string|}> {
   let match = matchSourceMappingURL(contents);
   if (match) {
     let url = match[1].trim();

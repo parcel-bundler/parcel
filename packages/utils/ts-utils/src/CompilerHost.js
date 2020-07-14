@@ -1,6 +1,6 @@
 // @flow
 import type {FilePath} from '@parcel/types';
-import type {CompilerOptions} from 'typescript';
+import type {CompilerOptions, SourceFile} from 'typescript';
 import typeof {ScriptTarget} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import path from 'path';
 import {FSHost} from './FSHost';

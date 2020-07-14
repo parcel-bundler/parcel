@@ -1,7 +1,9 @@
 // @flow strict-local
+
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 import type {
+  Async,
   Engines,
   File,
   FilePath,
@@ -66,13 +68,13 @@ const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: RunOpts => Promise<TargetResolveResult>,
+  run: RunOpts => Async<TargetResolveResult>,
   input: Entry,
 |};
 
 const type = 'target_request';
 
-export default function createTargetRequest(input: Entry) {
+export default function createTargetRequest(input: Entry): TargetRequest {
   return {
     id: `${type}:${md5FromObject(input)}`,
     type,

@@ -15,23 +15,21 @@ import {enginesToBabelTargets} from './utils';
  */
 export default async function getEnvOptions(
   config: Config,
-):
-  | Promise<null>
-  | Promise<{|
-      presets: Array<
-        Array<
-          | string
-          | {|
-              corejs: number,
-              ignoreBrowserslistConfig: boolean,
-              shippedProposals: boolean,
-              targets: BabelTargets,
-              useBuiltIns: string,
-            |},
-        >,
-      >,
-      targets: BabelTargets,
-    |}> {
+): Promise<?{|
+  presets: Array<
+    Array<
+      | string
+      | {|
+          corejs: number,
+          ignoreBrowserslistConfig: boolean,
+          shippedProposals: boolean,
+          targets: BabelTargets,
+          useBuiltIns: string,
+        |},
+    >,
+  >,
+  targets: BabelTargets,
+|}> {
   // Load the target engines for the app and generate a @babel/preset-env config
   let appBabelTargets = enginesToBabelTargets(config.env);
 

@@ -114,7 +114,7 @@ export class NodePackageManager implements PackageManager {
     name: ModuleSpecifier,
     from: FilePath,
     options?: ?{|range?: string, autoinstall?: boolean, saveDev?: boolean|},
-  ) {
+  ): Promise<ResolveResult> {
     let basedir = path.dirname(from);
     let key = basedir + ':' + name;
     let resolved = this.cache.get(key);

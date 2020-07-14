@@ -1,9 +1,10 @@
 // @flow strict-local
 import type {
+  Async,
   FilePath,
+  PackageName,
   RawParcelConfig,
   ResolvedParcelConfigFile,
-  PackageName,
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
@@ -46,7 +47,7 @@ export type ParcelConfigRequest = {|
   id: string,
   type: string,
   input: null,
-  run: () => Promise<ConfigAndCachePath>,
+  run: RunOpts => Async<ConfigAndCachePath>,
 |};
 
 type ParcelConfigChain = {|
@@ -56,7 +57,7 @@ type ParcelConfigChain = {|
 
 const type = 'parcel_config_request';
 
-export default function createParcelConfigRequest() {
+export default function createParcelConfigRequest(): ParcelConfigRequest {
   return {
     id: type,
     type,
@@ -284,7 +285,7 @@ export async function resolveExtends(
   ext: string,
   configPath: FilePath,
   options: ParcelOptions,
-): Promise<FilePath> | Promise<string> {
+): Promise<FilePath> {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {

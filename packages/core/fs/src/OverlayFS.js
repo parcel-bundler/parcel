@@ -1,4 +1,6 @@
 // @flow
+
+import type {Stats} from 'fs';
 import type {FileSystem, ReaddirOptions} from './types';
 import type {FilePath} from '@parcel/types';
 import type {

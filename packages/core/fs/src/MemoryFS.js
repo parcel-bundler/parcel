@@ -748,16 +748,16 @@ class Entry {
 }
 
 class Stat {
-  dev = 0;
-  ino = 0;
+  dev: number = 0;
+  ino: number = 0;
   mode: number;
-  nlink = 0;
-  uid = 0;
-  gid = 0;
-  rdev = 0;
+  nlink: number = 0;
+  uid: number = 0;
+  gid: number = 0;
+  rdev: number = 0;
   size: number;
-  blksize = 0;
-  blocks = 0;
+  blksize: number = 0;
+  blocks: number = 0;
   atimeMs: number;
   mtimeMs: number;
   ctimeMs: number;
@@ -780,31 +780,31 @@ class Stat {
     this.birthtime = new Date(entry.birthtime);
   }
 
-  isFile() {
+  isFile(): boolean {
     return Boolean(this.mode & S_IFREG);
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return Boolean(this.mode & S_IFDIR);
   }
 
-  isBlockDevice() {
+  isBlockDevice(): boolean {
     return false;
   }
 
-  isCharacterDevice() {
+  isCharacterDevice(): boolean {
     return false;
   }
 
-  isSymbolicLink() {
+  isSymbolicLink(): boolean {
     return false;
   }
 
-  isFIFO() {
+  isFIFO(): boolean {
     return false;
   }
 
-  isSocket() {
+  isSocket(): boolean {
     return false;
   }
 }
@@ -818,31 +818,31 @@ class Dirent {
     this.#mode = entry.mode;
   }
 
-  isFile() {
+  isFile(): boolean {
     return Boolean(this.#mode & S_IFREG);
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return Boolean(this.#mode & S_IFDIR);
   }
 
-  isBlockDevice() {
+  isBlockDevice(): boolean {
     return false;
   }
 
-  isCharacterDevice() {
+  isCharacterDevice(): boolean {
     return false;
   }
 
-  isSymbolicLink() {
+  isSymbolicLink(): boolean {
     return false;
   }
 
-  isFIFO() {
+  isFIFO(): boolean {
     return false;
   }
 
-  isSocket() {
+  isSocket(): boolean {
     return false;
   }
 }
@@ -929,8 +929,8 @@ class WorkerFS extends MemoryFS {
     ]);
   }
 
-  static deserialize(opts: SerializedMemoryFS) {
-    return instances.get(opts.id);
+  static deserialize(opts: SerializedMemoryFS): MemoryFS {
+    return nullthrows(instances.get(opts.id));
   }
 
   serialize(): SerializedMemoryFS {
@@ -944,33 +944,33 @@ class WorkerFS extends MemoryFS {
     filePath: FilePath,
     contents: Buffer | string,
     options: ?FileOptions,
-  ) {
+  ): Promise<void> {
     super.writeFile(filePath, contents, options);
     let buffer = makeShared(contents);
     return this.handleFn('writeFile', [filePath, buffer, options]);
   }
 
-  unlink(filePath: FilePath) {
+  unlink(filePath: FilePath): Promise<void> {
     super.unlink(filePath);
     return this.handleFn('unlink', [filePath]);
   }
 
-  mkdirp(dir: FilePath) {
+  mkdirp(dir: FilePath): Promise<void> {
     super.mkdirp(dir);
     return this.handleFn('mkdirp', [dir]);
   }
 
-  rimraf(filePath: FilePath) {
+  rimraf(filePath: FilePath): Promise<void> {
     super.rimraf(filePath);
     return this.handleFn('rimraf', [filePath]);
   }
 
-  ncp(source: FilePath, destination: FilePath) {
+  ncp(source: FilePath, destination: FilePath): Promise<void> {
     super.ncp(source, destination);
     return this.handleFn('ncp', [source, destination]);
   }
 
-  symlink(target: FilePath, path: FilePath) {
+  symlink(target: FilePath, path: FilePath): Promise<void> {
     super.symlink(target, path);
     return this.handleFn('symlink', [target, path]);
   }

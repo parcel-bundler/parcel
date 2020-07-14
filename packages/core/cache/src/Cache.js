@@ -50,7 +50,7 @@ export default class Cache {
     return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
   }
 
-  async setBlob(key: string, contents: Buffer | string) {
+  async setBlob(key: string, contents: Buffer | string): Promise<string> {
     await this.fs.writeFile(this._getCachePath(key, '.blob'), contents);
     return key;
   }

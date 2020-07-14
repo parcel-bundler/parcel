@@ -207,13 +207,16 @@ export type AssetRequestInput = {|
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
-  optionsRef: number,
+  optionsRef: SharedReference,
   isURL?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|optionsRef: SharedReference|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',

@@ -2,6 +2,7 @@
 // flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
+  ConfigResult,
   FilePath,
   Glob,
   PackageJSON,
@@ -43,7 +44,7 @@ export default class PublicConfig implements IConfig {
     return this.#config.searchPath;
   }
 
-  get result() {
+  get result(): ConfigResult {
     return this.#config.result;
   }
 
@@ -56,7 +57,7 @@ export default class PublicConfig implements IConfig {
   }
 
   // $FlowFixMe
-  setResult(result: any) {
+  setResult(result: any): void {
     this.#config.result = result;
   }
 

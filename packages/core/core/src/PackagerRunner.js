@@ -16,6 +16,7 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
+import invariant from 'assert';
 import {
   md5FromObject,
   md5FromString,
@@ -47,7 +48,7 @@ type Opts = {|
   report: ReportFn,
 |};
 
-type BundleInfo = {|
+export type BundleInfo = {|
   +type: string,
   +size: number,
   +hash: string,
@@ -352,7 +353,10 @@ export default class PackagerRunner {
     return optimized;
   }
 
-  generateSourceMap(bundle: InternalBundle, map: SourceMap): Promise<string> {
+  async generateSourceMap(
+    bundle: InternalBundle,
+    map: SourceMap,
+  ): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
     let filePath = nullthrows(bundle.filePath);
     let sourceRoot: string = path.relative(
@@ -390,7 +394,7 @@ export default class PackagerRunner {
       bundle.isInline ||
       (bundle.target.sourceMap && bundle.target.sourceMap.inline);
 
-    return map.stringify({
+    let stringified = await map.stringify({
       file: path.basename(mapFilename),
       // $FlowFixMe
       fs: this.options.inputFS,
@@ -401,6 +405,9 @@ export default class PackagerRunner {
       inlineSources,
       format: isInlineMap ? 'inline' : 'string',
     });
+
+    invariant(typeof stringified === 'string');
+    return stringified;
   }
 
   async getCacheKey(

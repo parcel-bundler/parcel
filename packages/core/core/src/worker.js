@@ -6,9 +6,12 @@ import type {SharedReference, WorkerApi} from '@parcel/workers';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import BundleGraph from './BundleGraph';
-import Transformation, {type TransformationOpts} from './Transformation';
+import Transformation, {
+  type TransformationOpts,
+  type TransformationResult,
+} from './Transformation';
 import {reportWorker} from './ReporterRunner';
-import PackagerRunner from './PackagerRunner';
+import PackagerRunner, {type BundleInfo} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
@@ -61,7 +64,7 @@ async function loadConfig(cachePath, options) {
 export async function runTransform(
   workerApi: WorkerApi,
   opts: WorkerTransformationOpts,
-) {
+): Promise<TransformationResult> {
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -111,7 +114,7 @@ export function runPackage(
     |},
     optionsRef: SharedReference,
   |},
-) {
+): Promise<BundleInfo> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);

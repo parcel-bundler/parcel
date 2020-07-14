@@ -1,5 +1,8 @@
 // @flow strict-local
+
 import type {Config, PluginOptions} from '@parcel/types';
+import type {BabelConfig} from './types';
+
 import path from 'path';
 
 const JSX_EXTENSIONS = {
@@ -33,21 +36,7 @@ const JSX_PRAGMA = {
 export default async function getJSXOptions(
   options: PluginOptions,
   config: Config,
-):
-  | Promise<void>
-  | Promise<null>
-  | Promise<{|
-      presets: Array<
-        Array<
-          | string
-          | {|
-              development: boolean,
-              pragma: $FlowFixMe | void | string,
-              pragmaFrag: $FlowFixMe | void | string,
-            |},
-        >,
-      >,
-    |}> {
+): Promise<?BabelConfig> {
   if (!config.isSource) {
     return null;
   }
