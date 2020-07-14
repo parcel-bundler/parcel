@@ -28,6 +28,7 @@ esproposal.nullish_coalescing=enable
 esproposal.optional_chaining=enable
 module.system.node.main_field=source
 module.system.node.main_field=main
+well_formed_exports=true
 
 [strict]
 nonstrict-import
