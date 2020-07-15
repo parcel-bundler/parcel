@@ -13,7 +13,7 @@ const FORMATS = new Map([
   ['webp', 'webp'],
 ]);
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset}) {
     asset.isIsolated = true;
 
@@ -46,4 +46,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);
