@@ -55,6 +55,11 @@ export type TransformationOpts = {|
   workerApi: WorkerApi,
 |};
 
+export type TransformationResult = {|
+  assets: Array<AssetValue>,
+  configRequests: Array<ConfigRequestAndResult>,
+|};
+
 type ConfigMap = Map<PackageName, Config>;
 type ConfigRequestAndResult = {|
   request: ConfigRequestDesc,
@@ -91,16 +96,13 @@ export default class Transformation {
     this.impactfulOptions = {hot};
   }
 
-  async loadConfig(configRequest: ConfigRequestDesc) {
+  async loadConfig(configRequest: ConfigRequestDesc): Promise<Config> {
     let result = await this.configLoader.load(configRequest);
     this.configRequests.push({request: configRequest, result});
     return result;
   }
 
-  async run(): Promise<{|
-    assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequestAndResult>,
-  |}> {
+  async run(): Promise<TransformationResult> {
     await initSourcemaps;
 
     this.report({
@@ -335,14 +337,14 @@ export default class Transformation {
     return finalAssets.concat(resultingAssets);
   }
 
-  async readFromCache(
-    cacheKey: string,
-  ): Promise<null | Array<UncommittedAsset>> {
+  async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
     if (this.options.disableCache || this.request.code != null) {
       return null;
     }
 
-    let cachedAssets = await this.options.cache.get(cacheKey);
+    let cachedAssets = await this.options.cache.get<Array<AssetValue>>(
+      cacheKey,
+    );
     if (!cachedAssets) {
       return null;
     }

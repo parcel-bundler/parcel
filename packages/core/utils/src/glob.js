@@ -8,11 +8,11 @@ import fastGlob, {type FastGlobOptions} from 'fast-glob';
 import {isMatch} from 'micromatch';
 import {normalizeSeparators} from './path';
 
-export function isGlob(p: FilePath) {
+export function isGlob(p: FilePath): any {
   return _isGlob(normalizeSeparators(p));
 }
 
-export function isGlobMatch(filePath: FilePath, glob: Glob) {
+export function isGlobMatch(filePath: FilePath, glob: Glob): any {
   return isMatch(filePath, normalizeSeparators(glob));
 }
 

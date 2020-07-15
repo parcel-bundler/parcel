@@ -33,7 +33,14 @@ type RunOpts = {|
 
 const type = 'path_request';
 
-export default function createPathRequest(input: Dependency) {
+export default function createPathRequest(
+  input: Dependency,
+): {|
+  id: string,
+  input: Dependency,
+  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
+  +type: string,
+|} {
   return {
     id: input.id,
     type,

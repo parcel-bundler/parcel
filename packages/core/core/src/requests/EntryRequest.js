@@ -1,5 +1,6 @@
 // @flow strict-local
-import type {FilePath, File} from '@parcel/types';
+
+import type {Async, FilePath, File} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions} from '../types';
 
@@ -14,7 +15,7 @@ type RunOpts = {|
 export type EntryRequest = {|
   id: string,
   +type: 'entry_request',
-  run: RunOpts => Promise<EntryResult>,
+  run: RunOpts => Async<EntryResult>,
   input: FilePath,
 |};
 
@@ -25,7 +26,7 @@ export type EntryResult = {|
 
 const type = 'entry_request';
 
-export default function createEntryRequest(input: FilePath) {
+export default function createEntryRequest(input: FilePath): EntryRequest {
   return {
     id: `${type}:${input}`,
     type,

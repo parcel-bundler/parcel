@@ -6,7 +6,7 @@ import postcss from 'postcss';
 // flowlint-next-line untyped-import:off
 import cssnano from 'cssnano';
 
-export default new Optimizer({
+export default (new Optimizer({
   async optimize({
     bundle,
     contents: prevContents,
@@ -54,4 +54,4 @@ export default new Optimizer({
       map,
     };
   },
-});
+}): Optimizer);

@@ -1,4 +1,6 @@
 // @flow
+
+import type {Stats} from 'fs';
 import type {FileSystem, ReaddirOptions} from './types';
 import type {FilePath} from '@parcel/types';
 import type {
@@ -54,11 +56,11 @@ export class OverlayFS implements FileSystem {
     this.readable = readable;
   }
 
-  static deserialize(opts: any) {
+  static deserialize(opts: any): OverlayFS {
     return new OverlayFS(opts.writable, opts.readable);
   }
 
-  serialize() {
+  serialize(): {|$$raw: boolean, readable: FileSystem, writable: FileSystem|} {
     return {
       $$raw: false,
       writable: this.writable,
@@ -66,8 +68,10 @@ export class OverlayFS implements FileSystem {
     };
   }
 
-  readFile = read('readFile');
-  writeFile = write('writeFile');
+  readFile: (
+    ...args: Array<any>
+  ) => Promise<Buffer & string & $Shape<Stats>> = read('readFile');
+  writeFile: (...args: Array<any>) => any = write('writeFile');
   async copyFile(source: FilePath, destination: FilePath) {
     if (await this.writable.exists(source)) {
       await this.writable.writeFile(
@@ -81,21 +85,30 @@ export class OverlayFS implements FileSystem {
       );
     }
   }
-  stat = read('stat');
-  unlink = write('unlink');
-  mkdirp = write('mkdirp');
-  rimraf = write('rimraf');
-  ncp = write('ncp');
-  createReadStream = checkExists('createReadStream');
-  createWriteStream = write('createWriteStream');
-  cwd = readSync('cwd');
-  chdir = readSync('chdir');
-  realpath = checkExists('realpath');
+  stat: (
+    ...args: Array<any>
+  ) => Promise<Buffer & string & $Shape<Stats>> = read('stat');
+  unlink: (...args: Array<any>) => any = write('unlink');
+  mkdirp: (...args: Array<any>) => any = write('mkdirp');
+  rimraf: (...args: Array<any>) => any = write('rimraf');
+  ncp: (...args: Array<any>) => any = write('ncp');
+  createReadStream: (
+    filePath: FilePath,
+    ...args: Array<any>
+  ) => any = checkExists('createReadStream');
+  createWriteStream: (...args: Array<any>) => any = write('createWriteStream');
+  cwd: (...args: Array<any>) => any = readSync('cwd');
+  chdir: (...args: Array<any>) => any = readSync('chdir');
+  realpath: (filePath: FilePath, ...args: Array<any>) => any = checkExists(
+    'realpath',
+  );
 
-  readFileSync = readSync('readFileSync');
-  statSync = readSync('statSync');
-  existsSync = readSync('existsSync');
-  realpathSync = checkExists('realpathSync');
+  readFileSync: (...args: Array<any>) => any = readSync('readFileSync');
+  statSync: (...args: Array<any>) => any = readSync('statSync');
+  existsSync: (...args: Array<any>) => any = readSync('existsSync');
+  realpathSync: (filePath: FilePath, ...args: Array<any>) => any = checkExists(
+    'realpathSync',
+  );
 
   async exists(filePath: FilePath): Promise<boolean> {
     return (
