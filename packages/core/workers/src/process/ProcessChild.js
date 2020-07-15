@@ -25,7 +25,7 @@ export default class ProcessChild implements ChildImpl {
     process.on('message', data => this.handleMessage(data));
   }
 
-  handleMessage(data: string) {
+  handleMessage(data: string): void {
     if (data === 'die') {
       return this.stop();
     }

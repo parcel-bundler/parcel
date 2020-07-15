@@ -65,6 +65,10 @@ export default class BundleGraph<TBundle: IBundle>
     return assetFromValue(this.#graph.getAssetById(id), this.#options);
   }
 
+  getAssetPublicId(asset: IAsset): string {
+    return this.#graph.getAssetPublicId(assetToAssetValue(asset));
+  }
+
   isDependencyDeferred(dep: IDependency): boolean {
     return this.#graph.isDependencyDeferred(
       dependencyToInternalDependency(dep),

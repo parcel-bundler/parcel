@@ -1,9 +1,10 @@
 // @flow strict-local
 import type {
+  Async,
   FilePath,
+  PackageName,
   RawParcelConfig,
   ResolvedParcelConfigFile,
-  PackageName,
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
@@ -44,12 +45,17 @@ export type ParcelConfigRequest = {|
   id: string,
   type: string,
   input: null,
-  run: () => Promise<ConfigAndCachePath>,
+  run: RunOpts => Async<ConfigAndCachePath>,
+|};
+
+type ParcelConfigChain = {|
+  config: ParcelConfig,
+  extendedFiles: Array<FilePath>,
 |};
 
 const type = 'parcel_config_request';
 
-export default function createParcelConfigRequest() {
+export default function createParcelConfigRequest(): ParcelConfigRequest {
   return {
     id: type,
     type,
@@ -80,7 +86,9 @@ export default function createParcelConfigRequest() {
   };
 }
 
-export async function loadParcelConfig(options: ParcelOptions) {
+export async function loadParcelConfig(
+  options: ParcelOptions,
+): Promise<ParcelConfigChain> {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -108,7 +116,9 @@ export async function loadParcelConfig(options: ParcelOptions) {
   return parcelConfig;
 }
 
-export async function resolveParcelConfig(options: ParcelOptions) {
+export async function resolveParcelConfig(
+  options: ParcelOptions,
+): Promise<?ParcelConfigChain> {
   let filePath = getResolveFrom(options);
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
@@ -123,14 +133,14 @@ export async function resolveParcelConfig(options: ParcelOptions) {
 export function create(
   config: ResolvedParcelConfigFile,
   options: ParcelOptions,
-) {
+): Promise<ParcelConfigChain> {
   return processConfigChain(config, config.filePath, options);
 }
 
 export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<ParcelConfigChain> {
   let contents = await options.inputFS.readFile(configPath, 'utf8');
   let config: RawParcelConfig;
   try {
@@ -233,7 +243,7 @@ export async function processConfigChain(
   configFile: RawParcelConfig | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<ParcelConfigChain> {
   // Validate config...
   let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
@@ -273,7 +283,7 @@ export async function resolveExtends(
   ext: string,
   configPath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<FilePath> {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {

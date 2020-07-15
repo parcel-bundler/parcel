@@ -5,7 +5,7 @@ import type {FileSystem} from '@parcel/fs';
 export default async function getCertificate(
   fs: FileSystem,
   options: HTTPSOptions,
-) {
+): Promise<{|cert: Buffer, key: Buffer|}> {
   try {
     let cert = await fs.readFile(options.cert);
     let key = await fs.readFile(options.key);

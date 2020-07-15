@@ -666,7 +666,7 @@ export function link({
 
         for (let file of importedFiles.values()) {
           if (file.bundle) {
-            format.generateBundleImports(bundle, file, path);
+            format.generateBundleImports(bundle, file, path, bundleGraph);
           } else {
             format.generateExternalImport(bundle, file, path);
           }

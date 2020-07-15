@@ -31,14 +31,14 @@ export default class Handle {
     handleById.delete(this.id);
   }
 
-  serialize() {
+  serialize(): {|childId: ?number, id: number|} {
     return {
       id: this.id,
       childId: this.childId,
     };
   }
 
-  static deserialize(opts: HandleOpts) {
+  static deserialize(opts: HandleOpts): Handle {
     return new Handle(opts);
   }
 }

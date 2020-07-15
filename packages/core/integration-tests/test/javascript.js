@@ -34,6 +34,28 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should import child bundles using a require call in CommonJS', async function() {
+    const packagePath = path.join(
+      __dirname,
+      '/integration/commonjs-bundle-require/index.js',
+    );
+    let b = await bundle(packagePath);
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output.double, 'function');
+    assert.equal(output.double(3), 6);
+  });
+
   it('should produce a basic JS bundle with ES6 imports', async function() {
     let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
 
@@ -2211,7 +2233,7 @@ describe('javascript', function() {
 
     assert.equal(
       (await run(b)).default,
-      'data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A',
+      'data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A',
     );
   });
 
@@ -2527,8 +2549,12 @@ describe('javascript', function() {
     let sameBundle = bundles.find(b => b.name === 'same-bundle.js');
     let getDep = bundles.find(b => b.name === 'get-dep.js');
 
-    assert.deepEqual(await (await runBundle(sameBundle)).default, [42, 42, 42]);
-    assert.deepEqual(await (await runBundle(getDep)).default, 42);
+    assert.deepEqual(await (await runBundle(b, sameBundle)).default, [
+      42,
+      42,
+      42,
+    ]);
+    assert.deepEqual(await (await runBundle(b, getDep)).default, 42);
   });
 
   it("can share dependencies between a shared bundle and its sibling's descendants", async () => {
