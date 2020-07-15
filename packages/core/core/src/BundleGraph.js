@@ -3,6 +3,7 @@
 import type {
   BundleGroup,
   GraphVisitor,
+  SourceLocation,
   Symbol,
   TraversalActions,
 } from '@parcel/types';
@@ -39,6 +40,18 @@ type BundleGraphEdgeTypes =
   // Using this type prevents referenced assets from being traversed normally.
   | 'references'
   | 'internal_async';
+
+type InternalSymbolResolution = {|
+  asset: Asset,
+  exportSymbol: string,
+  symbol: ?Symbol,
+  loc: ?SourceLocation,
+|};
+
+type InternalExportSymbolResolution = {|
+  ...InternalSymbolResolution,
+  +exportAs: Symbol | string,
+|};
 
 export default class BundleGraph {
   _assetPublicIds: Set<string>;
@@ -81,18 +94,17 @@ export default class BundleGraph {
     let assetGroupIds = new Set();
     for (let [, node] of assetGraph.nodes) {
       if (node.type === 'asset') {
-        let asset = node.value;
+        let {id: assetId} = node.value;
         // Generate a new, short public id for this asset to use.
         // If one already exists, use it.
-        let publicId = publicIdByAssetId.get(asset.id);
+        let publicId = publicIdByAssetId.get(assetId);
         if (publicId == null) {
-          publicId = getPublicId(asset.id, existing =>
+          publicId = getPublicId(assetId, existing =>
             assetPublicIds.has(existing),
           );
-          publicIdByAssetId.set(asset.id, publicId);
+          publicIdByAssetId.set(assetId, publicId);
           assetPublicIds.add(publicId);
         }
-        asset.publicId = publicId;
       }
 
       // Don't copy over asset groups into the bundle graph.
@@ -615,7 +627,7 @@ export default class BundleGraph {
     });
   }
 
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset) {
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle {
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
 
     for (let bundleGroup of bundleGroups) {
@@ -864,7 +876,11 @@ export default class BundleGraph {
     );
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): InternalSymbolResolution {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols?.get(symbol)?.local;
@@ -984,7 +1000,16 @@ export default class BundleGraph {
     return node.value;
   }
 
-  getExportedSymbols(asset: Asset) {
+  getAssetPublicId(asset: Asset): string {
+    let publicId = this._publicIdByAssetId.get(asset.id);
+    if (publicId == null) {
+      throw new Error("Asset or it's public id not found");
+    }
+
+    return publicId;
+  }
+
+  getExportedSymbols(asset: Asset): Array<InternalExportSymbolResolution> {
     if (!asset.symbols) {
       return [];
     }
@@ -1021,7 +1046,7 @@ export default class BundleGraph {
     this.traverseAssets(bundle, asset => {
       hash.update(
         [
-          asset.publicId,
+          this.getAssetPublicId(asset),
           asset.outputHash,
           asset.filePath,
           asset.type,

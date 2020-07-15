@@ -10,7 +10,7 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
-export default new Packager({
+export default (new Packager({
   async package({
     bundle,
     bundleGraph,
@@ -98,4 +98,4 @@ export default new Packager({
       map,
     });
   },
-});
+}): Packager);

@@ -16,7 +16,7 @@ describe('BundleGraph', () => {
       createMockAssetGraph([id1, id2]),
     );
     assert.deepEqual(
-      getAssets(bundleGraph).map(a => a.publicId),
+      getAssets(bundleGraph).map(a => bundleGraph.getAssetPublicId(a)),
       ['296TI', '4DGUq'],
     );
   });
@@ -26,7 +26,7 @@ describe('BundleGraph', () => {
       createMockAssetGraph([id1, id1.slice(0, 16) + '7' + id1.slice(17)]),
     );
     assert.deepEqual(
-      getAssets(bundleGraph).map(a => a.publicId),
+      getAssets(bundleGraph).map(a => bundleGraph.getAssetPublicId(a)),
       ['296TI', '296TII'],
     );
   });

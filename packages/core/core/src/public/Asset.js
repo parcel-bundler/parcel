@@ -61,7 +61,10 @@ export function mutableAssetToUncommittedAsset(
   return nullthrows(_mutableAssetToUncommittedAsset.get(mutableAsset));
 }
 
-export function assetFromValue(value: AssetValue, options: ParcelOptions) {
+export function assetFromValue(
+  value: AssetValue,
+  options: ParcelOptions,
+): Asset {
   return new Asset(
     value.committed
       ? new CommittedAsset(value, options)
@@ -73,7 +76,7 @@ export function assetFromValue(value: AssetValue, options: ParcelOptions) {
 }
 
 class BaseAsset {
-  #asset; // CommittedAsset | UncommittedAsset
+  #asset: CommittedAsset | UncommittedAsset;
 
   constructor(asset: CommittedAsset | UncommittedAsset) {
     this.#asset = asset;
@@ -81,7 +84,7 @@ class BaseAsset {
   }
 
   // $FlowFixMe
-  [inspect]() {
+  [inspect](): string {
     return `Asset(${this.filePath})`;
   }
 
@@ -193,9 +196,9 @@ class BaseAsset {
 }
 
 export class Asset extends BaseAsset implements IAsset {
-  #asset; // InternalAsset
+  #asset /*: CommittedAsset | UncommittedAsset */;
 
-  constructor(asset: CommittedAsset | UncommittedAsset) {
+  constructor(asset: CommittedAsset | UncommittedAsset): Asset {
     let existing = assetValueToAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -204,21 +207,18 @@ export class Asset extends BaseAsset implements IAsset {
     super(asset);
     this.#asset = asset;
     assetValueToAsset.set(asset.value, this);
+    return this;
   }
 
   get stats(): Stats {
     return this.#asset.value.stats;
   }
-
-  get publicId(): string {
-    return nullthrows(this.#asset.value.publicId);
-  }
 }
 
 export class MutableAsset extends BaseAsset implements IMutableAsset {
-  #asset; // InternalAsset
+  #asset /*: UncommittedAsset */;
 
-  constructor(asset: UncommittedAsset) {
+  constructor(asset: UncommittedAsset): MutableAsset {
     let existing = assetValueToMutableAsset.get(asset.value);
     if (existing != null) {
       return existing;
@@ -228,6 +228,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset = asset;
     assetValueToMutableAsset.set(asset.value, this);
     _mutableAssetToUncommittedAsset.set(this, asset);
+    return this;
   }
 
   setMap(map: ?SourceMap): void {

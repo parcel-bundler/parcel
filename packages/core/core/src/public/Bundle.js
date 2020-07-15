@@ -53,9 +53,9 @@ export function bundleToInternalBundleGraph(bundle: IBundle): BundleGraph {
 let _private = {};
 
 export class Bundle implements IBundle {
-  #bundle; // InternalBundle
-  #bundleGraph; // BundleGraph
-  #options; // ParcelOptions
+  #bundle /*: InternalBundle */;
+  #bundleGraph /*: BundleGraph */;
+  #options /*: ParcelOptions */;
 
   constructor(
     sentinel: mixed,
@@ -178,7 +178,7 @@ export class Bundle implements IBundle {
     );
   }
 
-  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
+  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>): ?TContext {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
       mapVisitor(asset => assetFromValue(asset, this.#options), visit),
@@ -187,8 +187,8 @@ export class Bundle implements IBundle {
 }
 
 export class NamedBundle extends Bundle implements INamedBundle {
-  #bundle; // InternalBundle
-  #bundleGraph; // BundleGraph
+  #bundle /*: InternalBundle */;
+  #bundleGraph /*: BundleGraph */;
 
   constructor(
     sentinel: mixed,

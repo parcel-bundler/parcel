@@ -3,7 +3,7 @@
 import {Transformer} from '@parcel/plugin';
 import postcss from 'postcss';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     const sugarss = await options.packageManager.require(
       'sugarss',
@@ -20,4 +20,4 @@ export default new Transformer({
     asset.setCode(css);
     return [asset];
   },
-});
+}): Transformer);

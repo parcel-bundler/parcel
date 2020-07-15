@@ -209,7 +209,11 @@ async function setup(entry) {
     bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
   );
   // ReactDOM.render
-  await window.parcelRequire(bundle.getEntryAssets().pop().publicId).default();
+  await window
+    .parcelRequire(
+      bundleEvent.bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
+    )
+    .default();
   await sleep(100);
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(

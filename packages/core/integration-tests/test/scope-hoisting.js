@@ -2411,8 +2411,8 @@ describe('scope hoisting', function() {
     );
     let getDep = bundles.find(b => b.name === 'get-dep-scope-hoisting.js');
 
-    assert.deepEqual(await runBundle(sameBundle), [42, 42, 42]);
-    assert.deepEqual(await runBundle(getDep), 42);
+    assert.deepEqual(await runBundle(b, sameBundle), [42, 42, 42]);
+    assert.deepEqual(await runBundle(b, getDep), 42);
   });
 
   it("can share dependencies between a shared bundle and its sibling's descendants", async () => {

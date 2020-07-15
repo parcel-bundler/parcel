@@ -1,4 +1,6 @@
 import assert from 'assert';
+import {readFileSync} from 'fs';
+import {join as joinPath} from 'path';
 
 import codeframe from '../src/codeframe';
 
@@ -393,7 +395,7 @@ describe('codeframe', () => {
     assert.equal(lines[7], '  9 | test');
   });
 
-  it('should properly pad numbers', () => {
+  it('should properly pad numbers for large files', () => {
     let codeframeString = codeframe('test\n'.repeat(1000), [
       {
         start: {
@@ -415,17 +417,22 @@ describe('codeframe', () => {
           column: 2,
           line: 100,
         },
-        message: 'test',
+        message: 'test 2',
       },
     ]);
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 7);
-    assert.equal(lines[0], '  98  | test');
+    assert.equal(lines[0], '   98 | test');
+    assert.equal(lines[1], '>  99 | test');
+    assert.equal(lines[2], '>     |  ^ test');
+    assert.equal(lines[3], '> 100 | test');
+    assert.equal(lines[4], '>     |  ^ test 2');
+    assert.equal(lines[5], '  101 | test');
     assert.equal(lines[6], '  102 | test');
   });
 
-  it('should properly pad numbers', () => {
+  it('should properly pad numbers for short files', () => {
     let codeframeString = codeframe('test\n'.repeat(1000), [
       {
         start: {
@@ -453,13 +460,17 @@ describe('codeframe', () => {
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 11);
-    assert.equal(lines[0], '  6  | test');
+    assert.equal(lines[0], '   6 | test');
+    assert.equal(lines[4], '   9 | test');
+    assert.equal(lines[5], '  10 | test');
+    assert.equal(lines[6], '  11 | test');
     assert.equal(lines[10], '  14 | test');
   });
 
   it('should properly use maxLines', () => {
+    let line = 'test '.repeat(100);
     let codeframeString = codeframe(
-      'test\n'.repeat(100),
+      `${line}\n`.repeat(100),
       [
         {
           start: {
@@ -487,14 +498,16 @@ describe('codeframe', () => {
       {
         useColor: false,
         maxLines: 10,
+        terminalWidth: 5,
       },
     );
 
     let lines = codeframeString.split(LINE_END);
     assert.equal(lines.length, 13);
-    assert.equal(lines[0], '  4  | test');
-    assert.equal(lines[11], '> 13 | test');
-    assert.equal(lines[12], '>    | ^^^^');
+    assert.equal(lines[0], '   4 | test test ');
+    assert.equal(lines[7], '  10 | test test ');
+    assert.equal(lines[11], '> 13 | test test ');
+    assert.equal(lines[12], '>    | ^^^^^^^^^^');
   });
 
   it('should be able to handle tabs', () => {
@@ -740,5 +753,47 @@ describe('codeframe', () => {
     assert.equal(lines[1], '>   |  ^^^^^^^^^^^^^^^^^^');
     assert.equal(lines[2], '> 2 | ew line new line ne');
     assert.equal(lines[3], '>   | ^^^^^^ I have a message');
+  });
+
+  it('Should pad properly, T-650', () => {
+    let fileContent = readFileSync(
+      joinPath(__dirname, './fixtures/a.js'),
+      'utf8',
+    );
+    let codeframeString = codeframe(
+      fileContent,
+      [
+        {
+          start: {
+            line: 8,
+            column: 10,
+          },
+          end: {
+            line: 8,
+            column: 48,
+          },
+        },
+      ],
+      {
+        useColor: false,
+        syntaxHighlighting: false,
+        language: 'js',
+        terminalWidth: 100,
+      },
+    );
+
+    let lines = codeframeString.split(LINE_END);
+    assert.equal(lines.length, 5);
+    assert.equal(lines[0], `   7 | import Tooltip from '../tooltip';`);
+    assert.equal(
+      lines[1],
+      `>  8 | import VisuallyHidden from '../visually-hidden';`,
+    );
+    assert.equal(
+      lines[2],
+      '>    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^',
+    );
+    assert.equal(lines[3], '   9 | ');
+    assert.equal(lines[4], '  10 | /**');
   });
 });

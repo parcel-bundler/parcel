@@ -1,13 +1,17 @@
 // @flow strict-local
+
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
-import type {WorkerApi} from '@parcel/workers';
+import type {SharedReference, WorkerApi} from '@parcel/workers';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import BundleGraph from './BundleGraph';
-import Transformation, {type TransformationOpts} from './Transformation';
+import Transformation, {
+  type TransformationOpts,
+  type TransformationResult,
+} from './Transformation';
 import {reportWorker} from './ReporterRunner';
-import PackagerRunner from './PackagerRunner';
+import PackagerRunner, {type BundleInfo} from './PackagerRunner';
 import Validation, {type ValidationOpts} from './Validation';
 import ParcelConfig from './ParcelConfig';
 import {registerCoreWithSerializer} from './utils';
@@ -22,12 +26,12 @@ registerCoreWithSerializer();
 // https://github.com/facebook/flow/issues/2835
 type WorkerTransformationOpts = {|
   ...$Diff<TransformationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 type WorkerValidationOpts = {|
   ...$Diff<ValidationOpts, {|workerApi: mixed, options: ParcelOptions|}>,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 
@@ -60,7 +64,7 @@ async function loadConfig(cachePath, options) {
 export async function runTransform(
   workerApi: WorkerApi,
   opts: WorkerTransformationOpts,
-) {
+): Promise<TransformationResult> {
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -77,7 +81,7 @@ export async function runTransform(
 export async function runValidate(
   workerApi: WorkerApi,
   opts: WorkerValidationOpts,
-) {
+): Promise<void> {
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
@@ -101,16 +105,16 @@ export function runPackage(
     optionsRef,
   }: {|
     bundle: Bundle,
-    bundleGraphReference: number,
-    configRef: number,
+    bundleGraphReference: SharedReference,
+    configRef: SharedReference,
     cacheKeys: {|
       content: string,
       map: string,
       info: string,
     |},
-    optionsRef: number,
+    optionsRef: SharedReference,
   |},
-) {
+): Promise<BundleInfo> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
