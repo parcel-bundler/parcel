@@ -179,7 +179,13 @@ export function generateJSONCodeHighlights(
   });
 }
 
-export function getJSONSourceLocation(pos: any, type?: ?'key' | 'value') {
+export function getJSONSourceLocation(
+  pos: any,
+  type?: ?'key' | 'value',
+): {|
+  start: DiagnosticHighlightLocation,
+  end: DiagnosticHighlightLocation,
+|} {
   if (!type && pos.value) {
     // key and value
     return {

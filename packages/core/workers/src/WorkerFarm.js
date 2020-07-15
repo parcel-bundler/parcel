@@ -34,6 +34,8 @@ import logger from '@parcel/logger';
 let profileId = 1;
 let referenceId = 1;
 
+export opaque type SharedReference = number;
+
 export type FarmOptions = {|
   maxConcurrentWorkers: number,
   maxConcurrentCallsPerWorker: number,
@@ -52,8 +54,8 @@ type WorkerModule = {|
 export type WorkerApi = {|
   callMaster(CallRequest, ?boolean): Promise<mixed>,
   createReverseHandle(fn: HandleFunction): Handle,
-  getSharedReference(ref: number): mixed,
-  resolveSharedReference(value: mixed): ?number,
+  getSharedReference(ref: SharedReference): mixed,
+  resolveSharedReference(value: mixed): ?SharedReference,
   callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>,
 |};
 
@@ -72,8 +74,8 @@ export default class WorkerFarm extends EventEmitter {
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
-  sharedReferences: Map<number, mixed> = new Map();
-  sharedReferencesByValue: Map<mixed, number> = new Map();
+  sharedReferences: Map<SharedReference, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
   profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
@@ -99,7 +101,17 @@ export default class WorkerFarm extends EventEmitter {
     this.startMaxWorkers();
   }
 
-  workerApi = {
+  workerApi: {|
+    callChild: (childId: number, request: HandleCallRequest) => Promise<mixed>,
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: HandleFunction) => Handle,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} = {
     callMaster: async (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -127,7 +139,8 @@ export default class WorkerFarm extends EventEmitter {
         handle: handle.id,
         args,
       }),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    getSharedReference: (ref: SharedReference) =>
+      this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
   };
@@ -180,7 +193,7 @@ export default class WorkerFarm extends EventEmitter {
     };
   }
 
-  onError(error: ErrorWithCode, worker: Worker) {
+  onError(error: ErrorWithCode, worker: Worker): void | Promise<void> {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
       return this.stopWorker(worker);
@@ -369,13 +382,15 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createReverseHandle(fn: HandleFunction) {
+  createReverseHandle(fn: HandleFunction): Handle {
     let handle = new Handle({fn});
     this.handles.set(handle.id, handle);
     return handle;
   }
 
-  async createSharedReference(value: mixed) {
+  async createSharedReference(
+    value: mixed,
+  ): Promise<{|ref: SharedReference, dispose(): Promise<mixed>|}> {
     let ref = referenceId++;
     this.sharedReferences.set(ref, value);
     this.sharedReferencesByValue.set(value, ref);
@@ -477,17 +492,26 @@ export default class WorkerFarm extends EventEmitter {
     });
   }
 
-  static getNumWorkers() {
+  static getNumWorkers(): number {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
       : cpuCount();
   }
 
-  static isWorker() {
+  static isWorker(): boolean {
     return !!child;
   }
 
-  static getWorkerApi() {
+  static getWorkerApi(): {|
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} {
     invariant(
       child != null,
       'WorkerFarm.getWorkerApi can only be called within workers',
@@ -495,7 +519,7 @@ export default class WorkerFarm extends EventEmitter {
     return child.workerApi;
   }
 
-  static getConcurrentCallsPerWorker() {
+  static getConcurrentCallsPerWorker(): number {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
 }

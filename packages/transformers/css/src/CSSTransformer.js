@@ -17,7 +17,7 @@ function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
-export default new Transformer({
+export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
   },
@@ -216,4 +216,4 @@ export default new Transformer({
       map,
     };
   },
-});
+}): Transformer);

@@ -9,7 +9,7 @@ const defaultConfig = {
   plugins: [{prefixIds: true}],
 };
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(
       [
@@ -58,4 +58,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);

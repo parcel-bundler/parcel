@@ -27,9 +27,9 @@ import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
-export const inputFS = new NodeFS();
-export let outputFS = new MemoryFS(workerFarm);
-export let overlayFS = new OverlayFS(outputFS, inputFS);
+export const inputFS: NodeFS = new NodeFS();
+export let outputFS: MemoryFS = new MemoryFS(workerFarm);
+export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);
 
 beforeEach(() => {
   outputFS = new MemoryFS(workerFarm);
@@ -52,8 +52,8 @@ export async function ncp(source: FilePath, destination: FilePath) {
 
 export const defaultConfig = {
   ...defaultConfigContents,
-  filePath: require.resolve('@parcel/config-default'),
-  reporters: [],
+  filePath: (require.resolve('@parcel/config-default'): string),
+  reporters: ([]: Array<any>),
 };
 
 const chalk = new _chalk.constructor({enabled: true});
@@ -71,11 +71,11 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function normalizeFilePath(filePath: string) {
+export function normalizeFilePath(filePath: string): FilePath {
   return normalizeSeparators(filePath);
 }
 
-export const distDir = path.resolve(
+export const distDir: string = path.resolve(
   __dirname,
   '..',
   '..',
@@ -101,7 +101,7 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 export function bundler(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
-) {
+): Parcel {
   return new Parcel({
     entries,
     disableCache: true,
@@ -569,7 +569,7 @@ function prepareNodeContext(filePath, globals) {
 export function shallowEqual(
   a: $Shape<{|+[string]: mixed|}>,
   b: $Shape<{|+[string]: mixed|}>,
-) {
+): boolean {
   if (Object.keys(a).length !== Object.keys(b).length) {
     return false;
   }

@@ -31,12 +31,16 @@ export function getProgressMessage(event: BuildProgressEvent): ?string {
   return null;
 }
 
-export function getTerminalWidth() {
+export function getTerminalWidth(): any {
   return terminalSize;
 }
 
 // Pad a string with spaces on either side
-export function pad(text: string, length: number, align: PadAlign = 'left') {
+export function pad(
+  text: string,
+  length: number,
+  align: PadAlign = 'left',
+): string {
   let pad = ' '.repeat(length - stringWidth(text));
   if (align === 'right') {
     return pad + text;
@@ -48,14 +52,14 @@ export function pad(text: string, length: number, align: PadAlign = 'left') {
 export function formatFilename(
   filename: string,
   color: (s: string) => string = chalk.reset,
-) {
+): string {
   let dir = path.relative(process.cwd(), path.dirname(filename));
   return (
     chalk.dim(dir + (dir ? path.sep : '')) + color(path.basename(filename))
   );
 }
 
-export function countLines(message: string) {
+export function countLines(message: string): number {
   let {columns} = terminalSize;
 
   return stripAnsi(message)

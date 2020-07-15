@@ -6,7 +6,7 @@ import serialize from 'serialize-to-js';
 export default function serializeObject(
   obj: mixed,
   shouldMinify: boolean = false,
-) {
+): ?string {
   let code = `module.exports = ${serialize(obj)};`;
 
   if (shouldMinify) {

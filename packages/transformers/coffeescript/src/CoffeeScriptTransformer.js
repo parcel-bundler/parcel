@@ -4,7 +4,7 @@ import SourceMap from '@parcel/source-map';
 import coffee from 'coffeescript';
 import {relativeUrl} from '@parcel/utils';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
@@ -33,4 +33,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);
