@@ -1,6 +1,6 @@
 // @flow
 import type {FileSystem} from '@parcel/fs';
-import type {FilePath} from '@parcel/types';
+import type {FilePath, PackageJSON} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
 import type {CompilerOptions, SourceFile} from 'typescript';
@@ -21,10 +21,10 @@ export class CompilerHost extends FSHost {
     this.logger = logger;
   }
 
-  readFile(filePath: FilePath) {
+  readFile(filePath: FilePath): void | string {
     let contents = super.readFile(filePath);
     if (contents && path.basename(filePath) === 'package.json') {
-      let json = JSON.parse(contents);
+      let json: PackageJSON = JSON.parse(contents);
       if (
         json.types != null &&
         json.source != null &&
@@ -46,7 +46,7 @@ export class CompilerHost extends FSHost {
     return contents;
   }
 
-  fileExists(filePath: FilePath) {
+  fileExists(filePath: FilePath): boolean {
     if (this.redirectTypes.has(filePath)) {
       return true;
     } else {
@@ -57,7 +57,7 @@ export class CompilerHost extends FSHost {
   getSourceFile(
     filePath: FilePath,
     languageVersion: $Values<ScriptTarget>,
-  ): ?SourceFile {
+  ): void | SourceFile {
     let redirect = this.redirectTypes.get(filePath);
     if (redirect != null) {
       const sourceText = this.readFile(redirect);
@@ -84,7 +84,7 @@ export class CompilerHost extends FSHost {
     }
   }
 
-  getCanonicalFileName(fileName: FilePath): FilePath | string {
+  getCanonicalFileName(fileName: FilePath): FilePath {
     return this.ts.sys.useCaseSensitiveFileNames
       ? fileName
       : fileName.toLowerCase();
