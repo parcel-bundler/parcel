@@ -13,7 +13,7 @@ import nullthrows from 'nullthrows';
 import {collect} from './collect';
 import {shake} from './shake';
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config, options}) {
     await loadTSConfig(config, options);
   },
@@ -156,4 +156,4 @@ export default new Transformer({
       },
     ];
   },
-});
+}): Transformer);

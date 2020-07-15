@@ -54,7 +54,7 @@ function getLoaders(
   return null;
 }
 
-export default new Runtime({
+export default (new Runtime({
   apply({bundle, bundleGraph, options}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
@@ -157,6 +157,18 @@ export default new Runtime({
         }),
       );
 
+      if (bundle.env.outputFormat === 'commonjs') {
+        assets.push({
+          filePath: __filename,
+          dependency,
+          code: `module.exports = require("./" + ${getRelativePathExpr(
+            bundle,
+            mainBundle,
+          )})`,
+        });
+        continue;
+      }
+
       // URL dependency or not, fall back to including a runtime that exports the url
       assets.push(getURLRuntime(dependency, bundle, mainBundle));
     }
@@ -175,7 +187,7 @@ export default new Runtime({
 
     return assets;
   },
-});
+}): Runtime);
 
 function getLoaderRuntimes({
   bundle,

@@ -21,7 +21,7 @@ const PRELUDE = fs
   .trim()
   .replace(/;$/, '');
 
-export default new Packager({
+export default (new Packager({
   async package({
     bundle,
     bundleGraph,
@@ -199,7 +199,7 @@ export default new Packager({
       map,
     });
   },
-});
+}): Packager);
 
 function getPrefix(
   bundle: NamedBundle,

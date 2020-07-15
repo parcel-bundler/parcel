@@ -3,8 +3,8 @@ import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 import type {PluginLogger} from '@parcel/logger';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
+import type {CompilerOptions, SourceFile} from 'typescript';
 import typeof {ScriptTarget} from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
-import type {CompilerOptions} from 'typescript';
 
 import path from 'path';
 import {FSHost} from './FSHost';
@@ -54,22 +54,25 @@ export class CompilerHost extends FSHost {
     }
   }
 
-  getSourceFile(filePath: FilePath, languageVersion: $Values<ScriptTarget>) {
+  getSourceFile(
+    filePath: FilePath,
+    languageVersion: $Values<ScriptTarget>,
+  ): ?SourceFile {
     let redirect = this.redirectTypes.get(filePath);
     if (redirect != null) {
       const sourceText = this.readFile(redirect);
       return sourceText !== undefined
         ? this.ts.createSourceFile(filePath, sourceText, languageVersion)
         : undefined;
+    } else {
+      const sourceText = this.readFile(filePath);
+      return sourceText !== undefined
+        ? this.ts.createSourceFile(filePath, sourceText, languageVersion)
+        : undefined;
     }
-
-    const sourceText = this.readFile(filePath);
-    return sourceText !== undefined
-      ? this.ts.createSourceFile(filePath, sourceText, languageVersion)
-      : undefined;
   }
 
-  getDefaultLibFileName(options: CompilerOptions) {
+  getDefaultLibFileName(options: CompilerOptions): string {
     return this.ts.getDefaultLibFilePath(options);
   }
 
@@ -81,17 +84,17 @@ export class CompilerHost extends FSHost {
     }
   }
 
-  getCanonicalFileName(fileName: FilePath) {
+  getCanonicalFileName(fileName: FilePath): FilePath | string {
     return this.ts.sys.useCaseSensitiveFileNames
       ? fileName
       : fileName.toLowerCase();
   }
 
-  useCaseSensitiveFileNames() {
+  useCaseSensitiveFileNames(): boolean {
     return this.ts.sys.useCaseSensitiveFileNames;
   }
 
-  getNewLine() {
+  getNewLine(): string {
     return this.ts.sys.newLine;
   }
 }

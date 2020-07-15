@@ -26,6 +26,7 @@ describe('AssetGraphBuilder', function() {
     await builder.init({
       name: 'test',
       options: DEFAULT_OPTIONS,
+      // $FlowFixMe opaque type
       optionsRef: 1,
       entries: ['./module-b'],
       workerFarm,

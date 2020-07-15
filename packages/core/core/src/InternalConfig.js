@@ -54,7 +54,13 @@ export function addDevDependency(
 }
 
 // TODO: start using edge types for more flexible invalidations
-export function getInvalidations(config: Config) {
+export function getInvalidations(
+  config: Config,
+): Array<
+  | {|action: 'add', pattern: Glob|}
+  | {|action: 'change', pattern: FilePath|}
+  | {|action: 'unlink', pattern: FilePath|},
+> {
   let invalidations = [];
 
   if (config.watchGlob != null) {

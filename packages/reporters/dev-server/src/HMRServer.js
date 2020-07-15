@@ -38,7 +38,7 @@ export default class HMRServer {
     this.options = options;
   }
 
-  start() {
+  start(): any {
     let websocketOptions = {
       /*verifyClient: info => {
           if (!this.options.host) return true;

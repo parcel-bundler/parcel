@@ -2,7 +2,11 @@
 import type {FileSystem} from '@parcel/fs';
 import type {FilePath} from '@parcel/types';
 import typeof TypeScriptModule from 'typescript'; // eslint-disable-line import/no-extraneous-dependencies
-import type {ParsedCommandLine} from 'typescript';
+import type {
+  CompilerOptions,
+  IScriptSnapshot,
+  ParsedCommandLine,
+} from 'typescript';
 import {FSHost} from './FSHost';
 
 export class LanguageServiceHost extends FSHost {
@@ -30,15 +34,15 @@ export class LanguageServiceHost extends FSHost {
     }
   }
 
-  getScriptFileNames() {
+  getScriptFileNames(): Array<string> {
     return this.config.fileNames;
   }
 
-  getScriptVersion(fileName: FilePath) {
+  getScriptVersion(fileName: FilePath): string {
     return this.files[fileName] && this.files[fileName].version.toString();
   }
 
-  getScriptSnapshot(fileName: string) {
+  getScriptSnapshot(fileName: string): IScriptSnapshot | void {
     if (!this.fileExists(fileName)) {
       return;
     }
@@ -51,11 +55,11 @@ export class LanguageServiceHost extends FSHost {
     }
   }
 
-  getCompilationSettings() {
+  getCompilationSettings(): CompilerOptions {
     return this.config.options;
   }
 
-  getDefaultLibFileName(projectOptions: any) {
+  getDefaultLibFileName(projectOptions: any): string {
     return this.ts.getDefaultLibFilePath(projectOptions);
   }
 }

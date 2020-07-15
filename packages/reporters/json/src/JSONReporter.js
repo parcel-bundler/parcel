@@ -20,7 +20,7 @@ const LOG_LEVELS = {
   verbose: 4,
 };
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     let logLevelFilter = options.logLevel || 'info';
 
@@ -68,7 +68,7 @@ export default new Reporter({
         writeLogEvent(event, logLevelFilter);
     }
   },
-});
+}): Reporter);
 
 function makeWriter(
   write: string => mixed,

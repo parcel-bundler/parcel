@@ -1,7 +1,7 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options, resolve}) {
     const {
       parse,
@@ -43,4 +43,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);

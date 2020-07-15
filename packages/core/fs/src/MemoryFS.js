@@ -75,14 +75,15 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  static deserialize(opts: SerializedMemoryFS) {
-    if (instances.has(opts.id)) {
+  static deserialize(opts: SerializedMemoryFS): MemoryFS | WorkerFS {
+    let existing = instances.get(opts.id);
+    if (existing != null) {
       // Correct the count of worker instances since serialization assumes a new instance is created
       WorkerFarm.getWorkerApi().runHandle(opts.handle, [
         'decrementWorkerInstance',
         [],
       ]);
-      return instances.get(opts.id);
+      return existing;
     }
 
     let fs = new WorkerFS(opts.id, nullthrows(opts.handle));
@@ -122,7 +123,7 @@ export class MemoryFS implements FileSystem {
     }
   }
 
-  cwd() {
+  cwd(): FilePath {
     return this._cwd;
   }
 
@@ -217,7 +218,7 @@ export class MemoryFS implements FileSystem {
     await this.writeFile(destination, contents);
   }
 
-  statSync(filePath: FilePath) {
+  statSync(filePath: FilePath): Stat {
     filePath = this._normalizePath(filePath);
 
     let dir = this.dirs.get(filePath);
@@ -234,7 +235,7 @@ export class MemoryFS implements FileSystem {
   }
 
   // eslint-disable-next-line require-await
-  async stat(filePath: FilePath) {
+  async stat(filePath: FilePath): Promise<Stat> {
     return this.statSync(filePath);
   }
 
@@ -294,7 +295,7 @@ export class MemoryFS implements FileSystem {
     return this.readdirSync(dir, opts);
   }
 
-  async unlink(filePath: FilePath) {
+  async unlink(filePath: FilePath): Promise<void> {
     filePath = this._normalizePath(filePath);
     if (!this.files.has(filePath) && !this.dirs.has(filePath)) {
       throw new FSError('ENOENT', filePath, 'does not exist');
@@ -317,7 +318,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve();
   }
 
-  async mkdirp(dir: FilePath) {
+  async mkdirp(dir: FilePath): Promise<void> {
     dir = this._normalizePath(dir);
     if (this.dirs.has(dir)) {
       return Promise.resolve();
@@ -350,7 +351,7 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve();
   }
 
-  async rimraf(filePath: FilePath) {
+  async rimraf(filePath: FilePath): Promise<void> {
     filePath = this._normalizePath(filePath);
 
     if (this.dirs.has(filePath)) {
@@ -479,20 +480,20 @@ export class MemoryFS implements FileSystem {
     }
   }
 
-  createReadStream(filePath: FilePath) {
+  createReadStream(filePath: FilePath): ReadStream {
     return new ReadStream(this, filePath);
   }
 
-  createWriteStream(filePath: FilePath, options: ?FileOptions) {
+  createWriteStream(filePath: FilePath, options: ?FileOptions): WriteStream {
     return new WriteStream(this, filePath, options);
   }
 
-  realpathSync(filePath: FilePath) {
+  realpathSync(filePath: FilePath): FilePath {
     return this._normalizePath(filePath);
   }
 
   // eslint-disable-next-line require-await
-  async realpath(filePath: FilePath) {
+  async realpath(filePath: FilePath): Promise<FilePath> {
     return this.realpathSync(filePath);
   }
 
@@ -507,13 +508,13 @@ export class MemoryFS implements FileSystem {
     });
   }
 
-  existsSync(filePath: FilePath) {
+  existsSync(filePath: FilePath): boolean {
     filePath = this._normalizePath(filePath);
     return this.files.has(filePath) || this.dirs.has(filePath);
   }
 
   // eslint-disable-next-line require-await
-  async exists(filePath: FilePath) {
+  async exists(filePath: FilePath): Promise<boolean> {
     return this.existsSync(filePath);
   }
 
@@ -749,26 +750,26 @@ class Entry {
     this.mode = mode;
   }
 
-  getSize() {
+  getSize(): number {
     return 0;
   }
 
-  stat() {
+  stat(): Stat {
     return new Stat(this);
   }
 }
 
 class Stat {
-  dev = 0;
-  ino = 0;
+  dev: number = 0;
+  ino: number = 0;
   mode: number;
-  nlink = 0;
-  uid = 0;
-  gid = 0;
-  rdev = 0;
+  nlink: number = 0;
+  uid: number = 0;
+  gid: number = 0;
+  rdev: number = 0;
   size: number;
-  blksize = 0;
-  blocks = 0;
+  blksize: number = 0;
+  blocks: number = 0;
   atimeMs: number;
   mtimeMs: number;
   ctimeMs: number;
@@ -791,31 +792,31 @@ class Stat {
     this.birthtime = new Date(entry.birthtime);
   }
 
-  isFile() {
+  isFile(): boolean {
     return Boolean(this.mode & S_IFREG);
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return Boolean(this.mode & S_IFDIR);
   }
 
-  isBlockDevice() {
+  isBlockDevice(): boolean {
     return false;
   }
 
-  isCharacterDevice() {
+  isCharacterDevice(): boolean {
     return false;
   }
 
-  isSymbolicLink() {
+  isSymbolicLink(): boolean {
     return false;
   }
 
-  isFIFO() {
+  isFIFO(): boolean {
     return false;
   }
 
-  isSocket() {
+  isSocket(): boolean {
     return false;
   }
 }
@@ -829,31 +830,31 @@ class Dirent {
     this.#mode = entry.mode;
   }
 
-  isFile() {
+  isFile(): boolean {
     return Boolean(this.#mode & S_IFREG);
   }
 
-  isDirectory() {
+  isDirectory(): boolean {
     return Boolean(this.#mode & S_IFDIR);
   }
 
-  isBlockDevice() {
+  isBlockDevice(): boolean {
     return false;
   }
 
-  isCharacterDevice() {
+  isCharacterDevice(): boolean {
     return false;
   }
 
-  isSymbolicLink() {
+  isSymbolicLink(): boolean {
     return Boolean(this.#mode & S_IFLNK);
   }
 
-  isFIFO() {
+  isFIFO(): boolean {
     return false;
   }
 
-  isSocket() {
+  isSocket(): boolean {
     return false;
   }
 }
@@ -875,7 +876,7 @@ class File extends Entry {
     this.buffer = buffer;
   }
 
-  getSize() {
+  getSize(): number {
     return this.buffer.byteLength;
   }
 }
@@ -940,8 +941,8 @@ class WorkerFS extends MemoryFS {
     ]);
   }
 
-  static deserialize(opts: SerializedMemoryFS) {
-    return instances.get(opts.id);
+  static deserialize(opts: SerializedMemoryFS): MemoryFS {
+    return nullthrows(instances.get(opts.id));
   }
 
   serialize(): SerializedMemoryFS {
@@ -955,33 +956,33 @@ class WorkerFS extends MemoryFS {
     filePath: FilePath,
     contents: Buffer | string,
     options: ?FileOptions,
-  ) {
+  ): Promise<void> {
     super.writeFile(filePath, contents, options);
     let buffer = makeShared(contents);
     return this.handleFn('writeFile', [filePath, buffer, options]);
   }
 
-  unlink(filePath: FilePath) {
+  unlink(filePath: FilePath): Promise<void> {
     super.unlink(filePath);
     return this.handleFn('unlink', [filePath]);
   }
 
-  mkdirp(dir: FilePath) {
+  mkdirp(dir: FilePath): Promise<void> {
     super.mkdirp(dir);
     return this.handleFn('mkdirp', [dir]);
   }
 
-  rimraf(filePath: FilePath) {
+  rimraf(filePath: FilePath): Promise<void> {
     super.rimraf(filePath);
     return this.handleFn('rimraf', [filePath]);
   }
 
-  ncp(source: FilePath, destination: FilePath) {
+  ncp(source: FilePath, destination: FilePath): Promise<void> {
     super.ncp(source, destination);
     return this.handleFn('ncp', [source, destination]);
   }
 
-  symlink(target: FilePath, path: FilePath) {
+  symlink(target: FilePath, path: FilePath): Promise<void> {
     super.symlink(target, path);
     return this.handleFn('symlink', [target, path]);
   }

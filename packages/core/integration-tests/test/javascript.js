@@ -34,6 +34,28 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should import child bundles using a require call in CommonJS', async function() {
+    const packagePath = path.join(
+      __dirname,
+      '/integration/commonjs-bundle-require/index.js',
+    );
+    let b = await bundle(packagePath);
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output.double, 'function');
+    assert.equal(output.double(3), 6);
+  });
+
   it('should produce a basic JS bundle with ES6 imports', async function() {
     let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
 
