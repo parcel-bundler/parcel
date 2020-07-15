@@ -1,8 +1,7 @@
-<template>
-  <div class="small">
-    Hello {{hello}}!
-    <other-component />
-  </div>
+<template lang="pug">
+div.small
+  | Hello {{hello}}!
+  other-component
 </template>
 
 <script>

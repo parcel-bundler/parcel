@@ -38,8 +38,13 @@ export default new Transformer({
   async transform({asset, options, resolve}) {
     let compiler = await options.packageManager.require(
       '@vue/compiler-sfc',
-      __filename,
+      asset.filePath,
       {autoinstall: options.autoinstall},
+    );
+    let consolidate = await options.packageManager.require(
+      'consolidate',
+      asset.filePath,
+      {autoinstall: false}, // Would have failed by now if it needed autoinstall
     );
     let ast = nullthrows(await asset.getAST());
     let {template, script, styles} = ast.program;
@@ -66,10 +71,39 @@ export default new Transformer({
         )
       ).toString();
     }
+    let content = template.content;
+    if (template.lang && !['htm', 'html'].includes(template.lang)) {
+      let preprocessor = consolidate[template.lang];
+      if (!preprocessor) {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            content: `Unknown template language: "${template.lang}"`,
+            origin: '@parcel/transformer-vue',
+            filePath: asset.filePath,
+          },
+        });
+      }
+      try {
+        content = await preprocessor.render(content, {});
+      } catch (e) {
+        if (e.code !== 'MODULE_NOT_FOUND' || !options.autoinstall) {
+          throw e;
+        }
+        let firstIndex = e.message.indexOf("'");
+        let secondIndex = e.message.indexOf("'", firstIndex + 1);
+        let toInstall = e.message.slice(firstIndex + 1, secondIndex);
+
+        await options.packageManager.install(
+          [{name: toInstall}],
+          asset.filePath,
+        );
+
+        content = await preprocessor.render(content, {});
+      }
+    }
     let templateComp = compiler.compileTemplate({
       filename: asset.filePath,
-      source: template.content,
-      preprocessLang: template.lang,
+      source: content,
       inMap: template.src ? undefined : template.map,
       isFunctional,
       compilerOptions: {
@@ -112,7 +146,7 @@ export default new Transformer({
         default:
           throw new ThrowableDiagnostic({
             diagnostic: {
-              message: `Unknown script language: ${script.lang}`,
+              message: `Unknown script language: "${script.lang}"`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },
