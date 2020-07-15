@@ -9,7 +9,7 @@ import {
 } from '@parcel/test-utils';
 
 describe('vue', function() {
-  // TODO: REWRITE
+  // TODO: FIX
   // it('should produce a basic vue bundle', async function() {
   //   let b = await bundle(
   //     path.join(__dirname, '/integration/vue-basic/Basic.vue'),
