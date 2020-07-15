@@ -14,7 +14,7 @@ export class ParseConfigHost extends FSHost {
     this.useCaseSensitiveFileNames = ts.sys.useCaseSensitiveFileNames;
   }
 
-  readFile(filePath: FilePath) {
+  readFile(filePath: FilePath): void | string {
     this.filesRead.add(filePath);
     return super.readFile(filePath);
   }

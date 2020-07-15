@@ -40,7 +40,7 @@ type PositionTickInfo = {|
 export default class Profiler {
   session: Session;
 
-  startProfiling() {
+  startProfiling(): Promise<mixed> {
     let inspector;
     try {
       inspector = require('inspector');

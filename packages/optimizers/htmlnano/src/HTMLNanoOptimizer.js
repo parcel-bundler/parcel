@@ -7,7 +7,7 @@ import {Optimizer} from '@parcel/plugin';
 import posthtml from 'posthtml';
 import path from 'path';
 
-export default new Optimizer({
+export default (new Optimizer({
   async optimize({bundle, contents, map, options}) {
     if (!bundle.env.minify) {
       return {contents, map};
@@ -35,4 +35,4 @@ export default new Optimizer({
         .html,
     };
   },
-});
+}): Optimizer);

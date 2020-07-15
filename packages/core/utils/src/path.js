@@ -28,6 +28,6 @@ export function relativePath(
   from: string,
   to: string,
   leadingDotSlash: boolean = true,
-) {
+): FilePath {
   return normalizePath(path.relative(from, to), leadingDotSlash);
 }

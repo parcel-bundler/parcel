@@ -30,7 +30,7 @@ const HTTP_OPTIONS = {
   },
 };
 
-export default new Bundler({
+export default (new Bundler({
   // RULES:
   // 1. If dep.isAsync or dep.isEntry, start a new bundle group.
   // 2. If an asset is a different type than the current bundle, make a parallel bundle in the same bundle group.
@@ -470,7 +470,7 @@ export default new Bundler({
       }
     }
   },
-});
+}): Bundler);
 
 function deduplicate(bundleGraph: MutableBundleGraph) {
   bundleGraph.traverse(node => {

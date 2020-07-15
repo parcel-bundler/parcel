@@ -3,7 +3,7 @@ import type {NamedBundle} from '@parcel/types';
 import {Reporter} from '@parcel/plugin';
 import path from 'path';
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (event.type !== 'buildSuccess' || process.env.BUNDLE_BUDDY == null) {
       return;
@@ -48,4 +48,4 @@ export default new Reporter({
       );
     }
   },
-});
+}): Reporter);

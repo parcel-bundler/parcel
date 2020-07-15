@@ -33,7 +33,14 @@ type RunOpts = {|
 
 const type = 'path_request';
 
-export default function createPathRequest(input: Dependency) {
+export default function createPathRequest(
+  input: Dependency,
+): {|
+  id: string,
+  input: Dependency,
+  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
+  +type: string,
+|} {
   return {
     id: input.id,
     type,
@@ -158,19 +165,21 @@ export class ResolverRunner {
           logger: new PluginLogger({origin: resolver.name}),
         });
 
-        if (result && result.isExcluded) {
-          return null;
-        }
+        if (result) {
+          if (result.isExcluded) {
+            return null;
+          }
 
-        if (result?.filePath != null) {
-          return {
-            filePath: result.filePath,
-            sideEffects: result.sideEffects,
-            code: result.code,
-            env: dependency.env,
-            pipeline: pipeline ?? dependency.pipeline,
-            isURL: dependency.isURL,
-          };
+          if (result.filePath != null) {
+            return {
+              filePath: result.filePath,
+              sideEffects: result.sideEffects,
+              code: result.code,
+              env: dependency.env,
+              pipeline: pipeline ?? dependency.pipeline,
+              isURL: dependency.isURL,
+            };
+          }
         }
       } catch (e) {
         // Add error to error map, we'll append these to the standard error if we can't resolve the asset
