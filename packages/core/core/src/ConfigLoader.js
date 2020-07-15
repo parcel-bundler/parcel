@@ -38,7 +38,7 @@ export default class ConfigLoader {
     return promise;
   }
 
-  _load(configRequest: ConfigRequestDesc) {
+  _load(configRequest: ConfigRequestDesc): Promise<Config> {
     if (!configRequest.plugin) {
       return Promise.resolve().then(() => this.loadParcelConfig(configRequest));
     }
@@ -46,7 +46,7 @@ export default class ConfigLoader {
     return this.loadPluginConfig(configRequest);
   }
 
-  loadParcelConfig(configRequest: ConfigRequestDesc) {
+  loadParcelConfig(configRequest: ConfigRequestDesc): Config {
     let {filePath, isSource, env, pipeline, isURL} = configRequest;
     let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
     let searchPath = path.join(dir, 'index');
@@ -91,7 +91,7 @@ export default class ConfigLoader {
     isSource,
     filePath,
     meta: {parcelConfigPath},
-  }: ConfigRequestDesc) {
+  }: ConfigRequestDesc): Promise<Config> {
     let config = createConfig({
       isSource,
       searchPath: filePath,

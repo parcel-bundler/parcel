@@ -10,7 +10,7 @@ const HMR_RUNTIME = fs.readFileSync(
   'utf8',
 );
 
-export default new Runtime({
+export default (new Runtime({
   apply({bundle, options}) {
     if (bundle.type !== 'js' || !options.hot) {
       return;
@@ -28,4 +28,4 @@ export default new Runtime({
       isEntry: true,
     };
   },
-});
+}): Runtime);

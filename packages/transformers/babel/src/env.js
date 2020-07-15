@@ -13,7 +13,23 @@ import {enginesToBabelTargets} from './utils';
  * This is done by finding the source module's target engines, and the app's
  * target engines, and doing a diff to include only the necessary plugins.
  */
-export default async function getEnvOptions(config: Config) {
+export default async function getEnvOptions(
+  config: Config,
+): Promise<?{|
+  presets: Array<
+    Array<
+      | string
+      | {|
+          corejs: number,
+          ignoreBrowserslistConfig: boolean,
+          shippedProposals: boolean,
+          targets: BabelTargets,
+          useBuiltIns: string,
+        |},
+    >,
+  >,
+  targets: BabelTargets,
+|}> {
   // Load the target engines for the app and generate a @babel/preset-env config
   let appBabelTargets = enginesToBabelTargets(config.env);
 

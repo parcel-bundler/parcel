@@ -22,7 +22,7 @@ const getValue = (instanceId: string): TimingValue => {
   return timingsMap.get(instanceId);
 };
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (event.type === 'buildProgress') {
       let value = getValue(options.instanceId);
@@ -69,4 +69,4 @@ export default new Reporter({
       );
     }
   },
-});
+}): Reporter);

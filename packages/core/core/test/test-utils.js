@@ -1,6 +1,6 @@
 // @flow
 
-import type {ParcelOptions} from '../src/types';
+import type {Environment, ParcelOptions} from '../src/types';
 
 import Cache, {createCacheDir} from '@parcel/cache';
 import tempy from 'tempy';
@@ -10,7 +10,7 @@ import {createEnvironment} from '../src/Environment';
 
 let cacheDir = tempy.directory();
 createCacheDir(outputFS, cacheDir);
-export let cache = new Cache(outputFS, cacheDir);
+export let cache: Cache = new Cache(outputFS, cacheDir);
 
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: '.parcel-cache',
@@ -41,7 +41,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   instanceId: 'test',
 };
 
-export const DEFAULT_ENV = createEnvironment({
+export const DEFAULT_ENV: Environment = createEnvironment({
   context: 'browser',
   engines: {
     browsers: ['> 1%'],

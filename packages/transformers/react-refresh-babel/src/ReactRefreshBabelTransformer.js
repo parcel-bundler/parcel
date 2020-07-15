@@ -17,7 +17,7 @@ async function shouldExclude(asset, options) {
   }
 }
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     if (!(await shouldExclude(asset, options))) {
       let reactRefreshBabelPlugin = (
@@ -33,4 +33,4 @@ export default new Transformer({
     }
     return [asset];
   },
-});
+}): Transformer);
