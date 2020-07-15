@@ -1410,7 +1410,7 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 2);
   });
 
-  it('should not add CSS to a worker bundle group', async function() {
+  it.skip('should not add CSS to a worker bundle group', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-worker-css/index.html'),
     );
@@ -1453,6 +1453,51 @@ describe('html', function() {
     assert.equal(worker.length, 1);
     let workerSiblings = b.getSiblingBundles(worker[0]);
     assert.equal(workerSiblings.length, 0);
+  });
+
+  it('should correctly add sibling bundles to all using bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-sibling/*.html'),
+    );
+
+    assertBundles(b, [
+      {
+        type: 'html',
+        assets: ['form.html'],
+      },
+      {
+        type: 'js',
+        assets: ['form.js', 'a.js', 'a.module.css'],
+      },
+      {
+        type: 'css',
+        assets: ['a.module.css'],
+      },
+      {
+        type: 'html',
+        assets: ['searchfield.html'],
+      },
+      {
+        type: 'js',
+        assets: ['searchfield.js', 'a.js', 'a.module.css', 'b.js'],
+      },
+      {
+        type: 'html',
+        assets: ['searchfield2.html'],
+      },
+      {
+        type: 'js',
+        assets: ['searchfield2.js', 'a.js', 'a.module.css', 'b.js'],
+      },
+    ]);
+
+    for (let htmlBundle of b.getBundles().filter(b => b.type === 'html')) {
+      let htmlSiblings = b
+        .getSiblingBundles(htmlBundle)
+        .map(b => b.type)
+        .sort();
+      assert.deepEqual(htmlSiblings, ['css', 'js']);
+    }
   });
 
   it('should remove duplicate assets from sibling bundles', async function() {

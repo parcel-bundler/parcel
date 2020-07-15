@@ -159,6 +159,9 @@ export default (new Bundler({
               // of sibling bundles for each asset in the graph, and when we re-visit a shared asset, we
               // connect them all to the current bundle group as well.
               for (let bundle of siblings) {
+                if (siblingBundles !== siblings) {
+                  siblingBundles.push(bundle);
+                }
                 bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
               }
             } else if (!siblings) {
