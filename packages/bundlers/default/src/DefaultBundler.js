@@ -46,7 +46,7 @@ export default (new Bundler({
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
-    let siblingBundlesByAsset: Map<string, Array<Bundle>> = new Map();
+    let siblingBundlesByAsset: Map<string, Set<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
@@ -106,7 +106,7 @@ export default (new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundlesByEntryAsset.set(asset, bundle);
-            siblingBundlesByAsset.set(asset.id, []);
+            siblingBundlesByAsset.set(asset.id, new Set());
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
 
             // The bundle may have already been created, and the graph gave us back the original one...
@@ -160,7 +160,7 @@ export default (new Bundler({
               // connect them all to the current bundle group as well.
               for (let bundle of siblings) {
                 if (siblingBundles !== siblings) {
-                  siblingBundles.push(bundle);
+                  siblingBundles.add(bundle);
                 }
                 bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
               }
@@ -169,7 +169,7 @@ export default (new Bundler({
               // asset group, otherwise start a new set of siblings.
               siblingBundlesByAsset.set(
                 asset.id,
-                allSameType ? siblingBundles : [],
+                allSameType ? siblingBundles : new Set(),
               );
             }
 
@@ -198,7 +198,7 @@ export default (new Bundler({
               pipeline: asset.pipeline,
             });
             bundleByType.set(bundle.type, bundle);
-            siblingBundles.push(bundle);
+            siblingBundles.add(bundle);
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
             bundleGraph.createBundleReference(parentBundle, bundle);
@@ -211,7 +211,7 @@ export default (new Bundler({
           }
 
           if (!siblings) {
-            siblingBundlesByAsset.set(asset.id, []);
+            siblingBundlesByAsset.set(asset.id, new Set());
           }
         }
 
