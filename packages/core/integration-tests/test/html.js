@@ -1410,7 +1410,7 @@ describe('html', function() {
     assert.equal(html.match(/<script/g).length, 2);
   });
 
-  it.skip('should not add CSS to a worker bundle group', async function() {
+  it('should not add CSS to a worker bundle group', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-worker-css/index.html'),
     );

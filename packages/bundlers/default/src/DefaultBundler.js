@@ -16,6 +16,33 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {encodeJSONKeyComponent} from '@parcel/diagnostic';
 
+/**
+ * A chained set propagates `add` to the parent but not the other way around
+ */
+class ChainedSet<T> {
+  parent: ?ChainedSet<T>;
+  value: Set<T>;
+  constructor(parent: ?ChainedSet<T>) {
+    this.parent = parent;
+    this.value = new Set();
+  }
+
+  /** children don't change */
+  add(v: T): void {
+    this.parent?.add(v);
+    this.value.add(v);
+  }
+
+  /*::
+  // $FlowFixMe
+  @@iterator(): Iterator<T> { return ({}: any); }
+  */
+  // $FlowFixMe
+  [Symbol.iterator]() {
+    return this.value[Symbol.iterator]();
+  }
+}
+
 // Default options by http version.
 const HTTP_OPTIONS = {
   '1': {
@@ -46,7 +73,7 @@ export default (new Bundler({
   bundle({bundleGraph}) {
     let bundleRoots: Map<Bundle, Array<Asset>> = new Map();
     let bundlesByEntryAsset: Map<Asset, Bundle> = new Map();
-    let siblingBundlesByAsset: Map<string, Set<Bundle>> = new Map();
+    let siblingBundlesByAsset: Map<string, ChainedSet<Bundle>> = new Map();
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
@@ -106,7 +133,7 @@ export default (new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundlesByEntryAsset.set(asset, bundle);
-            siblingBundlesByAsset.set(asset.id, new Set());
+            siblingBundlesByAsset.set(asset.id, new ChainedSet());
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
 
             // The bundle may have already been created, and the graph gave us back the original one...
@@ -169,7 +196,7 @@ export default (new Bundler({
               // asset group, otherwise start a new set of siblings.
               siblingBundlesByAsset.set(
                 asset.id,
-                allSameType ? siblingBundles : new Set(),
+                allSameType ? new ChainedSet(siblingBundles) : new ChainedSet(),
               );
             }
 
@@ -212,7 +239,7 @@ export default (new Bundler({
           }
 
           if (!siblings) {
-            siblingBundlesByAsset.set(asset.id, new Set());
+            siblingBundlesByAsset.set(asset.id, new ChainedSet());
           }
         }
 
