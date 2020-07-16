@@ -1,8 +1,19 @@
 <template>
   <div class="small">
-    Hello there!
+    Hello {{hello}}!
+    <last-component />
   </div>
 </template>
-
-<style scoped src="./index.css">
-</style>
+<script>
+import LastComponent from './Final.vue'
+export default {
+  components: {
+    'last-component': LastComponent
+  },
+  data() {
+    return {
+      hello: 'there'
+    }
+  }
+}
+</script>

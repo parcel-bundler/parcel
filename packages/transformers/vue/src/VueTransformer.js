@@ -14,7 +14,7 @@ export default new Transformer({
   async parse({asset, options}) {
     let compiler = await options.packageManager.require(
       '@vue/compiler-sfc',
-      __filename,
+      asset.filePath,
       {autoinstall: options.autoinstall},
     );
     let code = await asset.getCode();
@@ -184,6 +184,7 @@ async function processPipeline({asset, options, resolve, scopeId, hmrId}) {
       }
       let templateAsset = {
         type: 'js',
+        uniqueKey: asset.id + '-template',
         content:
           templateComp.code +
           `
@@ -234,6 +235,7 @@ if (module.hot) {
       }
       let scriptAsset = {
         type,
+        uniqueKey: asset.id + '-script',
         content: script.content,
       };
 
