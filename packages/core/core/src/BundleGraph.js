@@ -646,7 +646,7 @@ export default class BundleGraph {
 
     for (let bundleGroup of bundleGroups) {
       // If the asset is in any sibling bundles, return that bundle.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup);
+      let bundles = this.getBundlesInBundleGroup(bundleGroup).reverse();
       let res = bundles.find(
         b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
       );
@@ -666,7 +666,9 @@ export default class BundleGraph {
           bundleNode,
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(node.value);
+              let childBundles = this.getBundlesInBundleGroup(
+                node.value,
+              ).reverse();
 
               res = childBundles.find(
                 b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
@@ -815,16 +817,25 @@ export default class BundleGraph {
   }
 
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
-    return this._graph
-      .getNodesConnectedFrom(
-        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-        'bundle',
-      )
-      .filter(node => node.type === 'bundle')
-      .map(node => {
-        invariant(node.type === 'bundle');
-        return node.value;
-      });
+    return (
+      this._graph
+        .getNodesConnectedFrom(
+          nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
+          'bundle',
+        )
+        .filter(node => node.type === 'bundle')
+        .map(node => {
+          invariant(node.type === 'bundle');
+          return node.value;
+        })
+        // Sort by bundleIds but reversed because the preorder DFS traversal in
+        // the bundler means that dependencies are added last (and need to run first)
+        .sort(
+          (a, b) =>
+            bundleGroup.bundleIds.indexOf(b.id) -
+            bundleGroup.bundleIds.indexOf(a.id),
+        )
+    );
   }
 
   getSiblingBundles(bundle: Bundle): Array<Bundle> {
