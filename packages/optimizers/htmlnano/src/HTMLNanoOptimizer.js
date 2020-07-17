@@ -21,7 +21,7 @@ export default (new Optimizer({
 
     let userConfig = await loadConfig(
       options.inputFS,
-      path.join(options.rootDir, 'index.html'),
+      path.join(options.entryRoot, 'index.html'),
       ['.htmlnanorc', '.htmlnanorc.js'],
     );
 
