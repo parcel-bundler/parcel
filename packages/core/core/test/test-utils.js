@@ -16,7 +16,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: '.parcel-cache',
   entries: [],
   logLevel: 'info',
-  rootDir: __dirname,
+  entryRoot: __dirname,
   targets: undefined,
   projectRoot: '',
   lockFile: undefined,
