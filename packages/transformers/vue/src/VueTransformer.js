@@ -1,16 +1,19 @@
+// @flow strict-local
 import {Transformer} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
+import type {Diagnostic} from '@parcel/diagnostic';
+import type {TransformerResult} from '@parcel/types';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
-import {basename} from 'path';
+import {basename, extname} from 'path';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
 // TODO: flow
-export default new Transformer({
-  async canReuseAST({ast}) {
+export default (new Transformer({
+  canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '3.0.0-beta.20');
   },
   async parse({asset, options}) {
@@ -50,7 +53,7 @@ export default new Transformer({
     if (styles.every(s => !s.scoped)) {
       scopeId = undefined;
     }
-    if (asset.pipeline) {
+    if (asset.pipeline != null) {
       return processPipeline({
         asset,
         template,
@@ -92,7 +95,7 @@ script.__cssModules = cssModules;
     }
     // TODO: disable HMR injection in production mode?
     out += `
-${scopeId ? `script.__scopeId = '${scopeId}';` : ''}
+${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
 script.__file = '${options.mode === 'production' ? basePath : asset.filePath}';
 if (module.hot) {
   script.__hmrId = '${hmrId}';
@@ -109,7 +112,7 @@ export default script;`;
       },
     ];
   },
-});
+}): Transformer);
 
 function createDiagnostic(err, filePath) {
   if (typeof err === 'string') {
@@ -119,7 +122,7 @@ function createDiagnostic(err, filePath) {
       filePath,
     };
   }
-  let diagnostic = {
+  let diagnostic: Diagnostic = {
     message: err.message,
     origin: '@parcel/transformer-vue',
     name: err.name,
@@ -128,7 +131,6 @@ function createDiagnostic(err, filePath) {
   };
   if (err.loc) {
     diagnostic.codeFrame = {
-      code,
       codeHighlights: {
         start: {
           line: err.loc.start.line + err.loc.start.offset,
@@ -174,6 +176,7 @@ async function processPipeline({
             await resolve(asset.filePath, template.src),
           )
         ).toString();
+        template.lang = extname(template.src);
       }
       let content = template.content;
       if (template.lang && !['htm', 'html'].includes(template.lang)) {
@@ -181,12 +184,13 @@ async function processPipeline({
         if (!preprocessor) {
           throw new ThrowableDiagnostic({
             diagnostic: {
-              content: `Unknown template language: "${template.lang}"`,
+              message: `Unknown template language: "${template.lang}"`,
               origin: '@parcel/transformer-vue',
               filePath: asset.filePath,
             },
           });
         }
+        // TODO: Make this less bad
         try {
           content = await preprocessor.render(content, {});
         } catch (e) {
@@ -197,10 +201,9 @@ async function processPipeline({
           let secondIndex = e.message.indexOf("'", firstIndex + 1);
           let toInstall = e.message.slice(firstIndex + 1, secondIndex);
 
-          await options.packageManager.install(
-            [{name: toInstall}],
-            asset.filePath,
-          );
+          await options.packageManager.require(toInstall, asset.filePath, {
+            autoinstall: true,
+          });
 
           content = await preprocessor.render(content, {});
         }
@@ -221,9 +224,10 @@ async function processPipeline({
           }),
         });
       }
-      let templateAsset = {
+      let templateAsset: TransformerResult = {
         type: 'js',
         uniqueKey: asset.id + '-template',
+        ...(!template.src && {map: createMap(templateComp.map)}),
         content:
           templateComp.code +
           `
@@ -233,15 +237,17 @@ if (module.hot) {
   })
 }`,
       };
-      // TODO: Workaround?
-      if (!templateComp.src) {
-        let map = new SourceMap();
-        map.addRawMappings(templateComp.map);
-        templateAsset.map = map;
-      }
       return [templateAsset];
     }
     case 'script': {
+      if (script.src) {
+        script.content = (
+          await options.inputFS.readFile(
+            await resolve(asset.filePath, script.src),
+          )
+        ).toString();
+        script.lang = extname(script.src);
+      }
       let type;
       switch (script.lang || 'js') {
         case 'javascript':
@@ -265,24 +271,13 @@ if (module.hot) {
             },
           });
       }
-      if (script.src) {
-        script.content = (
-          await options.inputFS.readFile(
-            await resolve(asset.filePath, script.src),
-          )
-        ).toString();
-      }
       let scriptAsset = {
         type,
         uniqueKey: asset.id + '-script',
         content: script.content,
+        ...(!script.src && {map: createMap(script.map)}),
       };
 
-      if (!script.src) {
-        let map = new SourceMap();
-        map.addRawMappings(script.map);
-        scriptAsset.map = map;
-      }
       return [scriptAsset];
     }
     case 'style': {
@@ -298,6 +293,7 @@ if (module.hot) {
             if (!style.module) {
               style.module = MODULE_BY_NAME_RE.test(style.src);
             }
+            style.lang = extname(style.src);
           }
           let styleComp = await compiler.compileStyleAsync({
             filename: asset.filePath,
@@ -319,6 +315,7 @@ if (module.hot) {
             type: 'css',
             content: styleComp.code,
             sideEffects: !style.module,
+            ...(!style.src && {map: createMap(style.map)}),
             uniqueKey: asset.id + '-style' + i,
           };
           if (styleComp.modules) {
@@ -327,11 +324,6 @@ if (module.hot) {
               ...cssModules[style.module],
               ...styleComp.modules,
             };
-          }
-          if (!style.src) {
-            let map = new SourceMap();
-            map.addRawMappings(styleComp.map);
-            styleAsset.map = map;
           }
           return styleAsset;
         }),
@@ -357,4 +349,10 @@ export default cssModules;`,
       return [];
     }
   }
+}
+
+function createMap(...params) {
+  let newMap = new SourceMap();
+  newMap.addRawMappings(...params);
+  return newMap;
 }
