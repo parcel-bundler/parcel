@@ -73,6 +73,8 @@ const FAKE_INIT_TEMPLATE = template.statement<
   return EXPORTS;
 }`);
 
+type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
+
 export function link({
   bundle,
   bundleGraph,
@@ -85,7 +87,7 @@ export function link({
   ast: File,
   options: PluginOptions,
   wrappedAssets: Set<string>,
-|}): {|ast: File, referencedAssets: Set<Asset>|} {
+|}): LinkResult {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
