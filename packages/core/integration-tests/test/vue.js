@@ -1,5 +1,6 @@
 import assert from 'assert';
-import path from 'path';
+import path, {join} from 'path';
+import fs from 'fs';
 import {
   bundle,
   assertBundleTree,

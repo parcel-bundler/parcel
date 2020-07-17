@@ -45,7 +45,7 @@ export default new Transformer({
     }).slice(-6);
     let scopeId = 'data-v-' + baseId;
     let hmrId = baseId + '-hmr';
-
+    let basePath = basename(asset.filePath);
     let {template, script, styles} = nullthrows(await asset.getAST()).program;
     if (styles.every(s => !s.scoped)) {
       scopeId = undefined;
@@ -56,13 +56,13 @@ export default new Transformer({
         template,
         script,
         styles,
+        basePath,
         options,
         resolve,
         scopeId,
         hmrId,
       });
     }
-    let basePath = basename(asset.filePath);
     let out =
       script == null
         ? 'let script = {};\n'
@@ -74,9 +74,19 @@ export default new Transformer({
     }
     // TODO: CSS Modules
     if (styles.length) {
+      if (!template) {
+        // TODO: Is this acceptable?
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: 'Cannot style a component without a template',
+            origin: '@parcel/transformer-vue',
+            filePath: asset.filePath,
+          },
+        });
+      }
       // Nothing happens if CSS modules is disabled
-      out += `import setCSSModules from 'styler:./${basePath}';
-setCSSModules(script.__cssModules = {});
+      out += `import cssModules from 'style:./${basePath}';
+script.__cssModules = cssModules;
 `;
       // Assume CSS Modules
     }
@@ -139,6 +149,7 @@ async function processPipeline({
   template,
   script,
   styles,
+  basePath,
   options,
   resolve,
   scopeId,
@@ -274,36 +285,9 @@ if (module.hot) {
       }
       return [scriptAsset];
     }
-    case 'styler': {
-      let basePath = basename(asset.filePath);
-      return [
-        {
-          type: 'js',
-          content: `
-import style from 'style:./${basePath}';
-import {render} from 'template:./${basePath}';
-let cssModules = {};
-cssModules['$style'] = style;
-if (module.hot) {
-  module.hot.accept(() => {
-    // TODO: Support custom module names
-    cssModules['$style'] = style;
-    __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
-  });
-};
-export default realCSSModules => {
-  for (let k in cssModules) {
-    realCSSModules[k] = cssModules[k];
-  }
-  cssModules = realCSSModules;
-};`,
-          uniqueKey: asset.id + '-styler',
-        },
-      ];
-    }
     case 'style': {
-      let extraAssets = [];
-      let baseAssets = await Promise.all(
+      let cssModules = {};
+      let assets = await Promise.all(
         styles.map(async (style, i) => {
           if (style.src) {
             style.content = (
@@ -315,7 +299,6 @@ export default realCSSModules => {
               style.module = MODULE_BY_NAME_RE.test(style.src);
             }
           }
-          // TODO: CSS Modules?
           let styleComp = await compiler.compileStyleAsync({
             filename: asset.filePath,
             source: style.content,
@@ -339,11 +322,11 @@ export default realCSSModules => {
             uniqueKey: asset.id + '-style' + i,
           };
           if (styleComp.modules) {
-            extraAssets.push({
-              type: 'js',
-              content: `module.exports=${JSON.stringify(styleComp.modules)};`,
-              uniqueKey: asset.id + '-modules' + i,
-            });
+            if (typeof style.module === 'boolean') style.module = '$style';
+            cssModules[style.module] = {
+              ...cssModules[style.module],
+              ...styleComp.modules,
+            };
           }
           if (!style.src) {
             let map = new SourceMap();
@@ -353,7 +336,22 @@ export default realCSSModules => {
           return styleAsset;
         }),
       );
-      return baseAssets.concat(extraAssets);
+      if (cssModules.length !== 0) {
+        assets.push({
+          type: 'js',
+          uniqueKey: asset.id + '-cssModules',
+          content: `
+import {render} from 'template:./${basePath}';
+let cssModules = ${JSON.stringify(cssModules)};
+if (module.hot) {
+  module.hot.accept(() => {
+    __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
+  });
+};
+export default cssModules;`,
+        });
+      }
+      return assets;
     }
     default: {
       return [];
