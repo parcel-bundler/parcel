@@ -66,7 +66,7 @@ export async function concat({
   bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
-|}) {
+|}): Promise<BabelNodeFile> {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
     switch (node.type) {

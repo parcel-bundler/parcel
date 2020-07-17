@@ -9,7 +9,7 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 
 import path from 'path';
 
-export default new Optimizer({
+export default (new Optimizer({
   async optimize({contents, map, bundle, options, getSourceMapReference}) {
     if (!bundle.env.minify) {
       return {contents, map};
@@ -99,4 +99,4 @@ export default new Optimizer({
 
     return {contents: minifiedContents, map: sourceMap};
   },
-});
+}): Optimizer);

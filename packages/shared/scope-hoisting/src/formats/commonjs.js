@@ -142,6 +142,9 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  // Implement an interface consistent with other formats
+  // eslint-disable-next-line no-unused-vars
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
@@ -375,7 +378,7 @@ export function generateExports(
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
   maybeReplaceIdentifier: (NodePath<Identifier>) => void,
-) {
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 

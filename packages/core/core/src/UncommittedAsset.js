@@ -229,7 +229,7 @@ export default class UncommittedAsset {
     );
   }
 
-  addDependency(opts: DependencyOptions) {
+  addDependency(opts: DependencyOptions): string {
     // eslint-disable-next-line no-unused-vars
     let {env, target, symbols, ...rest} = opts;
     let dep = createDependency({

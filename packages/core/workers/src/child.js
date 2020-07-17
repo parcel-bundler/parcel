@@ -9,8 +9,8 @@ import type {
   WorkerResponse,
   ChildImpl,
 } from './types';
-import type {IDisposable} from '@parcel/types';
-import type {WorkerApi} from './WorkerFarm';
+import type {Async, IDisposable} from '@parcel/types';
+import type {SharedReference, WorkerApi} from './WorkerFarm';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -30,15 +30,15 @@ export class Child {
   childId: ?number;
   maxConcurrentCalls: number = 10;
   module: ?any;
-  responseId = 0;
+  responseId: number = 0;
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
   child: ChildImpl;
   profiler: ?Profiler;
   workerApi: WorkerApi;
   handles: Map<number, Handle> = new Map();
-  sharedReferences: Map<number, mixed> = new Map();
-  sharedReferencesByValue: Map<mixed, number> = new Map();
+  sharedReferences: Map<SharedReference, mixed> = new Map();
+  sharedReferencesByValue: Map<mixed, SharedReference> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -53,7 +53,16 @@ export class Child {
     });
   }
 
-  workerApi = {
+  workerApi: {|
+    callMaster: (
+      request: CallRequest,
+      awaitResponse?: ?boolean,
+    ) => Promise<mixed>,
+    createReverseHandle: (fn: (...args: Array<any>) => mixed) => Handle,
+    getSharedReference: (ref: SharedReference) => mixed,
+    resolveSharedReference: (value: mixed) => void | SharedReference,
+    runHandle: (handle: Handle, args: Array<any>) => Promise<mixed>,
+  |} = {
     callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true,
@@ -62,12 +71,13 @@ export class Child {
       this.createReverseHandle(fn),
     runHandle: (handle: Handle, args: Array<any>): Promise<mixed> =>
       this.workerApi.callMaster({handle: handle.id, args}, true),
-    getSharedReference: (ref: number) => this.sharedReferences.get(ref),
+    getSharedReference: (ref: SharedReference) =>
+      this.sharedReferences.get(ref),
     resolveSharedReference: (value: mixed) =>
       this.sharedReferencesByValue.get(value),
   };
 
-  messageListener(message: WorkerMessage): void | Promise<void> {
+  messageListener(message: WorkerMessage): Async<void> {
     if (message.type === 'response') {
       return this.handleResponse(message);
     } else if (message.type === 'request') {
@@ -244,7 +254,7 @@ export class Child {
     this.loggerDisposable.dispose();
   }
 
-  createReverseHandle(fn: (...args: Array<any>) => mixed) {
+  createReverseHandle(fn: (...args: Array<any>) => mixed): Handle {
     let handle = new Handle({
       fn,
       childId: this.childId,

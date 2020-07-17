@@ -15,7 +15,7 @@ type LessConfig = {
   ...
 };
 
-export default new Transformer({
+export default (new Transformer({
   loadConfig({config}) {
     return load({config});
   },
@@ -73,7 +73,7 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);
 
 function urlPlugin({asset}) {
   return {

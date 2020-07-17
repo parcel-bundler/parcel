@@ -8,7 +8,7 @@ import SourceMap from '@parcel/source-map';
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config, options}) {
     let configFile = await config.getConfig(['.sassrc', '.sassrc.js'], {
       packageKey: 'sass',
@@ -102,7 +102,7 @@ export default new Transformer({
     asset.setCode(css);
     return [asset];
   },
-});
+}): Transformer);
 
 function resolvePathImporter({resolve}) {
   return function(rawUrl, prev, done) {

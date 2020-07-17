@@ -12,7 +12,7 @@ import {inspect} from 'util';
 import {errorToDiagnostic, anyToDiagnostic} from '@parcel/diagnostic';
 
 class Logger {
-  #logEmitter = new ValueEmitter<LogEvent>();
+  #logEmitter /*: ValueEmitter<LogEvent> */ = new ValueEmitter();
 
   onLog(cb: (event: LogEvent) => mixed): IDisposable {
     return this.#logEmitter.addListener(cb);
@@ -75,7 +75,7 @@ class Logger {
   }
 }
 
-const logger = new Logger();
+const logger: Logger = new Logger();
 export default logger;
 
 export type PluginLoggerOpts = {|

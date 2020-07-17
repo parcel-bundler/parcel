@@ -48,7 +48,7 @@ async function configHydrator(
     options,
   );
 
-  return config.setResult({
+  config.setResult({
     raw: configFile,
     hydrated: {
       plugins,
@@ -67,7 +67,7 @@ export async function load({
   config: Config,
   options: PluginOptions,
   logger: PluginLogger,
-|}) {
+|}): Promise<void> {
   let configFile: any = await config.getConfig(
     ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'},
@@ -142,6 +142,9 @@ export function preSerialize(config: Config) {
   config.result.hydrated = {};
 }
 
-export function postDeserialize(config: Config, options: PluginOptions) {
+export function postDeserialize(
+  config: Config,
+  options: PluginOptions,
+): Promise<void> {
   return configHydrator(config.result.raw, config, options);
 }

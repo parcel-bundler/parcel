@@ -28,9 +28,9 @@ export class AssetSymbols implements IAssetSymbols {
   /*::
   @@iterator(): Iterator<[ISymbol, {|local: ISymbol, loc: ?SourceLocation|}]> { return ({}: any); }
   */
-  #value; // Asset
+  #value /*: Asset */;
 
-  constructor(asset: Asset) {
+  constructor(asset: Asset): AssetSymbols {
     let existing = valueToSymbols.get(asset);
     if (existing != null) {
       return existing;
@@ -38,6 +38,7 @@ export class AssetSymbols implements IAssetSymbols {
 
     this.#value = asset;
     valueToSymbols.set(asset, this);
+    return this;
   }
 
   get(exportSymbol: ISymbol): ?{|local: ISymbol, loc: ?SourceLocation|} {
@@ -83,12 +84,13 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   */
   #value: Asset;
 
-  constructor(asset: Asset) {
+  constructor(asset: Asset): MutableAssetSymbols {
     let existing = valueToMutableAssetSymbols.get(asset);
     if (existing != null) {
       return existing;
     }
     this.#value = asset;
+    return this;
   }
 
   clear() {
@@ -120,7 +122,6 @@ export class MutableAssetSymbols implements IMutableAssetSymbols {
   }
 
   exportSymbols(): Iterable<ISymbol> {
-    // $FlowFixMe
     return this.#value.symbols.keys();
   }
 
@@ -146,12 +147,13 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
   */
   #value: Dependency;
 
-  constructor(dep: Dependency) {
+  constructor(dep: Dependency): MutableDependencySymbols {
     let existing = valueToMutableDependencySymbols.get(dep);
     if (existing != null) {
       return existing;
     }
     this.#value = dep;
+    return this;
   }
 
   ensure(): void {
@@ -211,7 +213,7 @@ export class MutableDependencySymbols implements IMutableDependencySymbols {
     return this.#value.symbols ? this.#value.symbols.keys() : EMPTY_ITERABLE;
   }
 
-  get isCleared() {
+  get isCleared(): boolean {
     return this.#value.symbols == null;
   }
 

@@ -6,7 +6,7 @@ import Server from './Server';
 
 let servers: Map<number, Server> = new Map();
 let hmrServers: Map<number, HMRServer> = new Map();
-export default new Reporter({
+export default (new Reporter({
   async report({event, options, logger}) {
     let {serve, hot: hmr} = options;
     let server = serve ? servers.get(serve.port) : undefined;
@@ -111,4 +111,4 @@ export default new Reporter({
         break;
     }
   },
-});
+}): Reporter);

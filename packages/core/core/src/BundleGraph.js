@@ -3,6 +3,7 @@
 import type {
   BundleGroup,
   GraphVisitor,
+  SourceLocation,
   Symbol,
   TraversalActions,
 } from '@parcel/types';
@@ -39,6 +40,18 @@ type BundleGraphEdgeTypes =
   // Using this type prevents referenced assets from being traversed normally.
   | 'references'
   | 'internal_async';
+
+type InternalSymbolResolution = {|
+  asset: Asset,
+  exportSymbol: string,
+  symbol: ?Symbol | false,
+  loc: ?SourceLocation,
+|};
+
+type InternalExportSymbolResolution = {|
+  ...InternalSymbolResolution,
+  +exportAs: Symbol | string,
+|};
 
 export default class BundleGraph {
   _assetPublicIds: Set<string>;
@@ -619,7 +632,7 @@ export default class BundleGraph {
     });
   }
 
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset) {
+  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?Bundle {
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
 
     for (let bundleGroup of bundleGroups) {
@@ -868,7 +881,11 @@ export default class BundleGraph {
     );
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol, boundary: ?Bundle) {
+  resolveSymbol(
+    asset: Asset,
+    symbol: Symbol,
+    boundary: ?Bundle,
+  ): InternalSymbolResolution {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
     let identifier = asset.symbols.get(symbol)?.local;
@@ -1016,7 +1033,10 @@ export default class BundleGraph {
     return publicId;
   }
 
-  getExportedSymbols(asset: Asset, boundary: ?Bundle) {
+  getExportedSymbols(
+    asset: Asset,
+    boundary: ?Bundle,
+  ): Array<InternalExportSymbolResolution> {
     if (!asset.symbols) {
       return [];
     }

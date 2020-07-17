@@ -144,7 +144,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   return mapped;
 }
 
-export function prepareForSerialization(object: any) {
+export function prepareForSerialization(object: any): any {
   return mapObject(
     object,
     value => {
@@ -181,7 +181,7 @@ export function prepareForSerialization(object: any) {
   );
 }
 
-export function restoreDeserializedObject(object: any) {
+export function restoreDeserializedObject(object: any): any {
   return mapObject(object, value => {
     // If the value has a $$type property, use it to restore the object type
     if (value && value.$$type) {

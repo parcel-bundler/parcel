@@ -24,6 +24,7 @@ import type {
   VariableDeclaration,
 } from '@babel/types';
 import type {NodePath} from '@babel/traverse';
+import type {OutputFormat} from './types';
 
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
@@ -94,7 +95,7 @@ export function link({
   options: PluginOptions,
   wrappedAssets: Set<string>,
 |}): {|ast: File, referencedAssets: Set<Asset>|} {
-  let format = OutputFormats[bundle.env.outputFormat];
+  let format: OutputFormat = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
   let assets: Map<string, Asset> = new Map();

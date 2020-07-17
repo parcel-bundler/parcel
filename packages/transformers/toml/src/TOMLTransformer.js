@@ -2,7 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     const toml = await options.packageManager.require(
       '@iarna/toml',
@@ -19,4 +19,4 @@ export default new Transformer({
     );
     return [asset];
   },
-});
+}): Transformer);
