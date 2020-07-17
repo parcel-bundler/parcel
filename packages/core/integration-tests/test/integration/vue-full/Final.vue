@@ -1,10 +1,7 @@
 <template>
-  <div class="small">
+  <div :class="$style.small">
     Hello final!
   </div>
 </template>
-<style scoped>
-.small {
-  color: blue;
-}
+<style src="./Final.module.css">
 </style>

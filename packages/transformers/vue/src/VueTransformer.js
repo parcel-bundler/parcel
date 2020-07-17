@@ -6,12 +6,15 @@ import SourceMap from '@parcel/source-map';
 import semver from 'semver';
 import {basename} from 'path';
 
+const MODULE_BY_NAME_RE = /\.module\./;
+
 // TODO: flow
 export default new Transformer({
   async canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '3.0.0-beta.20');
   },
   async parse({asset, options}) {
+    // TODO: This parses the vue component multiple times. Fix?
     let compiler = await options.packageManager.require(
       '@vue/compiler-sfc',
       asset.filePath,
@@ -42,10 +45,23 @@ export default new Transformer({
     }).slice(-6);
     let scopeId = 'data-v-' + baseId;
     let hmrId = baseId + '-hmr';
-    if (asset.pipeline) {
-      return processPipeline({asset, options, resolve, scopeId, hmrId});
-    }
+
     let {template, script, styles} = nullthrows(await asset.getAST()).program;
+    if (styles.every(s => !s.scoped)) {
+      scopeId = undefined;
+    }
+    if (asset.pipeline) {
+      return processPipeline({
+        asset,
+        template,
+        script,
+        styles,
+        options,
+        resolve,
+        scopeId,
+        hmrId,
+      });
+    }
     let basePath = basename(asset.filePath);
     let out =
       script == null
@@ -58,10 +74,15 @@ export default new Transformer({
     }
     // TODO: CSS Modules
     if (styles.length) {
-      out += `import style from 'style:./${basePath}';\n`;
+      // Nothing happens if CSS modules is disabled
+      out += `import setCSSModules from 'styler:./${basePath}';
+setCSSModules(script.__cssModules = {});
+`;
+      // Assume CSS Modules
     }
+    // TODO: disable HMR injection in production mode?
     out += `
-script.__scopeId = '${scopeId}';
+${scopeId ? `script.__scopeId = '${scopeId}';` : ''}
 script.__file = '${options.mode === 'production' ? basePath : asset.filePath}';
 if (module.hot) {
   script.__hmrId = '${hmrId}';
@@ -113,7 +134,16 @@ function createDiagnostic(err, filePath) {
   return diagnostic;
 }
 
-async function processPipeline({asset, options, resolve, scopeId, hmrId}) {
+async function processPipeline({
+  asset,
+  template,
+  script,
+  styles,
+  options,
+  resolve,
+  scopeId,
+  hmrId,
+}) {
   let compiler = await options.packageManager.require(
     '@vue/compiler-sfc',
     asset.filePath,
@@ -124,8 +154,6 @@ async function processPipeline({asset, options, resolve, scopeId, hmrId}) {
     asset.filePath,
     {autoinstall: false}, // Would have failed by now if it needed autoinstall
   );
-  let {template, script, styles} = nullthrows(await asset.getAST()).program;
-  if (styles.every(s => !s.scoped)) scopeId = undefined;
   switch (asset.pipeline) {
     case 'template': {
       let isFunctional = template.functional;
@@ -246,8 +274,36 @@ if (module.hot) {
       }
       return [scriptAsset];
     }
+    case 'styler': {
+      let basePath = basename(asset.filePath);
+      return [
+        {
+          type: 'js',
+          content: `
+import style from 'style:./${basePath}';
+import {render} from 'template:./${basePath}';
+let cssModules = {};
+cssModules['$style'] = style;
+if (module.hot) {
+  module.hot.accept(() => {
+    // TODO: Support custom module names
+    cssModules['$style'] = style;
+    __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
+  });
+};
+export default realCSSModules => {
+  for (let k in cssModules) {
+    realCSSModules[k] = cssModules[k];
+  }
+  cssModules = realCSSModules;
+};`,
+          uniqueKey: asset.id + '-styler',
+        },
+      ];
+    }
     case 'style': {
-      return Promise.all(
+      let extraAssets = [];
+      let baseAssets = await Promise.all(
         styles.map(async (style, i) => {
           if (style.src) {
             style.content = (
@@ -255,11 +311,15 @@ if (module.hot) {
                 await resolve(asset.filePath, style.src),
               )
             ).toString();
+            if (!style.module) {
+              style.module = MODULE_BY_NAME_RE.test(style.src);
+            }
           }
           // TODO: CSS Modules?
-          let styleComp = compiler.compileStyle({
+          let styleComp = await compiler.compileStyleAsync({
             filename: asset.filePath,
             source: style.content,
+            modules: style.module,
             preprocessLang: style.lang || 'css',
             scoped: style.scoped,
             map: style.src ? undefined : style.map,
@@ -275,8 +335,16 @@ if (module.hot) {
           let styleAsset = {
             type: 'css',
             content: styleComp.code,
+            sideEffects: !style.module,
             uniqueKey: asset.id + '-style' + i,
           };
+          if (styleComp.modules) {
+            extraAssets.push({
+              type: 'js',
+              content: `module.exports=${JSON.stringify(styleComp.modules)};`,
+              uniqueKey: asset.id + '-modules' + i,
+            });
+          }
           if (!style.src) {
             let map = new SourceMap();
             map.addRawMappings(styleComp.map);
@@ -285,6 +353,7 @@ if (module.hot) {
           return styleAsset;
         }),
       );
+      return baseAssets.concat(extraAssets);
     }
     default: {
       return [];
