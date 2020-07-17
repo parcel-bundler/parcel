@@ -125,15 +125,20 @@ export default class BundleGraph {
     for (let edge of assetGraph.getAllEdges()) {
       let fromIds;
       if (assetGroupIds.has(edge.from)) {
-        fromIds = [...assetGraph.inboundEdges.get(edge.from).get(null)];
+        fromIds = [
+          ...(assetGraph.inboundEdges.get(edge.from)?.get(null) ?? []),
+        ];
       } else {
         fromIds = [edge.from];
       }
 
       for (let from of fromIds) {
         if (assetGroupIds.has(edge.to)) {
-          for (let to of assetGraph.outboundEdges.get(edge.to).get(null)) {
-            graph.addEdge(from, to);
+          let outbound = assetGraph.outboundEdges.get(edge.to)?.get(null);
+          if (outbound != null) {
+            for (let to of outbound) {
+              graph.addEdge(from, to);
+            }
           }
         } else {
           graph.addEdge(from, edge.to);
