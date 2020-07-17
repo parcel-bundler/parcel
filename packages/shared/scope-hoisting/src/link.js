@@ -639,9 +639,14 @@ export function link({
             if (isIdentifier(parent.right, {name: identifier})) {
               return;
             }
+
+            // If the right side was imported from a different bundle, there is no $id$export$foo binding in this bundle
+            if (!path.scope.hasBinding(identifier)) {
+              return;
+            }
           }
 
-          // turn `$exports.foo = ...` into `$exports.foo = $export$foo = ...`
+          // turn `$id$exports.foo = ...` into `$id$exports.foo = $id$export$foo = ...`
           parentPath
             .get<NodePath<Node>>('right')
             .replaceWith(
