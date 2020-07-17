@@ -9,7 +9,10 @@ import nullthrows from 'nullthrows';
 
 export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
   nodes?: Map<NodeId, TNode>,
-  edges?: Array<Edge<TEdgeType | null>>,
+  edges?: {|
+    inboundEdges: AdjacencyList<TEdgeType | null>,
+    outboundEdges: AdjacencyList<TEdgeType | null>,
+  |},
   rootNodeId?: ?NodeId,
 |};
 
@@ -22,44 +25,48 @@ export const ALL_EDGE_TYPES = '@@all_edge_types';
 
 export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   nodes: Map<NodeId, TNode>;
-  inboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
-    () => new DefaultMap(() => new Set()),
-  );
-  outboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
-    () => new DefaultMap(() => new Set()),
-  );
+  inboundEdges: AdjacencyList<TEdgeType | null>;
+  outboundEdges: AdjacencyList<TEdgeType | null>;
   rootNodeId: ?NodeId;
 
-  constructor(
-    opts: GraphOpts<TNode, TEdgeType> = ({}: any), // flow is dumb
-  ) {
+  constructor(opts: GraphOpts<TNode, TEdgeType> = ({}: any)) {
     this.nodes = opts.nodes || new Map();
     this.rootNodeId = opts.rootNodeId;
 
     if (opts.edges) {
-      for (let edge of opts.edges) {
-        this.addEdge(edge.from, edge.to, edge.type);
-      }
+      this.inboundEdges = opts.edges.inboundEdges;
+      this.outboundEdges = opts.edges.outboundEdges;
+    } else {
+      this.inboundEdges = new DefaultMap(() => new DefaultMap(() => new Set()));
+      this.outboundEdges = new DefaultMap(
+        () => new DefaultMap(() => new Set()),
+      );
     }
   }
 
   static deserialize(
     opts: GraphOpts<TNode, TEdgeType>,
   ): Graph<TNode, TEdgeType> {
-    return new this(opts);
+    return new this({
+      nodes: opts.nodes,
+      edges: opts.edges,
+      rootNodeId: opts.rootNodeId,
+    });
   }
 
   serialize(): GraphOpts<TNode, TEdgeType> {
     return {
       nodes: this.nodes,
-      edges: this.getAllEdges(),
+      edges: {
+        inboundEdges: this.inboundEdges,
+        outboundEdges: this.outboundEdges,
+      },
       rootNodeId: this.rootNodeId,
     };
   }
 
   // Returns a list of all edges in the graph. This can be large, so iterating
-  // the complete list can be costly in large graphs. Used in serialization and
-  // copying of graphs.
+  // the complete list can be costly in large graphs. Used when merging graphs.
   getAllEdges(): Array<Edge<TEdgeType | null>> {
     let edges = [];
     for (let [from, edgeList] of this.outboundEdges) {
