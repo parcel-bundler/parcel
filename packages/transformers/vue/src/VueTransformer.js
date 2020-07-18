@@ -91,7 +91,11 @@ script.__cssModules = cssModules;
     }
     out += `
 ${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
-script.__file = '${options.mode === 'production' ? basePath : asset.filePath}';
+script.__file = \`${
+      options.mode === 'production'
+        ? basePath
+        : asset.filePath.replace(/\\/g, '\\\\')
+    }\`;
 ${
   options.hot
     ? `if (module.hot) {
