@@ -8,7 +8,7 @@ export default async function generateCertificate(
   fs: FileSystem,
   cacheDir: string,
   host: ?string,
-) {
+): Promise<{|cert: Buffer, key: Buffer|}> {
   let certDirectory = cacheDir;
 
   const privateKeyPath = path.join(certDirectory, 'private.pem');

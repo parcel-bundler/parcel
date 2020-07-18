@@ -29,7 +29,7 @@ import type {
   TargetDescriptor,
   HMROptions,
 } from '@parcel/types';
-
+import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -132,7 +132,7 @@ export type Asset = {|
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
-  rootDir: FilePath,
+  entryRoot: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
   env: EnvMap,
@@ -207,13 +207,16 @@ export type AssetRequestInput = {|
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
-  optionsRef: number,
+  optionsRef: SharedReference,
   isURL?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|optionsRef: SharedReference|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -374,13 +377,13 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetGroup,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 
 export type ValidationOpts = {|
   requests: AssetGroup[],
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 

@@ -13,11 +13,11 @@ export class FSHost {
     this.ts = ts;
   }
 
-  getCurrentDirectory() {
+  getCurrentDirectory(): FilePath {
     return this.fs.cwd();
   }
 
-  fileExists(filePath: FilePath) {
+  fileExists(filePath: FilePath): boolean {
     try {
       return this.fs.statSync(filePath).isFile();
     } catch (err) {
@@ -25,7 +25,7 @@ export class FSHost {
     }
   }
 
-  readFile(filePath: FilePath) {
+  readFile(filePath: FilePath): void | string {
     try {
       return this.fs.readFileSync(filePath, 'utf8');
     } catch (err) {
@@ -37,7 +37,7 @@ export class FSHost {
     }
   }
 
-  directoryExists(filePath: FilePath) {
+  directoryExists(filePath: FilePath): boolean {
     try {
       return this.fs.statSync(filePath).isDirectory();
     } catch (err) {
@@ -45,7 +45,7 @@ export class FSHost {
     }
   }
 
-  realpath(filePath: FilePath) {
+  realpath(filePath: FilePath): FilePath {
     try {
       return this.fs.realpathSync(filePath);
     } catch (err) {
@@ -53,7 +53,9 @@ export class FSHost {
     }
   }
 
-  getAccessibleFileSystemEntries(dirPath: FilePath) {
+  getAccessibleFileSystemEntries(
+    dirPath: FilePath,
+  ): {|directories: Array<FilePath>, files: Array<FilePath>|} {
     try {
       let entries = this.fs.readdirSync(dirPath || '.').sort();
       let files = [];
@@ -87,7 +89,7 @@ export class FSHost {
     excludes: ?$ReadOnlyArray<string>,
     includes: $ReadOnlyArray<string>,
     depth?: number,
-  ) {
+  ): any {
     // $FlowFixMe
     return this.ts.matchFiles(
       root,

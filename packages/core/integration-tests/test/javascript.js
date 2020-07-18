@@ -34,6 +34,48 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should import child bundles using a require call in CommonJS', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/commonjs-bundle-require/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.strictEqual(typeof output.double, 'function');
+    assert.strictEqual(output.double(3), 6);
+  });
+
+  it('should support url: imports with CommonJS output', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/commonjs-import-url/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['bundle-url.js', 'index.js', 'JSRuntime.js'],
+      },
+      {
+        type: 'txt',
+        assets: ['x.txt'],
+      },
+    ]);
+
+    let txtBundle = b.getBundles().find(b => b.type === 'txt').name;
+
+    let output = await run(b);
+    assert.strictEqual(path.basename(output), txtBundle);
+  });
+
   it('should produce a basic JS bundle with ES6 imports', async function() {
     let b = await bundle(path.join(__dirname, '/integration/es6/index.js'));
 

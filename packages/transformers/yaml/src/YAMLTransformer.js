@@ -2,7 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     const yaml = await options.packageManager.require(
       'js-yaml',
@@ -19,4 +19,4 @@ export default new Transformer({
     );
     return [asset];
   },
-});
+}): Transformer);

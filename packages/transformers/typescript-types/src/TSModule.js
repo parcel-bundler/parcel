@@ -42,11 +42,11 @@ export class TSModule {
     }
   }
 
-  getName(name: string) {
+  getName(name: string): string {
     return this.names.get(name) || name;
   }
 
-  hasBinding(name: string) {
+  hasBinding(name: string): boolean {
     return this.bindings.has(name);
   }
 }
