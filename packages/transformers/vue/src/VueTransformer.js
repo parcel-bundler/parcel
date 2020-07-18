@@ -11,7 +11,6 @@ import {basename, extname} from 'path';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
-// TODO: flow
 export default (new Transformer({
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '3.0.0-beta.20');
@@ -75,10 +74,8 @@ export default (new Transformer({
         `import {render} from 'template:./${basePath}';\n` +
         'script.render = render;\n';
     }
-    // TODO: CSS Modules
     if (styles.length) {
       if (!template) {
-        // TODO: Is this acceptable?
         throw new ThrowableDiagnostic({
           diagnostic: {
             message: 'Cannot style a component without a template',
@@ -91,18 +88,20 @@ export default (new Transformer({
       out += `import cssModules from 'style:./${basePath}';
 script.__cssModules = cssModules;
 `;
-      // Assume CSS Modules
     }
-    // TODO: disable HMR injection in production mode?
     out += `
 ${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
 script.__file = '${options.mode === 'production' ? basePath : asset.filePath}';
-if (module.hot) {
+${
+  options.hot
+    ? `if (module.hot) {
   script.__hmrId = '${hmrId}';
   module.hot.accept();
   if (!__VUE_HMR_RUNTIME__.createRecord('${hmrId}', script)) {
     __VUE_HMR_RUNTIME__.reload('${hmrId}', script);
   }
+}`
+    : ''
 }
 export default script;`;
     return [
@@ -190,7 +189,7 @@ async function processPipeline({
             },
           });
         }
-        // TODO: Make this less bad
+        // TODO: Improve? This seems brittle
         try {
           content = await preprocessor.render(content, {});
         } catch (e) {
@@ -231,10 +230,14 @@ async function processPipeline({
         content:
           templateComp.code +
           `
-if (module.hot) {
+${
+  options.hot
+    ? `if (module.hot) {
   module.hot.accept(() => {
     __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
   })
+}`
+    : ''
 }`,
       };
       return [templateAsset];
@@ -335,11 +338,15 @@ if (module.hot) {
           content: `
 import {render} from 'template:./${basePath}';
 let cssModules = ${JSON.stringify(cssModules)};
-if (module.hot) {
+${
+  options.hot
+    ? `if (module.hot) {
   module.hot.accept(() => {
     __VUE_HMR_RUNTIME__.rerender('${hmrId}', render);
   });
-};
+};`
+    : ''
+}
 export default cssModules;`,
         });
       }
