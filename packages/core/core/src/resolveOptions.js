@@ -103,7 +103,7 @@ export default async function resolveOptions(
     },
     mode,
     minify,
-    autoinstall: initialOptions.autoinstall ?? true,
+    autoinstall: initialOptions.autoinstall ?? false,
     hot: initialOptions.hot ?? null,
     contentHash:
       initialOptions.contentHash ?? initialOptions.mode === 'production',
