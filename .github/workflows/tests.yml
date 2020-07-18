@@ -1,4 +1,4 @@
-name: test-runner
+name: tests
 on: [push, pull_request]
 jobs:
   testing:
@@ -7,6 +7,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: [10.x, 12.x]
+      fail-fast: false
     name: Run tests
     steps:
       - uses: actions/checkout@v1
