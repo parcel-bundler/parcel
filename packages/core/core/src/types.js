@@ -134,7 +134,7 @@ export type Asset = {|
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
-  rootDir: FilePath,
+  entryRoot: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
   env: EnvMap,

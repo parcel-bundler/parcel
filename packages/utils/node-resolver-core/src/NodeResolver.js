@@ -429,7 +429,7 @@ export default class NodeResolver {
     switch (filename[0]) {
       case '/': {
         // Absolute path. Resolve relative to project root.
-        return path.resolve(this.options.rootDir, filename.slice(1));
+        return path.resolve(this.options.projectRoot, filename.slice(1));
       }
 
       case '~': {
@@ -448,7 +448,7 @@ export default class NodeResolver {
           dir = path.dirname(dir);
 
           if (dir === path.dirname(dir)) {
-            dir = this.options.rootDir;
+            dir = this.options.projectRoot;
             break;
           }
         }
@@ -962,7 +962,7 @@ export default class NodeResolver {
   ): Promise<string | Array<string>> {
     // Load the root project's package.json file if we haven't already
     if (!this.rootPackage) {
-      this.rootPackage = await this.findPackage(this.options.rootDir);
+      this.rootPackage = await this.findPackage(this.options.projectRoot);
     }
 
     // Load the local package, and resolve aliases

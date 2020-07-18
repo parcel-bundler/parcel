@@ -248,7 +248,7 @@ export type BuildMode = 'development' | 'production' | string;
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
-  +rootDir?: FilePath,
+  +entryRoot?: FilePath,
   +config?: ResolvedParcelConfigFile,
   +defaultConfig?: ResolvedParcelConfigFile,
   +env?: EnvMap,
@@ -298,7 +298,7 @@ export interface PluginOptions {
   +serve: ServerOptions | false;
   +autoinstall: boolean;
   +logLevel: LogLevel;
-  +rootDir: FilePath;
+  +entryRoot: FilePath;
   +projectRoot: FilePath;
   +cacheDir: FilePath;
   +inputFS: FileSystem;
