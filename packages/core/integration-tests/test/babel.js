@@ -549,6 +549,7 @@ describe('babel', function() {
 
       let b = bundler(path.join(inputDir, 'index.js'), {
         outputFS: fs,
+        autoinstall: true,
       });
 
       subscription = await b.watch();
