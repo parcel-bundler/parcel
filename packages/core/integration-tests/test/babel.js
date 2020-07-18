@@ -393,6 +393,7 @@ describe('babel', function() {
           distDir,
         },
       },
+      autoinstall: true,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
@@ -415,6 +416,7 @@ describe('babel', function() {
           distDir,
         },
       },
+      autoinstall: true,
     });
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!file.includes('REPLACE_ME'));
