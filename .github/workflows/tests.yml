@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      - id: install-rust-unix
+      - name: Install Rust (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
@@ -22,7 +22,7 @@ jobs:
           echo "##vso[task.setvariable variable=PATH]$PATH"
           rustc -Vv
           cargo -V
-      - id: install-rust-windows
+      - name: Install Rust (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           curl -sSf -o rustup-init.exe https://win.rustup.rs
@@ -31,14 +31,14 @@ jobs:
           echo "##vso[task.setvariable variable=PATH]%PATH%;%USERPROFILE%\.cargo\bin"
           rustc -Vv
           cargo -V
-      - id: bump-inotify-limit
+      - name: Bump inotify limit (Linux)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
-      - id: eslint
+      - name: ESLint & Prettier
         run: yarn lint
-      - id: unit-tests
+      - name: Unit Tests
         run: yarn test:unit
-      - id: integration-tests
+      - name: Integration Tests
         run: yarn test:integration-ci
-      - id: flow
+      - name: Flow
         run: yarn flow check
