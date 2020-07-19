@@ -260,6 +260,7 @@ describe('postcss', () => {
       inputFS: outputFS,
       packageManager,
       distDir,
+      autoinstall: true,
     });
 
     // cssnext was installed

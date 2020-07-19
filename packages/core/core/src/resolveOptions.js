@@ -40,13 +40,13 @@ export default async function resolveOptions(
   let packageManager =
     initialOptions.packageManager || new NodePackageManager(inputFS);
 
-  let rootDir =
-    initialOptions.rootDir != null
-      ? path.resolve(initialOptions.rootDir)
+  let entryRoot =
+    initialOptions.entryRoot != null
+      ? path.resolve(initialOptions.entryRoot)
       : getRootDir(entries);
 
   let projectRootFile =
-    (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
+    (await resolveConfig(inputFS, path.join(entryRoot, 'index'), [
       ...LOCK_FILE_NAMES,
       '.git',
       '.hg',
@@ -103,7 +103,7 @@ export default async function resolveOptions(
     },
     mode,
     minify,
-    autoinstall: initialOptions.autoinstall ?? true,
+    autoinstall: initialOptions.autoinstall ?? false,
     hot: initialOptions.hot ?? null,
     contentHash:
       initialOptions.contentHash ?? initialOptions.mode === 'production',
@@ -118,7 +118,7 @@ export default async function resolveOptions(
     profile: initialOptions.profile ?? false,
     cacheDir,
     entries,
-    rootDir,
+    entryRoot,
     defaultEngines: initialOptions.defaultEngines,
     targets: initialOptions.targets,
     sourceMaps: initialOptions.sourceMaps ?? true,
