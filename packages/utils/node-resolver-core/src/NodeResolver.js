@@ -5,7 +5,6 @@ import type {
   FilePath,
   ResolveResult,
   Environment,
-  QueryParameters,
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -24,10 +23,8 @@ import builtins from './builtins';
 import nullthrows from 'nullthrows';
 // $FlowFixMe this is untyped
 import _Module from 'module';
-import querystring from 'querystring';
 
 const EMPTY_SHIM = require.resolve('./_empty');
-const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 type InternalPackageJSON = PackageJSON & {pkgdir: string, pkgfile: string, ...};
 type Options = {|
@@ -51,26 +48,6 @@ type Module = {|
   filePath?: FilePath,
   code?: string,
 |};
-
-const parseFilePath = (
-  filepath: FilePath,
-): {|
-  filepath: FilePath,
-  query: QueryParameters,
-|} => {
-  let matches = filepath.match(QUERY_PARAMS_REGEX);
-  if (matches && matches.length > 2) {
-    return {
-      filepath: matches[1],
-      query: matches[2] ? querystring.parse(matches[2].substr(1)) : {},
-    };
-  }
-
-  return {
-    filepath,
-    query: {},
-  };
-};
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -115,7 +92,6 @@ export default class NodeResolver {
   |}): Promise<?ResolveResult> {
     // Get file extensions to search
     let extensions = this.extensions.slice();
-    let parsedFilePath = parseFilePath(filename);
 
     if (parent) {
       // parent's extension given high priority
@@ -127,7 +103,7 @@ export default class NodeResolver {
 
     // Resolve the module directory or local file path
     let module = await this.resolveModule({
-      filename: parsedFilePath.filepath,
+      filename,
       parent,
       isURL,
       env,
@@ -157,7 +133,6 @@ export default class NodeResolver {
     if (resolved) {
       return {
         filePath: resolved.path,
-        query: parsedFilePath.query,
         sideEffects:
           resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
             ? false
