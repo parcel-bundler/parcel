@@ -11,7 +11,12 @@ jobs:
     name: Run tests
     steps:
       - uses: actions/checkout@v1
-      - uses: bahmutov/npm-install@v1.1.0
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+      - name: Install packages
+        run: yarn install --frozen-lockfile
       - uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
