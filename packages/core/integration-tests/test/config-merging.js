@@ -7,7 +7,12 @@ describe('config merging', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/config-merging/index.js'),
     );
-    assert(await outputFS.existsSync('/tmpFile'));
+    let content = (
+      await outputFS.readFile(
+        path.join(__dirname, '/integration/config-merging/dist/index.js'),
+      )
+    ).toString();
+    assert(content.includes('runtime injected'));
     assert.equal((await run(b)).default, 'Hello world!');
   });
 });
