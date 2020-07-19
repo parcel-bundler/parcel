@@ -197,8 +197,10 @@ function reloadCSS() {
   cssTimeout = setTimeout(function() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
-      var href = links[i].getAttribute('href')
-      var absolute = /^https?:\/\//i.test(href) && href.indexOf(window.location.href) !== 0
+      var href = links[i].getAttribute('href');
+      var absolute =
+        /^https?:\/\//i.test(href) &&
+        href.indexOf(window.location.origin) !== 0;
       if (!absolute) {
         updateLink(links[i]);
       }
