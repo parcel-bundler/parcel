@@ -32,7 +32,7 @@ export function getName(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
-) {
+): string {
   return (
     '$' +
     t.toIdentifier(asset.id) +
@@ -51,18 +51,21 @@ export function getIdentifier(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
-) {
+): BabelNodeIdentifier {
   return t.identifier(getName(asset, type, ...rest));
 }
 
-export function getExportIdentifier(asset: Asset | MutableAsset, name: string) {
+export function getExportIdentifier(
+  asset: Asset | MutableAsset,
+  name: string,
+): BabelNodeIdentifier {
   return getIdentifier(asset, 'export', name);
 }
 
 export function needsPrelude(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
-) {
+): boolean {
   if (bundle.env.outputFormat !== 'global') {
     return false;
   }
@@ -85,18 +88,20 @@ export function needsPrelude(
 export function isEntry(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
-) {
+): boolean {
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
-    !bundleGraph.hasParentBundleOfType(bundle, 'js') || bundle.env.isIsolated()
+    !bundleGraph.hasParentBundleOfType(bundle, 'js') ||
+    bundle.env.isIsolated() ||
+    !!bundle.getMainEntry()?.isIsolated
   );
 }
 
 export function isReferenced(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
-) {
+): boolean {
   let isReferenced = false;
   bundle.traverseAssets((asset, _, actions) => {
     // A bundle is potentially referenced if any of its assets is referenced
@@ -273,7 +278,7 @@ export function getThrowableDiagnosticForNode(
     |},
     ...
   },
-) {
+): ThrowableDiagnostic {
   let diagnostic: Diagnostic = {
     message,
     language: 'js',

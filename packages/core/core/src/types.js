@@ -29,7 +29,7 @@ import type {
   TargetDescriptor,
   HMROptions,
 } from '@parcel/types';
-
+import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -81,16 +81,18 @@ export type Target = {|
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
+  pipeline?: string,
 |};
 
 export type Dependency = {|
   id: string,
   moduleSpecifier: ModuleSpecifier,
   isAsync: boolean,
-  isEntry: boolean,
+  isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
   isWeak: ?boolean,
+  isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
   meta: Meta,
@@ -131,7 +133,7 @@ export type Asset = {|
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
-  rootDir: FilePath,
+  entryRoot: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
   env: EnvMap,
@@ -206,12 +208,16 @@ export type AssetRequestInput = {|
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
-  optionsRef: number,
+  optionsRef: SharedReference,
+  isURL?: boolean,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|optionsRef: SharedReference|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -296,6 +302,7 @@ export type ConfigRequestDesc = {|
   env: Environment,
   isSource: boolean,
   pipeline?: ?string,
+  isURL?: boolean,
   plugin?: PackageName,
   meta: JSONObject,
 |};
@@ -340,10 +347,12 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
+  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,
   entryAssetIds: Array<string>,
+  mainEntryId: ?string,
   isEntry: ?boolean,
   isInline: ?boolean,
   isSplittable: ?boolean,
@@ -369,13 +378,13 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetGroup,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 
 export type ValidationOpts = {|
   requests: AssetGroup[],
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 

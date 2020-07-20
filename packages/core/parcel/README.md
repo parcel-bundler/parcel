@@ -22,6 +22,14 @@
 - 🔥 Built in support for **hot module replacement**
 - 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
 
+
+---
+
+**Below is the design document that was created before work on the implementation of Parcel 2 started and some sections are outdated. The actual (somewhat complete) documentation for Parcel 2 is available here: https://v2.parceljs.org/.**
+
+
+----
+
 ## Getting Started
 
 Before we get started, you'll need to install Node and Yarn (or npm) and create

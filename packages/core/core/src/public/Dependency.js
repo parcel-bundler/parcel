@@ -30,9 +30,9 @@ export function dependencyToInternalDependency(
 }
 
 export default class Dependency implements IDependency {
-  #dep; // InternalDependency
+  #dep /*: InternalDependency */;
 
-  constructor(dep: InternalDependency) {
+  constructor(dep: InternalDependency): Dependency {
     let existing = internalDependencyToDependency.get(dep);
     if (existing != null) {
       return existing;
@@ -41,10 +41,11 @@ export default class Dependency implements IDependency {
     this.#dep = dep;
     _dependencyToInternalDependency.set(this, dep);
     internalDependencyToDependency.set(dep, this);
+    return this;
   }
 
   // $FlowFixMe
-  [inspect]() {
+  [inspect](): string {
     return `Dependency(${String(this.sourcePath)} -> ${this.moduleSpecifier})`;
   }
 
@@ -60,8 +61,8 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isAsync;
   }
 
-  get isEntry(): boolean {
-    return !!this.#dep.isEntry;
+  get isEntry(): ?boolean {
+    return this.#dep.isEntry;
   }
 
   get isOptional(): boolean {
@@ -74,6 +75,10 @@ export default class Dependency implements IDependency {
 
   get isWeak(): boolean {
     return !!this.#dep.isWeak;
+  }
+
+  get isIsolated(): boolean {
+    return !!this.#dep.isIsolated;
   }
 
   get loc(): ?SourceLocation {

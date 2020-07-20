@@ -103,7 +103,7 @@ export function mergeEnvironments(
   });
 }
 
-export function getEnvironmentHash(env: Environment) {
+export function getEnvironmentHash(env: Environment): string {
   // context is excluded from hash so that assets can be shared between e.g. workers and browser.
   // Different engines should be sufficient to distinguish multi-target builds.
   return md5FromObject({

@@ -20,4 +20,4 @@ class Bus extends EventEmitter {
   }
 }
 
-export default new Bus();
+export default (new Bus(): Bus);

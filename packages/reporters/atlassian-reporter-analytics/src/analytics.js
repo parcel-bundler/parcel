@@ -22,7 +22,7 @@ if (
 const COMMIT = process.env.BITBUCKET_COMMIT;
 
 const analytics = {
-  identify: (data: {|[string]: mixed|}) => {
+  identify: (data: {|[string]: mixed|}): Promise<mixed> => {
     if (process.env.ANALYTICS_DEBUG != null) {
       // eslint-disable-next-line no-console
       console.log('analytics:identify', data);
@@ -37,7 +37,7 @@ const analytics = {
   track: async (
     eventType: string,
     additionalEventProperties: {[string]: mixed, ...},
-  ) => {
+  ): Promise<mixed> => {
     const eventProperties = {
       ...additionalEventProperties,
       timestamp: new Date().toISOString(),
@@ -66,7 +66,7 @@ const analytics = {
     eventType: string,
     eventProperties: {|[string]: mixed|} | (() => {[string]: mixed, ...}),
     sampleRate: number,
-  ) => {
+  ): Promise<mixed> => {
     if (Math.random() < 1 / sampleRate) {
       return analytics.track(eventType, {
         ...(typeof eventProperties === 'function'

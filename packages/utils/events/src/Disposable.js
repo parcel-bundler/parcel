@@ -14,7 +14,7 @@ type DisposableLike = IDisposable | (() => mixed);
  */
 export default class Disposable implements IDisposable {
   disposed: boolean = false;
-  #disposables; // ?Set<DisposableLike>
+  #disposables /*: ?Set<DisposableLike> */;
 
   constructor(...disposables: Array<DisposableLike>) {
     this.#disposables = new Set(disposables);

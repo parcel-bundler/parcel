@@ -8,7 +8,7 @@ import {DefaultMap, generateBuildMetrics} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (
       event.type !== 'buildSuccess' ||
@@ -97,7 +97,7 @@ export default new Reporter({
       }),
     );
   },
-});
+}): Reporter);
 
 type BundleData = {|
   groups: Array<Group>,

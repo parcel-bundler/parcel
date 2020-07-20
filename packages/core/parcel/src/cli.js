@@ -59,7 +59,6 @@ const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
-  '--no-autoinstall': 'disable autoinstall',
   '--no-content-hash': 'disable content hashing',
   '--target [name]': [
     'only build given target(s)',
@@ -85,13 +84,14 @@ var hmrOptions = {
   '-p, --port <port>': [
     'set the port to serve on. defaults to $PORT or 1234',
     value => parseInt(value, 10),
-    process.env.PORT || 1234,
+    parseInt(process.env.PORT, 10) || 1234,
   ],
   '--host <host>':
     'set the host to listen on, defaults to listening on all interfaces',
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
+  '--no-autoinstall': 'disable autoinstall',
 };
 
 function applyOptions(cmd, options) {
@@ -271,6 +271,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   let nodeEnv;
   if (command.name() === 'build') {
     nodeEnv = initialNodeEnv || 'production';
+    command.autoinstall = false;
   } else {
     nodeEnv = initialNodeEnv || 'development';
   }

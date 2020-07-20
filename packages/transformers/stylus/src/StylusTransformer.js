@@ -6,7 +6,7 @@ import path from 'path';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus',
@@ -63,7 +63,7 @@ export default new Transformer({
     asset.meta.hasDependencies = false;
     return [asset];
   },
-});
+}): Transformer);
 
 async function getDependencies(
   code,

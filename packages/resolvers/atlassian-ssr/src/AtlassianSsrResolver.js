@@ -7,7 +7,7 @@ import NodeResolver from '@parcel/node-resolver-core';
 // ex. `imports-loader?$=jquery!./example.js`
 const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
 
-export default new Resolver({
+export default (new Resolver({
   resolve({dependency, options, filePath}) {
     if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
       throw new Error(
@@ -32,4 +32,4 @@ export default new Resolver({
       env: dependency.env,
     });
   },
-});
+}): Resolver);

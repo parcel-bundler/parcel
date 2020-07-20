@@ -5,6 +5,7 @@ import type {
   Bundle,
   BundleGraph,
   NamedBundle,
+  PluginOptions,
   Symbol,
 } from '@parcel/types';
 import type {NodePath} from '@babel/traverse';
@@ -53,6 +54,7 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let statements = [];
   if (from.env.isWorker()) {
@@ -68,11 +70,21 @@ export function generateBundleImports(
     // `var ${id};` was inserted already, add RHS
     nullthrows(path.scope.getBinding(getName(asset, 'init')))
       .path.get('init')
-      .replaceWith(IMPORT_TEMPLATE({ASSET_ID: t.stringLiteral(asset.id)}));
+      .replaceWith(
+        IMPORT_TEMPLATE({
+          ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+        }),
+      );
   }
 }
 
-export function generateExternalImport(_: Bundle, {loc}: ExternalModule) {
+export function generateExternalImport(
+  // eslint-disable-next-line no-unused-vars
+  bundle: Bundle,
+  {loc}: ExternalModule,
+  // eslint-disable-next-line no-unused-vars
+  path: NodePath<Program>,
+) {
   throw getThrowableDiagnosticForNode(
     'External modules are not supported when building for browser',
     loc?.filePath,
@@ -85,7 +97,11 @@ export function generateExports(
   bundle: NamedBundle,
   referencedAssets: Set<Asset>,
   path: NodePath<Program>,
-) {
+  // eslint-disable-next-line no-unused-vars
+  replacements: Map<Symbol, Symbol>,
+  // eslint-disable-next-line no-unused-vars
+  options: PluginOptions,
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 
@@ -95,7 +111,7 @@ export function generateExports(
 
     statements.push(
       EXPORT_TEMPLATE({
-        ASSET_ID: t.stringLiteral(asset.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
         IDENTIFIER: t.identifier(exportsId),
       }),
     );
@@ -114,7 +130,7 @@ export function generateExports(
       // Export a function returning the exports, as other cases of global output
       // register init functions.
       EXPORT_FN_TEMPLATE({
-        ASSET_ID: t.stringLiteral(entry.id),
+        ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(entry)),
         IDENTIFIER: t.identifier(assertString(entry.meta.exportsIdentifier)),
       }),
     );

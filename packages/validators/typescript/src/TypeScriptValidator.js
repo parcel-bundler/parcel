@@ -29,7 +29,7 @@ type TSValidatorConfig = {|
   tsconfig: ConfigResult | null,
 |};
 
-export default new Validator({
+export default (new Validator({
   async validateAll({
     assets,
     options,
@@ -75,7 +75,7 @@ export default new Validator({
 
     return validatorResults;
   },
-});
+}): Validator);
 
 async function getConfig(
   asset,

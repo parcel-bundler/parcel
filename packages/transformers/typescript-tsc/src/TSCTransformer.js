@@ -6,7 +6,7 @@ import type {TranspileOptions} from 'typescript';
 import {Transformer} from '@parcel/plugin';
 import {loadTSConfig} from '@parcel/ts-utils';
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config, options}) {
     await loadTSConfig(config, options);
   },
@@ -46,4 +46,4 @@ export default new Transformer({
       },
     ];
   },
-});
+}): Transformer);

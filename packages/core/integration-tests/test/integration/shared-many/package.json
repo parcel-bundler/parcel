@@ -1,0 +1,7 @@
+{
+  "name": "shared-many",
+  "private": true,
+  "@parcel/bundler-default": {
+    "http": 1
+  }
+}

@@ -69,7 +69,7 @@ export default class ParcelConfig {
     this.autoinstall = autoinstall;
   }
 
-  static deserialize(serialized: SerializedParcelConfig) {
+  static deserialize(serialized: SerializedParcelConfig): ParcelConfig {
     return new ParcelConfig(
       serialized.config,
       serialized.packageManager,
@@ -142,7 +142,7 @@ export default class ParcelConfig {
     );
   }
 
-  _getResolverNodes() {
+  _getResolverNodes(): PureParcelConfigPipeline {
     if (this.resolvers.length === 0) {
       throw new Error('No resolver plugins specified in .parcelrc config');
     }
@@ -154,7 +154,14 @@ export default class ParcelConfig {
     return this._getResolverNodes().map(r => r.packageName);
   }
 
-  getResolvers() {
+  getResolvers(): Promise<
+    Array<{|
+      name: string,
+      plugin: Resolver,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     return this.loadPlugins<Resolver>(this._getResolverNodes());
   }
 
@@ -172,7 +179,16 @@ export default class ParcelConfig {
     return validators.map(v => v.packageName);
   }
 
-  getValidators(filePath: FilePath) {
+  getValidators(
+    filePath: FilePath,
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Validator,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     let validators = this._getValidatorNodes(filePath);
     return this.loadPlugins<Validator>(validators);
   }
@@ -186,6 +202,7 @@ export default class ParcelConfig {
   _getTransformerNodes(
     filePath: FilePath,
     pipeline?: ?string,
+    allowEmpty?: boolean,
   ): $ReadOnlyArray<ParcelPluginNode> {
     let transformers: PureParcelConfigPipeline | null = this.matchGlobMapPipelines(
       filePath,
@@ -193,20 +210,43 @@ export default class ParcelConfig {
       pipeline,
     );
     if (!transformers || transformers.length === 0) {
+      if (allowEmpty) {
+        return [];
+      }
+
       throw new Error(`No transformers found for "${filePath}".`);
     }
 
     return transformers;
   }
 
-  getTransformerNames(filePath: FilePath, pipeline?: ?string): Array<string> {
-    let transformers = this._getTransformerNodes(filePath, pipeline);
+  getTransformerNames(
+    filePath: FilePath,
+    pipeline?: ?string,
+    allowEmpty?: boolean,
+  ): Array<string> {
+    let transformers = this._getTransformerNodes(
+      filePath,
+      pipeline,
+      allowEmpty,
+    );
     return transformers.map(t => t.packageName);
   }
 
-  getTransformers(filePath: FilePath, pipeline?: ?string) {
+  getTransformers(
+    filePath: FilePath,
+    pipeline?: ?string,
+    allowEmpty?: boolean,
+  ): Promise<
+    Array<{|
+      name: string,
+      plugin: Transformer,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     return this.loadPlugins<Transformer>(
-      this._getTransformerNodes(filePath, pipeline),
+      this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
   }
 
@@ -226,7 +266,14 @@ export default class ParcelConfig {
     return this.loadPlugin<Bundler>(this.bundler);
   }
 
-  getNamers() {
+  getNamers(): Promise<
+    Array<{|
+      name: string,
+      plugin: Namer,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
@@ -281,7 +328,10 @@ export default class ParcelConfig {
     };
   }
 
-  _getOptimizerNodes(filePath: FilePath, pipeline: ?string) {
+  _getOptimizerNodes(
+    filePath: FilePath,
+    pipeline: ?string,
+  ): PureParcelConfigPipeline {
     return (
       this.matchGlobMapPipelines(filePath, this.optimizers, pipeline) ?? []
     );
@@ -311,11 +361,18 @@ export default class ParcelConfig {
     return this.loadPlugins<Optimizer>(optimizers);
   }
 
-  getReporters() {
+  getReporters(): Promise<
+    Array<{|
+      name: string,
+      plugin: Reporter,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
     return this.loadPlugins<Reporter>(this.reporters);
   }
 
-  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string) {
+  isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): boolean {
     let prefix = pipeline ? `${pipeline}:` : '';
     return (
       isMatch(prefix + filePath, pattern) ||
@@ -323,7 +380,7 @@ export default class ParcelConfig {
     );
   }
 
-  matchGlobMap(filePath: FilePath, globMap: {[Glob]: any, ...}) {
+  matchGlobMap<T>(filePath: FilePath, globMap: {|[Glob]: T|}): ?T {
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern)) {
         return globMap[pattern];
@@ -335,7 +392,7 @@ export default class ParcelConfig {
 
   matchGlobMapPipelines(
     filePath: FilePath,
-    globMap: {[Glob]: ExtendableParcelConfigPipeline, ...},
+    globMap: {|[Glob]: ExtendableParcelConfigPipeline|},
     pipeline?: ?string,
   ): PureParcelConfigPipeline {
     let matches = [];

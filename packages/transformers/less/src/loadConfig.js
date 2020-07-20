@@ -2,7 +2,7 @@
 import type {Config} from '@parcel/types';
 import path from 'path';
 
-export async function load({config}: {|config: Config|}) {
+export async function load({config}: {|config: Config|}): Promise<void> {
   let configFile = await config.getConfig(['.lessrc', '.lessrc.js'], {
     packageKey: 'less',
   });
