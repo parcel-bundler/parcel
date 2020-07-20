@@ -27,7 +27,7 @@ const buildManifest = (
     }
 
     for (let dependency of asyncDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (resolved == null || resolved.type === 'asset') {
         continue;
       }
@@ -68,7 +68,7 @@ const buildManifest = (
   return manifest;
 };
 
-exports.default = new Reporter({
+exports.default = (new Reporter({
   async report({event, options}) {
     if (event.type !== 'buildSuccess') {
       return;
@@ -104,4 +104,4 @@ exports.default = new Reporter({
       ),
     );
   },
-});
+}): Reporter);

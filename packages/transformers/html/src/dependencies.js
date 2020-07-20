@@ -63,7 +63,7 @@ const META = {
   ],
 };
 
-// Options to be passed to `addURLDependency` for certain tags + attributes
+// Options to be passed to `addDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
     href: {isEntry: true},
@@ -71,8 +71,22 @@ const OPTIONS = {
   iframe: {
     src: {isEntry: true},
   },
+  link(attrs) {
+    if (attrs.rel === 'stylesheet') {
+      return {
+        // Keep in the same bundle group as the HTML.
+        isAsync: false,
+        isEntry: false,
+        isIsolated: true,
+      };
+    }
+  },
   script(attrs, env: Environment) {
     return {
+      // Keep in the same bundle group as the HTML.
+      isAsync: false,
+      isEntry: false,
+      isIsolated: true,
       env: {
         outputFormat:
           attrs.type === 'module' && env.scopeHoist ? 'esmodule' : undefined,

@@ -27,9 +27,9 @@ import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
-export const inputFS = new NodeFS();
-export let outputFS = new MemoryFS(workerFarm);
-export let overlayFS = new OverlayFS(outputFS, inputFS);
+export const inputFS: NodeFS = new NodeFS();
+export let outputFS: MemoryFS = new MemoryFS(workerFarm);
+export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);
 
 beforeEach(() => {
   outputFS = new MemoryFS(workerFarm);
@@ -52,8 +52,8 @@ export async function ncp(source: FilePath, destination: FilePath) {
 
 export const defaultConfig = {
   ...defaultConfigContents,
-  filePath: require.resolve('@parcel/config-default'),
-  reporters: [],
+  filePath: (require.resolve('@parcel/config-default'): string),
+  reporters: ([]: Array<any>),
 };
 
 const chalk = new _chalk.constructor({enabled: true});
@@ -71,11 +71,11 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function normalizeFilePath(filePath: string) {
+export function normalizeFilePath(filePath: string): FilePath {
   return normalizeSeparators(filePath);
 }
 
-export const distDir = path.resolve(
+export const distDir: string = path.resolve(
   __dirname,
   '..',
   '..',
@@ -101,7 +101,7 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 export function bundler(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
-) {
+): Parcel {
   return new Parcel({
     entries,
     disableCache: true,
@@ -157,13 +157,16 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 type RunOpts = {require?: boolean, ...};
 
 export async function runBundles(
+  bundleGraph: BundleGraph<NamedBundle>,
   parent: NamedBundle,
   bundles: Array<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
-    bundles.map(b => b.getMainEntry()).filter(Boolean)[0],
+    bundles
+      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .filter(Boolean)[0],
   );
   let env = entryAsset.env;
   let target = entryAsset.env.context;
@@ -213,7 +216,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(entryAsset.id);
+          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
         }
         return;
       case 'commonjs':
@@ -230,11 +233,12 @@ export async function runBundles(
 }
 
 export function runBundle(
+  bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  return runBundles(bundle, [bundle], globals, opts);
+  return runBundles(bundleGraph, bundle, [bundle], globals, opts);
 }
 
 export async function run(
@@ -263,13 +267,14 @@ export async function run(
       return node;
     });
     return runBundles(
+      bundleGraph,
       bundle,
       scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
       globals,
       opts,
     );
   } else {
-    return runBundle(bundle, globals, opts);
+    return runBundle(bundleGraph, bundle, globals, opts);
   }
 }
 
@@ -327,7 +332,8 @@ export function assertBundles(
     return 0;
   };
 
-  const byAssets = (a, b) => a.assets[0].localeCompare(b.assets[0]);
+  const byAssets = (a, b) =>
+    a.assets.join(',').localeCompare(b.assets.join(','));
   expectedBundles.sort(byName).sort(byAssets);
   actualBundles.sort(byName).sort(byAssets);
   assert.equal(
@@ -563,7 +569,7 @@ function prepareNodeContext(filePath, globals) {
 export function shallowEqual(
   a: $Shape<{|+[string]: mixed|}>,
   b: $Shape<{|+[string]: mixed|}>,
-) {
+): boolean {
   if (Object.keys(a).length !== Object.keys(b).length) {
     return false;
   }

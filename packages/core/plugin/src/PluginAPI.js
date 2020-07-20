@@ -12,7 +12,7 @@ import type {
   Validator as ValidatorOpts,
 } from '@parcel/types';
 
-export const CONFIG = Symbol.for('parcel-plugin-config');
+export const CONFIG: symbol = Symbol.for('parcel-plugin-config');
 
 export class Transformer {
   constructor(opts: TransformerOpts) {

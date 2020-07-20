@@ -32,7 +32,7 @@ export default class ThreadsWorker implements WorkerImpl {
     this.onExit = onExit;
   }
 
-  start() {
+  start(): Promise<void> {
     this.worker = new Worker(WORKER_PATH, {
       execArgv: this.execArgv,
       env: process.env,
@@ -47,7 +47,7 @@ export default class ThreadsWorker implements WorkerImpl {
     });
   }
 
-  stop() {
+  stop(): Promise<void> {
     // In node 12, this returns a promise, but previously it accepted a callback
     // TODO: Pass a callback in earlier versions of Node
     return Promise.resolve(this.worker.terminate());

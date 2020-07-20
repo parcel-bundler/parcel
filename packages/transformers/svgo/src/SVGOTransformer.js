@@ -9,7 +9,7 @@ const defaultConfig = {
   plugins: [{prefixIds: true}],
 };
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(
       [
@@ -52,10 +52,10 @@ export default new Transformer({
     let svgoConfig = config ? config.contents : {};
     let code = await asset.getCode();
     let svgo = new SVGO({...defaultConfig, ...svgoConfig});
-    let res = await svgo.optimize(code);
+    let res = await svgo.optimize(code, {path: asset.id});
 
     asset.setCode(res.data);
 
     return [asset];
   },
-});
+}): Transformer);

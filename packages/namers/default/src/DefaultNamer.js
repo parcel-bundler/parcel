@@ -10,7 +10,7 @@ import nullthrows from 'nullthrows';
 
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
-export default new Namer({
+export default (new Namer({
   name({bundle, bundleGraph, options}) {
     // If the bundle has an explicit file path given (e.g. by a target), use that.
     if (bundle.filePath != null) {
@@ -35,8 +35,8 @@ export default new Namer({
     }
 
     let mainBundle = nullthrows(
-      bundleGroupBundles.find(
-        b => b.getMainEntry()?.id === bundleGroup.entryAssetId,
+      bundleGroupBundles.find(b =>
+        b.getEntryAssets().some(a => a.id === bundleGroup.entryAssetId),
       ),
     );
 
@@ -88,7 +88,13 @@ export default new Namer({
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
-    let name = nameFromContent(mainBundle, options.rootDir);
+    let name = nameFromContent(
+      mainBundle,
+      bundleGroup.entryAssetId,
+      options.entryRoot,
+    );
+    // ATLASSIAN: Apply hash digests to entry bundles in production browser builds
+    // when stableEntries is enabled.
     if (
       (!bundle.target.stableEntries &&
         options.mode === 'production' &&
@@ -100,10 +106,16 @@ export default new Namer({
 
     return name + '.' + bundle.type;
   },
-});
+}): Namer);
 
-function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
-  let entryFilePath = nullthrows(bundle.getMainEntry()).filePath;
+function nameFromContent(
+  bundle: Bundle,
+  entryAssetId: string,
+  entryRoot: FilePath,
+): string {
+  let entryFilePath = nullthrows(
+    bundle.getEntryAssets().find(a => a.id === entryAssetId),
+  ).filePath;
   let name = basenameWithoutExtension(entryFilePath);
 
   // If this is an entry bundle, use the original relative path.
@@ -114,7 +126,7 @@ function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
     }
 
     return path
-      .join(path.relative(rootDir, path.dirname(entryFilePath)), name)
+      .join(path.relative(entryRoot, path.dirname(entryFilePath)), name)
       .replace(/\.\.(\/|\\)/g, '__$1');
   } else {
     // If this is an index file or common directory name, use the parent

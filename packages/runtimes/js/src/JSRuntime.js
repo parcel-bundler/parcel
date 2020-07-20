@@ -54,7 +54,7 @@ function getLoaders(
   return null;
 }
 
-export default new Runtime({
+export default (new Runtime({
   apply({bundle, bundleGraph, options}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
@@ -84,7 +84,7 @@ export default new Runtime({
 
     let assets = [];
     for (let dependency of asyncDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (resolved == null) {
         continue;
       }
@@ -114,7 +114,24 @@ export default new Runtime({
     }
 
     for (let dependency of otherDependencies) {
-      let resolved = bundleGraph.resolveExternalDependency(dependency, bundle);
+      // Resolve the dependency to a bundle. If inline, export the dependency id,
+      // which will be replaced with the contents of that bundle later.
+      let referencedBundle = bundleGraph.getReferencedBundle(
+        dependency,
+        bundle,
+      );
+      if (referencedBundle?.isInline) {
+        assets.push({
+          filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
+          code: `module.exports = ${JSON.stringify(dependency.id)};`,
+          dependency,
+        });
+        continue;
+      }
+
+      // Otherwise, try to resolve the dependency to an external bundle group
+      // and insert a URL to that bundle.
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
       if (dependency.isURL && resolved == null) {
         // If a URL dependency was not able to be resolved, add a runtime that
         // exports the original moduleSpecifier.
@@ -135,16 +152,19 @@ export default new Runtime({
       let bundleGroup = resolved.value;
       let mainBundle = nullthrows(
         bundleGraph.getBundlesInBundleGroup(bundleGroup).find(b => {
-          let main = b.getMainEntry();
-          return main && bundleGroup.entryAssetId === main.id;
+          let entries = b.getEntryAssets();
+          return entries.some(e => bundleGroup.entryAssetId === e.id);
         }),
       );
 
-      if (mainBundle.isInline) {
+      if (bundle.env.outputFormat === 'commonjs' && mainBundle.type === 'js') {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${mainBundle.id}.js`),
-          code: `module.exports = ${JSON.stringify(dependency.id)};`,
+          filePath: __filename,
           dependency,
+          code: `module.exports = require("./" + ${getRelativePathExpr(
+            bundle,
+            mainBundle,
+          )})`,
         });
         continue;
       }
@@ -167,7 +187,7 @@ export default new Runtime({
 
     return assets;
   },
-});
+}): Runtime);
 
 function getLoaderRuntimes({
   bundle,
@@ -281,7 +301,9 @@ function getLoaderRuntimes({
     }
 
     if (bundle.env.outputFormat === 'global') {
-      loaders += `.then(() => parcelRequire('${bundleGroup.entryAssetId}')${
+      loaders += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
+        bundleGraph.getAssetById(bundleGroup.entryAssetId),
+      )}')${
         // In global output with scope hoisting, functions return exports are
         // always returned. Otherwise, the exports are returned.
         bundle.env.scopeHoist ? '()' : ''
@@ -315,14 +337,14 @@ function isNewContext(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
 ): boolean {
+  let parents = bundleGraph.getParentBundles(bundle);
   return (
     bundle.isEntry ||
-    bundleGraph
-      .getParentBundles(bundle)
-      .some(
-        parent =>
-          parent.env.context !== bundle.env.context || parent.type !== 'js',
-      )
+    parents.length === 0 ||
+    parents.some(
+      parent =>
+        parent.env.context !== bundle.env.context || parent.type !== 'js',
+    )
   );
 }
 
@@ -357,7 +379,7 @@ function getRegisterCode(
       return;
     }
 
-    idToName[getPublicBundleId(bundle)] = nullthrows(bundle.name);
+    idToName[bundle.publicId] = nullthrows(bundle.name);
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       // New contexts have their own manifests, so there's no need to continue.
@@ -375,8 +397,8 @@ function getRegisterCode(
 function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
     return `require('./relative-path')(${JSON.stringify(
-      getPublicBundleId(from),
-    )}, ${JSON.stringify(getPublicBundleId(to))})`;
+      from.publicId,
+    )}, ${JSON.stringify(to.publicId)})`;
   }
 
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
@@ -387,11 +409,10 @@ function shouldUseRuntimeManifest(bundle: NamedBundle): boolean {
   return !env.isLibrary && env.outputFormat === 'global' && env.isBrowser();
 }
 
-function getPublicBundleId(bundle: NamedBundle): string {
-  return bundle.id.slice(-16);
-}
-
-function getBundlesToPreload(bundle, bundleGraph) {
+function getBundlesToPreload(
+  bundle: NamedBundle,
+  bundleGraph: BundleGraph<NamedBundle>,
+) {
   let asyncDependencies = [];
   bundle.traverse(node => {
     if (node.type !== 'dependency') {
@@ -406,7 +427,7 @@ function getBundlesToPreload(bundle, bundleGraph) {
 
   let bundlesToPreload = [];
   for (let dep of asyncDependencies) {
-    let resolved = bundleGraph.resolveExternalDependency(dep, bundle);
+    let resolved = bundleGraph.resolveAsyncDependency(dep, bundle);
     if (resolved != null && resolved.type === 'bundle_group') {
       let bundlesInGroup = bundleGraph.getBundlesInBundleGroup(resolved.value);
 

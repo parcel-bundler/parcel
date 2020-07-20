@@ -9,7 +9,11 @@ export default function createDependencyLocation(
   columnOffset: number = 0,
   // Imports are usually wrapped in quotes
   importWrapperLength: number = 2,
-) {
+): {|
+  end: {|column: number, line: number|},
+  filePath: string,
+  start: {|column: number, line: number|},
+|} {
   return {
     filePath: moduleSpecifier,
     start: {

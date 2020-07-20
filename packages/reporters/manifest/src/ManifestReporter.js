@@ -5,7 +5,7 @@ import type {Bundle, Target} from '@parcel/types';
 import path from 'path';
 import {Reporter} from '@parcel/plugin';
 
-export default new Reporter({
+export default (new Reporter({
   async report({event, options}) {
     if (event.type !== 'buildSuccess' || options.mode !== 'production') {
       return;
@@ -55,4 +55,4 @@ export default new Reporter({
       ),
     );
   },
-});
+}): Reporter);

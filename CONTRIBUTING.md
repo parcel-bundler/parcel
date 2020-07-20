@@ -1,87 +1,65 @@
 # Contributing
 
-## Wiki
+Welcome, we really appreciate if you're considering to contribute, the joint effort of our contributors make awesome projects like this possible!
 
-See (and edit!) our public Wiki.
+The goal of this document is to provide guidance on how you can get involved.
 
-Useful notes for new contributors:
+## Asking questions
 
-https://github.com/parcel-bundler/parcel/wiki/Contributing
+Have a question or feature request? Rather than opening an issue, use the [Discussions](https://github.com/parcel-bundler/parcel/discussions) board.
 
-We encourage you to create new pages or make helpful edits to all parts of the wiki. Try to ask before making major changes to pages you didn't create, but just do whatever you think is best. Feel free to make a user page and collect your notes there so everyone can learn.
+Please be polite and take the time to write a well-worded question so our community members can easily assist you.
 
-## Spectrum
+## Getting started with bug fixing
 
-Join our community platform on Spectrum: https://spectrum.chat/parcel
+In order to make it easier to get familiar with the codebase we labeled simpler issues using [Good First Issue](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Ababy%3A+Good+First+Issue%22) and [Help Wanted](https://github.com/parcel-bundler/parcel/issues?q=is%3Aopen+is%3Aissue+label%3A%22%E2%9C%A8+Parcel+2%22+label%3A%22%3Apray%3A+Help+Wanted%22).
 
-If you want help or have questions about any aspect of Parcel development, ask there! We'll see and respond.
+Before starting make sure you have the following requirements installed: [git](https://git-scm.com), [node](https://nodejs.org) and [yarn](https://yarnpkg.com).
 
-It's important to us to give a good experience to new contributors, so anything you want to do is fair game. Feel free to come chat about it, or open a new [issue](https://github.com/parcel-bundler/parcel/issues/new) with RFC in the title.
+The process starts by [forking](https://help.github.com/articles/fork-a-repo) the project and setup a new branch to work in. It's important that the changes are made in separated branches in order to ensure a pull request only includes the commits related to a bug or feature.
 
-## Overview
-
-- `yarn install` - install all dependencies
-- `yarn build` - run src/ through [babel] into lib/
-- `yarn test` - run all tests in repo
-- `yarn format` - run [prettier] on all files
-
-## Getting Started
-
-To get started with the project:
-
-You'll need [Git], [Node], and [Yarn] installed. Then clone the repository:
+Clone the forked repository locally and install the dependencies:
 
 ```sh
-git clone https://github.com/parcel-bundler/parcel.git && cd parcel
-```
-
-Run Yarn:
-
-```sh
+git clone git@github.com:USERNAME/parcel.git
+cd parcel
 yarn install
 ```
 
-Run tests:
+In the folder `packages/example`, create a temporary example to debug. You can start by copying the `simple` example and try to reproduce the bug.
 
-```sh
-yarn test
-```
+In the newly created example run `yarn parcel build index.html` to build.
 
-Run the development version of Parcel:
+After you've figured out where the issue originated from and found a fix, try to add a test case or ask for help on how to proceed if the use case it more complex.
 
-```sh
-./packages/core/parcel/src/bin.js build index.html
-```
+Use `yarn test` to run all unit and integration tests. Make sure all tests pass before submitting a pull request.
 
-[babel]: http://babeljs.io/
-[prettier]: https://prettier.io/
-[git]: https://git-scm.com/
-[node]: https://nodejs.org/
-[yarn]: https://yarnpkg.com/
+Use `yarn format` to make sure we keep the code format consistent.
 
-## Environment variables, command line arguments
+Use `yarn lint` to check for stylistic or unwanted errors.
 
-You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
+## Notes and things to be aware of
 
-**NOTE:** `PARCEL_WORKERS=1` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
+If you're just getting started to understand how the internals work, start from `/packages/core/core/src/Parcel.js`
 
-**NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
+The `packages/core/parcel-bundler` is the source of v1, kept for reference and will be removed
+
+⚠️ You can set `PARCEL_WORKERS` to the number of worker processes to spawn. `PARCEL_WORKERS=1` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
+
+⚠️ When developing plugins or new `Asset` types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
 
 You can set `PARCEL_MAX_CONCURRENT_CALLS` to change the limit of concurrent calls per worker.
 
-## Link to local parcel build
+## Pull requests
 
-While contributing to parcel, you may need to run a local version of parcel and set it as the global cli option in your command line, so that when you run `parcel ...`, it will find your new local variant of parcel instead of the global package installed before (if you had it installed globally before).
+For significant changes, it is recommended that you first [propose your solution](https://github.com/parcel-bundler/parcel/discussions) and gather feedback.
 
-To do this, you have multiple options:
+A few things to keep in mind before submitting a pull request:
 
-- If you had **parcel** installed globally, you can run `yarn global remove parcel` and then `cd` to your own copy of parcel and run `yarn link`. This way, the global parcel in your PATH would reference to the local copy. To make sure you have it installed globally, just run `parcel --version`.
-
-- Another option would be to run `yarn link` in your own copy of parcel directory and then go to the directory, _which you want to test your copy of parcel in_, and run `yarn link parcel-bundler`, so that locally your copy of parcel is the one used in its npm scripts.
-
-- Another way, which we highly recommend if you plan to switch between different parcel sources often, is to create some terminal aliases. This way you can have different aliases for each of the versions of parcel you wish to maintain on your machine. For example, you can make an alias called `parcelfork` pointing to your fork of parcel for development, and then `parceldev` pointing to a clone of the parcel repo for experimenting with the latest changes, and then still keep the original `parcel` command pointing to the npm installed stable version. To do this, add some aliases to your terminal’s startup file (usually .bashrc) in the format `alias [name]=“node [path_to_new_parcel_bin_file]”` for each of the sources you want to use. For example: `alias parcelfork=“node ~/my/path/to/fork/bin/cli.js”`
-
-For more information on this topic, read [this issue on parcel repository](https://github.com/parcel-bundler/parcel/issues/182).
+- do your best to provide relevant test cases
+- if you added an external dependency commit the updated `yarn.lock`
+- don't modify the `package.json` versioning
+- all submissions require review, please be patient
 
 ## Releasing a new version
 
@@ -96,9 +74,12 @@ After these steps are completed there should be a new version of Parcel publishe
 
 In case the automatic npm release failed or you want to do a manual release for any other reason you can also run `yarn run release`
 
-## Financial contributions
+## Become a backer or sponsor
 
-We also welcome financial contributions in full transparency on our [open collective](https://opencollective.com/parcel).
+Showing appreciation makes us happy, donations help us grow.
+
+Our financial situation is fully transparent on our [open collective](https://opencollective.com/parcel).
+
 Anyone can file an expense. If the expense makes sense for the development of the community, it will be "merged" in the ledger of our open collective by the core contributors and the person who filed the expense will be reimbursed.
 
 ## Credits

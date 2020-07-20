@@ -1,9 +1,10 @@
 // @flow strict-local
 import type {
+  Async,
   FilePath,
+  PackageName,
   RawParcelConfig,
   ResolvedParcelConfigFile,
-  PackageName,
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {
@@ -46,12 +47,17 @@ export type ParcelConfigRequest = {|
   id: string,
   type: string,
   input: null,
-  run: () => Promise<ConfigAndCachePath>,
+  run: RunOpts => Async<ConfigAndCachePath>,
+|};
+
+type ParcelConfigChain = {|
+  config: ParcelConfig,
+  extendedFiles: Array<FilePath>,
 |};
 
 const type = 'parcel_config_request';
 
-export default function createParcelConfigRequest() {
+export default function createParcelConfigRequest(): ParcelConfigRequest {
   return {
     id: type,
     type,
@@ -82,7 +88,9 @@ export default function createParcelConfigRequest() {
   };
 }
 
-export async function loadParcelConfig(options: ParcelOptions) {
+export async function loadParcelConfig(
+  options: ParcelOptions,
+): Promise<ParcelConfigChain> {
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
     ? await create(
@@ -110,7 +118,9 @@ export async function loadParcelConfig(options: ParcelOptions) {
   return parcelConfig;
 }
 
-export async function resolveParcelConfig(options: ParcelOptions) {
+export async function resolveParcelConfig(
+  options: ParcelOptions,
+): Promise<?ParcelConfigChain> {
   let filePath = getResolveFrom(options);
   let configPath = await resolveConfig(options.inputFS, filePath, [
     '.parcelrc',
@@ -125,14 +135,14 @@ export async function resolveParcelConfig(options: ParcelOptions) {
 export function create(
   config: ResolvedParcelConfigFile,
   options: ParcelOptions,
-) {
+): Promise<ParcelConfigChain> {
   return processConfigChain(config, config.filePath, options);
 }
 
 export async function readAndProcessConfigChain(
   configPath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<ParcelConfigChain> {
   let contents = await options.inputFS.readFile(configPath, 'utf8');
   let config: RawParcelConfig;
   try {
@@ -235,7 +245,7 @@ export async function processConfigChain(
   configFile: RawParcelConfig | ResolvedParcelConfigFile,
   filePath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<ParcelConfigChain> {
   // Validate config...
   let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
@@ -256,15 +266,27 @@ export async function processConfigChain(
     let exts = Array.isArray(configFile.extends)
       ? configFile.extends
       : [configFile.extends];
-    for (let ext of exts) {
-      let resolved = await resolveExtends(ext, filePath, options);
-      extendedFiles.push(resolved);
+    if (exts.length !== 0) {
+      let [extStart, ...otherExts] = exts;
+      let extStartResolved = await resolveExtends(extStart, filePath, options);
+      extendedFiles.push(extStartResolved);
       let {
-        extendedFiles: moreExtendedFiles,
-        config: baseConfig,
-      } = await readAndProcessConfigChain(resolved, options);
-      extendedFiles = extendedFiles.concat(moreExtendedFiles);
-      config = mergeConfigs(baseConfig, resolvedFile);
+        extendedFiles: extStartMoreExtendedFiles,
+        config: extStartConfig,
+      } = await readAndProcessConfigChain(extStartResolved, options);
+      extendedFiles = extendedFiles.concat(extStartMoreExtendedFiles);
+      for (let ext of otherExts) {
+        let resolved = await resolveExtends(ext, filePath, options);
+        extendedFiles.push(resolved);
+        let {
+          extendedFiles: moreExtendedFiles,
+          config: nextConfig,
+        } = await readAndProcessConfigChain(resolved, options);
+        extendedFiles = extendedFiles.concat(moreExtendedFiles);
+        extStartConfig = mergeConfigs(extStartConfig, nextConfig);
+      }
+      // Merge with the inline config last
+      config = mergeConfigs(extStartConfig, resolvedFile);
     }
   }
 
@@ -275,7 +297,7 @@ export async function resolveExtends(
   ext: string,
   configPath: FilePath,
   options: ParcelOptions,
-) {
+): Promise<FilePath> {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
@@ -313,7 +335,7 @@ export function validateNotEmpty(
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: ProcessedParcelConfig,
+  ext: ProcessedParcelConfig | ParcelConfig,
 ): ParcelConfig {
   return new ParcelConfig(
     {
@@ -351,7 +373,7 @@ export function mergePipelines(
   ext: ?ExtendableParcelConfigPipeline,
   // $FlowFixMe
 ): any {
-  if (!ext) {
+  if (!ext || ext.length === 0) {
     return base || [];
   }
 
@@ -382,7 +404,7 @@ export function mergeMaps<K: string, V>(
   merger?: (a: V, b: V) => V,
   hasNamedPipelines: boolean = false,
 ): ConfigMap<K, V> {
-  if (!ext) {
+  if (!ext || Object.keys(ext).length === 0) {
     return base || {};
   }
 

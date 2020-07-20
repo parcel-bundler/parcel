@@ -20,7 +20,7 @@ let buildStartCpuUsage;
 let buildId;
 let userNotified;
 
-export default new Reporter({
+export default (new Reporter({
   report({event, logger, options}) {
     if (event.type === 'buildStart') {
       buildStartCpuUsage = process.cpuUsage();
@@ -128,7 +128,7 @@ to send us your feedback or questions!
       }
     }
   },
-});
+}): Reporter);
 
 function getAdditionalProperties(event: ReporterEvent, options: PluginOptions) {
   return {

@@ -55,6 +55,11 @@ export type TransformationOpts = {|
   workerApi: WorkerApi,
 |};
 
+export type TransformationResult = {|
+  assets: Array<AssetValue>,
+  configRequests: Array<ConfigRequestAndResult>,
+|};
+
 type ConfigMap = Map<PackageName, Config>;
 type ConfigRequestAndResult = {|
   request: ConfigRequestDesc,
@@ -91,16 +96,13 @@ export default class Transformation {
     this.impactfulOptions = {hot};
   }
 
-  async loadConfig(configRequest: ConfigRequestDesc) {
+  async loadConfig(configRequest: ConfigRequestDesc): Promise<Config> {
     let result = await this.configLoader.load(configRequest);
     this.configRequests.push({request: configRequest, result});
     return result;
   }
 
-  async run(): Promise<{|
-    assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequestAndResult>,
-  |}> {
+  async run(): Promise<TransformationResult> {
     await initSourcemaps;
 
     this.report({
@@ -114,7 +116,7 @@ export default class Transformation {
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
-      this.request.pipeline,
+      this.request,
     );
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
@@ -253,6 +255,10 @@ export default class Transformation {
     pipeline: Pipeline,
     initialAsset: UncommittedAsset,
   ): Promise<Array<UncommittedAsset>> {
+    if (pipeline.transformers.length === 0) {
+      return [initialAsset];
+    }
+
     let initialType = initialAsset.value.type;
     let inputAssets = [initialAsset];
     let resultingAssets = [];
@@ -329,14 +335,14 @@ export default class Transformation {
     return finalAssets.concat(resultingAssets);
   }
 
-  async readFromCache(
-    cacheKey: string,
-  ): Promise<null | Array<UncommittedAsset>> {
+  async readFromCache(cacheKey: string): Promise<?Array<UncommittedAsset>> {
     if (this.options.disableCache || this.request.code != null) {
       return null;
     }
 
-    let cachedAssets = await this.options.cache.get(cacheKey);
+    let cachedAssets = await this.options.cache.get<Array<AssetValue>>(
+      cacheKey,
+    );
     if (!cachedAssets) {
       return null;
     }
@@ -391,13 +397,14 @@ export default class Transformation {
   async loadPipeline(
     filePath: FilePath,
     isSource: boolean,
-    pipelineName?: ?string,
+    request?: AssetRequestInput,
   ): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
       isSource,
-      pipeline: pipelineName,
+      pipeline: request?.pipeline,
+      isURL: request?.isURL,
       meta: {
         actionType: 'transformation',
       },
@@ -410,7 +417,8 @@ export default class Transformation {
 
     let transformers = await this.parcelConfig.getTransformers(
       filePath,
-      pipelineName,
+      request?.pipeline,
+      request?.isURL,
     );
 
     for (let {name, resolveFrom} of transformers) {
@@ -461,7 +469,7 @@ export default class Transformation {
     let nextPipeline = await this.loadPipeline(
       nextFilePath,
       isSource,
-      this.request.pipeline,
+      this.request,
     );
 
     if (nextPipeline.id === currentPipeline.id) {

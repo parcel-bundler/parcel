@@ -4,7 +4,7 @@ import type {DiagnosticCodeFrame} from '@parcel/diagnostic';
 
 let cliEngine = null;
 
-export default new Validator({
+export default (new Validator({
   async validate({asset, options}) {
     let eslint = await options.packageManager.require(
       'eslint',
@@ -65,4 +65,4 @@ export default new Validator({
 
     return validatorResult;
   },
-});
+}): Validator);

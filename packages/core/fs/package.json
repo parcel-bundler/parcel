@@ -20,10 +20,10 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/fs-write-stream-atomic": "^2.0.0-frontbucket.0",
-    "@parcel/utils": "^2.0.0-frontbucket.25",
-    "@parcel/watcher": "^2.0.0-alpha.8",
-    "@parcel/workers": "^2.0.0-frontbucket.25",
+    "@parcel/fs-write-stream-atomic": "2.0.0-frontbucket.0",
+    "@parcel/utils": "2.0.0-frontbucket.25",
+    "@parcel/watcher": "2.0.0-alpha.8",
+    "@parcel/workers": "2.0.0-frontbucket.25",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",

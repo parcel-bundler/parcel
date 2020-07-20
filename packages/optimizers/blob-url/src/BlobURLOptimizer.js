@@ -3,7 +3,7 @@
 import {Optimizer} from '@parcel/plugin';
 import {blobToString} from '@parcel/utils';
 
-export default new Optimizer({
+export default (new Optimizer({
   async optimize({contents}) {
     // Inspired by webpack's worker plugin:
     // https://github.com/webpack-contrib/worker-loader/blob/b82585a1ddb8ae295fd4b1c302bca6b162665de2/src/workers/InlineWorker.js
@@ -18,4 +18,4 @@ export default new Optimizer({
       )}]))`,
     };
   },
-});
+}): Optimizer);

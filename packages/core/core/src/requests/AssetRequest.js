@@ -1,4 +1,6 @@
 // @flow strict-local
+
+import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetRequestInput, AssetRequestResult} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -15,7 +17,7 @@ type RunInput = {|
 export type AssetRequest = {|
   id: string,
   +type: 'asset_request',
-  run: RunInput => Promise<AssetRequestResult>,
+  run: RunInput => Async<AssetRequestResult>,
   input: AssetRequestInput,
 |};
 
@@ -23,7 +25,9 @@ function generateRequestId(type, obj) {
   return `${type}:${md5FromObject(obj)}`;
 }
 
-export default function createAssetRequest(input: AssetRequestInput) {
+export default function createAssetRequest(
+  input: AssetRequestInput,
+): AssetRequest {
   return {
     type: 'asset_request',
     id: getId(input),

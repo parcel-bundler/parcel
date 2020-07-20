@@ -10,7 +10,7 @@ export function shake(
   moduleGraph: TSModuleGraph,
   context: any,
   sourceFile: any,
-) {
+): any {
   // We traverse things out of order which messes with typescript's internal state.
   // We don't rely on the lexical environment, so just overwrite with noops to avoid errors.
   context.suspendLexicalEnvironment = () => {};
