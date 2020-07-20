@@ -1,5 +1,5 @@
 <template>
-  <div>{{lang.homePageTitle}}</div>
+  <div>Home Page</div>
 </template>
 
 <docs>

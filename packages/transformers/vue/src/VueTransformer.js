@@ -7,13 +7,13 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {TransformerResult} from '@parcel/types';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
-import {basename, extname, relative} from 'path';
+import {basename, extname, relative, dirname} from 'path';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
 export default (new Transformer({
   async loadConfig({config}) {
-    let conf: any = await config.getConfig(
+    let conf = await config.getConfig(
       ['.vuerc', '.vuerc.json', '.vuerc.js', 'vue.config.js'],
       {packageKey: 'vue'},
     );
@@ -33,7 +33,7 @@ export default (new Transformer({
     }
     config.setResult({
       customBlocks: contents.customBlocks || {},
-      filePath: conf.filePath,
+      filePath: conf && conf.filePath,
     });
   },
   canReuseAST({ast}) {
@@ -394,6 +394,8 @@ export default cssModules;`,
     }
     case 'custom': {
       let toCall = [];
+      // To satisfy flow
+      if (!config) return [];
       let types = new Set();
       for (let block of customBlocks) {
         let {type, src, content, attrs} = block;
@@ -424,13 +426,10 @@ ${(
   await Promise.all(
     [...types].map(
       async type =>
-        `import p${type} from '${
-          // Slice off the first dot because relative() assumes directories - will always work
-          relative(
-            asset.filePath,
-            await resolve(config.filePath, config.customBlocks[type]),
-          ).slice(1)
-        }';
+        `import p${type} from './${relative(
+          dirname(asset.filePath),
+          await resolve(config.filePath, config.customBlocks[type]),
+        )}';
 if (typeof p${type} !== 'function') {
   p${type} = NOOP;
 }`,
