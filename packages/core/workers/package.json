@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workers",
-  "version": "2.0.0-frontbucket.25",
+  "version": "2.0.0-frontbucket.26",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -20,9 +20,9 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@parcel/diagnostic": "^2.0.0-frontbucket.14",
-    "@parcel/logger": "^2.0.0-frontbucket.16",
-    "@parcel/utils": "^2.0.0-frontbucket.25",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.15",
+    "@parcel/logger": "^2.0.0-frontbucket.17",
+    "@parcel/utils": "^2.0.0-frontbucket.26",
     "chrome-trace-event": "^1.0.2",
     "nullthrows": "^1.1.1"
   },

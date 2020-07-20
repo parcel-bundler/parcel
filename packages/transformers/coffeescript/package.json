@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-coffeescript",
-  "version": "2.0.0-frontbucket.29",
+  "version": "2.0.0-frontbucket.30",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -20,9 +20,9 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.27",
+    "@parcel/plugin": "^2.0.0-frontbucket.28",
     "@parcel/source-map": "2.0.0-alpha.4.13",
-    "@parcel/utils": "^2.0.0-frontbucket.25",
+    "@parcel/utils": "^2.0.0-frontbucket.26",
     "coffeescript": "^2.0.3",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
