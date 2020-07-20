@@ -7,11 +7,35 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {TransformerResult} from '@parcel/types';
 import SourceMap from '@parcel/source-map';
 import semver from 'semver';
-import {basename, extname} from 'path';
+import {basename, extname, relative} from 'path';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
 export default (new Transformer({
+  async loadConfig({config}) {
+    let conf: any = await config.getConfig(
+      ['.vuerc', '.vuerc.json', '.vuerc.js', 'vue.config.js'],
+      {packageKey: 'vue'},
+    );
+    let contents = {};
+    if (conf) {
+      config.shouldInvalidateOnStartup();
+      contents = conf.contents;
+      if (typeof contents !== 'object') {
+        throw new ThrowableDiagnostic({
+          diagnostic: {
+            message: 'Vue config should be an object.',
+            origin: '@parcel/transformer-vue',
+            filePath: conf.filePath,
+          },
+        });
+      }
+    }
+    config.setResult({
+      customBlocks: contents.customBlocks || {},
+      filePath: conf.filePath,
+    });
+  },
   canReuseAST({ast}) {
     return ast.type === 'vue' && semver.satisfies(ast.version, '3.0.0-beta.20');
   },
@@ -41,14 +65,16 @@ export default (new Transformer({
       program: parsed.descriptor,
     };
   },
-  async transform({asset, options, resolve}) {
+  async transform({asset, options, resolve, config}) {
     let baseId = md5FromObject({
       filePath: asset.filePath,
     }).slice(-6);
     let scopeId = 'data-v-' + baseId;
     let hmrId = baseId + '-hmr';
     let basePath = basename(asset.filePath);
-    let {template, script, styles} = nullthrows(await asset.getAST()).program;
+    let {template, script, styles, customBlocks} = nullthrows(
+      await asset.getAST(),
+    ).program;
     if (styles.every(s => !s.scoped)) {
       scopeId = undefined;
     }
@@ -58,6 +84,8 @@ export default (new Transformer({
         template,
         script,
         styles,
+        customBlocks,
+        config,
         basePath,
         options,
         resolve,
@@ -89,12 +117,16 @@ export default (new Transformer({
 script.__cssModules = cssModules;
 `;
     }
+    if (customBlocks.length) {
+      out += `import customBlocks from 'custom:./${basePath}';
+customBlocks(script);`;
+    }
     out += `
 ${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
 script.__file = \`${
       options.mode === 'production'
         ? basePath
-        : asset.filePath.replace(/\\/g, '\\\\')
+        : asset.filePath.replace(/\\/g, '/')
     }\`;
 ${
   options.hot
@@ -154,6 +186,8 @@ async function processPipeline({
   template,
   script,
   styles,
+  customBlocks,
+  config,
   basePath,
   options,
   resolve,
@@ -230,7 +264,8 @@ async function processPipeline({
       let templateAsset: TransformerResult = {
         type: 'js',
         uniqueKey: asset.id + '-template',
-        ...(!template.src && {map: createMap(templateComp.map)}),
+        ...(!template.src &&
+          options.sourceMaps && {map: createMap(templateComp.map)}),
         content:
           templateComp.code +
           `
@@ -282,7 +317,7 @@ ${
         type,
         uniqueKey: asset.id + '-script',
         content: script.content,
-        ...(!script.src && {map: createMap(script.map)}),
+        ...(!script.src && options.sourceMaps && {map: createMap(script.map)}),
       };
 
       return [scriptAsset];
@@ -322,7 +357,8 @@ ${
             type: 'css',
             content: styleComp.code,
             sideEffects: !style.module,
-            ...(!style.src && {map: createMap(style.map)}),
+            ...(!style.src &&
+              options.sourceMaps && {map: createMap(style.map)}),
             uniqueKey: asset.id + '-style' + i,
           };
           if (styleComp.modules) {
@@ -355,6 +391,64 @@ export default cssModules;`,
         });
       }
       return assets;
+    }
+    case 'custom': {
+      let toCall = [];
+      let types = new Set();
+      for (let block of customBlocks) {
+        let {type, src, content, attrs} = block;
+        if (!config.customBlocks[type]) {
+          throw new ThrowableDiagnostic({
+            diagnostic: {
+              message: `No preprocessor found for block type ${type}`,
+              origin: '@parcel/transformer-vue',
+              filePath: asset.filePath,
+            },
+          });
+        }
+        if (src) {
+          content = (
+            await options.inputFS.readFile(await resolve(asset.filePath, src))
+          ).toString();
+        }
+        toCall.push([type, content, attrs]);
+        types.add(type);
+      }
+      return [
+        {
+          type: 'js',
+          uniqueKey: asset.id + '-custom',
+          content: `
+let NOOP = () => {};
+${(
+  await Promise.all(
+    [...types].map(
+      async type =>
+        `import p${type} from '${
+          // Slice off the first dot because relative() assumes directories - will always work
+          relative(
+            asset.filePath,
+            await resolve(config.filePath, config.customBlocks[type]),
+          ).slice(1)
+        }';
+if (typeof p${type} !== 'function') {
+  p${type} = NOOP;
+}`,
+    ),
+  )
+).join('\n')}
+export default script => {
+  ${toCall
+    .map(
+      ([type, content, attrs]) =>
+        `  p${type}(script, ${JSON.stringify(content)}, ${JSON.stringify(
+          attrs,
+        )});`,
+    )
+    .join('\n')}
+}`,
+        },
+      ];
     }
     default: {
       return [];

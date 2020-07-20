@@ -85,6 +85,18 @@ describe('vue', function() {
     assert.equal(typeof output.render, 'function');
     assert.equal(typeof output.components.InsideComp, 'function');
   });
+  it('should apply custom block preprocessors', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-custom-blocks/App.vue'),
+    );
+    let output = (await run(b)).default;
+    assert.equal(typeof output.render, 'function');
+    assert.deepEqual(output.data().docs, {
+      standard:
+        '\nThis component represents the home page of the application.\n',
+      brief: '\nHome Page\n',
+    });
+  });
   it('should produce a basic production vue bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-basic/Basic.vue'),
