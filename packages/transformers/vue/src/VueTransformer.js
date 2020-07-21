@@ -11,6 +11,7 @@ import {basename, extname, relative, dirname} from 'path';
 
 const MODULE_BY_NAME_RE = /\.module\./;
 
+// TODO: Use language-specific config files during preprocessing
 export default (new Transformer({
   async loadConfig({config}) {
     let conf = await config.getConfig(
@@ -336,6 +337,36 @@ ${
               style.module = MODULE_BY_NAME_RE.test(style.src);
             }
             style.lang = extname(style.src);
+          }
+          let toInstall;
+          switch (style.lang) {
+            case 'less':
+              toInstall = 'less';
+              break;
+            case 'stylus':
+            case 'styl':
+              toInstall = 'stylus';
+              break;
+            case 'scss':
+            case 'sass':
+              toInstall = 'sass';
+              break;
+            case 'css':
+            case undefined:
+              break;
+            default:
+              throw new ThrowableDiagnostic({
+                diagnostic: {
+                  message: `Unknown style language: "${style.lang}"`,
+                  origin: '@parcel/transformer-vue',
+                  filePath: asset.filePath,
+                },
+              });
+          }
+          if (options.autoinstall && toInstall) {
+            await options.packageManager.require(toInstall, asset.filePath, {
+              autoinstall: true,
+            });
           }
           let styleComp = await compiler.compileStyleAsync({
             filename: asset.filePath,
