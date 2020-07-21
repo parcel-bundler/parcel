@@ -9,13 +9,11 @@ import nullthrows from 'nullthrows';
 export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
   nodes?: Map<NodeId, TNode>,
   edges?: {|
-    inboundEdges: AdjacencyList<TEdgeType | null>,
-    outboundEdges: AdjacencyList<TEdgeType | null>,
+    inboundEdges: AdjacencyListMap<TEdgeType | null>,
+    outboundEdges: AdjacencyListMap<TEdgeType | null>,
   |},
   rootNodeId?: ?NodeId,
 |};
-
-type AdjacencyList<TEdgeType> = Map<NodeId, Map<TEdgeType, Set<NodeId>>>;
 
 export const ALL_EDGE_TYPES = '@@all_edge_types';
 
@@ -30,11 +28,11 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     this.rootNodeId = opts.rootNodeId;
 
     if (opts.edges) {
-      this.inboundEdges = opts.edges.inboundEdges;
-      this.outboundEdges = opts.edges.outboundEdges;
+      this.inboundEdges = new AdjacencyList(opts.edges.inboundEdges);
+      this.outboundEdges = new AdjacencyList(opts.edges.outboundEdges);
     } else {
-      this.inboundEdges = new Map();
-      this.outboundEdges = new Map();
+      this.inboundEdges = new AdjacencyList();
+      this.outboundEdges = new AdjacencyList();
     }
   }
 
@@ -52,8 +50,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return {
       nodes: this.nodes,
       edges: {
-        inboundEdges: this.inboundEdges,
-        outboundEdges: this.outboundEdges,
+        inboundEdges: this.inboundEdges.getListMap(),
+        outboundEdges: this.outboundEdges.getListMap(),
       },
       rootNodeId: this.rootNodeId,
     };
@@ -63,7 +61,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   // the complete list can be costly in large graphs. Used when merging graphs.
   getAllEdges(): Array<Edge<TEdgeType | null>> {
     let edges = [];
-    for (let [from, edgeList] of this.outboundEdges) {
+    for (let [from, edgeList] of this.outboundEdges.getListMap()) {
       for (let [type, toNodes] of edgeList) {
         for (let to of toNodes) {
           edges.push({from, to, type});
@@ -108,17 +106,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       throw new Error(`"to" node '${to}' not found`);
     }
 
-    addAdjacentEdge(this.outboundEdges, from, type, to);
-    addAdjacentEdge(this.inboundEdges, to, type, from);
+    this.outboundEdges.addEdge(from, to, type);
+    this.inboundEdges.addEdge(to, from, type);
   }
 
   hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | null = null): boolean {
-    return Boolean(
-      this.outboundEdges
-        .get(from)
-        ?.get(type)
-        ?.has(to),
-    );
+    return this.outboundEdges.hasEdge(from, to, type);
   }
 
   getNodesConnectedTo(
@@ -127,7 +120,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   ): Array<TNode> {
     assertHasNode(this, node);
 
-    let inboundByType = this.inboundEdges.get(node.id);
+    let inboundByType = this.inboundEdges.getEdgesByType(node.id);
     if (inboundByType == null) {
       return [];
     }
@@ -153,7 +146,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   ): Array<TNode> {
     assertHasNode(this, node);
 
-    let outboundByType = this.outboundEdges.get(node.id);
+    let outboundByType = this.outboundEdges.getEdgesByType(node.id);
     if (outboundByType == null) {
       return [];
     }
@@ -187,28 +180,24 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   removeNode(node: TNode) {
     assertHasNode(this, node);
 
-    let inbound = this.inboundEdges.get(node.id);
-    if (inbound != null) {
-      for (let [type, nodesForType] of inbound) {
-        for (let from of nodesForType) {
-          this.removeEdge(
-            from,
-            node.id,
-            type,
-            // Do not allow orphans to be removed as this node could be one
-            // and is already being removed.
-            false /* removeOrphans */,
-          );
-        }
+    for (let [type, nodesForType] of this.inboundEdges.getEdgesByType(
+      node.id,
+    )) {
+      for (let from of nodesForType) {
+        this.removeEdge(
+          from,
+          node.id,
+          type,
+          // Do not allow orphans to be removed as this node could be one
+          // and is already being removed.
+          false /* removeOrphans */,
+        );
       }
     }
 
-    let outbound = this.outboundEdges.get(node.id);
-    if (outbound != null) {
-      for (let [type, toNodes] of outbound) {
-        for (let to of toNodes) {
-          this.removeEdge(node.id, to, type);
-        }
+    for (let [type, toNodes] of this.outboundEdges.getEdgesByType(node.id)) {
+      for (let to of toNodes) {
+        this.removeEdge(node.id, to, type);
       }
     }
 
@@ -224,11 +213,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   removeEdges(node: TNode, type: TEdgeType | null = null) {
     assertHasNode(this, node);
 
-    let outbound = this.outboundEdges.get(node.id)?.get(type);
-    if (outbound != null) {
-      for (let to of outbound) {
-        this.removeEdge(node.id, to, type);
-      }
+    for (let to of this.outboundEdges.getEdges(node.id, type)) {
+      this.removeEdge(node.id, to, type);
     }
   }
 
@@ -239,18 +225,16 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     type: TEdgeType | null = null,
     removeOrphans: boolean = true,
   ) {
-    let outbound = this.outboundEdges.get(from)?.get(type);
-    if (outbound == null || !outbound.has(to)) {
+    if (!this.outboundEdges.hasEdge(from, to, type)) {
       throw new Error(`Outbound edge from ${from} to ${to} not found!`);
     }
 
-    let inbound = this.inboundEdges.get(to)?.get(type);
-    if (inbound == null || !inbound.has(from)) {
+    if (!this.inboundEdges.hasEdge(to, from, type)) {
       throw new Error(`Inbound edge from ${to} to ${from} not found!`);
     }
 
-    outbound.delete(to);
-    inbound.delete(from);
+    this.outboundEdges.removeEdge(from, to, type);
+    this.inboundEdges.removeEdge(to, from, type);
 
     let connectedNode = nullthrows(this.nodes.get(to));
     if (removeOrphans && this.isOrphanedNode(connectedNode)) {
@@ -266,12 +250,11 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       // If the graph does not have a root, and there are inbound edges,
       // this node should not be considered orphaned.
       // return false;
-      let inbound = this.inboundEdges.get(node.id);
-      if (inbound != null) {
-        for (let [, inboundNodeIds] of inbound) {
-          if (inboundNodeIds.size > 0) {
-            return false;
-          }
+      for (let [, inboundNodeIds] of this.inboundEdges.getEdgesByType(
+        node.id,
+      )) {
+        if (inboundNodeIds.size > 0) {
+          return false;
         }
       }
 
@@ -309,12 +292,9 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
     this.addNode(toNode);
 
-    let inbound = this.inboundEdges.get(fromNode.id)?.get(type);
-    if (inbound != null) {
-      for (let parent of inbound) {
-        this.addEdge(parent, toNode.id, type);
-        this.removeEdge(parent, fromNode.id, type);
-      }
+    for (let parent of this.inboundEdges.getEdges(fromNode.id, type)) {
+      this.addEdge(parent, toNode.id, type);
+      this.removeEdge(parent, fromNode.id, type);
     }
 
     this.removeNode(fromNode);
@@ -329,7 +309,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   ): void {
     assertHasNode(this, fromNode);
 
-    let outboundEdges = this.outboundEdges.get(fromNode.id)?.get(type) ?? [];
+    let outboundEdges = this.outboundEdges.getEdges(fromNode.id, type);
     let childrenToRemove = new Set(
       replaceFilter
         ? [...outboundEdges].filter(toNodeId =>
@@ -501,12 +481,9 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     }, node);
 
     for (let node of nodes) {
-      let outbound = this.outboundEdges.get(node.id);
-      if (outbound != null) {
-        for (let [type, toNodes] of outbound) {
-          for (let to of toNodes) {
-            graph.addEdge(node.id, to, type);
-          }
+      for (let [type, toNodes] of this.outboundEdges.getEdgesByType(node.id)) {
+        for (let to of toNodes) {
+          graph.addEdge(node.id, to, type);
         }
       }
     }
@@ -607,22 +584,54 @@ function assertHasNode<TNode: Node>(graph: Graph<TNode, *>, node: TNode) {
   }
 }
 
-export function addAdjacentEdge<TEdgeType>(
-  list: AdjacencyList<TEdgeType>,
-  from: NodeId,
-  type: TEdgeType,
-  to: NodeId,
-): void {
-  let types = list.get(from);
-  if (types == null) {
-    types = new Map<TEdgeType, Set<NodeId>>();
-    list.set(from, types);
+type AdjacencyListMap<TEdgeType> = Map<NodeId, Map<TEdgeType, Set<NodeId>>>;
+class AdjacencyList<TEdgeType> {
+  _listMap: AdjacencyListMap<TEdgeType>;
+
+  constructor(listMap?: AdjacencyListMap<TEdgeType>) {
+    this._listMap = listMap ?? new Map();
   }
 
-  let adjacent = types.get(type);
-  if (adjacent == null) {
-    adjacent = new Set<NodeId>();
-    types.set(type, adjacent);
+  getListMap(): AdjacencyListMap<TEdgeType> {
+    return this._listMap;
   }
-  adjacent.add(to);
+
+  getEdges(from: NodeId, type: TEdgeType): $ReadOnlySet<NodeId> {
+    return this._listMap.get(from)?.get(type) ?? new Set();
+  }
+
+  getEdgesByType(from: NodeId): $ReadOnlyMap<TEdgeType, $ReadOnlySet<NodeId>> {
+    return this._listMap.get(from) ?? new Map();
+  }
+
+  hasEdge(from: NodeId, to: NodeId, type: TEdgeType): boolean {
+    return Boolean(
+      this._listMap
+        .get(from)
+        ?.get(type)
+        ?.has(to),
+    );
+  }
+
+  addEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
+    let types = this._listMap.get(from);
+    if (types == null) {
+      types = new Map<TEdgeType, Set<NodeId>>();
+      this._listMap.set(from, types);
+    }
+
+    let adjacent = types.get(type);
+    if (adjacent == null) {
+      adjacent = new Set<NodeId>();
+      types.set(type, adjacent);
+    }
+    adjacent.add(to);
+  }
+
+  removeEdge(from: NodeId, to: NodeId, type: TEdgeType): void {
+    this._listMap
+      .get(from)
+      ?.get(type)
+      ?.delete(to);
+  }
 }

@@ -60,6 +60,7 @@
     "@parcel/transformer-sugarss": "2.0.0-beta.1",
     "@parcel/transformer-toml": "2.0.0-beta.1",
     "@parcel/transformer-typescript-types": "2.0.0-beta.1",
+    "@parcel/transformer-vue": "2.0.0-beta.1",
     "@parcel/transformer-yaml": "2.0.0-beta.1"
   },
   "peerDependencies": {
