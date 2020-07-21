@@ -363,9 +363,9 @@ ${
                 },
               });
           }
-          if (options.autoinstall && toInstall) {
+          if (toInstall) {
             await options.packageManager.require(toInstall, asset.filePath, {
-              autoinstall: true,
+              autoinstall: options.autoinstall,
             });
           }
           let styleComp = await compiler.compileStyleAsync({
