@@ -19,5 +19,5 @@ jobs:
             further activity occurs.
           days-before-stale: 180
           days-before-close: 14
-          exempt-labels: 'pinned, Stale Ignore, security, Confirmed Bug, Feature, parcel 2'
+          exempt-labels: 'pinned, Stale Ignore, security'
           dry-run: 'false'
