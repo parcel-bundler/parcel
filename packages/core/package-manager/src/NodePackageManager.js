@@ -125,7 +125,7 @@ export class NodePackageManager implements PackageManager {
           extensions: Object.keys(Module._extensions),
         });
       } catch (e) {
-        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall === false) {
+        if (e.code !== 'MODULE_NOT_FOUND' || options?.autoinstall !== true) {
           throw e;
         }
 
@@ -139,6 +139,7 @@ export class NodePackageManager implements PackageManager {
           await this.install([{name, range: options?.range}], from, {
             saveDev: options?.saveDev ?? true,
           });
+
           return this.resolve(name, from, {
             ...options,
             autoinstall: false,
@@ -175,7 +176,7 @@ export class NodePackageManager implements PackageManager {
             from,
           );
 
-          if (conflicts == null && options?.autoinstall !== false) {
+          if (conflicts == null && options?.autoinstall === true) {
             await this.install([{name, range}], from);
             return this.resolve(name, from, {
               ...options,

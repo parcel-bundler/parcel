@@ -91,7 +91,7 @@ export default (new Namer({
     let name = nameFromContent(
       mainBundle,
       bundleGroup.entryAssetId,
-      options.rootDir,
+      options.entryRoot,
     );
     if (!bundle.isEntry) {
       name += '.' + bundle.hashReference;
@@ -104,7 +104,7 @@ export default (new Namer({
 function nameFromContent(
   bundle: Bundle,
   entryAssetId: string,
-  rootDir: FilePath,
+  entryRoot: FilePath,
 ): string {
   let entryFilePath = nullthrows(
     bundle.getEntryAssets().find(a => a.id === entryAssetId),
@@ -119,7 +119,7 @@ function nameFromContent(
     }
 
     return path
-      .join(path.relative(rootDir, path.dirname(entryFilePath)), name)
+      .join(path.relative(entryRoot, path.dirname(entryFilePath)), name)
       .replace(/\.\.(\/|\\)/g, '__$1');
   } else {
     // If this is an index file or common directory name, use the parent

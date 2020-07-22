@@ -27,6 +27,11 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
+    "*.vue": ["@parcel/transformer-vue"],
+    "template:*.vue": ["@parcel/transformer-vue"],
+    "script:*.vue": ["@parcel/transformer-vue"],
+    "style:*.vue": ["@parcel/transformer-vue"],
+    "custom:*.vue": ["@parcel/transformer-vue"],
     "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

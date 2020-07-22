@@ -157,7 +157,7 @@ export default (new Runtime({
         }),
       );
 
-      if (bundle.env.outputFormat === 'commonjs') {
+      if (bundle.env.outputFormat === 'commonjs' && mainBundle.type === 'js') {
         assets.push({
           filePath: __filename,
           dependency,

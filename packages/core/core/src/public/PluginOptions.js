@@ -63,8 +63,8 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.logLevel;
   }
 
-  get rootDir(): FilePath {
-    return this.#options.rootDir;
+  get entryRoot(): FilePath {
+    return this.#options.entryRoot;
   }
 
   get distDir(): ?FilePath {
