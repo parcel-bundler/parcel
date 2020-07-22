@@ -19,7 +19,6 @@ export class Pnpm implements PackageInstaller {
   async install({
     modules,
     cwd,
-    packagePath,
     saveDev = true,
   }: InstallerOptions): Promise<void> {
     let args = ['install', '--reporter ndjson', saveDev ? '--dev' : ''].concat(
@@ -85,11 +84,9 @@ export class Pnpm implements PackageInstaller {
             addedCount += json.added || 0;
             removedCount += json.removed || 0;
 
-            const data = JSON.stringify(json);
-
             logger.info({
               origin: '@parcel/package-manager',
-              message: prefix(data),
+              message: prefix(JSON.stringify(json)),
             });
             return;
         }
