@@ -16,7 +16,7 @@ import getTypescriptOptions from './typescript';
 import {enginesToBabelTargets} from './utils';
 import {BABEL_RANGE} from './constants';
 
-const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
+const TYPESCRIPT_EXTNAME_RE = /^\.tsx?-babel/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
 export async function load(

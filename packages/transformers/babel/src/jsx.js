@@ -7,7 +7,7 @@ import path from 'path';
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
-  '.tsx': true,
+  '.tsx-babel': true,
 };
 
 const JSX_PRAGMA = {

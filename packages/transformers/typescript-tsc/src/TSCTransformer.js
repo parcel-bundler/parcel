@@ -12,6 +12,15 @@ export default (new Transformer({
   },
 
   async transform({asset, config, options}) {
+    // Allow other transformers to force TSC
+    if (!config && !asset.meta.forceTSC) {
+      return [
+        {
+          type: asset.type + '-babel',
+          content: await asset.getCode(),
+        },
+      ];
+    }
     asset.type = 'js';
 
     let [typescript, code]: [TypeScriptModule, string] = await Promise.all([
