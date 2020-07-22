@@ -20,7 +20,7 @@ h1 {
 }
 </style>
 
-<template lang="jade">
+<template lang="pug">
 div
   h1 This is the app
   comp-a
