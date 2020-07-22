@@ -4,8 +4,8 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
-import {TargetResolver} from '../../src/requests/TargetRequest';
-import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from '../test-utils';
+import {TargetResolver} from '../src/requests/TargetRequest';
+import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
 const DEFAULT_OPTIONS = {..._DEFAULT_OPTIONS, sourceMaps: true};
 

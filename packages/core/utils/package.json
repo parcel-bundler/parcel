@@ -33,7 +33,7 @@
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "js-levenshtein": "^1.1.6",
-    "json5": "^1.0.1",
+    "json5": "^2.1.2",
     "micromatch": "^4.0.2",
     "node-forge": "^0.8.1",
     "nullthrows": "^1.1.1",

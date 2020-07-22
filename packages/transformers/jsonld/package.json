@@ -24,6 +24,6 @@
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/types": "2.0.0-beta.1",
-    "json5": "^2.1.2"
+    "@parcel/utils": "2.0.0-beta.1"
   }
 }

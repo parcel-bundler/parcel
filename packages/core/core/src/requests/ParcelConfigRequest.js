@@ -16,13 +16,11 @@ import type {
 import {
   isDirectoryInside,
   md5FromObject,
-  resolveConfig,
+  parseJSON5,
   resolve,
+  resolveConfig,
   validateSchema,
 } from '@parcel/utils';
-import ThrowableDiagnostic from '@parcel/diagnostic';
-// $FlowFixMe
-import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
@@ -144,34 +142,7 @@ export async function readAndProcessConfigChain(
   options: ParcelOptions,
 ): Promise<ParcelConfigChain> {
   let contents = await options.inputFS.readFile(configPath, 'utf8');
-  let config: RawParcelConfig;
-  try {
-    config = parse(contents);
-  } catch (e) {
-    let pos = {
-      line: e.lineNumber,
-      column: e.columnNumber,
-    };
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        message: 'Failed to parse .parcelrc',
-        origin: '@parcel/core',
-
-        filePath: configPath,
-        language: 'json5',
-        codeFrame: {
-          code: contents,
-          codeHighlights: [
-            {
-              start: pos,
-              end: pos,
-              message: e.message,
-            },
-          ],
-        },
-      },
-    });
-  }
+  let config: RawParcelConfig = parseJSON5(configPath, contents);
   return processConfigChain(config, configPath, options);
 }
 

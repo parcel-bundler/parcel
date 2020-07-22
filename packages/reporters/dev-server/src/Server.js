@@ -389,8 +389,9 @@ export default class Server extends EventEmitter {
   }
 
   async stop(): Promise<void> {
-    invariant(this.stopServer != null);
-    await this.stopServer();
-    this.stopServer = null;
+    if (this.stopServer != null) {
+      await this.stopServer();
+      this.stopServer = null;
+    }
   }
 }

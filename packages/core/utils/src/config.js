@@ -4,6 +4,8 @@ import type {ConfigResult, File, FilePath} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import clone from 'clone';
+import parseJSON5 from './parseJSON5';
+import {parse as parseTOML} from '@iarna/toml';
 
 export type ConfigOutput = {|
   config: ConfigResult,
@@ -13,11 +15,6 @@ export type ConfigOutput = {|
 export type ConfigOptions = {|
   parse?: boolean,
 |};
-
-const PARSERS = {
-  json: require('json5').parse,
-  toml: require('@iarna/toml').parse,
-};
 
 export async function resolveConfig(
   fs: FileSystem,
@@ -97,9 +94,10 @@ export async function loadConfig(
       let config;
       if (opts && opts.parse === false) {
         config = configContent;
+      } else if (extname === 'toml') {
+        config = parseTOML(configContent);
       } else {
-        let parse = PARSERS[extname] || PARSERS.json;
-        config = parse(configContent);
+        config = parseJSON5(configFile, configContent);
       }
 
       return {
