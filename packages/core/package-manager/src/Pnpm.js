@@ -34,11 +34,14 @@ export class Pnpm implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        logger.warn(e.chunk, '@parcel/package-manager');
-        logger.warn(e, '@parcel/package-manager');
+        logger.warn({
+          origin: '@parcel/package-manager',
+          message: e.chunk,
+          stack: e.stack,
+        });
       })
       .on('data', (json: PNPMResults) => {
-        if (json.level === 'info') {
+        if (json.level === 'info' && typeof json.message === 'string') {
           logger.info({
             origin: '@parcel/package-manager',
             message: prefix(json.message),
@@ -54,14 +57,26 @@ export class Pnpm implements PackageInstaller {
             logger.progress(prefix(`[link] ${json.link}`));
             return;
           case 'pnpm:progress':
-            logger.info(prefix(`[${json.status}] ${json.packageId}`));
+            logger.info({
+              origin: '@parcel/package-manager',
+              message: prefix(`[${json.status}] ${json.packageId}`),
+            });
             return;
           case 'pnpm:root':
             if (json.added) {
               logger.info({
                 origin: '@parcel/package-manager',
                 message: prefix(
-                  `[added] ${json.added.name} (${json.added.version})`,
+                  `[added] ${json.added.name} (${json.added.version || ''})`,
+                ),
+              });
+            }
+            if (json.removed) {
+              logger.info({
+                origin: '@parcel/package-manager',
+                message: prefix(
+                  `[added] ${json.removed.name} (${json.removed.version ||
+                    ''})`,
                 ),
               });
             }
@@ -123,11 +138,9 @@ export class Pnpm implements PackageInstaller {
   }
 }
 
-type PNPMResults =
-  | {|
-      +level: 'info',
-      message: string,
-    |}
+type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
+type PNPMLog =
   | {|
       +name: 'pnpm:progress',
       packageId: string,
@@ -153,6 +166,13 @@ type PNPMResults =
   | {|+name: 'pnpm:importing', from: string, method: string, to: string|}
   | {|+name: 'pnpm:link', target: string, link: string|}
   | {|+name: 'pnpm:stats', prefix: string, removed?: number, added?: number|};
+
+type PNPMResults = {|
+  level: LogLevel,
+  prefix?: string,
+  message?: string,
+  ...PNPMLog,
+|};
 
 function prefix(message: string): string {
   return 'pnpm: ' + message;
