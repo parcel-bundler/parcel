@@ -26,7 +26,7 @@ export default (new Resolver({
     }
 
     const resolver = new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
+      extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl', 'vue'],
       mainFields,
       options,
     });
