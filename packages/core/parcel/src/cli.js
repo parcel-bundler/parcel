@@ -1,6 +1,6 @@
 // @flow
 
-import type {RawParcelConfig, InitialParcelOptions} from '@parcel/types';
+import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
@@ -57,6 +57,8 @@ program.version(version);
 
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
+  '--config <path>':
+    'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-content-hash': 'disable content hashing',
@@ -174,22 +176,10 @@ async function run(entries: Array<string>, command: any) {
   let Parcel = require('@parcel/core').default;
   let options = await normalizeOptions(command);
   let packageManager = new NodePackageManager(new NodeFS());
-  let defaultConfig: RawParcelConfig = await packageManager.require(
-    '@parcel/config-default',
-    __filename,
-    {autoinstall: options.autoinstall},
-  );
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: {
-      ...defaultConfig,
-      filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename, {
-          autoinstall: options.autoinstall,
-        })
-      ).resolved,
-    },
+    defaultConfig: '@parcel/config-default',
     patchConsole: true,
     ...options,
   });
