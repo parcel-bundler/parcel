@@ -6,7 +6,6 @@ import {
   inputFS,
   outputFS,
   overlayFS,
-  defaultConfig,
   ncp,
 } from '@parcel/test-utils';
 import http from 'http';
@@ -15,10 +14,10 @@ import https from 'https';
 import getPort from 'get-port';
 
 const distDir = path.resolve(__dirname, '.parcel-cache/dist');
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
 function get(file, port, client = http) {
   return new Promise((resolve, reject) => {
