@@ -1,5 +1,6 @@
 // @flow
 import assert from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import ParcelConfig from '../../src/ParcelConfig';
 import {
@@ -616,7 +617,8 @@ describe('loadParcelConfig', () => {
         DEFAULT_OPTIONS,
       );
 
-      assert.deepEqual(config.transformers['*.js'], [
+      let transformers = nullthrows(config.transformers);
+      assert.deepEqual(transformers['*.js'], [
         {
           packageName: 'parcel-transformer-sub',
           resolveFrom: subConfigFilePath,
@@ -627,7 +629,7 @@ describe('loadParcelConfig', () => {
         },
         '...',
       ]);
-      assert(Object.keys(config.transformers).length > 1);
+      assert(Object.keys(transformers).length > 1);
       assert.deepEqual(config.resolvers, defaultConfig.resolvers);
       assert.deepEqual(config.bundler, defaultConfig.bundler);
       assert.deepEqual(config.namers, defaultConfig.namers || []);
