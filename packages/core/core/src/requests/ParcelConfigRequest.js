@@ -61,7 +61,9 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     id: type,
     type,
     async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
-      let {config, extendedFiles} = await loadParcelConfig(options);
+      let {config, extendedFiles, usedDefault} = await loadParcelConfig(
+        options,
+      );
 
       api.invalidateOnFileUpdate(config.filePath);
       api.invalidateOnFileDelete(config.filePath);
@@ -71,8 +73,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
         api.invalidateOnFileDelete(filePath);
       }
 
-      // TODO: this wouldn't work if default config is a package name
-      if (config.filePath === options.defaultConfig) {
+      if (usedDefault) {
         api.invalidateOnFileCreate('**/.parcelrc');
       }
 
@@ -89,7 +90,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
 
 export async function loadParcelConfig(
   options: ParcelOptions,
-): Promise<ParcelConfigChain> {
+): Promise<{|...ParcelConfigChain, usedDefault: boolean|}> {
   let parcelConfig = await resolveParcelConfig(options);
 
   if (!parcelConfig) {
@@ -101,7 +102,7 @@ export async function loadParcelConfig(
 
 export async function resolveParcelConfig(
   options: ParcelOptions,
-): Promise<?ParcelConfigChain> {
+): Promise<?{|...ParcelConfigChain, usedDefault: boolean|}> {
   let resolveFrom = getResolveFrom(options);
   let configPath =
     options.config != null
@@ -112,7 +113,9 @@ export async function resolveParcelConfig(
         ).resolved
       : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
 
+  let usedDefault = false;
   if (configPath == null && options.defaultConfig != null) {
+    usedDefault = true;
     configPath = (
       await resolve(options.inputFS, options.defaultConfig, {
         basedir: resolveFrom,
@@ -124,7 +127,11 @@ export async function resolveParcelConfig(
     return null;
   }
 
-  return readAndProcessConfigChain(configPath, options);
+  let {config, extendedFiles} = await readAndProcessConfigChain(
+    configPath,
+    options,
+  );
+  return {config, extendedFiles, usedDefault};
 }
 
 export function create(
