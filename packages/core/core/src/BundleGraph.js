@@ -860,7 +860,8 @@ export default class BundleGraph {
     }
 
     return this._graph
-      .findAncestors(node, node => node.type === 'dependency')
+      .getNodesConnectedTo(node)
+      .filter(node => node.type === 'dependency')
       .map(node => {
         invariant(node.type === 'dependency');
         return node.value;
