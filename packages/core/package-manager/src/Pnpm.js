@@ -25,7 +25,6 @@ export class Pnpm implements PackageInstaller {
       modules.map(npmSpecifierFromModuleRequest),
     );
 
-    console.log({cwd, args});
     let addedCount = 0;
     let removedCount = 0;
     let installProcess = spawn(PNPM_CMD, args, {
@@ -37,7 +36,6 @@ export class Pnpm implements PackageInstaller {
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
-        console.log('[ERROR]', e);
         logger.warn({
           origin: '@parcel/package-manager',
           message: e.chunk,
@@ -45,7 +43,6 @@ export class Pnpm implements PackageInstaller {
         });
       })
       .on('data', (json: PNPMResults) => {
-        console.log('[stdout]', json);
         if (json.level === 'error') {
           logger.error({
             origin: '@parcel/package-manager',
@@ -109,11 +106,9 @@ export class Pnpm implements PackageInstaller {
     let stderr = [];
     installProcess.stderr
       .on('data', str => {
-        console.log('[sdterr]', str.toString());
         stderr.push(str.toString());
       })
       .on('error', e => {
-        console.log('[ERROR] install', e);
         logger.warn({
           origin: '@parcel/package-manager',
           message: e.message,
