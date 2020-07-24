@@ -66,6 +66,16 @@ async function run({input, api, options}: RunOpts) {
     api.invalidateOnFileDelete(assetGroup.filePath);
   }
 
+  // ATLASSIAN: quick fix for https://product-fabric.atlassian.net/jira/software/projects/P2X/boards/431
+  // Ideal solution involves additional api to allow resolvers to set their own invalidations
+  if (
+    assetGroup != null &&
+    assetGroup.filePath.includes('node_modules') &&
+    options.lockFile != null
+  ) {
+    api.invalidateOnFileUpdate(options.lockFile);
+  }
+
   return assetGroup;
 }
 
