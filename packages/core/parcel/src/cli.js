@@ -179,7 +179,7 @@ async function run(entries: Array<string>, command: any) {
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: '@parcel/config-default',
+    defaultConfig: require.resolve('@parcel/config-default'),
     patchConsole: true,
     ...options,
   });
