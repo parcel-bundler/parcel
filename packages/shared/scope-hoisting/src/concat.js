@@ -36,18 +36,12 @@ import {PromiseQueue, relativeUrl} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
-import {assertString, getName, getIdentifier, needsPrelude} from './utils';
+import {assertString, getName, getIdentifier} from './utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = parse(
   fs.readFileSync(path.join(__dirname, 'helpers.js'), 'utf8'),
   HELPERS_PATH,
-);
-
-const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = parse(
-  fs.readFileSync(path.join(__dirname, 'prelude.js'), 'utf8'),
-  PRELUDE_PATH,
 );
 
 type AssetASTMap = Map<string, Array<Statement>>;
@@ -93,9 +87,6 @@ export async function concat({
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
   let result = [...HELPERS];
-  if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...PRELUDE);
-  }
 
   let usedExports = getUsedExports(bundle, bundleGraph);
 
