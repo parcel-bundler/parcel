@@ -15,6 +15,7 @@ import type {
   BundleGraphNode,
   Dependency,
   DependencyNode,
+  NodeId,
 } from './types';
 import type AssetGraph from './AssetGraph';
 
@@ -303,36 +304,71 @@ export default class BundleGraph {
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
-    this._graph.traverse((node, context, actions) => {
-      if (node.type === 'bundle_group') {
+
+    let assetNode = nullthrows(this._graph.getNode(asset.id));
+
+    let subgraphDependencyIds: Set<NodeId> = new Set();
+    // First, collect all the dependencies in this subgraph.
+    this._graph.traverse((node, _, actions) => {
+      if (
+        (node.type !== 'asset' && node.type !== 'dependency') ||
+        (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) ||
+        (node.type === 'dependency' &&
+          !this.bundleHasDependency(bundle, node.value))
+      ) {
         actions.skipChildren();
         return;
       }
 
-      if (node.type === 'asset' || node.type === 'dependency') {
-        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
-          this._graph.removeEdge(
-            bundle.id,
-            node.id,
-            'contains',
-            // Removing this contains edge should not orphan the connected node. This
-            // is disabled for performance reasons as these edges are removed as part
-            // of a traversal, and checking for orphans becomes quite expensive in
-            // aggregate.
-            false /* removeOrphans */,
-          );
-          if (node.type === 'asset') {
-            bundle.stats.size -= asset.stats.size;
-          }
-        } else {
-          actions.skipChildren();
-        }
+      if (node.type === 'dependency') {
+        subgraphDependencyIds.add(node.id);
+      }
+    }, assetNode);
+
+    // Then, remove assets if they are no longer needed in the bundle, along with their dependencies.
+    this._graph.traverse((node, _, actions) => {
+      if (
+        (node.type !== 'asset' && node.type !== 'dependency') ||
+        (node.type === 'asset' && !this.bundleHasAsset(bundle, node.value)) ||
+        (node.type === 'dependency' &&
+          !this.bundleHasDependency(bundle, node.value))
+      ) {
+        actions.skipChildren();
+        return;
+      }
+
+      if (
+        node.type === 'asset' &&
+        this.getIncomingDependencies(node.value).some(dep =>
+          subgraphDependencyIds.has(dep.id),
+        )
+      ) {
+        // If there are any remaining dependencies on this asset inside
+        // this bundle, don't remove it and stop traversal. This subgraph
+        // is needed there.
+        actions.skipChildren();
+        return;
+      }
+
+      this._graph.removeEdge(
+        bundle.id,
+        node.id,
+        'contains',
+        // Removing this contains edge should not orphan the connected node. This
+        // is disabled for performance reasons as these edges are removed as part
+        // of a traversal, and checking for orphans becomes quite expensive in
+        // aggregate.
+        false /* removeOrphans */,
+      );
+
+      if (node.type === 'asset') {
+        bundle.stats.size -= asset.stats.size;
       }
 
       if (node.type === 'dependency') {
         this.removeExternalDependency(bundle, node.value);
       }
-    }, nullthrows(this._graph.getNode(asset.id)));
+    }, assetNode);
 
     // Remove the untyped edge from the bundle to the entry.
     if (this._graph.hasEdge(bundle.id, asset.id)) {
