@@ -26,7 +26,7 @@ async function install(modules, filepath, options = {}) {
     packageManager = await determinePackageManager(filepath);
   }
 
-  let commandToUse = packageManager === 'yarn' ? 'add' : 'install';
+  let commandToUse = packageManager === 'npm' ? 'install' : 'add';
   let args = [commandToUse, ...modules];
   if (saveDev) {
     args.push('-D');

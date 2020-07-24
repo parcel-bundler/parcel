@@ -21,18 +21,23 @@ export class Pnpm implements PackageInstaller {
     cwd,
     saveDev = true,
   }: InstallerOptions): Promise<void> {
-    let args = ['install', '--reporter ndjson', saveDev ? '--dev' : ''].concat(
+    let args = ['add', '--reporter', 'ndjson', saveDev ? '-D' : ''].concat(
       modules.map(npmSpecifierFromModuleRequest),
     );
 
+    console.log({cwd, args});
     let addedCount = 0;
     let removedCount = 0;
-    let installProcess = spawn(PNPM_CMD, args, {cwd});
+    let installProcess = spawn(PNPM_CMD, args, {
+      cwd,
+      env: {...process.env, NODE_ENV: 'development'},
+    });
 
     installProcess.stdout
       .pipe(split())
       .pipe(new JSONParseStream())
       .on('error', e => {
+        console.log('[ERROR]', e);
         logger.warn({
           origin: '@parcel/package-manager',
           message: e.chunk,
@@ -40,6 +45,15 @@ export class Pnpm implements PackageInstaller {
         });
       })
       .on('data', (json: PNPMResults) => {
+        console.log('[stdout]', json);
+        if (json.level === 'error') {
+          logger.error({
+            origin: '@parcel/package-manager',
+            message: json.err.message,
+            stack: json.err.stack,
+          });
+          return;
+        }
         if (json.level === 'info' && typeof json.message === 'string') {
           logger.info({
             origin: '@parcel/package-manager',
@@ -95,9 +109,11 @@ export class Pnpm implements PackageInstaller {
     let stderr = [];
     installProcess.stderr
       .on('data', str => {
+        console.log('[sdterr]', str.toString());
         stderr.push(str.toString());
       })
       .on('error', e => {
+        console.log('[ERROR] install', e);
         logger.warn({
           origin: '@parcel/package-manager',
           message: e.message,
@@ -137,6 +153,14 @@ export class Pnpm implements PackageInstaller {
 
 type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
+type ErrorLog = {|
+  err: {|
+    message: string,
+    code: string,
+    stack: string,
+  |},
+|};
+
 type PNPMLog =
   | {|
       +name: 'pnpm:progress',
@@ -168,6 +192,7 @@ type PNPMResults = {|
   level: LogLevel,
   prefix?: string,
   message?: string,
+  ...ErrorLog,
   ...PNPMLog,
 |};
 
