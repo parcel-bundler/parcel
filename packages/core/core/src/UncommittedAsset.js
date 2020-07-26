@@ -44,8 +44,8 @@ async function getAssetContent(asset: UncommittedAsset) {
   if (typeof content === 'string' || content instanceof Buffer) {
     return content.toString();
   } else if (content != null) {
-    asset.content = await bufferStream(content);
-    return asset.content.toString();
+    asset.content = bufferStream(content);
+    return (await asset.content).toString();
   }
 
   return '';
