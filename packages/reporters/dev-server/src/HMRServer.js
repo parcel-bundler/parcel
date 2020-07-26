@@ -8,7 +8,7 @@ import type {ServerError, HMRServerOptions} from './types.js.flow';
 import WebSocket from 'ws';
 import {md5FromObject, prettyDiagnostic, ansiHtml} from '@parcel/utils';
 
-type HMRAsset = {|
+export type HMRAsset = {|
   id: string,
   type: string,
   output: string,
@@ -16,7 +16,7 @@ type HMRAsset = {|
   depsByBundle: {[string]: {[string]: string, ...}, ...},
 |};
 
-type HMRMessage =
+export type HMRMessage =
   | {|
       type: 'update',
       assets: Array<HMRAsset>,
