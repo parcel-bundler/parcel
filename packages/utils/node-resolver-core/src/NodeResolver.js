@@ -131,13 +131,28 @@ export default class NodeResolver {
     }
 
     if (resolved) {
-      return {
-        filePath: resolved.path,
-        sideEffects:
-          resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
+      if (resolved.pkg) {
+        let {pkg} = resolved;
+        return {
+          filePath: resolved.path,
+          cachePath:
+            pkg.name && pkg.version
+              ? pkg.name +
+                '@' +
+                pkg.version +
+                '/' +
+                normalizeSeparators(path.relative(pkg.pkgdir, resolved.path))
+              : undefined,
+          sideEffects: !this.hasSideEffects(resolved.path, pkg)
             ? false
             : undefined,
-      };
+        };
+      } else {
+        return {
+          filePath: resolved.path,
+          sideEffects: undefined,
+        };
+      }
     }
 
     return null;

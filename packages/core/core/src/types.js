@@ -204,6 +204,7 @@ export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
 export type AssetRequestInput = {|
   filePath: FilePath,
+  cachePath?: FilePath,
   env: Environment,
   isSource?: boolean,
   sideEffects?: boolean,
