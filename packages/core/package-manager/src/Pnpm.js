@@ -2,6 +2,7 @@
 
 import type {PackageInstaller, InstallerOptions} from './types';
 
+import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
 import promiseFromProcess from './promiseFromProcess';
@@ -15,7 +16,22 @@ import pkg from '../package.json';
 
 const PNPM_CMD = 'pnpm';
 
+let hasPnpm: ?boolean;
 export class Pnpm implements PackageInstaller {
+  static async exists(): Promise<boolean> {
+    if (hasPnpm != null) {
+      return hasPnpm;
+    }
+
+    try {
+      hasPnpm = Boolean(await commandExists('pnpm'));
+    } catch (err) {
+      hasPnpm = false;
+    }
+
+    return hasPnpm;
+  }
+
   async install({
     modules,
     cwd,

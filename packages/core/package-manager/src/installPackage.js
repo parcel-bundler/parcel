@@ -127,24 +127,35 @@ async function determinePackageInstaller(
   filepath: FilePath,
 ): Promise<PackageInstaller> {
   let configFile = await resolveConfig(fs, filepath, [
+    'pnpm-lock.yaml',
     'yarn.lock',
     'package-lock.json',
-    'pnpm-lock.yaml',
   ]);
-  let hasYarn = await Yarn.exists();
 
-  // If Yarn isn't available, or there is a package-lock.json file, use npm.
   let configName = configFile && path.basename(configFile);
-  if (!hasYarn || configName) {
-    if (configName === 'package-lock.json') {
+
+  switch (configName) {
+    case 'pnpm-lock.yaml':
+      if (await Pnpm.exists()) {
+        return new Pnpm();
+      }
+      break;
+    case 'yarn.lock':
+      if (await Yarn.exists()) {
+        return new Yarn();
+      }
+      break;
+    case 'package-lock.json':
       return new Npm();
-    }
-    if (configName === 'pnpm-lock.yaml') {
-      return new Pnpm();
-    }
   }
 
-  return new Yarn();
+  if (await Pnpm.exists()) {
+    return new Pnpm();
+  }
+  if (await Yarn.exists()) {
+    return new Yarn();
+  }
+  return new Npm();
 }
 
 let queue = new PromiseQueue({maxConcurrent: 1});
