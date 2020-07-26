@@ -186,6 +186,7 @@ export class ResolverRunner {
               canDefer: result.canDefer,
               filePath: result.filePath,
               query,
+              cachePath: result.cachePath,
               sideEffects: result.sideEffects,
               code: result.code,
               env: dependency.env,

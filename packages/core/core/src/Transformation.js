@@ -150,6 +150,7 @@ export default class Transformation {
 
   async loadAsset(): Promise<UncommittedAsset> {
     let {
+      cachePath,
       filePath,
       env,
       code,
@@ -173,7 +174,8 @@ export default class Transformation {
     let idBase =
       code != null
         ? hash
-        : normalizeSeparators(
+        : cachePath ??
+          normalizeSeparators(
             path.relative(this.options.projectRoot, filePath),
           );
     return new UncommittedAsset({
