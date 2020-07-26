@@ -94,57 +94,56 @@ export default (new Transformer({
         hmrId,
       });
     }
-    let out =
-      script == null
-        ? 'let script = {};\n'
-        : `import script from 'script:./${basePath}';\n`;
-    if (template != null) {
-      out +=
-        `import {render} from 'template:./${basePath}';\n` +
-        'script.render = render;\n';
-    }
-    if (styles.length) {
-      if (!template) {
-        throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: 'Cannot style a component without a template',
-            origin: '@parcel/transformer-vue',
-            filePath: asset.filePath,
-          },
-        });
-      }
-      // Nothing happens if CSS modules is disabled
-      out += `import cssModules from 'style:./${basePath}';
-script.__cssModules = cssModules;
-`;
-    }
-    if (customBlocks.length) {
-      out += `import customBlocks from 'custom:./${basePath}';
-customBlocks(script);`;
-    }
-    out += `
-${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
-script.__file = \`${
-      options.mode === 'production'
-        ? basePath
-        : asset.filePath.replace(/\\/g, '/')
-    }\`;
+    return [
+      {
+        type: 'js',
+        uniqueKey: asset.id + '-glue',
+        content: `
+let script;
+let initialize = () => {
+  script = ${
+    script != null
+      ? `require('script:./${basePath}');
+  if (script.__esModule) script = script.default`
+      : '{}'
+  };
+  ${
+    template != null
+      ? `script.render = require('template:./${basePath}').render;`
+      : ''
+  }
+  ${
+    styles.length !== 0
+      ? `script.__cssModules = require('style:./${basePath}').default;`
+      : ''
+  }
+  ${
+    customBlocks != null
+      ? `require('custom:./${basePath}').default(script);`
+      : ''
+  }
+  ${scopeId != null ? `script.__scopeId = '${scopeId}';` : ''}
+  script.__file = ${JSON.stringify(
+    options.mode === 'production' ? basePath : asset.filePath,
+  )};
+};
+initialize();
 ${
   options.hot
     ? `if (module.hot) {
   script.__hmrId = '${hmrId}';
-  module.hot.accept();
-  if (!__VUE_HMR_RUNTIME__.createRecord('${hmrId}', script)) {
-    __VUE_HMR_RUNTIME__.reload('${hmrId}', script);
-  }
+  module.hot.accept(() => {
+    setTimeout(() => {
+      initialize();
+      if (!__VUE_HMR_RUNTIME__.createRecord('${hmrId}', script)) {
+        __VUE_HMR_RUNTIME__.reload('${hmrId}', script);
+      }
+    }, 0);
+  });
 }`
     : ''
 }
-export default script;`;
-    return [
-      {
-        type: 'js',
-        content: out,
+export default script;`,
       },
     ];
   },
@@ -203,7 +202,7 @@ async function processPipeline({
   let consolidate = await options.packageManager.require(
     'consolidate',
     asset.filePath,
-    {autoinstall: false}, // Would have failed by now if it needed autoinstall
+    {autoinstall: options.autoinstall},
   );
   switch (asset.pipeline) {
     case 'template': {
@@ -387,7 +386,7 @@ ${
           let styleAsset = {
             type: 'css',
             content: styleComp.code,
-            sideEffects: !style.module,
+            sideEffects: true,
             ...(!style.src &&
               options.sourceMaps && {map: createMap(style.map)}),
             uniqueKey: asset.id + '-style' + i,
@@ -402,7 +401,7 @@ ${
           return styleAsset;
         }),
       );
-      if (cssModules.length !== 0) {
+      if (Object.keys(cssModules).length !== 0) {
         assets.push({
           type: 'js',
           uniqueKey: asset.id + '-cssModules',
