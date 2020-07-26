@@ -39,6 +39,18 @@ type UncommittedAssetOptions = {|
   idBase?: ?string,
 |};
 
+async function getAssetContent(asset: UncommittedAsset) {
+  let content = await asset.content;
+  if (typeof content === 'string' || content instanceof Buffer) {
+    return content.toString();
+  } else if (content != null) {
+    asset.content = await bufferStream(content);
+    return asset.content.toString();
+  }
+
+  return '';
+}
+
 export default class UncommittedAsset {
   value: Asset;
   options: ParcelOptions;
@@ -123,19 +135,6 @@ export default class UncommittedAsset {
     this.value.committed = true;
   }
 
-  // Please do not use this outside of uncomittedasset. Thanks :)
-  async __INTERNAL_getContent(): Promise<string> {
-    let content = await this.content;
-    if (typeof content === 'string' || content instanceof Buffer) {
-      return content.toString();
-    } else if (content != null) {
-      this.content = bufferStream(content);
-      return (await this.content).toString();
-    }
-
-    return '';
-  }
-
   getCode(): Promise<string> {
     if (this.ast != null && this.isASTDirty) {
       throw new Error(
@@ -143,7 +142,7 @@ export default class UncommittedAsset {
       );
     }
 
-    return this.__INTERNAL_getContent();
+    return getAssetContent(this);
   }
 
   async getBuffer(): Promise<Buffer> {
@@ -193,7 +192,7 @@ export default class UncommittedAsset {
       return this.map;
     }
 
-    let code = await this.__INTERNAL_getContent();
+    let code = await getAssetContent(this);
     let map = await loadSourceMap(this.value.filePath, code, {
       fs: this.options.inputFS,
       projectRoot: this.options.projectRoot,
