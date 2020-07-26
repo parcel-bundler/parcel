@@ -17,7 +17,8 @@ interface ParcelRequire {
 interface ParcelModule {
   hot: {|
     data: mixed;
-    _acceptCallbacks: Array<(Function) => void>,
+    _acceptSelfCallbacks: Array<(Function) => void>,
+    _acceptDepCallbacks: {|[string]: Array<() => void>|},
     _disposeCallbacks: Array<(mixed) => void>,
 
     accept(deps: Array<string> | string, cb: (Function) => void): void,
@@ -41,10 +42,22 @@ function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
     data: module.bundle.hotData,
-    _acceptCallbacks: [],
+    _acceptSelfCallbacks: [],
+    _acceptDepCallbacks: {},
     _disposeCallbacks: [],
-    accept: function(fn) {
-      this._acceptCallbacks.push(fn || function() {});
+    accept: function(deps, cb) {
+      if (!cb) {
+        this._acceptSelfCallbacks.push(deps || function() {});
+      } else {
+        [].concat(deps).forEach(d => {
+          let list = this._acceptDepCallbacks[d];
+          if (!list) {
+            list = [];
+            this._acceptDepCallbacks[d] = list;
+          }
+          list.push(cb || function() {});
+        });
+      }
     },
     dispose: function(fn) {
       this._disposeCallbacks.push(fn);
@@ -89,7 +102,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       assets.forEach(asset => {
         var didAccept =
           asset.type === 'css' ||
-          hmrAcceptCheck(global.parcelRequire, asset.id);
+          hmrAcceptCheck(
+            global.parcelRequire,
+            asset.id,
+            global.parcelRequire,
+            asset.id,
+          );
         if (didAccept) {
           handled = true;
         }
@@ -111,9 +129,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       } else {
         window.location.reload();
       }
-    }
-
-    if (data.type === 'error') {
+    } else if (data.type === 'error') {
       // Log parcel errors to console
       for (let ansiDiagnostic of data.diagnostics.ansi) {
         let stack = ansiDiagnostic.codeframe
@@ -160,7 +176,7 @@ function createErrorOverlay(diagnostics) {
   let errorHTML =
     '<div style="background: black; opacity: 0.85; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; font-family: Menlo, Consolas, monospace; z-index: 9999;">';
 
-  for (let diagnostic of diagnostics) {
+  diagnostics.forEach(diagnostic => {
     let stack = diagnostic.codeframe ? diagnostic.codeframe : diagnostic.stack;
 
     errorHTML += `
@@ -176,7 +192,7 @@ function createErrorOverlay(diagnostics) {
         </div>
       </div>
     `;
-  }
+  });
 
   errorHTML += '</div>';
 
@@ -272,7 +288,12 @@ function hmrApply(bundle: ParcelRequire, asset: HMRAsset) {
   }
 }
 
-function hmrAcceptCheck(bundle: ParcelRequire, id: string) {
+function hmrAcceptCheck(
+  bundle: ParcelRequire,
+  id: string,
+  depBundle: ParcelRequire,
+  dep: string,
+) {
   var modules = bundle.modules;
 
   if (!modules) {
@@ -280,7 +301,7 @@ function hmrAcceptCheck(bundle: ParcelRequire, id: string) {
   }
 
   if (!modules[id] && bundle.parent) {
-    return hmrAcceptCheck(bundle.parent, id);
+    return hmrAcceptCheck(bundle.parent, id, bundle, id);
   }
 
   if (checkedAssets[id]) {
@@ -291,14 +312,31 @@ function hmrAcceptCheck(bundle: ParcelRequire, id: string) {
 
   var cached = bundle.cache[id];
 
-  assetsToAccept.push([bundle, id]);
+  if (cached && cached.hot && cached.hot._acceptSelfCallbacks.length) {
+    assetsToAccept.push([bundle, id]);
+    return true;
+  }
 
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+  var deps = bundle.modules[id][1];
+  var depSpecifier;
+  for (let i in deps) {
+    if (deps[i] === dep) {
+      depSpecifier = i;
+      break;
+    }
+  }
+  if (
+    depSpecifier &&
+    cached &&
+    cached.hot &&
+    depSpecifier in cached.hot._acceptDepCallbacks
+  ) {
+    assetsToAccept.push([depBundle, dep]);
     return true;
   }
 
   return getParents(global.parcelRequire, id).some(function(v) {
-    return hmrAcceptCheck(v[0], v[1]);
+    return hmrAcceptCheck(v[0], v[1], bundle, id);
   });
 }
 
@@ -315,12 +353,15 @@ function hmrAcceptRun(bundle: ParcelRequire, id: string) {
     });
   }
 
+  // TODO this recreates `module.exports` instead of mutating it, so the imports
+  // in parents aren't updated automatically
   delete bundle.cache[id];
   bundle(id);
 
   cached = bundle.cache[id];
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function(cb) {
+
+  if (cached && cached.hot && cached.hot._acceptSelfCallbacks.length) {
+    cached.hot._acceptSelfCallbacks.forEach(function(cb) {
       var assetsToAlsoAccept = cb(function() {
         return getParents(global.parcelRequire, id);
       });
@@ -328,6 +369,32 @@ function hmrAcceptRun(bundle: ParcelRequire, id: string) {
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
       }
     });
+  } else {
+    var parents = getParents(global.parcelRequire, id);
+    parents.forEach(parent => {
+      var parentDeps = parent[0].modules[parent[1]][1];
+      var depSpecifier;
+      for (let i in parentDeps) {
+        if (parentDeps[i] === id) {
+          depSpecifier = i;
+          break;
+        }
+      }
+      let parentModule = parent[0].cache[parent[1]];
+      if (
+        depSpecifier &&
+        parentModule &&
+        parentModule.hot &&
+        depSpecifier in parentModule.hot._acceptDepCallbacks
+      ) {
+        parentModule.hot._acceptDepCallbacks[depSpecifier].forEach(function(
+          cb,
+        ) {
+          cb();
+        });
+      }
+    });
   }
+
   acceptedAssets[id] = true;
 }
