@@ -1,6 +1,8 @@
 import assert from 'assert';
 import path from 'path';
 import {bundle, run} from '@parcel/test-utils';
+import fs from 'fs';
+import os from 'os';
 
 describe('resolver', function() {
   it('should support resolving tilde in monorepo packages', async function() {
@@ -258,6 +260,19 @@ describe('resolver', function() {
   });
 
   it('should support symlinked node_modules structure', async function() {
+    const symlinks = [
+      [
+        '/node_modules/.origin/library@1.0.0/node_modules/library-dep',
+        '../../library-dep@1.0.0/node_modules/library-dep',
+      ],
+      ['/node_modules/library', '.origin/library@1.0.0/node_modules/library'],
+    ];
+
+    createSymlinks(
+      '/integration/resolve-symlinked-node_modules-structure',
+      symlinks,
+    );
+
     let b = await bundle(
       path.join(
         __dirname,
@@ -265,11 +280,30 @@ describe('resolver', function() {
       ),
     );
 
+    removeSymlinks(
+      '/integration/resolve-symlinked-node_modules-structure',
+      symlinks,
+    );
+
     let output = await run(b);
     assert.strictEqual(output.default, 42);
   });
 
   it('should support symlinked monorepos structure', async function() {
+    const symlinks = [
+      ['/packages/app/node_modules/library', '../../library'],
+      [
+        '/packages/app/node_modules/pkg',
+        '../../../node_modules/.origin/pkg@1.0.0/node_modules/pkg',
+      ],
+      [
+        '/packages/library/node_modules/pkg',
+        '../../../node_modules/.origin/pkg@1.0.0/node_modules/pkg',
+      ],
+    ];
+
+    createSymlinks('/integration/resolve-symlinked-monorepos', symlinks);
+
     let b = await bundle(
       path.join(
         __dirname,
@@ -277,7 +311,25 @@ describe('resolver', function() {
       ),
     );
 
+    removeSymlinks('/integration/resolve-symlinked-monorepos', symlinks);
+
     let output = await run(b);
     assert.strictEqual(output.default, 2);
   });
 });
+
+function createSymlinks(dir, symlinks) {
+  const symlinkType = os.platform() === 'win32' ? 'junction' : 'file';
+
+  symlinks.forEach(([linkFile, linkTarget]) => {
+    const file = path.join(__dirname, dir, linkFile);
+    fs.symlinkSync(linkTarget, file, symlinkType);
+  });
+}
+
+function removeSymlinks(dir, symlinks) {
+  symlinks.forEach(([linkFile]) => {
+    const file = path.join(__dirname, dir, linkFile);
+    fs.unlinkSync(file);
+  });
+}
