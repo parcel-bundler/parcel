@@ -6,6 +6,13 @@ import {normalizeSeparators} from './path';
 
 const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
+export const SOURCEMAP_EXTENSIONS: Set<string> = new Set<string>([
+  'js',
+  'css',
+  'scss',
+  'sass',
+  'styl',
+]);
 
 export function matchSourceMappingURL(
   contents: string,

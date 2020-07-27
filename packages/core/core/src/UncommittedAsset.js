@@ -39,18 +39,6 @@ type UncommittedAssetOptions = {|
   idBase?: ?string,
 |};
 
-async function getAssetContent(asset: UncommittedAsset) {
-  let content = await asset.content;
-  if (typeof content === 'string' || content instanceof Buffer) {
-    return content.toString();
-  } else if (content != null) {
-    asset.content = bufferStream(content);
-    return (await asset.content).toString();
-  }
-
-  return '';
-}
-
 export default class UncommittedAsset {
   value: Asset;
   options: ParcelOptions;
@@ -135,14 +123,22 @@ export default class UncommittedAsset {
     this.value.committed = true;
   }
 
-  getCode(): Promise<string> {
+  async getCode(): Promise<string> {
     if (this.ast != null && this.isASTDirty) {
       throw new Error(
         'Cannot call getCode() on an asset with a dirty AST. For transformers, implement canReuseAST() and check asset.isASTDirty.',
       );
     }
 
-    return getAssetContent(this);
+    let content = await this.content;
+    if (typeof content === 'string' || content instanceof Buffer) {
+      return content.toString();
+    } else if (content != null) {
+      this.content = bufferStream(content);
+      return (await this.content).toString();
+    }
+
+    return '';
   }
 
   async getBuffer(): Promise<Buffer> {
@@ -192,7 +188,7 @@ export default class UncommittedAsset {
       return this.map;
     }
 
-    let code = await getAssetContent(this);
+    let code = await this.getCode();
     let map = await loadSourceMap(this.value.filePath, code, {
       fs: this.options.inputFS,
       projectRoot: this.options.projectRoot,
@@ -206,12 +202,7 @@ export default class UncommittedAsset {
     return this.map;
   }
 
-  async getMapBuffer(): Promise<?Buffer> {
-    if (!this.mapBuffer) {
-      // load any existing sourcemaps from asset content
-      await this.loadExistingSourcemap();
-    }
-
+  getMapBuffer(): ?Buffer {
     return this.mapBuffer;
   }
 
@@ -223,9 +214,6 @@ export default class UncommittedAsset {
         let map = new SourceMap();
         map.addBufferMappings(mapBuffer);
         this.map = map;
-      } else {
-        // load any existing sourcemaps from asset content
-        return this.loadExistingSourcemap();
       }
     }
 
