@@ -9,10 +9,10 @@ const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 export const SOURCEMAP_EXTENSIONS: Set<string> = new Set<string>([
   'js',
   'jsx',
+  'mjs',
+  'es',
+  'es6',
   'css',
-  'scss',
-  'sass',
-  'styl',
 ]);
 
 export function matchSourceMappingURL(
