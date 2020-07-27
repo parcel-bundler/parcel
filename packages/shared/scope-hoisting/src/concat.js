@@ -203,9 +203,11 @@ function getUsedExports(
 
   let entry = bundle.getMainEntry();
   if (entry) {
-    for (let {asset, symbol} of bundleGraph.getExportedSymbols(entry)) {
+    for (let {asset, symbol, exportSymbol} of bundleGraph.getExportedSymbols(
+      entry,
+    )) {
       if (symbol) {
-        markUsed(asset, symbol);
+        markUsed(asset, exportSymbol);
       }
     }
   }
@@ -223,11 +225,13 @@ function getUsedExports(
         }
 
         if (symbol === '*') {
-          for (let {asset, symbol} of bundleGraph.getExportedSymbols(
-            resolvedAsset,
-          )) {
+          for (let {
+            asset,
+            symbol,
+            exportSymbol,
+          } of bundleGraph.getExportedSymbols(resolvedAsset)) {
             if (symbol) {
-              markUsed(asset, symbol);
+              markUsed(asset, exportSymbol);
             }
           }
         }
@@ -239,9 +243,13 @@ function getUsedExports(
     // If the asset is referenced by another bundle, include all exports.
     if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
       markUsed(asset, '*');
-      for (let {asset: a, symbol} of bundleGraph.getExportedSymbols(asset)) {
+      for (let {
+        asset: a,
+        symbol,
+        exportSymbol,
+      } of bundleGraph.getExportedSymbols(asset)) {
         if (symbol) {
-          markUsed(a, symbol);
+          markUsed(a, exportSymbol);
         }
       }
     }
