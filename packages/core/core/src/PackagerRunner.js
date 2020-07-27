@@ -104,7 +104,12 @@ export default class PackagerRunner {
     let farm = nullthrows(this.farm);
     let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
-    let bundleInfoMap = {};
+    let bundleInfoMap: {|
+      [string]: {|
+        ...BundleInfo,
+        cacheKeys: CacheKeyMap,
+      |},
+    |} = {};
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
     // skip inline bundles, they will be processed via the parent bundle
