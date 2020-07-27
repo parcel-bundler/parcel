@@ -381,6 +381,7 @@ export default class Transformation {
   getCacheKey(assets: Array<UncommittedAsset>, configs: ConfigMap): string {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
+      pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
     }));

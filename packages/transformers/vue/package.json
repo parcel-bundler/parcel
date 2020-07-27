@@ -1,0 +1,32 @@
+{
+  "name": "@parcel/transformer-vue",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/VueTransformer.js",
+  "source": "src/VueTransformer.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0-beta.1",
+    "@parcel/source-map": "2.0.0-alpha.4.13",
+    "nullthrows": "^1.1.1",
+    "semver": "^5.4.1"
+  },
+  "devDependencies": {
+    "@vue/compiler-sfc": "^3.0.0-beta.20",
+    "vue": "^3.0.0-beta.20"
+  }
+}
