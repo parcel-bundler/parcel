@@ -515,11 +515,12 @@ export default class NodeResolver {
         let moduleDir = path.join(dir, 'node_modules', moduleName);
         let stats = await this.options.inputFS.stat(moduleDir);
         if (stats.isDirectory()) {
+          const realModuleDir = this.options.inputFS.realpathSync(moduleDir);
           return {
             moduleName: moduleName,
             subPath: subPath,
-            moduleDir: moduleDir,
-            filePath: path.join(dir, 'node_modules', filename),
+            moduleDir: realModuleDir,
+            filePath: path.join(realModuleDir, subPath || ''),
           };
         }
       } catch (err) {
