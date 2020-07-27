@@ -136,6 +136,7 @@ console.log("Hello World");
     - [`--https`](#--https)
       - [`--cert <path>`](#--cert-path)
       - [`--key <path>`](#--key-path)
+    - [`--dist-dir <dir>`](#--dist-dir-dir)
     - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
     - [`--hot`, `--no-hot`](#--hot---no-hot)
       - [`--hot-host <hostname>`](#--hot-host-hostname)
@@ -320,6 +321,10 @@ Specify the filepath to your SSL certificate when using `--https`.
 ##### `--key <path>`
 
 Specify the filepath to your SSL key when using `--https`.
+
+#### `--dist-dir <dir>`
+
+Configure the directory where compiled assets are output. Default is `./dist`.
 
 #### `--cache-dir <dir>`, `--no-cache`
 
