@@ -202,8 +202,8 @@ export default class UncommittedAsset {
     return this.map;
   }
 
-  getMapBuffer(): ?Buffer {
-    return this.mapBuffer;
+  getMapBuffer(): Promise<?Buffer> {
+    return Promise.resolve(this.mapBuffer);
   }
 
   async getMap(): Promise<?SourceMap> {
