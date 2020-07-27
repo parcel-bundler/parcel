@@ -24,7 +24,7 @@ import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
-import Graph, {mapVisitor} from './Graph';
+import Graph, {mapVisitor, type GraphOpts} from './Graph';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -51,6 +51,13 @@ type InternalSymbolResolution = {|
 type InternalExportSymbolResolution = {|
   ...InternalSymbolResolution,
   +exportAs: Symbol | string,
+|};
+
+type SerializedBundleGraph = {|
+  graph: GraphOpts<BundleGraphNode, BundleGraphEdgeTypes>,
+  bundleContentHashes: Map<string, string>,
+  assetPublicIds: Set<string>,
+  publicIdByAssetId: Map<string, string>,
 |};
 
 export default class BundleGraph {
@@ -118,14 +125,14 @@ export default class BundleGraph {
     for (let edge of assetGraph.getAllEdges()) {
       let fromIds;
       if (assetGroupIds.has(edge.from)) {
-        fromIds = [...assetGraph.inboundEdges.get(edge.from).get(null)];
+        fromIds = [...assetGraph.inboundEdges.getEdges(edge.from, null)];
       } else {
         fromIds = [edge.from];
       }
 
       for (let from of fromIds) {
         if (assetGroupIds.has(edge.to)) {
-          for (let to of assetGraph.outboundEdges.get(edge.to).get(null)) {
+          for (let to of assetGraph.outboundEdges.getEdges(edge.to, null)) {
             graph.addEdge(from, to);
           }
         } else {
@@ -142,17 +149,21 @@ export default class BundleGraph {
     });
   }
 
-  static deserialize(opts: {|
-    _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    _bundleContentHashes: Map<string, string>,
-    _assetPublicIds: Set<string>,
-    _publicIdByAssetId: Map<string, string>,
-  |}): BundleGraph {
+  serialize(): SerializedBundleGraph {
+    return {
+      graph: this._graph.serialize(),
+      assetPublicIds: this._assetPublicIds,
+      bundleContentHashes: this._bundleContentHashes,
+      publicIdByAssetId: this._publicIdByAssetId,
+    };
+  }
+
+  static deserialize(serialized: SerializedBundleGraph): BundleGraph {
     return new BundleGraph({
-      graph: opts._graph,
-      assetPublicIds: opts._assetPublicIds,
-      bundleContentHashes: opts._bundleContentHashes,
-      publicIdByAssetId: opts._publicIdByAssetId,
+      graph: Graph.deserialize(serialized.graph),
+      assetPublicIds: serialized.assetPublicIds,
+      bundleContentHashes: serialized.bundleContentHashes,
+      publicIdByAssetId: serialized.publicIdByAssetId,
     });
   }
 

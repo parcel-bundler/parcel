@@ -3,7 +3,7 @@ import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
 // flowlint-next-line untyped-import:off
-import levenshteinDistance from 'js-levenshtein';
+import levenshtein from 'fastest-levenshtein';
 
 export type SchemaEntity =
   | SchemaObject
@@ -367,7 +367,7 @@ export function fuzzySearch(
   actualValue: string,
 ): Array<string> {
   let result = expectedValues
-    .map(exp => [exp, levenshteinDistance(exp, actualValue)])
+    .map(exp => [exp, levenshtein.distance(exp, actualValue)])
     .filter(
       // Remove if more than half of the string would need to be changed
       ([, d]) => d * 2 < actualValue.length,
