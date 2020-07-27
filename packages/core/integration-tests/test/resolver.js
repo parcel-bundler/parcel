@@ -256,4 +256,28 @@ describe('resolver', function() {
     let output = await run(b);
     assert.deepEqual(output.default, {});
   });
+
+  it('should support symlinked node_modules structure', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-symlinked-node_modules-structure/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 42);
+  });
+
+  it('should support symlinked monorepos structure', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/resolve-symlinked-monorepos/packages/app/index.js',
+      ),
+    );
+
+    let output = await run(b);
+    assert.strictEqual(output.default, 2);
+  });
 });
