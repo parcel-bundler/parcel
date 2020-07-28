@@ -179,6 +179,7 @@ export default class Transformation {
         filePath,
         isSource,
         type: path.extname(filePath).slice(1),
+        cachePath,
         hash,
         pipeline,
         env,

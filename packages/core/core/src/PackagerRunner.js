@@ -114,7 +114,7 @@ export default class PackagerRunner {
         let info = await this.processBundle(bundle, bundleGraph, ref);
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {
-          hashRefToNameHash.set(bundle.hashReference, info.hash.slice(-8));
+          hashRefToNameHash.set(bundle.hashReference, info.hash);
           writeEarlyPromises[bundle.id] = this.writeToDist({
             bundle,
             info,
@@ -644,7 +644,7 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
       bundle.hashReference,
       md5FromString(
         includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
-      ).slice(-8),
+      ),
     );
   }
 }

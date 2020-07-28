@@ -11,6 +11,7 @@ import type {
 import type {Asset, Dependency, ParcelOptions} from './types';
 
 import v8 from 'v8';
+import nullthrows from 'nullthrows';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
 import {bufferStream, blobToStream, streamFromPromise} from '@parcel/utils';
@@ -33,9 +34,9 @@ export default class CommittedAsset {
 
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
-      if (this.value.contentKey != null) {
-        return this.options.cache.getStream(this.value.contentKey);
-      } else if (this.value.astKey != null) {
+      if (this.value.hasContent) {
+        return this.options.cache.getStream(nullthrows(this.value.contentKey));
+      } else if (this.value.hasAST) {
         return streamFromPromise(
           generateFromAST(this).then(({content}) => {
             if (!(content instanceof Readable)) {
@@ -86,11 +87,12 @@ export default class CommittedAsset {
   }
 
   getMapBuffer(): Promise<?Buffer> {
-    let mapKey = this.value.mapKey;
-    if (mapKey != null && this.mapBuffer == null) {
+    if (this.value.hasMap && this.mapBuffer == null) {
       this.mapBuffer = (async () => {
         try {
-          return await this.options.cache.getBlob(mapKey);
+          return await this.options.cache.getBlob(
+            nullthrows(this.value.mapKey),
+          );
         } catch (err) {
           if (err.code === 'ENOENT' && this.value.astKey != null) {
             return (await generateFromAST(this)).map?.toBuffer();
@@ -121,13 +123,13 @@ export default class CommittedAsset {
   }
 
   getAST(): Promise<AST> {
-    if (this.value.astKey == null) {
+    if (!this.value.hasAST) {
       throw new Error('Asset does not have an AST');
     }
 
     if (this.ast == null) {
       this.ast = this.options.cache
-        .getBlob(this.value.astKey)
+        .getBlob(nullthrows(this.value.astKey))
         .then(serializedAst =>
           // $FlowFixMe
           v8.deserialize(serializedAst),

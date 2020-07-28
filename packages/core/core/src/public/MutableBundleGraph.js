@@ -21,7 +21,7 @@ import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
-import {getBundleGroupId, getPublicId} from '../utils';
+import {getBundleGroupId /* , getPublicId */} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
@@ -145,10 +145,11 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       return Bundle.get(existing.value, this.#graph, this.#options);
     }
 
-    let publicId = getPublicId(bundleId, existing =>
-      this.#bundlePublicIds.has(existing),
-    );
-    this.#bundlePublicIds.add(publicId);
+    let publicId = bundleId;
+    // getPublicId(bundleId, existing =>
+    //   this.#bundlePublicIds.has(existing),
+    // );
+    // this.#bundlePublicIds.add(publicId);
 
     let bundleNode = {
       type: 'bundle',
