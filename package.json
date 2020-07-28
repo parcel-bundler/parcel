@@ -25,7 +25,7 @@
     "test:unit": "cross-env NODE_ENV=test mocha",
     "test:integration": "yarn workspace @parcel/integration-tests test",
     "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
-    "test": "yarn test:unit && yarn test:integration",
+    "test": "yarn build && yarn test:unit && yarn test:integration",
     "update-readme-toc": "doctoc README.md",
     "nightly:release": "lerna publish -y --canary --preid nightly --dist-tag=nightly --exact --force-publish=* --no-git-tag-version --no-push",
     "tag:prerelease": "lerna version --exact --force-publish=* --no-git-tag-version --no-push",

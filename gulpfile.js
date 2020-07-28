@@ -10,7 +10,6 @@ const IGNORED_PACKAGES = [
   '!packages/core/integration-tests/**',
   '!packages/core/workers/test/integration/**',
   '!packages/core/is-v2-ready-yet/**',
-  '!packages/core/test-utils/**',
   '!packages/core/types/**',
   '!packages/utils/node-libs-browser/**',
 ];
