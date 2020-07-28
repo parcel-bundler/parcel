@@ -258,38 +258,41 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   // This helps with performance building large libraries like `lodash-es`, which re-exports
   // a huge number of functions since we can avoid even transforming the files that aren't used.
   shouldDeferDependency(
+    // eslint-disable-next-line
     dependency: Dependency,
+    // eslint-disable-next-line
     sideEffects: ?boolean,
   ): boolean {
-    let defer = false;
-    if (
-      dependency.isWeak &&
-      sideEffects === false &&
-      !dependency.symbols.has('*')
-    ) {
-      let depNode = this.getNode(dependency.id);
-      invariant(depNode);
+    return false;
+    // let defer = false;
+    // if (
+    //   dependency.isWeak &&
+    //   sideEffects === false &&
+    //   !dependency.symbols.has('*')
+    // ) {
+    //   let depNode = this.getNode(dependency.id);
+    //   invariant(depNode);
 
-      let assets = this.getNodesConnectedTo(depNode);
-      let symbols = new Map(
-        [...dependency.symbols].map(([key, val]) => [val.local, key]),
-      );
-      invariant(assets.length === 1);
-      let firstAsset = assets[0];
-      invariant(firstAsset.type === 'asset');
-      let resolvedAsset = firstAsset.value;
-      let deps = this.getIncomingDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
-          !(d.env.isLibrary && d.isEntry) &&
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
-            let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
-            return assetSymbol != null && symbols.has(assetSymbol);
-          }),
-      );
-    }
-    return defer;
+    //   let assets = this.getNodesConnectedTo(depNode);
+    //   let symbols = new Map(
+    //     [...dependency.symbols].map(([key, val]) => [val.local, key]),
+    //   );
+    //   invariant(assets.length === 1);
+    //   let firstAsset = assets[0];
+    //   invariant(firstAsset.type === 'asset');
+    //   let resolvedAsset = firstAsset.value;
+    //   let deps = this.getIncomingDependencies(resolvedAsset);
+    //   defer = deps.every(
+    //     d =>
+    //       !(d.env.isLibrary && d.isEntry) &&
+    //       !d.symbols.has('*') &&
+    //       ![...d.symbols.keys()].some(symbol => {
+    //         let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
+    //         return assetSymbol != null && symbols.has(assetSymbol);
+    //       }),
+    //   );
+    // }
+    // return defer;
   }
 
   resolveAssetGroup(
