@@ -27,10 +27,9 @@ export default (new Transformer({
       'bundler',
     ];
 
-    const stdout = await spawnProcess('wasm-pack', args, {
+    await spawnProcess('wasm-pack', args, {
       cwd: dirname(asset.filePath),
     });
-    console.log(stdout);
 
     return [asset];
   },
