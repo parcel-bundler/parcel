@@ -13,6 +13,8 @@ import type {
 } from '@parcel/types';
 import type {Asset, Dependency, ParcelOptions} from './types';
 
+import path from 'path';
+import {normalizeSeparators} from '@parcel/utils';
 import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
@@ -26,7 +28,9 @@ import {
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
-import {createAsset, getConfig} from './assetUtils';
+import {createAsset, getConfig, generateFromAST} from './assetUtils';
+import crypto from 'crypto';
+import nullthrows from 'nullthrows';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -79,29 +83,28 @@ export default class UncommittedAsset {
     }
 
     let size = 0;
-    let contentKey =
-      this.content == null ? null : this.getCacheKey('content' + pipelineKey);
-    let mapKey =
-      this.mapBuffer == null ? null : this.getCacheKey('map' + pipelineKey);
-    let astKey =
-      this.ast == null ? null : this.getCacheKey('ast' + pipelineKey);
+    let contentKey = this.getCacheKey('content' + pipelineKey);
+    let mapKey = this.getCacheKey('map' + pipelineKey);
+    let astKey = this.getCacheKey('ast' + pipelineKey);
 
+    let contentHash = this.ast == null ? crypto.createHash('md5') : null;
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
+    let idRegex = new RegExp(this.value.id, 'g');
     await Promise.all([
-      contentKey != null &&
+      this.content != null &&
         this.options.cache.setStream(
           contentKey,
           this.getStream().pipe(
             new TapStream(buf => {
               size += buf.length;
+              contentHash?.update(buf.toString().replace(idRegex, 'X'));
             }),
           ),
         ),
       this.mapBuffer != null &&
-        mapKey != null &&
         this.options.cache.setBlob(mapKey, this.mapBuffer),
-      astKey != null &&
+      this.ast != null &&
         this.options.cache.setBlob(
           astKey,
           // $FlowFixMe
@@ -109,11 +112,36 @@ export default class UncommittedAsset {
         ),
     ]);
     this.value.contentKey = contentKey;
+    this.value.hasContent = this.content != null;
     this.value.mapKey = mapKey;
+    this.value.hasMap = this.mapBuffer != null;
     this.value.astKey = astKey;
+    this.value.hasAST = this.ast != null;
     this.value.outputHash = md5FromString(
       [this.value.hash, pipelineKey].join(':'),
     );
+    let serializedAST = this.ast == null ? null : await generateFromAST(this);
+    if (serializedAST) {
+      contentHash = crypto
+        .createHash('md5')
+        .update(serializedAST.content.toString().replace(idRegex, 'X'));
+    }
+    this.value.contentHash = nullthrows(contentHash)
+      .update(
+        // TODO copied from assetUtils, what about the "hash" in that function
+        (normalizeSeparators(
+          path.relative(this.options.projectRoot, this.value.filePath),
+        ) ?? '') +
+          ':' +
+          this.value.type +
+          ':' +
+          (this.value.pipeline ?? '') +
+          ':' +
+          (this.value.uniqueKey ?? '') +
+          ':' +
+          (this.value.pipeline ?? ''),
+      )
+      .digest('hex');
 
     if (this.content != null) {
       this.value.stats.size = size;

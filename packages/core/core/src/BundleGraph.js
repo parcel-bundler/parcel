@@ -1015,12 +1015,7 @@ export default class BundleGraph {
   }
 
   getAssetPublicId(asset: Asset): string {
-    let publicId = this._publicIdByAssetId.get(asset.id);
-    if (publicId == null) {
-      throw new Error("Asset or it's public id not found");
-    }
-
-    return publicId;
+    return nullthrows(asset.contentHash);
   }
 
   getExportedSymbols(asset: Asset): Array<InternalExportSymbolResolution> {

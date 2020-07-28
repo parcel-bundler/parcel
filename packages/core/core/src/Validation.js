@@ -201,7 +201,7 @@ export default class Validation {
       idBase,
       value: createAsset({
         idBase,
-        filePath: filePath,
+        filePath,
         isSource,
         type: path.extname(filePath).slice(1),
         hash,

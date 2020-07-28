@@ -216,7 +216,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
-          if (!name.startsWith('$' + t.toIdentifier(asset.id))) {
+          if (!name.startsWith(getName(asset, ''))) {
             let newName = getName(asset, 'var', name);
             rename(scope, name, newName);
           }
