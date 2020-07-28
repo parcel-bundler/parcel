@@ -35,7 +35,8 @@ type InitOpts = {|
 
 type SerializedAssetGraph = {|
   ...GraphOpts<AssetGraphNode>,
-  hash: ?string,
+  hash?: ?string,
+  defer: boolean,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -85,14 +86,22 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
+  defer: boolean;
+
+  constructor(opts: ?SerializedAssetGraph) {
+    if (opts) {
+      let {hash, defer, ...rest} = opts;
+      super(rest);
+      this.defer = defer;
+      this.hash = hash;
+    } else {
+      super();
+    }
+  }
 
   // $FlowFixMe
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
-    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    let res = new AssetGraph(opts);
-    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    res.hash = opts.hash;
-    return res;
+    return new AssetGraph(opts);
   }
 
   // $FlowFixMe
@@ -101,6 +110,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return {
       ...super.serialize(),
       hash: this.hash,
+      defer: this.defer,
     };
   }
 
@@ -261,6 +271,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     dependency: Dependency,
     sideEffects: ?boolean,
   ): boolean {
+    if (!this.defer) return false;
+
     let defer = false;
     if (
       dependency.isWeak &&

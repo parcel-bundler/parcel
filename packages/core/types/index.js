@@ -259,6 +259,7 @@ export type InitialParcelOptions = {|
   +killWorkers?: boolean,
   +mode?: BuildMode,
   +minify?: boolean,
+  +defer?: boolean,
   +scopeHoist?: boolean,
   +sourceMaps?: boolean,
   +publicUrl?: string,

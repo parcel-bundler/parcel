@@ -103,7 +103,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let changes = await this.readFromCache();
     if (!changes) {
-      this.assetGraph = new AssetGraph();
+      this.assetGraph = new AssetGraph({defer: options.defer});
       this.requestGraph = new RequestGraph();
     }
 
