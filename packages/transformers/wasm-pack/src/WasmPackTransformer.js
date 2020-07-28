@@ -1,10 +1,10 @@
 // @flow
 
-import {exec} from 'child_process';
-import {promisify} from 'util';
 import {dirname} from 'path';
 
 import {Transformer} from '@parcel/plugin';
+
+import {spawnProcess} from './helpers';
 
 export default (new Transformer({
   async transform({asset, options}) {
@@ -16,7 +16,6 @@ export default (new Transformer({
       '--verbose',
       'build',
       ...(options.mode === 'production' ? ['--release'] : ['--dev']),
-      '--target',
       /**
        * valid ParcelJS targets are browser, electron, and node
        * @see: https://parceljs.org/cli.html#target
@@ -24,11 +23,11 @@ export default (new Transformer({
        * valid wasm-pack targets are bundler, web, nodejs, and no-modules
        * @see: https://rustwasm.github.io/docs/wasm-bindgen/reference/deployment.html#deploying-rust-and-webassembly
        */
+      '--target',
       'bundler',
     ];
 
-    console.log(`wasm-pack ${args.join(' ')}`);
-    await promisify(exec)(`wasm-pack ${args.join(' ')}`, {
+    await spawnProcess('wasm-pack', args, {
       cwd: dirname(asset.filePath),
     });
 
