@@ -1,10 +1,10 @@
 // @flow
 
-import {dirname, join} from 'path';
+import {basename, dirname, join} from 'path';
 
 import {Transformer} from '@parcel/plugin';
 
-import {spawnProcess} from './helpers';
+import {matches, relativePath, spawnProcess} from './helpers';
 
 export default (new Transformer({
   async transform({asset, options}) {
@@ -88,9 +88,67 @@ export default (new Transformer({
     }
 
     // loader
-    // initializer
-    // bundler?
+    const loaderBase = `${asset.env.isNode() ? 'node' : 'browser'}-loader.js`;
+    const loader = await options.inputFS.readFile(
+      join(__dirname, `loaders/${loaderBase}`),
+    );
 
-    return [asset];
+    // initializer
+    const jsStr = (await options.inputFS.readFile(jsPath)).toString();
+
+    const exportNames = Array.from(
+      matches(/export (?:class|const|function) (\w+)/g, jsStr),
+    ).reduce((acc, match) => {
+      if (match) {
+        acc.push(match[1]);
+      }
+
+      return acc;
+    }, []);
+
+    const importNames = exportNames.filter(n => n.substring(0, 2) === '__');
+    const publicNames = exportNames.filter(n => n.substring(0, 2) !== '__');
+
+    const initStr = jsStr.replace(
+      new RegExp(`import [*] as wasm from './${basename(wasmPath)}';`),
+      [].join('\n'),
+    ).concat(`\
+export function init(wasmUrl) {
+  return load(wasmUrl, {
+    ['${relativePath(dirname(jsPath), jsPath)}']: {
+      ${importNames.join(',\n      ')}
+    }
+  }).then(wasmExports => {
+    wasm = wasmExports;
+    return {
+      ${publicNames.join(',\n      ')}
+    }
+  });
+}
+      `);
+
+    // glue
+    const glueStr = `\
+import {init} from '${relativePath(fileDir, jsPath)}';
+module.exports = init(require('${relativePath(fileDir, wasmPath)}'));
+`;
+
+    return [
+      {
+        filePath: loaderBase,
+        type: 'js',
+        content: loader,
+      },
+      {
+        filePath: jsPath,
+        type: 'js',
+        content: initStr,
+      },
+      {
+        filePath: asset.filePath,
+        type: 'js',
+        content: glueStr,
+      },
+    ];
   },
 }): Transformer);
