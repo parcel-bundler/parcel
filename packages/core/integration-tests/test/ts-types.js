@@ -1,6 +1,13 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, assertBundles, outputFS, inputFS} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle,
+  inputFS,
+  overlayFS,
+  outputFS,
+  ncp,
+} from '@parcel/test-utils';
 
 describe('typescript types', function() {
   it('should generate a typescript declaration file', async function() {
@@ -187,5 +194,31 @@ describe('typescript types', function() {
       'utf8',
     );
     assert.equal(dist, expected);
+  });
+
+  it('should correctly reference unbuilt monorepo packages', async function() {
+    let fixtureDir = path.join(__dirname, 'integration/ts-types/monorepo');
+    await outputFS.mkdirp(path.join(fixtureDir, 'node_modules'));
+    await ncp(fixtureDir, fixtureDir);
+    await outputFS.symlink(
+      path.join(fixtureDir, 'b'),
+      path.join(fixtureDir, 'node_modules/b'),
+    );
+
+    let b = await bundle(path.join(fixtureDir, 'a'), {
+      inputFS: overlayFS,
+    });
+    assertBundles(b, [
+      {
+        type: 'ts',
+        assets: ['index.ts'],
+      },
+    ]);
+
+    let dist = (
+      await outputFS.readFile(b.getBundles()[0].filePath, 'utf8')
+    ).replace(/\r\n/g, '\n');
+
+    assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
   });
 });
