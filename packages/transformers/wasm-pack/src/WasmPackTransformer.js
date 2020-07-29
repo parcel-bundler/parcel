@@ -3,8 +3,9 @@
 import {basename, dirname, join} from 'path';
 
 import {Transformer} from '@parcel/plugin';
+import {relativePath} from '@parcel/utils';
 
-import {matches, relativePath, spawnProcess} from './helpers';
+import {matches, spawnProcess} from './helpers';
 
 export default (new Transformer({
   async transform({asset, options}) {

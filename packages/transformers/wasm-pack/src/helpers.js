@@ -1,8 +1,6 @@
 // @flow
 
 import {spawn} from 'child_process';
-import {relative} from 'path';
-
 import logger from '@parcel/logger';
 
 const createAggregator = () => ({
@@ -50,16 +48,6 @@ export const spawnProcess = (
         reject(error);
       });
   });
-
-export function relativePath(from: string, to: string): string {
-  let r = relative(from, to);
-
-  if (r[0] !== '.') {
-    r = `./${r}`;
-  }
-
-  return r.replace(/\\/g, '/');
-}
 
 export function* matches(
   regex: RegExp,
