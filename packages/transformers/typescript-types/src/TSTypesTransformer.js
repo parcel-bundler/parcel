@@ -41,14 +41,16 @@ export default (new Transformer({
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
     };
 
-    let host = new CompilerHost(options.inputFS, ts);
+    let host = new CompilerHost(options.inputFS, ts, logger);
     // $FlowFixMe
     let program = ts.createProgram([asset.filePath], opts, host);
 
     let includedFiles = program
       .getSourceFiles()
       .filter(file => path.normalize(file.fileName) !== asset.filePath)
-      .map(file => ({filePath: file.fileName}));
+      .map(file => ({
+        filePath: host.redirectTypes.get(file.fileName) ?? file.fileName,
+      }));
 
     let mainModuleName = path
       .relative(program.getCommonSourceDirectory(), asset.filePath)
