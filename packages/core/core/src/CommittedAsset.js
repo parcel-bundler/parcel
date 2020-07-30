@@ -34,7 +34,11 @@ export default class CommittedAsset {
 
   getContent(): Blob | Promise<Buffer | string> {
     if (this.content == null) {
-      if (this.value.hasContent) {
+      if (
+        this.value.hasContent ||
+        // TODO ???
+        this.options.cache.blobExists(nullthrows(this.value.contentKey))
+      ) {
         return this.options.cache.getStream(nullthrows(this.value.contentKey));
       } else if (this.value.hasAST) {
         return streamFromPromise(

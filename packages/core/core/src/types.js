@@ -129,6 +129,7 @@ export type Asset = {|
   outputHash: ?string,
   contentHash: ?string,
   pipeline: ?string,
+  contentHashReference: string,
   astGenerator: ?ASTGenerator,
   symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
   sideEffects: boolean,

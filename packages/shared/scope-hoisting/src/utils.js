@@ -34,7 +34,7 @@ export function getName(
   ...rest: Array<string>
 ): string {
   return (
-    t.toIdentifier('$' + asset.id) +
+    t.toIdentifier('$' + asset.contentHashReference) +
     '$' +
     type +
     (rest.length

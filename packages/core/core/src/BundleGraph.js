@@ -1014,8 +1014,9 @@ export default class BundleGraph {
     return node.value;
   }
 
-  getAssetPublicId(asset: Asset): string {
-    return nullthrows(asset.contentHash);
+  assetExists(id: string): boolean {
+    let node = this._graph.getNode(id);
+    return !!node && node.type === 'asset';
   }
 
   getExportedSymbols(asset: Asset): Array<InternalExportSymbolResolution> {
@@ -1055,7 +1056,7 @@ export default class BundleGraph {
     this.traverseAssets(bundle, asset => {
       hash.update(
         [
-          this.getAssetPublicId(asset),
+          asset.contentHash,
           asset.outputHash,
           asset.filePath,
           querystring.stringify(asset.query),

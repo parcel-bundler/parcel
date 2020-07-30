@@ -85,7 +85,10 @@ export default class UncommittedAsset {
     let mapKey = this.getCacheKey('map' + pipelineKey);
     let astKey = this.getCacheKey('ast' + pipelineKey);
 
-    let contentHash = this.ast == null ? crypto.createHash('md5') : null;
+    let contentHash =
+      this.options.contentHash && this.content != null
+        ? crypto.createHash('md5')
+        : null;
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     let idRegex = new RegExp(this.value.id, 'g');
@@ -118,25 +121,27 @@ export default class UncommittedAsset {
     this.value.outputHash = md5FromString(
       [this.value.hash, pipelineKey].join(':'),
     );
-    let serializedAST = this.ast == null ? null : await generateFromAST(this);
-    if (serializedAST) {
+    if (this.options.contentHash && !contentHash && this.ast) {
+      let serializedAST = await generateFromAST(this);
       contentHash = crypto
         .createHash('md5')
         .update(serializedAST.content.toString().replace(idRegex, 'X'));
     }
-    this.value.contentHash = nullthrows(contentHash)
-      .update(
-        (this.value.cachePath ?? '') +
-          ':' +
-          this.value.type +
-          ':' +
-          (this.value.pipeline ?? '') +
-          ':' +
-          (this.value.uniqueKey ?? '') +
-          ':' +
-          (this.value.pipeline ?? ''),
-      )
-      .digest('hex');
+    this.value.contentHash = !this.options.contentHash
+      ? this.value.id
+      : nullthrows(contentHash)
+          .update(
+            (this.value.cachePath ?? '') +
+              ':' +
+              this.value.type +
+              ':' +
+              (this.value.pipeline ?? '') +
+              ':' +
+              (this.value.uniqueKey ?? '') +
+              ':' +
+              (this.value.pipeline ?? ''),
+          )
+          .digest('hex');
 
     if (this.content != null) {
       this.value.stats.size = size;

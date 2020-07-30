@@ -210,9 +210,7 @@ async function setup(entry) {
   );
   // ReactDOM.render
   await window
-    .parcelRequire(
-      bundleEvent.bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
-    )
+    .parcelRequire(bundle.getEntryAssets().pop().contentHash)
     .default();
   await sleep(100);
 

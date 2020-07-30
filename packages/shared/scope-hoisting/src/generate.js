@@ -82,7 +82,7 @@ export function generate({
         REFERENCED_IDS: t.arrayExpression(
           [mainEntry, ...referencedAssets]
             .filter(Boolean)
-            .map(asset => t.stringLiteral(bundleGraph.getAssetPublicId(asset))),
+            .map(asset => t.stringLiteral(asset.contentHash)),
         ),
       });
     }

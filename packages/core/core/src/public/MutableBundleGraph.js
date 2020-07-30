@@ -25,7 +25,7 @@ import {getBundleGroupId /* , getPublicId */} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
-import {HASH_REF_PREFIX} from '../constants';
+import {BUNDLE_HASH_REF_PREFIX} from '../constants';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -157,7 +157,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       value: {
         id: bundleId,
         hashReference: this.#options.contentHash
-          ? HASH_REF_PREFIX + bundleId
+          ? BUNDLE_HASH_REF_PREFIX + bundleId
           : bundleId.slice(0, 8),
         type: opts.type ?? nullthrows(entryAsset).type,
         env: opts.env

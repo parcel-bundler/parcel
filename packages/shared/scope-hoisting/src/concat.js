@@ -170,7 +170,12 @@ async function processAsset(
   }
 
   if (statements[0]) {
-    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
+    t.addComment(
+      statements[0],
+      'leading',
+      ` ASSET: ${path.relative(options.projectRoot, asset.filePath)}`,
+      true,
+    );
   }
 
   return [asset.id, statements];

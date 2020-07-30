@@ -26,6 +26,7 @@ import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {blobToStream, loadConfig, md5FromString} from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
+import {ASSET_HASH_REF_PREFIX} from './constants';
 
 type AssetOptions = {|
   id?: string,
@@ -62,17 +63,18 @@ type AssetOptions = {|
 export function createAsset(options: AssetOptions): Asset {
   let idBase = options.idBase != null ? options.idBase : options.filePath;
   let uniqueKey = options.uniqueKey || '';
+  let id =
+    options.id != null
+      ? options.id
+      : md5FromString(
+          idBase +
+            options.type +
+            getEnvironmentHash(options.env) +
+            uniqueKey +
+            (options.pipeline ?? ''),
+        );
   return {
-    id:
-      options.id != null
-        ? options.id
-        : md5FromString(
-            idBase +
-              options.type +
-              getEnvironmentHash(options.env) +
-              uniqueKey +
-              (options.pipeline ?? ''),
-          ),
+    id,
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
@@ -83,6 +85,7 @@ export function createAsset(options: AssetOptions): Asset {
     isSplittable: options.isSplittable,
     type: options.type,
     contentKey: options.contentKey,
+    contentHashReference: ASSET_HASH_REF_PREFIX + id,
     hasContent: false,
     hasMap: false,
     hasAST: false,
