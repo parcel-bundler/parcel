@@ -1,6 +1,9 @@
 // @flow strict-local
 
+import type {Dependency} from '@parcel/types';
+
 import assert from 'assert';
+import invariant from 'assert';
 import InternalBundleGraph from '../src/BundleGraph';
 import MutableBundleGraph from '../src/public/MutableBundleGraph';
 import {DEFAULT_ENV, DEFAULT_TARGETS, DEFAULT_OPTIONS} from './test-utils';
@@ -46,6 +49,40 @@ describe('MutableBundleGraph', () => {
       internalBundleGraph.getBundles().map(b => b.publicId),
       ['2iKuX', '7cqnn'],
     );
+  });
+
+  it('is safe to add a bundle to a bundleGroup multiple times', () => {
+    let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
+      createMockAssetGraph(),
+    );
+    let mutableBundleGraph = new MutableBundleGraph(
+      internalBundleGraph,
+      DEFAULT_OPTIONS,
+    );
+
+    let dependency: Dependency;
+    mutableBundleGraph.traverse((node, _, actions) => {
+      if (node.type === 'dependency') {
+        dependency = node.value;
+        actions.stop();
+      }
+    });
+
+    invariant(dependency != null);
+
+    let target = nullthrows(dependency.target);
+    let bundleGroup = mutableBundleGraph.createBundleGroup(dependency, target);
+    let bundle = mutableBundleGraph.createBundle({
+      entryAsset: nullthrows(
+        mutableBundleGraph.getDependencyResolution(dependency),
+      ),
+      target,
+    });
+
+    mutableBundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+    mutableBundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+    assert.deepEqual(bundleGroup.bundleIds, [bundle.id]);
   });
 });
 
