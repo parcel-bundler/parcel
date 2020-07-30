@@ -16,7 +16,7 @@ const id1 = '0123456789abcdef0123456789abcdef';
 const id2 = '9876543210fedcba9876543210fedcba';
 
 describe('MutableBundleGraph', () => {
-  it('creates publicIds for bundles', () => {
+  it.skip('creates publicIds for bundles', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
       createMockAssetGraph(),
     );

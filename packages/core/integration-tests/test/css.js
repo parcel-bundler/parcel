@@ -83,8 +83,8 @@ describe('css', () => {
           'relative-path.js',
         ],
       },
-      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
-      {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
+      {name: /local\.[0-9a-f]+\.js/, assets: ['local.js']},
+      {name: /local\.[0-9a-f]+\.css/, assets: ['local.css']},
       {name: 'index.css', assets: ['index.css']},
     ]);
 

@@ -1679,7 +1679,7 @@ describe('scope hoisting', function() {
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.
       let output = await run(b);
-      assert.equal(output.id, entryAsset.id);
+      assert.equal(output.id, entryAsset.contentHash);
       assert.equal(output.hot, null);
       assert.equal(output.moduleRequire, null);
       assert.equal(output.type, 'object');

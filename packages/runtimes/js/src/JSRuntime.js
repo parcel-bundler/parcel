@@ -279,9 +279,9 @@ function getLoaderRuntimes({
     }
 
     if (bundle.env.outputFormat === 'global') {
-      loaders += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
-        bundleGraph.getAssetById(bundleGroup.entryAssetId),
-      )}')${
+      loaders += `.then(() => parcelRequire('${
+        bundleGraph.getAssetById(bundleGroup.entryAssetId).contentHash
+      }')${
         // In global output with scope hoisting, functions return exports are
         // always returned. Otherwise, the exports are returned.
         bundle.env.scopeHoist ? '()' : ''
@@ -344,7 +344,7 @@ function getRegisterCode(
       return;
     }
 
-    idToName[bundle.publicId] = nullthrows(bundle.name);
+    idToName[bundle.id] = nullthrows(bundle.name);
 
     if (bundle !== entryBundle && isNewContext(bundle, bundleGraph)) {
       // New contexts have their own manifests, so there's no need to continue.
@@ -362,8 +362,8 @@ function getRegisterCode(
 function getRelativePathExpr(from: NamedBundle, to: NamedBundle): string {
   if (shouldUseRuntimeManifest(from)) {
     return `require('./relative-path')(${JSON.stringify(
-      from.publicId,
-    )}, ${JSON.stringify(to.publicId)})`;
+      from.id,
+    )}, ${JSON.stringify(to.id)})`;
   }
 
   return JSON.stringify(relativeBundlePath(from, to, {leadingDotSlash: false}));
