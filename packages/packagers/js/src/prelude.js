@@ -70,7 +70,8 @@
         localRequire,
         module,
         module.exports,
-        this
+        // FIXME why?
+        globalObject
       );
     }
 
@@ -100,6 +101,18 @@
     modules[id] = [
       function(require, module) {
         module.exports = exports;
+      },
+      {},
+    ];
+  };
+
+  newRequire.registerBundle = function(id, fn) {
+    modules[id] = [
+      function(require, module) {
+        fn();
+        // FIXME cleanup
+        delete newRequire.cache[id];
+        module.exports = parcelRequire(id);
       },
       {},
     ];
