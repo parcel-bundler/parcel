@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-atlassian-ssr",
-  "version": "2.0.0-frontbucket.33",
+  "version": "2.0.0-frontbucket.34",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -14,8 +14,8 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "^2.0.0-frontbucket.38",
-    "@parcel/config-default": "^2.0.0-frontbucket.42",
+    "@atlassian/parcel-reporter-analytics": "^2.0.0-frontbucket.39",
+    "@parcel/config-default": "^2.0.0-frontbucket.43",
     "@parcel/reporter-bundle-analyzer": "^2.0.0-frontbucket.20",
     "@parcel/reporter-cli": "^2.0.0-frontbucket.32",
     "@parcel/reporter-dev-server": "^2.0.0-frontbucket.32",
@@ -41,7 +41,7 @@
     "@parcel/transformer-sass": "^2.0.0-frontbucket.31",
     "@parcel/transformer-stylus": "^2.0.0-frontbucket.31",
     "@parcel/transformer-sugarss": "^2.0.0-frontbucket.29",
-    "@parcel/transformer-sync-dynamic-import": "^0.0.2-frontbucket.2",
+    "@parcel/transformer-sync-dynamic-import": "^0.0.2-frontbucket.3",
     "@parcel/transformer-toml": "^2.0.0-frontbucket.29",
     "@parcel/transformer-typescript-types": "^2.0.0-frontbucket.31",
     "@parcel/transformer-workerize": "^2.0.0-frontbucket.35",

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/ts-typecheck-example",
-  "version": "2.0.0-frontbucket.32",
+  "version": "2.0.0-frontbucket.33",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.14",
-    "@parcel/core": "^2.0.0-frontbucket.31",
+    "@parcel/core": "^2.0.0-frontbucket.32",
     "@parcel/validator-typescript": "^2.0.0-frontbucket.31"
   }
 }
