@@ -204,7 +204,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let sideEffects = childNode.value.sideEffects;
     let dependency = node.value;
-    let previouslyDeferred = childNode.deferred;
+    let previouslyDeferred = node.hasDeferred;
     let defer = this.shouldDeferDependency(dependency, sideEffects);
     node.hasDeferred = defer;
     childNode.deferred = defer;
