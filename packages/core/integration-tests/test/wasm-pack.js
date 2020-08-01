@@ -20,6 +20,13 @@ describe('wasm-pack', function() {
       },
     );
 
-    await assertBundles(b, [{assets: ['Cargo.toml', 'index.js']}]);
+    await assertBundles(b, [
+      {
+        name: '',
+        type: '',
+        assets: ['Cargo.toml', 'index.js'],
+        includedFiles: [],
+      },
+    ]);
   });
 });
