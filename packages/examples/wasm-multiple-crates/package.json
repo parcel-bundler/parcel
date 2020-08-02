@@ -1,10 +1,9 @@
 {
-  "name": "parcel-plugin-wasm-pack-examples-multiple",
+  "name": "wasm-multiple-crates",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "reset": "yarn clean node_modules/ && yarn install",
-    "clean": "cargo clean && rm -rf .cache/ dist/ pkg/",
+    "clean": "cargo clean && rm -rf .cache/ dist/ pkg/ node_modules/",
     "build": "parcel build src/index.html --log-level verbose --no-minify --no-cache",
     "build:node": "yarn build --target node",
     "start": "parcel src/index.html --no-cache"
