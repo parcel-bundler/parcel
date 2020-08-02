@@ -4,6 +4,7 @@ import {basename, dirname, join} from 'path';
 
 import {Transformer} from '@parcel/plugin';
 import {relativePath} from '@parcel/utils';
+import snakeCase from 'lodash.snakecase';
 
 import {matches, spawnProcess} from './helpers';
 
@@ -65,11 +66,11 @@ export default (new Transformer({
     } = toml.parse(await asset.getCode());
 
     // `wasm-pack` creates a `pkg` dir with the code it generates
-    const pkgPath = join(fileDir, 'pkg');
+    const pkgDir = join(fileDir, 'pkg');
 
     // we're really only interested in the js "glue" code, and the wasm itself
-    const jsPath = join(pkgPath, `${name}\\_bg.js`);
-    const wasmPath = join(pkgPath, `${name}\\_bg.wasm`);
+    const jsPath = join(pkgDir, `${snakeCase(name)}_bg.js`);
+    const wasmPath = join(pkgDir, `${snakeCase(name)}_bg.wasm`);
 
     // let's just make sure they actually exist before we go any further
     const jsExists = await options.inputFS.exists(jsPath);
@@ -93,6 +94,7 @@ export default (new Transformer({
     const loader = await options.inputFS.readFile(
       join(__dirname, `loaders/${loaderBase}`),
     );
+    const loaderPath = join(pkgDir, loaderBase);
 
     // initializer
     const jsStr = (await options.inputFS.readFile(jsPath)).toString();
@@ -112,7 +114,10 @@ export default (new Transformer({
 
     const initStr = jsStr.replace(
       new RegExp(`import [*] as wasm from './${basename(wasmPath)}';`),
-      [].join('\n'),
+      [
+        `import { load } from '${relativePath(jsPath, loaderPath)}';`,
+        `let wasm;`,
+      ].join('\n'),
     ).concat(`\
 export function init(wasmUrl) {
   return load(wasmUrl, {
@@ -126,17 +131,19 @@ export function init(wasmUrl) {
     }
   });
 }
-      `);
+`);
 
     // glue
     const glueStr = `\
 import {init} from '${relativePath(fileDir, jsPath)}';
-module.exports = init(require('${relativePath(fileDir, wasmPath)}'));
+import wasmUrl from 'url:${relativePath(fileDir, wasmPath)}';
+
+export default init(wasmUrl);
 `;
 
     return [
       {
-        filePath: loaderBase,
+        filePath: loaderPath,
         type: 'js',
         content: loader,
       },
