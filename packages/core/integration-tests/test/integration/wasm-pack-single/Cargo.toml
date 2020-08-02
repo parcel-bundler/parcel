@@ -1,7 +1,6 @@
 [package]
 name = "single"
 version = "0.1.0"
-authors = ["Matt Hayes <matt@mysterycommand.com>"]
 edition = "2018"
 
 [lib]

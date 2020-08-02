@@ -5,6 +5,6 @@ members = [
 ]
 
 [profile.release]
-# optimize for size
+# Tell `rustc` to optimize for small code size.
 # @see: https://doc.rust-lang.org/cargo/reference/manifest.html#the-profile-sections
 opt-level = "s"
