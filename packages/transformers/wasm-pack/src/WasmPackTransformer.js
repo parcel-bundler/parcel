@@ -95,7 +95,11 @@ export default (new Transformer({
       join(__dirname, `loaders/${loaderBase}`),
     );
     const loaderPath = join(pkgDir, loaderBase);
-    await options.outputFS.writeFile(loaderPath, loader);
+
+    // only write the loader if it doesn't already exists
+    if (!(await options.outputFS.exists(loaderPath))) {
+      await options.outputFS.writeFile(loaderPath, loader);
+    }
 
     // initializer
     const jsStr = (await options.inputFS.readFile(jsPath)).toString();
