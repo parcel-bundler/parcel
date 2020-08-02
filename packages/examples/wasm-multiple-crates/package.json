@@ -5,7 +5,7 @@
   "scripts": {
     "reset": "yarn clean node_modules/ && yarn install",
     "clean": "cargo clean && rm -rf .cache/ dist/ pkg/",
-    "build": "parcel build src/index.html --no-minify --no-cache",
+    "build": "parcel build src/index.html --log-level verbose --no-minify --no-cache",
     "build:node": "yarn build --target node",
     "start": "parcel src/index.html --no-cache"
   },

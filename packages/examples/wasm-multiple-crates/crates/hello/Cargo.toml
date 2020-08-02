@@ -1,5 +1,5 @@
 [package]
-name = "parcel-plugin-wasm-pack-examples-multiple-hello"
+name = "wasm-multiple-crates-hello"
 version = "0.0.0"
 edition = "2018"
 
@@ -11,9 +11,9 @@ default = ["console_error_panic_hook", "wee_alloc"]
 
 [dependencies]
 console_error_panic_hook = { version = "0.1.6", optional = true }
-wasm-bindgen = "0.2.47"
-web-sys = { version = "0.3.24", features = [ "console" ] }
-wee_alloc = { version = "0.4.4", optional = true }
+wasm-bindgen = "0.2.67"
+web-sys = { version = "0.3.44", features = [ "console" ] }
+wee_alloc = { version = "0.4.5", optional = true }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.2.47"
+wasm-bindgen-test = "0.3.17"
