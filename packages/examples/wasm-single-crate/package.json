@@ -1,0 +1,17 @@
+{
+  "name": "parcel-plugin-wasm-pack-examples-single",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "reset": "yarn clean node_modules/ && yarn install",
+    "clean": "cargo clean && rm -rf .cache/ dist/ pkg/",
+    "build": "parcel build src/index.html --no-minify --no-cache",
+    "build:node": "yarn build --target node",
+    "start": "parcel src/index.html --no-cache"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@parcel/babel-register": "2.0.0-beta.1",
+    "@parcel/core": "2.0.0-beta.1"
+  }
+}

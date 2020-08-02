@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "crates/hello",
+  "crates/world"
+]
+
+[profile.release]
+# optimize for size
+# @see: https://doc.rust-lang.org/cargo/reference/manifest.html#the-profile-sections
+opt-level = "s"
