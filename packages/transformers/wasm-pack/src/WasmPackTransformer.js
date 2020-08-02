@@ -98,7 +98,7 @@ export default (new Transformer({
 
     // only write the loader if it doesn't already exists
     if (!(await options.inputFS.exists(loaderPath))) {
-      await options.inputFS.writeFile(loaderPath, loader, {});
+      await options.inputFS.writeFile(loaderPath, loader);
     }
 
     // initializer
