@@ -21,6 +21,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "@parcel/plugin": "2.0.0-beta.1",
+    "lodash.snakecase": "^4.1.1",
     "wasm-pack": "^0.9.1"
   },
   "devDependencies": {},
