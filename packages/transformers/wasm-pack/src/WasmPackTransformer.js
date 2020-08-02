@@ -68,8 +68,8 @@ export default (new Transformer({
     const pkgPath = join(fileDir, 'pkg');
 
     // we're really only interested in the js "glue" code, and the wasm itself
-    const jsPath = join(pkgPath, `${name}_bg.js`);
-    const wasmPath = join(pkgPath, `${name}_bg.wasm`);
+    const jsPath = join(pkgPath, `${name}\\_bg.js`);
+    const wasmPath = join(pkgPath, `${name}\\_bg.wasm`);
 
     // let's just make sure they actually exist before we go any further
     const jsExists = await options.inputFS.exists(jsPath);
