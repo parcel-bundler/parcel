@@ -91,14 +91,14 @@ export default (new Transformer({
 
     // loader
     const loaderBase = `${asset.env.isNode() ? 'node' : 'browser'}-loader.js`;
-    const loader = await options.inputFS.readFile(
+    const loaderStr = await options.inputFS.readFile(
       join(__dirname, `loaders/${loaderBase}`),
     );
     const loaderPath = join(pkgDir, loaderBase);
 
     // only write the loader if it doesn't already exists
     if (!(await options.inputFS.exists(loaderPath))) {
-      await options.inputFS.writeFile(loaderPath, loader);
+      await options.inputFS.writeFile(loaderPath, loaderStr);
     }
 
     // initializer
@@ -120,27 +120,26 @@ export default (new Transformer({
     const initStr = jsStr.replace(
       new RegExp(`import [*] as wasm from './${basename(wasmPath)}';`),
       [
-        `import { load } from '${relativePath(jsPath, loaderPath)}';`,
+        `import { load } from '${relativePath(dirname(jsPath), loaderPath)}';`,
         `let wasm;`,
       ].join('\n'),
     ).concat(`\
-export function init(wasmUrl) {
-  return load(wasmUrl, {
-    ['${relativePath(dirname(jsPath), jsPath)}']: {
-      ${importNames.join(',\n      ')}
-    }
-  }).then(wasmExports => {
-    wasm = wasmExports;
-    return {
-      ${publicNames.join(',\n      ')}
-    }
-  });
-}
+export const init = (wasmUrl) => load(wasmUrl, {
+  ['${relativePath(dirname(jsPath), jsPath)}']: {
+    ${importNames.join(',\n    ')}
+  }
+}).then(wasmExports => {
+  wasm = wasmExports;
+  return {
+    ${publicNames.join(',\n    ')}
+  }
+});
 `);
+    await options.inputFS.writeFile(jsPath, initStr);
 
     // glue
     const glueStr = `\
-import {init} from '${relativePath(fileDir, jsPath)}';
+import { init } from '${relativePath(fileDir, jsPath)}';
 import wasmUrl from 'url:${relativePath(fileDir, wasmPath)}';
 
 export default init(wasmUrl);
@@ -150,7 +149,7 @@ export default init(wasmUrl);
       {
         filePath: loaderPath,
         type: 'js',
-        content: loader,
+        content: loaderStr,
       },
       {
         filePath: jsPath,
