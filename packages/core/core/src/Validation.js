@@ -183,7 +183,7 @@ export default class Validation {
   }
 
   async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
-    let {filePath, env, code, sideEffects} = request;
+    let {filePath, env, code, sideEffects, query} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       {filePath: request.filePath},
@@ -205,6 +205,7 @@ export default class Validation {
         isSource,
         type: path.extname(filePath).slice(1),
         hash,
+        query,
         env: env,
         stats: {
           time: 0,
