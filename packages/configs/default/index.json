@@ -12,7 +12,7 @@
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
-    "*(!Cargo).toml": ["@parcel/transformer-toml"],
+    "*!(Cargo).toml": ["@parcel/transformer-toml"],
     "*(Cargo).toml": ["@parcel/transformer-wasm-pack"],
     "*.yaml": ["@parcel/transformer-yaml"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
