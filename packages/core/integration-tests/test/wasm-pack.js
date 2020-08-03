@@ -1,4 +1,5 @@
-import path from 'path';
+import {join} from 'path';
+
 import logger from '@parcel/logger';
 import {bundle, assertBundles} from '@parcel/test-utils';
 
@@ -14,7 +15,7 @@ describe('wasm-pack', function() {
     this.timeout(timeout);
 
     const b = await bundle(
-      path.join(__dirname, '/integration/wasm-pack-single/index.js'),
+      join(__dirname, '/integration/wasm-pack-single/index.js'),
       {
         target: 'browser',
       },
