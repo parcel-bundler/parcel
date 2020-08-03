@@ -12,6 +12,7 @@ import {
   countLines,
   PromiseQueue,
   relativeBundlePath,
+  relativePath,
   replaceInlineReferences,
 } from '@parcel/utils';
 import path from 'path';
@@ -104,11 +105,14 @@ export default (new Packager({
     let prefix = getPrefix(bundle, bundleGraph);
     let lineOffset = countLines(prefix);
 
+    let wasmDeps = {};
+
     bundle.traverse(node => {
       let wrapped = first ? '' : ',';
 
       if (node.type === 'dependency') {
         let resolved = bundleGraph.getDependencyResolution(node.value, bundle);
+
         if (resolved && resolved.type !== 'js') {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
@@ -134,6 +138,12 @@ export default (new Packager({
           let resolved = bundleGraph.getDependencyResolution(dep, bundle);
           if (resolved) {
             deps[dep.moduleSpecifier] = bundleGraph.getAssetPublicId(resolved);
+
+            if (resolved.filePath.endsWith('Cargo.toml')) {
+              wasmDeps[dep.moduleSpecifier] = bundleGraph.getAssetPublicId(
+                resolved,
+              );
+            }
           }
         }
 
@@ -178,6 +188,25 @@ export default (new Packager({
       mainEntry = null;
     }
 
+    let wasmEntry = null;
+    if (mainEntry && Object.entries(wasmDeps).length) {
+      const entryName = relativePath(
+        path.dirname(mainEntry.filePath),
+        mainEntry.filePath,
+      );
+
+      wasmEntry = getWasmEntry(entryName, wasmDeps);
+
+      assets += `,\
+${JSON.stringify(0)}:[function(require,module,exports) {
+  ${wasmEntry}
+}, ${JSON.stringify({
+        ...wasmDeps,
+        [entryName]: bundleGraph.getAssetPublicId(mainEntry),
+      })}]
+`;
+    }
+
     return replaceReferences({
       contents:
         prefix +
@@ -185,11 +214,35 @@ export default (new Packager({
         assets +
         '},{},' +
         JSON.stringify(
-          entries.map(asset => bundleGraph.getAssetPublicId(asset)),
+          wasmEntry !== null
+            ? entries
+                .reduce(
+                  (acc, asset) => {
+                    const assetId = bundleGraph.getAssetPublicId(asset);
+
+                    if (
+                      mainEntry &&
+                      assetId !== bundleGraph.getAssetPublicId(mainEntry)
+                    ) {
+                      acc.push(assetId);
+                    }
+
+                    return acc;
+                  },
+                  wasmEntry !== null ? [0] : [],
+                )
+                // we want the wasmEntry to come last, but it's better to push
+                // into the array and reverse it than to unshift each entry
+                .reverse()
+            : entries.map(asset => bundleGraph.getAssetPublicId(asset)),
         ) +
         ', ' +
         JSON.stringify(
-          mainEntry ? bundleGraph.getAssetPublicId(mainEntry) : null,
+          wasmEntry !== null
+            ? 0
+            : mainEntry
+            ? bundleGraph.getAssetPublicId(mainEntry)
+            : null,
         ) +
         ', ' +
         'null' +
@@ -200,6 +253,32 @@ export default (new Packager({
     });
   },
 }): Packager);
+
+const getWasmEntry = (
+  entryName: string,
+  wasmDeps: {[string]: string, ...},
+) => `\
+function cacheReplace(id, mod) {
+  // replace the entry in the cache with the loaded wasm module
+  module.bundle.cache[id] = null;
+  module.bundle.register(id, mod);
+}
+
+Promise.all([
+  ${Object.entries(wasmDeps)
+    .map(
+      ([name, id]) =>
+        `require("${name}").default.then(wasm => cacheReplace("${
+          // this is just to make @flow happy, if there's another way to assert
+          // that the `id`s (values) here will always be strings that'd be cool
+          typeof id === 'string' ? id : ''
+        }", wasm))`,
+    )
+    .join(',\n  ')}
+]).then(() => {
+  require("${entryName}");
+});
+`;
 
 function getPrefix(
   bundle: NamedBundle,
