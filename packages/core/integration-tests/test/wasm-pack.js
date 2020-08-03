@@ -23,10 +23,26 @@ describe('wasm-pack', function() {
 
     await assertBundles(b, [
       {
-        name: '',
-        type: '',
-        assets: ['Cargo.toml', 'index.js'],
-        includedFiles: [],
+        // name: '',
+        // type: '',
+        assets: [
+          'browser-loader.js',
+          'bundle-manifest.js',
+          'bundle-url.js',
+          'Cargo.toml',
+          'index.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'relative-path.js',
+          'single_bg.js',
+        ],
+        // includedFiles: [],
+      },
+      {
+        // name: '',
+        // type: '',
+        assets: ['single_bg.wasm'],
+        // includedFiles: [],
       },
     ]);
   });
