@@ -64,7 +64,7 @@ function createMockAssetGraph(ids: [string, string]) {
     target: DEFAULT_TARGETS[0],
   });
   let filePath = '/index.js';
-  let req = {filePath, env: DEFAULT_ENV};
+  let req = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({

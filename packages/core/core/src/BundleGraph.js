@@ -7,6 +7,7 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
+import querystring from 'querystring';
 
 import type {
   Asset,
@@ -1060,6 +1061,7 @@ export default class BundleGraph {
           this.getAssetPublicId(asset),
           asset.outputHash,
           asset.filePath,
+          querystring.stringify(asset.query),
           asset.type,
           asset.uniqueKey,
         ].join(':'),
