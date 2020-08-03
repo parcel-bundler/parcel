@@ -500,6 +500,10 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
 
+    if (dep) {
+      dep.meta.hoist = true;
+    }
+
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
@@ -588,6 +592,14 @@ const VISITOR: Visitor<MutableAsset> = {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
+      let dep = asset
+        .getDependencies()
+        .find(dep => dep.moduleSpecifier === source.value);
+
+      if (dep) {
+        dep.meta.hoist = true;
+      }
+
       for (let specifier of nullthrows(specifiers)) {
         let exported = specifier.exported;
         let imported;
@@ -604,9 +616,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
         let id = getIdentifier(asset, 'import', exported.name);
 
-        let dep = asset
-          .getDependencies()
-          .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
           let existing = dep.symbols.get(imported)?.local;
           if (existing) {
