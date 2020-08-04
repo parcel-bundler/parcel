@@ -7,6 +7,7 @@ import type {
   Symbol,
   TraversalActions,
 } from '@parcel/types';
+import querystring from 'querystring';
 
 import type {
   Asset,
@@ -21,7 +22,7 @@ import type AssetGraph from './AssetGraph';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap, objectSortedEntriesDeep} from '@parcel/utils';
+import {flatMap, objectSortedEntriesDeep, unique} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {mapVisitor, type GraphOpts} from './Graph';
@@ -568,20 +569,22 @@ export default class BundleGraph {
   }
 
   getParentBundles(bundle: Bundle): Array<Bundle> {
-    return flatMap(
-      this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(bundle.id)),
-        'bundle',
-      ),
-      bundleGroupNode =>
-        this._graph
-          .getNodesConnectedTo(bundleGroupNode, 'bundle')
-          // Entry bundle groups have the root node as their parent
-          .filter(node => node.type !== 'root'),
-    ).map(node => {
-      invariant(node.type === 'bundle');
-      return node.value;
-    });
+    return unique(
+      flatMap(
+        this._graph.getNodesConnectedTo(
+          nullthrows(this._graph.getNode(bundle.id)),
+          'bundle',
+        ),
+        bundleGroupNode =>
+          this._graph
+            .getNodesConnectedTo(bundleGroupNode, 'bundle')
+            // Entry bundle groups have the root node as their parent
+            .filter(node => node.type !== 'root'),
+      ).map(node => {
+        invariant(node.type === 'bundle');
+        return node.value;
+      }),
+    );
   }
 
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean {
@@ -825,19 +828,19 @@ export default class BundleGraph {
   }
 
   getSiblingBundles(bundle: Bundle): Array<Bundle> {
-    let siblings = [];
+    let siblings = new Set();
 
     let bundleGroups = this.getBundleGroupsContainingBundle(bundle);
     for (let bundleGroup of bundleGroups) {
       let bundles = this.getBundlesInBundleGroup(bundleGroup);
       for (let b of bundles) {
         if (b.id !== bundle.id) {
-          siblings.push(b);
+          siblings.add(b);
         }
       }
     }
 
-    return siblings;
+    return [...siblings];
   }
 
   getReferencedBundles(bundle: Bundle): Array<Bundle> {
@@ -1060,6 +1063,7 @@ export default class BundleGraph {
           this.getAssetPublicId(asset),
           asset.outputHash,
           asset.filePath,
+          querystring.stringify(asset.query),
           asset.type,
           asset.uniqueKey,
         ].join(':'),

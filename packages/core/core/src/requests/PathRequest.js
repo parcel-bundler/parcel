@@ -1,6 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async} from '@parcel/types';
+import type {Async, QueryParameters} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -11,6 +11,7 @@ import {escapeMarkdown, relativePath} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import URL from 'url';
+import querystring from 'querystring';
 import {report} from '../ReporterRunner';
 import PublicDependency from '../public/Dependency';
 import PluginOptions from '../public/PluginOptions';
@@ -32,6 +33,7 @@ type RunOpts = {|
 |};
 
 const type = 'path_request';
+const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 export default function createPathRequest(
   input: Dependency,
@@ -122,6 +124,7 @@ export class ResolverRunner {
 
     let pipeline;
     let filePath;
+    let query: QueryParameters = {};
     let validPipelines = new Set(this.config.getNamedPipelines());
     if (
       // Don't consider absolute paths. Absolute paths are only supported for entries,
@@ -155,6 +158,14 @@ export class ResolverRunner {
       filePath = decodeURIComponent(parsed.pathname);
     }
 
+    let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
+    if (matchesQuerystring && matchesQuerystring.length > 2) {
+      filePath = matchesQuerystring[1];
+      query = matchesQuerystring[2]
+        ? querystring.parse(matchesQuerystring[2].substr(1))
+        : {};
+    }
+
     let errors: Array<ThrowableDiagnostic> = [];
     for (let resolver of resolvers) {
       try {
@@ -173,6 +184,7 @@ export class ResolverRunner {
           if (result.filePath != null) {
             return {
               filePath: result.filePath,
+              query,
               sideEffects: result.sideEffects,
               code: result.code,
               env: dependency.env,

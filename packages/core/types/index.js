@@ -21,6 +21,8 @@ export type ConfigResultWithFilePath = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
+export type QueryParameters = {[key: string]: string, ...};
+
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -439,6 +441,7 @@ export interface BaseAsset {
   /** The file system where the source is located. */
   +fs: FileSystem;
   +filePath: FilePath;
+  +query: QueryParameters;
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
