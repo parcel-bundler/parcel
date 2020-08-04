@@ -919,7 +919,11 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
   getTotalSize(Asset): number;
   /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
-  removeAssetGraphFromBundle(Asset, Bundle): void;
+  removeAssetGraphFromBundle(
+    Asset,
+    Bundle,
+    ?{|checkReachability?: boolean|},
+  ): void;
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;

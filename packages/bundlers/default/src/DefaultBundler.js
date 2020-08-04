@@ -499,7 +499,9 @@ function deduplicate(bundleGraph: MutableBundleGraph) {
           bundle.hasAsset(asset) &&
           bundleGraph.isAssetReachableFromBundle(asset, bundle)
         ) {
-          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+          bundleGraph.removeAssetGraphFromBundle(asset, bundle, {
+            checkReachability: true,
+          });
         }
       }
     }
