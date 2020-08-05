@@ -4,7 +4,13 @@ import type {Dependency} from '@parcel/types';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {bundle, outputFS as fs, distDir, run} from '@parcel/test-utils';
+import {
+  bundle,
+  outputFS as fs,
+  overlayFS,
+  distDir,
+  run,
+} from '@parcel/test-utils';
 
 describe('plugin', function() {
   it("continue transformer pipeline on type change that doesn't change the pipeline", async function() {
@@ -59,5 +65,41 @@ parcel-transformer-b`,
 
     assert(!b.isDependencyDeferred(nullthrows(depB)));
     assert(b.isDependencyDeferred(nullthrows(depC)));
+  });
+
+  it('should save dependency.meta mutations by resolvers into the cache', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+      {disableCache: false, contentHash: false, inputFS: overlayFS},
+    );
+
+    let calls = [];
+    await run(b, {
+      sideEffect(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepEqual(calls, [1234]);
+
+    await overlayFS.writeFile(
+      path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+      (await overlayFS.readFile(
+        path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+        'utf8',
+      )) + '\n// abc',
+    );
+
+    b = await bundle(
+      path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+      {disableCache: false, contentHash: false, inputFS: overlayFS},
+    );
+
+    calls = [];
+    await run(b, {
+      sideEffect(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepEqual(calls, [1234]);
   });
 });
