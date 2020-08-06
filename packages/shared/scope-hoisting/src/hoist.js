@@ -456,10 +456,15 @@ const VISITOR: Visitor<MutableAsset> = {
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
-      let bail = path.findParent(
-        p => p.isConditionalExpression() || p.isLogicalExpression(),
-      );
-      if (!parent.isProgram() || bail) {
+      if (
+        !parent.isProgram() ||
+        path.findParent(
+          p =>
+            p.isConditionalExpression() ||
+            p.isLogicalExpression() ||
+            p.isFunction(),
+        )
+      ) {
         dep.meta.shouldWrap = true;
       }
 
