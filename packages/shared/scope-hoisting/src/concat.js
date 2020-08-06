@@ -240,9 +240,6 @@ function getUsedExports(
       }
 
       for (let [symbol, {local}] of dep.symbols) {
-        if (local === '*') {
-          continue;
-        }
         if (dep.isWeak) {
           let reexportedAs = assetSymbolsReverse.get(local) ?? [];
           if (

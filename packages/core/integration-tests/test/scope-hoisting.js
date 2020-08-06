@@ -17,6 +17,17 @@ const bundle = (name, opts = {}) => _bundle(name, {scopeHoist: true, ...opts});
 const bundler = (name, opts = {}) =>
   _bundler(name, {scopeHoist: true, ...opts});
 
+function deferringTest(name, fn) {
+  it(name, () => fn(true));
+  it(`${name} (--no-defer)`, () => fn(false));
+}
+deferringTest.only = function(name, fn) {
+  // eslint-disable-next-line mocha/no-exclusive-tests
+  it.only(name, () => fn(true));
+  // eslint-disable-next-line mocha/no-exclusive-tests
+  it.only(`${name} (--no-defer)`, () => fn(false));
+};
+
 describe('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
@@ -164,17 +175,23 @@ describe('scope hoisting', function() {
       assert.deepEqual(output.default, 12);
     });
 
-    it('supports namespace imports of theoretically excluded reexporting assets (sideEffects: false)', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/import-namespace-sideEffects/index.js',
-        ),
-      );
+    deferringTest(
+      'supports namespace imports of theoretically excluded reexporting assets (sideEffects: false)',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/import-namespace-sideEffects/index.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, {Main: 'main', a: 'foo', b: 'bar'});
-    });
+        let output = await run(b);
+        assert.deepEqual(output, {Main: 'main', a: 'foo', b: 'bar'});
+      },
+    );
 
     it('supports re-exporting all exports from another module', async function() {
       let b = await bundle(
@@ -212,17 +229,23 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['operational', 'ui']);
     });
 
-    it('can import from a different bundle via a re-export (sideEffects: false)', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/re-export-bundle-boundary-side-effects/index.js',
-        ),
-      );
+    deferringTest(
+      'can import from a different bundle via a re-export (sideEffects: false)',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/re-export-bundle-boundary-side-effects/index.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, ['operational', 'ui']);
-    });
+        let output = await run(b);
+        assert.deepEqual(output, ['operational', 'ui']);
+      },
+    );
 
     it('can import from a different bundle via a re-export (2)', async function() {
       let b = await bundle(
@@ -580,74 +603,102 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it('supports simultaneous import and re-export of a symbol', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/re-export-import/a.js',
-        ),
-      );
+    deferringTest(
+      'supports simultaneous import and re-export of a symbol',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/re-export-import/a.js',
+          ),
+          {defer},
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 4 * 123);
-    });
+        let output = await run(b);
+        assert.deepEqual(output, 4 * 123);
+      },
+    );
 
-    it('supports optimizing away an unused ES6 re-export', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports/a.js',
-        ),
-      );
+    deferringTest(
+      'supports optimizing away an unused ES6 re-export',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 123);
-    });
+        let output = await run(b);
+        assert.deepEqual(output, 123);
+      },
+    );
 
-    it('should not optimize away an unused ES6 re-export and an used import', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-import/a.js',
-        ),
-      );
+    deferringTest(
+      'should not optimize away an unused ES6 re-export and an used import',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-import/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 123);
-    });
+        let output = await run(b);
+        assert.deepEqual(output, 123);
+      },
+    );
 
-    it('should handle sideEffects: false with namespace imports and re-exports correctly', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-all/a.js',
-        ),
-      );
+    deferringTest(
+      'should handle sideEffects: false with namespace imports and re-exports correctly',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-all/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let output = await run(b);
-      assert.deepEqual(output, 16);
-    });
+        let output = await run(b);
+        assert.deepEqual(output, 16);
+      },
+    );
 
-    it('correctly handles ES6 re-exports in library mode entries', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-library/a.js',
-        ),
-      );
+    deferringTest(
+      'correctly handles ES6 re-exports in library mode entries',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-library/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let contents = await outputFS.readFile(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-library/build.js',
-        ),
-        'utf8',
-      );
-      assert(!contents.includes('console.log'));
+        let contents = await outputFS.readFile(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-library/build.js',
+          ),
+          'utf8',
+        );
+        assert(!contents.includes('console.log'));
 
-      let output = await run(b);
-      assert.deepEqual(output, {c1: 'foo'});
-    });
+        let output = await run(b);
+        assert.deepEqual(output, {c1: 'foo'});
+      },
+    );
 
     it('correctly updates deferred assets that are reexported', async function() {
       let testDir = path.join(
@@ -713,27 +764,33 @@ describe('scope hoisting', function() {
       await subscription.unsubscribe();
     });
 
-    it('removes deferred reexports when imported from multiple asssets', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-re-exports-multiple/a.js',
-        ),
-      );
+    deferringTest(
+      'removes deferred reexports when imported from multiple asssets',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-multiple/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
+        let contents = await outputFS.readFile(
+          b.getBundles()[0].filePath,
+          'utf8',
+        );
 
-      assert(!contents.includes('$import$'));
-      assert(contents.includes('= 1234;'));
-      assert(!contents.includes('= 5678;'));
+        assert(!contents.includes('$import$'));
+        assert(contents.includes('= 1234;'));
+        assert(!contents.includes('= 5678;'));
 
-      // can't test dynamic imports in node
-      let output = await run(b);
-      assert.deepEqual(output, [1234, 1234]);
-    });
+        // can't test dynamic imports in node
+        let output = await run(b);
+        assert.deepEqual(output, [1234, 1234]);
+      },
+    );
 
     it('keeps side effects by default', async function() {
       let b = await bundle(
@@ -754,31 +811,42 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 4);
     });
 
-    it('supports the package.json sideEffects: false flag', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-false/a.js',
-        ),
-      );
+    deferringTest(
+      'supports the package.json sideEffects: false flag',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-false/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let called = false;
-      let output = await run(b, {
-        sideEffect: () => {
-          called = true;
-        },
-      });
+        let called = false;
+        let output = await run(b, {
+          sideEffect: () => {
+            called = true;
+          },
+        });
 
-      assert(!called, 'side effect called');
-      assert.deepEqual(output, 4);
-    });
+        assert(!called, 'side effect called');
+        assert.deepEqual(output, 4);
+      },
+    );
 
-    it('supports wildcards with sideEffects: false', async function() {
+    deferringTest('supports wildcards with sideEffects: false', async function(
+      defer,
+    ) {
       let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/side-effects-false-wildcards/a.js',
         ),
+        {
+          defer,
+        },
       );
       // let called = false;
       let output = await run(b, {
@@ -788,70 +856,94 @@ describe('scope hoisting', function() {
       });
 
       // TODO (from PR #4385) - maybe comply to this once we have better symbol information?
-      //assert(!called, 'side effect called');
+      // assert(!called, 'side effect called');
       assert.deepEqual(output, 'bar');
     });
 
-    it('correctly handles excluded and wrapped reexport assets with sideEffects: false', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-false-wrap-excluded/a.js',
-        ),
-      );
-      let output = await run(b);
+    deferringTest(
+      'correctly handles excluded and wrapped reexport assets with sideEffects: false',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-false-wrap-excluded/a.js',
+          ),
+          {
+            defer,
+          },
+        );
+        let output = await run(b);
 
-      assert.deepEqual(output, 4);
-    });
+        assert.deepEqual(output, 4);
+      },
+    );
 
-    it('supports the package.json sideEffects flag with an array', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-array/a.js',
-        ),
-      );
+    deferringTest(
+      'supports the package.json sideEffects flag with an array',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-array/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let calls = [];
-      let output = await run(b, {
-        sideEffect: caller => {
-          calls.push(caller);
-        },
-      });
+        let calls = [];
+        let output = await run(b, {
+          sideEffect: caller => {
+            calls.push(caller);
+          },
+        });
 
-      assert(calls.toString() == 'foo', "side effect called for 'foo'");
-      assert.deepEqual(output, 4);
-    });
+        assert(calls.toString() == 'foo', "side effect called for 'foo'");
+        assert.deepEqual(output, 4);
+      },
+    );
 
-    it('supports the package.json sideEffects: false flag with shared dependencies', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-false-duplicate/a.js',
-        ),
-      );
+    deferringTest(
+      'supports the package.json sideEffects: false flag with shared dependencies',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-false-duplicate/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      let called = false;
-      let output = await run(b, {
-        sideEffect: () => {
-          called = true;
-        },
-      });
+        let called = false;
+        let output = await run(b, {
+          sideEffect: () => {
+            called = true;
+          },
+        });
 
-      assert(!called, 'side effect called');
-      assert.deepEqual(output, 6);
-    });
+        assert(!called, 'side effect called');
+        assert.deepEqual(output, 6);
+      },
+    );
 
-    it('supports the package.json sideEffects: false flag with shared dependencies and code splitting', async function() {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/side-effects-split/a.js',
-        ),
-      );
+    deferringTest(
+      'supports the package.json sideEffects: false flag with shared dependencies and code splitting',
+      async function(defer) {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-split/a.js',
+          ),
+          {
+            defer,
+          },
+        );
 
-      assert.deepEqual(await run(b), 581);
-    });
+        assert.deepEqual(await run(b), 581);
+      },
+    );
 
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
@@ -2014,12 +2106,15 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 3);
     });
 
-    it('should support sideEffects: false', async function() {
+    deferringTest('should support sideEffects: false', async function(defer) {
       let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/commonjs/side-effects-false/a.js',
         ),
+        {
+          defer,
+        },
       );
 
       let output = await run(b);
