@@ -102,7 +102,12 @@ export default class NodeResolver {
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule({filename, parent, isURL, env});
+    let module = await this.resolveModule({
+      filename,
+      parent,
+      isURL,
+      env,
+    });
     if (!module) {
       return {isExcluded: true};
     }

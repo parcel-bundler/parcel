@@ -196,13 +196,13 @@ describe('AssetGraph', () => {
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
-    let req = {filePath: '/index.js', env: DEFAULT_ENV};
+    let req = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
 
     graph.resolveDependency(dep, req, '3');
     assert(graph.nodes.has(nodeFromAssetGroup(req).id));
     assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req).id));
 
-    let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV};
+    let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req2, '4');
     assert(!graph.nodes.has(nodeFromAssetGroup(req).id));
     assert(graph.nodes.has(nodeFromAssetGroup(req2).id));
@@ -239,7 +239,7 @@ describe('AssetGraph', () => {
       sourcePath: '',
     });
     let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
+    let req = {filePath, env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req, '3');
     let sourcePath = filePath;
     let assets = [
@@ -379,7 +379,7 @@ describe('AssetGraph', () => {
       target: DEFAULT_TARGETS[0],
     });
     let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
+    let req = {filePath, env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req, '123');
     let sourcePath = filePath;
     let dep1 = createDependency({
@@ -443,7 +443,7 @@ describe('AssetGraph', () => {
     let graph = new AssetGraph();
 
     // index
-    let indexAssetGroup = {filePath: '/index.js', env: DEFAULT_ENV};
+    let indexAssetGroup = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
     graph.initialize({assetGroups: [indexAssetGroup]});
     let indexFooDep = createDependency({
       moduleSpecifier: './foo',
@@ -472,7 +472,7 @@ describe('AssetGraph', () => {
     graph.resolveAssetGroup(indexAssetGroup, [indexAsset], '0');
 
     // index imports foo
-    let fooAssetGroup = {filePath: '/foo.js', env: DEFAULT_ENV};
+    let fooAssetGroup = {filePath: '/foo.js', env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(indexFooDep, fooAssetGroup, '0');
     let fooAssetGroupNode = nodeFromAssetGroup(fooAssetGroup);
     let fooUtilsDep = createDependency({
@@ -494,7 +494,7 @@ describe('AssetGraph', () => {
     });
     let fooAssetNode = nodeFromAsset(fooAsset);
     graph.resolveAssetGroup(fooAssetGroup, [fooAsset], '0');
-    let utilsAssetGroup = {filePath: '/utils.js', env: DEFAULT_ENV};
+    let utilsAssetGroup = {filePath: '/utils.js', env: DEFAULT_ENV, query: {}};
     let utilsAssetGroupNode = nodeFromAssetGroup(utilsAssetGroup);
     graph.resolveDependency(fooUtilsDep, utilsAssetGroup, '0');
 
@@ -508,7 +508,7 @@ describe('AssetGraph', () => {
     assert(node.hasDeferred);
 
     // index also imports bar
-    let barAssetGroup = {filePath: '/bar.js', env: DEFAULT_ENV};
+    let barAssetGroup = {filePath: '/bar.js', env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(indexBarDep, barAssetGroup, '0');
     let barAssetGroupNode = nodeFromAssetGroup(barAssetGroup);
     let barUtilsDep = createDependency({

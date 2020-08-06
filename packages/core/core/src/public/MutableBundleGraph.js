@@ -186,8 +186,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
-    bundleGroup.bundleIds.push(bundle.id);
     let bundleGroupId = getBundleGroupId(bundleGroup);
+    if (this.#graph._graph.hasEdge(bundleGroupId, bundle.id, 'bundle')) {
+      // Bundle group already has bundle
+      return;
+    }
+
+    bundleGroup.bundleIds.push(bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
 

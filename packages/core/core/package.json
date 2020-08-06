@@ -41,7 +41,8 @@
     "json5": "^1.0.1",
     "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
-    "semver": "^5.4.1"
+    "semver": "^5.4.1",
+    "querystring": "^0.2.0"
   },
   "devDependencies": {
     "graphviz": "^0.0.9",

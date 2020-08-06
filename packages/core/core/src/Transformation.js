@@ -150,6 +150,7 @@ export default class Transformation {
       pipeline,
       isSource: isSourceOverride,
       sideEffects,
+      query,
     } = this.request;
     let {
       content,
@@ -179,6 +180,7 @@ export default class Transformation {
         hash,
         pipeline,
         env,
+        query,
         stats: {
           time: 0,
           size,
@@ -381,6 +383,7 @@ export default class Transformation {
   getCacheKey(assets: Array<UncommittedAsset>, configs: ConfigMap): string {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
+      pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
     }));

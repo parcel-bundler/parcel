@@ -11,6 +11,7 @@ import type {
   Symbol,
   SourceLocation,
   Transformer,
+  QueryParameters,
 } from '@parcel/types';
 import type {Asset, Dependency, Environment} from './types';
 import type {ConfigOutput} from '@parcel/utils';
@@ -32,6 +33,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: ?string,
   filePath: FilePath,
+  query?: QueryParameters,
   type: string,
   contentKey?: ?string,
   mapKey?: ?string,
@@ -72,6 +74,7 @@ export function createAsset(options: AssetOptions): Asset {
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
+    query: options.query || {},
     isIsolated: options.isIsolated ?? false,
     isInline: options.isInline ?? false,
     isSplittable: options.isSplittable,
