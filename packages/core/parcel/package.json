@@ -24,6 +24,7 @@
     "@parcel/config-default": "2.0.0-beta.1",
     "@parcel/core": "2.0.0-beta.1",
     "@parcel/diagnostic": "2.0.0-beta.1",
+    "@parcel/events": "2.0.0-beta.1",
     "@parcel/fs": "2.0.0-beta.1",
     "@parcel/logger": "2.0.0-beta.1",
     "@parcel/package-manager": "2.0.0-beta.1",
