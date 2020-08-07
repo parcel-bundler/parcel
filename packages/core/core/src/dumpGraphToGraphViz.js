@@ -59,6 +59,7 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isURL) parts.push('url');
       if (node.hasDeferred) parts.push('deferred');
       if (node.excluded) parts.push('excluded');
+      if (node.usedSymbolsDirty) parts.push('usedSymbolsDirty');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       let depSymbols = node.value.symbols;
@@ -75,8 +76,12 @@ export default async function dumpGraphToGraphViz(
           if (weakSymbols.length) {
             label += '\nweakSymbols: ' + weakSymbols.join(',');
           }
-          if (node.usedSymbols.size) {
-            label += '\nusedSymbols: ' + [...node.usedSymbols].join(',');
+          if (node.usedSymbolsUp.size) {
+            label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
+          }
+          if (node.usedSymbolsDown.size) {
+            label +=
+              '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
           }
         } else {
           label += '\nsymbols: cleared';

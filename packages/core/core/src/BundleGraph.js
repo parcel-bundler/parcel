@@ -1154,6 +1154,6 @@ export default class BundleGraph {
   getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol> {
     let node = this._graph.getNode(dep.id);
     invariant(node && node.type === 'dependency');
-    return new Set(node.usedSymbols);
+    return new Set(node.usedSymbolsUp);
   }
 }

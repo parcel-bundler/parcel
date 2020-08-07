@@ -191,11 +191,11 @@ export default class AssetGraphBuilder extends EventEmitter {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
+    dumpToGraphViz(this.assetGraph, 'AssetGraph1');
     this.propagateSymbols();
-
-    dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    dumpToGraphViz(this.assetGraph, 'AssetGraph3');
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    dumpToGraphViz(this.requestGraph, 'RequestGraph');
+    // dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     let changedAssets = this.changedAssets;
     this.changedAssets = new Map();
@@ -203,21 +203,9 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   propagateSymbols() {
-    // TODO: make this incremental at some point (with isDirty and store in asset graph)
-    let usedSymbolsDown = new Map<DependencyNode, Set<Symbol>>();
-    function getUsedSymbolsDown(dep: DependencyNode) {
-      let set = usedSymbolsDown.get(dep);
-      if (!set) {
-        set = new Set();
-        usedSymbolsDown.set(dep, set);
-      }
-      return set;
-    }
-
+    console.time('symbols down');
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
-      let hasDirtyOutgoingDep = false;
-
       // exportSymbol -> identifier
       let assetSymbols: $ReadOnlyMap<
         Symbol,
@@ -260,7 +248,7 @@ export default class AssetGraphBuilder extends EventEmitter {
             continue;
           }
 
-          for (let exportSymbol of getUsedSymbolsDown(incomingDep)) {
+          for (let exportSymbol of incomingDep.usedSymbolsDown) {
             if (exportSymbol === '*') {
               assetNode.usedSymbols.add('*');
               namespaceReexportedSymbols.add('*');
@@ -287,10 +275,11 @@ export default class AssetGraphBuilder extends EventEmitter {
       // 2) Distribute the symbols to the outgoing dependencies
       // ----------------------------------------------------------
 
+      let hasDirtyOutgoingDep = false;
       for (let dep of outgoingDeps) {
-        let depUsedSymbolsDownOld = getUsedSymbolsDown(dep);
+        let depUsedSymbolsDownOld = dep.usedSymbolsDown;
         let depUsedSymbolsDown = new Set();
-        usedSymbolsDown.set(dep, depUsedSymbolsDown);
+        dep.usedSymbolsDown = depUsedSymbolsDown;
         if (
           assetNode.value.sideEffects ||
           // For entries, we still need to add dep.value.symbols of the entry (which are "used" but not according to the symbols data)
@@ -301,6 +290,7 @@ export default class AssetGraphBuilder extends EventEmitter {
           //    lib/index.js: `export * from "./foo.js"; export * from "./bar.js";`
           //    lib/foo.js:   `import { data } from "./bar.js"; export const foo = data + " esm2";`
           // TODO is this really valid?
+          // FIXME in the incremental situation, do we need to clear it out?
           assetNode.usedSymbols.size > 0 ||
           namespaceReexportedSymbols.size > 0
         ) {
@@ -353,9 +343,11 @@ export default class AssetGraphBuilder extends EventEmitter {
             hasDirtyOutgoingDep = true;
         }
       }
-
       return hasDirtyOutgoingDep;
-    }, getUsedSymbolsDown);
+    });
+    console.timeEnd('symbols down');
+    console.time('symbols up');
+    dumpToGraphViz(this.assetGraph, 'AssetGraph2');
 
     // Because namespace imports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
@@ -377,22 +369,23 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let reexportedSymbols = new Set<Symbol>();
       for (let outgoingDep of outgoingDeps) {
+        outgoingDep.usedSymbolsDirty = false;
         let outgoingDepSymbols = outgoingDep.value.symbols;
         if (!outgoingDepSymbols) continue;
 
         if (outgoingDepSymbols.get('*')?.local === '*') {
-          outgoingDep.usedSymbols.forEach(s => reexportedSymbols.add(s));
+          outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
         }
 
-        for (let s of outgoingDep.usedSymbols) {
-          if (!getUsedSymbolsDown(outgoingDep).has(s)) {
+        for (let s of outgoingDep.usedSymbolsUp) {
+          if (!outgoingDep.usedSymbolsDown.has(s)) {
             // usedSymbolsDown is a superset of usedSymbolsUp
             continue;
           }
 
           let local = outgoingDepSymbols.get(s)?.local;
           if (local == null) {
-            // Caused by '*' => '*', already handledn
+            // Caused by '*' => '*', already handled
             continue;
           }
 
@@ -404,18 +397,18 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
 
       for (let incomingDep of incomingDeps) {
-        incomingDep.usedSymbols = new Set();
+        incomingDep.usedSymbolsUp = new Set();
         let incomingDepSymbols = incomingDep.value.symbols;
         if (!incomingDepSymbols) continue;
 
         let hasNamespaceReexport = incomingDepSymbols.get('*')?.local === '*';
-        for (let s of getUsedSymbolsDown(incomingDep)) {
+        for (let s of incomingDep.usedSymbolsDown) {
           if (
             assetNode.usedSymbols.has(s) ||
             reexportedSymbols.has(s) ||
             s === '*'
           ) {
-            incomingDep.usedSymbols.add(s);
+            incomingDep.usedSymbolsUp.add(s);
           } else if (!hasNamespaceReexport) {
             let loc = incomingDep.value.symbols?.get(s)?.loc;
             let [resolution] = this.assetGraph.getNodesConnectedFrom(
@@ -451,7 +444,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         incomingDep.excluded = false;
         if (
           incomingDep.value.symbols != null &&
-          incomingDep.usedSymbols.size === 0
+          incomingDep.usedSymbolsUp.size === 0
         ) {
           let assetGroups = this.assetGraph.getNodesConnectedFrom(incomingDep);
           if (assetGroups.length === 1) {
@@ -466,6 +459,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
       }
     });
+    console.timeEnd('symbols up');
   }
 
   propagateSymbolsDown(
@@ -474,7 +468,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
     ) => boolean,
-    getUsedSymbolsDown: DependencyNode => Set<Symbol>,
   ) {
     let root = this.assetGraph.getRootNode();
     if (!root) {
@@ -482,56 +475,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     let queue: Array<AssetGraphNode> = [root];
-    let visited = new Set<AssetGraphNode>([root]);
-    let skipped = new Set<AssetGraphNode>();
-
-    // First do a topological BFS to prevent cascading updates...
-    while (queue.length > 0) {
-      let node = queue.shift();
-      let outgoing = this.assetGraph.getNodesConnectedFrom(node);
-      if (
-        node.type !== 'dependency' &&
-        this.assetGraph.getNodesConnectedTo(node).some(d => !visited.has(d))
-      ) {
-        // ... by visiting nodes once all parents were visited, it will be visited again later by the last parent.
-        skipped.add(node);
-      } else {
-        if (node.type === 'asset') {
-          visit(
-            node,
-            this.assetGraph.getIncomingDependencies(node.value).map(d => {
-              let dep = this.assetGraph.getNode(d.id);
-              invariant(dep && dep.type === 'dependency');
-              return dep;
-            }),
-            outgoing.map(dep => {
-              invariant(dep.type === 'dependency');
-              return dep;
-            }),
-          );
-        } else if (node.type === 'entry_file') {
-          let dep = nullthrows(outgoing[0]);
-          invariant(dep.type === 'dependency');
-
-          if (dep.value.env.isLibrary) {
-            // in library mode, all of the entry's symbols are "used"
-            getUsedSymbolsDown(dep).add('*');
-          }
-        }
-
-        visited.add(node);
-        skipped.delete(node);
-        for (let child of outgoing) {
-          if (!visited.has(child)) {
-            queue.push(child);
-          }
-        }
-      }
-    }
+    let visited = new Set<AssetGraphNode>();
 
     // For dependency circles in the graph, all nodes in the circle are skipped, so now
     // traverse remaining and just accept we have to do cascading updates if something changed.
-    queue = [...skipped];
     let dirty = new Set();
     while (queue.length > 0) {
       let node = queue.shift();
@@ -550,6 +497,14 @@ export default class AssetGraphBuilder extends EventEmitter {
             return dep;
           }),
         );
+      } else if (node.type === 'entry_file') {
+        let dep = nullthrows(outgoing[0]);
+        invariant(dep.type === 'dependency');
+
+        if (dep.value.env.isLibrary) {
+          // in library mode, all of the entry's symbols are "used"
+          dep.usedSymbolsDown.add('*');
+        }
       }
 
       visited.add(node);

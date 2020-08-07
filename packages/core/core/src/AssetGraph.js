@@ -45,7 +45,9 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     value: dep,
     deferred: false,
     excluded: false,
-    usedSymbols: new Set(),
+    usedSymbolsDown: new Set(),
+    usedSymbolsUp: new Set(),
+    usedSymbolsDirty: true,
   };
 }
 
@@ -67,6 +69,7 @@ export function nodeFromAsset(asset: Asset): AssetNode {
     type: 'asset',
     value: asset,
     usedSymbols: new Set(),
+    usedSymbolsDirty: true,
   };
 }
 
@@ -373,6 +376,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       }
       depNodes.push(depNode);
     }
+    assetNode.usedSymbolsDirty = true;
     this.replaceNodesConnectedTo(assetNode, depNodes);
 
     for (let [depNode, dependentAssetNode] of depNodesWithAssets) {

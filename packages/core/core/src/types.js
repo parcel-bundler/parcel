@@ -192,6 +192,7 @@ export type AssetNode = {|
   value: Asset,
   usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
+  usedSymbolsDirty: boolean,
 |};
 
 export type DependencyNode = {|
@@ -202,7 +203,9 @@ export type DependencyNode = {|
   correspondingRequest?: string,
   deferred: boolean,
   hasDeferred?: boolean,
-  usedSymbols: Set<Symbol>,
+  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsUp: Set<Symbol>,
+  usedSymbolsDirty: boolean,
   excluded: boolean,
 |};
 
