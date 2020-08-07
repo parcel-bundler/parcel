@@ -192,7 +192,8 @@ export type AssetNode = {|
   value: Asset,
   usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
-  usedSymbolsDirty: boolean,
+  usedSymbolsDownDirty: boolean,
+  usedSymbolsUpDirty: boolean,
 |};
 
 export type DependencyNode = {|
@@ -205,7 +206,8 @@ export type DependencyNode = {|
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
-  usedSymbolsDirty: boolean,
+  usedSymbolsDownDirty: boolean,
+  usedSymbolsUpDirty: boolean,
   excluded: boolean,
 |};
 
@@ -236,7 +238,7 @@ export type AssetGroupNode = {|
   correspondingRequest?: string,
   deferred?: boolean,
   hasDeferred?: boolean,
-  usedSymbolsDirty: boolean,
+  usedSymbolsDownDirty: boolean,
 |};
 
 export type DepPathRequestNode = {|

@@ -47,7 +47,8 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     excluded: false,
     usedSymbolsDown: new Set(),
     usedSymbolsUp: new Set(),
-    usedSymbolsDirty: true,
+    usedSymbolsDownDirty: true,
+    usedSymbolsUpDirty: true,
   };
 }
 
@@ -60,7 +61,8 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
     }),
     type: 'asset_group',
     value: assetGroup,
-    usedSymbolsDirty: true,
+    usedSymbolsDownDirty: true,
+    usedSymbolsUpDirty: true,
   };
 }
 
@@ -70,7 +72,8 @@ export function nodeFromAsset(asset: Asset): AssetNode {
     type: 'asset',
     value: asset,
     usedSymbols: new Set(),
-    usedSymbolsDirty: true,
+    usedSymbolsDownDirty: true,
+    usedSymbolsUpDirty: true,
   };
 }
 
@@ -148,7 +151,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {
         invariant(n.type === 'asset_group');
-        n.usedSymbolsDirty = true;
+        n.usedSymbolsDownDirty = true;
       }
     }
     return super.removeNode(node);
@@ -393,7 +396,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       }
       depNodes.push(depNode);
     }
-    assetNode.usedSymbolsDirty = true;
+    assetNode.usedSymbolsDownDirty = true;
     this.replaceNodesConnectedTo(assetNode, depNodes);
 
     for (let [depNode, dependentAssetNode] of depNodesWithAssets) {

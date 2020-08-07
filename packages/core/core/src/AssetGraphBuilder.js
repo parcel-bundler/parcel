@@ -75,6 +75,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   assetRequests: Array<AssetGroup>;
   runValidate: ValidationOpts => Promise<void>;
   queue: PromiseQueue<mixed>;
+  name: string;
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
@@ -94,6 +95,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     assetGroups,
     workerFarm,
   }: Opts) {
+    this.name = name;
     this.options = options;
     this.optionsRef = optionsRef;
     this.entries = entries;
@@ -191,9 +193,9 @@ export default class AssetGraphBuilder extends EventEmitter {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
-    dumpToGraphViz(this.assetGraph, 'AssetGraph1');
+    dumpToGraphViz(this.assetGraph, this.name + 1);
     this.propagateSymbols();
-    dumpToGraphViz(this.assetGraph, 'AssetGraph3');
+    dumpToGraphViz(this.assetGraph, this.name + 3);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     // dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
@@ -288,7 +290,6 @@ export default class AssetGraphBuilder extends EventEmitter {
           //    lib/index.js: `export * from "./foo.js"; export * from "./bar.js";`
           //    lib/foo.js:   `import { data } from "./bar.js"; export const foo = data + " esm2";`
           // TODO is this really valid?
-          // FIXME in the incremental situation, do we need to clear it out?
           assetNode.usedSymbols.size > 0 ||
           namespaceReexportedSymbols.size > 0
         ) {
@@ -336,14 +337,17 @@ export default class AssetGraphBuilder extends EventEmitter {
               }
             }
           }
-          if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
-            dep.usedSymbolsDirty = true;
-          }
+        } else {
+          depUsedSymbolsDown.clear();
+        }
+        if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
+          dep.usedSymbolsDownDirty = true;
+          dep.usedSymbolsUpDirty = true;
         }
       }
     });
     console.timeEnd('symbols down');
-    dumpToGraphViz(this.assetGraph, 'AssetGraph2');
+    dumpToGraphViz(this.assetGraph, this.name + 2);
     console.time('symbols up');
 
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
@@ -479,9 +483,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let wasNodeDirty = false;
       if (node.type === 'dependency' || node.type === 'asset_group') {
-        wasNodeDirty = node.usedSymbolsDirty;
-        node.usedSymbolsDirty = false;
-      } else if (node.type === 'asset' && node.usedSymbolsDirty) {
+        wasNodeDirty = node.usedSymbolsDownDirty;
+        node.usedSymbolsDownDirty = false;
+      } else if (node.type === 'asset' && node.usedSymbolsDownDirty) {
         visit(
           node,
           this.assetGraph.getIncomingDependencies(node.value).map(d => {
@@ -494,7 +498,7 @@ export default class AssetGraphBuilder extends EventEmitter {
             return dep;
           }),
         );
-        node.usedSymbolsDirty = false;
+        node.usedSymbolsDownDirty = false;
       }
 
       visited.add(node);
@@ -504,10 +508,10 @@ export default class AssetGraphBuilder extends EventEmitter {
           (child.type === 'asset' || child.type === 'asset_group') &&
           wasNodeDirty
         ) {
-          child.usedSymbolsDirty = true;
+          child.usedSymbolsDownDirty = true;
           childDirty = true;
         } else if (child.type === 'dependency') {
-          childDirty = child.usedSymbolsDirty;
+          childDirty = child.usedSymbolsDownDirty;
         }
         if (!visited.has(child) || childDirty) {
           queue.push(child);
@@ -533,25 +537,51 @@ export default class AssetGraphBuilder extends EventEmitter {
     let visited = new Set([root.id]);
     const walk = (node: AssetGraphNode) => {
       let outgoing = this.assetGraph.getNodesConnectedFrom(node);
+      let assetHasDirtyOutgoingDep = false;
       for (let child of outgoing) {
         if (!visited.has(child.id)) {
           visited.add(child.id);
           walk(child);
+          if (node.type === 'asset') {
+            invariant(child.type === 'dependency');
+            if (child.usedSymbolsUpDirty) {
+              assetHasDirtyOutgoingDep = true;
+              child.usedSymbolsUpDirty = false;
+            }
+          }
         }
       }
+
       if (node.type === 'asset') {
-        visit(
-          node,
-          this.assetGraph.getIncomingDependencies(node.value).map(d => {
+        let incoming = this.assetGraph
+          .getIncomingDependencies(node.value)
+          .map(d => {
             let n = this.assetGraph.getNode(d.id);
             invariant(n && n.type === 'dependency');
             return n;
-          }),
-          outgoing.map(dep => {
-            invariant(dep.type === 'dependency');
-            return dep;
-          }),
-        );
+          });
+        let assetHasDirtyIncomingDep = false;
+        for (let dep of incoming) {
+          if (dep.usedSymbolsUpDirty) {
+            dep.usedSymbolsUpDirty = false;
+            assetHasDirtyIncomingDep = true;
+          }
+        }
+        if (
+          assetHasDirtyOutgoingDep ||
+          node.usedSymbolsUpDirty ||
+          assetHasDirtyIncomingDep
+        ) {
+          node.usedSymbolsUpDirty = false;
+          visit(
+            node,
+            incoming,
+            outgoing.map(dep => {
+              invariant(dep.type === 'dependency');
+              return dep;
+            }),
+          );
+        }
       }
     };
     walk(root);
