@@ -196,7 +196,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.propagateSymbols();
     dumpToGraphViz(this.assetGraph, this.name);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    // dumpToGraphViz(this.requestGraph, 'RequestGraph');
+    dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
     let changedAssets = this.changedAssets;
     this.changedAssets = new Map();

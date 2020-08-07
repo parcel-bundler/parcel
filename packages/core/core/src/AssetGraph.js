@@ -62,7 +62,6 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
     type: 'asset_group',
     value: assetGroup,
     usedSymbolsDownDirty: true,
-    usedSymbolsUpDirty: true,
   };
 }
 

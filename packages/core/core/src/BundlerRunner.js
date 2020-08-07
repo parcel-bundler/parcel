@@ -95,7 +95,7 @@ export default class BundlerRunner {
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
     // $FlowFixMe
-    // await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'before_bundle');
     let mutableBundleGraph = new MutableBundleGraph(
       internalBundleGraph,
       this.options,
