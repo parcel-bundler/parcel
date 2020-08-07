@@ -60,6 +60,7 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
     }),
     type: 'asset_group',
     value: assetGroup,
+    usedSymbolsDirty: true,
   };
 }
 
@@ -141,6 +142,15 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   removeNode(node: AssetGraphNode): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
+    // FIXME cleanup, this needs to mark all connected nodes that doesn't become orphaned
+    // due to replaceNodesConnectedTo
+    if (this.isOrphanedNode(node) && node.type === 'dependency') {
+      let children = this.getNodesConnectedFrom(node);
+      for (let n of children) {
+        invariant(n.type === 'asset_group');
+        n.usedSymbolsDirty = true;
+      }
+    }
     return super.removeNode(node);
   }
 
@@ -176,6 +186,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
             : undefined,
         }),
       );
+
+      if (node.value.env.isLibrary) {
+        // in library mode, all of the entry's symbols are "used"
+        node.usedSymbolsDown.add('*');
+      }
       return node;
     });
 
@@ -363,6 +378,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 
   resolveAsset(assetNode: AssetNode, dependentAssets: Array<Asset>) {
+    // $FlowFixMe FIXME cleanup, this is because of the magic of addNode (called by replaceNodesConnectedTo)
+    assetNode = this.getNode(assetNode.id);
     let depNodes = [];
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {

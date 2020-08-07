@@ -236,6 +236,7 @@ export type AssetGroupNode = {|
   correspondingRequest?: string,
   deferred?: boolean,
   hasDeferred?: boolean,
+  usedSymbolsDirty: boolean,
 |};
 
 export type DepPathRequestNode = {|

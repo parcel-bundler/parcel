@@ -274,8 +274,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       // 2) Distribute the symbols to the outgoing dependencies
       // ----------------------------------------------------------
-
-      let hasDirtyOutgoingDep = false;
       for (let dep of outgoingDeps) {
         let depUsedSymbolsDownOld = dep.usedSymbolsDown;
         let depUsedSymbolsDown = new Set();
@@ -338,18 +336,17 @@ export default class AssetGraphBuilder extends EventEmitter {
               }
             }
           }
-
-          if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown))
-            hasDirtyOutgoingDep = true;
+          if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
+            dep.usedSymbolsDirty = true;
+          }
         }
       }
-      return hasDirtyOutgoingDep;
     });
     console.timeEnd('symbols down');
-    console.time('symbols up');
     dumpToGraphViz(this.assetGraph, 'AssetGraph2');
+    console.time('symbols up');
 
-    // Because namespace imports introduce ambiguity, go up the graph from the leaves to the
+    // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
       let assetSymbols: $ReadOnlyMap<
@@ -369,7 +366,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let reexportedSymbols = new Set<Symbol>();
       for (let outgoingDep of outgoingDeps) {
-        outgoingDep.usedSymbolsDirty = false;
         let outgoingDepSymbols = outgoingDep.value.symbols;
         if (!outgoingDepSymbols) continue;
 
@@ -467,7 +463,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       node: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
-    ) => boolean,
+    ) => void,
   ) {
     let root = this.assetGraph.getRootNode();
     if (!root) {
@@ -477,15 +473,16 @@ export default class AssetGraphBuilder extends EventEmitter {
     let queue: Array<AssetGraphNode> = [root];
     let visited = new Set<AssetGraphNode>();
 
-    // For dependency circles in the graph, all nodes in the circle are skipped, so now
-    // traverse remaining and just accept we have to do cascading updates if something changed.
-    let dirty = new Set();
     while (queue.length > 0) {
       let node = queue.shift();
       let outgoing = this.assetGraph.getNodesConnectedFrom(node);
-      let hasDirtyOutgoingDep = false;
-      if (node.type === 'asset') {
-        hasDirtyOutgoingDep = visit(
+
+      let wasNodeDirty = false;
+      if (node.type === 'dependency' || node.type === 'asset_group') {
+        wasNodeDirty = node.usedSymbolsDirty;
+        node.usedSymbolsDirty = false;
+      } else if (node.type === 'asset' && node.usedSymbolsDirty) {
+        visit(
           node,
           this.assetGraph.getIncomingDependencies(node.value).map(d => {
             let dep = this.assetGraph.getNode(d.id);
@@ -497,26 +494,25 @@ export default class AssetGraphBuilder extends EventEmitter {
             return dep;
           }),
         );
-      } else if (node.type === 'entry_file') {
-        let dep = nullthrows(outgoing[0]);
-        invariant(dep.type === 'dependency');
-
-        if (dep.value.env.isLibrary) {
-          // in library mode, all of the entry's symbols are "used"
-          dep.usedSymbolsDown.add('*');
-        }
+        node.usedSymbolsDirty = false;
       }
 
       visited.add(node);
-      let forceVisitChildren =
-        (node.type !== 'asset' && dirty.has(node)) || hasDirtyOutgoingDep;
       for (let child of outgoing) {
-        if (forceVisitChildren) dirty.add(child);
-        if (forceVisitChildren || !visited.has(child)) {
+        let childDirty = false;
+        if (
+          (child.type === 'asset' || child.type === 'asset_group') &&
+          wasNodeDirty
+        ) {
+          child.usedSymbolsDirty = true;
+          childDirty = true;
+        } else if (child.type === 'dependency') {
+          childDirty = child.usedSymbolsDirty;
+        }
+        if (!visited.has(child) || childDirty) {
           queue.push(child);
         }
       }
-      dirty.delete(node);
     }
   }
 
@@ -537,7 +533,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     let visited = new Set([root.id]);
     const walk = (node: AssetGraphNode) => {
       let outgoing = this.assetGraph.getNodesConnectedFrom(node);
-      for (let child of this.assetGraph.getNodesConnectedFrom(node)) {
+      for (let child of outgoing) {
         if (!visited.has(child.id)) {
           visited.add(child.id);
           walk(child);
