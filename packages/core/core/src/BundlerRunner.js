@@ -116,7 +116,7 @@ export default class BundlerRunner {
     assertSignalNotAborted(signal);
 
     // $FlowFixMe
-    // await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
     try {
       await bundler.optimize({
         bundleGraph: mutableBundleGraph,
@@ -132,7 +132,7 @@ export default class BundlerRunner {
     assertSignalNotAborted(signal);
 
     // $FlowFixMe
-    // await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
 
     await applyRuntimes({
@@ -144,7 +144,7 @@ export default class BundlerRunner {
     });
     assertSignalNotAborted(signal);
     // $FlowFixMe
-    // await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
+    await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
     if (cacheKey != null) {
       await this.options.cache.set(cacheKey, internalBundleGraph);
