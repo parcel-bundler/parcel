@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import type {ConfigResult} from '@parcel/types';
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
 
@@ -104,6 +105,7 @@ export function runPackage(
     configRef,
     cacheKeys,
     optionsRef,
+    config,
   }: {|
     bundle: Bundle,
     bundleGraphReference: SharedReference,
@@ -114,6 +116,7 @@ export function runPackage(
       info: string,
     |},
     optionsRef: SharedReference,
+    config: ConfigResult,
   |},
 ): Promise<BundleInfo> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
@@ -123,7 +126,7 @@ export function runPackage(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(
+  let parcelConfig = new ParcelConfig(
     processedConfig,
     options.packageManager,
     options.inputFS,
@@ -131,8 +134,8 @@ export function runPackage(
   );
 
   return new PackagerRunner({
-    config,
+    config: parcelConfig,
     options,
     report: reportWorker.bind(null, workerApi),
-  }).getBundleInfo(bundle, bundleGraph, cacheKeys);
+  }).getBundleInfo(bundle, bundleGraph, cacheKeys, config);
 }
