@@ -241,10 +241,13 @@ export class RequestGraph extends Graph<
     for (let {path, type} of events) {
       let node = this.getNode(path);
 
+      // FIXME: node exist in the graph even if they don't exist on disk, this doesn't
+      // make sense:
+      //
       // sometimes mac os reports update events as create events
       // if it was a create event, but the file already exists in the graph,
       // then we can assume it was actually an update event
-      if (node && (type === 'create' || type === 'update')) {
+      if (node && type === 'update') {
         for (let connectedNode of this.getNodesConnectedTo(
           node,
           'invalidated_by_update',
