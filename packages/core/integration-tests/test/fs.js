@@ -1,13 +1,20 @@
+// @flow
+import type {InitialParcelOptions} from '@parcel/types';
+
 import assert from 'assert';
 import path from 'path';
 import {
   assertBundles,
-  bundle,
+  bundle as _bundle,
   removeDistDirectory,
   run,
+  overlayFS,
   outputFS,
   distDir,
 } from '@parcel/test-utils';
+
+const bundle = (entries, opts: ?InitialParcelOptions) =>
+  _bundle(entries, {unsafeInlining: true, ...opts});
 
 describe('fs', function() {
   beforeEach(async () => {
@@ -15,6 +22,25 @@ describe('fs', function() {
   });
 
   describe('browser environment', function() {
+    it('should not inline a file by default', async function() {
+      let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
+        unsafeInlining: false,
+      });
+      let output = await run(b);
+      assert.equal(output, '');
+    });
+
+    it('should not inline a file outside of the project root', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-outside-root/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+      let output = await run(b);
+      assert.equal(output, '');
+    });
+
     it('should inline a file as a string', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'));
       let output = await run(b);
@@ -198,7 +224,7 @@ describe('fs', function() {
   describe.skip('electron environment', function() {
     it('should not inline a file in an Electron environment', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
-        target: 'electron',
+        targets: ['electron'],
       });
 
       assertBundles(b, [
