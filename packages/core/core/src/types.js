@@ -148,6 +148,7 @@ export type ParcelOptions = {|
   mode: BuildMode,
   minify: boolean,
   scopeHoist: boolean,
+  unsafeInlining: boolean,
   sourceMaps: boolean,
   publicUrl: string,
   distDir: ?FilePath,

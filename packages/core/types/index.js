@@ -265,6 +265,7 @@ export type InitialParcelOptions = {|
   +minify?: boolean,
   +scopeHoist?: boolean,
   +sourceMaps?: boolean,
+  +unsafeInlining?: boolean,
   +publicUrl?: string,
   +distDir?: FilePath,
   +hot?: ?HMROptions,

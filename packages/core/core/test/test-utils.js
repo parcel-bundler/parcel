@@ -26,6 +26,7 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   serve: false,
   mode: 'development',
   scopeHoist: false,
+  unsafeInlining: false,
   minify: false,
   publicUrl: '/',
   distDir: undefined,

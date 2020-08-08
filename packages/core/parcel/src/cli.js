@@ -60,6 +60,7 @@ const commonOptions = {
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-content-hash': 'disable content hashing',
+  '--unsafe-inlining': 'enabled potentionally unsafe inlining operations',
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
@@ -346,6 +347,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps ?? true,
     scopeHoist: command.scopeHoist,
+    unsafeInlining: command.unsafeInlining,
     publicUrl: command.publicUrl,
     distDir: command.distDir,
     hot: hmr,

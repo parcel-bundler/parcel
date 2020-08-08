@@ -127,6 +127,7 @@ export default async function resolveOptions(
     publicUrl,
     distDir,
     logLevel: initialOptions.logLevel ?? 'info',
+    unsafeInlining: initialOptions.unsafeInlining ?? false,
     projectRoot,
     lockFile,
     inputFS,

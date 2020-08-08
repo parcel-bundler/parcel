@@ -58,7 +58,9 @@ export default ({
             .map(arg => evaluate(arg, vars)): Array<string>);
 
           filename = Path.resolve(filename);
-          res = options.inputFS.readFileSync(filename, ...args);
+          if (!Path.relative(options.projectRoot, filename).startsWith('..')) {
+            res = options.inputFS.readFileSync(filename, ...args);
+          }
         } catch (_err) {
           let err: Error = _err;
 
@@ -84,10 +86,7 @@ export default ({
       }
 
       let replacementNode;
-      if (
-        filename &&
-        !Path.relative(options.projectRoot, filename).startsWith('..')
-      ) {
+      if (filename && res) {
         if (Buffer.isBuffer(res)) {
           invariant(res != null);
           replacementNode = bufferTemplate({
@@ -102,8 +101,6 @@ export default ({
         asset.addIncludedFile({
           filePath: filename,
         });
-
-        return;
       } else {
         let loc = convertBabelLoc(path.node.loc);
         if (filename) {
