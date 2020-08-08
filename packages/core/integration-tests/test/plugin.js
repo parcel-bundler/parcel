@@ -4,7 +4,13 @@ import type {Dependency} from '@parcel/types';
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {bundle, outputFS as fs, distDir, run} from '@parcel/test-utils';
+import {
+  bundle,
+  outputFS as fs,
+  distDir,
+  run,
+  overlayFS,
+} from '@parcel/test-utils';
 
 describe('plugin', function() {
   it("continue transformer pipeline on type change that doesn't change the pipeline", async function() {
@@ -59,5 +65,44 @@ parcel-transformer-b`,
 
     assert(!b.isDependencyDeferred(nullthrows(depB)));
     assert(b.isDependencyDeferred(nullthrows(depC)));
+  });
+
+  describe('should invalidate resolver results based on the returned paths', function() {
+    let fixtureDir = path.join(__dirname, '/integration/resolver-cache');
+    let entry = path.join(fixtureDir, 'index.js');
+    let config = path.join(fixtureDir, '.resolverrc');
+
+    beforeEach(async function() {
+      await overlayFS.mkdirp(fixtureDir);
+    });
+
+    it('create file', async function() {
+      let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+      assert.strictEqual((await run(b)).default, 'a');
+
+      await overlayFS.writeFile(config, 'b.js');
+      b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+      assert.strictEqual((await run(b)).default, 'b');
+    });
+
+    it('change file', async function() {
+      await overlayFS.writeFile(config, 'b.js');
+      let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+      assert.strictEqual((await run(b)).default, 'b');
+
+      await overlayFS.writeFile(config, 'c.js');
+      b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+      assert.strictEqual((await run(b)).default, 'c');
+    });
+
+    it('delete file', async function() {
+      await overlayFS.writeFile(config, 'b.js');
+      let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+      assert.strictEqual((await run(b)).default, 'b');
+
+      await overlayFS.unlink(config);
+      b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+      assert.strictEqual((await run(b)).default, 'a');
+    });
   });
 });

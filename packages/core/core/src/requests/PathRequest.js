@@ -1,6 +1,6 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {Async, QueryParameters} from '@parcel/types';
+import type {Async, Glob, QueryParameters, FilePath} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
@@ -63,10 +63,24 @@ async function run({input, api, options}: RunOpts) {
       options.autoinstall,
     ),
   });
-  let assetGroup = await resolverRunner.resolve(input);
+  let {
+    assetGroup,
+    filesUpdate,
+    filesCreation,
+    filesDeletion,
+  } = await resolverRunner.resolve(input);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
+  }
+  for (let f of filesUpdate) {
+    api.invalidateOnFileUpdate(f);
+  }
+  for (let f of filesCreation) {
+    api.invalidateOnFileCreate(f);
+  }
+  for (let f of filesDeletion) {
+    api.invalidateOnFileDelete(f);
   }
 
   return assetGroup;
@@ -113,7 +127,14 @@ export class ResolverRunner {
     return new ThrowableDiagnostic({diagnostic});
   }
 
-  async resolve(dependency: Dependency): Promise<?AssetGroup> {
+  async resolve(
+    dependency: Dependency,
+  ): Promise<{|
+    assetGroup: ?AssetGroup,
+    filesUpdate: Set<FilePath>,
+    filesCreation: Set<Glob>,
+    filesDeletion: Set<FilePath>,
+  |}> {
     let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
@@ -138,7 +159,12 @@ export class ResolverRunner {
         if (dep.isURL) {
           // This may be a url protocol or scheme rather than a pipeline, such as
           // `url('http://example.com/foo.png')`
-          return null;
+          return {
+            assetGroup: null,
+            filesUpdate: new Set(),
+            filesCreation: new Set(),
+            filesDeletion: new Set(),
+          };
         } else {
           throw new Error(`Unknown pipeline ${pipeline}.`);
         }
@@ -146,7 +172,12 @@ export class ResolverRunner {
     } else {
       if (dependency.isURL && dependency.moduleSpecifier.startsWith('//')) {
         // A protocol-relative URL, e.g `url('//example.com/foo.png')`
-        return null;
+        return {
+          assetGroup: null,
+          filesUpdate: new Set(),
+          filesCreation: new Set(),
+          filesDeletion: new Set(),
+        };
       }
       filePath = dependency.moduleSpecifier;
     }
@@ -168,6 +199,9 @@ export class ResolverRunner {
     }
 
     let diagnostics: Array<Diagnostic> = [];
+    let filesUpdate = new Set(),
+      filesDeletion = new Set(),
+      filesCreation = new Set();
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -178,20 +212,33 @@ export class ResolverRunner {
         });
 
         if (result) {
+          result.filesUpdate?.forEach(f => filesUpdate.add(f));
+          result.filesCreation?.forEach(f => filesCreation.add(f));
+          result.filesDeletion?.forEach(f => filesDeletion.add(f));
           if (result.isExcluded) {
-            return null;
+            return {
+              assetGroup: null,
+              filesUpdate,
+              filesCreation,
+              filesDeletion,
+            };
           }
 
           if (result.filePath != null) {
             return {
-              canDefer: result.canDefer,
-              filePath: result.filePath,
-              query,
-              sideEffects: result.sideEffects,
-              code: result.code,
-              env: dependency.env,
-              pipeline: pipeline ?? dependency.pipeline,
-              isURL: dependency.isURL,
+              assetGroup: {
+                canDefer: result.canDefer,
+                filePath: result.filePath,
+                query,
+                sideEffects: result.sideEffects,
+                code: result.code,
+                env: dependency.env,
+                pipeline: pipeline ?? dependency.pipeline,
+                isURL: dependency.isURL,
+              },
+              filesUpdate,
+              filesCreation,
+              filesDeletion,
             };
           }
 
@@ -217,7 +264,12 @@ export class ResolverRunner {
     }
 
     if (dep.isOptional) {
-      return null;
+      return {
+        assetGroup: null,
+        filesUpdate,
+        filesCreation,
+        filesDeletion,
+      };
     }
 
     let dir =

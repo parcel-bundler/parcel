@@ -577,13 +577,15 @@ async function runTransformer(
 
   const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
     return nullthrows(
-      await pipeline.resolverRunner.resolve(
-        createDependency({
-          env: asset.value.env,
-          moduleSpecifier: to,
-          sourcePath: from,
-        }),
-      ),
+      (
+        await pipeline.resolverRunner.resolve(
+          createDependency({
+            env: asset.value.env,
+            moduleSpecifier: to,
+            sourcePath: from,
+          }),
+        )
+      ).assetGroup,
     ).filePath;
   };
 
