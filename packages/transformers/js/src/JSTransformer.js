@@ -85,6 +85,7 @@ export default (new Transformer({
         ast,
         env: options.env,
         isNode: asset.env.isNode(),
+        replaceEnv: asset.env.unsafeInlining,
         isBrowser: asset.env.isBrowser(),
       });
     }
@@ -104,7 +105,7 @@ export default (new Transformer({
 
         if (!ignore) {
           traverse.cache.clearScope();
-          traverse(ast.program, fsVisitor, null, {asset, logger, ast});
+          traverse(ast.program, fsVisitor, null, {asset, logger, ast, options});
         }
       }
 

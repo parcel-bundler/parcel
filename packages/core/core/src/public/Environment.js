@@ -117,6 +117,10 @@ export default class Environment implements IEnvironment {
     return this.#environment.scopeHoist;
   }
 
+  get unsafeInlining(): boolean {
+    return this.#environment.unsafeInlining;
+  }
+
   isBrowser(): boolean {
     return BROWSER_ENVS.has(this.#environment.context);
   }

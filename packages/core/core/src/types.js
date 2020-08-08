@@ -71,6 +71,7 @@ export type Environment = {|
   isLibrary: boolean,
   minify: boolean,
   scopeHoist: boolean,
+  unsafeInlining: boolean,
 |};
 
 export type Target = {|

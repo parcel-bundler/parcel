@@ -199,6 +199,7 @@ export class TargetResolver {
               minify: this.options.minify && descriptor.minify !== false,
               scopeHoist:
                 this.options.scopeHoist && descriptor.scopeHoist !== false,
+              unsafeInlining: descriptor.unsafeInlining !== false,
             }),
             sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           };
@@ -246,6 +247,7 @@ export class TargetResolver {
               },
               minify: this.options.minify,
               scopeHoist: this.options.scopeHoist,
+              unsafeInlining: false,
             }),
           },
         ];
@@ -416,6 +418,7 @@ export class TargetResolver {
             minify: this.options.minify && descriptor.minify !== false,
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
+            unsafeInlining: descriptor.unsafeInlining !== false,
           }),
           sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
@@ -501,6 +504,7 @@ export class TargetResolver {
             minify: this.options.minify && descriptor.minify !== false,
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
+            unsafeInlining: descriptor.unsafeInlining !== false,
           }),
           sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,

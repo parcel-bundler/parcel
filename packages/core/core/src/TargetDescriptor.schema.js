@@ -97,6 +97,12 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
     minify: {
       type: 'boolean',
     },
+    scopeHoist: {
+      type: 'boolean',
+    },
+    unsafeInlining: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };

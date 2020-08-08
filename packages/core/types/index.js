@@ -134,6 +134,7 @@ export type PackageTargetDescriptor = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
+  +unsafeInlining?: boolean,
 |};
 
 /**
@@ -160,6 +161,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
+  +unsafeInlining?: boolean,
 |};
 
 /**
@@ -200,6 +202,8 @@ export interface Environment {
   +minify: boolean;
   /** Whether scope hoisting is enabled. */
   +scopeHoist: boolean;
+  /** Whether to perform potentionally unsafe inlining based on the build environment. */
+  +unsafeInlining: boolean;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
