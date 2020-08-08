@@ -52,6 +52,7 @@ module.exports = {
     'no-return-await': 'error',
     'require-atomic-updates': 'off',
     'require-await': 'error',
+    'no-constant-condition': ['error', {checkLoops: false}],
   },
   settings: {
     flowtype: {
