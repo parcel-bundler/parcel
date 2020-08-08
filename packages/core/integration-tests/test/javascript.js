@@ -1238,10 +1238,10 @@ describe('javascript', function() {
     );
 
     let jsBundle = b.getBundles()[0];
-    let contents = await outputFS.readFile(jsBundle.filePath);
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
 
     assert(!contents.includes('process.env'));
-    assert.equal(await run(b), 42);
+    assert.equal(await run(b), 'test');
   });
 
   it('should not insert environment variables in node environment', async function() {
@@ -1284,12 +1284,35 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
-  it('should insert environment variables in browser environment', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/env/index.js'));
+  it('should inline NODE_ENV environment variable in browser environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-nodeenv/index.js'),
+    );
 
     let output = await run(b);
     assert.ok(output.toString().indexOf('process.env') === -1);
     assert.equal(output(), 'test:test');
+  });
+
+  it('should not insert environment variables in browser environment by default', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
+      env: {FOOBAR: 'abc'},
+    });
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.env') === -1);
+    assert.equal(output(), 'undefined:undefined');
+  });
+
+  it('should be able to inline environment variables in browser environment', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
+      env: {FOOBAR: 'abc'},
+      unsafeInlining: true,
+    });
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.env') === -1);
+    assert.equal(output(), 'abc:abc');
   });
 
   it("should insert the user's NODE_ENV as process.env.NODE_ENV if passed", async function() {
