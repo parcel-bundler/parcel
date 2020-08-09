@@ -265,6 +265,7 @@ export type InitialParcelOptions = {|
   +distDir?: FilePath,
   +hot?: ?HMROptions,
   +contentHash?: boolean,
+  +contentHashAssets?: boolean,
   +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -278,9 +279,7 @@ export type InitialParcelOptions = {|
   +defaultEngines?: Engines,
   +detailedReport?: number | boolean,
 
-  // contentHash
   // throwErrors
-  // global?
 |};
 
 export type InitialServerOptions = {|

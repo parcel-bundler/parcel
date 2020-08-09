@@ -107,6 +107,7 @@ export default async function resolveOptions(
     hot: initialOptions.hot ?? null,
     contentHash:
       initialOptions.contentHash ?? initialOptions.mode === 'production',
+    contentHashAssets: initialOptions.contentHashAssets ?? false,
     serve: initialOptions.serve
       ? {
           ...initialOptions.serve,

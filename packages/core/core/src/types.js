@@ -157,6 +157,7 @@ export type ParcelOptions = {|
   distDir: ?FilePath,
   hot: ?HMROptions,
   contentHash: boolean,
+  contentHashAssets: boolean,
   serve: ServerOptions | false,
   autoinstall: boolean,
   logLevel: LogLevel,
@@ -354,7 +355,6 @@ export type CacheEntry = {|
 
 export type Bundle = {|
   id: string,
-  publicId: ?string,
   hashReference: string,
   type: string,
   env: Environment,

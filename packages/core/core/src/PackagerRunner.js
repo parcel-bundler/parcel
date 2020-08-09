@@ -18,9 +18,9 @@ import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import invariant from 'assert';
 import {
+  blobToStream,
   md5FromObject,
   md5FromString,
-  blobToStream,
   TapStream,
 } from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';

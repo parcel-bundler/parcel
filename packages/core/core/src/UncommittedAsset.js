@@ -14,7 +14,7 @@ import type {
 import type {Asset, Dependency, ParcelOptions} from './types';
 
 import path from 'path';
-import {normalizeSeparators} from '@parcel/utils';
+import {bufferBase62, normalizeSeparators} from '@parcel/utils';
 import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
@@ -87,8 +87,8 @@ export default class UncommittedAsset {
     let mapKey = this.getCacheKey('map' + pipelineKey);
     let astKey = this.getCacheKey('ast' + pipelineKey);
 
-    let contentHash =
-      this.options.contentHash && this.content != null
+    let hashContent =
+      this.options.contentHashAssets && this.content != null
         ? crypto.createHash('md5')
         : null;
     // Since we can only read from the stream once, compute the content length
@@ -101,7 +101,8 @@ export default class UncommittedAsset {
           this.getStream().pipe(
             new TapStream(buf => {
               size += buf.length;
-              contentHash?.update(buf.toString().replace(idRegex, 'X'));
+              // An asset can only access its own publicIdReference, so replacing with anything should be fine.
+              hashContent?.update(buf.toString().replace(idRegex, 'X'));
             }),
           ),
         ),
@@ -123,30 +124,32 @@ export default class UncommittedAsset {
     this.value.outputHash = md5FromString(
       [this.value.hash, pipelineKey].join(':'),
     );
-    if (this.options.contentHash && !contentHash && this.ast) {
+    if (this.options.contentHashAssets && this.content == null && this.ast) {
       let serializedAST = await generateFromAST(this);
-      contentHash = crypto
+      hashContent = crypto
         .createHash('md5')
         .update(serializedAST.content.toString().replace(idRegex, 'X'));
     }
-    this.value.publicId = !this.options.contentHash
-      ? this.value.id
-      : nullthrows(contentHash)
-          .update(
-            // TODO copied from assetUtils, what about the "hash" in that function
-            (normalizeSeparators(
-              path.relative(this.options.projectRoot, this.value.filePath),
-            ) ?? '') +
-              ':' +
-              this.value.type +
-              ':' +
-              (this.value.pipeline ?? '') +
-              ':' +
-              (this.value.uniqueKey ?? '') +
-              ':' +
-              (this.value.pipeline ?? ''),
-          )
-          .digest('hex');
+    this.value.publicId = hashContent
+      ? bufferBase62(
+          nullthrows(hashContent)
+            .update(
+              // TODO copied from assetUtils, what about the "hash" in that function
+              (normalizeSeparators(
+                path.relative(this.options.projectRoot, this.value.filePath),
+              ) ?? '') +
+                ':' +
+                this.value.type +
+                ':' +
+                (this.value.pipeline ?? '') +
+                ':' +
+                (this.value.uniqueKey ?? '') +
+                ':' +
+                (this.value.pipeline ?? ''),
+            )
+            .digest(),
+        )
+      : this.value.id;
 
     if (this.content != null) {
       this.value.stats.size = size;

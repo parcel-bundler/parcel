@@ -27,6 +27,7 @@
     "@parcel/markdown-ansi": "2.0.0-beta.1",
     "@parcel/source-map": "2.0.0-alpha.4.13",
     "ansi-html": "^0.0.7",
+    "base-x": "^3.0.8",
     "chalk": "^2.4.2",
     "clone": "^2.1.1",
     "fast-glob": "3.1.1",

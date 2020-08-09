@@ -94,20 +94,12 @@ export default async function applyRuntimes({
     connections,
   );
 
-  let runtimesGraph = InternalBundleGraph.fromAssetGraph(
-    runtimesAssetGraph,
-    bundleGraph._publicIdByAssetId,
-    bundleGraph._assetPublicIds,
-  );
+  let runtimesGraph = InternalBundleGraph.fromAssetGraph(runtimesAssetGraph);
 
   // Merge the runtimes graph into the main bundle graph.
   // TODO: Implementing something like BundleGraph#merge could formalize this.
   // $FlowFixMe
   bundleGraph._graph.merge(runtimesGraph._graph);
-  for (let [assetId, publicId] of runtimesGraph._publicIdByAssetId) {
-    bundleGraph._publicIdByAssetId.set(assetId, publicId);
-    bundleGraph._assetPublicIds.add(publicId);
-  }
 
   for (let {bundle, assetGroup, dependency, isEntry} of connections) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);

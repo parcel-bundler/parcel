@@ -16,41 +16,6 @@ const id1 = '0123456789abcdef0123456789abcdef';
 const id2 = '9876543210fedcba9876543210fedcba';
 
 describe('MutableBundleGraph', () => {
-  it.skip('creates publicIds for bundles', () => {
-    let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
-      createMockAssetGraph(),
-    );
-    let mutableBundleGraph = new MutableBundleGraph(
-      internalBundleGraph,
-      DEFAULT_OPTIONS,
-    );
-
-    mutableBundleGraph.traverse(node => {
-      if (
-        node.type === 'dependency' &&
-        mutableBundleGraph.getDependencyResolution(node.value)
-      ) {
-        let target = nullthrows(node.value.target);
-        let group = mutableBundleGraph.createBundleGroup(node.value, target);
-        let resolved = mutableBundleGraph.getDependencyResolution(node.value);
-        if (resolved != null) {
-          mutableBundleGraph.addBundleToBundleGroup(
-            mutableBundleGraph.createBundle({
-              entryAsset: resolved,
-              target,
-            }),
-            group,
-          );
-        }
-      }
-    });
-
-    assert.deepEqual(
-      internalBundleGraph.getBundles().map(b => b.publicId),
-      ['2iKuX', '7cqnn'],
-    );
-  });
-
   it('is safe to add a bundle to a bundleGroup multiple times', () => {
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(
       createMockAssetGraph(),

@@ -24,7 +24,7 @@ import crypto from 'crypto';
 import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep, unique} from '@parcel/utils';
 
-import {getBundleGroupId, getPublicId} from './utils';
+import {getBundleGroupId} from './utils';
 import Graph, {mapVisitor, type GraphOpts} from './Graph';
 
 type BundleGraphEdgeTypes =
@@ -57,13 +57,9 @@ type InternalExportSymbolResolution = {|
 type SerializedBundleGraph = {|
   graph: GraphOpts<BundleGraphNode, BundleGraphEdgeTypes>,
   bundleContentHashes: Map<string, string>,
-  assetPublicIds: Set<string>,
-  publicIdByAssetId: Map<string, string>,
 |};
 
 export default class BundleGraph {
-  _assetPublicIds: Set<string>;
-  _publicIdByAssetId: Map<string, string>;
   // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
   // property so it is possible to reach in and mutate the graph without invalidating these hashes.
   // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
@@ -73,26 +69,16 @@ export default class BundleGraph {
 
   constructor({
     graph,
-    publicIdByAssetId,
-    assetPublicIds,
     bundleContentHashes,
   }: {|
     graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
-    publicIdByAssetId: Map<string, string>,
-    assetPublicIds: Set<string>,
     bundleContentHashes: Map<string, string>,
   |}) {
     this._graph = graph;
-    this._assetPublicIds = assetPublicIds;
-    this._publicIdByAssetId = publicIdByAssetId;
     this._bundleContentHashes = bundleContentHashes;
   }
 
-  static fromAssetGraph(
-    assetGraph: AssetGraph,
-    publicIdByAssetId: Map<string, string> = new Map(),
-    assetPublicIds: Set<string> = new Set(),
-  ): BundleGraph {
+  static fromAssetGraph(assetGraph: AssetGraph): BundleGraph {
     let graph = new Graph<BundleGraphNode, BundleGraphEdgeTypes>();
 
     let rootNode = assetGraph.getRootNode();
@@ -101,20 +87,6 @@ export default class BundleGraph {
 
     let assetGroupIds = new Set();
     for (let [, node] of assetGraph.nodes) {
-      if (node.type === 'asset') {
-        let {id: assetId} = node.value;
-        // Generate a new, short public id for this asset to use.
-        // If one already exists, use it.
-        let publicId = publicIdByAssetId.get(assetId);
-        if (publicId == null) {
-          publicId = getPublicId(assetId, existing =>
-            assetPublicIds.has(existing),
-          );
-          publicIdByAssetId.set(assetId, publicId);
-          assetPublicIds.add(publicId);
-        }
-      }
-
       // Don't copy over asset groups into the bundle graph.
       if (node.type === 'asset_group') {
         assetGroupIds.add(node.id);
@@ -144,27 +116,21 @@ export default class BundleGraph {
 
     return new BundleGraph({
       graph,
-      assetPublicIds,
       bundleContentHashes: new Map(),
-      publicIdByAssetId,
     });
   }
 
   serialize(): SerializedBundleGraph {
     return {
       graph: this._graph.serialize(),
-      assetPublicIds: this._assetPublicIds,
       bundleContentHashes: this._bundleContentHashes,
-      publicIdByAssetId: this._publicIdByAssetId,
     };
   }
 
   static deserialize(serialized: SerializedBundleGraph): BundleGraph {
     return new BundleGraph({
       graph: Graph.deserialize(serialized.graph),
-      assetPublicIds: serialized.assetPublicIds,
       bundleContentHashes: serialized.bundleContentHashes,
-      publicIdByAssetId: serialized.publicIdByAssetId,
     });
   }
 
