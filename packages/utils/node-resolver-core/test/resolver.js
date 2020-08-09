@@ -235,24 +235,6 @@ describe('resolver', function() {
       });
     });
 
-    it.skip('should fall back to package.main when package.module does not exist', async function() {
-      let resolved = await resolver.resolve({
-        env: BROWSER_ENV,
-        filename: 'package-module-fallback',
-        isURL: false,
-        parent: path.join(rootDir, 'foo.js'),
-      });
-      assert.deepEqual(resolved, {
-        filePath: path.join(
-          rootDir,
-          'node_modules',
-          'package-module-fallback',
-          'main.js',
-        ),
-        sideEffects: undefined,
-      });
-    });
-
     it('should not resolve a node_modules package.browser main field with --target=node', async function() {
       let resolved = await resolver.resolve({
         env: NODE_INCLUDE_ENV,
@@ -569,7 +551,7 @@ describe('resolver', function() {
       });
     });
 
-    it.skip('should apply an alias for a virtual module folder (relative to project dir)', async function() {
+    it('should apply an alias for a virtual module folder (relative to project dir)', async function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'aliasedfolder/test.js',
@@ -771,70 +753,59 @@ describe('resolver', function() {
   });
 
   describe('error handling', function() {
-    it.skip('should throw when a relative path cannot be resolved', async function() {
-      let threw = false;
-
-      try {
-        await resolver.resolve({
-          env: BROWSER_ENV,
-          filename: './xyz.js',
-          isURL: false,
-          parent: path.join(rootDir, 'foo.js'),
-        });
-      } catch (err) {
-        threw = true;
-        assert.equal(
-          err.message,
-          "Cannot find module './xyz.js' from '" + rootDir + "'",
-        );
-        assert.equal(err.code, 'MODULE_NOT_FOUND');
-      }
-
-      assert(threw, 'Did not throw');
+    it('should throw when package.module does not exist', async function() {
+      // $FlowFixMe
+      await assert.rejects(
+        () =>
+          resolver.resolve({
+            env: BROWSER_ENV,
+            filename: 'package-module-fallback',
+            isURL: false,
+            parent: path.join(rootDir, 'foo.js'),
+          }),
+        {
+          message:
+            "Could not load './module.js' from module 'package-module-fallback' found in package.json#module",
+        },
+      );
     });
 
-    it.skip('should throw when a node_module cannot be resolved', async function() {
-      let threw = false;
+    it('should throw when a relative path cannot be resolved', async function() {
+      // $FlowFixMe
+      await assert.rejects(
+        () =>
+          resolver.resolve({
+            env: BROWSER_ENV,
+            filename: './xyz.js',
+            isURL: false,
+            parent: path.join(rootDir, 'foo.js'),
+          }),
+        {message: "Cannot load file './xyz.js' in './'."},
+      );
+    });
 
-      try {
+    it('should throw when a node_module cannot be resolved', async function() {
+      assert.strictEqual(
+        null,
         await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'xyz',
           isURL: false,
           parent: path.join(rootDir, 'foo.js'),
-        });
-      } catch (err) {
-        threw = true;
-        assert.equal(
-          err.message,
-          "Cannot find module 'xyz' from '" + rootDir + "'",
-        );
-        assert.equal(err.code, 'MODULE_NOT_FOUND');
-      }
-
-      assert(threw, 'Did not throw');
+        }),
+      );
     });
 
-    it.skip('should throw when a subfile of a node_module cannot be resolved', async function() {
-      let threw = false;
-
-      try {
+    it('should throw when a subfile of a node_module cannot be resolved', async function() {
+      assert.strictEqual(
+        null,
         await resolver.resolve({
           env: BROWSER_ENV,
           filename: 'xyz/test/file',
           isURL: false,
           parent: path.join(rootDir, 'foo.js'),
-        });
-      } catch (err) {
-        threw = true;
-        assert.equal(
-          err.message,
-          "Cannot find module 'xyz/test/file' from '" + rootDir + "'",
-        );
-        assert.equal(err.code, 'MODULE_NOT_FOUND');
-      }
-
-      assert(threw, 'Did not throw');
+        }),
+      );
     });
   });
 });

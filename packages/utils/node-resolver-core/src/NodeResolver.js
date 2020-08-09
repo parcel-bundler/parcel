@@ -859,8 +859,11 @@ export default class NodeResolver {
         let [moduleName, subPath] = this.getModuleParts(filename);
         alias = await this.lookupAlias(aliases, moduleName);
         if (typeof alias === 'string' && subPath) {
+          let isRelative = alias.startsWith('./');
           // Append the filename back onto the aliased module.
           alias = path.join(alias, subPath);
+          // because of path.join('./nested', 'sub') === 'nested/sub'
+          if (isRelative) alias = './' + alias;
         }
       }
     }
