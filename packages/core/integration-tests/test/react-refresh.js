@@ -23,7 +23,7 @@ try {
   );
 }
 
-(MessageChannel ? describe.skip : describe.skip)('react-refresh', function() {
+(MessageChannel ? describe : describe.skip)('react-refresh', function() {
   describe('synchronous', () => {
     const testDir = path.join(__dirname, '/integration/react-refresh');
 

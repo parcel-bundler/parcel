@@ -60,6 +60,7 @@ const commonOptions = {
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-content-hash': 'disable content hashing',
+  '--content-hash-assets': 'use content-hashed asset ids',
   '--target [name]': [
     'only build given target(s)',
     (val, list) => list.concat([val]),
@@ -350,6 +351,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     distDir: command.distDir,
     hot: hmr,
     contentHash: hmr ? false : command.contentHash,
+    contentHashAssets: command.contentHashAssets,
     serve,
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall ?? true,

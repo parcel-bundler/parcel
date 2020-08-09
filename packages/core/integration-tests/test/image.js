@@ -6,6 +6,7 @@ import sharp from 'sharp';
 describe('image', function() {
   this.timeout(10000);
 
+  // FIXME
   it.skip('Should be able to resize images', async () => {
     await bundle(path.join(__dirname, '/integration/image/resized.js'));
 

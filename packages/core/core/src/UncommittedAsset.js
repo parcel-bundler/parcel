@@ -14,7 +14,7 @@ import type {
 import type {Asset, Dependency, ParcelOptions} from './types';
 
 import path from 'path';
-import {bufferBase62, normalizeSeparators} from '@parcel/utils';
+import {bufferBase62, normalizeSeparators, md5FromObject} from '@parcel/utils';
 import v8 from 'v8';
 import {Readable} from 'stream';
 import SourceMap from '@parcel/source-map';
@@ -145,11 +145,13 @@ export default class UncommittedAsset {
                 ':' +
                 (this.value.uniqueKey ?? '') +
                 ':' +
-                (this.value.pipeline ?? ''),
+                (this.value.pipeline ?? '') +
+                ':' +
+                md5FromObject(this.value.query),
             )
             .digest(),
         )
-      : this.value.id;
+      : bufferBase62(Buffer.from(this.value.id, 'hex'));
 
     if (this.content != null) {
       this.value.stats.size = size;

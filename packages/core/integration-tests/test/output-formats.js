@@ -350,12 +350,12 @@ describe('output formats', function() {
       );
 
       assert(
-        /exports.\$[a-f0-9]+\$init = \$[a-f0-9]+\$init;/.test(
+        /exports.\$[a-zA-Z0-9]+\$init = \$[a-zA-Z0-9]+\$init;/.test(
           mainBundleContents,
         ),
       );
       assert(
-        /var {\s*\$[a-f0-9]+\$init\s*} = require\("\.\/index\.js"\);/.test(
+        /var {\s*\$[a-zA-Z0-9]+\$init\s*} = require\("\.\/index\.js"\);/.test(
           childBundleContents,
         ),
       );
@@ -714,9 +714,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      assert(/export function \$[a-f0-9]+\$init\(\)/.test(mainBundleContents));
       assert(
-        /import { \$[a-f0-9]+\$init } from "\.\/index\.js"/.test(
+        /export function \$[a-zA-Z0-9]+\$init\(\)/.test(mainBundleContents),
+      );
+      assert(
+        /import { \$[a-zA-Z0-9]+\$init } from "\.\/index\.js"/.test(
           childBundleContents,
         ),
       );
@@ -747,7 +749,7 @@ describe('output formats', function() {
 
       assert(
         new RegExp(
-          `\\$[a-f0-9]+\\$exports\\s*=\\s*\\(import\\("\\./"\\s*\\+\\s*"${path.basename(
+          `\\$[a-zA-Z0-9]+\\$exports\\s*=\\s*\\(import\\("\\./"\\s*\\+\\s*"${path.basename(
             syncBundle.filePath,
           )}"\\),\\s*import\\("\\./"\\s*\\+\\s*"${path.basename(
             asyncBundle.filePath,
@@ -946,11 +948,11 @@ describe('output formats', function() {
         'utf8',
       );
 
-      let exportName = dist1.match(/export function\s*([a-z0-9$]+)\(\)/)[1];
+      let exportName = dist1.match(/export function\s*([a-zA-Z0-9$]+)\(\)/)[1];
       assert(exportName);
 
       assert.equal(
-        dist2.match(/import { ([a-z0-9$]+) } from "\.\/index\.js";/)[1],
+        dist2.match(/import { ([a-zA-Z0-9$]+) } from "\.\/index\.js";/)[1],
         exportName,
       );
     });
