@@ -92,7 +92,7 @@ export function hoist(asset: MutableAsset, ast: AST) {
 const VISITOR: Visitor<MutableAsset> = {
   Program: {
     enter(path, asset: MutableAsset) {
-      asset.meta.id = asset.contentHashReference;
+      asset.meta.id = asset.publicIdReference;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
 
       traverse.cache.clearScope();
@@ -264,7 +264,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
 
     if (t.matchesPattern(path.node, 'module.id')) {
-      path.replaceWith(t.stringLiteral(asset.contentHashReference));
+      path.replaceWith(t.stringLiteral(asset.publicIdReference));
     }
 
     if (t.matchesPattern(path.node, 'module.hot')) {
@@ -478,7 +478,7 @@ const VISITOR: Visitor<MutableAsset> = {
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
       let replacement = REQUIRE_CALL_TEMPLATE({
-        ID: t.stringLiteral(asset.contentHashReference),
+        ID: t.stringLiteral(asset.publicIdReference),
         SOURCE: t.stringLiteral(arg.value),
       });
       replacement.loc = path.node.loc;
@@ -487,7 +487,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
     if (t.matchesPattern(callee, 'require.resolve')) {
       let replacement = REQUIRE_RESOLVE_CALL_TEMPLATE({
-        ID: t.stringLiteral(asset.contentHashReference),
+        ID: t.stringLiteral(asset.publicIdReference),
         SOURCE: arg,
       });
       replacement.loc = path.node.loc;
@@ -673,7 +673,7 @@ const VISITOR: Visitor<MutableAsset> = {
       EXPORT_ALL_TEMPLATE({
         OLD_NAME: getExportsIdentifier(asset, path.scope),
         SOURCE: t.stringLiteral(path.node.source.value),
-        ID: t.stringLiteral(asset.contentHashReference),
+        ID: t.stringLiteral(asset.publicIdReference),
       }),
     );
   },
@@ -685,7 +685,7 @@ function addImport(
 ) {
   // Replace with a $parcel$require call so we know where to insert side effects.
   let replacement = REQUIRE_CALL_TEMPLATE({
-    ID: t.stringLiteral(asset.contentHashReference),
+    ID: t.stringLiteral(asset.publicIdReference),
     SOURCE: t.stringLiteral(nullthrows(path.node.source).value),
   });
   replacement.loc = path.node.loc;

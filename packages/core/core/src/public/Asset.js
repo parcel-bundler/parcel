@@ -153,12 +153,12 @@ class BaseAsset {
     return this.#asset.value.pipeline;
   }
 
-  get contentHash(): ?string {
-    return this.#asset.value.contentHash;
+  get publicId(): ?string {
+    return this.#asset.value.publicId;
   }
 
-  get contentHashReference(): string {
-    return this.#asset.value.contentHashReference;
+  get publicIdReference(): string {
+    return this.#asset.value.publicIdReference;
   }
 
   getConfig(
@@ -223,8 +223,8 @@ export class Asset extends BaseAsset implements IAsset {
     return this;
   }
 
-  get contentHash(): string {
-    return nullthrows(this.#asset.value.contentHash);
+  get publicId(): string {
+    return nullthrows(this.#asset.value.publicId);
   }
 
   get stats(): Stats {
@@ -288,7 +288,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return new MutableAssetSymbols(this.#asset.value);
   }
 
-  get contentHash(): null {
+  get publicId(): null {
     return null;
   }
 

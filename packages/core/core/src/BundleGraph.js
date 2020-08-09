@@ -1056,7 +1056,7 @@ export default class BundleGraph {
     this.traverseAssets(bundle, asset => {
       hash.update(
         [
-          asset.contentHash,
+          asset.publicId,
           asset.outputHash,
           asset.filePath,
           querystring.stringify(asset.query),

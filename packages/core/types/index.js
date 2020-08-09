@@ -443,8 +443,8 @@ export interface BaseAsset {
   +filePath: FilePath;
   +query: QueryParameters;
   +id: string;
-  +contentHash: ?string;
-  +contentHashReference: string;
+  +publicId: ?string;
+  +publicIdReference: string;
   +meta: Meta;
   +isIsolated: boolean;
   /** Whether this asset will/should later be inserted back into the importer. */
@@ -505,7 +505,7 @@ export interface MutableAsset extends BaseAsset {
   isInline: boolean;
   isSplittable: ?boolean;
   type: string;
-  +contentHash: null;
+  +publicId: null;
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
@@ -530,7 +530,7 @@ export interface MutableAsset extends BaseAsset {
  * @section transformer
  */
 export interface Asset extends BaseAsset {
-  +contentHash: string;
+  +publicId: string;
   /** Throws if there is no AST.*/
   getAST(): Promise<?AST>;
 

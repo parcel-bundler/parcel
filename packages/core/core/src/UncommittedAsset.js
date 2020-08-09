@@ -129,7 +129,7 @@ export default class UncommittedAsset {
         .createHash('md5')
         .update(serializedAST.content.toString().replace(idRegex, 'X'));
     }
-    this.value.contentHash = !this.options.contentHash
+    this.value.publicId = !this.options.contentHash
       ? this.value.id
       : nullthrows(contentHash)
           .update(

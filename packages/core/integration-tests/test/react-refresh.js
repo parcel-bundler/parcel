@@ -1,4 +1,6 @@
+// @flow
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   bundler,
@@ -185,7 +187,7 @@ async function setup(entry) {
 
   subscription = await b.watch();
   let bundleEvent = await getNextBuild(b);
-  assert.equal(bundleEvent.type, 'buildSuccess');
+  invariant(bundleEvent.type === 'buildSuccess');
 
   let dom = await JSDOM.JSDOM.fromURL(
     'http://127.0.0.1:' + port + '/index.html',
@@ -209,9 +211,7 @@ async function setup(entry) {
     bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
   );
   // ReactDOM.render
-  await window
-    .parcelRequire(bundle.getEntryAssets().pop().contentHash)
-    .default();
+  await window.parcelRequire(bundle.getEntryAssets().pop().publicId).default();
   await sleep(100);
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(

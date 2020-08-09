@@ -556,7 +556,7 @@ export default class PackagerRunner {
           replaceStream(ASSET_HASH_REF_REGEX, match => {
             let id = getIdFromHashRef(match);
             if (bundleGraph.assetExists(id)) {
-              return nullthrows(bundleGraph.getAssetById(id).contentHash);
+              return nullthrows(bundleGraph.getAssetById(id).publicId);
             } else return match;
           }),
         )
