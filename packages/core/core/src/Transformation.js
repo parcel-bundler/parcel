@@ -156,6 +156,7 @@ export default class Transformation {
       pipeline,
       isSource: isSourceOverride,
       sideEffects,
+      query,
     } = this.request;
     let {
       content,
@@ -185,6 +186,7 @@ export default class Transformation {
         hash,
         pipeline,
         env,
+        query,
         stats: {
           time: 0,
           size,
