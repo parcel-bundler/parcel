@@ -2281,6 +2281,7 @@ describe('javascript', function() {
         assets: ['style.css'],
       },
       {
+        isInline: true,
         type: 'css',
         assets: ['style.css'],
       },

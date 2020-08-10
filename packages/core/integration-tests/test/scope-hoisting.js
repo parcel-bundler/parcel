@@ -154,7 +154,7 @@ describe('scope hoisting', function() {
       assert(contents.includes('require("lodash")'));
 
       let match = contents.match(
-        /\$parcel\$exportWildcard\((\$[a-f0-9]+\$exports), _lodash\);/,
+        /\$parcel\$exportWildcard\((\$[a-zA-Z0-9]+\$exports), _lodash\);/,
       );
       assert(match);
       let [, id] = match;
@@ -497,7 +497,7 @@ describe('scope hoisting', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert.equal(
-        dist.match(/var \$[a-z0-9]+\$\$interop\$default =/g).length,
+        dist.match(/var \$[a-zA-Z0-9]+\$\$interop\$default =/g).length,
         2,
       );
 
@@ -514,7 +514,7 @@ describe('scope hoisting', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(/var \$[a-z0-9]+\$cjs_exports/.test(dist));
+      assert(/var \$[a-zA-Z0-9]+\$cjs_exports/.test(dist));
 
       let [foo, bExports] = await run(b);
       assert.equal(foo, 'foobar');
@@ -1679,7 +1679,7 @@ describe('scope hoisting', function() {
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.
       let output = await run(b);
-      assert.equal(output.id, entryAsset.id);
+      assert.equal(output.id, entryAsset.publicId);
       assert.equal(output.hot, null);
       assert.equal(output.moduleRequire, null);
       assert.equal(output.type, 'object');

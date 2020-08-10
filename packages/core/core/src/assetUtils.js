@@ -26,6 +26,7 @@ import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {blobToStream, loadConfig, md5FromString} from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
+import {ASSET_HASH_REF_PREFIX} from './constants';
 
 type AssetOptions = {|
   id?: string,
@@ -48,6 +49,7 @@ type AssetOptions = {|
   env: Environment,
   meta?: Meta,
   outputHash?: ?string,
+  publicId?: ?string,
   pipeline?: ?string,
   stats: Stats,
   symbols?: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
@@ -60,17 +62,18 @@ type AssetOptions = {|
 export function createAsset(options: AssetOptions): Asset {
   let idBase = options.idBase != null ? options.idBase : options.filePath;
   let uniqueKey = options.uniqueKey || '';
+  let id =
+    options.id != null
+      ? options.id
+      : md5FromString(
+          idBase +
+            options.type +
+            getEnvironmentHash(options.env) +
+            uniqueKey +
+            (options.pipeline ?? ''),
+        );
   return {
-    id:
-      options.id != null
-        ? options.id
-        : md5FromString(
-            idBase +
-              options.type +
-              getEnvironmentHash(options.env) +
-              uniqueKey +
-              (options.pipeline ?? ''),
-          ),
+    id,
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
@@ -80,6 +83,10 @@ export function createAsset(options: AssetOptions): Asset {
     isSplittable: options.isSplittable,
     type: options.type,
     contentKey: options.contentKey,
+    publicIdReference: ASSET_HASH_REF_PREFIX + id,
+    hasContent: false,
+    hasMap: false,
+    hasAST: false,
     mapKey: options.mapKey,
     astKey: options.astKey,
     astGenerator: options.astGenerator,
@@ -87,6 +94,7 @@ export function createAsset(options: AssetOptions): Asset {
     includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
     outputHash: options.outputHash,
+    publicId: options.publicId,
     pipeline: options.pipeline,
     env: options.env,
     meta: options.meta || {},
@@ -146,6 +154,8 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     mapBuffer != null &&
       asset.options.cache.setBlob(nullthrows(asset.value.mapKey), mapBuffer),
   ]);
+  asset.value.hasContent = true;
+  asset.value.hasMap = mapBuffer != null;
 
   return {
     content:

@@ -21,11 +21,11 @@ import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 import {assetFromValue, assetToAssetValue} from './Asset';
-import {getBundleGroupId, getPublicId} from '../utils';
+import {getBundleGroupId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
 import {targetToInternalTarget} from './Target';
-import {HASH_REF_PREFIX} from '../constants';
+import {BUNDLE_HASH_REF_PREFIX} from '../constants';
 
 export default class MutableBundleGraph extends BundleGraph<IBundle>
   implements IMutableBundleGraph {
@@ -145,18 +145,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       return Bundle.get(existing.value, this.#graph, this.#options);
     }
 
-    let publicId = getPublicId(bundleId, existing =>
-      this.#bundlePublicIds.has(existing),
-    );
-    this.#bundlePublicIds.add(publicId);
-
     let bundleNode = {
       type: 'bundle',
       id: bundleId,
       value: {
         id: bundleId,
         hashReference: this.#options.contentHash
-          ? HASH_REF_PREFIX + bundleId
+          ? BUNDLE_HASH_REF_PREFIX + bundleId
           : bundleId.slice(0, 8),
         type: opts.type ?? nullthrows(entryAsset).type,
         env: opts.env
@@ -172,7 +167,6 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
         target,
         name: null,
         displayName: null,
-        publicId,
         stats: {size: 0, time: 0},
       },
     };

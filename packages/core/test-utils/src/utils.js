@@ -216,7 +216,7 @@ export async function runBundles(
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
         } else if (ctx.parcelRequire) {
           // $FlowFixMe
-          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
+          return ctx.parcelRequire(entryAsset.publicId);
         }
         return;
       case 'commonjs':
@@ -283,6 +283,7 @@ export function assertBundles(
   expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,
+    isInline?: boolean,
     assets: Array<string>,
     includedFiles?: {
       [key: string]: Array<string>,
@@ -312,6 +313,7 @@ export function assertBundles(
       type: bundle.type,
       assets,
       includedFiles,
+      isInline: bundle.isInline,
     });
   });
 
@@ -331,11 +333,22 @@ export function assertBundles(
 
     return 0;
   };
-
   const byAssets = (a, b) =>
     a.assets.join(',').localeCompare(b.assets.join(','));
-  expectedBundles.sort(byName).sort(byAssets);
-  actualBundles.sort(byName).sort(byAssets);
+  const byInline = ({isInline: a}, {isInline: b}) => {
+    if (Boolean(a) === Boolean(b)) return 0;
+    else if (a && !b) return 1;
+    else return -1;
+  };
+
+  expectedBundles
+    .sort(byName)
+    .sort(byAssets)
+    .sort(byInline);
+  actualBundles
+    .sort(byName)
+    .sort(byAssets)
+    .sort(byInline);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
@@ -362,6 +375,10 @@ export function assertBundles(
 
     if (bundle.type) {
       assert.equal(actualBundle.type, bundle.type);
+    }
+
+    if (bundle.isInline != null) {
+      assert.equal(actualBundle.isInline, bundle.isInline);
     }
 
     if (bundle.assets) {

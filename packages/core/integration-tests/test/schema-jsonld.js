@@ -15,6 +15,7 @@ describe('jsonld', function() {
     assertBundles(b, [
       {
         type: 'jsonld',
+        isInline: true,
         assets: ['index.html'],
       },
       {

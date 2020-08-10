@@ -153,6 +153,14 @@ class BaseAsset {
     return this.#asset.value.pipeline;
   }
 
+  get publicId(): ?string {
+    return this.#asset.value.publicId;
+  }
+
+  get publicIdReference(): string {
+    return this.#asset.value.publicIdReference;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{|
@@ -215,6 +223,10 @@ export class Asset extends BaseAsset implements IAsset {
     return this;
   }
 
+  get publicId(): string {
+    return nullthrows(this.#asset.value.publicId);
+  }
+
   get stats(): Stats {
     return this.#asset.value.stats;
   }
@@ -274,6 +286,10 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   get symbols(): IMutableSymbols {
     return new MutableAssetSymbols(this.#asset.value);
+  }
+
+  get publicId(): null {
+    return null;
   }
 
   addDependency(dep: DependencyOptions): string {

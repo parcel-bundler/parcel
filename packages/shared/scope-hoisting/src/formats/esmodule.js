@@ -41,9 +41,6 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
-  // Implement an interface consistent with other formats
-  // eslint-disable-next-line no-unused-vars
-  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let specifiers = [...assets].map(asset => {
     let id = getName(asset, 'init');

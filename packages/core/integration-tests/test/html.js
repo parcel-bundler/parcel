@@ -782,10 +782,10 @@ describe('html', function() {
 
     // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html'], isInline: true},
+      {type: 'js', assets: ['index.html'], isInline: true},
+      {type: 'js', assets: ['index.html'], isInline: true},
+      {type: 'js', assets: ['index.html'], isInline: true},
       {name: 'index.html', assets: ['index.html']},
     ]);
 
@@ -809,10 +809,10 @@ describe('html', function() {
 
     // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html'], isInline: true},
+      {type: 'js', assets: ['index.html'], isInline: true},
+      {type: 'js', assets: ['index.html'], isInline: true},
+      {type: 'js', assets: ['index.html'], isInline: true},
       {name: 'index.html', assets: ['index.html']},
     ]);
 
@@ -841,18 +841,22 @@ describe('html', function() {
     assertBundles(b, [
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
@@ -882,14 +886,17 @@ describe('html', function() {
     assertBundles(b, [
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
@@ -908,6 +915,7 @@ describe('html', function() {
     assertBundles(b, [
       {
         type: 'css',
+        isInline: true,
         assets: ['index.html'],
       },
       {
@@ -936,6 +944,7 @@ describe('html', function() {
     assertBundles(b, [
       {
         type: 'js',
+        isInline: true,
         assets: ['index.html'],
       },
       {
@@ -1030,6 +1039,7 @@ describe('html', function() {
     await assertBundles(b, [
       {
         type: 'js',
+        isInline: true,
         assets: ['index.html'],
       },
       {
@@ -1095,10 +1105,12 @@ describe('html', function() {
     await assertBundles(b, [
       {
         type: 'js',
+        isInline: true,
         assets: ['index.html'],
       },
       {
         type: 'js',
+        isInline: true,
         assets: ['index.html'],
       },
       {
@@ -1267,14 +1279,17 @@ describe('html', function() {
       },
       {
         type: 'js',
+        isInline: true,
         assets: ['a.html', 'shared.js'],
       },
       {
         type: 'js',
+        isInline: true,
         assets: ['b.html', 'shared.js'],
       },
       {
         type: 'js',
+        isInline: true,
         assets: ['c.html', 'shared.js'],
       },
       {

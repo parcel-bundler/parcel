@@ -265,6 +265,7 @@ export type InitialParcelOptions = {|
   +distDir?: FilePath,
   +hot?: ?HMROptions,
   +contentHash?: boolean,
+  +contentHashAssets?: boolean,
   +serve?: InitialServerOptions | false,
   +autoinstall?: boolean,
   +logLevel?: LogLevel,
@@ -278,9 +279,7 @@ export type InitialParcelOptions = {|
   +defaultEngines?: Engines,
   +detailedReport?: number | boolean,
 
-  // contentHash
   // throwErrors
-  // global?
 |};
 
 export type InitialServerOptions = {|
@@ -443,6 +442,8 @@ export interface BaseAsset {
   +filePath: FilePath;
   +query: QueryParameters;
   +id: string;
+  +publicId: ?string;
+  +publicIdReference: string;
   +meta: Meta;
   +isIsolated: boolean;
   /** Whether this asset will/should later be inserted back into the importer. */
@@ -503,6 +504,7 @@ export interface MutableAsset extends BaseAsset {
   isInline: boolean;
   isSplittable: ?boolean;
   type: string;
+  +publicId: null;
 
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
@@ -527,6 +529,7 @@ export interface MutableAsset extends BaseAsset {
  * @section transformer
  */
 export interface Asset extends BaseAsset {
+  +publicId: string;
   /** Throws if there is no AST.*/
   getAST(): Promise<?AST>;
 
@@ -882,7 +885,6 @@ export interface Bundle {
  * @section bundler
  */
 export interface NamedBundle extends Bundle {
-  +publicId: string;
   +filePath: FilePath;
   +name: string;
   +displayName: string;
@@ -934,7 +936,6 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  */
 export interface BundleGraph<TBundle: Bundle> {
   getAssetById(id: string): Asset;
-  getAssetPublicId(asset: Asset): string;
   getBundles(): Array<TBundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
