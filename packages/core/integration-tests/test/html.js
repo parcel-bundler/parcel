@@ -420,6 +420,8 @@ describe('html', function() {
       ),
     );
 
+    assert(!html.includes('sourceMappingURL'));
+
     // minifySvg is false
     assert(
       html.includes(
@@ -890,6 +892,7 @@ describe('html', function() {
       'utf8',
     );
     assert(html.includes('<style>.index{color:#00f}</style>'));
+    assert(!html.includes('sourceMappingURL'));
   });
 
   it('should process inline non-js scripts', async function() {

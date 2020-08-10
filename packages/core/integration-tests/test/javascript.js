@@ -2234,8 +2234,10 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/bundle-text/index.js'),
     );
 
+    let cssBundleContent = (await run(b)).default;
+
     assert(
-      (await run(b)).default.startsWith(
+      cssBundleContent.startsWith(
         `body {
   background-color: #000000;
 }
@@ -2245,6 +2247,8 @@ describe('javascript', function() {
 }`,
       ),
     );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
