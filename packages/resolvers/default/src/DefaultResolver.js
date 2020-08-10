@@ -26,9 +26,10 @@ export default (new Resolver({
     }
 
     const resolver = new NodeResolver({
+      fs: options.inputFS,
+      projectRoot: options.projectRoot,
       extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl', 'vue'],
       mainFields,
-      options,
     });
     return resolver.resolve({
       filename: filePath,
