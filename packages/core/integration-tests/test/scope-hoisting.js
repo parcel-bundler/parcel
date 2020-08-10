@@ -2313,6 +2313,32 @@ describe('scope hoisting', function() {
     assert.strictEqual(await run(b), 3);
   });
 
+  it('should wrap imports inside arrow functions', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/wrap-import-arrowfunction/a.js',
+      ),
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(bundle => bundle.isEntry).filePath,
+      'utf8',
+    );
+    assert(contents.includes('=>'));
+
+    let calls = [];
+    let output = await run(b, {
+      sideEffect(id) {
+        calls.push(id);
+      },
+    });
+    assert.deepEqual(calls, []);
+    assert.equal(typeof output, 'function');
+    assert.deepEqual(await output(), {default: 1234});
+    assert.deepEqual(calls, ['async']);
+  });
+
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {
     let b = await bundle(
       path.join(
