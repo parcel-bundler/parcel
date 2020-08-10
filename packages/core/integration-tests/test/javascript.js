@@ -1250,7 +1250,7 @@ describe('javascript', function() {
     );
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.ok(output.toString().includes('process.env'));
     assert.equal(output(), 'test:test');
   });
 
@@ -1264,9 +1264,15 @@ describe('javascript', function() {
       },
     });
 
-    let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') > -1);
-    assert.equal(output(), 'test:test');
+    let output = await run(b, {
+      process: {
+        env: {
+          FOOBAR: 'xyz',
+        },
+      },
+    });
+    assert.ok(output.toString().includes('process.env'));
+    assert.equal(output(), 'xyz:xyz');
   });
 
   it('should not insert environment variables in electron-renderer environment', async function() {
@@ -1279,9 +1285,15 @@ describe('javascript', function() {
       },
     });
 
-    let output = await run(b);
+    let output = await run(b, {
+      process: {
+        env: {
+          FOOBAR: 'xyz',
+        },
+      },
+    });
     assert.ok(output.toString().indexOf('process.env') > -1);
-    assert.equal(output(), 'test:test');
+    assert.equal(output(), 'xyz:xyz');
   });
 
   it('should inline NODE_ENV environment variable in browser environment', async function() {
@@ -1323,13 +1335,15 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') === -1);
+    assert.ok(!output.toString().includes('process.env'));
     assert.equal(output(), 'production:production');
   });
 
   it('should insert environment variables from a file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
+      // TODO ?
+      {unsafeInlining: true},
     );
 
     // Make sure dotenv doesn't leak its values into the main process's env
@@ -1342,7 +1356,8 @@ describe('javascript', function() {
   it("should insert environment variables matching the user's NODE_ENV if passed", async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js'),
-      {env: {NODE_ENV: 'production'}},
+      // TODO
+      {env: {NODE_ENV: 'production'}, unsafeInlining: true},
     );
 
     let output = await run(b);

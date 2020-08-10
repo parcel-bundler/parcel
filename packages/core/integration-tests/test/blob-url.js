@@ -2,19 +2,12 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, distDir, outputFS, inputFS} from '@parcel/test-utils';
-
-const configPath = path.join(__dirname, '/integration/blob-url/.parcelrc');
-
-const config = {
-  ...JSON.parse(inputFS.readFileSync(configPath, 'utf8')),
-  filePath: configPath,
-};
+import {bundle, distDir, outputFS} from '@parcel/test-utils';
 
 describe('blob urls', () => {
   it('should inline compiled content as a blob url with `blob-url:*` imports', async () => {
     await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      config,
+      unsafeInlining: true,
     });
 
     let bundleContent = await outputFS.readFile(
@@ -36,7 +29,7 @@ describe('blob urls', () => {
 
   it('should inline minified content as a blob url with `blob-url:*` imports', async () => {
     await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      config,
+      unsafeInlining: true,
       minify: true,
     });
 
