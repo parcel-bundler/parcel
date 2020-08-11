@@ -71,7 +71,6 @@ export type Environment = {|
   isLibrary: boolean,
   minify: boolean,
   scopeHoist: boolean,
-  unsafeInlining: boolean,
 |};
 
 export type Target = {|
@@ -148,7 +147,6 @@ export type ParcelOptions = {|
   mode: BuildMode,
   minify: boolean,
   scopeHoist: boolean,
-  unsafeInlining: boolean,
   sourceMaps: boolean,
   publicUrl: string,
   distDir: ?FilePath,

@@ -4,7 +4,6 @@ import type {
   BundleGraph,
   MutableAsset,
   NamedBundle,
-  SourceLocation,
 } from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
@@ -18,7 +17,6 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';

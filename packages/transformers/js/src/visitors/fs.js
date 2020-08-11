@@ -12,7 +12,6 @@ import {
   isImportDeclaration,
   isImportSpecifier,
   isMemberExpression,
-  isObjectExpression,
   isObjectPattern,
   isObjectProperty,
   isStringLiteral,
@@ -29,6 +28,15 @@ const bufferTemplate = template.expression<
   CallExpression,
 >('Buffer.from(CONTENT, "base64")');
 
+const throwErrorTemplate = template.expression<null, CallExpression>(
+  `(function(){
+  let e = new Error("ENOENT: no such file or directory, open '...'")
+  e.code = 'ENOENT';
+  throw e;
+})()`,
+  {syntacticPlaceholders: true},
+);
+
 export default ({
   AssignmentExpression(path) {
     if (!isRequire(path.node.right, 'fs', 'readFileSync')) {
@@ -43,7 +51,7 @@ export default ({
     }
   },
 
-  CallExpression(path, {asset, logger, ast, options}) {
+  CallExpression(path, {asset, logger, ast, options, inlineFS}) {
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.filePath),
@@ -51,7 +59,7 @@ export default ({
       };
 
       let filename, args, res;
-      if (asset.env.unsafeInlining) {
+      if (inlineFS) {
         try {
           [filename, ...args] = (path
             .get('arguments')
@@ -104,52 +112,35 @@ export default ({
       } else {
         let loc = convertBabelLoc(path.node.loc);
         if (filename) {
-          logger.warn({
+          let e = {
             message:
-              'Disallowing fs.readFileSync of file outside project root, replacing with dummy value',
+              'Disallowing fs.readFileSync of file outside project root, replacing with an error',
             filePath: loc?.filePath ?? asset.filePath,
             codeFrame: loc
               ? {
                   codeHighlights: {start: loc.start, end: loc.end},
                 }
               : undefined,
-          });
+          };
+          if (asset.isSource) {
+            logger.warn(e);
+          } else {
+            logger.verbose(e);
+          }
         } else {
           logger.verbose({
-            message: 'Replacing fs.readFileSync with dummy value',
+            message: 'Replacing fs.readFileSync with an error',
             filePath: loc?.filePath ?? asset.filePath,
             codeFrame: loc
               ? {
                   codeHighlights: {start: loc.start, end: loc.end},
                 }
               : undefined,
-            hints: ['You might want to enable `unsafeInlining`?'],
+            hints: ['You might want to enable `inlineFS`?'],
           });
         }
 
-        let isBuffer = true;
-        let [, args] = path.node.arguments;
-        if (isStringLiteral(args)) {
-          isBuffer = false;
-        } else if (
-          isObjectExpression(args) &&
-          args.properties.some(
-            p =>
-              isObjectProperty(p) &&
-              isIdentifier(p.key, {name: 'encoding'}) &&
-              t.isStringLiteral(p.value),
-          )
-        ) {
-          isBuffer = false;
-        }
-
-        if (isBuffer) {
-          replacementNode = bufferTemplate({
-            CONTENT: t.stringLiteral(''),
-          });
-        } else {
-          replacementNode = t.stringLiteral('');
-        }
+        replacementNode = throwErrorTemplate();
       }
 
       path.replaceWith(replacementNode);
@@ -161,6 +152,7 @@ export default ({
   ast: AST,
   logger: PluginLogger,
   options: PluginOptions,
+  inlineFS: boolean,
 |}>);
 
 function isRequire(node, name, method) {

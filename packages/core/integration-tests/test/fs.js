@@ -1,11 +1,9 @@
 // @flow
-import type {InitialParcelOptions} from '@parcel/types';
-
 import assert from 'assert';
 import path from 'path';
 import {
   assertBundles,
-  bundle as _bundle,
+  bundle,
   removeDistDirectory,
   run,
   overlayFS,
@@ -13,21 +11,25 @@ import {
   distDir,
 } from '@parcel/test-utils';
 
-const bundle = (entries, opts: ?InitialParcelOptions) =>
-  _bundle(entries, {unsafeInlining: true, ...opts});
-
 describe('fs', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
 
   describe('browser environment', function() {
-    it('should not inline a file by default', async function() {
-      let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
-        unsafeInlining: false,
+    it('should not inline a file if disabled via config', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-disabled/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => run(b), {
+        message: `ENOENT: no such file or directory, open '...'`,
+        code: 'ENOENT',
       });
-      let output = await run(b);
-      assert.equal(output, '');
     });
 
     it('should not inline a file outside of the project root', async function() {
@@ -37,8 +39,12 @@ describe('fs', function() {
           inputFS: overlayFS,
         },
       );
-      let output = await run(b);
-      assert.equal(output, '');
+
+      // $FlowFixMe
+      await assert.rejects(() => run(b), {
+        message: `ENOENT: no such file or directory, open '...'`,
+        code: 'ENOENT',
+      });
     });
 
     it('should inline a file as a string', async function() {

@@ -1,5 +1,5 @@
 module.exports = function () {
-  return process.env.NODE_ENV + test(process.env.NODE_ENV);
+  return process.env.FOOBAR + test(process.env.FOOBAR);
 };
 
 function test(str) {

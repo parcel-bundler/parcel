@@ -100,9 +100,6 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
     scopeHoist: {
       type: 'boolean',
     },
-    unsafeInlining: {
-      type: 'boolean',
-    },
   },
   additionalProperties: false,
 };
