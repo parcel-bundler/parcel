@@ -3,20 +3,23 @@
 import assert from 'assert';
 import sinon from 'sinon';
 
-import Graph from '../src/Graph';
+import {Graph} from '../neon-graph';
 
-describe('Graph', () => {
+console.log(Graph);
+
+describe.only('Graph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());
     assert.deepEqual(graph.getAllEdges(), []);
   });
 
-  it('addNode should add a node to the graph', () => {
+  it.only('addNode should add a node to the graph', () => {
     let graph = new Graph();
     let node = {id: 'a', value: 'a'};
     graph.addNode(node);
-    assert.equal(graph.nodes.get(node.id), node);
+    // assert.deepEqual(graph.getNode(node.id), node);
+    assert.deepEqual(graph.getNode(node.id), null);
   });
 
   it("errors when removeNode is called with a node that doesn't belong", () => {
