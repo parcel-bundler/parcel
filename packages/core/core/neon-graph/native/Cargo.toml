@@ -1,0 +1,19 @@
+[package]
+name = "neon-graph"
+version = "0.1.0"
+authors = ["Parcel team"]
+license = "MIT"
+build = "build.rs"
+edition = "2018"
+exclude = ["artifacts.json", "index.node"]
+
+[lib]
+name = "neon_graph"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+neon-build = "0.4.0"
+
+[dependencies]
+neon = "0.4.0"
+petgraph = "0.5.1"
