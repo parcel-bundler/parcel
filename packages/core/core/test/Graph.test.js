@@ -14,18 +14,20 @@ describe.only('Graph', () => {
     assert.deepEqual(graph.getAllEdges(), []);
   });
 
-  it.only('addNode should add a node to the graph', () => {
-    let graph = new Graph();
-    let node = {id: 'a', value: 'a'};
-    graph.addNode(node);
-    assert.deepEqual(graph.getNode(node.id), node);
-  });
+  describe.only('Foo', () => {
+    it('addNode should add a node to the graph', () => {
+      let graph = new Graph();
+      let node = {id: 'a', value: 'a'};
+      graph.addNode(node);
+      assert.deepEqual(graph.getNode(node.id), node);
+    });
 
-  it("errors when removeNode is called with a node that doesn't belong", () => {
-    let graph = new Graph();
-    assert.throws(() => {
-      graph.removeNode({id: 'dne', value: null});
-    }, /Does not have node/);
+    it("errors when removeNode is called with a node that doesn't belong", () => {
+      let graph = new Graph();
+      assert.throws(() => {
+        graph.removeNode({id: 'dne', value: null});
+      }, /Does not have node/);
+    });
   });
 
   it('errors when traversing a graph with no root', () => {

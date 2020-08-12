@@ -127,6 +127,31 @@ declare_types! {
         None => Ok(cx.undefined().upcast())
       }
     }
+
+    method removeNode(mut cx) {
+      let mut this = cx.this();
+      let js_value = cx.argument::<JsObject>(0)?;
+      let value = match js_value_to_value(&mut cx, &js_value.upcast())? {
+        Value::Object(obj_map) => {
+          obj_map
+        },
+        _ => {
+          return cx.throw_error("Node is not an object")
+        }
+      };
+
+      let removed = {
+        let guard = cx.lock();
+        let mut graph = this.borrow_mut(&guard);
+
+        graph.remove_node(&value)
+      };
+
+      match removed {
+        Some(_) => Ok(cx.undefined().upcast()),
+        None => return cx.throw_error("Does not have node")
+      }
+    }
   }
 }
 
