@@ -6,6 +6,7 @@ use std::collections::HashMap;
 #[derive(Clone)]
 enum Value {
   F64(f64),
+  Array(Vec<Value>),
   String(String),
   Object(HashMap<String, Value>),
   // _Map(HashMap<Value, Value>),
@@ -16,6 +17,17 @@ enum Value {
 }
 
 fn js_value_to_value(cx: &mut CallContext<JsGraph>, js: &Handle<JsValue>) -> NeonResult<Value> {
+  match js.downcast::<JsArray>() {
+    Ok(array) => {
+      let js_value_vec = array.to_vec(cx)?;
+      let mut value_vec = Vec::new();
+      for js_value in js_value_vec {
+        value_vec.push(js_value_to_value(cx, &js_value)?)
+      }
+      return Ok(Value::Array(value_vec));
+    }
+    Err(_) => {}
+  };
   match js.downcast::<JsObject>() {
     Ok(object) => {
       let mut obj_map: HashMap<String, Value> = HashMap::new();
@@ -61,6 +73,15 @@ fn value_to_js_value<'a>(
     Value::Null => cx.null().upcast(),
     Value::Undefined => cx.undefined().upcast(),
     Value::Bool(boolean) => cx.boolean(boolean.clone()).upcast(),
+    Value::Array(vector) => {
+      // Adapted from https://neon-bindings.com/docs/arrays
+      let js_array = JsArray::new(cx, vector.len() as u32);
+      for (i, value) in vector.iter().enumerate() {
+        let js_value = value_to_js_value(cx, value)?;
+        js_array.set(cx, i as u32, js_value)?;
+      }
+      js_array.upcast()
+    }
     Value::Object(obj_map) => {
       let obj = JsObject::new(cx);
       for (key, value) in obj_map {
