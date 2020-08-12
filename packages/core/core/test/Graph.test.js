@@ -18,8 +18,7 @@ describe.only('Graph', () => {
     let graph = new Graph();
     let node = {id: 'a', value: 'a'};
     graph.addNode(node);
-    // assert.deepEqual(graph.getNode(node.id), node);
-    assert.deepEqual(graph.getNode(node.id), null);
+    assert.deepEqual(graph.getNode(node.id), node);
   });
 
   it("errors when removeNode is called with a node that doesn't belong", () => {

@@ -1,29 +1,75 @@
 use neon::prelude::*;
 use petgraph::graph::NodeIndex;
 use petgraph::Graph as PetGraph;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 enum Value {
   F64(f64),
   String(String),
   Object(HashMap<String, Value>),
-  Map(HashMap<Value, Value>),
-  Set(HashSet<Value>),
+  // _Map(HashMap<Value, Value>),
+  // _Set(HashSet<Value>),
   Null,
   Undefined,
   Bool(bool),
 }
 
-fn js_value_to_value(_js: &Handle<JsValue>) -> Value {
-  Value::Null
+fn js_value_to_value(cx: &mut CallContext<JsGraph>, js: &Handle<JsValue>) -> NeonResult<Value> {
+  match js.downcast::<JsObject>() {
+    Ok(object) => {
+      let mut obj_map: HashMap<String, Value> = HashMap::new();
+      for name in object.get_own_property_names(cx)?.to_vec(cx)? {
+        let name_str = name.downcast::<JsString>().or_throw(cx)?.value();
+        let value = object.get(cx, &name_str[..])?;
+        obj_map.insert(name_str.clone(), js_value_to_value(cx, &value)?);
+      }
+      return Ok(Value::Object(obj_map));
+    }
+    Err(_) => {}
+  };
+  match js.downcast::<JsNumber>() {
+    Ok(num) => return Ok(Value::F64(num.value())),
+    Err(_) => {}
+  };
+  match js.downcast::<JsBoolean>() {
+    Ok(boolean) => return Ok(Value::Bool(boolean.value())),
+    Err(_) => {}
+  };
+  match js.downcast::<JsString>() {
+    Ok(string) => return Ok(Value::String(string.value())),
+    Err(_) => {}
+  };
+  match js.downcast::<JsNull>() {
+    Ok(_) => return Ok(Value::Null),
+    Err(_) => {}
+  };
+  match js.downcast::<JsUndefined>() {
+    Ok(_) => return Ok(Value::Undefined),
+    Err(_) => {}
+  };
+  unreachable!();
 }
 
 fn value_to_js_value<'a>(
-  cx: &mut neon::context::CallContext<'a, JsGraph>,
-  _value: &Value,
+  cx: &mut CallContext<'a, JsGraph>,
+  value: &Value,
 ) -> JsResult<'a, JsValue> {
-  Ok(cx.null().upcast())
+  Ok(match value {
+    Value::F64(num) => cx.number(num.clone()).upcast(),
+    Value::String(string) => cx.string(string).upcast(),
+    Value::Null => cx.null().upcast(),
+    Value::Undefined => cx.undefined().upcast(),
+    Value::Bool(boolean) => cx.boolean(boolean.clone()).upcast(),
+    Value::Object(obj_map) => {
+      let obj = JsObject::new(cx);
+      for (key, value) in obj_map {
+        let js_value = value_to_js_value(cx, value)?;
+        obj.set(cx, &key[..], js_value)?;
+      }
+      obj.upcast()
+    }
+  })
 }
 
 pub struct Graph {
@@ -48,15 +94,16 @@ declare_types! {
 
     method addNode(mut cx) {
       let mut this = cx.this();
-      let value = cx.argument::<JsObject>(0)?;
+      let js_value = cx.argument::<JsObject>(0)?;
+      let value = js_value_to_value(&mut cx, &js_value.upcast())?;
       let idx = {
         let guard = cx.lock();
         let mut graph = this.borrow_mut(&guard);
-        graph.graph.add_node(js_value_to_value(&value.upcast()))
+        graph.graph.add_node(value)
       };
 
       let id = {
-        value.get(&mut cx, "id").unwrap().downcast::<JsString>().or_throw(&mut cx).unwrap().value()
+        js_value.get(&mut cx, "id").unwrap().downcast::<JsString>().or_throw(&mut cx).unwrap().value()
       };
 
       {
@@ -67,8 +114,7 @@ declare_types! {
           idx
         );
       }
-      // Ok(cx.number(idx.index() as f64).upcast())
-      Ok(value.upcast())
+      Ok(js_value.upcast())
     }
 
     method getNode(mut cx) {
