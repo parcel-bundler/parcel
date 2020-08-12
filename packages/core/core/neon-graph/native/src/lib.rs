@@ -1,20 +1,8 @@
 use neon::prelude::*;
-use petgraph::graph::NodeIndex;
-use petgraph::Graph as PetGraph;
 use std::collections::HashMap;
 
-#[derive(Clone)]
-enum Value {
-  F64(f64),
-  Array(Vec<Value>),
-  String(String),
-  Object(HashMap<String, Value>),
-  // _Map(HashMap<Value, Value>),
-  // _Set(HashSet<Value>),
-  Null,
-  Undefined,
-  Bool(bool),
-}
+mod graph;
+use graph::{Graph, Value};
 
 fn js_value_to_value(cx: &mut CallContext<JsGraph>, js: &Handle<JsValue>) -> NeonResult<Value> {
   match js.downcast::<JsArray>() {
@@ -93,20 +81,6 @@ fn value_to_js_value<'a>(
   })
 }
 
-pub struct Graph {
-  graph: PetGraph<Value, i32>,
-  id_to_index: HashMap<String, NodeIndex>,
-}
-
-impl Graph {
-  pub fn new() -> Graph {
-    Graph {
-      graph: PetGraph::new(),
-      id_to_index: HashMap::new(),
-    }
-  }
-}
-
 declare_types! {
   pub class JsGraph for Graph {
     init(mut _cx) {
@@ -116,43 +90,42 @@ declare_types! {
     method addNode(mut cx) {
       let mut this = cx.this();
       let js_value = cx.argument::<JsObject>(0)?;
-      let value = js_value_to_value(&mut cx, &js_value.upcast())?;
-      let idx = {
-        let guard = cx.lock();
-        let mut graph = this.borrow_mut(&guard);
-        graph.graph.add_node(value)
+      let value = match js_value_to_value(&mut cx, &js_value.upcast())? {
+        Value::Object(obj_map) => {
+          obj_map
+        },
+        _ => unreachable!()
       };
 
-      let id = {
-        js_value.get(&mut cx, "id").unwrap().downcast::<JsString>().or_throw(&mut cx).unwrap().value()
-      };
-
-      {
-        let guard = cx.lock();
-        let mut graph = this.borrow_mut(&guard);
-        graph.id_to_index.insert(
-          id,
-          idx
-        );
+      let guard = cx.lock();
+      let mut graph = this.borrow_mut(&guard);
+      match graph.add_node(&value) {
+        Ok(()) => Ok(js_value.upcast()),
+        Err(err) => panic!(err),
       }
-      Ok(js_value.upcast())
     }
 
     method getNode(mut cx) {
       let id = cx.argument::<JsString>(0)?.value();
-      let this = cx.this();
-      let idx = {
+      let mut this = cx.this();
+
+      let value: Option<Value>;
+      {
         let guard = cx.lock();
-        let graph = this.borrow(&guard);
-        graph.id_to_index.get(&id).unwrap().clone()
-      };
-      let weight = {
-        let guard = cx.lock();
-        let graph = this.borrow(&guard);
-        graph.graph.node_weight(idx).unwrap().clone()
+        let mut graph = this.borrow_mut(&guard);
+        let weight = graph.get_node(&id[..]);
+        value = match weight {
+          Some(w) => {
+            Some(Value::Object(w.clone()))
+          },
+          None => None
+        }
       };
 
-      value_to_js_value(&mut cx, &weight)
+      match value {
+        Some(v) => value_to_js_value(&mut cx, &v),
+        None => Ok(cx.undefined().upcast())
+      }
     }
   }
 }
