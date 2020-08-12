@@ -700,6 +700,7 @@ declare module "@babel/traverse" {
     isFor(): boolean;
     isForXStatement(): boolean;
     isFunctionParent(): boolean;
+    isFunction(): boolean;
     isPureish(): boolean;
     isDeclaration(): boolean;
     isPatternLike(): boolean;

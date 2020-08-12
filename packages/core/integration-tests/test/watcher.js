@@ -392,6 +392,8 @@ describe('watcher', function() {
       if (e.code == 'EPERM') {
         symlinkPrivilegeWarning();
         this.skip();
+      } else {
+        throw e;
       }
     }
   });

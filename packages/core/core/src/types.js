@@ -28,6 +28,7 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
+  QueryParameters,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -107,6 +108,7 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
+  query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
   includedFiles: Map<FilePath, File>,
@@ -209,6 +211,7 @@ export type AssetRequestInput = {|
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
+  query: QueryParameters,
 |};
 
 export type AssetRequestResult = Array<Asset>;

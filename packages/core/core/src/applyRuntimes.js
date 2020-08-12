@@ -70,7 +70,9 @@ export default async function applyRuntimes({
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,
+              query: {},
             };
+
             connections.push({
               bundle,
               assetGroup,
