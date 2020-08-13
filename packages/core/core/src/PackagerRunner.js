@@ -224,11 +224,8 @@ export default class PackagerRunner {
   }
 
   getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
-    if (map && this.options.sourceMaps) {
-      if (
-        bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-      ) {
+    if (map && this.options.sourceMaps && !bundle.isInline) {
+      if (bundle.target.sourceMap && bundle.target.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
         return path.basename(bundle.filePath) + '.map';
@@ -390,9 +387,7 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
-    let isInlineMap =
-      bundle.isInline ||
-      (bundle.target.sourceMap && bundle.target.sourceMap.inline);
+    let isInlineMap = bundle.target.sourceMap && bundle.target.sourceMap.inline;
 
     let stringified = await map.stringify({
       file: path.basename(mapFilename),
