@@ -128,6 +128,53 @@ declare_types! {
       }
     }
 
+    method setRootNode(mut cx) {
+      let mut this = cx.this();
+      let js_value = cx.argument::<JsObject>(0)?;
+      let value = match js_value_to_value(&mut cx, &js_value.upcast())? {
+        Value::Object(obj_map) => {
+          obj_map
+        },
+        _ => {
+          return cx.throw_error("Node is not an object")
+        }
+      };
+
+      {
+        let guard = cx.lock();
+        let mut graph = this.borrow_mut(&guard);
+        let _ = graph.set_root_node(&value);
+      };
+
+      Ok(cx.undefined().upcast())
+    }
+
+    method addEdge(mut cx) {
+      let mut this = cx.this();
+      let id_a = cx.argument::<JsString>(0)?.value();
+      let id_b = cx.argument::<JsString>(1)?.value();
+      let edge_type = match cx.argument_opt(2) {
+        Some(edge_type) => {
+          Some(edge_type.downcast::<JsString>().or_throw(&mut cx)?.value())
+        },
+        None => None,
+      };
+
+      {
+        let guard = cx.lock();
+        let mut graph = this.borrow_mut(&guard);
+        match edge_type {
+          Some(edge_type) => {
+            let _ = graph.add_edge(&id_a[..], &id_b[..], Some(&edge_type[..]));
+          },
+          None => {
+            let _ = graph.add_edge(&id_a[..], &id_b[..], None);
+          }
+        }
+      };
+      Ok(cx.undefined().upcast())
+    }
+
     method removeNode(mut cx) {
       let mut this = cx.this();
       let js_value = cx.argument::<JsObject>(0)?;
@@ -151,6 +198,20 @@ declare_types! {
         Some(_) => Ok(cx.undefined().upcast()),
         None => return cx.throw_error("Does not have node")
       }
+    }
+
+    method removeById(mut cx) {
+      let mut this = cx.this();
+      let id = cx.argument::<JsString>(0)?.value();
+
+      {
+        let guard = cx.lock();
+        let mut graph = this.borrow_mut(&guard);
+
+        let _ = graph.remove_by_id(&id[..]);
+      };
+
+      Ok(cx.undefined().upcast())
     }
   }
 }

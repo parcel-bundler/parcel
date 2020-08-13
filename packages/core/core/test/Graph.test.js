@@ -28,14 +28,26 @@ describe.only('Graph', () => {
         graph.removeNode({id: 'dne', value: null});
       }, /Does not have node/);
     });
-  });
 
-  it('errors when traversing a graph with no root', () => {
-    let graph = new Graph();
+    it("can't retrieve a node after removing it by id", () => {
+      let graph = new Graph();
 
-    assert.throws(() => {
-      graph.traverse(() => {});
-    }, /A start node is required to traverse/);
+      graph.setRootNode({id: 'a', value: 'a'});
+      graph.addNode({id: 'b', value: 'b'});
+      assert.notEqual(graph.getNode('b'), undefined);
+      graph.addEdge('a', 'b');
+
+      graph.removeById('b');
+      assert.equal(graph.getNode('b'), undefined);
+    });
+
+    it.skip('errors when traversing a graph with no root', () => {
+      let graph = new Graph();
+
+      assert.throws(() => {
+        graph.traverse(() => {});
+      }, /A start node is required to traverse/);
+    });
   });
 
   it("errors when traversing a graph with a startNode that doesn't belong", () => {
@@ -252,23 +264,6 @@ describe.only('Graph', () => {
       {from: 'd', to: 'e', type: null},
       {from: 'e', to: 'b', type: null},
     ]);
-  });
-
-  it('removing a node with only one inbound edge does not cause it to be removed as an orphan', () => {
-    let graph = new Graph();
-
-    graph.setRootNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addEdge('a', 'b');
-
-    let spy = sinon.spy(graph, 'removeNode');
-    try {
-      graph.removeById('b');
-
-      assert(spy.calledOnceWithExactly({id: 'b', value: 'b'}));
-    } finally {
-      spy.restore();
-    }
   });
 
   it("replaceNodesConnectedTo should update a node's downstream nodes", () => {

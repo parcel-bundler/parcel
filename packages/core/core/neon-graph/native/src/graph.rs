@@ -1,4 +1,4 @@
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
@@ -17,8 +17,9 @@ pub enum Value {
 }
 
 pub struct Graph {
-  graph: StableGraph<HashMap<String, Value>, i32>,
+  graph: StableGraph<HashMap<String, Value>, Option<String>>,
   id_to_index: HashMap<String, NodeIndex>,
+  root_node_id: Option<String>,
 }
 
 impl Graph {
@@ -26,6 +27,7 @@ impl Graph {
     Graph {
       graph: StableGraph::new(),
       id_to_index: HashMap::new(),
+      root_node_id: None,
     }
   }
 
@@ -50,6 +52,31 @@ impl Graph {
     let idx = self.id_to_index.get(id)?.clone();
     self.id_to_index.remove(id);
     self.graph.remove_node(idx)
+  }
+
+  pub fn remove_by_id(&mut self, id: &str) -> Option<HashMap<String, Value>> {
+    let idx = self.id_to_index.get(id)?.clone();
+    self.id_to_index.remove(id);
+    self.graph.remove_node(idx)
+  }
+
+  pub fn add_edge(&mut self, id_a: &str, id_b: &str, weight: Option<&str>) -> Option<EdgeIndex> {
+    let idx_a = self.id_to_index.get(id_a)?.clone();
+    let idx_b = self.id_to_index.get(id_b)?.clone();
+
+    let weight = match weight {
+      Some(weight) => Some(weight.to_owned()),
+      None => None,
+    };
+
+    Some(self.graph.add_edge(idx_a, idx_b, weight))
+  }
+
+  pub fn set_root_node(&mut self, value: &HashMap<String, Value>) -> Result<(), Error> {
+    let id = get_node_id(value)?;
+    self.add_node(value)?;
+    self.root_node_id = Some(id.to_string());
+    Ok(())
   }
 }
 
