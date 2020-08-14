@@ -1,5 +1,6 @@
 use neon::prelude::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 mod graph;
 use graph::{Graph, Value};
@@ -212,6 +213,49 @@ declare_types! {
       };
 
       Ok(cx.undefined().upcast())
+    }
+
+    method traverse(mut cx) {
+      let mut this = cx.this();
+      let cb = cx.argument::<JsFunction>(0)?;
+      let start_node = cx.argument_opt(1).and_then(|start_node| {
+        if let Ok(_) = start_node.downcast::<JsNull>() {
+          return None
+        } else if let Ok(_) = start_node.downcast::<JsUndefined>() {
+          return None
+        }
+
+        let js_object = start_node.downcast::<JsObject>().or_throw(&mut cx).unwrap();
+        let converted_value = match js_value_to_value(&mut cx, &js_object.upcast()).unwrap() {
+          Value::Object(obj_map) => obj_map,
+          _ => unimplemented!(),
+        };
+
+
+        Some(converted_value)
+      });
+
+      let edge_type = cx.argument_opt(1).and_then(|edge_type| {
+        if let Ok(_) = edge_type.downcast::<JsNull>() {
+          return None
+        } else if let Ok(_) = edge_type.downcast::<JsUndefined>() {
+          return None
+        }
+
+        Some(edge_type.downcast::<JsString>().or_throw(&mut cx).unwrap().value())
+      });
+
+      let undefined = cx.undefined();
+      {
+        let guard = cx.lock();
+        let mut graph = this.borrow_mut(&guard);
+
+        let _ = graph.traverse(start_node.as_ref(), edge_type.as_ref().map(|e| &e[..]), move |node| {
+          cb.call(&mut cx, cx.null(), value_to_js_value(&mut cx, &Value::Object(node.clone())));
+        });
+      };
+
+      Ok(undefined.upcast())
     }
   }
 }

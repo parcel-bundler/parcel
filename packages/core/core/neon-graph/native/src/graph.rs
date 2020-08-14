@@ -1,5 +1,6 @@
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
+use petgraph::visit::{depth_first_search, Control, DfsEvent};
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
@@ -76,6 +77,50 @@ impl Graph {
     let id = get_node_id(value)?;
     self.add_node(value)?;
     self.root_node_id = Some(id.to_string());
+    Ok(())
+  }
+
+  pub fn traverse<F>(
+    &mut self,
+    start_node: Option<&HashMap<String, Value>>,
+    edge_type: Option<&str>,
+    on_enter: F,
+  ) -> Result<(), Error>
+  where
+    F: Fn(&HashMap<String, Value>),
+  {
+    let start_node = match start_node {
+      Some(node) => get_node_id(node)?,
+      None => self.root_node_id.as_ref().unwrap(),
+    };
+
+    let idx = self.id_to_index.get(start_node).unwrap().clone();
+
+    depth_first_search(&self.graph, Some(idx), |event| match event {
+      DfsEvent::Discover(discovered, _) => {
+        on_enter(self.graph.node_weight(discovered).unwrap());
+        Control::<()>::Continue
+      }
+      DfsEvent::TreeEdge(u, v) => {
+        let eidx = self.graph.find_edge(u, v).unwrap();
+        let found_edge_type = self
+          .graph
+          .edge_weight(eidx)
+          .unwrap()
+          .as_ref()
+          .map(|string| &string[..]);
+
+        if found_edge_type != edge_type {
+          Control::Prune
+        } else {
+          Control::Continue
+        }
+      }
+      DfsEvent::BackEdge(_, _) => Control::Continue,
+      DfsEvent::CrossForwardEdge(_, _) => Control::Continue,
+      DfsEvent::Finish(_, _) => Control::Continue,
+    });
+
     Ok(())
   }
 }

@@ -48,6 +48,31 @@ describe.only('Graph', () => {
         graph.traverse(() => {});
       }, /A start node is required to traverse/);
     });
+
+    it('traverses along edge types if a filter is given', () => {
+      let graph = new Graph();
+      graph.addNode({id: 'a', value: 'a'});
+      graph.addNode({id: 'b', value: 'b'});
+      graph.addNode({id: 'c', value: 'c'});
+      graph.addNode({id: 'd', value: 'd'});
+
+      graph.addEdge('a', 'b', 'edgetype');
+      graph.addEdge('a', 'd');
+      graph.addEdge('b', 'c');
+      graph.addEdge('b', 'd', 'edgetype');
+
+      graph.rootNodeId = 'a';
+
+      let visited = [];
+      graph.traverse(
+        node => {
+          visited.push(node.id);
+        },
+        null, // use root as startNode
+        'edgetype',
+      );
+      assert.deepEqual(visited, ['a', 'b', 'd']);
+    });
   });
 
   it("errors when traversing a graph with a startNode that doesn't belong", () => {
@@ -285,30 +310,5 @@ describe.only('Graph', () => {
       {from: 'a', to: 'b', type: null},
       {from: 'a', to: 'd', type: null},
     ]);
-  });
-
-  it('traverses along edge types if a filter is given', () => {
-    let graph = new Graph();
-    graph.addNode({id: 'a', value: 'a'});
-    graph.addNode({id: 'b', value: 'b'});
-    graph.addNode({id: 'c', value: 'c'});
-    graph.addNode({id: 'd', value: 'd'});
-
-    graph.addEdge('a', 'b', 'edgetype');
-    graph.addEdge('a', 'd');
-    graph.addEdge('b', 'c');
-    graph.addEdge('b', 'd', 'edgetype');
-
-    graph.rootNodeId = 'a';
-
-    let visited = [];
-    graph.traverse(
-      node => {
-        visited.push(node.id);
-      },
-      null, // use root as startNode
-      'edgetype',
-    );
-    assert.deepEqual(visited, ['a', 'b', 'd']);
   });
 });
