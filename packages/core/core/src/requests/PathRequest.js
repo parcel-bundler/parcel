@@ -183,6 +183,7 @@ export class ResolverRunner {
 
           if (result.filePath != null) {
             return {
+              canDefer: result.canDefer,
               filePath: result.filePath,
               query,
               sideEffects: result.sideEffects,

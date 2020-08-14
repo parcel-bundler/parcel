@@ -259,7 +259,6 @@ export type InitialParcelOptions = {|
   +killWorkers?: boolean,
   +mode?: BuildMode,
   +minify?: boolean,
-  +defer?: boolean,
   +scopeHoist?: boolean,
   +sourceMaps?: boolean,
   +publicUrl?: string,
@@ -1016,6 +1015,8 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
+  /** Whether this dependency can be deferred by Parcel itself  */
+  canDefer?: boolean,
 |};
 
 export type ConfigOutput = {|

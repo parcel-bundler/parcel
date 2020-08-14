@@ -350,7 +350,6 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     publicUrl: command.publicUrl,
     distDir: command.distDir,
     hot: hmr,
-    defer: command.defer,
     contentHash: hmr ? false : command.contentHash,
     serve,
     targets: command.target.length > 0 ? command.target : null,

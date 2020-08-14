@@ -118,7 +118,6 @@ export default async function resolveOptions(
     profile: initialOptions.profile ?? false,
     cacheDir,
     entries,
-    defer: initialOptions.defer ?? true,
     entryRoot,
     defaultEngines: initialOptions.defaultEngines,
     targets: initialOptions.targets,
