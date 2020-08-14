@@ -50,6 +50,8 @@ export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
     id: md5FromObject({
       ...assetGroup,
+      // only influences building the asset graph
+      canDefer: undefined,
       // if only the isURL property is different, no need to re-run transformation.
       isURL: undefined,
     }),
