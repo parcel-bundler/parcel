@@ -31,6 +31,7 @@ export default (new Resolver({
       extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl', 'vue'],
       mainFields,
     });
+
     return resolver.resolve({
       filename: filePath,
       isURL: dependency.isURL,

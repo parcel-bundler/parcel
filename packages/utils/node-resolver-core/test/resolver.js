@@ -16,10 +16,12 @@ const NODE_ENV = {
     return true;
   },
 };
+
 const NODE_INCLUDE_ENV = {
   ...NODE_ENV,
   includeNodeModules: true,
 };
+
 const BROWSER_ENV = {
   includeNodeModules: true,
   isBrowser() {
