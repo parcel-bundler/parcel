@@ -23,6 +23,7 @@ import {
   streamFromPromise,
   TapStream,
   loadSourceMap,
+  SOURCEMAP_RE,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -197,6 +198,7 @@ export default class UncommittedAsset {
     if (map) {
       this.map = map;
       this.mapBuffer = map.toBuffer();
+      this.setCode(code.replace(SOURCEMAP_RE, ''));
     }
 
     return this.map;
