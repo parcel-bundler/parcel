@@ -190,6 +190,7 @@ export default class BundleGraph {
         for (let bundleGroupNode of this._graph
           .getNodesConnectedFrom(node)
           .filter(node => node.type === 'bundle_group')) {
+          invariant(bundleGroupNode.type === 'bundle_group');
           this._graph.addEdge(bundle.id, bundleGroupNode.id, 'bundle');
         }
       }
@@ -343,13 +344,21 @@ export default class BundleGraph {
     // Remove bundle node if it no longer has any entry assets
     let bundleNode = nullthrows(this._graph.getNode(bundle.id));
     if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
-      let bundleGroupNodes = this._graph.getNodesConnectedTo(bundleNode);
+      let bundleGroupNodes = this._graph.getNodesConnectedTo(
+        bundleNode,
+        'bundle',
+      );
       this._graph.removeNode(bundleNode);
 
       // Remove bundle group node if it no longer has any bundles
       for (let bundleGroupNode of bundleGroupNodes) {
+        invariant(bundleGroupNode.type === 'bundle_group');
         if (this._graph.getNodesConnectedTo(bundleGroupNode).length === 0) {
           this._graph.removeNode(bundleGroupNode);
+        } else {
+          let index = bundleGroupNode.value.bundleIds.indexOf(bundle.id);
+          invariant(index >= 0);
+          bundleGroupNode.value.bundleIds.splice(index, 1);
         }
       }
     }
@@ -817,25 +826,13 @@ export default class BundleGraph {
   }
 
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
-    return (
-      this._graph
-        .getNodesConnectedFrom(
-          nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-          'bundle',
-        )
-        .filter(node => node.type === 'bundle')
-        .map(node => {
-          invariant(node.type === 'bundle');
-          return node.value;
-        })
-        // Sort by bundleIds but reversed because the preorder DFS traversal in
-        // the bundler means that dependencies are added last (and need to run first)
-        .sort(
-          (a, b) =>
-            bundleGroup.bundleIds.indexOf(b.id) -
-            bundleGroup.bundleIds.indexOf(a.id),
-        )
-    );
+    return bundleGroup.bundleIds
+      .map(id => {
+        let b = nullthrows(this._graph.getNode(id));
+        invariant(b.type === 'bundle');
+        return b.value;
+      })
+      .reverse();
   }
 
   getSiblingBundles(bundle: Bundle): Array<Bundle> {
