@@ -1,7 +1,7 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import ParcelConfig from '../../src/ParcelConfig';
+import ParcelConfig from '../src/ParcelConfig';
 import {
   validateConfigFile,
   mergePipelines,
@@ -11,9 +11,9 @@ import {
   readAndProcessConfigChain,
   resolveParcelConfig,
   processConfig,
-} from '../../src/requests/ParcelConfigRequest';
-import {validatePackageName} from '../../src/ParcelConfig.schema';
-import {DEFAULT_OPTIONS} from '../test-utils';
+} from '../src/requests/ParcelConfigRequest';
+import {validatePackageName} from '../src/ParcelConfig.schema';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {

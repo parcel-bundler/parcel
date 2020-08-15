@@ -2234,18 +2234,21 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/bundle-text/index.js'),
     );
 
+    let cssBundleContent = (await run(b)).default;
+
     assert(
-      (await run(b)).default.startsWith(
+      cssBundleContent.startsWith(
         `body {
   background-color: #000000;
 }
 
 .svg-img {
   background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
-}
-/*# sourceMappingURL=data:application/json;charset=utf-8;base64,`,
+}`,
       ),
     );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {
