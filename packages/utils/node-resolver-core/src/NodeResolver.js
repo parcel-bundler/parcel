@@ -160,7 +160,7 @@ export default class NodeResolver {
     } catch (err) {
       if (err instanceof ThrowableDiagnostic) {
         return {
-          diagnostic: err.diagnostic,
+          diagnostics: err.diagnostics,
         };
       }
     }

@@ -1016,7 +1016,7 @@ export type ResolveResult = {|
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
   /** A resolver might return diagnostics */
-  +diagnostic?: Diagnostic | Array<Diagnostic>,
+  +diagnostics?: Diagnostic | Array<Diagnostic>,
 |};
 
 export type ConfigOutput = {|

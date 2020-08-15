@@ -193,11 +193,11 @@ export class ResolverRunner {
             };
           }
 
-          if (result.diagnostic) {
-            if (Array.isArray(result.diagnostic)) {
-              diagnostics.push(...result.diagnostic);
+          if (result.diagnostics) {
+            if (Array.isArray(result.diagnostics)) {
+              diagnostics.push(...result.diagnostics);
             } else {
-              diagnostics.push(result.diagnostic);
+              diagnostics.push(result.diagnostics);
             }
           }
         }
