@@ -84,4 +84,26 @@ describe('content hashing', function() {
       ),
     );
   });
+
+  it('should generate the same hash for the same distDir inside separate projects', async () => {
+    let a = await _bundle(
+      path.join(__dirname, 'integration/hash-distDir/a/index.html'),
+      {sourceMaps: true},
+    );
+    let b = await _bundle(
+      path.join(__dirname, 'integration/hash-distDir/b/index.html'),
+      {sourceMaps: true},
+    );
+
+    let aBundles = a.getBundles();
+    let bBundles = b.getBundles();
+
+    assert.equal(aBundles.length, 2);
+    assert.equal(bBundles.length, 2);
+
+    let aJS = aBundles.find(bundle => bundle.type === 'js');
+    let bJS = bBundles.find(bundle => bundle.type === 'js');
+    assert(/index\.[a-f0-9]*\.js/.test(aJS.name));
+    assert.equal(aJS.name, bJS.name);
+  });
 });
