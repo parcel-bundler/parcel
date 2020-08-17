@@ -31,7 +31,7 @@ import {
   isVariableDeclaration,
 } from '@babel/types';
 import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue, relativeUrl} from '@parcel/utils';
+import {PromiseQueue, relativeUrl, flat} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -100,9 +100,9 @@ export async function concat({
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
-      if (shouldSkipAsset(bundleGraph, asset)) {
-        return context;
-      }
+      // Do not skip over excluded assets entirely, since their dependencies need
+      // to be in the correct order and they themselves need to be inserted correctly
+      // into the parent again.
 
       return {
         parent: context && context.children,
@@ -110,7 +110,7 @@ export async function concat({
       };
     },
     exit(asset, context) {
-      if (!context || shouldSkipAsset(bundleGraph, asset)) {
+      if (!context) {
         return;
       }
 
@@ -135,11 +135,22 @@ export async function concat({
         }
       }
 
-      for (let [assetId, ast] of [...context.children].reverse()) {
-        let index = statementIndices.has(assetId)
-          ? nullthrows(statementIndices.get(assetId))
-          : 0;
-        statements.splice(index, 0, ...ast);
+      if (shouldSkipAsset(bundleGraph, asset)) {
+        // The order of imports of excluded assets has to be retained
+        statements = flat(
+          [...context.children]
+            .sort(
+              ([aId], [bId]) =>
+                nullthrows(statementIndices.get(aId)) -
+                nullthrows(statementIndices.get(bId)),
+            )
+            .map(([, ast]) => ast),
+        );
+      } else {
+        for (let [assetId, ast] of [...context.children].reverse()) {
+          let index = statementIndices.get(assetId) ?? 0;
+          statements.splice(index, 0, ...ast);
+        }
       }
 
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,

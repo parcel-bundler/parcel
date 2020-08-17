@@ -775,6 +775,33 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foo');
     });
 
+    it('concatenates in the correct order when re-exporting assets were excluded', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false-order/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(/\s+class\s+/.test(contents));
+
+      let called = false;
+      let output = await run(b, {
+        sideEffect: () => {
+          called = true;
+        },
+      });
+
+      assert(!called, 'side effect called');
+      assert.strictEqual(output[0], 'a');
+      assert.strictEqual(output[1], 'b');
+      assert(new output[3]() instanceof output[2]);
+    });
+
     it('support chained namespace reexports of CommonJS', async function() {
       let b = await bundle(
         path.join(
