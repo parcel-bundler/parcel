@@ -35,7 +35,6 @@ import {relativeBundlePath} from '@parcel/utils';
 import rename from '../renamer';
 import {
   getName,
-  getExportIdentifier,
   removeReplaceBinding,
   getThrowableDiagnosticForNode,
   verifyScopeState,
@@ -138,7 +137,7 @@ export function generateExports(
 ): Set<Symbol> {
   // maps the bundles's export symbols to the bindings
   let exportedIdentifiers = new Map<Symbol, Symbol>();
-  let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
+  // let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
@@ -165,7 +164,13 @@ export function generateExports(
         exportedIdentifiers.set(exportAs, symbol);
       } else if (symbol === null) {
         // `asset.meta.exportsIdentifier[exportSymbol]` should be exported
-        exportedIdentifiersBailout.set(exportAs, [asset, exportSymbol]);
+        let relativePath = relative(options.projectRoot, asset.filePath);
+        throw getThrowableDiagnosticForNode(
+          `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+          entry.filePath,
+          loc,
+        );
+        // exportedIdentifiersBailout.set(exportAs, [asset, exportSymbol]);
       } else {
         let relativePath = relative(options.projectRoot, asset.filePath);
         throw getThrowableDiagnosticForNode(
@@ -370,38 +375,41 @@ export function generateExports(
     }
   }
 
-  if (exportedIdentifiersBailout.size > 0) {
-    let declarations = [];
-    let exportedIdentifiersBailoutSpecifiers = [];
-    for (let [exportAs, [asset, exportSymbol]] of exportedIdentifiersBailout) {
-      invariant(
-        !programPath.scope.hasBinding(
-          getExportIdentifier(asset, exportSymbol).name,
-        ),
-      );
-      invariant(programPath.scope.hasBinding(getName(asset, 'init')));
-      declarations.push(
-        t.variableDeclarator(
-          getExportIdentifier(asset, exportSymbol),
-          t.memberExpression(
-            t.callExpression(t.identifier(getName(asset, 'init')), []), // it isn't in this bundle, TODO import if not already there
-            t.identifier(exportSymbol),
-          ),
-        ),
-      );
-      exportedIdentifiersBailoutSpecifiers.push(
-        t.exportSpecifier(
-          getExportIdentifier(asset, exportSymbol),
-          t.identifier(exportAs),
-        ),
-      );
-    }
-    programPath.pushContainer('body', [
-      t.variableDeclaration('var', declarations),
-      t.exportNamedDeclaration(null, exportedIdentifiersBailoutSpecifiers),
-    ]);
-    programPath.scope.crawl();
-  }
+  // This would be needed if we want to export symbols from different bundles,
+  // but it's currently not possible to actually trigger this.
+  //
+  // if (exportedIdentifiersBailout.size > 0) {
+  //   let declarations = [];
+  //   let exportedIdentifiersBailoutSpecifiers = [];
+  //   for (let [exportAs, [asset, exportSymbol]] of exportedIdentifiersBailout) {
+  //     invariant(
+  //       !programPath.scope.hasBinding(
+  //         getExportIdentifier(asset, exportSymbol).name,
+  //       ),
+  //     );
+  //     invariant(programPath.scope.hasBinding(getName(asset, 'init')));
+  //     declarations.push(
+  //       t.variableDeclarator(
+  //         getExportIdentifier(asset, exportSymbol),
+  //         t.memberExpression(
+  //           t.callExpression(t.identifier(getName(asset, 'init')), []), // it isn't in this bundle, TODO import if not already there
+  //           t.identifier(exportSymbol),
+  //         ),
+  //       ),
+  //     );
+  //     exportedIdentifiersBailoutSpecifiers.push(
+  //       t.exportSpecifier(
+  //         getExportIdentifier(asset, exportSymbol),
+  //         t.identifier(exportAs),
+  //       ),
+  //     );
+  //   }
+  //   programPath.pushContainer('body', [
+  //     t.variableDeclaration('var', declarations),
+  //     t.exportNamedDeclaration(null, exportedIdentifiersBailoutSpecifiers),
+  //   ]);
+  //   programPath.scope.crawl();
+  // }
 
   return exported;
 }
