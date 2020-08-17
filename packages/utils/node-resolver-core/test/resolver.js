@@ -2,7 +2,7 @@
 import NodeResolver from '..';
 import path from 'path';
 import assert from 'assert';
-import nullthrows from 'nullthrows';
+import invariant from 'assert';
 import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
 
 const rootDir = path.join(__dirname, 'fixture');
@@ -69,7 +69,8 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+      invariant(resolved && resolved.filePath);
+      assert.equal(resolved.filePath, path.join(rootDir, 'bar.js'));
     });
 
     it('should resolve a relative path without an extension', async function() {
@@ -79,7 +80,8 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'foo.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+      invariant(resolved && resolved.filePath);
+      assert.equal(resolved.filePath, path.join(rootDir, 'bar.js'));
     });
 
     it('should resolve an absolute path from the root module', async function() {
@@ -89,7 +91,8 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+      invariant(resolved && resolved.filePath);
+      assert.equal(resolved.filePath, path.join(rootDir, 'bar.js'));
     });
 
     it('should resolve an absolute path from a node_modules folder', async function() {
@@ -99,7 +102,8 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+      invariant(resolved && resolved.filePath);
+      assert.equal(resolved.filePath, path.join(rootDir, 'bar.js'));
     });
 
     it('should resolve a tilde path from the root module', async function() {
@@ -109,7 +113,8 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+      invariant(resolved && resolved.filePath);
+      assert.equal(resolved.filePath, path.join(rootDir, 'bar.js'));
     });
 
     it('should resolve a tilde path from the root module without a slash', async function() {
@@ -119,7 +124,8 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'nested', 'test.js'),
       });
-      assert.equal(nullthrows(resolved).filePath, path.join(rootDir, 'bar.js'));
+      invariant(resolved && resolved.filePath);
+      assert.equal(resolved.filePath, path.join(rootDir, 'bar.js'));
     });
 
     it('should resolve a tilde path from a node_modules folder', async function() {
@@ -129,8 +135,9 @@ describe('resolver', function() {
         isURL: false,
         parent: path.join(rootDir, 'node_modules', 'foo', 'nested', 'baz.js'),
       });
+      invariant(resolved && resolved.filePath);
       assert.equal(
-        nullthrows(resolved).filePath,
+        resolved.filePath,
         path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
       );
     });
@@ -763,8 +770,9 @@ describe('resolver', function() {
         parent: path.join(rootDir, 'foo.js'),
       });
 
+      invariant(result && result.diagnostics);
       assert.equal(
-        nullthrows(nullthrows(result).diagnostics)[0].message,
+        result.diagnostics[0].message,
         `Could not load './module.js' from module 'package-module-fallback' found in package.json#module`,
       );
     });
@@ -777,8 +785,9 @@ describe('resolver', function() {
         parent: path.join(rootDir, 'foo.js'),
       });
 
+      invariant(result && result.diagnostics);
       assert.equal(
-        nullthrows(nullthrows(result).diagnostics)[0].message,
+        result.diagnostics[0].message,
         `Cannot load file './xyz.js' in './'.`,
       );
     });

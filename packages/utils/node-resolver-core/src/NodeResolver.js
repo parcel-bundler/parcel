@@ -153,7 +153,7 @@ export default class NodeResolver {
           let {pkg} = resolved;
           return {
             filePath: resolved.path,
-            cachePath:
+            uniqueKey:
               pkg.name && pkg.version
                 ? pkg.name +
                   '@' +

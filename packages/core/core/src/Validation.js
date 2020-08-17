@@ -183,7 +183,7 @@ export default class Validation {
   }
 
   async loadAsset(request: AssetGroup): Promise<UncommittedAsset> {
-    let {filePath, cachePath, env, code, sideEffects, query} = request;
+    let {filePath, uniqueKey, env, code, sideEffects, query} = request;
     let {content, size, hash, isSource} = await summarizeRequest(
       this.options.inputFS,
       {filePath: request.filePath},
@@ -194,7 +194,7 @@ export default class Validation {
     let idBase =
       code != null
         ? hash
-        : cachePath ??
+        : uniqueKey ??
           normalizeSeparators(
             path.relative(this.options.projectRoot, filePath),
           );

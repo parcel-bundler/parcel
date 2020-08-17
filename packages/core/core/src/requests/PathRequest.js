@@ -179,28 +179,24 @@ export class ResolverRunner {
         if (result) {
           if (result.isExcluded) {
             return null;
-          }
-
-          if (result.filePath != null) {
+          } else if (result.diagnostics) {
+            if (Array.isArray(result.diagnostics)) {
+              diagnostics.push(...result.diagnostics);
+            } else {
+              diagnostics.push(result.diagnostics);
+            }
+          } else if (result.filePath != null) {
             return {
               canDefer: result.canDefer,
               filePath: result.filePath,
               query,
-              cachePath: result.cachePath,
+              uniqueKey: result.uniqueKey,
               sideEffects: result.sideEffects,
               code: result.code,
               env: dependency.env,
               pipeline: pipeline ?? dependency.pipeline,
               isURL: dependency.isURL,
             };
-          }
-
-          if (result.diagnostics) {
-            if (Array.isArray(result.diagnostics)) {
-              diagnostics.push(...result.diagnostics);
-            } else {
-              diagnostics.push(result.diagnostics);
-            }
           }
         }
       } catch (e) {
