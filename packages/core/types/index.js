@@ -1017,6 +1017,8 @@ export type ResolveResult = {|
   +code?: string,
   /** Whether this dependency can be deferred by Parcel itself  */
   canDefer?: boolean,
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  +diagnostics?: Diagnostic | Array<Diagnostic>,
 |};
 
 export type ConfigOutput = {|

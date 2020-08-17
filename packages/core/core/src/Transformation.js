@@ -24,6 +24,7 @@ import {md5FromObject, normalizeSeparators} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -112,6 +113,11 @@ export default class Transformation {
     });
 
     let asset = await this.loadAsset();
+
+    // Load existing sourcemaps
+    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+      await asset.loadExistingSourcemap();
+    }
 
     let pipeline = await this.loadPipeline(
       this.request.filePath,
