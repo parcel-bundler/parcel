@@ -144,8 +144,9 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   removeNode(node: AssetGraphNode): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
-    // FIXME cleanup, this needs to mark all connected nodes that doesn't become orphaned
-    // due to replaceNodesConnectedTo
+    // This needs to mark all connected nodes that doesn't become orphaned
+    // due to replaceNodesConnectedTo to make sure that the symbols of
+    // nodes from which at least one parent was removed are update.
     if (this.isOrphanedNode(node) && node.type === 'dependency') {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {

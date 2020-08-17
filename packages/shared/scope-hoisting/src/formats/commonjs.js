@@ -426,7 +426,7 @@ export function generateExports(
       }
     } else {
       for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
-        bundleGraph.getExportedSymbols(entry),
+        bundleGraph.getExportedSymbols(entry, bundle),
       )) {
         if (symbol != null && symbol !== false) {
           let hasReplacement = replacements.get(symbol);
@@ -476,6 +476,8 @@ export function generateExports(
               }
             }
           } else {
+            // `getExportedSymbols` can return `$id$import$foo` symbols so that cross-bundle imports
+            // are resolved correctly. There is no binding in that case.
             let [decl] = path.pushContainer('body', [
               EXPORT_TEMPLATE({
                 NAME: t.identifier(exportAs),
