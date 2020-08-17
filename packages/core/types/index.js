@@ -1015,6 +1015,8 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  +diagnostics?: Diagnostic | Array<Diagnostic>,
 |};
 
 export type ConfigOutput = {|
