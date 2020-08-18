@@ -35,13 +35,9 @@ import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
-import {
-  convertBabelLoc,
-  getName,
-  getIdentifier,
-  getExportIdentifier,
-} from './utils';
+import {getName, getIdentifier, getExportIdentifier} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
