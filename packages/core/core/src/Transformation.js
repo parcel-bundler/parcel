@@ -122,7 +122,7 @@ export default class Transformation {
         logger.warn([
           {
             origin: '@parcel/core',
-            message: `Could not load existing source map for ${path.relative(
+            message: `Could not load existing source map for ${relativePath(
               this.options.projectRoot,
               asset.value.filePath,
             )}`,
