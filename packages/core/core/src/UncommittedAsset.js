@@ -22,6 +22,8 @@ import {
   blobToStream,
   streamFromPromise,
   TapStream,
+  loadSourceMap,
+  SOURCEMAP_RE,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -180,6 +182,26 @@ export default class UncommittedAsset {
   setStream(stream: Readable) {
     this.content = stream;
     this.clearAST();
+  }
+
+  async loadExistingSourcemap(): Promise<?SourceMap> {
+    if (this.map) {
+      return this.map;
+    }
+
+    let code = await this.getCode();
+    let map = await loadSourceMap(this.value.filePath, code, {
+      fs: this.options.inputFS,
+      projectRoot: this.options.projectRoot,
+    });
+
+    if (map) {
+      this.map = map;
+      this.mapBuffer = map.toBuffer();
+      this.setCode(code.replace(SOURCEMAP_RE, ''));
+    }
+
+    return this.map;
   }
 
   getMapBuffer(): Promise<?Buffer> {

@@ -16,10 +16,12 @@ const NODE_ENV = {
     return true;
   },
 };
+
 const NODE_INCLUDE_ENV = {
   ...NODE_ENV,
   includeNodeModules: true,
 };
+
 const BROWSER_ENV = {
   includeNodeModules: true,
   isBrowser() {
@@ -753,34 +755,31 @@ describe('resolver', function() {
   });
 
   describe('error handling', function() {
-    it('should throw when package.module does not exist', async function() {
-      // $FlowFixMe
-      await assert.rejects(
-        () =>
-          resolver.resolve({
-            env: BROWSER_ENV,
-            filename: 'package-module-fallback',
-            isURL: false,
-            parent: path.join(rootDir, 'foo.js'),
-          }),
-        {
-          message:
-            "Could not load './module.js' from module 'package-module-fallback' found in package.json#module",
-        },
+    it('should return diagnostics when package.module does not exist', async function() {
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'package-module-fallback',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.equal(
+        nullthrows(nullthrows(result).diagnostics)[0].message,
+        `Could not load './module.js' from module 'package-module-fallback' found in package.json#module`,
       );
     });
 
     it('should throw when a relative path cannot be resolved', async function() {
-      // $FlowFixMe
-      await assert.rejects(
-        () =>
-          resolver.resolve({
-            env: BROWSER_ENV,
-            filename: './xyz.js',
-            isURL: false,
-            parent: path.join(rootDir, 'foo.js'),
-          }),
-        {message: "Cannot load file './xyz.js' in './'."},
+      let result = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: './xyz.js',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+
+      assert.equal(
+        nullthrows(nullthrows(result).diagnostics)[0].message,
+        `Cannot load file './xyz.js' in './'.`,
       );
     });
 

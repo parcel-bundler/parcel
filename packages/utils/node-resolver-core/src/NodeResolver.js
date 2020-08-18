@@ -114,43 +114,55 @@ export default class NodeResolver {
 
     extensions.unshift('');
 
-    // Resolve the module directory or local file path
-    let module = await this.resolveModule({
-      filename,
-      parent,
-      isURL,
-      env,
-    });
-    if (!module) {
-      return {isExcluded: true};
-    }
+    try {
+      // Resolve the module directory or local file path
+      let module = await this.resolveModule({
+        filename,
+        parent,
+        isURL,
+        env,
+      });
 
-    let resolved;
-    if (module.moduleDir) {
-      resolved = await this.loadNodeModules(module, extensions, env);
-    } else if (module.filePath) {
-      if (module.code != null) {
+      if (!module) {
         return {
-          filePath: module.filePath,
-          code: module.code,
+          isExcluded: true,
         };
       }
-      resolved = await this.loadRelative(
-        module.filePath,
-        extensions,
-        env,
-        parent ? path.dirname(parent) : this.projectRoot,
-      );
-    }
 
-    if (resolved) {
-      return {
-        filePath: resolved.path,
-        sideEffects:
-          resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
-            ? false
-            : undefined,
-      };
+      let resolved;
+      if (module.moduleDir) {
+        resolved = await this.loadNodeModules(module, extensions, env);
+      } else if (module.filePath) {
+        if (module.code != null) {
+          return {
+            filePath: module.filePath,
+            code: module.code,
+          };
+        }
+
+        resolved = await this.loadRelative(
+          module.filePath,
+          extensions,
+          env,
+          parent ? path.dirname(parent) : this.projectRoot,
+        );
+      }
+
+      if (resolved) {
+        return {
+          filePath: resolved.path,
+          sideEffects:
+            resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
+              ? false
+              : undefined,
+        };
+      }
+    } catch (err) {
+      if (err instanceof ThrowableDiagnostic) {
+        return {
+          diagnostics: err.diagnostics,
+        };
+      }
     }
 
     return null;
@@ -350,7 +362,7 @@ export default class NodeResolver {
         };
       } catch (e) {
         if (e.code !== 'MODULE_NOT_FOUND') {
-          throw e;
+          return null;
         }
       }
     }
