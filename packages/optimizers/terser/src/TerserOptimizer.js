@@ -1,18 +1,18 @@
 // @flow
 
 import nullthrows from 'nullthrows';
-import {minify} from 'terser';
-import {Optimizer} from '@parcel/plugin';
-import {blobToString, loadConfig} from '@parcel/utils';
+import { minify } from 'terser';
+import { Optimizer } from '@parcel/plugin';
+import { blobToString, loadConfig } from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 import path from 'path';
 
 export default (new Optimizer({
-  async optimize({contents, map, bundle, options, getSourceMapReference}) {
+  async optimize({ contents, map, bundle, options, getSourceMapReference }) {
     if (!bundle.env.minify) {
-      return {contents, map};
+      return { contents, map };
     }
 
     let code = await blobToString(contents);
@@ -28,10 +28,10 @@ export default (new Optimizer({
       ...userConfig?.config,
       sourceMap: options.sourceMaps
         ? {
-            filename: path.relative(options.projectRoot, bundle.filePath),
-            asObject: true,
-            content: originalMap,
-          }
+          filename: path.relative(options.projectRoot, bundle.filePath),
+          asObject: true,
+          content: originalMap,
+        }
         : false,
       toplevel:
         bundle.env.outputFormat === 'esmodule' ||
@@ -39,16 +39,16 @@ export default (new Optimizer({
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    let result = minify(code, config);
+    let result = await minify(code, config);
 
     if (result.error) {
       // $FlowFixMe
-      let {message, line, col} = result.error;
+      let { message, line, col } = result.error;
       if (line != null && col != null) {
         let diagnostic = [];
         let mapping = map?.findClosestMapping(line, col);
         if (mapping && mapping.original && mapping.source) {
-          let {source, original} = mapping;
+          let { source, original } = mapping;
           let filePath = path.resolve(options.projectRoot, source);
           diagnostic.push({
             message,
@@ -57,7 +57,7 @@ export default (new Optimizer({
             filePath,
             codeFrame: {
               code: await options.inputFS.readFile(filePath, 'utf8'),
-              codeHighlights: [{message, start: original, end: original}],
+              codeHighlights: [{ message, start: original, end: original }],
             },
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
@@ -75,12 +75,12 @@ export default (new Optimizer({
             filePath: undefined,
             codeFrame: {
               code,
-              codeHighlights: [{message, start: loc, end: loc}],
+              codeHighlights: [{ message, start: loc, end: loc }],
             },
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }
-        throw new ThrowableDiagnostic({diagnostic});
+        throw new ThrowableDiagnostic({ diagnostic });
       } else {
         throw result.error;
       }
@@ -97,6 +97,6 @@ export default (new Optimizer({
       }
     }
 
-    return {contents: minifiedContents, map: sourceMap};
+    return { contents: minifiedContents, map: sourceMap };
   },
 }): Optimizer);
