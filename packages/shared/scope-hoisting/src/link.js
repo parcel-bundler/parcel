@@ -36,11 +36,11 @@ import {
   isSequenceExpression,
   isStringLiteral,
 } from '@babel/types';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
 import {
   assertString,
-  convertBabelLoc,
   getName,
   getIdentifier,
   getThrowableDiagnosticForNode,
@@ -525,7 +525,7 @@ export function link({
             throw getThrowableDiagnosticForNode(
               "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
               mapped.filePath,
-              path.node.loc,
+              convertBabelLoc(path.node.loc),
             );
           }
 
@@ -536,7 +536,7 @@ export function link({
           throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
             mapped.filePath,
-            path.node.loc,
+            convertBabelLoc(path.node.loc),
           );
         }
       }
