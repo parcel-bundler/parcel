@@ -21,10 +21,10 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject, normalizeSeparators} from '@parcel/utils';
-import {PluginLogger} from '@parcel/logger';
+import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS, relativePath} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -116,7 +116,25 @@ export default class Transformation {
 
     // Load existing sourcemaps
     if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
-      await asset.loadExistingSourcemap();
+      try {
+        await asset.loadExistingSourcemap();
+      } catch (err) {
+        logger.warn([
+          {
+            origin: '@parcel/core',
+            message: `Could not load existing source map for ${path.relative(
+              this.options.projectRoot,
+              asset.value.filePath,
+            )}`,
+            filePath: asset.value.filePath,
+          },
+          {
+            origin: '@parcel/core',
+            message: err.message,
+            filePath: asset.value.filePath,
+          },
+        ]);
+      }
     }
 
     let pipeline = await this.loadPipeline(
