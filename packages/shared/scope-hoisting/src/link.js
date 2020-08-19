@@ -43,11 +43,11 @@ import {
   isSequenceExpression,
   isStringLiteral,
 } from '@babel/types';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
 import {
   assertString,
-  convertBabelLoc,
   getName,
   getIdentifier,
   getExportNamespaceExpression,

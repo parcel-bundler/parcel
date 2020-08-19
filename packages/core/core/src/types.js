@@ -217,6 +217,7 @@ export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
+  canDefer?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,

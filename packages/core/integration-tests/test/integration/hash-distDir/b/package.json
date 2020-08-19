@@ -1,0 +1,7 @@
+{
+  "name": "b",
+  "app": "dist/index.html",
+  "targets": {
+    "app": {}
+  }
+}
