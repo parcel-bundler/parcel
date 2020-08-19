@@ -1,10 +1,13 @@
 // @flow
-import type {Dependency} from '@parcel/types';
 
 import assert from 'assert';
 import path from 'path';
-import nullthrows from 'nullthrows';
-import {bundle, outputFS as fs, distDir, run} from '@parcel/test-utils';
+import {
+  assertBundles,
+  bundle,
+  outputFS as fs,
+  distDir,
+} from '@parcel/test-utils';
 
 describe('plugin', function() {
   it("continue transformer pipeline on type change that doesn't change the pipeline", async function() {
@@ -35,29 +38,11 @@ parcel-transformer-b`,
       {mode: 'production'},
     );
 
-    let calls = [];
-    let output = await run(b, {
-      sideEffect(v) {
-        calls.push(v);
+    assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['index.js', 'index.js', 'a.js', 'b.js'],
       },
-    });
-
-    assert.strictEqual(output, 'A');
-    assert.deepStrictEqual(calls, ['a', 'b']);
-
-    let depB: ?Dependency;
-    let depC: ?Dependency;
-    nullthrows(b.getBundles()[0]).traverse(node => {
-      if (node.type === 'dependency') {
-        if (node.value.moduleSpecifier === './c.js') {
-          depC = node.value;
-        } else if (node.value.moduleSpecifier === './b.js') {
-          depB = node.value;
-        }
-      }
-    });
-
-    assert(!b.isDependencyDeferred(nullthrows(depB)));
-    assert(b.isDependencyDeferred(nullthrows(depC)));
+    ]);
   });
 });

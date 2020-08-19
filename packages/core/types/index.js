@@ -924,8 +924,16 @@ export type BundleGroup = {|
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
-  addAssetGraphToBundle(Asset, Bundle): void;
-  addEntryToBundle(Asset, Bundle): void;
+  addAssetGraphToBundle(
+    Asset,
+    Bundle,
+    shouldSkipDependency?: (Dependency) => boolean,
+  ): void;
+  addEntryToBundle(
+    Asset,
+    Bundle,
+    shouldSkipDependency?: (Dependency) => boolean,
+  ): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
   createBundleReference(Bundle, Bundle): void;

@@ -207,8 +207,12 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
-  addEntryToBundle(asset: Asset, bundle: Bundle) {
-    this.addAssetGraphToBundle(asset, bundle);
+  addEntryToBundle(
+    asset: Asset,
+    bundle: Bundle,
+    shouldSkipDependency?: Dependency => boolean,
+  ) {
+    this.addAssetGraphToBundle(asset, bundle, shouldSkipDependency);
     if (!bundle.entryAssetIds.includes(asset.id)) {
       bundle.entryAssetIds.push(asset.id);
     }
