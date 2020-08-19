@@ -12,6 +12,7 @@ export default (new Reporter({
     let server = serve ? servers.get(serve.port) : undefined;
     let hmrPort = (hmr && hmr.port) || (serve && serve.port);
     let hmrServer = hmrPort ? hmrServers.get(hmrPort) : undefined;
+    let hmrHttps = (hmr && hmr.https) || (serve && serve.https);
     switch (event.type) {
       case 'watchStart': {
         if (serve) {
@@ -25,6 +26,7 @@ export default (new Reporter({
 
           let serverOptions = {
             ...serve,
+            https: hmrHttps,
             projectRoot: options.projectRoot,
             cacheDir: options.cacheDir,
             // Override the target's publicUrl as that is likely meant for production.

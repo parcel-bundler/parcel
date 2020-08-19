@@ -335,7 +335,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port, host};
+    hmr = {https, port, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';
