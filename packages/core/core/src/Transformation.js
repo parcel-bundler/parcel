@@ -3,9 +3,10 @@
 import type {
   FilePath,
   GenerateOutput,
+  Glob,
+  PackageName,
   Transformer,
   TransformerResult,
-  PackageName,
 } from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
 import type {
@@ -29,7 +30,7 @@ import {SOURCEMAP_EXTENSIONS, relativePath} from '@parcel/utils';
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
 import ParcelConfig from './ParcelConfig';
-// TODO: eventually call path request as sub requests
+// TODO: eventually call path request as sub requests, for now return "invalidations" back to main thread
 import {ResolverRunner} from './requests/PathRequest';
 import {
   Asset,
@@ -43,6 +44,12 @@ import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
+
+type Invalidations = {|
+  filesUpdate: Set<FilePath>,
+  filesCreation: Set<Glob>,
+  filesDeletion: Set<FilePath>,
+|};
 
 type PostProcessFunc = (
   Array<UncommittedAsset>,
@@ -58,6 +65,7 @@ export type TransformationOpts = {|
 
 export type TransformationResult = {|
   assets: Array<AssetValue>,
+  invalidations: Invalidations,
   configRequests: Array<ConfigRequestAndResult>,
 |};
 
@@ -76,6 +84,11 @@ export default class Transformation {
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
   report: ReportFn;
+  invalidations: Invalidations = {
+    filesUpdate: new Set(),
+    filesCreation: new Set(),
+    filesDeletion: new Set(),
+  };
 
   constructor({
     report,
@@ -170,7 +183,11 @@ export default class Transformation {
       }
     }
 
-    return {assets, configRequests: this.configRequests};
+    return {
+      assets,
+      invalidations: this.invalidations,
+      configRequests: this.configRequests,
+    };
   }
 
   async loadAsset(): Promise<UncommittedAsset> {
@@ -321,6 +338,7 @@ export default class Transformation {
             transformer.config,
             transformer.configKeyPath,
             this.parcelConfig,
+            this.invalidations,
           );
 
           for (let result of transformerResults) {
@@ -572,21 +590,23 @@ async function runTransformer(
   preloadedConfig: ?Config,
   configKeyPath: string,
   parcelConfig: ParcelConfig,
+  invalidations: Invalidations,
 ): Promise<Array<TransformerResult>> {
   const logger = new PluginLogger({origin: transformerName});
 
   const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-    return nullthrows(
-      (
-        await pipeline.resolverRunner.resolve(
-          createDependency({
-            env: asset.value.env,
-            moduleSpecifier: to,
-            sourcePath: from,
-          }),
-        )
-      ).assetGroup,
-    ).filePath;
+    let result = await pipeline.resolverRunner.resolve(
+      createDependency({
+        env: asset.value.env,
+        moduleSpecifier: to,
+        sourcePath: from,
+      }),
+    );
+    result.filesUpdate.forEach(f => invalidations.filesUpdate.add(f));
+    result.filesCreation.forEach(f => invalidations.filesCreation.add(f));
+    result.filesDeletion.forEach(f => invalidations.filesDeletion.add(f));
+
+    return nullthrows(result.assetGroup).filePath;
   };
 
   // If an ast exists on the asset, but we cannot reuse it,

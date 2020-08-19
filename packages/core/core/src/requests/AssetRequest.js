@@ -51,7 +51,9 @@ async function run({input, api, options, farm}: RunInput) {
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-  let {assets, configRequests} = await farm.createHandle('runTransform')({
+  let {assets, invalidations, configRequests} = await farm.createHandle(
+    'runTransform',
+  )({
     configCachePath: cachePath,
     optionsRef,
     request,
@@ -61,6 +63,10 @@ async function run({input, api, options, farm}: RunInput) {
   for (let asset of assets) {
     asset.stats.time = time;
   }
+
+  invalidations.filesUpdate.forEach(f => api.invalidateOnFileUpdate(f));
+  invalidations.filesCreation.forEach(f => api.invalidateOnFileCreate(f));
+  invalidations.filesDeletion.forEach(f => api.invalidateOnFileDelete(f));
 
   for (let asset of assets) {
     for (let filePath of asset.includedFiles.keys()) {

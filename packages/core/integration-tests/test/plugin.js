@@ -68,41 +68,62 @@ parcel-transformer-b`,
   });
 
   describe('should invalidate resolver results based on the returned paths', function() {
-    let fixtureDir = path.join(__dirname, '/integration/resolver-cache');
-    let entry = path.join(fixtureDir, 'index.js');
-    let config = path.join(fixtureDir, '.resolverrc');
+    describe('resolver', function() {
+      let fixtureDir = path.join(__dirname, '/integration/resolver-cache');
+      let entry = path.join(fixtureDir, 'index.js');
+      let config = path.join(fixtureDir, '.resolverrc');
 
-    beforeEach(async function() {
+      beforeEach(async function() {
+        await overlayFS.mkdirp(fixtureDir);
+      });
+
+      it('create file', async function() {
+        let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+        assert.strictEqual((await run(b)).default, 'a');
+
+        await overlayFS.writeFile(config, 'b.js');
+        b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+        assert.strictEqual((await run(b)).default, 'b');
+      });
+
+      it('change file', async function() {
+        await overlayFS.writeFile(config, 'b.js');
+        let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+        assert.strictEqual((await run(b)).default, 'b');
+
+        await overlayFS.writeFile(config, 'c.js');
+        b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+        assert.strictEqual((await run(b)).default, 'c');
+      });
+
+      it('delete file', async function() {
+        await overlayFS.writeFile(config, 'b.js');
+        let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+        assert.strictEqual((await run(b)).default, 'b');
+
+        await overlayFS.unlink(config);
+        b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
+        assert.strictEqual((await run(b)).default, 'a');
+      });
+    });
+
+    it('also when invoked via the resolve callback in transformers', async function() {
+      let fixtureDir = path.join(
+        __dirname,
+        '/integration/resolver-cache-transformer',
+      );
+      let entry = path.join(fixtureDir, 'index.xyz');
+
       await overlayFS.mkdirp(fixtureDir);
-    });
 
-    it('create file', async function() {
       let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
-      assert.strictEqual((await run(b)).default, 'a');
+      let contents = await fs.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(contents, path.join(fixtureDir, 'x.b'));
 
-      await overlayFS.writeFile(config, 'b.js');
+      await overlayFS.writeFile(path.join(fixtureDir, 'x.a'), '');
       b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
-      assert.strictEqual((await run(b)).default, 'b');
-    });
-
-    it('change file', async function() {
-      await overlayFS.writeFile(config, 'b.js');
-      let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
-      assert.strictEqual((await run(b)).default, 'b');
-
-      await overlayFS.writeFile(config, 'c.js');
-      b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
-      assert.strictEqual((await run(b)).default, 'c');
-    });
-
-    it('delete file', async function() {
-      await overlayFS.writeFile(config, 'b.js');
-      let b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
-      assert.strictEqual((await run(b)).default, 'b');
-
-      await overlayFS.unlink(config);
-      b = await bundle(entry, {disableCache: false, inputFS: overlayFS});
-      assert.strictEqual((await run(b)).default, 'a');
+      contents = await fs.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert.strictEqual(contents, path.join(fixtureDir, 'x.a'));
     });
   });
 });

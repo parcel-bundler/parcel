@@ -1,0 +1,10 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "index.xyz": ["parcel-transformer-cache"]
+  },
+  "packagers": {
+    "*.xyz": "@parcel/packager-raw"
+  },
+  "resolvers": ["parcel-resolver-cache"]
+}
