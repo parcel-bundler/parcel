@@ -245,7 +245,7 @@ export async function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
-): Promise<mixed> {
+): Promise<any> {
   let bundles = bundleGraph.getBundles();
   let bundle = nullthrows(
     bundles.find(b => b.type === 'js' || b.type === 'html'),
