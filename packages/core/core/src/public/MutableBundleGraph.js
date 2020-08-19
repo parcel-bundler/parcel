@@ -39,10 +39,17 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#options = options;
   }
 
-  addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
+  addAssetGraphToBundle(
+    asset: IAsset,
+    bundle: IBundle,
+    shouldSkipDependency?: IDependency => boolean,
+  ) {
     this.#graph.addAssetGraphToBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+      shouldSkipDependency
+        ? d => shouldSkipDependency(new Dependency(d))
+        : undefined,
     );
   }
 

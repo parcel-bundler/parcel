@@ -63,14 +63,13 @@ export default (new Bundler({
         }
 
         let dependency = node.value;
-        let assets = bundleGraph.getDependencyAssets(dependency);
-        let resolution = bundleGraph.getDependencyResolution(dependency);
-
-        if (bundleGraph.isDependencySkipped(node.value)) {
+        if (bundleGraph.isDependencySkipped(dependency)) {
           actions.skipChildren();
           return;
         }
 
+        let assets = bundleGraph.getDependencyAssets(dependency);
+        let resolution = bundleGraph.getDependencyResolution(dependency);
         // Create a new bundle for entries, async deps, isolated assets, and inline assets.
         if (
           (dependency.isEntry && resolution) ||

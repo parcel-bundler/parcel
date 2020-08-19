@@ -168,7 +168,12 @@ export default class BundleGraph {
     });
   }
 
-  addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
+  addAssetGraphToBundle(
+    asset: Asset,
+    bundle: Bundle,
+    shouldSkipDependency: Dependency => boolean = d =>
+      this.isDependencySkipped(d),
+  ) {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
@@ -178,7 +183,7 @@ export default class BundleGraph {
         return;
       }
 
-      if (node.type === 'dependency' && this.isDependencySkipped(node.value)) {
+      if (node.type === 'dependency' && shouldSkipDependency(node.value)) {
         actions.skipChildren();
         return;
       }
