@@ -592,6 +592,61 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 4 * 123);
     });
 
+    it('supports reexporting an asset from a shared bundle inside a shared bundle', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/shared-bundle-reexport/*.html',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'html',
+          assets: ['index1.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index1.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index2.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index2.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index3.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index3.js'],
+        },
+        {
+          type: 'js',
+          assets: ['a.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.js'],
+        },
+      ]);
+
+      for (let bundle of b.getBundles().filter(b => b.type === 'html')) {
+        let calls = [];
+        await runBundle(b, bundle, {
+          call(v) {
+            calls.push(v);
+          },
+        });
+        assert.equal(calls.length, 1);
+        assert(calls[0].startsWith('abcabc'));
+      }
+    });
+
     it('supports optimizing away an unused ES6 re-export', async function() {
       let b = await bundle(
         path.join(
@@ -1683,6 +1738,37 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 6);
+    });
+
+    it('support url imports in wrapped modules with interop', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-interop-url-import/a.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'a.js',
+            'b.js',
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'relative-path.js',
+          ],
+        },
+        {
+          type: 'txt',
+          assets: ['data.txt'],
+        },
+      ]);
+
+      let output = await run(b);
+      assert(output.endsWith('.txt'));
     });
 
     it('supports module object properties', async function() {
