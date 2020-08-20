@@ -8,6 +8,7 @@
     "aliasedfolder": "./nested",
     "aliasedabsolute": "/nested",
     "foo/bar": "./bar.js",
-    "glob/*/*": "./nested/$2"
+    "glob/*/*": "./nested/$2",
+    "exclude": false
   }
 }

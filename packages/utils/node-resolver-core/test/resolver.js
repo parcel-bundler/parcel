@@ -4,6 +4,9 @@ import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import {ncp, overlayFS, outputFS} from '@parcel/test-utils';
+import pkg from '../package.json';
+
+const VERSION = pkg.version;
 
 const rootDir = path.join(__dirname, 'fixture');
 
@@ -154,6 +157,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: require.resolve('browserify-zlib'),
         sideEffects: undefined,
+        uniqueKey: 'browserify-zlib@0.2.0/lib/index.js',
       });
     });
 
@@ -167,6 +171,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        uniqueKey: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
       });
     });
 
@@ -192,6 +197,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        uniqueKey: 'foo@0.0.0/index.js',
       });
     });
 
@@ -205,6 +211,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-main', 'main.js'),
         sideEffects: undefined,
+        uniqueKey: 'package-main@0.0.0/main.js',
       });
     });
 
@@ -223,6 +230,7 @@ describe('resolver', function() {
           'module.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-module@0.0.0/module.js',
       });
     });
 
@@ -241,6 +249,7 @@ describe('resolver', function() {
           'browser.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-browser@0.0.0/browser.js',
       });
     });
 
@@ -259,6 +268,7 @@ describe('resolver', function() {
           'main.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-browser@0.0.0/main.js',
       });
     });
 
@@ -277,6 +287,7 @@ describe('resolver', function() {
           'index.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-fallback@0.0.0/index.js',
       });
     });
 
@@ -296,6 +307,7 @@ describe('resolver', function() {
           'index.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-main-directory@0.0.0/nested/index.js',
       });
     });
 
@@ -309,6 +321,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'nested', 'baz.js'),
         sideEffects: undefined,
+        uniqueKey: 'foo@0.0.0/nested/baz.js',
       });
     });
 
@@ -322,6 +335,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
         sideEffects: undefined,
+        uniqueKey: 'scope-pkg@0.0.0/index.js',
       });
     });
 
@@ -335,6 +349,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/foo/bar.js'),
         sideEffects: undefined,
+        uniqueKey: 'scope-pkg@0.0.0/foo/bar.js',
       });
     });
   });
@@ -355,6 +370,7 @@ describe('resolver', function() {
           'browser.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-browser-alias@0.0.0/browser.js',
       });
     });
 
@@ -373,6 +389,7 @@ describe('resolver', function() {
           'bar.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-browser-alias@0.0.0/bar.js',
       });
     });
 
@@ -396,6 +413,7 @@ describe('resolver', function() {
           'bar.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-browser-alias@0.0.0/bar.js',
       });
     });
 
@@ -414,6 +432,7 @@ describe('resolver', function() {
           'foo.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-browser-alias@0.0.0/foo.js',
       });
     });
 
@@ -437,6 +456,8 @@ describe('resolver', function() {
           'subfolder1/subfolder2/subfile.js',
         ),
         sideEffects: undefined,
+        uniqueKey:
+          'package-browser-alias@0.0.0/subfolder1/subfolder2/subfile.js',
       });
     });
 
@@ -450,6 +471,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
+        uniqueKey: 'package-alias@0.0.0/bar.js',
       });
     });
 
@@ -468,6 +490,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
+        uniqueKey: 'package-alias@0.0.0/bar.js',
       });
     });
 
@@ -492,6 +515,7 @@ describe('resolver', function() {
           'test.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'package-alias-glob@0.0.0/src/test.js',
       });
     });
 
@@ -505,6 +529,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        uniqueKey: 'foo@0.0.0/index.js',
       });
     });
 
@@ -518,6 +543,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        uniqueKey: 'foo@0.0.0/index.js',
       });
     });
 
@@ -531,6 +557,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
         sideEffects: undefined,
+        uniqueKey: 'foo@0.0.0/bar.js',
       });
     });
 
@@ -544,6 +571,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -557,6 +585,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -570,6 +599,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -583,6 +613,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -596,6 +627,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -609,6 +641,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -622,6 +655,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -635,6 +669,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -648,6 +683,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -661,6 +697,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -674,10 +711,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        uniqueKey: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
       });
     });
 
-    it('should resolve to an empty file when package.alias resolves to false', async function() {
+    it('should resolve to an empty file when package.alias resolves to false for relative paths', async function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-alias-exclude',
@@ -687,6 +725,21 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        uniqueKey: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
+      });
+    });
+
+    it('should resolve to an empty file when package.alias resolves to false for packages', async function() {
+      let resolved = await resolver.resolve({
+        env: BROWSER_ENV,
+        filename: 'exclude',
+        isURL: false,
+        parent: path.join(rootDir, 'foo.js'),
+      });
+      assert.deepEqual(resolved, {
+        filePath: path.join(__dirname, '..', 'src', '_empty.js'),
+        sideEffects: undefined,
+        uniqueKey: `@parcel/node-resolver-core@${VERSION}/src/_empty.js`,
       });
     });
   });
@@ -702,6 +755,7 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'source', 'source.js'),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -720,6 +774,7 @@ describe('resolver', function() {
           'dist.js',
         ),
         sideEffects: undefined,
+        uniqueKey: 'source-not-symlinked@0.0.0/dist.js',
       });
     });
 
@@ -738,6 +793,7 @@ describe('resolver', function() {
           'source.js',
         ),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
 
@@ -757,6 +813,7 @@ describe('resolver', function() {
           'test.js',
         ),
         sideEffects: undefined,
+        uniqueKey: undefined,
       });
     });
   });
