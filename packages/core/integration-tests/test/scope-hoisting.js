@@ -1740,6 +1740,37 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('support url imports in wrapped modules with interop', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-interop-url-import/a.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'a.js',
+            'b.js',
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'relative-path.js',
+          ],
+        },
+        {
+          type: 'txt',
+          assets: ['data.txt'],
+        },
+      ]);
+
+      let output = await run(b);
+      assert(output.endsWith('.txt'));
+    });
+
     it('supports module object properties', async function() {
       let b = await bundle(
         path.join(
