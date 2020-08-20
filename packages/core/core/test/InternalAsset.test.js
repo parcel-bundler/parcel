@@ -12,6 +12,7 @@ describe('InternalAsset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
+        id: '0',
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
@@ -33,6 +34,7 @@ describe('InternalAsset', () => {
   it('only includes dependencies once per id', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
+        id: '0',
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,
@@ -52,6 +54,7 @@ describe('InternalAsset', () => {
   it('includes different dependencies if their id differs', () => {
     let asset = new UncommittedAsset({
       value: createAsset({
+        id: '0',
         filePath: '/foo/asset.js',
         env: createEnvironment(),
         stats,

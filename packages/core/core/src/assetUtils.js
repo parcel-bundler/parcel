@@ -13,18 +13,24 @@ import type {
   Transformer,
   QueryParameters,
 } from '@parcel/types';
-import type {Asset, Dependency, Environment} from './types';
+import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
+import path from 'path';
 import CommittedAsset from './CommittedAsset';
 import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {blobToStream, loadConfig, md5FromString} from '@parcel/utils';
+import {
+  blobToStream,
+  loadConfig,
+  md5FromString,
+  normalizeSeparators,
+} from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
 
 type AssetOptions = {|
@@ -57,20 +63,53 @@ type AssetOptions = {|
   configPath?: FilePath,
 |};
 
+export function generateIdBase({
+  code,
+  options,
+  uniqueKey,
+  filePath,
+  hash,
+  isSource,
+}: {|
+  code: ?string,
+  options: ParcelOptions,
+  uniqueKey: ?string,
+  filePath: FilePath,
+  hash: string,
+  isSource: boolean,
+|}): string {
+  if (code != null) {
+    // If the transformer request passed code rather than a filename,
+    // use a hash as the base for the id to ensure it is unique.
+    return hash;
+  } else {
+    if (uniqueKey != null) {
+      return uniqueKey + ':' + (!isSource ? hash : '');
+    } else {
+      return normalizeSeparators(path.relative(options.projectRoot, filePath));
+    }
+  }
+}
+
 export function createAsset(options: AssetOptions): Asset {
-  let idBase = options.idBase != null ? options.idBase : options.filePath;
+  if (options.idBase == null && options.id == null) {
+    throw new Error('At least one of id and idBase need to be specified');
+  }
   let uniqueKey = options.uniqueKey || '';
   return {
     id:
-      options.id != null
-        ? options.id
-        : md5FromString(
-            idBase +
-              options.type +
-              getEnvironmentHash(options.env) +
-              uniqueKey +
-              (options.pipeline ?? ''),
-          ),
+      options.id ??
+      md5FromString(
+        nullthrows(options.idBase) +
+          ':' +
+          options.type +
+          ':' +
+          getEnvironmentHash(options.env) +
+          ':' +
+          uniqueKey +
+          ':' +
+          (options.pipeline ?? ''),
+      ),
     committed: options.committed ?? false,
     hash: options.hash,
     filePath: options.filePath,
@@ -93,7 +132,7 @@ export function createAsset(options: AssetOptions): Asset {
     stats: options.stats,
     symbols: options.symbols ?? (options.symbols === null ? null : new Map()),
     sideEffects: options.sideEffects ?? true,
-    uniqueKey: uniqueKey,
+    uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,
   };

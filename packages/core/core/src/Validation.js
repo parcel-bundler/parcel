@@ -11,13 +11,13 @@ import type {Validator, ValidateResult} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 
 import path from 'path';
-import {resolveConfig, normalizeSeparators} from '@parcel/utils';
+import {resolveConfig} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import ParcelConfig from './ParcelConfig';
 import ConfigLoader from './ConfigLoader';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset} from './assetUtils';
+import {createAsset, generateIdBase} from './assetUtils';
 import {Asset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
@@ -189,15 +189,15 @@ export default class Validation {
       {filePath: request.filePath},
     );
 
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the base for the id to ensure it is unique.
-    let idBase =
-      code != null
-        ? hash
-        : uniqueKey ??
-          normalizeSeparators(
-            path.relative(this.options.projectRoot, filePath),
-          );
+    let idBase = generateIdBase({
+      code,
+      filePath,
+      hash,
+      isSource,
+      options: this.options,
+      uniqueKey,
+    });
+
     return new UncommittedAsset({
       idBase,
       value: createAsset({
