@@ -35,13 +35,9 @@ import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
-import {
-  convertBabelLoc,
-  getName,
-  getIdentifier,
-  getExportIdentifier,
-} from './utils';
+import {getName, getIdentifier, getExportIdentifier} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -456,10 +452,15 @@ const VISITOR: Visitor<MutableAsset> = {
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
-      let bail = path.findParent(
-        p => p.isConditionalExpression() || p.isLogicalExpression(),
-      );
-      if (!parent.isProgram() || bail) {
+      if (
+        !parent.isProgram() ||
+        path.findParent(
+          p =>
+            p.isConditionalExpression() ||
+            p.isLogicalExpression() ||
+            p.isFunction(),
+        )
+      ) {
         dep.meta.shouldWrap = true;
       }
 

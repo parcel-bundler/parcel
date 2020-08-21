@@ -195,15 +195,9 @@ export default class BundleGraph<TBundle: IBundle>
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .sort(
-        (a, b) =>
-          bundleGroup.bundleIds.indexOf(a.id) -
-          bundleGroup.bundleIds.indexOf(b.id),
-      )
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      )
-      .reverse();
+      );
   }
 
   getBundles(): Array<TBundle> {

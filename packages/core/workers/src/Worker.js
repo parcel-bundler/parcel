@@ -46,7 +46,7 @@ export default class Worker extends EventEmitter {
 
   async fork(forkModule: FilePath) {
     let filteredArgs = process.execArgv.filter(
-      v => !/^--(debug|inspect)/.test(v),
+      v => !/^--(debug|inspect|max-old-space-size=)/.test(v),
     );
 
     for (let i = 0; i < filteredArgs.length; i++) {
