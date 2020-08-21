@@ -39,11 +39,12 @@ export default (new Optimizer({
       module: bundle.env.outputFormat === 'esmodule',
     };
 
-    let result = minify(code, config);
-
-    if (result.error) {
+    let result;
+    try {
+      result = await minify(code, config);
+    } catch (error) {
       // $FlowFixMe
-      let {message, line, col} = result.error;
+      let {message, line, col} = error;
       if (line != null && col != null) {
         let diagnostic = [];
         let mapping = map?.findClosestMapping(line, col);
@@ -82,7 +83,7 @@ export default (new Optimizer({
         }
         throw new ThrowableDiagnostic({diagnostic});
       } else {
-        throw result.error;
+        throw error;
       }
     }
 
