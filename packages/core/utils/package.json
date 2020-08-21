@@ -39,8 +39,7 @@
     "nullthrows": "^1.1.1",
     "open": "^7.0.3",
     "resolve": "^1.12.0",
-    "serialize-to-js": "^3.0.1",
-    "terser": "^3.7.3"
+    "serialize-to-js": "^3.0.1"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",
