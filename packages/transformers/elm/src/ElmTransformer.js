@@ -48,7 +48,7 @@ async function compileToString(asset, options, config) {
       autoinstall: true,
     });
   };
-  await ensureElmIsInstalled(options.projectRoot, installPackage);
+  await ensureElmIsInstalled(installPackage);
   await ensureElmJson(asset);
 
   const compileOptions = {
@@ -59,9 +59,17 @@ async function compileToString(asset, options, config) {
   return elm.compileToString(asset.filePath, compileOptions);
 }
 
-async function ensureElmIsInstalled(root, installPackage) {
+async function ensureElmIsInstalled(installPackage) {
   if (!commandExists.sync('elm')) {
     await installPackage('elm/package.json');
+    if (!commandExists.sync('elm')) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Can't find 'elm' after autoinstall.`,
+          origin: '@parcel/elm-transformer',
+        },
+      });
+    }
   }
 }
 
@@ -76,14 +84,13 @@ async function ensureElmJson(asset) {
 
 function createElmJson() {
   let elmProc = spawn('elm', ['init']);
-  elmProc.stdin.write('y\n');
-
   return new Promise((resolve, reject) => {
     elmProc.on('error', reject);
     elmProc.on('close', function(code) {
       if (code !== 0) reject(new Error('elm init failed.'));
       else resolve();
     });
+    elmProc.stdin.write('y\n');
   });
 }
 
