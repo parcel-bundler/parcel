@@ -38,7 +38,14 @@ describe('elm', function() {
     await assertBundles(b, [
       {
         type: 'js',
-        assets: ['HMRRuntime.js', 'Main.elm', 'index.js'],
+        assets: [
+          'HMRRuntime.js',
+          'Main.elm',
+          'index.js',
+          'react-refresh-runtime.development.js',
+          'ReactRefreshRuntime.js',
+          'runtime.js',
+        ],
       },
     ]);
 
