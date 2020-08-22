@@ -22,7 +22,7 @@ class SASSAsset extends Asset {
     });
 
     let opts =
-      (await this.getConfig(['.sassrc', '.sassrc.js'], {packageKey: 'sass'})) ||
+      (await this.getConfig(['.sassrc', '.sassrc.js'])) ||
       {};
     opts.includePaths = (opts.includePaths
       ? opts.includePaths.map(includePath => path.resolve(includePath))
