@@ -25,7 +25,7 @@ export default new Transformer({
 
     let code = await compileToString(asset, options, config);
     if (options.hot) code = injectElmHMR(code);
-    if (config.optimize) code = minifyElmOutput(code);
+    if (config.optimize) code = await minifyElmOutput(code);
 
     asset.type = '.js';
     asset.setCode(code);
@@ -91,10 +91,10 @@ function createElmJson(pathToElmBin) {
   });
 }
 
-function minifyElmOutput(source) {
+async function minifyElmOutput(source) {
   // Recommended minification
   // Based on: http://elm-lang.org/0.19.0/optimize
-  let result = minify(source, {
+  let result = await minify(source, {
     compress: {
       keep_fargs: false,
       passes: 2,
