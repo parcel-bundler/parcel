@@ -1,8 +1,8 @@
 // @flow
+
 import {Transformer} from '@parcel/plugin';
 import commandExists from 'command-exists';
 import path from 'path';
-import fs from 'fs';
 import spawn from 'cross-spawn';
 import elm from 'node-elm-compiler';
 import {inject as injectElmHMR} from 'elm-hot';
@@ -44,42 +44,38 @@ async function compileToString(asset, options, config) {
       });
     }
 
-    return options.packageManager.resolve(name, asset.filePath);
+    return options.packageManager.resolve(name, asset.filePath, {
+      autoinstall: true,
+    });
   };
-  const pathToElmBin = await pathToElm(options.projectRoot, installPackage);
-  await ensureElmJson(asset, pathToElmBin);
+  await ensureElmIsInstalled(options.projectRoot, installPackage);
+  await ensureElmJson(asset);
 
   const compileOptions = {
     cwd: config.cwd,
     debug: config.debug,
     optimize: config.optimize,
-    pathToElm: pathToElmBin,
   };
   return elm.compileToString(asset.filePath, compileOptions);
 }
 
-async function pathToElm(root, installPackage) {
+async function ensureElmIsInstalled(root, installPackage) {
   if (!commandExists.sync('elm')) {
-    const elmBin = path.resolve(root, 'node_modules/elm/bin/elm');
-
-    if (!fs.existsSync(elmBin)) await installPackage('elm');
-    return elmBin;
+    await installPackage('elm/package.json');
   }
-
-  return undefined; // use globally installed elm
 }
 
-async function ensureElmJson(asset, pathToElmBin) {
+async function ensureElmJson(asset) {
   const elmJson = await asset.getConfig(['elm.json'], {parse: false});
   if (!elmJson) {
-    createElmJson(pathToElmBin);
+    createElmJson();
     // Watch the new elm.json for changes
     await asset.getConfig(['elm.json'], {parse: false});
   }
 }
 
-function createElmJson(pathToElmBin) {
-  let elmProc = spawn(pathToElmBin || 'elm', ['init']);
+function createElmJson() {
+  let elmProc = spawn('elm', ['init']);
   elmProc.stdin.write('y\n');
 
   return new Promise((resolve, reject) => {
