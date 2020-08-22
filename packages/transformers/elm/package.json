@@ -1,9 +1,13 @@
 {
   "name": "@parcel/transformer-elm",
-  "version": "2.0.0-alpha.3.1",
+  "version": "2.0.0-beta.1",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
   },
   "repository": {
     "type": "git",
@@ -16,8 +20,8 @@
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "@parcel/diagnostic": "^2.0.0-alpha.3.1",
+    "@parcel/plugin": "^2.0.0-beta.1",
+    "@parcel/diagnostic": "^2.0.0-beta.1",
     "command-exists": "^1.2.8",
     "node-elm-compiler": "^5.0.4",
     "elm-hot": "^1.1.4",
