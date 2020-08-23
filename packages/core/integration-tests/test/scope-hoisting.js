@@ -1064,6 +1064,21 @@ describe('scope hoisting', function() {
       assert.strictEqual(typeof output[3], 'undefined');
     });
 
+    it('removes functions that increment variables in object properties', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-increment-object/a.js',
+        ),
+        {minify: true},
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!content.includes('++'));
+
+      await run(b);
+    });
+
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
