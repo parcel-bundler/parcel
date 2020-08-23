@@ -359,6 +359,46 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('should split bundles when a dynamic import is used with an electron-main environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-electron-main/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should split bundles when a dynamic import is used with an electron-renderer environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-electron-renderer/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
   it.skip('should load dynamic bundle when entry is in a subdirectory', async function() {
     let bu = await bundler(
       path.join(
