@@ -11,6 +11,7 @@
     "@parcel/babel-register": "2.0.0-beta.1",
     "@parcel/config-default": "2.0.0-beta.1",
     "@parcel/reporter-sourcemap-visualiser": "2.0.0-beta.1",
+    "@parcel/optimizer-esbuild": "2.0.0-beta.1",
     "parcel": "2.0.0-beta.1"
   },
   "browser": "dist/legacy/index.html",
