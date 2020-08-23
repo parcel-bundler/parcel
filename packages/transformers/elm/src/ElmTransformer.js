@@ -9,7 +9,7 @@ import {inject as injectElmHMR} from 'elm-hot';
 import {minify} from 'terser';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     const config = {
       cwd: path.dirname(asset.filePath),
@@ -31,7 +31,7 @@ export default new Transformer({
     asset.setCode(code);
     return [asset];
   },
-});
+}): Transformer);
 
 async function compileToString(asset, options, config) {
   const installPackage = name => {
