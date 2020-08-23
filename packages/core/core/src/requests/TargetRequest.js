@@ -483,9 +483,13 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
+        let pkgDir = path.dirname(nullthrows(pkgFilePath));
         targets.set(targetName, {
           name: targetName,
-          distDir,
+          distDir:
+            descriptor.distDir != null
+              ? path.resolve(pkgDir, descriptor.distDir)
+              : distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           env: createEnvironment({

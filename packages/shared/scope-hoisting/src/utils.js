@@ -4,7 +4,6 @@ import type {
   BundleGraph,
   MutableAsset,
   NamedBundle,
-  SourceLocation,
 } from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
@@ -18,7 +17,6 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -290,13 +288,7 @@ export function getThrowableDiagnosticForNode(
   if (loc) {
     diagnostic.codeFrame = {
       codeHighlights: {
-        start: {
-          line: loc.start.line,
-          column: loc.start.column + 1,
-        },
-        // - Babel's columns are exclusive, ours are inclusive (column - 1)
-        // - Babel has 0-based columns, ours are 1-based (column + 1)
-        // = +-0
+        start: loc.start,
         end: loc.end,
       },
     };
@@ -304,21 +296,4 @@ export function getThrowableDiagnosticForNode(
   return new ThrowableDiagnostic({
     diagnostic,
   });
-}
-
-export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
-  if (!loc || !loc.filename) return null;
-
-  let {filename, start, end} = loc;
-  return {
-    filePath: path.normalize(filename),
-    start: {
-      line: start.line,
-      column: start.column,
-    },
-    end: {
-      line: end.line,
-      column: end.column,
-    },
-  };
 }

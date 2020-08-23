@@ -592,6 +592,61 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 4 * 123);
     });
 
+    it('supports reexporting an asset from a shared bundle inside a shared bundle', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/shared-bundle-reexport/*.html',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'html',
+          assets: ['index1.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index1.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index2.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index2.js'],
+        },
+        {
+          type: 'html',
+          assets: ['index3.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index3.js'],
+        },
+        {
+          type: 'js',
+          assets: ['a.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.js'],
+        },
+      ]);
+
+      for (let bundle of b.getBundles().filter(b => b.type === 'html')) {
+        let calls = [];
+        await runBundle(b, bundle, {
+          call(v) {
+            calls.push(v);
+          },
+        });
+        assert.equal(calls.length, 1);
+        assert(calls[0].startsWith('abcabc'));
+      }
+    });
+
     it('supports optimizing away an unused ES6 re-export', async function() {
       let b = await bundle(
         path.join(
@@ -730,9 +785,8 @@ describe('scope hoisting', function() {
       assert(contents.includes('= 1234;'));
       assert(!contents.includes('= 5678;'));
 
-      // can't test dynamic imports in node
-      // let output = await run(b);
-      // assert.deepEqual(output, [1234, 1234]);
+      let output = await run(b);
+      assert.deepEqual(output, [1234, 1234]);
     });
 
     it('keeps side effects by default', async function() {
@@ -771,6 +825,33 @@ describe('scope hoisting', function() {
 
       assert(!called, 'side effect called');
       assert.deepEqual(output, 4);
+    });
+
+    it('concatenates in the correct order when re-exporting assets were excluded', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false-order/index.js',
+        ),
+      );
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(/\s+class\s+/.test(contents));
+
+      let called = false;
+      let output = await run(b, {
+        sideEffect: () => {
+          called = true;
+        },
+      });
+
+      assert(!called, 'side effect called');
+      assert.strictEqual(output[0], 'a');
+      assert.strictEqual(output[1], 'b');
+      assert(new output[3]() instanceof output[2]);
     });
 
     it('supports wildcards with sideEffects: false', async function() {
@@ -1659,6 +1740,37 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('support url imports in wrapped modules with interop', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-interop-url-import/a.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: [
+            'a.js',
+            'b.js',
+            'bundle-manifest.js',
+            'bundle-url.js',
+            'JSRuntime.js',
+            'JSRuntime.js',
+            'relative-path.js',
+          ],
+        },
+        {
+          type: 'txt',
+          assets: ['data.txt'],
+        },
+      ]);
+
+      let output = await run(b);
+      assert(output.endsWith('.txt'));
+    });
+
     it('supports module object properties', async function() {
       let b = await bundle(
         path.join(
@@ -2311,6 +2423,32 @@ describe('scope hoisting', function() {
     );
 
     assert.strictEqual(await run(b), 3);
+  });
+
+  it('should wrap imports inside arrow functions', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/es6/wrap-import-arrowfunction/a.js',
+      ),
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(bundle => bundle.isEntry).filePath,
+      'utf8',
+    );
+    assert(contents.includes('=>'));
+
+    let calls = [];
+    let output = await run(b, {
+      sideEffect(id) {
+        calls.push(id);
+      },
+    });
+    assert.deepEqual(calls, []);
+    assert.equal(typeof output, 'function');
+    assert.deepEqual(await output(), {default: 1234});
+    assert.deepEqual(calls, ['async']);
   });
 
   it('can static import and dynamic import in the same bundle without creating a new bundle', async () => {

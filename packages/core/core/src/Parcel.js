@@ -39,6 +39,7 @@ import {registerCoreWithSerializer} from './utils';
 import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
+import logger from '@parcel/logger';
 
 registerCoreWithSerializer();
 
@@ -81,6 +82,8 @@ export default class Parcel {
   >();
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
+
+  isProfiling /*: boolean */;
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = options;
@@ -263,7 +266,7 @@ export default class Parcel {
     let options = nullthrows(this.#resolvedOptions);
     try {
       if (options.profile) {
-        await this.#farm.startProfile();
+        await this.startProfiling();
       }
       this.#reporterRunner.report({
         type: 'buildStart',
@@ -312,8 +315,8 @@ export default class Parcel {
 
       return event;
     } finally {
-      if (options.profile) {
-        await this.#farm.endProfile();
+      if (this.isProfiling) {
+        await this.stopProfiling();
       }
     }
   }
@@ -394,6 +397,26 @@ export default class Parcel {
       this.#resolvedOptions,
       'Resolved options is null, please let parcel initialise before accessing this.',
     );
+  }
+
+  async startProfiling(): Promise<void> {
+    if (this.isProfiling) {
+      throw new Error('Parcel is already profiling');
+    }
+
+    logger.info({origin: '@parcel/core', message: 'Starting profiling...'});
+    this.isProfiling = true;
+    await this.#farm.startProfile();
+  }
+
+  stopProfiling(): Promise<void> {
+    if (!this.isProfiling) {
+      throw new Error('Parcel is not profiling');
+    }
+
+    logger.info({origin: '@parcel/core', message: 'Stopping profiling...'});
+    this.isProfiling = false;
+    return this.#farm.endProfile();
   }
 }
 
