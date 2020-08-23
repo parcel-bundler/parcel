@@ -49,7 +49,7 @@
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],
     "*.css": ["@parcel/optimizer-cssnano"],
-    "*.js": ["@parcel/optimizer-esbuild"],
+    "*.js": ["@parcel/optimizer-terser"],
     "*.html": ["@parcel/optimizer-htmlnano"]
   },
   "packagers": {

@@ -3,8 +3,5 @@
   "transformers": {
     "*.js": ["@parcel/transformer-babel", "..."]
   },
-  "reporters": ["...", "@parcel/reporter-sourcemap-visualiser"],
-  "optimizers": {
-    "*.js": ["@parcel/optimizer-esbuild"]
-  }
+  "reporters": ["...", "@parcel/reporter-sourcemap-visualiser"]
 }
