@@ -97,6 +97,8 @@ function getEnvDescription(env: Environment) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
+  } else if (env.engines.electron) {
+    description = `electron: ${env.engines.electron}`;
   }
 
   return description ?? '';
