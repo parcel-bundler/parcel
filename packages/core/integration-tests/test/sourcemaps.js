@@ -946,6 +946,25 @@ describe('sourcemaps', function() {
     );
   });
 
+  it('Should just skip invalid inlined sourcemaps', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-invalid-existing/index.js',
+    );
+    let b = await bundle(sourceFilename);
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let sourcemapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!sourcemapData) {
+      throw new Error('Could not load map');
+    }
+
+    let map = sourcemapData.map;
+    assert.equal(map.sourceRoot, '../test/');
+    assert.equal(map.sources.length, 2);
+  });
+
   it('should load existing sourcemaps of libraries', async function() {
     let sourceFilename = path.join(
       __dirname,
