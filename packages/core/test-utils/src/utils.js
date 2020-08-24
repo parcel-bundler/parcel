@@ -251,10 +251,9 @@ export async function runBundles(
 
   vm.createContext(ctx);
   for (let b of bundles) {
-    vm.runInContext(
-      await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
-      ctx,
-    );
+    new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
+      filename: b.name,
+    }).runInContext(ctx);
   }
 
   if (promises) {
