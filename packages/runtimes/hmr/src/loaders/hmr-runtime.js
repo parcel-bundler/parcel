@@ -198,9 +198,14 @@ function reloadCSS() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       var href = links[i].getAttribute('href');
+      var localHmrRegExp = new RegExp(
+        '^(https?:\\/\\/(0.0.0.0|127.0.0.1)|localhost):' + HMR_PORT ||
+          location.port,
+      );
       var absolute =
         /^https?:\/\//i.test(href) &&
-        href.indexOf(window.location.origin) !== 0;
+        href.indexOf(window.location.origin) !== 0 &&
+        !localHmrRegExp.test(href);
       if (!absolute) {
         updateLink(links[i]);
       }
