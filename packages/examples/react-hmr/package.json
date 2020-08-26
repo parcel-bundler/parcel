@@ -1,13 +1,13 @@
 {
   "name": "@parcel/react-hmr-example",
-  "version": "2.0.0-frontbucket.43",
+  "version": "2.0.0-frontbucket.44",
   "license": "MIT",
   "private": true,
   "scripts": {
     "demo": "parcel serve src/index.html --no-cache --https"
   },
   "devDependencies": {
-    "parcel": "^2.0.0-frontbucket.43"
+    "parcel": "^2.0.0-frontbucket.44"
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",

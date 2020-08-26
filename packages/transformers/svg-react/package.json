@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-svg-react",
-  "version": "2.0.0-frontbucket.17",
+  "version": "2.0.0-frontbucket.18",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,7 +19,7 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.29",
+    "@parcel/plugin": "^2.0.0-frontbucket.30",
     "camelcase": "^5.3.1",
     "svg-to-jsx": "^1.0.2"
   }
