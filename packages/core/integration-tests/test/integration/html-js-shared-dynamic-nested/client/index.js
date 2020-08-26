@@ -1,3 +1,3 @@
 export default function () {
-	return import("./simpleHasher").then((v) => v.default());
+	return import("./simpleHasher.js").then((v) => v.default());
 }
