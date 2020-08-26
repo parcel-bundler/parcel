@@ -22,11 +22,6 @@
  * ```js
  * const mod = import(`${var}/module`)
  * ```
- *
- * webpack prefetch
- * ```js
- * import(\/* webpackPrefetch: true *\/`${var}/module`)
- * ```
  */
 
 module.exports = function({template, types: t}) {
@@ -50,21 +45,10 @@ module.exports = function({template, types: t}) {
         const args = callExpression.get('arguments');
         const asyncImport = args[0];
         const isString = t.isStringLiteral(asyncImport);
-        const {value: importSpecifier, leadingComments} = asyncImport.node;
+        const {value: importSpecifier} = asyncImport.node;
 
-        if (
-          !isString ||
-          (leadingComments &&
-            leadingComments.length > 0 &&
-            leadingComments.some(comment => {
-              return (
-                comment.value &&
-                (comment.value.includes('webpackPrefetch') ||
-                  comment.value.includes('webpackPreload'))
-              );
-            }))
-        ) {
-          // don't rewrite prefetch or preload imports
+        if (!isString) {
+          // don't rewrite imports that aren't strings
           asyncImport.parentPath.replaceWithMultiple(dummyTemplate());
           return;
         }
