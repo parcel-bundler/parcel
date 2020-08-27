@@ -8,7 +8,7 @@
 
 declare module 'posthtml' {
   declare type PostHTMLNode = {
-    tag: string,
+    tag: string | false,
     attrs?: {[string]: string, ...},
     content?: Array<string>,
     ...

@@ -23,11 +23,11 @@ export default (new Transformer({
     };
   },
 
-  async transform({asset}) {
+  async transform({asset, options}) {
     // Handle .htm
     asset.type = 'html';
     let ast = nullthrows(await asset.getAST());
-    collectDependencies(asset, ast);
+    collectDependencies(asset, ast, options.mode);
     return [asset, ...extractInlineAssets(asset, ast)];
   },
 

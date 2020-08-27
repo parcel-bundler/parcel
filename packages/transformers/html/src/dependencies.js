@@ -1,6 +1,6 @@
 // @flow
 
-import type {AST, Environment, MutableAsset} from '@parcel/types';
+import type {AST, BuildMode, Environment, MutableAsset} from '@parcel/types';
 import PostHTML from 'posthtml';
 
 // A list of all attributes that may produce a dependency
@@ -118,7 +118,11 @@ function getAttrDepHandler(attr) {
   return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
-export default function collectDependencies(asset: MutableAsset, ast: AST) {
+export default function collectDependencies(
+  asset: MutableAsset,
+  ast: AST,
+  buildMode: BuildMode,
+) {
   let isDirty = false;
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
@@ -150,6 +154,33 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       attrs.href = asset.addURLDependency(attrs.href, {
         isEntry: true,
       });
+      isDirty = true;
+      return node;
+    }
+
+    // Remove the type="module" attribute from scripts when building for
+    // development. This allows features like HMR, which lack support for
+    // modules, to be used (see #4773).
+    if (
+      buildMode === 'development' &&
+      tag === 'script' &&
+      attrs.type === 'module'
+    ) {
+      delete attrs.type;
+      attrs.defer = '';
+      isDirty = true;
+    }
+
+    // Remove scripts with the nomodule attribute in development. We assume
+    // there's a corresponding script with type="module", and that's the script
+    // we'll run (see above).
+    if (
+      buildMode === 'development' &&
+      tag === 'script' &&
+      attrs.nomodule !== undefined
+    ) {
+      node.tag = false;
+      node.content = [];
       isDirty = true;
       return node;
     }

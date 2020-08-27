@@ -759,6 +759,7 @@ describe('output formats', function() {
     it('should support building esmodules for browser targets', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser/index.html'),
+        {mode: 'production'},
       );
 
       let html = await outputFS.readFile(
@@ -777,7 +778,7 @@ describe('output formats', function() {
       let asyncBundle = b
         .getBundles()
         .find(bundle => bundle.name.startsWith('async'));
-      assert(entry.includes(`import("./" + "${asyncBundle.name}")`));
+      assert(entry.includes(`import("./${asyncBundle.name}")`));
 
       let async = await outputFS.readFile(
         b.getBundles().find(b => b.name.startsWith('async')).filePath,
@@ -796,6 +797,8 @@ describe('output formats', function() {
               'Chrome 61',
             ],
           },
+          mode: 'production',
+          minify: false,
         },
       );
 
@@ -828,6 +831,7 @@ describe('output formats', function() {
     it('should support building esmodules with css imports', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/formats/esm-browser-css/index.html'),
+        {mode: 'production', minify: false},
       );
 
       let html = await outputFS.readFile(
@@ -876,6 +880,7 @@ describe('output formats', function() {
           __dirname,
           '/integration/formats/esm-browser-split-bundle/index.html',
         ),
+        {mode: 'production', minify: false},
       );
 
       let html = await outputFS.readFile(

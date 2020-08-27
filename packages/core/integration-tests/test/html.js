@@ -1010,7 +1010,7 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(html.includes('<script type="module">'));
+    assert(html.includes('<script defer="">'));
     assert(html.includes('document.write("Hello world")'));
   });
 
@@ -1083,8 +1083,8 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(html.includes('<script type="module" src="'));
-    assert(html.includes('<script type="module">'));
+    assert(html.includes('<script src="'));
+    assert(html.includes('<script defer="">'));
     assert(html.includes('.add(1, 2)'));
     assert(html.includes('.add(2, 3)'));
   });
@@ -1590,5 +1590,39 @@ describe('html', function() {
       contents.trim(),
       `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
     );
+  });
+
+  it('should use <script type="module"> and ignore type in development', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-module/index.html'),
+      {
+        sourceMaps: false,
+        mode: 'development',
+      },
+    );
+
+    let html = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+    assert(html.includes('<script src="'));
+    assert(!html.includes('<script nomodule="">'));
+  });
+
+  it('includes <script type="module"> and <script nomodule> in production', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-module/index.html'),
+      {
+        sourceMaps: false,
+        mode: 'production',
+      },
+    );
+
+    let html = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+    assert(html.includes('<script src="'));
+    assert(html.includes('<script nomodule="">'));
   });
 });
