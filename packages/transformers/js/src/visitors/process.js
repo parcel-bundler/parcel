@@ -44,7 +44,10 @@ export default {
         if (typeof prop !== 'function') {
           let value = types.valueToNode(prop);
           morph(node, value);
+
+          // Mark AST dirty
           asset.setAST(ast);
+
           // TODO bust the cache on changes
           // asset.meta.env[key.value] = process.env[key.value];
         }
@@ -59,6 +62,9 @@ export default {
       } else {
         morph(node, types.booleanLiteral(true));
       }
+
+      // Mark AST dirty
+      asset.setAST(ast);
     }
   },
 };

@@ -1064,6 +1064,21 @@ describe('scope hoisting', function() {
       assert.strictEqual(typeof output[3], 'undefined');
     });
 
+    it('removes functions that increment variables in object properties', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-increment-object/a.js',
+        ),
+        {minify: true},
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!content.includes('++'));
+
+      await run(b);
+    });
+
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
@@ -1716,6 +1731,21 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foo');
     });
 
+    it('supports using this in arrow functions', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/this-arrow-function/a.js',
+        ),
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(content.includes('=>'));
+
+      let output = await run(b);
+      assert.strictEqual(output, 'Say other');
+    });
+
     it('supports assigning to this as exports object', async function() {
       let b = await bundle(
         path.join(
@@ -1725,7 +1755,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.equal(output, 2);
+      assert.strictEqual(output, 2);
     });
 
     it('supports assigning to this as exports object in wrapped module', async function() {
@@ -1737,7 +1767,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.equal(output, 6);
+      assert.strictEqual(output, 6);
     });
 
     it('support url imports in wrapped modules with interop', async function() {
