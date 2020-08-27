@@ -1,0 +1,6 @@
+{
+  "extends": "@parcel/config-default",
+  "optimizers": {
+    "*.js": ["@parcel/optimizer-terser"]
+  }
+}

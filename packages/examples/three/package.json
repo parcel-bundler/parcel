@@ -5,7 +5,26 @@
   "private": true,
   "scripts": {
     "setup": "make src",
-    "build": "parcel build src/entry.js --no-cache"
+    "build": "rm -rf dist && parcel build src/entry.js --no-cache --no-source-maps",
+    "get-size": "du -sh dist"
+  },
+  "browser": "dist/legacy/index.js",
+  "browserModern": "dist/modern/index.js",
+  "targets": {
+    "browserModern": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
   },
   "devDependencies": {
     "@parcel/config-default": "2.0.0-beta.1",
