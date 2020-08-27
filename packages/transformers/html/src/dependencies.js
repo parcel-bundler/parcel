@@ -191,10 +191,11 @@ export default function collectDependencies(
         continue;
       }
 
+      tag = node.tag;
       let elements = ATTRS[attr];
-      if (elements && elements.includes(node.tag)) {
+      if (typeof tag === 'string' && elements && elements.includes(tag)) {
         let depHandler = getAttrDepHandler(attr);
-        let depOptionsHandler = OPTIONS[node.tag];
+        let depOptionsHandler = OPTIONS[tag];
         let depOptions =
           typeof depOptionsHandler === 'function'
             ? depOptionsHandler(attrs, asset.env)
