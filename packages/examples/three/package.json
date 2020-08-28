@@ -8,7 +8,7 @@
     "build": "rm -rf dist && parcel build src/entry.js --no-cache --no-source-maps",
     "get-size": "du -sh dist"
   },
-  "browser": "dist/legacy/index.js",
+  "browserLegacy": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
   "targets": {
     "browserModern": {
@@ -18,7 +18,7 @@
         ]
       }
     },
-    "browser": {
+    "browserLegacy": {
       "engines": {
         "browsers": [
           "> 0.25%"
