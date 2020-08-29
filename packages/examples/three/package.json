@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "setup": "make src",
-    "build": "rm -rf dist && parcel build src/entry.js --no-cache --no-source-maps",
+    "build": "rm -rf dist && parcel build src/entry.js --no-cache",
     "get-size": "du -sh dist"
   },
   "browserLegacy": "dist/legacy/index.js",
