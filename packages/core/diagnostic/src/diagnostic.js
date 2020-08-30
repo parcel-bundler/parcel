@@ -4,49 +4,71 @@ import type {FilePath} from '@parcel/types';
 import jsonMap from 'json-source-map';
 import nullthrows from 'nullthrows';
 
+/** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
-  // These positions are 1-based
   +line: number,
   +column: number,
 |};
 
 export type DiagnosticSeverity = 'error' | 'warn' | 'info';
 
-// Note: A tab character is always counted as a single character
-// This is to prevent any mismatch of highlighting across machines
+/**
+ * Note: A tab character is always counted as a single character
+ * This is to prevent any mismatch of highlighting across machines
+ */
 export type DiagnosticCodeHighlight = {|
-  // start and end are included in the highlighted region
+  /** Location of the first character that should get highlighted for this highlight. */
   start: DiagnosticHighlightLocation,
+  /** Location of the last character that should get highlighted for this highlight. */
   end: DiagnosticHighlightLocation,
+  /** A message that should be displayed at this location in the code (optional). */
   message?: string,
 |};
 
+/**
+ * Describes how to format a code frame.
+ * A code frame is a visualization of a piece of code with a certain amount of
+ * code highlights that point to certain chunk(s) inside the code.
+ */
 export type DiagnosticCodeFrame = {|
-  // if no code is passed, it will be read in from Diagnostic#filePath
+  /**
+   * The contents of the source file.
+   *
+   * If no code is passed, it will be read in from Diagnostic#filePath, remember that
+   * the asset's current code could be different from the input contents.
+   *
+   */
   code?: string,
   codeHighlights: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>,
 |};
 
-// A Diagnostic is a style agnostic way of emitting errors, warnings and info
-// The reporter's are responsible for rendering the message, codeframes, hints, ...
+/**
+ * A style agnostic way of emitting errors, warnings and info.
+ * Reporters are responsible for rendering the message, codeframes, hints, ...
+ */
 export type Diagnostic = {|
+  /** This is the message you want to log. */
   message: string,
-  origin?: string, // Name of plugin or file that threw this error
+  /** Name of plugin or file that threw this error */
+  origin?: string,
 
-  // basic error data
+  /** A stacktrace of the error (optional) */
   stack?: string,
+  /** Name of the error (optional) */
   name?: string,
 
-  // Asset metadata, filePath is absolute or relative to the project root
+  /** Path to the file this diagnostic is about (optional, absolute or relative to the project root) */
   filePath?: FilePath,
+  /** Language of the file this diagnostic is about (optional) */
   language?: string,
 
-  // Codeframe data
+  /** A code frame points to a certain location(s) in the file this diagnostic is linked to (optional) */
   codeFrame?: DiagnosticCodeFrame,
 
-  // Hints to resolve issues faster
+  /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
 
+  /** TODO? */
   skipFormatting?: boolean,
 |};
 
@@ -70,7 +92,7 @@ export type DiagnosticWithoutOrigin = {|
   origin?: string,
 |};
 
-// Something that can be turned into a diagnostic...
+/** Something that can be turned into a diagnostic. */
 export type Diagnostifiable =
   | Diagnostic
   | Array<Diagnostic>
@@ -78,6 +100,7 @@ export type Diagnostifiable =
   | PrintableError
   | string;
 
+/** Normalize the given value into a diagnostic. */
 export function anyToDiagnostic(
   input: Diagnostifiable,
 ): Diagnostic | Array<Diagnostic> {
@@ -92,6 +115,7 @@ export function anyToDiagnostic(
   return diagnostic;
 }
 
+/** Normalize the given error into a diagnostic. */
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
   realOrigin?: string,
@@ -141,11 +165,12 @@ export function errorToDiagnostic(
   };
 }
 
-type ThrowableDiagnosticOpts = {
+export type ThrowableDiagnosticOpts = {
   diagnostic: Diagnostic | Array<Diagnostic>,
   ...
 };
 
+// TODO
 export default class ThrowableDiagnostic extends Error {
   diagnostics: Array<Diagnostic>;
 
@@ -163,7 +188,14 @@ export default class ThrowableDiagnostic extends Error {
   }
 }
 
-// ids.key has to be "/some/parent/child"
+/**
+ * Turns a list of positions in a JSON file with messages into a list of diagnostics.
+ * Uses <a href="https://github.com/epoberezkin/json-source-map">epoberezkin/json-source-map</a>.
+ *
+ * @param code the JSON code
+ * @param ids A list of JSON keypaths (<code>key: "/some/parent/child"</code>) with corresponding messages, \
+ * <code>type</code> signifies whether the key of the value in a JSON object should be highlighted.
+ */
 export function generateJSONCodeHighlights(
   code: string,
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
@@ -179,7 +211,12 @@ export function generateJSONCodeHighlights(
   });
 }
 
+/**
+ * Converts entries in <a href="https://github.com/epoberezkin/json-source-map">epoberezkin/json-source-map</a>'s
+ * <code>result.pointers</code> array.
+ */
 export function getJSONSourceLocation(
+  // TODO: remove `any` here
   pos: any,
   type?: ?'key' | 'value',
 ): {|
@@ -205,6 +242,7 @@ export function getJSONSourceLocation(
   }
 }
 
+/** Sanitizes object keys before using them as <code>key</code> in generateJSONCodeHighlights */
 export function encodeJSONKeyComponent(component: string): string {
   return component.replace(/\//g, '~1');
 }
