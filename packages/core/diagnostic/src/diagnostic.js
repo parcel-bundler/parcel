@@ -167,16 +167,14 @@ export function errorToDiagnostic(
   };
 }
 
-export type ThrowableDiagnosticOpts = {
-  diagnostic: Diagnostic | Array<Diagnostic>,
-  ...
-};
-
-// TODO
+/**
+ * An error wrapper around a diagnostic that can be <code>throw</code>n (e.g. to signal a
+ * build error).
+ */
 export default class ThrowableDiagnostic extends Error {
   diagnostics: Array<Diagnostic>;
 
-  constructor(opts: ThrowableDiagnosticOpts) {
+  constructor(opts: {diagnostic: Diagnostic | Array<Diagnostic>, ...}) {
     let diagnostics = Array.isArray(opts.diagnostic)
       ? opts.diagnostic
       : [opts.diagnostic];
