@@ -1,6 +1,8 @@
-// @flow
+// @flow strict-local
 import type {FilePath} from '@parcel/types';
 
+import invariant from 'assert';
+// flowlint-next-line untyped-import:off
 import jsonMap from 'json-source-map';
 import nullthrows from 'nullthrows';
 
@@ -124,7 +126,7 @@ export function errorToDiagnostic(
 
   if (typeof error === 'string') {
     return {
-      origin: realOrigin || 'Error',
+      origin: realOrigin ?? 'Error',
       message: error,
       codeFrame,
     };
@@ -134,12 +136,12 @@ export function errorToDiagnostic(
     return error.diagnostics.map(d => {
       return {
         ...d,
-        origin: realOrigin || d.origin || 'unknown',
+        origin: realOrigin ?? d.origin ?? 'unknown',
       };
     });
   }
 
-  if (error.loc && error.source) {
+  if (error.loc && error.source != null) {
     codeFrame = {
       code: error.source,
       codeHighlights: {
@@ -156,11 +158,11 @@ export function errorToDiagnostic(
   }
 
   return {
-    origin: realOrigin || 'Error',
+    origin: realOrigin ?? 'Error',
     message: error.message,
     name: error.name,
-    filePath: error.filePath || error.fileName,
-    stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
+    filePath: error.filePath ?? error.fileName,
+    stack: error.highlightedCodeFrame ?? error.codeFrame ?? error.stack,
     codeFrame,
   };
 }
@@ -181,8 +183,8 @@ export default class ThrowableDiagnostic extends Error {
 
     // construct error from diagnostics...
     super(diagnostics[0].message);
-    this.stack = diagnostics[0].stack || super.stack;
-    this.name = diagnostics[0].name || super.name;
+    this.stack = diagnostics[0].stack ?? super.stack;
+    this.name = diagnostics[0].name ?? super.name;
 
     this.diagnostics = diagnostics;
   }
@@ -216,20 +218,29 @@ export function generateJSONCodeHighlights(
  * <code>result.pointers</code> array.
  */
 export function getJSONSourceLocation(
-  // TODO: remove `any` here
-  pos: any,
+  pos: {|
+    value: {|line: number, column: number|},
+    valueEnd: {|line: number, column: number|},
+    ...
+      | {||}
+      | {|
+          key: {|line: number, column: number|},
+          keyEnd: {|line: number, column: number|},
+        |},
+  |},
   type?: ?'key' | 'value',
 ): {|
   start: DiagnosticHighlightLocation,
   end: DiagnosticHighlightLocation,
 |} {
-  if (!type && pos.value) {
+  if (!type && pos.key && pos.value) {
     // key and value
     return {
       start: {line: pos.key.line + 1, column: pos.key.column + 1},
       end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
     };
   } else if (type == 'key' || !pos.value) {
+    invariant(pos.key);
     return {
       start: {line: pos.key.line + 1, column: pos.key.column + 1},
       end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},
