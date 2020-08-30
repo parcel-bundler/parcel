@@ -148,6 +148,8 @@ export function errorToDiagnostic(
 
 type ThrowableDiagnosticOpts = {
   diagnostics: Array<Diagnostic>,
+  // Backwards compatibility
+  diagnostic?: Diagnostic | Array<Diagnostic>,
   ...
 };
 
@@ -157,7 +159,14 @@ export default class ThrowableDiagnostic extends Error {
   constructor(opts: ThrowableDiagnosticOpts) {
     let diagnostics = opts.diagnostics;
 
-    // construct error from diagnostics...
+    // Backwards compatibility
+    if (!diagnostics && opts.diagnostic) {
+      diagnostics = Array.isArray(opts.diagnostic)
+        ? opts.diagnostic
+        : [opts.diagnostic];
+    }
+
+    // Construct error from diagnostics
     super(diagnostics[0].message);
     this.stack = diagnostics[0].stack || super.stack;
     this.name = diagnostics[0].name || super.name;
