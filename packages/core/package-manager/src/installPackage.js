@@ -86,23 +86,25 @@ async function installPeerDependencies(
       invariant(pkg);
       if (!semver.satisfies(pkg.version, range)) {
         throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: `Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
-            filePath: conflicts.filePath,
-            origin: '@parcel/package-manager',
-            language: 'json',
-            codeFrame: {
-              code: conflicts.json,
-              codeHighlights: generateJSONCodeHighlights(
-                conflicts.json,
-                conflicts.fields.map(field => ({
-                  key: `/${field}/${encodeJSONKeyComponent(name)}`,
-                  type: 'key',
-                  message: 'Found this conflicting local requirement.',
-                })),
-              ),
+          diagnostics: [
+            {
+              message: `Could not install the peer dependency "${name}" for "${module.name}", installed version ${pkg.version} is incompatible with ${range}`,
+              filePath: conflicts.filePath,
+              origin: '@parcel/package-manager',
+              language: 'json',
+              codeFrame: {
+                code: conflicts.json,
+                codeHighlights: generateJSONCodeHighlights(
+                  conflicts.json,
+                  conflicts.fields.map(field => ({
+                    key: `/${field}/${encodeJSONKeyComponent(name)}`,
+                    type: 'key',
+                    message: 'Found this conflicting local requirement.',
+                  })),
+                ),
+              },
             },
-          },
+          ],
         });
       }
 

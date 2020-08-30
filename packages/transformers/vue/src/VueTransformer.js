@@ -24,11 +24,13 @@ export default (new Transformer({
       contents = conf.contents;
       if (typeof contents !== 'object') {
         throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: 'Vue config should be an object.',
-            origin: '@parcel/transformer-vue',
-            filePath: conf.filePath,
-          },
+          diagnostics: [
+            {
+              message: 'Vue config should be an object.',
+              origin: '@parcel/transformer-vue',
+              filePath: conf.filePath,
+            },
+          ],
         });
       }
     }
@@ -54,7 +56,7 @@ export default (new Transformer({
     });
     if (parsed.errors.length) {
       throw new ThrowableDiagnostic({
-        diagnostic: parsed.errors.map(err => {
+        diagnostics: parsed.errors.map(err => {
           return createDiagnostic(err, asset.filePath);
         }),
       });
@@ -106,11 +108,13 @@ export default (new Transformer({
     if (styles.length) {
       if (!template) {
         throw new ThrowableDiagnostic({
-          diagnostic: {
-            message: 'Cannot style a component without a template',
-            origin: '@parcel/transformer-vue',
-            filePath: asset.filePath,
-          },
+          diagnostics: [
+            {
+              message: 'Cannot style a component without a template',
+              origin: '@parcel/transformer-vue',
+              filePath: asset.filePath,
+            },
+          ],
         });
       }
       // Nothing happens if CSS modules is disabled
@@ -167,16 +171,18 @@ function createDiagnostic(err, filePath) {
   };
   if (err.loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: {
-          line: err.loc.start.line + err.loc.start.offset,
-          column: err.loc.start.column,
+      codeHighlights: [
+        {
+          start: {
+            line: err.loc.start.line + err.loc.start.offset,
+            column: err.loc.start.column,
+          },
+          end: {
+            line: err.loc.end.line + err.loc.end.offset,
+            column: err.loc.end.column,
+          },
         },
-        end: {
-          line: err.loc.end.line + err.loc.end.offset,
-          column: err.loc.end.column,
-        },
-      },
+      ],
     };
   }
   return diagnostic;
@@ -221,11 +227,13 @@ async function processPipeline({
         let preprocessor = consolidate[template.lang];
         if (!preprocessor) {
           throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `Unknown template language: "${template.lang}"`,
-              origin: '@parcel/transformer-vue',
-              filePath: asset.filePath,
-            },
+            diagnostics: [
+              {
+                message: `Unknown template language: "${template.lang}"`,
+                origin: '@parcel/transformer-vue',
+                filePath: asset.filePath,
+              },
+            ],
           });
         }
         // TODO: Improve? This seems brittle
@@ -257,7 +265,7 @@ async function processPipeline({
       });
       if (templateComp.errors.length) {
         throw new ThrowableDiagnostic({
-          diagnostic: templateComp.errors.map(err => {
+          diagnostics: templateComp.errors.map(err => {
             return createDiagnostic(err, asset.filePath);
           }),
         });
@@ -307,11 +315,13 @@ ${
           break;
         default:
           throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `Unknown script language: "${script.lang}"`,
-              origin: '@parcel/transformer-vue',
-              filePath: asset.filePath,
-            },
+            diagnostics: [
+              {
+                message: `Unknown script language: "${script.lang}"`,
+                origin: '@parcel/transformer-vue',
+                filePath: asset.filePath,
+              },
+            ],
           });
       }
       let scriptAsset = {
@@ -356,11 +366,13 @@ ${
               break;
             default:
               throw new ThrowableDiagnostic({
-                diagnostic: {
-                  message: `Unknown style language: "${style.lang}"`,
-                  origin: '@parcel/transformer-vue',
-                  filePath: asset.filePath,
-                },
+                diagnostics: [
+                  {
+                    message: `Unknown style language: "${style.lang}"`,
+                    origin: '@parcel/transformer-vue',
+                    filePath: asset.filePath,
+                  },
+                ],
               });
           }
           if (toInstall) {
@@ -379,7 +391,7 @@ ${
           });
           if (styleComp.errors.length) {
             throw new ThrowableDiagnostic({
-              diagnostic: styleComp.errors.map(err => {
+              diagnostics: styleComp.errors.map(err => {
                 return createDiagnostic(err, asset.filePath);
               }),
             });
@@ -432,11 +444,13 @@ export default cssModules;`,
         let {type, src, content, attrs} = block;
         if (!config.customBlocks[type]) {
           throw new ThrowableDiagnostic({
-            diagnostic: {
-              message: `No preprocessor found for block type ${type}`,
-              origin: '@parcel/transformer-vue',
-              filePath: asset.filePath,
-            },
+            diagnostics: [
+              {
+                message: `No preprocessor found for block type ${type}`,
+                origin: '@parcel/transformer-vue',
+                filePath: asset.filePath,
+              },
+            ],
           });
         }
         if (src) {

@@ -57,27 +57,31 @@ export default (new Namer({
           path.join(bundle.target.distDir, distEntry),
         );
         let err = new ThrowableDiagnostic({
-          diagnostic: {
-            message: `Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
-            filePath: loc.filePath,
-            codeFrame: {
-              codeHighlights: {
-                start: loc.start,
-                end: loc.end,
-                message: `Did you mean "${fullName.slice(
-                  0,
-                  -path.extname(fullName).length,
-                ) +
-                  '.' +
-                  bundle.type}"?`,
+          diagnostics: [
+            {
+              message: `Target "${bundle.target.name}" declares an output file path of "${fullName}" which does not match the compiled bundle type "${bundle.type}".`,
+              filePath: loc.filePath,
+              codeFrame: {
+                codeHighlights: [
+                  {
+                    start: loc.start,
+                    end: loc.end,
+                    message: `Did you mean "${fullName.slice(
+                      0,
+                      -path.extname(fullName).length,
+                    ) +
+                      '.' +
+                      bundle.type}"?`,
+                  },
+                ],
               },
+              hints: [
+                `Try changing the file extension of "${
+                  bundle.target.name
+                }" in ${path.relative(process.cwd(), loc.filePath)}.`,
+              ],
             },
-            hints: [
-              `Try changing the file extension of "${
-                bundle.target.name
-              }" in ${path.relative(process.cwd(), loc.filePath)}.`,
-            ],
-          },
+          ],
         });
         throw err;
       }

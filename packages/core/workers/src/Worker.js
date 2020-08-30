@@ -173,7 +173,7 @@ export default class Worker extends EventEmitter {
       }
 
       if (message.contentType === 'error') {
-        call.reject(new ThrowableDiagnostic({diagnostic: message.content}));
+        call.reject(new ThrowableDiagnostic({diagnostics: message.content}));
       } else {
         call.resolve(message.content);
       }

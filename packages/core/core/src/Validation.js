@@ -126,7 +126,7 @@ export default class Validation {
             this.handleResults(validatorResults);
           } catch (e) {
             throw new ThrowableDiagnostic({
-              diagnostic: errorToDiagnostic(e, validatorName),
+              diagnostics: errorToDiagnostic(e, validatorName),
             });
           }
         }
@@ -173,7 +173,7 @@ export default class Validation {
 
     if (errors.length > 0) {
       throw new ThrowableDiagnostic({
-        diagnostic: errors,
+        diagnostics: errors,
       });
     }
 

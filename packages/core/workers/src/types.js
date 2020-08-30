@@ -39,7 +39,7 @@ export type WorkerErrorResponse = {|
   child?: number,
   type: 'response',
   contentType: 'error',
-  content: Diagnostic | Array<Diagnostic>,
+  content: Array<Diagnostic>,
 |};
 
 export type WorkerResponse = WorkerDataResponse | WorkerErrorResponse;

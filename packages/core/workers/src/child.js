@@ -180,7 +180,7 @@ export class Child {
 
     if (contentType === 'error') {
       invariant(typeof content !== 'string');
-      call.reject(new ThrowableDiagnostic({diagnostic: content}));
+      call.reject(new ThrowableDiagnostic({diagnostics: content}));
     } else {
       call.resolve(content);
     }

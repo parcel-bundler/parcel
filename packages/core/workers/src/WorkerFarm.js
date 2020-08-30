@@ -324,7 +324,7 @@ export default class WorkerFarm extends EventEmitter {
         worker.send(result);
       } else {
         if (result.contentType === 'error') {
-          throw new ThrowableDiagnostic({diagnostic: result.content});
+          throw new ThrowableDiagnostic({diagnostics: result.content});
         }
         return result.content;
       }

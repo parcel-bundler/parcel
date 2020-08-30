@@ -24,7 +24,7 @@ export type DiagnosticCodeHighlight = {|
 export type DiagnosticCodeFrame = {|
   // if no code is passed, it will be read in from Diagnostic#filePath
   code?: string,
-  codeHighlights: DiagnosticCodeHighlight | Array<DiagnosticCodeHighlight>,
+  codeHighlights: Array<DiagnosticCodeHighlight>,
 |};
 
 // A Diagnostic is a style agnostic way of emitting errors, warnings and info
@@ -78,32 +78,33 @@ export type Diagnostifiable =
   | PrintableError
   | string;
 
-export function anyToDiagnostic(
-  input: Diagnostifiable,
-): Diagnostic | Array<Diagnostic> {
+export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
   // $FlowFixMe
-  let diagnostic: Diagnostic | Array<Diagnostic> = input;
+  let diagnostic: Array<Diagnostic> = input;
+
   if (input instanceof ThrowableDiagnostic) {
     diagnostic = input.diagnostics;
   } else if (input instanceof Error) {
     diagnostic = errorToDiagnostic(input);
   }
 
-  return diagnostic;
+  return Array.isArray(diagnostic) ? diagnostic : [diagnostic];
 }
 
 export function errorToDiagnostic(
   error: ThrowableDiagnostic | PrintableError | string,
   realOrigin?: string,
-): Diagnostic | Array<Diagnostic> {
+): Array<Diagnostic> {
   let codeFrame: DiagnosticCodeFrame | void = undefined;
 
   if (typeof error === 'string') {
-    return {
-      origin: realOrigin || 'Error',
-      message: error,
-      codeFrame,
-    };
+    return [
+      {
+        origin: realOrigin || 'Error',
+        message: error,
+        codeFrame,
+      },
+    ];
   }
 
   if (error instanceof ThrowableDiagnostic) {
@@ -118,31 +119,35 @@ export function errorToDiagnostic(
   if (error.loc && error.source) {
     codeFrame = {
       code: error.source,
-      codeHighlights: {
-        start: {
-          line: error.loc.line,
-          column: error.loc.column,
+      codeHighlights: [
+        {
+          start: {
+            line: error.loc.line,
+            column: error.loc.column,
+          },
+          end: {
+            line: error.loc.line,
+            column: error.loc.column,
+          },
         },
-        end: {
-          line: error.loc.line,
-          column: error.loc.column,
-        },
-      },
+      ],
     };
   }
 
-  return {
-    origin: realOrigin || 'Error',
-    message: error.message,
-    name: error.name,
-    filePath: error.filePath || error.fileName,
-    stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
-    codeFrame,
-  };
+  return [
+    {
+      origin: realOrigin || 'Error',
+      message: error.message,
+      name: error.name,
+      filePath: error.filePath || error.fileName,
+      stack: error.highlightedCodeFrame || error.codeFrame || error.stack,
+      codeFrame,
+    },
+  ];
 }
 
 type ThrowableDiagnosticOpts = {
-  diagnostic: Diagnostic | Array<Diagnostic>,
+  diagnostics: Array<Diagnostic>,
   ...
 };
 
@@ -150,9 +155,7 @@ export default class ThrowableDiagnostic extends Error {
   diagnostics: Array<Diagnostic>;
 
   constructor(opts: ThrowableDiagnosticOpts) {
-    let diagnostics = Array.isArray(opts.diagnostic)
-      ? opts.diagnostic
-      : [opts.diagnostic];
+    let diagnostics = opts.diagnostics;
 
     // construct error from diagnostics...
     super(diagnostics[0].message);

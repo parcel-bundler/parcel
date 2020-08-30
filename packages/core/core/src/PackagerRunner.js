@@ -286,7 +286,7 @@ export default class PackagerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, packager.name),
+        diagnostics: errorToDiagnostic(e, packager.name),
       });
     }
   }
@@ -347,7 +347,7 @@ export default class PackagerRunner {
         optimized.map = next.map;
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, optimizer.name),
+          diagnostics: errorToDiagnostic(e, optimizer.name),
         });
       }
     }

@@ -422,7 +422,7 @@ export default class Parcel {
 
 export class BuildError extends ThrowableDiagnostic {
   constructor(diagnostics: Array<Diagnostic>) {
-    super({diagnostic: diagnostics});
+    super({diagnostics: diagnostics});
 
     this.name = 'BuildError';
   }

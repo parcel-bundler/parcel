@@ -46,12 +46,12 @@ export default (new Optimizer({
       // $FlowFixMe
       let {message, line, col} = error;
       if (line != null && col != null) {
-        let diagnostic = [];
+        let diagnostics = [];
         let mapping = map?.findClosestMapping(line, col);
         if (mapping && mapping.original && mapping.source) {
           let {source, original} = mapping;
           let filePath = path.resolve(options.projectRoot, source);
-          diagnostic.push({
+          diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
             language: 'js',
@@ -64,12 +64,12 @@ export default (new Optimizer({
           });
         }
 
-        if (diagnostic.length === 0 || options.logLevel === 'verbose') {
+        if (diagnostics.length === 0 || options.logLevel === 'verbose') {
           let loc = {
             line: line,
             column: col,
           };
-          diagnostic.push({
+          diagnostics.push({
             message,
             origin: '@parcel/optimizer-terser',
             language: 'js',
@@ -81,7 +81,7 @@ export default (new Optimizer({
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }
-        throw new ThrowableDiagnostic({diagnostic});
+        throw new ThrowableDiagnostic({diagnostics});
       } else {
         throw error;
       }

@@ -75,7 +75,7 @@ export default class BundlerRunner {
         // TODO: add invalidations once bundling is a request
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+          diagnostics: errorToDiagnostic(e, this.config.getBundlerName()),
         });
       }
     }
@@ -110,7 +110,7 @@ export default class BundlerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        diagnostics: errorToDiagnostic(e, this.config.getBundlerName()),
       });
     }
     assertSignalNotAborted(signal);
@@ -126,7 +126,7 @@ export default class BundlerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        diagnostics: errorToDiagnostic(e, this.config.getBundlerName()),
       });
     }
     assertSignalNotAborted(signal);
@@ -234,7 +234,7 @@ export default class BundlerRunner {
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostic: errorToDiagnostic(e, namer.name),
+          diagnostics: errorToDiagnostic(e, namer.name),
         });
       }
     }
