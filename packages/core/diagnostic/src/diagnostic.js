@@ -68,7 +68,7 @@ export type Diagnostic = {|
   /** An optional list of strings that suggest ways to resolve this issue */
   hints?: Array<string>,
 
-  /** TODO? */
+  /** @private */
   skipFormatting?: boolean,
 |};
 
