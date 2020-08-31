@@ -543,8 +543,8 @@ export default class NodeResolver {
           return {
             moduleName: moduleName,
             subPath: subPath,
-            moduleDir: realModuleDir,
-            filePath: path.join(realModuleDir, subPath || ''),
+            moduleDir: realModuleDir || moduleDir,
+            filePath: realModuleDir ? path.join(realModuleDir, subPath || '') : path.join(dir, 'node_modules', filename),
           };
         }
       } catch (err) {
