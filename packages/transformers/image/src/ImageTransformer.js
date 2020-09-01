@@ -1,6 +1,5 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
-import sharp from 'sharp';
 
 const FORMATS = new Map([
   ['heic', 'heif'],
@@ -14,10 +13,9 @@ const FORMATS = new Map([
 ]);
 
 export default (new Transformer({
-  async transform({asset}) {
+  async transform({asset, options}) {
     asset.isIsolated = true;
 
-    let inputBuffer = await asset.getBuffer();
     let width = asset.query.width ? parseInt(asset.query.width, 10) : null;
     let height = asset.query.height ? parseInt(asset.query.height, 10) : null;
     let quality = asset.query.quality
@@ -25,24 +23,36 @@ export default (new Transformer({
       : undefined;
     let format = asset.query.as ? asset.query.as.toLowerCase().trim() : null;
 
-    let imagePipeline = sharp(inputBuffer);
-    if (width || height) {
-      imagePipeline.resize(width, height);
-    }
+    if (width || height || quality || format) {
+      const sharp = await options.packageManager.require(
+        'sharp',
+        asset.filePath,
+        {
+          // Sharp takes too long to install for autoinstall option to make sense
+          autoinstall: false,
+        },
+      );
 
-    if (format) {
-      if (!FORMATS.has(format)) {
-        throw new Error(`Sharp does not support ${format} images.`);
+      let inputBuffer = await asset.getBuffer();
+      let imagePipeline = sharp(inputBuffer);
+      if (width || height) {
+        imagePipeline.resize(width, height);
       }
 
-      asset.type = format;
+      if (format) {
+        if (!FORMATS.has(format)) {
+          throw new Error(`Sharp does not support ${format} images.`);
+        }
 
-      imagePipeline[FORMATS.get(format)]({
-        quality,
-      });
+        asset.type = format;
+
+        imagePipeline[FORMATS.get(format)]({
+          quality,
+        });
+      }
+
+      asset.setStream(imagePipeline);
     }
-
-    asset.setStream(imagePipeline);
 
     return [asset];
   },

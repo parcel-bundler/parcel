@@ -27,7 +27,11 @@ export default (new Runtime({
     let entries = bundle.getEntryAssets();
     for (let entry of entries) {
       let pkg = await entry.getPackage();
-      if (pkg && pkg.dependencies && pkg.dependencies['react']) {
+      if (
+        pkg &&
+        ((pkg.dependencies && pkg.dependencies['react']) ||
+          (pkg.devDependencies && pkg.devDependencies['react']))
+      ) {
         return {
           filePath: __filename,
           code: CODE,

@@ -35,13 +35,9 @@ import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
-import {
-  convertBabelLoc,
-  getName,
-  getIdentifier,
-  getExportIdentifier,
-} from './utils';
+import {getName, getIdentifier, getExportIdentifier} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -296,7 +292,23 @@ const VISITOR: Visitor<MutableAsset> = {
   },
 
   ThisExpression(path, asset: MutableAsset) {
-    if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
+    if (!path.scope.getData('shouldWrap')) {
+      let retainThis = false;
+      let scope = path.scope;
+      while (scope?.parent) {
+        if (
+          scope.path.isFunction() &&
+          !scope.path.isArrowFunctionExpression()
+        ) {
+          retainThis = true;
+          break;
+        }
+        scope = scope.parent.getFunctionParent();
+      }
+      if (retainThis) {
+        return;
+      }
+
       if (asset.meta.isES6Module) {
         path.replaceWith(t.identifier('undefined'));
       } else {

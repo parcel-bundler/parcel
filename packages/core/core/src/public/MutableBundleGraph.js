@@ -14,6 +14,7 @@ import type {
 import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
+import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromString} from '@parcel/utils';
 import BundleGraph from './BundleGraph';
@@ -80,6 +81,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       value: bundleGroup,
     };
 
+    // In recursive situations, merge the new bundle group with the old one
+    let existing = this.#graph._graph.getNode(bundleGroupNode.id);
+    if (existing) {
+      invariant(existing.type === 'bundle_group');
+      bundleGroup.bundleIds = existing.value.bundleIds;
+    }
+
     this.#graph._graph.addNode(bundleGroupNode);
     let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
     this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
@@ -136,7 +144,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleId = md5FromString(
       'bundle:' +
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
-        target.distDir,
+        path.relative(this.#options.projectRoot, target.distDir),
     );
 
     let existing = this.#graph._graph.getNode(bundleId);

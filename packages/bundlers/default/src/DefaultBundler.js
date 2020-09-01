@@ -515,6 +515,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
       type: 'number',
     },
   },
+  additionalProperties: false,
 };
 
 async function loadBundlerConfig(options: PluginOptions) {

@@ -44,7 +44,9 @@
     ],
     "service-worker": ["@parcel/runtime-js"],
     "web-worker": ["@parcel/runtime-js"],
-    "node": ["@parcel/runtime-js"]
+    "node": ["@parcel/runtime-js"],
+    "electron-renderer": ["@parcel/runtime-js"],
+    "electron-main": ["@parcel/runtime-js"]
   },
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],

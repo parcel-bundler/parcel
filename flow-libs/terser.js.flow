@@ -165,7 +165,7 @@ declare module 'terser' {
     minify(
       source: string,
       options?: MinifyOptions,
-    ): {|code?: string, error?: Error, map?: string | RawSourceMap|},
+    ): Promise<{|code?: string, error?: Error, map?: string | RawSourceMap|}>,
     ...
   };
 }
