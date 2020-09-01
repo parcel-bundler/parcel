@@ -81,6 +81,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       value: bundleGroup,
     };
 
+    // In recursive situations, merge the new bundle group with the old one
+    let existing = this.#graph._graph.getNode(bundleGroupNode.id);
+    if (existing) {
+      invariant(existing.type === 'bundle_group');
+      bundleGroup.bundleIds = existing.value.bundleIds;
+    }
+
     this.#graph._graph.addNode(bundleGroupNode);
     let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
     this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
