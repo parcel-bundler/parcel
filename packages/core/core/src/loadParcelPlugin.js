@@ -6,8 +6,7 @@ import semver from 'semver';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
-
-const PARCEL_VERSION = require('../package.json').version;
+import {version as PARCEL_VERSION} from '../package.json';
 
 export default async function loadPlugin<T>(
   packageManager: PackageManager,
