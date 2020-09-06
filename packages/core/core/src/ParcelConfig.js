@@ -183,9 +183,7 @@ export default class ParcelConfig {
     return validators.map(v => v.packageName);
   }
 
-  getValidators(
-    filePath: FilePath,
-  ): Promise<Array<LoadedPlugin<Validator>>> {
+  getValidators(filePath: FilePath): Promise<Array<LoadedPlugin<Validator>>> {
     let validators = this._getValidatorNodes(filePath);
     return this.loadPlugins<Validator>(validators);
   }

@@ -329,7 +329,7 @@ export default class UncommittedAsset {
           : null,
         plugin,
         configPath,
-        configKeyPath
+        configKeyPath,
       }),
       options: this.options,
       content,

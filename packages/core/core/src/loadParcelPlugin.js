@@ -7,7 +7,9 @@ import semver from 'semver';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
-import ThrowableDiagnostic, {generateJSONCodeHighlights} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
 import {findAlternativeNodeModules, resolveConfig} from '@parcel/utils';
 import path from 'path';
 
@@ -23,14 +25,16 @@ export default async function loadPlugin<T>(
 ): Promise<{|plugin: T, version: Semver|}> {
   let resolved, pkg;
   try {
-    ({resolved, pkg} = await packageManager.resolve(
-      pluginName,
-      resolveFrom,
-      {autoinstall},
-    ));
+    ({resolved, pkg} = await packageManager.resolve(pluginName, resolveFrom, {
+      autoinstall,
+    }));
   } catch (err) {
     let configContents = await fs.readFile(resolveFrom, 'utf8');
-    let alternatives = await findAlternativeNodeModules(fs, pluginName, path.dirname(resolveFrom));
+    let alternatives = await findAlternativeNodeModules(
+      fs,
+      pluginName,
+      path.dirname(resolveFrom),
+    );
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: `Cannot find parcel plugin "${pluginName}"`,
@@ -43,11 +47,13 @@ export default async function loadPlugin<T>(
             {
               key: keyPath,
               type: 'value',
-              message: `Cannot find module "${pluginName}"${alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''}`,
+              message: `Cannot find module "${pluginName}"${
+                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
+              }`,
             },
           ]),
         },
-      }
+      },
     });
   }
 
@@ -64,7 +70,9 @@ export default async function loadPlugin<T>(
     parcelVersionRange &&
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
-    let pkgFile = nullthrows(await resolveConfig(fs, resolved, ['package.json']));
+    let pkgFile = nullthrows(
+      await resolveConfig(fs, resolved, ['package.json']),
+    );
     let pkgContents = await fs.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
@@ -80,7 +88,7 @@ export default async function loadPlugin<T>(
             },
           ]),
         },
-      }
+      },
     });
   }
 

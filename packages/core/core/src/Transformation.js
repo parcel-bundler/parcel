@@ -149,8 +149,14 @@ export default class Transformation {
       if (request.plugin != null) {
         let resolveFrom = request.meta.parcelConfigPath;
         let keyPath = request.meta.parcelConfigKeyPath;
-        invariant(typeof resolveFrom === 'string', 'request.meta.parcelConfigPath should be a string!');
-        invariant(typeof keyPath === 'string', 'request.meta.parcelConfigKeyPath should be a string!');
+        invariant(
+          typeof resolveFrom === 'string',
+          'request.meta.parcelConfigPath should be a string!',
+        );
+        invariant(
+          typeof keyPath === 'string',
+          'request.meta.parcelConfigKeyPath should be a string!',
+        );
 
         let {plugin} = await this.parcelConfig.loadPlugin({
           packageName: request.plugin,

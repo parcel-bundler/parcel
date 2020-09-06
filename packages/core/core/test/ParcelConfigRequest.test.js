@@ -489,7 +489,7 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-resolver-base',
               resolveFrom: '.parcelrc',
-              keyPath: '/resolvers/0'
+              keyPath: '/resolvers/0',
             },
           ],
           transformers: {
@@ -525,7 +525,7 @@ describe('loadParcelConfig', () => {
           {
             packageName: 'parcel-resolver-ext',
             resolveFrom: '.parcelrc',
-            keyPath: '/resolvers/0'
+            keyPath: '/resolvers/0',
           },
           '...',
         ],
@@ -736,7 +736,8 @@ describe('loadParcelConfig', () => {
                 code,
                 codeHighlights: [
                   {
-                    message: '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
+                    message:
+                      '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
                     start: {line: 2, column: 14},
                     end: {line: 2, column: 38},
                   },
@@ -772,7 +773,8 @@ describe('loadParcelConfig', () => {
                 code,
                 codeHighlights: [
                   {
-                    message: 'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                    message:
+                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
                     start: {line: 2, column: 14},
                     end: {line: 2, column: 35},
                   },
@@ -808,7 +810,8 @@ describe('loadParcelConfig', () => {
                 code,
                 codeHighlights: [
                   {
-                    message: 'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                    message:
+                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
                     start: {line: 2, column: 15},
                     end: {line: 2, column: 36},
                   },
@@ -824,7 +827,8 @@ describe('loadParcelConfig', () => {
                 code,
                 codeHighlights: [
                   {
-                    message: '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
+                    message:
+                      '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
                     start: {line: 2, column: 39},
                     end: {line: 2, column: 50},
                   },

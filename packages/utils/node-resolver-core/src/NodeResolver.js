@@ -559,7 +559,9 @@ export default class NodeResolver {
                 {
                   key: `/${failedEntry.field}`,
                   type: 'value',
-                  message: `'${fileSpecifier}' does not exist${alternative ? `, did you mean '${alternative}'?` : ''}'`,
+                  message: `'${fileSpecifier}' does not exist${
+                    alternative ? `, did you mean '${alternative}'?` : ''
+                  }'`,
                 },
               ]),
             },

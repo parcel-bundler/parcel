@@ -39,9 +39,7 @@ export async function findAlternativeNodeModules(
               let orgDirContent = await fs.readdir(orgDirPath);
 
               // Add all org packages
-              potentialModules.push(
-                ...orgDirContent.map(i => `${item}/${i}`),
-              );
+              potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
             }),
           );
         }
