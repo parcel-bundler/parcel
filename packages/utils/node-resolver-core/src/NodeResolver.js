@@ -805,8 +805,6 @@ export default class NodeResolver {
           } else {
             alias = alias[1];
           }
-        } else if (alias === false) {
-          alias = f;
         }
         if (alias !== f) {
           res = res.concat(
