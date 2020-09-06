@@ -94,6 +94,7 @@ async function run({input, api, options}: RunOpts) {
   let parcelConfig = new ParcelConfig(
     config,
     options.packageManager,
+    options.inputFS,
     options.autoinstall,
   );
 

@@ -38,6 +38,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -130,6 +131,7 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
 
 export type ParcelOptions = {|
