@@ -59,18 +59,22 @@ export default async function dumpGraphToGraphViz(
       label += path.basename(node.value.filePath) + '#' + node.value.type;
     } else if (node.type === 'asset_group') {
       if (node.deferred) label += '(deferred)';
+      // $FlowFixMe
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
+      // $FlowFixMe
     } else if (node.type === 'transformer_request') {
       label +=
         path.basename(node.value.filePath) +
         ` (${getEnvDescription(node.value.env)})`;
+      // $FlowFixMe
     } else if (node.type === 'bundle') {
       let parts = [];
       if (node.value.isEntry) parts.push('entry');
       if (node.value.isInline) parts.push('inline');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
+      // $FlowFixMe
     } else if (node.type === 'request') {
       label = node.value.type + ':' + node.id;
     }
@@ -97,6 +101,8 @@ function getEnvDescription(env: Environment) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
+  } else if (env.engines.electron) {
+    description = `electron: ${env.engines.electron}`;
   }
 
   return description ?? '';

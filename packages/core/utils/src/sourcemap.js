@@ -4,8 +4,16 @@ import SourceMap from '@parcel/source-map';
 import path from 'path';
 import {normalizeSeparators} from './path';
 
-const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
+export const SOURCEMAP_RE: RegExp = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
+export const SOURCEMAP_EXTENSIONS: Set<string> = new Set<string>([
+  'js',
+  'jsx',
+  'mjs',
+  'es',
+  'es6',
+  'css',
+]);
 
 export function matchSourceMappingURL(
   contents: string,

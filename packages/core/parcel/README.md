@@ -687,7 +687,7 @@ See [Bundlers](#bundlers)
 
 #### `.parcelrc#namers`
 
-`bundler` is an array of Parcel namer packages.
+`namers` is an array of Parcel namer packages.
 
 ```json
 {

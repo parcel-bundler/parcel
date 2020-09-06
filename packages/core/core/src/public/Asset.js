@@ -22,6 +22,7 @@ import type {
   Stats,
   MutableSymbols as IMutableSymbols,
   Symbols as ISymbols,
+  QueryParameters,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -106,6 +107,10 @@ class BaseAsset {
 
   get filePath(): FilePath {
     return this.#asset.value.filePath;
+  }
+
+  get query(): QueryParameters {
+    return this.#asset.value.query;
   }
 
   get meta(): Meta {

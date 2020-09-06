@@ -103,7 +103,10 @@ export default (new Transformer({
               column: start.column + 1,
             };
 
-            if (typeof diagnostic.length === 'number') {
+            if (
+              typeof diagnostic.start === 'number' &&
+              typeof diagnostic.length === 'number'
+            ) {
               let endCharPosition = file.getLineAndCharacterOfPosition(
                 diagnostic.start + diagnostic.length,
               );

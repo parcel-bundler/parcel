@@ -36,11 +36,11 @@ import {
   isSequenceExpression,
   isStringLiteral,
 } from '@babel/types';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
 import {
   assertString,
-  convertBabelLoc,
   getName,
   getIdentifier,
   getThrowableDiagnosticForNode,
@@ -73,6 +73,8 @@ const FAKE_INIT_TEMPLATE = template.statement<
   return EXPORTS;
 }`);
 
+type LinkResult = {|ast: File, referencedAssets: Set<Asset>|};
+
 export function link({
   bundle,
   bundleGraph,
@@ -85,7 +87,7 @@ export function link({
   ast: File,
   options: PluginOptions,
   wrappedAssets: Set<string>,
-|}): {|ast: File, referencedAssets: Set<Asset>|} {
+|}): LinkResult {
   let format = OutputFormats[bundle.env.outputFormat];
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, null | [Asset, Symbol, ?SourceLocation]> = new Map();
@@ -233,9 +235,13 @@ export function link({
     // Look for an exports object if we bailed out.
     // TODO remove the first part of the condition once bundleGraph.resolveSymbol().identifier === null covers this
     if ((node === undefined && mod.meta.isCommonJS) || node === null) {
-      node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
-      if (!node) {
-        return null;
+      if (wrappedAssets.has(mod.id)) {
+        node = t.callExpression(getIdentifier(mod, 'init'), []);
+      } else {
+        node = findSymbol(path, assertString(mod.meta.exportsIdentifier));
+        if (!node) {
+          return null;
+        }
       }
 
       node = interop(mod, symbol, path, node);
@@ -265,7 +271,7 @@ export function link({
       if (!path.scope.getBinding(name)) {
         let binding = nullthrows(
           path.scope.getBinding(
-            bundle.hasAsset(mod)
+            bundle.hasAsset(mod) && !wrappedAssets.has(mod.id)
               ? assertString(mod.meta.exportsIdentifier)
               : // If this bundle doesn't have the asset, use the binding for
                 // the `parcelRequire`d init function.
@@ -525,7 +531,7 @@ export function link({
             throw getThrowableDiagnosticForNode(
               "`require.resolve` calls for excluded assets are only supported with outputFormat: 'commonjs'",
               mapped.filePath,
-              path.node.loc,
+              convertBabelLoc(path.node.loc),
             );
           }
 
@@ -536,7 +542,7 @@ export function link({
           throw getThrowableDiagnosticForNode(
             "`require.resolve` calls for bundled modules or bundled assets aren't supported with scope hoisting",
             mapped.filePath,
-            path.node.loc,
+            convertBabelLoc(path.node.loc),
           );
         }
       }
@@ -639,9 +645,14 @@ export function link({
             if (isIdentifier(parent.right, {name: identifier})) {
               return;
             }
+
+            // If the right side was imported from a different bundle, there is no $id$export$foo binding in this bundle
+            if (!path.scope.hasBinding(identifier)) {
+              return;
+            }
           }
 
-          // turn `$exports.foo = ...` into `$exports.foo = $export$foo = ...`
+          // turn `$id$exports.foo = ...` into `$id$exports.foo = $id$export$foo = ...`
           parentPath
             .get<NodePath<Node>>('right')
             .replaceWith(
