@@ -16,6 +16,7 @@ import type {
   Validator,
 } from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
+import type {FileSystem} from '@parcel/fs';
 import type {
   ProcessedParcelConfig,
   ParcelPluginNode,
@@ -31,11 +32,21 @@ type SerializedParcelConfig = {|
   $$raw: boolean,
   config: ProcessedParcelConfig,
   packageManager: PackageManager,
+  fs: FileSystem,
   autoinstall: boolean,
+|};
+
+type LoadedPlugin<T> = {|
+  name: string,
+  version: Semver,
+  plugin: T,
+  resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export default class ParcelConfig {
   packageManager: PackageManager;
+  fs: FileSystem;
   filePath: FilePath;
   resolvers: PureParcelConfigPipeline;
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
@@ -52,9 +63,11 @@ export default class ParcelConfig {
   constructor(
     config: ProcessedParcelConfig,
     packageManager: PackageManager,
+    fs: FileSystem,
     autoinstall: boolean,
   ) {
     this.packageManager = packageManager;
+    this.fs = fs;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transformers = config.transformers || {};
@@ -73,6 +86,7 @@ export default class ParcelConfig {
     return new ParcelConfig(
       serialized.config,
       serialized.packageManager,
+      serialized.fs,
       serialized.autoinstall,
     );
   }
@@ -96,6 +110,7 @@ export default class ParcelConfig {
     return {
       $$raw: false,
       packageManager: this.packageManager,
+      fs: this.fs,
       config: this.getConfig(),
       autoinstall: this.autoinstall,
     };
@@ -110,9 +125,11 @@ export default class ParcelConfig {
     }
 
     plugin = loadPlugin<T>(
+      this.fs,
       this.packageManager,
       node.packageName,
       node.resolveFrom,
+      node.keyPath,
       this.autoinstall,
     );
     this.pluginCache.set(node.packageName, plugin);
@@ -121,14 +138,7 @@ export default class ParcelConfig {
 
   loadPlugins<T>(
     plugins: PureParcelConfigPipeline,
-  ): Promise<
-    Array<{|
-      name: string,
-      version: Semver,
-      plugin: T,
-      resolveFrom: FilePath,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<T>>> {
     return Promise.all(
       plugins.map(async p => {
         let {plugin, version} = await this.loadPlugin<T>(p);
@@ -137,6 +147,7 @@ export default class ParcelConfig {
           plugin,
           version,
           resolveFrom: p.resolveFrom,
+          keyPath: p.keyPath,
         };
       }),
     );
@@ -154,14 +165,7 @@ export default class ParcelConfig {
     return this._getResolverNodes().map(r => r.packageName);
   }
 
-  getResolvers(): Promise<
-    Array<{|
-      name: string,
-      plugin: Resolver,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getResolvers(): Promise<Array<LoadedPlugin<Resolver>>> {
     return this.loadPlugins<Resolver>(this._getResolverNodes());
   }
 
@@ -179,16 +183,7 @@ export default class ParcelConfig {
     return validators.map(v => v.packageName);
   }
 
-  getValidators(
-    filePath: FilePath,
-  ): Promise<
-    Array<{|
-      name: string,
-      plugin: Validator,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getValidators(filePath: FilePath): Promise<Array<LoadedPlugin<Validator>>> {
     let validators = this._getValidatorNodes(filePath);
     return this.loadPlugins<Validator>(validators);
   }
@@ -237,14 +232,7 @@ export default class ParcelConfig {
     filePath: FilePath,
     pipeline?: ?string,
     allowEmpty?: boolean,
-  ): Promise<
-    Array<{|
-      name: string,
-      plugin: Transformer,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<Transformer>>> {
     return this.loadPlugins<Transformer>(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
@@ -266,14 +254,7 @@ export default class ParcelConfig {
     return this.loadPlugin<Bundler>(this.bundler);
   }
 
-  getNamers(): Promise<
-    Array<{|
-      name: string,
-      plugin: Namer,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getNamers(): Promise<Array<LoadedPlugin<Namer>>> {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
@@ -283,14 +264,7 @@ export default class ParcelConfig {
 
   getRuntimes(
     context: EnvironmentContext,
-  ): Promise<
-    Array<{|
-      name: string,
-      version: Semver,
-      plugin: Runtime,
-      resolveFrom: FilePath,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<Runtime>>> {
     let runtimes = this.runtimes[context];
     if (!runtimes) {
       return Promise.resolve([]);
@@ -345,14 +319,7 @@ export default class ParcelConfig {
   getOptimizers(
     filePath: FilePath,
     pipeline: ?string,
-  ): Promise<
-    Array<{|
-      name: string,
-      version: Semver,
-      plugin: Optimizer,
-      resolveFrom: FilePath,
-    |}>,
-  > {
+  ): Promise<Array<LoadedPlugin<Optimizer>>> {
     let optimizers = this._getOptimizerNodes(filePath, pipeline);
     if (optimizers.length === 0) {
       return Promise.resolve([]);
@@ -361,14 +328,7 @@ export default class ParcelConfig {
     return this.loadPlugins<Optimizer>(optimizers);
   }
 
-  getReporters(): Promise<
-    Array<{|
-      name: string,
-      plugin: Reporter,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
+  getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {
     return this.loadPlugins<Reporter>(this.reporters);
   }
 

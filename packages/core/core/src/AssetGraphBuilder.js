@@ -199,6 +199,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     let config = new ParcelConfig(
       processedConfig,
       this.options.packageManager,
+      this.options.inputFS,
       this.options.autoinstall,
     );
     let trackedRequestsDesc = this.assetRequests.filter(request => {
