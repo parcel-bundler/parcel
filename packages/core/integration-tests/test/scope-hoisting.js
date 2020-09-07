@@ -346,16 +346,18 @@ describe('scope hoisting', function() {
             filePath: source,
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 8,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 8,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 8,
-                },
-              },
+              ],
             },
           },
         ],
@@ -381,16 +383,18 @@ describe('scope hoisting', function() {
             ),
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 9,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 9,
+                  },
+                  end: {
+                    line: 1,
+                    column: 11,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 11,
-                },
-              },
+              ],
             },
           },
         ],
@@ -1847,16 +1851,18 @@ describe('scope hoisting', function() {
             filePath: source,
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 3,
-                  column: 10,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 3,
+                    column: 10,
+                  },
+                  end: {
+                    line: 3,
+                    column: 31,
+                  },
                 },
-                end: {
-                  line: 3,
-                  column: 31,
-                },
-              },
+              ],
             },
           },
         ],
