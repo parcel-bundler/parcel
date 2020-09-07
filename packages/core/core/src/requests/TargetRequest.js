@@ -133,12 +133,10 @@ export class TargetResolver {
       if (Array.isArray(optionTargets)) {
         if (optionTargets.length === 0) {
           throw new ThrowableDiagnostic({
-            diagnostics: [
-              {
-                message: `Targets option is an empty array`,
-                origin: '@parcel/core',
-              },
-            ],
+            diagnostic: {
+              message: `Targets option is an empty array`,
+              origin: '@parcel/core',
+            },
           });
         }
 
@@ -148,12 +146,10 @@ export class TargetResolver {
           let matchingTarget = packageTargets.targets.get(target);
           if (!matchingTarget) {
             throw new ThrowableDiagnostic({
-              diagnostics: [
-                {
-                  message: `Could not find target with name "${target}"`,
-                  origin: '@parcel/core',
-                },
-              ],
+              diagnostic: {
+                message: `Could not find target with name "${target}"`,
+                origin: '@parcel/core',
+              },
             });
           }
           return matchingTarget;
@@ -172,24 +168,22 @@ export class TargetResolver {
           if (distDir == null) {
             let optionTargetsString = JSON.stringify(optionTargets, null, '\t');
             throw new ThrowableDiagnostic({
-              diagnostics: [
-                {
-                  message: `Missing distDir for target "${name}"`,
-                  origin: '@parcel/core',
-                  codeFrame: {
-                    code: optionTargetsString,
-                    codeHighlights: generateJSONCodeHighlights(
-                      optionTargetsString,
-                      [
-                        {
-                          key: `/${name}`,
-                          type: 'value',
-                        },
-                      ],
-                    ),
-                  },
+              diagnostic: {
+                message: `Missing distDir for target "${name}"`,
+                origin: '@parcel/core',
+                codeFrame: {
+                  code: optionTargetsString,
+                  codeHighlights: generateJSONCodeHighlights(
+                    optionTargetsString,
+                    [
+                      {
+                        key: `/${name}`,
+                        type: 'value',
+                      },
+                    ],
+                  ),
                 },
-              ],
+              },
             });
           }
           return {
@@ -217,22 +211,18 @@ export class TargetResolver {
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
           throw new ThrowableDiagnostic({
-            diagnostics: [
-              {
-                message: `More than one target is not supported in serve mode`,
-                origin: '@parcel/core',
-              },
-            ],
+            diagnostic: {
+              message: `More than one target is not supported in serve mode`,
+              origin: '@parcel/core',
+            },
           });
         }
         if (!BROWSER_ENVS.has(targets[0].env.context)) {
           throw new ThrowableDiagnostic({
-            diagnostics: [
-              {
-                message: `Only browser targets are supported in serve mode`,
-                origin: '@parcel/core',
-              },
-            ],
+            diagnostic: {
+              message: `Only browser targets are supported in serve mode`,
+              origin: '@parcel/core',
+            },
           });
         }
         targets[0].distDir = serve.distDir;
@@ -285,12 +275,10 @@ export class TargetResolver {
       let pkgFile = conf.files[0];
       if (pkgFile == null) {
         throw new ThrowableDiagnostic({
-          diagnostics: [
-            {
-              message: `Expected package.json file in ${rootDir}`,
-              origin: '@parcel/core',
-            },
-          ],
+          diagnostic: {
+            message: `Expected package.json file in ${rootDir}`,
+            origin: '@parcel/core',
+          },
         });
       }
       pkgFilePath = pkgFile.filePath;
@@ -459,24 +447,22 @@ export class TargetResolver {
               : // $FlowFixMe
                 JSON.stringify(pkgContents, null, '\t');
           throw new ThrowableDiagnostic({
-            diagnostics: [
-              {
-                message: `Invalid distPath for target "${targetName}"`,
-                origin: '@parcel/core',
-                language: 'json',
-                filePath: pkgFilePath ?? undefined,
-                codeFrame: {
-                  code: contents,
-                  codeHighlights: generateJSONCodeHighlights(contents, [
-                    {
-                      key: `/${targetName}`,
-                      type: 'value',
-                      message: 'Expected type string',
-                    },
-                  ]),
-                },
+            diagnostic: {
+              message: `Invalid distPath for target "${targetName}"`,
+              origin: '@parcel/core',
+              language: 'json',
+              filePath: pkgFilePath ?? undefined,
+              codeFrame: {
+                code: contents,
+                codeHighlights: generateJSONCodeHighlights(contents, [
+                  {
+                    key: `/${targetName}`,
+                    type: 'value',
+                    message: 'Expected type string',
+                  },
+                ]),
               },
-            ],
+            },
           });
         }
         distDir = path.resolve(pkgDir, path.dirname(distPath));
@@ -659,7 +645,7 @@ function assertNoDuplicateTargets(targets, pkgFilePath, pkgContents) {
     ];
 
     throw new ThrowableDiagnostic({
-      diagnostics,
+      diagnostic: diagnostics,
     });
   }
 }

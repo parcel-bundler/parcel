@@ -382,14 +382,12 @@ export default class NodeResolver {
 
       if (alternativeModules.length) {
         throw new ThrowableDiagnostic({
-          diagnostics: [
-            {
-              message: `Cannot find module ${resolved.moduleName}`,
-              hints: alternativeModules.map(r => {
-                return `Did you mean __${r}__?`;
-              }),
-            },
-          ],
+          diagnostic: {
+            message: `Cannot find module ${resolved.moduleName}`,
+            hints: alternativeModules.map(r => {
+              return `Did you mean __${r}__?`;
+            }),
+          },
         });
       }
     }
@@ -500,17 +498,15 @@ export default class NodeResolver {
       );
 
       throw new ThrowableDiagnostic({
-        diagnostics: [
-          {
-            message: `Cannot load file '${relativeFileSpecifier}' in '${relativePath(
-              this.projectRoot,
-              parentdir,
-            )}'.`,
-            hints: potentialFiles.map(r => {
-              return `Did you mean __${r}__?`;
-            }),
-          },
-        ],
+        diagnostic: {
+          message: `Cannot load file '${relativeFileSpecifier}' in '${relativePath(
+            this.projectRoot,
+            parentdir,
+          )}'.`,
+          hints: potentialFiles.map(r => {
+            return `Did you mean __${r}__?`;
+          }),
+        },
       });
     }
 
@@ -663,24 +659,22 @@ export default class NodeResolver {
         let alternative = alternatives[0];
         let pkgContent = await this.fs.readFile(pkg.pkgfile, 'utf8');
         throw new ThrowableDiagnostic({
-          diagnostics: [
-            {
-              message: `Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
-              language: 'json',
-              filePath: pkg.pkgfile,
-              codeFrame: {
-                code: pkgContent,
-                codeHighlights: generateJSONCodeHighlights(pkgContent, [
-                  {
-                    key: `/${failedEntry.field}`,
-                    type: 'value',
-                    message: `'${fileSpecifier}' does not exist${alternative &&
-                      `, did you mean '${alternative}'?`}'`,
-                  },
-                ]),
-              },
+          diagnostic: {
+            message: `Could not load '${fileSpecifier}' from module '${pkg.name}' found in package.json#${failedEntry.field}`,
+            language: 'json',
+            filePath: pkg.pkgfile,
+            codeFrame: {
+              code: pkgContent,
+              codeHighlights: generateJSONCodeHighlights(pkgContent, [
+                {
+                  key: `/${failedEntry.field}`,
+                  type: 'value',
+                  message: `'${fileSpecifier}' does not exist${alternative &&
+                    `, did you mean '${alternative}'?`}'`,
+                },
+              ]),
             },
-          ],
+          },
         });
       }
     }
@@ -893,14 +887,10 @@ export default class NodeResolver {
       if (alias.global) {
         if (typeof alias.global !== 'string' || alias.global.length === 0) {
           throw new ThrowableDiagnostic({
-            diagnostics: [
-              {
-                message: `The global alias for ${filename} is invalid.`,
-                hints: [
-                  `Only nonzero-length strings are valid global aliases.`,
-                ],
-              },
-            ],
+            diagnostic: {
+              message: `The global alias for ${filename} is invalid.`,
+              hints: [`Only nonzero-length strings are valid global aliases.`],
+            },
           });
         }
         return ['global', alias.global];

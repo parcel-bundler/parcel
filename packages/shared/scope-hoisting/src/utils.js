@@ -294,6 +294,6 @@ export function getThrowableDiagnosticForNode(
     };
   }
   return new ThrowableDiagnostic({
-    diagnostics: [diagnostic],
+    diagnostic,
   });
 }

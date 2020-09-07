@@ -326,7 +326,7 @@ export default class Transformation {
           }
         } catch (e) {
           throw new ThrowableDiagnostic({
-            diagnostics: errorToDiagnostic(e, transformer.name),
+            diagnostic: errorToDiagnostic(e, transformer.name),
           });
         }
       }

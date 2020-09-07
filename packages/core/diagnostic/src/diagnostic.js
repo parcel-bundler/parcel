@@ -107,7 +107,7 @@ export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
   let diagnostic: Array<Diagnostic> = input;
 
   if (input instanceof ThrowableDiagnostic) {
-    diagnostic = input.diagnostics;
+    diagnostic = input.diagnostic;
   } else if (input instanceof Error) {
     diagnostic = errorToDiagnostic(input);
   }
@@ -133,7 +133,7 @@ export function errorToDiagnostic(
   }
 
   if (error instanceof ThrowableDiagnostic) {
-    return error.diagnostics.map(d => {
+    return error.diagnostic.map(d => {
       return {
         ...d,
         origin: realOrigin ?? d.origin ?? 'unknown',
@@ -172,9 +172,7 @@ export function errorToDiagnostic(
 }
 
 type ThrowableDiagnosticOpts = {
-  diagnostics: Array<Diagnostic>,
-  // Backwards compatibility
-  diagnostic?: Diagnostic | Array<Diagnostic>,
+  diagnostic: Diagnostic | Array<Diagnostic>,
   ...
 };
 
@@ -183,24 +181,19 @@ type ThrowableDiagnosticOpts = {
  * build error).
  */
 export default class ThrowableDiagnostic extends Error {
-  diagnostics: Array<Diagnostic>;
+  diagnostic: Array<Diagnostic>;
 
   constructor(opts: ThrowableDiagnosticOpts) {
-    let diagnostics = opts.diagnostics;
-
-    // Backwards compatibility
-    if (!diagnostics && opts.diagnostic) {
-      diagnostics = Array.isArray(opts.diagnostic)
-        ? opts.diagnostic
-        : [opts.diagnostic];
-    }
+    let diagnostic = Array.isArray(opts.diagnostic)
+      ? opts.diagnostic
+      : [opts.diagnostic];
 
     // Construct error from diagnostics
-    super(diagnostics[0].message);
-    this.stack = diagnostics[0].stack ?? super.stack;
-    this.name = diagnostics[0].name ?? super.name;
+    super(diagnostic[0].message);
+    this.stack = diagnostic[0].stack ?? super.stack;
+    this.name = diagnostic[0].name ?? super.name;
 
-    this.diagnostics = diagnostics;
+    this.diagnostic = diagnostic;
   }
 }
 

@@ -147,7 +147,7 @@ export class NodePackageManager implements PackageManager {
         }
 
         throw new ThrowableDiagnostic({
-          diagnostics: conflicts.fields.map(field => ({
+          diagnostic: conflicts.fields.map(field => ({
             message: `Could not find module "${name}", but it was listed in package.json. Run your package manager first.`,
             filePath: conflicts.filePath,
             origin: '@parcel/package-manager',
@@ -184,25 +184,23 @@ export class NodePackageManager implements PackageManager {
             });
           } else if (conflicts != null) {
             throw new ThrowableDiagnostic({
-              diagnostics: [
-                {
-                  message: `Could not find module "${name}" satisfying ${range}.`,
-                  filePath: conflicts.filePath,
-                  origin: '@parcel/package-manager',
-                  language: 'json',
-                  codeFrame: {
-                    code: conflicts.json,
-                    codeHighlights: generateJSONCodeHighlights(
-                      conflicts.json,
-                      conflicts.fields.map(field => ({
-                        key: `/${field}/${encodeJSONKeyComponent(name)}`,
-                        type: 'key',
-                        message: 'Found this conflicting local requirement.',
-                      })),
-                    ),
-                  },
+              diagnostic: {
+                message: `Could not find module "${name}" satisfying ${range}.`,
+                filePath: conflicts.filePath,
+                origin: '@parcel/package-manager',
+                language: 'json',
+                codeFrame: {
+                  code: conflicts.json,
+                  codeHighlights: generateJSONCodeHighlights(
+                    conflicts.json,
+                    conflicts.fields.map(field => ({
+                      key: `/${field}/${encodeJSONKeyComponent(name)}`,
+                      type: 'key',
+                      message: 'Found this conflicting local requirement.',
+                    })),
+                  ),
                 },
-              ],
+              },
             });
           }
 
@@ -213,12 +211,10 @@ export class NodePackageManager implements PackageManager {
           }
 
           throw new ThrowableDiagnostic({
-            diagnostics: [
-              {
-                message,
-                origin: '@parcel/package-manager',
-              },
-            ],
+            diagnostic: {
+              message,
+              origin: '@parcel/package-manager',
+            },
           });
         }
       }

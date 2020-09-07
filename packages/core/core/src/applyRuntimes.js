@@ -83,7 +83,7 @@ export default async function applyRuntimes({
         }
       } catch (e) {
         throw new ThrowableDiagnostic({
-          diagnostics: errorToDiagnostic(e, runtime.name),
+          diagnostic: errorToDiagnostic(e, runtime.name),
         });
       }
     }

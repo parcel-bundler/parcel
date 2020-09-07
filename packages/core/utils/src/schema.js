@@ -461,16 +461,14 @@ validateSchema.diagnostic = function(
     };
 
     throw new ThrowableDiagnostic({
-      diagnostics: [
-        {
-          message,
-          origin,
-          // $FlowFixMe should be a sketchy string check
-          filePath: dataContentsPath || undefined,
-          language: 'json',
-          codeFrame,
-        },
-      ],
+      diagnostic: {
+        message,
+        origin,
+        // $FlowFixMe should be a sketchy string check
+        filePath: dataContentsPath || undefined,
+        language: 'json',
+        codeFrame,
+      },
     });
   }
 };

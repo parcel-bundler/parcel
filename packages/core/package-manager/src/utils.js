@@ -44,25 +44,21 @@ export async function getConflictingLocalDependencies(
     pkg = JSON.parse(pkgStr);
   } catch (e) {
     throw new ThrowableDiagnostic({
-      diagnostics: [
-        {
-          filePath: pkgPath,
-          message: 'Failed to parse package.json',
-          origin: '@parcel/package-manager',
-        },
-      ],
+      diagnostic: {
+        filePath: pkgPath,
+        message: 'Failed to parse package.json',
+        origin: '@parcel/package-manager',
+      },
     });
   }
 
   if (typeof pkg !== 'object' || pkg == null) {
     throw new ThrowableDiagnostic({
-      diagnostics: [
-        {
-          filePath: pkgPath,
-          message: 'Expected package.json contents to be an object.',
-          origin: '@parcel/package-manager',
-        },
-      ],
+      diagnostic: {
+        filePath: pkgPath,
+        message: 'Expected package.json contents to be an object.',
+        origin: '@parcel/package-manager',
+      },
     });
   }
 

@@ -153,25 +153,23 @@ export async function readAndProcessConfigChain(
       column: e.columnNumber,
     };
     throw new ThrowableDiagnostic({
-      diagnostics: [
-        {
-          message: 'Failed to parse .parcelrc',
-          origin: '@parcel/core',
+      diagnostic: {
+        message: 'Failed to parse .parcelrc',
+        origin: '@parcel/core',
 
-          filePath: configPath,
-          language: 'json5',
-          codeFrame: {
-            code: contents,
-            codeHighlights: [
-              {
-                start: pos,
-                end: pos,
-                message: e.message,
-              },
-            ],
-          },
+        filePath: configPath,
+        language: 'json5',
+        codeFrame: {
+          code: contents,
+          codeHighlights: [
+            {
+              start: pos,
+              end: pos,
+              message: e.message,
+            },
+          ],
         },
-      ],
+      },
     });
   }
   return processConfigChain(config, configPath, options);

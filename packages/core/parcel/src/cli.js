@@ -13,7 +13,7 @@ require('v8-compile-cache');
 
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
-    for (let diagnostic of e.diagnostics) {
+    for (let diagnostic of e.diagnostic) {
       let out = await prettyDiagnostic(diagnostic);
       INTERNAL_ORIGINAL_CONSOLE.error(out.message);
       INTERNAL_ORIGINAL_CONSOLE.error(out.codeframe || out.stack);

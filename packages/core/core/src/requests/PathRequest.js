@@ -109,7 +109,7 @@ export class ResolverRunner {
       };
     }
 
-    return new ThrowableDiagnostic({diagnostics: [diagnostic]});
+    return new ThrowableDiagnostic({diagnostic});
   }
 
   async resolve(dependency: Dependency): Promise<?AssetGroup> {

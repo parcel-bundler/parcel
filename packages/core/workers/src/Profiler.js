@@ -46,13 +46,11 @@ export default class Profiler {
       inspector = require('inspector');
     } catch (err) {
       throw new ThrowableDiagnostic({
-        diagnostics: [
-          {
-            message: `The inspector module isn't available`,
-            origin: '@parcel/workers',
-            hints: ['Disable build profiling'],
-          },
-        ],
+        diagnostic: {
+          message: `The inspector module isn't available`,
+          origin: '@parcel/workers',
+          hints: ['Disable build profiling'],
+        },
       });
     }
 

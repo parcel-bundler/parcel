@@ -81,7 +81,7 @@ export default (new Optimizer({
             hints: ["It's likely that Terser doesn't support this syntax yet."],
           });
         }
-        throw new ThrowableDiagnostic({diagnostics});
+        throw new ThrowableDiagnostic({diagnostic: diagnostics});
       } else {
         throw error;
       }
