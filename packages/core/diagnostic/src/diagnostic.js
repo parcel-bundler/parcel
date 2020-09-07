@@ -102,12 +102,13 @@ export type Diagnostifiable =
   | PrintableError
   | string;
 
+/** Normalize the given value into a diagnostic. */
 export function anyToDiagnostic(input: Diagnostifiable): Array<Diagnostic> {
   // $FlowFixMe
   let diagnostic: Array<Diagnostic> = input;
 
   if (input instanceof ThrowableDiagnostic) {
-    diagnostic = input.diagnostic;
+    diagnostic = input.diagnostics;
   } else if (input instanceof Error) {
     diagnostic = errorToDiagnostic(input);
   }
@@ -133,7 +134,7 @@ export function errorToDiagnostic(
   }
 
   if (error instanceof ThrowableDiagnostic) {
-    return error.diagnostic.map(d => {
+    return error.diagnostics.map(d => {
       return {
         ...d,
         origin: realOrigin ?? d.origin ?? 'unknown',
@@ -181,19 +182,19 @@ type ThrowableDiagnosticOpts = {
  * build error).
  */
 export default class ThrowableDiagnostic extends Error {
-  diagnostic: Array<Diagnostic>;
+  diagnostics: Array<Diagnostic>;
 
   constructor(opts: ThrowableDiagnosticOpts) {
-    let diagnostic = Array.isArray(opts.diagnostic)
+    let diagnostics = Array.isArray(opts.diagnostic)
       ? opts.diagnostic
       : [opts.diagnostic];
 
     // Construct error from diagnostics
-    super(diagnostic[0].message);
-    this.stack = diagnostic[0].stack ?? super.stack;
-    this.name = diagnostic[0].name ?? super.name;
+    super(diagnostics[0].message);
+    this.stack = diagnostics[0].stack ?? super.stack;
+    this.name = diagnostics[0].name ?? super.name;
 
-    this.diagnostic = diagnostic;
+    this.diagnostics = diagnostics;
   }
 }
 
