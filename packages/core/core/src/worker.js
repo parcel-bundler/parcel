@@ -55,6 +55,7 @@ async function loadConfig(cachePath, options) {
     // $FlowFixMe
     ((processedConfig: any): ProcessedParcelConfig),
     options.packageManager,
+    options.inputFS,
     options.autoinstall,
   );
   parcelConfigCache.set(cachePath, config);
@@ -125,6 +126,7 @@ export function runPackage(
   let config = new ParcelConfig(
     processedConfig,
     options.packageManager,
+    options.inputFS,
     options.autoinstall,
   );
 

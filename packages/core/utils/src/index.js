@@ -29,6 +29,7 @@ export {default as throttle} from './throttle';
 export {default as openInBrowser} from './openInBrowser';
 
 // Explicit re-exports instead of export * for lazy require performance
+export {findAlternativeNodeModules, findAlternativeFiles} from './alternatives';
 export {blobToBuffer, blobToString} from './blob';
 export {
   unique,
