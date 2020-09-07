@@ -118,7 +118,7 @@ export default ({
             filePath: loc?.filePath ?? asset.filePath,
             codeFrame: loc
               ? {
-                  codeHighlights: {start: loc.start, end: loc.end},
+                  codeHighlights: [{start: loc.start, end: loc.end}],
                 }
               : undefined,
           };
@@ -133,7 +133,7 @@ export default ({
             filePath: loc?.filePath ?? asset.filePath,
             codeFrame: loc
               ? {
-                  codeHighlights: {start: loc.start, end: loc.end},
+                  codeHighlights: [{start: loc.start, end: loc.end}],
                 }
               : undefined,
             hints: ['You might want to enable `inlineFS`?'],

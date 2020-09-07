@@ -189,11 +189,13 @@ function getValidateResultFromDiagnostics(
 
           codeframe = {
             code: source,
-            codeHighlights: {
-              start,
-              end,
-              message: diagnosticMessage,
-            },
+            codeHighlights: [
+              {
+                start,
+                end,
+                message: diagnosticMessage,
+              },
+            ],
           };
         }
       }
