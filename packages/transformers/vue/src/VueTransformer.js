@@ -167,16 +167,18 @@ function createDiagnostic(err, filePath) {
   };
   if (err.loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: {
-          line: err.loc.start.line + err.loc.start.offset,
-          column: err.loc.start.column,
+      codeHighlights: [
+        {
+          start: {
+            line: err.loc.start.line + err.loc.start.offset,
+            column: err.loc.start.column,
+          },
+          end: {
+            line: err.loc.end.line + err.loc.end.offset,
+            column: err.loc.end.column,
+          },
         },
-        end: {
-          line: err.loc.end.line + err.loc.end.offset,
-          column: err.loc.end.column,
-        },
-      },
+      ],
     };
   }
   return diagnostic;

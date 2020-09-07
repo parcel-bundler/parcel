@@ -285,10 +285,12 @@ export function getThrowableDiagnosticForNode(
   }
   if (loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: loc.start,
-        end: loc.end,
-      },
+      codeHighlights: [
+        {
+          start: loc.start,
+          end: loc.end,
+        },
+      ],
     };
   }
   return new ThrowableDiagnostic({
