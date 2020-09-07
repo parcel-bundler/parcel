@@ -287,6 +287,7 @@ export default class UncommittedAsset {
     result: TransformerResult,
     plugin: PackageName,
     configPath: FilePath,
+    configKeyPath: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
@@ -328,6 +329,7 @@ export default class UncommittedAsset {
           : null,
         plugin,
         configPath,
+        configKeyPath,
       }),
       options: this.options,
       content,

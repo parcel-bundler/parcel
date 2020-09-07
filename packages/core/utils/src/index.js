@@ -25,6 +25,7 @@ export {default as debounce} from './debounce';
 export {default as throttle} from './throttle';
 export {default as openInBrowser} from './openInBrowser';
 
+export * from './alternatives';
 export * from './blob';
 export * from './collection';
 export * from './config';
