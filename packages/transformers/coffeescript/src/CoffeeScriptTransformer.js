@@ -21,7 +21,7 @@ export default (new Transformer({
     if (options.sourceMaps) {
       let map = null;
       if (output.v3SourceMap) {
-        map = new SourceMap();
+        map = new SourceMap(options.projectRoot);
         map.addRawMappings(JSON.parse(output.v3SourceMap));
       }
 

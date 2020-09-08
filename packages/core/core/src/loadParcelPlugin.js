@@ -12,8 +12,7 @@ import ThrowableDiagnostic, {
 } from '@parcel/diagnostic';
 import {findAlternativeNodeModules, resolveConfig} from '@parcel/utils';
 import path from 'path';
-
-const PARCEL_VERSION = require('../package.json').version;
+import {version as PARCEL_VERSION} from '../package.json';
 
 export default async function loadPlugin<T>(
   fs: FileSystem,

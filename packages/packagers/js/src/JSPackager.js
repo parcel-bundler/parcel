@@ -99,7 +99,7 @@ export default (new Packager({
     let assets = '';
     let i = 0;
     let first = true;
-    let map = new SourceMap();
+    let map = new SourceMap(options.projectRoot);
 
     let prefix = getPrefix(bundle, bundleGraph);
     let lineOffset = countLines(prefix);
