@@ -19,6 +19,7 @@ import SourceMap from '@parcel/source-map';
 import {
   bufferStream,
   md5FromString,
+  md5FromFilePath,
   blobToStream,
   streamFromPromise,
   TapStream,
@@ -91,6 +92,7 @@ export default class UncommittedAsset {
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     await Promise.all([
+      this.addIncludedFileHashes(),
       contentKey != null &&
         this.options.cache.setStream(
           contentKey,
@@ -114,7 +116,12 @@ export default class UncommittedAsset {
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
     this.value.outputHash = md5FromString(
-      [this.value.hash, pipelineKey].join(':'),
+      [
+        this.value.hash,
+        pipelineKey,
+        ...[...this.value.includedFiles.values()].map(f => f.hash),
+        ...[...this.value.invalidateOnEnvChange].map(([k, v]) => k + ':' + v),
+      ].join(':'),
     );
 
     if (this.content != null) {
@@ -122,6 +129,37 @@ export default class UncommittedAsset {
     }
 
     this.value.committed = true;
+  }
+
+  async addIncludedFileHashes() {
+    await Promise.all(
+      [...this.value.includedFiles.values()].map(async file => {
+        if (file.hash == null) {
+          // $FlowFixMe
+          file.hash = await md5FromFilePath(
+            this.options.inputFS,
+            file.filePath,
+          );
+        }
+      }),
+    );
+  }
+
+  async shouldInvalidate(): Promise<boolean> {
+    for (let [key, value] of this.value.invalidateOnEnvChange) {
+      if (this.options.env[key] !== value) {
+        return true;
+      }
+    }
+
+    for (let file of this.value.includedFiles.values()) {
+      let hash = await md5FromFilePath(this.options.inputFS, file.filePath);
+      if (hash !== file.hash) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   async getCode(): Promise<string> {
@@ -307,6 +345,7 @@ export default class UncommittedAsset {
             ? new Map(this.value.dependencies)
             : new Map(),
         includedFiles: new Map(this.value.includedFiles),
+        invalidateOnEnvChange: new Map(this.value.invalidateOnEnvChange),
         meta: {
           ...this.value.meta,
           ...result.meta,

@@ -119,6 +119,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
+      this.requestGraph.invalidateEnvNodes(options.env);
       this.requestTracker.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({

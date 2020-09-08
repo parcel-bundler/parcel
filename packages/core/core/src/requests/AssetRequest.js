@@ -67,6 +67,10 @@ async function run({input, api, options, farm}: RunInput) {
       api.invalidateOnFileUpdate(filePath);
       api.invalidateOnFileDelete(filePath);
     }
+
+    for (let env of asset.invalidateOnEnvChange.keys()) {
+      api.invalidateOnEnvChange(env);
+    }
   }
 
   // Add config requests

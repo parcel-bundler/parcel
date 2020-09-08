@@ -382,13 +382,21 @@ export default class Transformation {
       return null;
     }
 
-    return cachedAssets.map(
+    let assets = cachedAssets.map(
       (value: AssetValue) =>
         new UncommittedAsset({
           value,
           options: this.options,
         }),
     );
+
+    for (let asset of assets) {
+      if (await asset.shouldInvalidate()) {
+        return null;
+      }
+    }
+
+    return assets;
   }
 
   async writeToCache(

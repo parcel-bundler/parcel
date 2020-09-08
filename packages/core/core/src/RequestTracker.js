@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {Async, File, FilePath, Glob} from '@parcel/types';
+import type {Async, File, FilePath, Glob, EnvMap} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {NodeId, ParcelOptions} from './types';
@@ -17,11 +17,17 @@ type SerializedRequestGraph = {|
   invalidNodeIds: Set<NodeId>,
   incompleteNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
 |};
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
+type EnvNode = {|
+  id: string,
+  +type: 'env',
+  value: {|key: string, value: string|},
+|};
 
 type Request<TInput, TResult> = {|
   id: string,
@@ -42,7 +48,7 @@ type RequestNode = {|
   +type: 'request',
   value: StoredRequest,
 |};
-type RequestGraphNode = RequestNode | FileNode | GlobNode;
+type RequestGraphNode = RequestNode | FileNode | GlobNode | EnvNode;
 
 type RequestGraphEdgeType =
   | 'subrequest'
@@ -55,6 +61,7 @@ type RunAPI = {|
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
+  invalidateOnEnvChange: string => void,
   storeResult: (result: mixed) => void,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -85,6 +92,15 @@ const nodeFromRequest = (request: StoredRequest) => ({
   value: request,
 });
 
+const nodeFromEnv = (env: string, value: string) => ({
+  id: 'env:' + env,
+  type: 'env',
+  value: {
+    key: env,
+    value,
+  },
+});
+
 export class RequestGraph extends Graph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -92,6 +108,7 @@ export class RequestGraph extends Graph<
   invalidNodeIds: Set<NodeId> = new Set();
   incompleteNodeIds: Set<NodeId> = new Set();
   globNodeIds: Set<NodeId> = new Set();
+  envNodeIds: Set<NodeId> = new Set();
   // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
@@ -103,6 +120,7 @@ export class RequestGraph extends Graph<
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
+    deserialized.envNodeIds = opts.envNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
     return deserialized;
@@ -115,6 +133,7 @@ export class RequestGraph extends Graph<
       invalidNodeIds: this.invalidNodeIds,
       incompleteNodeIds: this.incompleteNodeIds,
       globNodeIds: this.globNodeIds,
+      envNodeIds: this.envNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
     };
   }
@@ -123,6 +142,10 @@ export class RequestGraph extends Graph<
     if (!this.hasNode(node.id)) {
       if (node.type === 'glob') {
         this.globNodeIds.add(node.id);
+      }
+
+      if (node.type === 'env') {
+        this.envNodeIds.add(node.id);
       }
     }
 
@@ -134,6 +157,9 @@ export class RequestGraph extends Graph<
     this.incompleteNodeIds.delete(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.delete(node.id);
+    }
+    if (node.type === 'env') {
+      this.envNodeIds.delete(node.id);
     }
     return super.removeNode(node);
   }
@@ -189,6 +215,22 @@ export class RequestGraph extends Graph<
     }
   }
 
+  invalidateEnvNodes(env: EnvMap) {
+    for (let nodeId of this.envNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type === 'env');
+      if (env[node.value.key] !== node.value.value) {
+        let parentNodes = this.getNodesConnectedTo(
+          node,
+          'invalidated_by_update',
+        );
+        for (let parentNode of parentNodes) {
+          this.invalidateNode(parentNode);
+        }
+      }
+    }
+  }
+
   invalidateOnFileUpdate(requestId: string, filePath: FilePath) {
     let requestNode = this.getRequestNode(requestId);
     let fileNode = nodeFromFilePath(filePath);
@@ -228,6 +270,18 @@ export class RequestGraph extends Graph<
   invalidateOnStartup(requestId: string) {
     let requestNode = this.getRequestNode(requestId);
     this.unpredicatableNodeIds.add(requestNode.id);
+  }
+
+  invalidateOnEnvChange(requestId: string, env: string, value: string) {
+    let requestNode = this.getRequestNode(requestId);
+    let envNode = nodeFromEnv(env, value);
+    if (!this.hasNode(envNode.id)) {
+      this.addNode(envNode);
+    }
+
+    if (!this.hasEdge(requestNode.id, envNode.id, 'invalidated_by_update')) {
+      this.addEdge(requestNode.id, envNode.id, 'invalidated_by_update');
+    }
   }
 
   clearInvalidations(node: RequestNode) {
@@ -425,6 +479,12 @@ export default class RequestTracker {
       invalidateOnFileUpdate: filePath =>
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
+      invalidateOnEnvChange: env =>
+        this.graph.invalidateOnEnvChange(
+          requestId,
+          env,
+          this.options.env[env] || '',
+        ),
       storeResult: result => {
         this.storeResult(requestId, result);
       },

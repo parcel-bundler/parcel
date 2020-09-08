@@ -507,6 +507,7 @@ export interface MutableAsset extends BaseAsset {
   addDependency(dep: DependencyOptions): string;
   addIncludedFile(file: File): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  invalidateOnEnvChange(env: string): void;
 
   +symbols: MutableSymbols;
 

@@ -284,6 +284,13 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.addIncludedFile(file);
   }
 
+  invalidateOnEnvChange(env: string): void {
+    this.#asset.value.invalidateOnEnvChange.set(
+      env,
+      this.#asset.options.env[env] || '',
+    );
+  }
+
   isASTDirty(): boolean {
     return this.#asset.isASTDirty;
   }
