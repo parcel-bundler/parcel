@@ -111,7 +111,7 @@ export function bundler(
     outputFS,
     workerFarm,
     distDir,
-    packageManager: new NodePackageManager(inputFS),
+    packageManager: new NodePackageManager(opts?.inputFS || inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
       node: '8',

@@ -1,18 +1,9 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  bundle,
-  run,
-  assertBundles,
-  distDir,
-  removeDistDirectory,
-  outputFS,
-  overlayFS,
-  ncp,
-} from '@parcel/test-utils';
+import {bundle, run, overlayFS, ncp} from '@parcel/test-utils';
 
-async function runBundle() {
-  return await bundle(path.join(__dirname, '/input/src/index.js'), {
+function runBundle() {
+  return bundle(path.join(__dirname, '/input/src/index.js'), {
     inputFS: overlayFS,
     disableCache: false,
   });
@@ -27,6 +18,12 @@ async function testCache(update) {
   );
   await overlayFS.rimraf(path.join(__dirname, '/input/.parcel-cache'));
   await overlayFS.rimraf(path.join(__dirname, '/input/dist'));
+
+  if (typeof update === 'object') {
+    await update.setup();
+    update = update.update;
+  }
+
   let b = await runBundle();
 
   // update
@@ -52,7 +49,7 @@ async function assertThrows(fn) {
   return e;
 }
 
-describe.only('cache', function() {
+describe('cache', function() {
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
       assert.equal(await run(b), 4);
@@ -83,7 +80,7 @@ describe.only('cache', function() {
 
   it('should error when deleting a file', async function() {
     let e = await assertThrows(async () => {
-      await testCache(async b => {
+      await testCache(async () => {
         await overlayFS.unlink(
           path.join(__dirname, '/input/src/nested/test.js'),
         );
@@ -98,7 +95,7 @@ describe.only('cache', function() {
 
   it('should error when starting parcel from a broken state with no changes', async function() {
     await assertThrows(async () => {
-      await testCache(async b => {
+      await testCache(async () => {
         await overlayFS.unlink(
           path.join(__dirname, '/input/src/nested/test.js'),
         );
@@ -132,13 +129,187 @@ describe.only('cache', function() {
   });
 
   describe('parcel config', function() {
-    it('should support adding a .parcelrc', function() {});
+    it('should support adding a .parcelrc', async function() {
+      let b = await testCache(async b => {
+        assert.equal(await run(b), 4);
 
-    it('should support updating a .parcelrc', function() {});
+        let contents = await overlayFS.readFile(
+          b.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(!contents.includes('TRANSFORMED CODE'));
 
-    it('should support updating an extended .parcelrc', function() {});
+        await overlayFS.writeFile(
+          path.join(__dirname, '/input/.parcelrc'),
+          JSON.stringify({
+            extends: '@parcel/config-default',
+            transformers: {
+              '*.js': ['parcel-transformer-mock'],
+            },
+          }),
+        );
+      });
 
-    it('should support deleting a .parcelrc', function() {});
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('TRANSFORMED CODE'));
+    });
+
+    it('should support updating a .parcelrc', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('TRANSFORMED CODE'));
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('TRANSFORMED CODE'));
+
+      assert.equal(await run(b), 4);
+    });
+
+    it('should support updating an extended .parcelrc', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.parcelrc-extended'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.parcelrc'),
+            JSON.stringify({
+              extends: './.parcelrc-extended',
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('TRANSFORMED CODE'));
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.parcelrc-extended'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+            }),
+          );
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('TRANSFORMED CODE'));
+
+      assert.equal(await run(b), 4);
+    });
+
+    it('should error when deleting an extended parcelrc', async function() {
+      let e = await assertThrows(async () => {
+        await testCache({
+          async setup() {
+            await overlayFS.writeFile(
+              path.join(__dirname, '/input/.parcelrc-extended'),
+              JSON.stringify({
+                extends: '@parcel/config-default',
+                transformers: {
+                  '*.js': ['parcel-transformer-mock'],
+                },
+              }),
+            );
+
+            await overlayFS.writeFile(
+              path.join(__dirname, '/input/.parcelrc'),
+              JSON.stringify({
+                extends: './.parcelrc-extended',
+              }),
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(contents.includes('TRANSFORMED CODE'));
+
+            await overlayFS.unlink(
+              path.join(__dirname, '/input/.parcelrc-extended'),
+            );
+          },
+        });
+      });
+
+      assert.equal(e.message, 'Cannot find extended parcel config');
+    });
+
+    it('should support deleting a .parcelrc', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.parcelrc'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('TRANSFORMED CODE'));
+
+          await overlayFS.unlink(path.join(__dirname, '/input/.parcelrc'));
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('TRANSFORMED CODE'));
+
+      assert.equal(await run(b), 4);
+    });
   });
 
   describe('entries', function() {
