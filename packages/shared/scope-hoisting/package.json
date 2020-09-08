@@ -25,9 +25,10 @@
     "@babel/template": "^7.2.2",
     "@babel/traverse": "^7.2.3",
     "@babel/types": "^7.3.3",
+    "@parcel/babel-ast-utils": "2.0.0-beta.1",
     "@parcel/babylon-walk": "2.0.0-beta.1",
     "@parcel/diagnostic": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.13",
+    "@parcel/source-map": "2.0.0-alpha.4.15",
     "@parcel/utils": "2.0.0-beta.1",
     "nullthrows": "^1.1.1"
   }

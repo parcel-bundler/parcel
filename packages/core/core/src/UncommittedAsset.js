@@ -22,6 +22,8 @@ import {
   blobToStream,
   streamFromPromise,
   TapStream,
+  loadSourceMap,
+  SOURCEMAP_RE,
 } from '@parcel/utils';
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
@@ -182,6 +184,26 @@ export default class UncommittedAsset {
     this.clearAST();
   }
 
+  async loadExistingSourcemap(): Promise<?SourceMap> {
+    if (this.map) {
+      return this.map;
+    }
+
+    let code = await this.getCode();
+    let map = await loadSourceMap(this.value.filePath, code, {
+      fs: this.options.inputFS,
+      projectRoot: this.options.projectRoot,
+    });
+
+    if (map) {
+      this.map = map;
+      this.mapBuffer = map.toBuffer();
+      this.setCode(code.replace(SOURCEMAP_RE, ''));
+    }
+
+    return this.map;
+  }
+
   getMapBuffer(): Promise<?Buffer> {
     return Promise.resolve(this.mapBuffer);
   }
@@ -191,7 +213,7 @@ export default class UncommittedAsset {
       let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
-        let map = new SourceMap();
+        let map = new SourceMap(this.options.projectRoot);
         map.addBufferMappings(mapBuffer);
         this.map = map;
       }
@@ -265,6 +287,7 @@ export default class UncommittedAsset {
     result: TransformerResult,
     plugin: PackageName,
     configPath: FilePath,
+    configKeyPath: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
@@ -306,6 +329,7 @@ export default class UncommittedAsset {
           : null,
         plugin,
         configPath,
+        configKeyPath,
       }),
       options: this.options,
       content,

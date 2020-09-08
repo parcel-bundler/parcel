@@ -83,7 +83,7 @@ export default (new Transformer({
       }
 
       if (result.map != null) {
-        let map = new SourceMap();
+        let map = new SourceMap(options.projectRoot);
         map.addRawMappings(JSON.parse(result.map));
         asset.setMap(map);
       }

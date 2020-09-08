@@ -27,6 +27,7 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
+  QueryParameters,
 } from '@parcel/types';
 import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
@@ -36,6 +37,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -106,6 +108,7 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
+  query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
   includedFiles: Map<FilePath, File>,
@@ -127,6 +130,7 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
 
 export type ParcelOptions = {|
@@ -203,11 +207,13 @@ export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
+  canDefer?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
   optionsRef: SharedReference,
   isURL?: boolean,
+  query: QueryParameters,
 |};
 
 export type AssetRequestResult = Array<Asset>;

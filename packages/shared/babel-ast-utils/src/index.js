@@ -1,7 +1,14 @@
 // @flow strict-local
 
-import type {AST, BaseAsset, PluginOptions} from '@parcel/types';
+import type {
+  AST,
+  BaseAsset,
+  PluginOptions,
+  SourceLocation,
+} from '@parcel/types';
+import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
+import path from 'path';
 import babelGenerate from '@babel/generator';
 import {parse as babelParse} from '@babel/parser';
 import SourceMap from '@parcel/source-map';
@@ -57,18 +64,39 @@ export async function generate({
   }
 
   let map = null;
+  let originalSourceMap = await asset.getMap();
   if (generated.rawMappings) {
-    map = new SourceMap();
+    map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(generated.rawMappings);
-
-    let originalMap = await asset.getMapBuffer();
-    if (originalMap) {
-      map.extends(originalMap);
+    if (originalSourceMap) {
+      map.extends(originalSourceMap.toBuffer());
     }
+  } else {
+    map = originalSourceMap;
   }
 
   return {
     content: generated.code,
     map,
+  };
+}
+
+export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
+  if (!loc) return null;
+  let {filename, start, end} = loc;
+  if (filename == null) return null;
+  return {
+    filePath: path.normalize(filename),
+    start: {
+      line: start.line,
+      column: start.column + 1,
+    },
+    // - Babel's columns are exclusive, ours are inclusive (column - 1)
+    // - Babel has 0-based columns, ours are 1-based (column + 1)
+    // = +-0
+    end: {
+      line: end.line,
+      column: end.column,
+    },
   };
 }

@@ -6,7 +6,13 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
+import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
+import chalk from 'chalk';
+import program from 'commander';
+import path from 'path';
+import getPort from 'get-port';
+import {version} from '../package.json';
 
 require('v8-compile-cache');
 
@@ -32,12 +38,6 @@ process.on('unhandledRejection', async (reason: mixed) => {
   await logUncaughtError(reason);
   process.exit();
 });
-
-const chalk = require('chalk');
-const program = require('commander');
-const path = require('path');
-const getPort = require('get-port');
-const version = require('../package.json').version;
 
 // Capture the NODE_ENV this process was launched with, so that it can be
 // used in Parcel (such as in process.env inlining).
@@ -183,12 +183,67 @@ async function run(entries: Array<string>, command: any) {
     ...options,
   });
 
+  let disposable = new Disposable();
+  let unsubscribe: () => Promise<mixed>;
+  let isExiting;
+  async function exit(exitCode: number = 0) {
+    if (isExiting) {
+      return;
+    }
+
+    isExiting = true;
+    if (unsubscribe != null) {
+      await unsubscribe();
+    } else if (parcel.isProfiling) {
+      await parcel.stopProfiling();
+    }
+
+    disposable.dispose();
+    process.exit(exitCode);
+  }
+
+  if (process.stdin.isTTY) {
+    // $FlowFixMe
+    process.stdin.setRawMode(true);
+    require('readline').emitKeypressEvents(process.stdin);
+
+    let stream = process.stdin.on('keypress', async (char, key) => {
+      if (!key.ctrl) {
+        return;
+      }
+
+      switch (key.name) {
+        case 'c':
+          // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
+          // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
+          //
+          // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
+          // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
+          //
+          // We don't use the SIGINT event for this because when run inside yarn, the parent
+          // yarn process ends before Parcel and it appears that Parcel has ended while it may still
+          // be cleaning up. Handling events from stdin prevents this impression.
+          await exit(1);
+          break;
+        case 'e':
+          await (parcel.isProfiling
+            ? parcel.stopProfiling()
+            : parcel.startProfiling());
+          break;
+      }
+    });
+
+    disposable.add(() => {
+      stream.destroy();
+    });
+  }
+
   if (command.name() === 'watch' || command.name() === 'serve') {
-    let {unsubscribe} = await parcel.watch(err => {
+    ({unsubscribe} = await parcel.watch(err => {
       if (err) {
         throw err;
       }
-    });
+    }));
 
     if (command.open && options.serve) {
       await openInBrowser(
@@ -198,17 +253,6 @@ async function run(entries: Array<string>, command: any) {
       );
     }
 
-    let isExiting;
-    const exit = async () => {
-      if (isExiting) {
-        return;
-      }
-
-      isExiting = true;
-      await unsubscribe();
-      process.exit();
-    };
-
     if (command.watchForStdin) {
       process.stdin.on('end', async () => {
         INTERNAL_ORIGINAL_CONSOLE.log('STDIN closed, ending');
@@ -216,27 +260,6 @@ async function run(entries: Array<string>, command: any) {
         await exit();
       });
       process.stdin.resume();
-    }
-
-    // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
-    // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
-    //
-    // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
-    // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
-    //
-    // We don't use the SIGINT event for this because when run inside yarn, the parent
-    // yarn process ends before Parcel and it appears that Parcel has ended while it may still
-    // be cleaning up. Handling events from stdin prevents this impression.
-    if (process.stdin.isTTY) {
-      // $FlowFixMe
-      process.stdin.setRawMode(true);
-      require('readline').emitKeypressEvents(process.stdin);
-
-      process.stdin.on('keypress', async (char, key) => {
-        if (key.ctrl && key.name === 'c') {
-          await exit();
-        }
-      });
     }
 
     // In non-tty cases, respond to SIGINT by cleaning up.
@@ -251,8 +274,10 @@ async function run(entries: Array<string>, command: any) {
       if (!(e instanceof BuildError)) {
         await logUncaughtError(e);
       }
-      process.exit(1);
+      await exit(1);
     }
+
+    await exit();
   }
 }
 

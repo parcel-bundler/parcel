@@ -2,19 +2,19 @@
 import assert from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import ParcelConfig from '../../src/ParcelConfig';
+import ParcelConfig from '../src/ParcelConfig';
 import {
   validateConfigFile,
   mergePipelines,
   mergeMaps,
   mergeConfigs,
   resolveExtends,
-  readAndProcessConfigChain,
+  parseAndProcessConfig,
   resolveParcelConfig,
   processConfig,
-} from '../../src/requests/ParcelConfigRequest';
-import {validatePackageName} from '../../src/ParcelConfig.schema';
-import {DEFAULT_OPTIONS} from '../test-utils';
+} from '../src/requests/ParcelConfigRequest';
+import {validatePackageName} from '../src/ParcelConfig.schema';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
@@ -293,6 +293,7 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-transform-foo',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
           ],
           null,
@@ -301,6 +302,7 @@ describe('loadParcelConfig', () => {
           {
             packageName: 'parcel-transform-foo',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
           },
         ],
       );
@@ -312,12 +314,14 @@ describe('loadParcelConfig', () => {
           {
             packageName: 'parcel-transform-bar',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
           },
         ]),
         [
           {
             packageName: 'parcel-transform-bar',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
           },
         ],
       );
@@ -330,12 +334,14 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-transform-foo',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
           ],
         ),
@@ -343,6 +349,7 @@ describe('loadParcelConfig', () => {
           {
             packageName: 'parcel-transform-bar',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
           },
         ],
       );
@@ -355,17 +362,20 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-transform-foo',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
             '...',
             {
               packageName: 'parcel-transform-baz',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/2',
             },
           ],
         ),
@@ -373,14 +383,17 @@ describe('loadParcelConfig', () => {
           {
             packageName: 'parcel-transform-bar',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
           },
           {
             packageName: 'parcel-transform-foo',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/0',
           },
           {
             packageName: 'parcel-transform-baz',
             resolveFrom: '.parcelrc',
+            keyPath: '/transformers/*.js/2',
           },
         ],
       );
@@ -393,17 +406,20 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-transform-foo',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
           ],
           [
             {
               packageName: 'parcel-transform-bar',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
             '...',
             {
               packageName: 'parcel-transform-baz',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/2',
             },
             '...',
           ],
@@ -474,6 +490,7 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-resolver-base',
               resolveFrom: '.parcelrc',
+              keyPath: '/resolvers/0',
             },
           ],
           transformers: {
@@ -481,21 +498,25 @@ describe('loadParcelConfig', () => {
               {
                 packageName: 'parcel-transform-base',
                 resolveFrom: '.parcelrc',
+                keyPath: '/transformers/*.js/0',
               },
             ],
             '*.css': [
               {
                 packageName: 'parcel-transform-css',
                 resolveFrom: '.parcelrc',
+                keyPath: '/transformers/*.css/0',
               },
             ],
           },
           bundler: {
             packageName: 'parcel-bundler-base',
             resolveFrom: '.parcelrc',
+            keyPath: '/bundler',
           },
         },
         DEFAULT_OPTIONS.packageManager,
+        DEFAULT_OPTIONS.inputFS,
         false,
       );
 
@@ -505,6 +526,7 @@ describe('loadParcelConfig', () => {
           {
             packageName: 'parcel-resolver-ext',
             resolveFrom: '.parcelrc',
+            keyPath: '/resolvers/0',
           },
           '...',
         ],
@@ -513,56 +535,60 @@ describe('loadParcelConfig', () => {
             {
               packageName: 'parcel-transform-ext',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
             '...',
           ],
         },
       };
 
-      let merged = new ParcelConfig(
-        {
-          filePath: '.parcelrc',
-          resolvers: [
+      let merged = {
+        filePath: '.parcelrc',
+        resolvers: [
+          {
+            packageName: 'parcel-resolver-ext',
+            resolveFrom: '.parcelrc',
+            keyPath: '/resolvers/0',
+          },
+          {
+            packageName: 'parcel-resolver-base',
+            resolveFrom: '.parcelrc',
+            keyPath: '/resolvers/0',
+          },
+        ],
+        transformers: {
+          '*.js': [
             {
-              packageName: 'parcel-resolver-ext',
+              packageName: 'parcel-transform-ext',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
             {
-              packageName: 'parcel-resolver-base',
+              packageName: 'parcel-transform-base',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.js/0',
             },
           ],
-          transformers: {
-            '*.js': [
-              {
-                packageName: 'parcel-transform-ext',
-                resolveFrom: '.parcelrc',
-              },
-              {
-                packageName: 'parcel-transform-base',
-                resolveFrom: '.parcelrc',
-              },
-            ],
-            '*.css': [
-              {
-                packageName: 'parcel-transform-css',
-                resolveFrom: '.parcelrc',
-              },
-            ],
-          },
-          bundler: {
-            packageName: 'parcel-bundler-base',
-            resolveFrom: '.parcelrc',
-          },
-          runtimes: {},
-          namers: [],
-          optimizers: {},
-          packagers: {},
-          reporters: [],
+          '*.css': [
+            {
+              packageName: 'parcel-transform-css',
+              resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.css/0',
+            },
+          ],
         },
-        DEFAULT_OPTIONS.packageManager,
-        false,
-      );
+        bundler: {
+          packageName: 'parcel-bundler-base',
+          resolveFrom: '.parcelrc',
+          keyPath: '/bundler',
+        },
+        runtimes: {},
+        namers: [],
+        optimizers: {},
+        packagers: {},
+        reporters: [],
+        validators: {},
+      };
 
       // $FlowFixMe
       assert.deepEqual(mergeConfigs(base, ext), merged);
@@ -574,6 +600,7 @@ describe('loadParcelConfig', () => {
       let resolved = await resolveExtends(
         '../.parcelrc',
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
+        '/extends',
         DEFAULT_OPTIONS,
       );
       assert.equal(
@@ -586,13 +613,14 @@ describe('loadParcelConfig', () => {
       let resolved = await resolveExtends(
         '@parcel/config-default',
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
+        '/extends',
         DEFAULT_OPTIONS,
       );
       assert.equal(resolved, require.resolve('@parcel/config-default'));
     });
   });
 
-  describe('readAndProcessConfigChain', () => {
+  describe('parseAndProcessConfig', () => {
     it('should load and merge configs', async () => {
       let defaultConfigPath = require.resolve('@parcel/config-default');
       let defaultConfig = processConfig({
@@ -612,8 +640,9 @@ describe('loadParcelConfig', () => {
         'subfolder',
         '.parcelrc',
       );
-      let {config} = await readAndProcessConfigChain(
+      let {config} = await parseAndProcessConfig(
         subConfigFilePath,
+        DEFAULT_OPTIONS.inputFS.readFileSync(subConfigFilePath, 'utf8'),
         DEFAULT_OPTIONS,
       );
 
@@ -622,10 +651,12 @@ describe('loadParcelConfig', () => {
         {
           packageName: 'parcel-transformer-sub',
           resolveFrom: subConfigFilePath,
+          keyPath: '/transformers/*.js/0',
         },
         {
           packageName: 'parcel-transformer-base',
           resolveFrom: configFilePath,
+          keyPath: '/transformers/*.js/0',
         },
         '...',
       ]);
@@ -654,7 +685,7 @@ describe('loadParcelConfig', () => {
 
       // $FlowFixMe
       await assert.rejects(
-        () => readAndProcessConfigChain(configFilePath, DEFAULT_OPTIONS),
+        () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
         {
           name: 'Error',
           diagnostics: [
@@ -670,6 +701,134 @@ describe('loadParcelConfig', () => {
                     message: "JSON5: invalid character 'b' at 2:14",
                     start: pos,
                     end: pos,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      );
+    });
+
+    it('should emit a codeframe when an extended parcel config file is not found', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-extends-not-found',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      // $FlowFixMe
+      await assert.rejects(
+        () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Cannot find extended parcel config',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    message:
+                      '"./.parclrc-node-modules" does not exist, did you mean "./.parcelrc-node-modules"?',
+                    start: {line: 2, column: 14},
+                    end: {line: 2, column: 38},
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      );
+    });
+
+    it('should emit a codeframe when an extended parcel config node module is not found', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-extends-not-found',
+        '.parcelrc-node-modules',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      // $FlowFixMe
+      await assert.rejects(
+        () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Cannot find extended parcel config',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    message:
+                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                    start: {line: 2, column: 14},
+                    end: {line: 2, column: 35},
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      );
+    });
+
+    it('should emit multiple codeframes when multiple extended configs are not found', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-extends-not-found',
+        '.parcelrc-multiple',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+
+      // $FlowFixMe
+      await assert.rejects(
+        () => parseAndProcessConfig(configFilePath, code, DEFAULT_OPTIONS),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Cannot find extended parcel config',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    message:
+                      'Cannot find module "@parcel/config-deflt", did you mean "@parcel/config-default"?',
+                    start: {line: 2, column: 15},
+                    end: {line: 2, column: 36},
+                  },
+                ],
+              },
+            },
+            {
+              message: 'Cannot find extended parcel config',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    message:
+                      '"./.parclrc" does not exist, did you mean "./.parcelrc"?',
+                    start: {line: 2, column: 39},
+                    end: {line: 2, column: 50},
                   },
                 ],
               },

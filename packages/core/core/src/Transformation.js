@@ -21,9 +21,10 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject, normalizeSeparators} from '@parcel/utils';
-import {PluginLogger} from '@parcel/logger';
+import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
+import {SOURCEMAP_EXTENSIONS, relativePath} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -113,6 +114,29 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
 
+    // Load existing sourcemaps
+    if (SOURCEMAP_EXTENSIONS.has(asset.value.type)) {
+      try {
+        await asset.loadExistingSourcemap();
+      } catch (err) {
+        logger.warn([
+          {
+            origin: '@parcel/core',
+            message: `Could not load existing source map for ${relativePath(
+              this.options.projectRoot,
+              asset.value.filePath,
+            )}`,
+            filePath: asset.value.filePath,
+          },
+          {
+            origin: '@parcel/core',
+            message: err.message,
+            filePath: asset.value.filePath,
+          },
+        ]);
+      }
+    }
+
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
@@ -124,13 +148,20 @@ export default class Transformation {
     for (let {request, result} of this.configRequests) {
       if (request.plugin != null) {
         let resolveFrom = request.meta.parcelConfigPath;
-        if (typeof resolveFrom !== 'string') {
-          throw new Error('request.meta.parcelConfigPath should be a string!');
-        }
+        let keyPath = request.meta.parcelConfigKeyPath;
+        invariant(
+          typeof resolveFrom === 'string',
+          'request.meta.parcelConfigPath should be a string!',
+        );
+        invariant(
+          typeof keyPath === 'string',
+          'request.meta.parcelConfigKeyPath should be a string!',
+        );
 
         let {plugin} = await this.parcelConfig.loadPlugin({
           packageName: request.plugin,
           resolveFrom,
+          keyPath,
         });
 
         if (plugin && plugin.preSerializeConfig) {
@@ -150,6 +181,7 @@ export default class Transformation {
       pipeline,
       isSource: isSourceOverride,
       sideEffects,
+      query,
     } = this.request;
     let {
       content,
@@ -179,6 +211,7 @@ export default class Transformation {
         hash,
         pipeline,
         env,
+        query,
         stats: {
           time: 0,
           size,
@@ -286,6 +319,7 @@ export default class Transformation {
             transformer.plugin,
             transformer.name,
             transformer.config,
+            transformer.configKeyPath,
             this.parcelConfig,
           );
 
@@ -295,6 +329,7 @@ export default class Transformation {
                 result,
                 transformer.name,
                 this.parcelConfig.filePath,
+                transformer.configKeyPath,
               ),
             );
           }
@@ -381,6 +416,7 @@ export default class Transformation {
   getCacheKey(assets: Array<UncommittedAsset>, configs: ConfigMap): string {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
+      pipeline: a.value.pipeline,
       hash: a.value.hash,
       uniqueKey: a.value.uniqueKey,
     }));
@@ -421,11 +457,12 @@ export default class Transformation {
       request?.isURL,
     );
 
-    for (let {name, resolveFrom} of transformers) {
+    for (let {name, resolveFrom, keyPath} of transformers) {
       let thirdPartyConfig = await this.loadTransformerConfig({
         filePath,
         plugin: name,
         parcelConfigPath: resolveFrom,
+        parcelConfigKeyPath: keyPath,
         isSource,
       });
 
@@ -437,6 +474,7 @@ export default class Transformation {
       transformers: transformers.map(transformer => ({
         name: transformer.name,
         config: configs.get(transformer.name)?.result,
+        configKeyPath: transformer.keyPath,
         plugin: transformer.plugin,
       })),
       configs,
@@ -483,11 +521,13 @@ export default class Transformation {
     filePath,
     plugin,
     parcelConfigPath,
+    parcelConfigKeyPath,
     isSource,
   }: {|
     filePath: FilePath,
     plugin: PackageName,
     parcelConfigPath: FilePath,
+    parcelConfigKeyPath: string,
     isSource: boolean,
   |}): Promise<Config> {
     let configRequest = {
@@ -497,6 +537,7 @@ export default class Transformation {
       isSource,
       meta: {
         parcelConfigPath,
+        parcelConfigKeyPath,
       },
     };
 
@@ -520,6 +561,7 @@ type TransformerWithNameAndConfig = {|
   name: PackageName,
   plugin: Transformer,
   config: ?Config,
+  configKeyPath: string,
 |};
 
 async function runTransformer(
@@ -528,6 +570,7 @@ async function runTransformer(
   transformer: Transformer,
   transformerName: string,
   preloadedConfig: ?Config,
+  configKeyPath: string,
   parcelConfig: ParcelConfig,
 ): Promise<Array<TransformerResult>> {
   const logger = new PluginLogger({origin: transformerName});
@@ -631,6 +674,7 @@ async function runTransformer(
             result,
             transformerName,
             parcelConfig.filePath,
+            configKeyPath,
           ),
         ),
       );
