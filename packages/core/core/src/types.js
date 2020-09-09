@@ -17,7 +17,6 @@ import type {
   PackageName,
   PackageJSON,
   ReporterEvent,
-  ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
@@ -137,8 +136,8 @@ export type Asset = {|
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
-  config?: ResolvedParcelConfigFile,
-  defaultConfig?: ResolvedParcelConfigFile,
+  config?: ModuleSpecifier,
+  defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,

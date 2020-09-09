@@ -2,7 +2,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  defaultConfig,
   getNextBuild,
   overlayFS as fs,
   sleep,
@@ -177,10 +176,10 @@ async function setup(entry) {
     hot: {
       port,
     },
-    defaultConfig: {
-      ...defaultConfig,
-      reporters: ['@parcel/reporter-dev-server'],
-    },
+    defaultConfig: path.join(
+      __dirname,
+      'integration/custom-configs/.parcelrc-dev-server',
+    ),
   });
 
   subscription = await b.watch();
