@@ -67,7 +67,7 @@ parcel-transformer-b`,
     assert(b.isDependencyDeferred(nullthrows(depC)));
   });
 
-  it('should save dependency.meta mutations by resolvers into the cache', async function() {
+  it('should allow resolvers to return changes for dependency.meta', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
       {disableCache: false, contentHash: false, inputFS: overlayFS},
