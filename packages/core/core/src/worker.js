@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type {ConfigResult} from '@parcel/types';
 import type {Bundle, ParcelOptions, ProcessedParcelConfig} from './types';
 import type {SharedReference, WorkerApi} from '@parcel/workers';
 
@@ -97,15 +96,13 @@ export async function runValidate(
   }).run();
 }
 
-export function runPackage(
+export async function runPackage(
   workerApi: WorkerApi,
   {
     bundle,
     bundleGraphReference,
     configRef,
-    cacheKeys,
     optionsRef,
-    config,
   }: {|
     bundle: Bundle,
     bundleGraphReference: SharedReference,
@@ -116,7 +113,6 @@ export function runPackage(
       info: string,
     |},
     optionsRef: SharedReference,
-    config: ConfigResult,
   |},
 ): Promise<BundleInfo> {
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
@@ -133,9 +129,24 @@ export function runPackage(
     options.autoinstall,
   );
 
-  return new PackagerRunner({
+  let runner = new PackagerRunner({
     config: parcelConfig,
     options,
     report: reportWorker.bind(null, workerApi),
-  }).getBundleInfo(bundle, bundleGraph, cacheKeys, config);
+  });
+
+  let config = await runner.loadConfig(bundleGraph, bundle);
+  // TODO: add invalidations in `config?.files` once packaging is a request
+
+  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, config?.config);
+  let cacheKeys = {
+    content: PackagerRunner.getContentKey(cacheKey),
+    map: PackagerRunner.getMapKey(cacheKey),
+    info: PackagerRunner.getInfoKey(cacheKey),
+  };
+
+  return (
+    (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
+    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, config?.config)
+  );
 }

@@ -56,6 +56,7 @@ export type BundleInfo = {|
   +hash: string,
   +hashReferences: Array<string>,
   +time?: number,
+  +cacheKeys: CacheKeyMap,
 |};
 
 type CacheKeyMap = {|
@@ -80,9 +81,7 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraphReference: SharedReference,
     configRef: SharedReference,
-    cacheKeys: CacheKeyMap,
     optionsRef: SharedReference,
-    config: ConfigResult,
   |}) => Promise<BundleInfo>;
 
   constructor({config, configRef, farm, options, optionsRef, report}: Opts) {
@@ -158,9 +157,24 @@ export default class PackagerRunner {
   |}> {
     let start = Date.now();
 
-    let {plugin} = await this.config.getPackager(nullthrows(bundle.filePath));
+    return {
+      ...(await this.getBundleInfoFromWorker({
+        bundle,
+        bundleGraphReference,
+        optionsRef: nullthrows(this.optionsRef),
+        configRef: nullthrows(this.configRef),
+      })),
+      time: Date.now() - start,
+    };
+  }
 
+  async loadConfig(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
+  ): Promise<?ConfigOutput> {
     let config: ?ConfigOutput;
+
+    let {plugin} = await this.config.getPackager(nullthrows(bundle.filePath));
     if (plugin.loadConfig != null) {
       try {
         config = await nullthrows(plugin.loadConfig)({
@@ -168,8 +182,6 @@ export default class PackagerRunner {
           options: this.pluginOptions,
           logger: new PluginLogger({origin: this.config.getBundlerName()}),
         });
-
-        // TODO: add invalidations once packaging is a request
       } catch (e) {
         throw new ThrowableDiagnostic({
           diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
@@ -177,31 +189,7 @@ export default class PackagerRunner {
       }
     }
 
-    let cacheKey = await this.getCacheKey(bundle, bundleGraph, config?.config);
-    let cacheKeys = {
-      content: getContentKey(cacheKey),
-      map: getMapKey(cacheKey),
-      info: getInfoKey(cacheKey),
-    };
-    let {type, size, hash, hashReferences} =
-      (await this.getBundleInfoFromCache(cacheKeys.info)) ??
-      (await this.getBundleInfoFromWorker({
-        bundle,
-        bundleGraphReference,
-        cacheKeys,
-        optionsRef: nullthrows(this.optionsRef),
-        configRef: nullthrows(this.configRef),
-        config: config?.config,
-      }));
-
-    return {
-      type,
-      size,
-      time: Date.now() - start,
-      hash,
-      hashReferences,
-      cacheKeys,
-    };
+    return config;
   }
 
   getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
@@ -471,8 +459,8 @@ export default class PackagerRunner {
     contents: Readable,
     map: ?Readable,
   |}> {
-    let contentKey = getContentKey(cacheKey);
-    let mapKey = getMapKey(cacheKey);
+    let contentKey = PackagerRunner.getContentKey(cacheKey);
+    let mapKey = PackagerRunner.getMapKey(cacheKey);
 
     let contentExists = await this.options.cache.blobExists(contentKey);
     if (!contentExists) {
@@ -594,9 +582,27 @@ export default class PackagerRunner {
     if (map != null) {
       await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
     }
-    let info = {type, size, hash: hash.digest('hex'), hashReferences};
+    let info = {
+      type,
+      size,
+      hash: hash.digest('hex'),
+      hashReferences,
+      cacheKeys,
+    };
     await this.options.cache.set(cacheKeys.info, info);
     return info;
+  }
+
+  static getContentKey(cacheKey: string): string {
+    return md5FromString(`${cacheKey}:content`);
+  }
+
+  static getMapKey(cacheKey: string): string {
+    return md5FromString(`${cacheKey}:map`);
+  }
+
+  static getInfoKey(cacheKey: string): string {
+    return md5FromString(`${cacheKey}:info`);
   }
 }
 
@@ -649,18 +655,6 @@ function replaceStream(hashRefToNameHash) {
       cb(null, boundaryStr);
     },
   });
-}
-
-function getContentKey(cacheKey: string) {
-  return md5FromString(`${cacheKey}:content`);
-}
-
-function getMapKey(cacheKey: string) {
-  return md5FromString(`${cacheKey}:map`);
-}
-
-function getInfoKey(cacheKey: string) {
-  return md5FromString(`${cacheKey}:info`);
 }
 
 function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
