@@ -65,21 +65,21 @@ async function run({input, api, options}: RunOpts) {
   });
   let {
     assetGroup,
-    filesUpdate,
-    filesCreation,
-    filesDeletion,
+    fileUpdateInvalidations,
+    fileCreationInvalidations,
+    fileDeletionInvalidations,
   } = await resolverRunner.resolve(input);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
   }
-  for (let f of filesUpdate) {
+  for (let f of fileUpdateInvalidations) {
     api.invalidateOnFileUpdate(f);
   }
-  for (let f of filesCreation) {
+  for (let f of fileCreationInvalidations) {
     api.invalidateOnFileCreate(f);
   }
-  for (let f of filesDeletion) {
+  for (let f of fileDeletionInvalidations) {
     api.invalidateOnFileDelete(f);
   }
 
@@ -131,9 +131,9 @@ export class ResolverRunner {
     dependency: Dependency,
   ): Promise<{|
     assetGroup: ?AssetGroup,
-    filesUpdate: Set<FilePath>,
-    filesCreation: Set<Glob>,
-    filesDeletion: Set<FilePath>,
+    fileUpdateInvalidations: Set<FilePath>,
+    fileCreationInvalidations: Set<Glob>,
+    fileDeletionInvalidations: Set<FilePath>,
   |}> {
     let dep = new PublicDependency(dependency);
     report({
@@ -161,9 +161,9 @@ export class ResolverRunner {
           // `url('http://example.com/foo.png')`
           return {
             assetGroup: null,
-            filesUpdate: new Set(),
-            filesCreation: new Set(),
-            filesDeletion: new Set(),
+            fileUpdateInvalidations: new Set(),
+            fileCreationInvalidations: new Set(),
+            fileDeletionInvalidations: new Set(),
           };
         } else {
           throw new Error(`Unknown pipeline ${pipeline}.`);
@@ -174,9 +174,9 @@ export class ResolverRunner {
         // A protocol-relative URL, e.g `url('//example.com/foo.png')`
         return {
           assetGroup: null,
-          filesUpdate: new Set(),
-          filesCreation: new Set(),
-          filesDeletion: new Set(),
+          fileUpdateInvalidations: new Set(),
+          fileCreationInvalidations: new Set(),
+          fileDeletionInvalidations: new Set(),
         };
       }
       filePath = dependency.moduleSpecifier;
@@ -199,9 +199,9 @@ export class ResolverRunner {
     }
 
     let diagnostics: Array<Diagnostic> = [];
-    let filesUpdate = new Set(),
-      filesDeletion = new Set(),
-      filesCreation = new Set();
+    let fileUpdateInvalidations = new Set(),
+      fileDeletionInvalidations = new Set(),
+      fileCreationInvalidations = new Set();
     for (let resolver of resolvers) {
       try {
         let result = await resolver.plugin.resolve({
@@ -212,15 +212,21 @@ export class ResolverRunner {
         });
 
         if (result) {
-          result.filesUpdate?.forEach(f => filesUpdate.add(f));
-          result.filesCreation?.forEach(f => filesCreation.add(f));
-          result.filesDeletion?.forEach(f => filesDeletion.add(f));
+          result.fileUpdateInvalidations?.forEach(f =>
+            fileUpdateInvalidations.add(f),
+          );
+          result.fileCreationInvalidations?.forEach(f =>
+            fileCreationInvalidations.add(f),
+          );
+          result.fileDeletionInvalidations?.forEach(f =>
+            fileDeletionInvalidations.add(f),
+          );
           if (result.isExcluded) {
             return {
               assetGroup: null,
-              filesUpdate,
-              filesCreation,
-              filesDeletion,
+              fileUpdateInvalidations,
+              fileCreationInvalidations,
+              fileDeletionInvalidations,
             };
           }
 
@@ -236,9 +242,9 @@ export class ResolverRunner {
                 pipeline: pipeline ?? dependency.pipeline,
                 isURL: dependency.isURL,
               },
-              filesUpdate,
-              filesCreation,
-              filesDeletion,
+              fileUpdateInvalidations,
+              fileCreationInvalidations,
+              fileDeletionInvalidations,
             };
           }
 
@@ -266,9 +272,9 @@ export class ResolverRunner {
     if (dep.isOptional) {
       return {
         assetGroup: null,
-        filesUpdate,
-        filesCreation,
-        filesDeletion,
+        fileUpdateInvalidations,
+        fileCreationInvalidations,
+        fileDeletionInvalidations,
       };
     }
 

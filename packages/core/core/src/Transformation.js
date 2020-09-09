@@ -46,9 +46,9 @@ import {PARCEL_VERSION} from './constants';
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
 type Invalidations = {|
-  filesUpdate: Set<FilePath>,
-  filesCreation: Set<Glob>,
-  filesDeletion: Set<FilePath>,
+  fileUpdateInvalidations: Set<FilePath>,
+  fileCreationInvalidations: Set<Glob>,
+  fileDeletionInvalidations: Set<FilePath>,
 |};
 
 type PostProcessFunc = (
@@ -85,9 +85,9 @@ export default class Transformation {
   parcelConfig: ParcelConfig;
   report: ReportFn;
   invalidations: Invalidations = {
-    filesUpdate: new Set(),
-    filesCreation: new Set(),
-    filesDeletion: new Set(),
+    fileUpdateInvalidations: new Set(),
+    fileCreationInvalidations: new Set(),
+    fileDeletionInvalidations: new Set(),
   };
 
   constructor({
@@ -602,9 +602,15 @@ async function runTransformer(
         sourcePath: from,
       }),
     );
-    result.filesUpdate.forEach(f => invalidations.filesUpdate.add(f));
-    result.filesCreation.forEach(f => invalidations.filesCreation.add(f));
-    result.filesDeletion.forEach(f => invalidations.filesDeletion.add(f));
+    result.fileUpdateInvalidations.forEach(f =>
+      invalidations.fileUpdateInvalidations.add(f),
+    );
+    result.fileCreationInvalidations.forEach(f =>
+      invalidations.fileCreationInvalidations.add(f),
+    );
+    result.fileDeletionInvalidations.forEach(f =>
+      invalidations.fileDeletionInvalidations.add(f),
+    );
 
     return nullthrows(result.assetGroup).filePath;
   };

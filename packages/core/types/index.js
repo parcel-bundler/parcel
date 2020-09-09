@@ -1019,9 +1019,9 @@ export type ResolveResult = {|
   +canDefer?: boolean,
   /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
   +diagnostics?: Diagnostic | Array<Diagnostic>,
-  +filesUpdate?: ?Set<FilePath>,
-  +filesCreation?: ?Set<Glob>,
-  +filesDeletion?: ?Set<FilePath>,
+  +fileUpdateInvalidations?: ?Set<FilePath>,
+  +fileCreationInvalidations?: ?Set<Glob>,
+  +fileDeletionInvalidations?: ?Set<FilePath>,
 |};
 
 export type ConfigOutput = {|
