@@ -1,6 +1,6 @@
 // @flow
 
-const _isURL = require('is-url');
+import _isURL from 'is-url';
 
 // Matches anchor (ie: #raptors)
 const ANCHOR_REGEXP = /^#/;

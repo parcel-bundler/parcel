@@ -213,7 +213,7 @@ export default class UncommittedAsset {
       let mapBuffer = this.mapBuffer ?? (await this.getMapBuffer());
       if (mapBuffer) {
         // Get sourcemap from flatbuffer
-        let map = new SourceMap();
+        let map = new SourceMap(this.options.projectRoot);
         map.addBufferMappings(mapBuffer);
         this.map = map;
       }
@@ -287,6 +287,7 @@ export default class UncommittedAsset {
     result: TransformerResult,
     plugin: PackageName,
     configPath: FilePath,
+    configKeyPath: string,
   ): UncommittedAsset {
     let content = result.content ?? null;
 
@@ -328,6 +329,7 @@ export default class UncommittedAsset {
           : null,
         plugin,
         configPath,
+        configKeyPath,
       }),
       options: this.options,
       content,

@@ -312,7 +312,11 @@ export default class BundleGraph {
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
-        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+        if (
+          this._graph.hasEdge(bundle.id, node.id, 'contains') &&
+          (node.type !== 'asset' ||
+            this.isAssetReachableFromBundle(node.value, bundle))
+        ) {
           this._graph.removeEdge(
             bundle.id,
             node.id,

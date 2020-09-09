@@ -91,9 +91,7 @@ describe('loadSourceMap', () => {
     assert(!!map);
 
     let parsedMap = map.getMap();
-    assert.deepEqual(parsedMap.sources, [
-      path.normalize('input/sourcemap/referenced.js'),
-    ]);
+    assert.deepEqual(parsedMap.sources, ['./input/sourcemap/referenced.js']);
     assert.deepEqual(parsedMap.names, ['hello', 'l', 'o', 'console', 'log']);
     assert.deepEqual(parsedMap.mappings, [
       {
@@ -189,9 +187,7 @@ describe('loadSourceMap', () => {
     assert(!!map);
 
     let parsedMap = map.getMap();
-    assert.deepEqual(parsedMap.sources, [
-      path.normalize('input/sourcemap/referenced.js'),
-    ]);
+    assert.deepEqual(parsedMap.sources, ['./input/sourcemap/referenced.js']);
   });
 
   it('Should remap sources when using sourceRoot', async () => {
@@ -206,6 +202,6 @@ describe('loadSourceMap', () => {
     assert(!!map);
 
     let parsedMap = map.getMap();
-    assert.deepEqual(parsedMap.sources, [path.normalize('input/source.js')]);
+    assert.deepEqual(parsedMap.sources, ['./input/source.js']);
   });
 });

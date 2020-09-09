@@ -16,7 +16,11 @@ import {resolveConfig, resolveConfigSync} from '../';
 // $FlowFixMe this is untyped
 import Module from 'module';
 
-const resolveAsync = promisify(_resolve);
+// Lazily promisify
+let resolveAsync = (...args) => {
+  resolveAsync = promisify(_resolve);
+  return resolveAsync(...args);
+};
 
 export type ResolveResult = {|
   resolved: FilePath | ModuleSpecifier,

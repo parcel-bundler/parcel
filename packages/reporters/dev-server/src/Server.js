@@ -308,6 +308,7 @@ export default class Server extends EventEmitter {
     const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
       '.proxyrc.js',
       '.proxyrc',
+      '.proxyrc.json',
     ]);
 
     if (!pkg || !pkg.config || !pkg.files) {
@@ -326,7 +327,7 @@ export default class Server extends EventEmitter {
         return this;
       }
       cfg(app);
-    } else if (filename === '.proxyrc') {
+    } else if (filename === '.proxyrc' || filename === '.proxyrc.json') {
       if (typeof cfg !== 'object') {
         this.options.logger.warn({
           message:
