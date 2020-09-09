@@ -257,7 +257,7 @@ describe('postcss', () => {
     let distDir = path.join(outputFS.cwd(), 'dist');
 
     await bundle(path.join(__dirname, '/input/index.css'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       packageManager,
       distDir,
       autoinstall: true,

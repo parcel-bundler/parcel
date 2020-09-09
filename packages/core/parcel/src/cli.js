@@ -1,6 +1,6 @@
 // @flow
 
-import type {RawParcelConfig, InitialParcelOptions} from '@parcel/types';
+import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
@@ -8,6 +8,11 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
 import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
+import chalk from 'chalk';
+import program from 'commander';
+import path from 'path';
+import getPort from 'get-port';
+import {version} from '../package.json';
 
 require('v8-compile-cache');
 
@@ -34,12 +39,6 @@ process.on('unhandledRejection', async (reason: mixed) => {
   process.exit();
 });
 
-const chalk = require('chalk');
-const program = require('commander');
-const path = require('path');
-const getPort = require('get-port');
-const version = require('../package.json').version;
-
 // Capture the NODE_ENV this process was launched with, so that it can be
 // used in Parcel (such as in process.env inlining).
 const initialNodeEnv = process.env.NODE_ENV;
@@ -57,6 +56,8 @@ program.version(version);
 
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
+  '--config <path>':
+    'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-content-hash': 'disable content hashing',
@@ -174,22 +175,10 @@ async function run(entries: Array<string>, command: any) {
   let Parcel = require('@parcel/core').default;
   let options = await normalizeOptions(command);
   let packageManager = new NodePackageManager(new NodeFS());
-  let defaultConfig: RawParcelConfig = await packageManager.require(
-    '@parcel/config-default',
-    __filename,
-    {autoinstall: options.autoinstall},
-  );
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: {
-      ...defaultConfig,
-      filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename, {
-          autoinstall: options.autoinstall,
-        })
-      ).resolved,
-    },
+    defaultConfig: '@parcel/config-default',
     patchConsole: true,
     ...options,
   });

@@ -8,17 +8,11 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
-import {readFileSync} from 'fs';
 
-const configPath = path.join(
+const tscConfig = path.join(
   __dirname,
   '/integration/typescript-config/.parcelrc',
 );
-
-const tscConfig = {
-  ...JSON.parse(readFileSync(configPath)),
-  filePath: configPath,
-};
 
 describe('typescript', function() {
   // This tests both the Babel transformer implementation of typescript (which

@@ -30,7 +30,7 @@ type HMRMessage =
     |};
 
 export default class HMRServer {
-  wss: WebSocket.Server;
+  wss: typeof WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
 

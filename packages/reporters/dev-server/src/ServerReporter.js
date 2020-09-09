@@ -39,7 +39,7 @@ export default (new Reporter({
           servers.set(serve.port, server);
           const devServer = await server.start();
 
-          if (hmr && (hmr.port === serve.port || hmr === true)) {
+          if (hmr && hmr.port === serve.port) {
             let hmrServerOptions = {
               port: serve.port,
               devServer,
