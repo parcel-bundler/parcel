@@ -190,6 +190,7 @@ export default class BundleGraph {
         for (let bundleGroupNode of this._graph
           .getNodesConnectedFrom(node)
           .filter(node => node.type === 'bundle_group')) {
+          invariant(bundleGroupNode.type === 'bundle_group');
           this._graph.addEdge(bundle.id, bundleGroupNode.id, 'bundle');
         }
       }
@@ -311,7 +312,11 @@ export default class BundleGraph {
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
-        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+        if (
+          this._graph.hasEdge(bundle.id, node.id, 'contains') &&
+          (node.type !== 'asset' ||
+            this.isAssetReachableFromBundle(node.value, bundle))
+        ) {
           this._graph.removeEdge(
             bundle.id,
             node.id,
@@ -343,13 +348,21 @@ export default class BundleGraph {
     // Remove bundle node if it no longer has any entry assets
     let bundleNode = nullthrows(this._graph.getNode(bundle.id));
     if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
-      let bundleGroupNodes = this._graph.getNodesConnectedTo(bundleNode);
+      let bundleGroupNodes = this._graph.getNodesConnectedTo(
+        bundleNode,
+        'bundle',
+      );
       this._graph.removeNode(bundleNode);
 
       // Remove bundle group node if it no longer has any bundles
       for (let bundleGroupNode of bundleGroupNodes) {
+        invariant(bundleGroupNode.type === 'bundle_group');
         if (this._graph.getNodesConnectedTo(bundleGroupNode).length === 0) {
           this._graph.removeNode(bundleGroupNode);
+        } else {
+          let index = bundleGroupNode.value.bundleIds.indexOf(bundle.id);
+          invariant(index >= 0);
+          bundleGroupNode.value.bundleIds.splice(index, 1);
         }
       }
     }
@@ -646,7 +659,7 @@ export default class BundleGraph {
 
     for (let bundleGroup of bundleGroups) {
       // If the asset is in any sibling bundles, return that bundle.
-      let bundles = this.getBundlesInBundleGroup(bundleGroup);
+      let bundles = this.getBundlesInBundleGroup(bundleGroup).reverse();
       let res = bundles.find(
         b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
       );
@@ -666,7 +679,9 @@ export default class BundleGraph {
           bundleNode,
           (node, ctx, actions) => {
             if (node.type === 'bundle_group') {
-              let childBundles = this.getBundlesInBundleGroup(node.value);
+              let childBundles = this.getBundlesInBundleGroup(
+                node.value,
+              ).reverse();
 
               res = childBundles.find(
                 b => b.id !== bundle.id && this.bundleHasAsset(b, asset),
@@ -815,16 +830,13 @@ export default class BundleGraph {
   }
 
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
-    return this._graph
-      .getNodesConnectedFrom(
-        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-        'bundle',
-      )
-      .filter(node => node.type === 'bundle')
-      .map(node => {
-        invariant(node.type === 'bundle');
-        return node.value;
-      });
+    return bundleGroup.bundleIds
+      .map(id => {
+        let b = nullthrows(this._graph.getNode(id));
+        invariant(b.type === 'bundle');
+        return b.value;
+      })
+      .reverse();
   }
 
   getSiblingBundles(bundle: Bundle): Array<Bundle> {

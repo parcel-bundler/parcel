@@ -10,7 +10,6 @@ import type {
 
 import invariant from 'assert';
 import Parcel, {createWorkerFarm} from '@parcel/core';
-import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
@@ -49,12 +48,6 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   // Spin down the worker farm to stop it from preventing the main process from exiting
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
-
-export const defaultConfig = {
-  ...defaultConfigContents,
-  filePath: (require.resolve('@parcel/config-default'): string),
-  reporters: ([]: Array<any>),
-};
 
 const chalk = new _chalk.constructor({enabled: true});
 const warning = chalk.keyword('orange');
@@ -106,7 +99,7 @@ export function bundler(
     entries,
     disableCache: true,
     logLevel: 'none',
-    defaultConfig,
+    defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
     inputFS,
     outputFS,
     workerFarm,
@@ -232,24 +225,12 @@ export async function runBundles(
   return ctx;
 }
 
-export function runBundle(
+export async function runBundle(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  return runBundles(bundleGraph, bundle, [bundle], globals, opts);
-}
-
-export async function run(
-  bundleGraph: BundleGraph<NamedBundle>,
-  globals: mixed,
-  opts: RunOpts = {},
-): Promise<any> {
-  let bundles = bundleGraph.getBundles();
-  let bundle = nullthrows(
-    bundles.find(b => b.type === 'js' || b.type === 'html'),
-  );
   if (bundle.type === 'html') {
     let code = await overlayFS.readFile(nullthrows(bundle.filePath));
     let ast = postHtmlParse(code, {
@@ -266,6 +247,8 @@ export async function run(
       }
       return node;
     });
+
+    let bundles = bundleGraph.getBundles();
     return runBundles(
       bundleGraph,
       bundle,
@@ -274,8 +257,19 @@ export async function run(
       opts,
     );
   } else {
-    return runBundle(bundleGraph, bundle, globals, opts);
+    return runBundles(bundleGraph, bundle, [bundle], globals, opts);
   }
+}
+
+export function run(
+  bundleGraph: BundleGraph<NamedBundle>,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<any> {
+  let bundle = nullthrows(
+    bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
+  );
+  return runBundle(bundleGraph, bundle, globals, opts);
 }
 
 export function assertBundles(
@@ -537,6 +531,7 @@ function prepareNodeContext(filePath, globals) {
     }
 
     if (res === specifier) {
+      // $FlowFixMe
       return require(specifier);
     }
 
@@ -548,7 +543,10 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(overlayFS.readFileSync(res, 'utf8'), ctx);
+    vm.runInContext(
+      '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
+      ctx,
+    );
     return ctx.module.exports;
   };
 

@@ -6,14 +6,12 @@ import assert from 'assert';
 import invariant from 'assert';
 import path from 'path';
 import {bundle} from '@parcel/test-utils';
-import defaultConfigContents from '@parcel/config-default';
 import sinon from 'sinon';
 
-const jsonConfig = {
-  ...defaultConfigContents,
-  reporters: ['@parcel/reporter-json'],
-  filePath: require.resolve('@parcel/config-default'),
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-json-reporter',
+);
 
 const DIST_INDEX = 'dist' + path.sep + 'index.js';
 
@@ -22,7 +20,7 @@ describe('json reporter', () => {
     let consoleStub = sinon.stub(console, 'log');
     try {
       await bundle(path.join(__dirname, '/integration/commonjs/index.js'), {
-        defaultConfig: jsonConfig,
+        config,
         logLevel: 'info',
       });
 

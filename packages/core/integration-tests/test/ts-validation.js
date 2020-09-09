@@ -9,15 +9,11 @@ import {
   overlayFS,
   run,
 } from '@parcel/test-utils';
-import defaultConfigContents from '@parcel/config-default';
 
-const config = {
-  ...defaultConfigContents,
-  validators: {
-    '*.{ts,tsx}': ['@parcel/validator-typescript'],
-  },
-  filePath: require.resolve('@parcel/config-default'),
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-typescript-validation',
+);
 
 describe('ts-validator', function() {
   let subscription;

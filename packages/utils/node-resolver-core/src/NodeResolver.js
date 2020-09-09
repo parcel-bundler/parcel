@@ -11,9 +11,10 @@ import invariant from 'assert';
 import path from 'path';
 import {
   isGlob,
-  fuzzySearch,
   relativePath,
   normalizeSeparators,
+  findAlternativeNodeModules,
+  findAlternativeFiles,
 } from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -185,120 +186,6 @@ export default class NodeResolver {
     return null;
   }
 
-  async findAlternativeNodeModules(
-    moduleName: string,
-    dir: string,
-  ): Promise<Array<string>> {
-    let potentialModules: Array<string> = [];
-    let root = path.parse(dir).root;
-    let isOrganisationModule = moduleName.startsWith('@');
-
-    while (dir !== root) {
-      // Skip node_modules directories
-      if (path.basename(dir) === 'node_modules') {
-        dir = path.dirname(dir);
-      }
-
-      try {
-        let modulesDir = path.join(dir, 'node_modules');
-        let stats = await this.fs.stat(modulesDir);
-        if (stats.isDirectory()) {
-          let dirContent = await this.fs.readdir(modulesDir);
-
-          // Filter out the modules that interest us
-          let modules = dirContent.filter(i =>
-            isOrganisationModule ? i.startsWith('@') : !i.startsWith('@'),
-          );
-
-          // If it's an organisation module, loop through all the modules of that organisation
-          if (isOrganisationModule) {
-            await Promise.all(
-              modules.map(async item => {
-                let orgDirPath = path.join(modulesDir, item);
-                let orgDirContent = await this.fs.readdir(orgDirPath);
-
-                // Add all org packages
-                potentialModules.push(
-                  ...orgDirContent.map(i => `${item}/${i}`),
-                );
-              }),
-            );
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
-
-      // Move up a directory
-      dir = path.dirname(dir);
-    }
-
-    return fuzzySearch(potentialModules, moduleName).slice(0, 2);
-  }
-
-  async findAllFilesUp({
-    dir,
-    root,
-    basedir,
-    maxlength,
-    collected,
-  }: {|
-    dir: string,
-    root: string,
-    basedir: string,
-    maxlength: number,
-    collected: Array<string>,
-  |}): Promise<mixed> {
-    let dirContent = await this.fs.readdir(dir);
-    return Promise.all(
-      dirContent.map(async item => {
-        let fullPath = path.join(dir, item);
-        let relativeFilePath = relativePath(basedir, fullPath);
-        if (relativeFilePath.length < maxlength) {
-          let stats = await this.fs.stat(fullPath);
-          let isDir = stats.isDirectory();
-          if (isDir || stats.isFile()) {
-            collected.push(relativeFilePath);
-          }
-
-          // If it's a directory, run over each item within said directory...
-          if (isDir) {
-            return this.findAllFilesUp({
-              dir: fullPath,
-              root,
-              basedir,
-              maxlength,
-              collected,
-            });
-          }
-        }
-      }),
-    );
-  }
-
-  async findAlternativeFiles(
-    fileSpecifier: string,
-    dir: string,
-  ): Promise<Array<string>> {
-    let potentialFiles: Array<string> = [];
-    // Find our root, we won't recommend files above the package root as that's bad practise
-    let pkg = await this.findPackage(dir);
-    if (!pkg) {
-      return potentialFiles;
-    }
-
-    let pkgRoot = pkg.pkgdir;
-    await this.findAllFilesUp({
-      dir: pkgRoot,
-      root: pkgRoot,
-      basedir: dir,
-      maxlength: fileSpecifier.length + 10,
-      collected: potentialFiles,
-    });
-
-    return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
-  }
-
   async resolveModule({
     filename,
     parent,
@@ -394,7 +281,8 @@ export default class NodeResolver {
         subPath,
       };
 
-      let alternativeModules = await this.findAlternativeNodeModules(
+      let alternativeModules = await findAlternativeNodeModules(
+        this.fs,
         resolved.moduleName,
         dir,
       );
@@ -511,7 +399,8 @@ export default class NodeResolver {
     if (!resolvedFile) {
       // If we can't load the file do a fuzzySearch for potential hints
       let relativeFileSpecifier = relativePath(parentdir, filename);
-      let potentialFiles = await this.findAlternativeFiles(
+      let potentialFiles = await findAlternativeFiles(
+        this.fs,
         relativeFileSpecifier,
         parentdir,
       );
@@ -670,7 +559,8 @@ export default class NodeResolver {
         }
 
         let fileSpecifier = relativePath(dir, failedEntry.filename);
-        let alternatives = await this.findAlternativeFiles(
+        let alternatives = await findAlternativeFiles(
+          this.fs,
           fileSpecifier,
           pkg.pkgdir,
         );
@@ -688,8 +578,9 @@ export default class NodeResolver {
                 {
                   key: `/${failedEntry.field}`,
                   type: 'value',
-                  message: `'${fileSpecifier}' does not exist${alternative &&
-                    `, did you mean '${alternative}'?`}'`,
+                  message: `'${fileSpecifier}' does not exist${
+                    alternative ? `, did you mean '${alternative}'?` : ''
+                  }'`,
                 },
               ]),
             },

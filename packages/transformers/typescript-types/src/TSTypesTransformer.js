@@ -103,7 +103,10 @@ export default (new Transformer({
               column: start.column + 1,
             };
 
-            if (typeof diagnostic.length === 'number') {
+            if (
+              typeof diagnostic.start === 'number' &&
+              typeof diagnostic.length === 'number'
+            ) {
               let endCharPosition = file.getLineAndCharacterOfPosition(
                 diagnostic.start + diagnostic.length,
               );
@@ -116,11 +119,13 @@ export default (new Transformer({
 
             codeframe = {
               code: source,
-              codeHighlights: {
-                start,
-                end,
-                message: diagnosticMessage,
-              },
+              codeHighlights: [
+                {
+                  start,
+                  end,
+                  message: diagnosticMessage,
+                },
+              ],
             };
           }
         }
@@ -143,7 +148,7 @@ export default (new Transformer({
 
     let sourceMap = null;
     if (map.mappings) {
-      sourceMap = new SourceMap();
+      sourceMap = new SourceMap(options.projectRoot);
       sourceMap.addRawMappings(map);
     }
 

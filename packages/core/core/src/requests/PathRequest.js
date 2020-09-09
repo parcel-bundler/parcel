@@ -59,6 +59,7 @@ async function run({input, api, options}: RunOpts) {
     config: new ParcelConfig(
       config,
       options.packageManager,
+      options.inputFS,
       options.autoinstall,
     ),
   });

@@ -59,11 +59,11 @@ export async function loadSourceMap(
       mapSourceRoot = path.join(mapSourceRoot, foundMap.map.sourceRoot);
     }
 
-    let sourcemapInstance = new SourceMap();
+    let sourcemapInstance = new SourceMap(options.projectRoot);
     sourcemapInstance.addRawMappings({
       ...foundMap.map,
       sources: foundMap.map.sources.map(s => {
-        return path.relative(options.projectRoot, path.join(mapSourceRoot, s));
+        return path.join(mapSourceRoot, s);
       }),
     });
     return sourcemapInstance;
