@@ -224,7 +224,7 @@ async function run(entries: Array<string>, command: any) {
           // yarn process ends before Parcel and it appears that Parcel has ended while it may still
           // be cleaning up. Handling events from stdin prevents this impression.
           INTERNAL_ORIGINAL_CONSOLE.log(
-            chalk.bold.yellowBright('Parcel is shutting down'),
+            chalk.bold.yellowBright('Parcel is shutting down...'),
           );
           await exit(1);
           break;
