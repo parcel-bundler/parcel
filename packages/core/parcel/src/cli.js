@@ -174,11 +174,12 @@ async function run(entries: Array<string>, command: any) {
   }
   let Parcel = require('@parcel/core').default;
   let options = await normalizeOptions(command);
-  let packageManager = new NodePackageManager(new NodeFS());
+  let fs = new NodeFS();
+  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: require.resolve('@parcel/config-default'),
+    defaultConfig: require.resolve('@parcel/config-default', { paths: [fs.cwd(), __dirname] }),
     patchConsole: true,
     ...options,
   });
