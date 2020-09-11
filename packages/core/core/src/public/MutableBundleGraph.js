@@ -262,15 +262,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
-  removeAssetGraphFromBundle(
-    asset: IAsset,
-    bundle: IBundle,
-    options?: ?{|checkReachability?: boolean|},
-  ) {
+  removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
-      options,
     );
   }
 
