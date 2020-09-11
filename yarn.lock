@@ -2335,11 +2335,6 @@ ansi-colors@^3.2.1:
   resolved "https://packages.atlassian.com/api/npm/npm-remote/ansi-colors/-/ansi-colors-3.2.4.tgz#e3a3da4bfbae6c86a9c285625de124a234026fbf"
   integrity sha1-46PaS/uubIapwoViXeEkojQCb78=
 
-ansi-colors@^4.1.1:
-  version "4.1.1"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/ansi-colors/-/ansi-colors-4.1.1.tgz#cbb9ae256bf750af1eab344f229aa27fe94ba348"
-  integrity sha1-y7muJWv3UK8eqzRPIpqif+lLo0g=
-
 ansi-escapes@^3.0.0, ansi-escapes@^3.2.0:
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/ansi-escapes/-/ansi-escapes-3.2.0.tgz#8780b98ff9dbf5638152d1f1fe5c1d7b4442976b"
@@ -3799,7 +3794,7 @@ chalk@^3.0.0:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
 
-chalk@^4.0.0, chalk@^4.1.0:
+chalk@^4.0.0:
   version "4.1.0"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/chalk/-/chalk-4.1.0.tgz#4e14870a618d9e2edd97dd8345fd9d9dc315646a"
   integrity sha1-ThSHCmGNni7dl92DRf2dncMVZGo=
@@ -4182,11 +4177,6 @@ commander@^5.1.0:
   resolved "https://packages.atlassian.com/api/npm/npm-remote/commander/-/commander-5.1.0.tgz#46abbd1652f8e059bddaef99bbdcb2ad9cf179ae"
   integrity sha1-Rqu9FlL44Fm92u+Zu9yyrZzxea4=
 
-commander@^6.0.0:
-  version "6.0.0"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/commander/-/commander-6.0.0.tgz#2b270da94f8fb9014455312f829a1129dbf8887e"
-  integrity sha1-KycNqU+PuQFEVTEvgpoRKdv4iH4=
-
 commondir@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/commondir/-/commondir-1.0.1.tgz#ddd800da0c66127393cca5950ea968a3aaf1253b"
@@ -4458,17 +4448,6 @@ cosmiconfig@^6.0.0:
     parse-json "^5.0.0"
     path-type "^4.0.0"
     yaml "^1.7.2"
-
-cosmiconfig@^7.0.0:
-  version "7.0.0"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/cosmiconfig/-/cosmiconfig-7.0.0.tgz#ef9b44d773959cae63ddecd122de23853b60f8d3"
-  integrity sha1-75tE13OVnK5j3ezRIt4jhTtg+NM=
-  dependencies:
-    "@types/parse-json" "^4.0.0"
-    import-fresh "^3.2.1"
-    parse-json "^5.0.0"
-    path-type "^4.0.0"
-    yaml "^1.10.0"
 
 create-ecdh@^4.0.0:
   version "4.0.3"
@@ -5387,13 +5366,6 @@ enquirer@^2.3.5:
   dependencies:
     ansi-colors "^3.2.1"
 
-enquirer@^2.3.6:
-  version "2.3.6"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/enquirer/-/enquirer-2.3.6.tgz#2a7fe5dd634a1e4125a975ec994ff5456dc3734d"
-  integrity sha1-Kn/l3WNKHkElqXXsmU/1RW3Dc00=
-  dependencies:
-    ansi-colors "^4.1.1"
-
 entities@^1.1.1, entities@^1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/entities/-/entities-1.1.2.tgz#bdfa735299664dfafd34529ed4f8522a275fea56"
@@ -5870,21 +5842,6 @@ execa@^4.0.1:
   version "4.0.2"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/execa/-/execa-4.0.2.tgz#ad87fb7b2d9d564f70d2b62d511bee41d5cbb240"
   integrity sha1-rYf7ey2dVk9w0rYtURvuQdXLskA=
-  dependencies:
-    cross-spawn "^7.0.0"
-    get-stream "^5.0.0"
-    human-signals "^1.1.1"
-    is-stream "^2.0.0"
-    merge-stream "^2.0.0"
-    npm-run-path "^4.0.0"
-    onetime "^5.1.0"
-    signal-exit "^3.0.2"
-    strip-final-newline "^2.0.0"
-
-execa@^4.0.3:
-  version "4.0.3"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/execa/-/execa-4.0.3.tgz#0a34dabbad6d66100bd6f2c576c8669403f317f2"
-  integrity sha1-CjTau61tZhAL1vLFdshmlAPzF/I=
   dependencies:
     cross-spawn "^7.0.0"
     get-stream "^5.0.0"
@@ -7475,7 +7432,7 @@ import-fresh@^2.0.0:
     caller-path "^2.0.0"
     resolve-from "^3.0.0"
 
-import-fresh@^3.0.0, import-fresh@^3.1.0, import-fresh@^3.2.1:
+import-fresh@^3.0.0, import-fresh@^3.1.0:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/import-fresh/-/import-fresh-3.2.1.tgz#633ff618506e793af5ac91bf48b72677e15cbe66"
   integrity sha512-6e1q1cnWP2RXD9/keSkxHScg508CdXqXWgWBaETNhyuBFz+kUZlKboh+ISK+bU++DmbHimVBrOz/zzPe0sZ3sQ==
@@ -8626,28 +8583,7 @@ lint-staged@^10.0.8:
     string-argv "0.3.1"
     stringify-object "^3.3.0"
 
-lint-staged@^10.2.7:
-  version "10.2.13"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/lint-staged/-/lint-staged-10.2.13.tgz#b9c504683470edfc464b7d3fe3845a5a1efcd814"
-  integrity sha1-ucUEaDRw7fxGS30/44RaWh782BQ=
-  dependencies:
-    chalk "^4.1.0"
-    cli-truncate "^2.1.0"
-    commander "^6.0.0"
-    cosmiconfig "^7.0.0"
-    debug "^4.1.1"
-    dedent "^0.7.0"
-    enquirer "^2.3.6"
-    execa "^4.0.3"
-    listr2 "^2.6.0"
-    log-symbols "^4.0.0"
-    micromatch "^4.0.2"
-    normalize-path "^3.0.0"
-    please-upgrade-node "^3.2.0"
-    string-argv "0.3.1"
-    stringify-object "^3.3.0"
-
-lint-staged@^7.1.2:
+lint-staged@^7.1.2, lint-staged@^7.2.2:
   version "7.3.0"
   resolved "https://registry.yarnpkg.com/lint-staged/-/lint-staged-7.3.0.tgz#90ff33e5ca61ed3dbac35b6f6502dbefdc0db58d"
   integrity sha512-AXk40M9DAiPi7f4tdJggwuKIViUplYtVj1os1MVEteW7qOkU50EOehayCfO9TsoGK24o/EsWb41yrEgfJDDjCw==
@@ -8716,20 +8652,6 @@ listr2@^2.1.0:
     log-update "^4.0.0"
     p-map "^4.0.0"
     rxjs "^6.5.5"
-    through "^2.3.8"
-
-listr2@^2.6.0:
-  version "2.6.0"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/listr2/-/listr2-2.6.0.tgz#788a3d202978a1b8582062952cbc49272c8e206a"
-  integrity sha1-eIo9ICl4obhYIGKVLLxJJyyOIGo=
-  dependencies:
-    chalk "^4.1.0"
-    cli-truncate "^2.1.0"
-    figures "^3.2.0"
-    indent-string "^4.0.0"
-    log-update "^4.0.0"
-    p-map "^4.0.0"
-    rxjs "^6.6.2"
     through "^2.3.8"
 
 listr@^0.14.1:
@@ -12225,13 +12147,6 @@ rxjs@^6.5.5:
   dependencies:
     tslib "^1.9.0"
 
-rxjs@^6.6.2:
-  version "6.6.2"
-  resolved "https://packages.atlassian.com/api/npm/npm-remote/rxjs/-/rxjs-6.6.2.tgz#8096a7ac03f2cc4fe5860ef6e572810d9e01c0d2"
-  integrity sha1-gJanrAPyzE/lhg725XKBDZ4BwNI=
-  dependencies:
-    tslib "^1.9.0"
-
 safe-buffer@^5.0.1, safe-buffer@^5.1.0, safe-buffer@^5.1.1, safe-buffer@^5.1.2, safe-buffer@^5.2.0, safe-buffer@~5.2.0:
   version "5.2.0"
   resolved "https://registry.yarnpkg.com/safe-buffer/-/safe-buffer-5.2.0.tgz#b74daec49b1148f88c64b68d49b1e815c1f2f519"
@@ -14802,7 +14717,7 @@ yallist@^3.0.0, yallist@^3.0.2, yallist@^3.0.3:
   resolved "https://registry.yarnpkg.com/yallist/-/yallist-3.1.1.tgz#dbb7daf9bfd8bac9ab45ebf602b8cbad0d5d08fd"
   integrity sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==
 
-yaml@^1.10.0, yaml@^1.7.2:
+yaml@^1.7.2:
   version "1.10.0"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/yaml/-/yaml-1.10.0.tgz#3b593add944876077d4d683fee01081bd9fff31e"
   integrity sha1-O1k63ZRIdgd9TWg/7gEIG9n/8x4=
