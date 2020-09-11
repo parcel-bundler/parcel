@@ -19,8 +19,9 @@ export default (new Resolver({
     let mainFields = ['source', 'browser', 'module', 'main'];
     const resolver = new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'styl'],
+      fs: options.inputFS,
       mainFields,
-      options,
+      projectRoot: options.projectRoot,
       // ATLASSIAN: use custom field in package.json for aliases so we can have different aliases for SSR and client builds
       aliasField: 'aliasSsr',
     });

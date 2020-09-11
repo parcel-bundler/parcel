@@ -4,9 +4,9 @@ import type {FilePath} from '@parcel/types';
 import path from 'path';
 
 export type * from './types';
-export {NodeFS} from './NodeFS';
-export {MemoryFS} from './MemoryFS';
-export {OverlayFS} from './OverlayFS';
+export * from './NodeFS';
+export * from './MemoryFS';
+export * from './OverlayFS';
 
 // Recursively copies a directory from the sourceFS to the destinationFS
 export async function ncp(

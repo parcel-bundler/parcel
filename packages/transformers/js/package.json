@@ -33,6 +33,7 @@
     "@parcel/plugin": "^2.0.0-frontbucket.30",
     "@parcel/scope-hoisting": "^2.0.0-frontbucket.32",
     "@parcel/utils": "^2.0.0-frontbucket.26",
+    "micromatch": "^4.0.2",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   },

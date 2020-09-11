@@ -21,6 +21,8 @@ export type ConfigResultWithFilePath = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
+export type QueryParameters = {[key: string]: string, ...};
+
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -442,6 +444,7 @@ export interface BaseAsset {
   /** The file system where the source is located. */
   +fs: FileSystem;
   +filePath: FilePath;
+  +query: QueryParameters;
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
@@ -1018,6 +1021,10 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
+  /** Whether this dependency can be deferred by Parcel itself (true by default) */
+  +canDefer?: boolean,
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  +diagnostics?: Diagnostic | Array<Diagnostic>,
 |};
 
 export type ConfigOutput = {|

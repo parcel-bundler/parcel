@@ -19,7 +19,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-dev-server',
 );
 
-async function closeSocket(ws: WebSocket) {
+async function closeSocket(ws: typeof WebSocket) {
   ws.close();
   await new Promise(resolve => (ws.onclose = resolve));
 }
@@ -35,7 +35,7 @@ async function openSocket(uri: string, opts: any) {
   return ws;
 }
 
-async function nextWSMessage(ws: WebSocket) {
+async function nextWSMessage(ws: typeof WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 

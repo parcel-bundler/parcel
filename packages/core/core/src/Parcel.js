@@ -39,6 +39,7 @@ import {createCacheDir} from '@parcel/cache';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
+import logger from '@parcel/logger';
 
 registerCoreWithSerializer();
 
@@ -82,6 +83,8 @@ export default class Parcel {
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
 
+  isProfiling /*: boolean */;
+
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = options;
   }
@@ -100,6 +103,7 @@ export default class Parcel {
     this.#config = new ParcelConfig(
       config,
       resolvedOptions.packageManager,
+      resolvedOptions.inputFS,
       resolvedOptions.autoinstall,
     );
     this.#farm =
@@ -265,7 +269,7 @@ export default class Parcel {
     let options = nullthrows(this.#resolvedOptions);
     try {
       if (options.profile) {
-        await this.#farm.startProfile();
+        await this.startProfiling();
       }
       this.#reporterRunner.report({
         type: 'buildStart',
@@ -314,8 +318,8 @@ export default class Parcel {
 
       return event;
     } finally {
-      if (options.profile) {
-        await this.#farm.endProfile();
+      if (this.isProfiling) {
+        await this.stopProfiling();
       }
     }
   }
@@ -397,12 +401,31 @@ export default class Parcel {
       'Resolved options is null, please let parcel initialise before accessing this.',
     );
   }
+
+  async startProfiling(): Promise<void> {
+    if (this.isProfiling) {
+      throw new Error('Parcel is already profiling');
+    }
+
+    logger.info({origin: '@parcel/core', message: 'Starting profiling...'});
+    this.isProfiling = true;
+    await this.#farm.startProfile();
+  }
+
+  stopProfiling(): Promise<void> {
+    if (!this.isProfiling) {
+      throw new Error('Parcel is not profiling');
+    }
+
+    logger.info({origin: '@parcel/core', message: 'Stopping profiling...'});
+    this.isProfiling = false;
+    return this.#farm.endProfile();
+  }
 }
 
 export class BuildError extends ThrowableDiagnostic {
-  constructor(diagnostics: Array<Diagnostic>) {
-    super({diagnostic: diagnostics});
-
+  constructor(diagnostic: Array<Diagnostic> | Diagnostic) {
+    super({diagnostic});
     this.name = 'BuildError';
   }
 }

@@ -23,7 +23,7 @@
     "@babel/traverse": "^7.2.3",
     "@parcel/plugin": "^2.0.0-frontbucket.30",
     "@parcel/scope-hoisting": "^2.0.0-frontbucket.32",
-    "@parcel/source-map": "2.0.0-alpha.4.13",
+    "@parcel/source-map": "2.0.0-alpha.4.15",
     "@parcel/utils": "^2.0.0-frontbucket.26",
     "nullthrows": "^1.1.1"
   },

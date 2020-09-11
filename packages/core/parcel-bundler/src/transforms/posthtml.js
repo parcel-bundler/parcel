@@ -35,6 +35,7 @@ async function getConfig(asset) {
   }
 
   config = config || {};
+  delete config.render;
   const plugins = config.plugins;
   if (typeof plugins === 'object') {
     // This is deprecated in favor of result messages but kept for compatibility

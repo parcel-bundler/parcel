@@ -4,8 +4,8 @@ import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
 import {inputFS as fs} from '@parcel/test-utils';
-import {TargetResolver} from '../../src/requests/TargetRequest';
-import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from '../test-utils';
+import {TargetResolver} from '../src/requests/TargetRequest';
+import {DEFAULT_OPTIONS as _DEFAULT_OPTIONS} from './test-utils';
 
 const DEFAULT_OPTIONS = {..._DEFAULT_OPTIONS, sourceMaps: true};
 
@@ -22,6 +22,11 @@ const COMMON_TARGETS_IGNORE_FIXTURE_PATH = path.join(
 const CUSTOM_TARGETS_FIXTURE_PATH = path.join(
   __dirname,
   'fixtures/custom-targets',
+);
+
+const CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH = path.join(
+  __dirname,
+  'fixtures/custom-targets-distdir',
 );
 
 const INVALID_TARGETS_FIXTURE_PATH = path.join(
@@ -390,6 +395,48 @@ describe('TargetResolver', () => {
     );
   });
 
+  it('resolves explicit distDir for custom targets from package.json', async () => {
+    let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
+    assert.deepEqual(
+      await targetResolver.resolve(CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH),
+      {
+        files: [
+          {
+            filePath: path.join(
+              CUSTOM_TARGETS_DISTDIR_FIXTURE_PATH,
+              'package.json',
+            ),
+          },
+        ],
+        targets: [
+          {
+            name: 'app',
+            distDir: path.join(
+              __dirname,
+              'fixtures/custom-targets-distdir/www',
+            ),
+            distEntry: undefined,
+            publicUrl: 'www',
+            env: {
+              context: 'browser',
+              engines: {
+                browsers: '> 0.25%',
+              },
+              includeNodeModules: true,
+              outputFormat: 'global',
+              isLibrary: false,
+              minify: false,
+              scopeHoist: false,
+            },
+            sourceMap: {},
+            stableEntries: undefined,
+            loc: undefined,
+          },
+        ],
+      },
+    );
+  });
+
   it('resolves main target with context from package.json', async () => {
     let targetResolver = new TargetResolver(DEFAULT_OPTIONS);
     assert.deepEqual(await targetResolver.resolve(CONTEXT_FIXTURE_PATH), {
@@ -657,6 +704,7 @@ describe('TargetResolver', () => {
               scopeHoist: false,
             },
             sourceMap: {},
+            stableEntries: undefined,
             loc: undefined,
           },
         ],
@@ -700,6 +748,7 @@ describe('TargetResolver', () => {
               scopeHoist: false,
             },
             sourceMap: {},
+            stableEntries: undefined,
             loc: undefined,
           },
           {
@@ -723,6 +772,7 @@ describe('TargetResolver', () => {
               scopeHoist: false,
             },
             sourceMap: {},
+            stableEntries: undefined,
             loc: undefined,
           },
         ],

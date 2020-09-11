@@ -173,7 +173,10 @@ function getValidateResultFromDiagnostics(
             column: start.column + 1,
           };
 
-          if (typeof diagnostic.length === 'number') {
+          if (
+            typeof diagnostic.start === 'number' &&
+            typeof diagnostic.length === 'number'
+          ) {
             let endCharPosition = file.getLineAndCharacterOfPosition(
               diagnostic.start + diagnostic.length,
             );
@@ -186,11 +189,13 @@ function getValidateResultFromDiagnostics(
 
           codeframe = {
             code: source,
-            codeHighlights: {
-              start,
-              end,
-              message: diagnosticMessage,
-            },
+            codeHighlights: [
+              {
+                start,
+                end,
+                message: diagnosticMessage,
+              },
+            ],
           };
         }
       }

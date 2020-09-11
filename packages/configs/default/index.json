@@ -34,8 +34,15 @@
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
     "*.{eot,gif,jpg,jpeg,ico,mp4,png,svg,ttf,woff}": [
+      "@parcel/transformer-image",
       "@parcel/transformer-raw"
     ],
+    "*.vue": ["@parcel/transformer-vue"],
+    "template:*.vue": ["@parcel/transformer-vue"],
+    "script:*.vue": ["@parcel/transformer-vue"],
+    "style:*.vue": ["@parcel/transformer-vue"],
+    "custom:*.vue": ["@parcel/transformer-vue"],
+    "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image", "..."],
     "url:*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
@@ -47,7 +54,9 @@
     ],
     "service-worker": ["@parcel/runtime-js"],
     "web-worker": ["@parcel/runtime-js"],
-    "node": ["@parcel/runtime-js"]
+    "node": ["@parcel/runtime-js"],
+    "electron-renderer": ["@parcel/runtime-js"],
+    "electron-main": ["@parcel/runtime-js"]
   },
   "optimizers": {
     "data-url:*": ["...", "@parcel/optimizer-data-url"],

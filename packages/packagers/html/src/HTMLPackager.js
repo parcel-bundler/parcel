@@ -53,6 +53,14 @@ export default (new Packager({
       .getSiblingBundles(bundle)
       .filter(b => !b.isInline && !referenced.has(b.id));
 
+    let posthtmlConfig = await asset.getConfig(
+      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      {
+        packageKey: 'posthtml',
+      },
+    );
+    let renderConfig = posthtmlConfig?.render;
+
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
       replaceInlineAssetContent.bind(
@@ -60,7 +68,7 @@ export default (new Packager({
         bundleGraph,
         getInlineBundleContents,
       ),
-    ]).process(code);
+    ]).process(code, renderConfig);
 
     let {contents, map} = replaceURLReferences({
       bundle,

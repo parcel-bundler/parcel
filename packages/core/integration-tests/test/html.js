@@ -415,10 +415,12 @@ describe('html', function() {
 
     // mergeStyles
     assert(
-      html.match(
-        /<style>h1{color:red}div{font-size:20px}\n\/\*# sourceMappingURL=.*\*\/<\/style><style media="print">div{color:#00f}\n\/\*# sourceMappingURL=.*\*\/<\/style>/,
+      html.includes(
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
       ),
     );
+
+    assert(!html.includes('sourceMappingURL'));
 
     // minifySvg is false
     assert(
@@ -801,37 +803,6 @@ describe('html', function() {
     assert(!html.includes('someArgument'));
   });
 
-  it('should add an inline sourcemap to inline JS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {minify: false},
-    );
-
-    // inline bundles are not output, but are apart of the bundleGraph
-    assertBundles(b, [
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {name: 'index.html', assets: ['index.html']},
-    ]);
-
-    let files = await outputFS.readdir(distDir);
-    // assert that the inline js files are not output
-    assert(!files.some(filename => filename.includes('js')));
-
-    let html = await outputFS.readFile(
-      path.join(distDir, 'index.html'),
-      'utf-8',
-    );
-
-    assert(
-      html.includes(
-        '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,ey',
-      ),
-    );
-  });
-
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
@@ -920,11 +891,8 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(
-      html.match(
-        /<style>.index{color:#00f}\n\/\*# sourceMappingURL=.*<\/style>/,
-      ),
-    );
+    assert(html.includes('<style>.index{color:#00f}</style>'));
+    assert(!html.includes('sourceMappingURL'));
   });
 
   it('should process inline non-js scripts', async function() {

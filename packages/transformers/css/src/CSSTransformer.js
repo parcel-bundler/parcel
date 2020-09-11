@@ -207,7 +207,7 @@ export default (new Transformer({
 
     let map;
     if (result.map != null) {
-      map = new SourceMap();
+      map = new SourceMap(options.projectRoot);
       map.addRawMappings(result.map.toJSON());
     }
 

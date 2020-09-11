@@ -276,6 +276,17 @@ export class MemoryFS implements FileSystem {
       }
     }
 
+    for (let [from] of this.symlinks) {
+      if (from.startsWith(dir) && from.indexOf(path.sep, dir.length) === -1) {
+        let name = from.slice(dir.length);
+        if (opts?.withFileTypes) {
+          res.push(new Dirent(name, {mode: S_IFLNK}));
+        } else {
+          res.push(name);
+        }
+      }
+    }
+
     return res;
   }
 
@@ -709,6 +720,7 @@ class WriteStream extends Writable {
 
 const S_IFREG = 0o100000;
 const S_IFDIR = 0o040000;
+const S_IFLNK = 0o120000;
 
 class Entry {
   mode: number;
@@ -813,7 +825,7 @@ class Dirent {
   name: string;
   #mode: number;
 
-  constructor(name: string, entry: Entry) {
+  constructor(name: string, entry: {mode: number, ...}) {
     this.name = name;
     this.#mode = entry.mode;
   }
@@ -835,7 +847,7 @@ class Dirent {
   }
 
   isSymbolicLink(): boolean {
-    return false;
+    return Boolean(this.#mode & S_IFLNK);
   }
 
   isFIFO(): boolean {
