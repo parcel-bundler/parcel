@@ -901,7 +901,7 @@ export interface NamedBundle extends Bundle {
 export type BundleGroup = {|
   target: Target,
   entryAssetId: string,
-  bundleIds: Array<string>,
+  bundleIds: Set<string>,
 |};
 
 /**

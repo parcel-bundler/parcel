@@ -1,5 +1,5 @@
-import c from "./client";
-import v from "./viewer";
+
+import c from "./client/index.js";
+import v from "./viewer/index.js";
 
 output = Promise.all([c(), v()]);
-// ["hasher", ["hasher", "hasher"]]
