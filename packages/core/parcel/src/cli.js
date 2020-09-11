@@ -180,7 +180,9 @@ async function run(entries: Array<string>, command: any) {
     entries,
     packageManager,
     // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
-    defaultConfig: require.resolve('@parcel/config-default', { paths: [fs.cwd(), __dirname] }),
+    defaultConfig: require.resolve('@parcel/config-default', {
+      paths: [fs.cwd(), __dirname],
+    }),
     patchConsole: true,
     ...options,
   });
