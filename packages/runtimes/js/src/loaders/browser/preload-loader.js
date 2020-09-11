@@ -12,4 +12,4 @@ module.exports = cacheLoader(function preloadJSBundle(bundle) {
     link.href = bundle;
     document.getElementsByTagName('head')[0].appendChild(link);
   });
-});
+}, 'preload');

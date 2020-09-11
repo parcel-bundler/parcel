@@ -13,4 +13,4 @@ module.exports = cacheLoader(function prefetchJSBundle(bundle) {
     link.href = bundle;
     document.getElementsByTagName('head')[0].appendChild(link);
   });
-});
+}, 'prefetch');
