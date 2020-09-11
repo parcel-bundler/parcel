@@ -230,7 +230,7 @@ async function run(entries: Array<string>, command: any) {
               ),
             500,
           );
-          await exit(1);
+          await exit();
           break;
         case 'e':
           await (parcel.isProfiling
