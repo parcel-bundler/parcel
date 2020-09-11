@@ -8,4 +8,4 @@ module.exports = cacheLoader(function prefetchJSBundle(bundle) {
   document.getElementsByTagName('head')[0].appendChild(link);
 
   return Promise.resolve();
-});
+}, 'prefetch');

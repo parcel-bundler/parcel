@@ -9,4 +9,4 @@ module.exports = cacheLoader(function preloadJSBundle(bundle) {
   document.getElementsByTagName('head')[0].appendChild(link);
 
   return Promise.resolve();
-});
+}, 'preload');
