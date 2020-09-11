@@ -223,6 +223,13 @@ async function run(entries: Array<string>, command: any) {
           // We don't use the SIGINT event for this because when run inside yarn, the parent
           // yarn process ends before Parcel and it appears that Parcel has ended while it may still
           // be cleaning up. Handling events from stdin prevents this impression.
+          setTimeout(
+            () =>
+              INTERNAL_ORIGINAL_CONSOLE.log(
+                chalk.bold.yellowBright('Parcel is shutting down...'),
+              ),
+            500,
+          );
           await exit(1);
           break;
         case 'e':
