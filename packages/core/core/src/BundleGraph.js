@@ -363,7 +363,16 @@ export default class BundleGraph {
     // Remove bundle group node if it no longer has any bundles
     for (let bundleGroupNode of bundleGroupNodes) {
       invariant(bundleGroupNode.type === 'bundle_group');
-      if (this._graph.getNodesConnectedTo(bundleGroupNode).length === 0) {
+      const isEntryBundle =
+        bundleNode.type === 'bundle' &&
+        bundleNode.value.entryAssetIds.includes(
+          bundleGroupNode.value.entryAssetId,
+        );
+
+      if (
+        isEntryBundle ||
+        this._graph.getNodesConnectedTo(bundleGroupNode).length === 0
+      ) {
         this._graph.removeNode(bundleGroupNode);
       } else {
         nullthrows(bundleGroupNode.value.bundleIds.delete(bundleNode.id));

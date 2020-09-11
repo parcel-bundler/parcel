@@ -452,7 +452,11 @@ export default (new Bundler({
       }
 
       let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
-      invariant(externalResolution?.type === 'bundle_group');
+      if (externalResolution == null) {
+        return;
+      }
+
+      invariant(externalResolution.type === 'bundle_group');
       asyncBundleGroups.add(externalResolution.value);
 
       for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
