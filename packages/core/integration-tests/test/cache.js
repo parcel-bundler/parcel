@@ -35,20 +35,6 @@ async function testCache(update) {
   return b;
 }
 
-async function assertThrows(fn) {
-  let threw = false;
-  let e;
-  try {
-    await fn();
-  } catch (err) {
-    threw = true;
-    e = err;
-  }
-
-  assert(threw, 'did not throw');
-  return e;
-}
-
 describe('cache', function() {
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
@@ -79,22 +65,20 @@ describe('cache', function() {
   });
 
   it('should error when deleting a file', async function() {
-    let e = await assertThrows(async () => {
-      await testCache(async () => {
-        await overlayFS.unlink(
-          path.join(__dirname, '/input/src/nested/test.js'),
-        );
-      });
-    });
-
-    assert.equal(
-      e.message,
-      "Failed to resolve './nested/test' from './src/index.js'",
+    await assert.rejects(
+      async () => {
+        await testCache(async () => {
+          await overlayFS.unlink(
+            path.join(__dirname, '/input/src/nested/test.js'),
+          );
+        });
+      },
+      {message: "Failed to resolve './nested/test' from './src/index.js'"},
     );
   });
 
   it('should error when starting parcel from a broken state with no changes', async function() {
-    await assertThrows(async () => {
+    await assert.rejects(async () => {
       await testCache(async () => {
         await overlayFS.unlink(
           path.join(__dirname, '/input/src/nested/test.js'),
@@ -103,12 +87,11 @@ describe('cache', function() {
     });
 
     // Do a third build from a failed state with no changes
-    let e = await assertThrows(async () => {
-      await runBundle();
-    });
-    assert.equal(
-      e.message,
-      "Failed to resolve './nested/test' from './src/index.js'",
+    await assert.rejects(
+      async () => {
+        await runBundle();
+      },
+      {message: "Failed to resolve './nested/test' from './src/index.js'"},
     );
   });
 
@@ -241,41 +224,42 @@ describe('cache', function() {
     });
 
     it('should error when deleting an extended parcelrc', async function() {
-      let e = await assertThrows(async () => {
-        await testCache({
-          async setup() {
-            await overlayFS.writeFile(
-              path.join(__dirname, '/input/.parcelrc-extended'),
-              JSON.stringify({
-                extends: '@parcel/config-default',
-                transformers: {
-                  '*.js': ['parcel-transformer-mock'],
-                },
-              }),
-            );
+      await assert.rejects(
+        async () => {
+          await testCache({
+            async setup() {
+              await overlayFS.writeFile(
+                path.join(__dirname, '/input/.parcelrc-extended'),
+                JSON.stringify({
+                  extends: '@parcel/config-default',
+                  transformers: {
+                    '*.js': ['parcel-transformer-mock'],
+                  },
+                }),
+              );
 
-            await overlayFS.writeFile(
-              path.join(__dirname, '/input/.parcelrc'),
-              JSON.stringify({
-                extends: './.parcelrc-extended',
-              }),
-            );
-          },
-          async update(b) {
-            let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
-              'utf8',
-            );
-            assert(contents.includes('TRANSFORMED CODE'));
+              await overlayFS.writeFile(
+                path.join(__dirname, '/input/.parcelrc'),
+                JSON.stringify({
+                  extends: './.parcelrc-extended',
+                }),
+              );
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(contents.includes('TRANSFORMED CODE'));
 
-            await overlayFS.unlink(
-              path.join(__dirname, '/input/.parcelrc-extended'),
-            );
-          },
-        });
-      });
-
-      assert.equal(e.message, 'Cannot find extended parcel config');
+              await overlayFS.unlink(
+                path.join(__dirname, '/input/.parcelrc-extended'),
+              );
+            },
+          });
+        },
+        {message: 'Cannot find extended parcel config'},
+      );
     });
 
     it('should support deleting a .parcelrc', async function() {
