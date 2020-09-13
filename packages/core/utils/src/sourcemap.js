@@ -2,7 +2,7 @@
 import type {FileSystem} from '@parcel/fs';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
-import {normalizeSeparators} from './path';
+import {normalizeSeparators, isAbsolute} from './path';
 
 export const SOURCEMAP_RE: RegExp = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
@@ -30,15 +30,24 @@ export async function loadSourceMapUrl(
   if (match) {
     let url = match[1].trim();
     let dataURLMatch = url.match(DATA_URL_RE);
-    filename = dataURLMatch ? filename : path.join(path.dirname(filename), url);
+
+    let mapFilePath;
+    if (dataURLMatch) {
+      mapFilePath = filename;
+    } else {
+      mapFilePath = url.replace(/^file:\/\//, '');
+      mapFilePath = isAbsolute(mapFilePath)
+        ? mapFilePath
+        : path.join(path.dirname(filename), mapFilePath);
+    }
 
     return {
       url,
-      filename,
+      filename: mapFilePath,
       map: JSON.parse(
         dataURLMatch
           ? Buffer.from(dataURLMatch[1], 'base64').toString()
-          : await fs.readFile(filename, 'utf8'),
+          : await fs.readFile(mapFilePath, 'utf8'),
       ),
     };
   }
