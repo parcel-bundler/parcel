@@ -291,9 +291,6 @@ describe('postcss', () => {
       {
         name: 'style.css',
         assets: ['style.css'],
-        includedFiles: {
-          'style.css': ['config.css'],
-        },
       },
     ]);
 
@@ -311,9 +308,6 @@ describe('postcss', () => {
       {
         name: 'style.css',
         assets: ['style.css'],
-        includedFiles: {
-          'style.css': [],
-        },
       },
     ]);
 

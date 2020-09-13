@@ -478,7 +478,6 @@ export interface BaseAsset {
   getMap(): Promise<?SourceMap>;
   /** A buffer representation of the sourcemap (if existent). */
   getMapBuffer(): Promise<?Buffer>;
-  getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   /** Used to load config files, (looks in every parent folder until a module root) \
    * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
@@ -505,7 +504,7 @@ export interface MutableAsset extends BaseAsset {
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  addIncludedFile(file: File): void;
+  addIncludedFile(filePath: FilePath): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
   invalidateOnEnvChange(env: string): void;
 

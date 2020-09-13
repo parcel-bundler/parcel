@@ -50,9 +50,6 @@ describe('pug', function() {
         type: 'html',
         name: 'index.html',
         assets: ['index.pug'],
-        includedFiles: {
-          'index.pug': ['base.pug', 'other.pug', 'nested.pug'],
-        },
       },
     ]);
 

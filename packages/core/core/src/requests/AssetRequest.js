@@ -4,6 +4,7 @@ import type {Async} from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {AssetRequestInput, AssetRequestResult} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
+import type {TransformationResult} from '../Transformation';
 
 import {md5FromObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -51,25 +52,28 @@ async function run({input, api, options, farm}: RunInput) {
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
-  let {assets, configRequests} = await farm.createHandle('runTransform')({
+  let {assets, configRequests, invalidations} = (await farm.createHandle(
+    'runTransform',
+  )({
     configCachePath: cachePath,
     optionsRef,
     request,
-  });
+  }): TransformationResult);
 
   let time = Date.now() - start;
   for (let asset of assets) {
     asset.stats.time = time;
   }
 
-  for (let asset of assets) {
-    for (let filePath of asset.includedFiles.keys()) {
-      api.invalidateOnFileUpdate(filePath);
-      api.invalidateOnFileDelete(filePath);
-    }
-
-    for (let env of asset.invalidateOnEnvChange.keys()) {
-      api.invalidateOnEnvChange(env);
+  for (let invalidation of invalidations) {
+    switch (invalidation.type) {
+      case 'file':
+        api.invalidateOnFileUpdate(invalidation.filePath);
+        api.invalidateOnFileDelete(invalidation.filePath);
+        break;
+      case 'env':
+        api.invalidateOnEnvChange(invalidation.key);
+        break;
     }
   }
 

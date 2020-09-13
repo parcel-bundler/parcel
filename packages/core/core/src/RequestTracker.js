@@ -4,7 +4,7 @@ import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, File, FilePath, Glob, EnvMap} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
-import type {NodeId, ParcelOptions} from './types';
+import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -198,7 +198,6 @@ export class RequestGraph extends Graph<
     invariant(node.type === 'request');
     if (this.hasNode(node.id)) {
       this.invalidNodeIds.add(node.id);
-      this.clearInvalidations(node);
 
       let parentNodes = this.getNodesConnectedTo(node, 'subrequest');
       for (let parentNode of parentNodes) {
@@ -291,6 +290,25 @@ export class RequestGraph extends Graph<
     this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_create');
   }
 
+  getInvalidations(requestId: string): Array<RequestInvalidation> {
+    // For now just handling updates. Could add creates/deletes later if needed.
+    let requestNode = this.getRequestNode(requestId);
+    let invalidations = this.getNodesConnectedFrom(
+      requestNode,
+      'invalidated_by_update',
+    );
+    return invalidations
+      .map(node => {
+        switch (node.type) {
+          case 'file':
+            return {type: 'file', filePath: node.value.filePath};
+          case 'env':
+            return {type: 'env', key: node.value.key};
+        }
+      })
+      .filter(Boolean);
+  }
+
   respondToFSEvents(events: Array<Event>): boolean {
     for (let {path, type} of events) {
       let node = this.getNode(path);
@@ -363,6 +381,10 @@ export default class RequestTracker {
     if (!this.graph.hasNode(request.id)) {
       let node = nodeFromRequest(request);
       this.graph.addNode(node);
+    } else {
+      // Clear existing invalidations for the request so that the new
+      // invalidations created during the request replace the existing ones.
+      this.graph.clearInvalidations(this.graph.getRequestNode(request.id));
     }
 
     this.graph.incompleteNodeIds.add(request.id);
