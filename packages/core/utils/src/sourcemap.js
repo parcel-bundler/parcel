@@ -30,11 +30,15 @@ export async function loadSourceMapUrl(
   if (match) {
     let url = match[1].trim();
     let dataURLMatch = url.match(DATA_URL_RE);
+
     let mapFilePath;
-    if(dataURLMatch) {
-        mapFilePath = filename;
+    if (dataURLMatch) {
+      mapFilePath = filename;
     } else {
-        mapFilePath = isAbsolute(mapFilePath) ? url.replace(/^file:\/\//, '') : path.join(path.dirname(filename), mapFilePath);
+      mapFilePath = url.replace(/^file:\/\//, '');
+      mapFilePath = isAbsolute(mapFilePath)
+        ? mapFilePath
+        : path.join(path.dirname(filename), mapFilePath);
     }
 
     return {
