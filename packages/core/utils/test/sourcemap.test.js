@@ -46,10 +46,10 @@ describe('loadSourceMap', () => {
     let contents = fs.readFileSync(filename, 'utf-8');
 
     let foundMap = await loadSourceMapUrl(fs, filename, contents);
-    assert.equal(foundMap.url, 'referenced-min.js.map');
+    assert.equal(foundMap.url, 'file://referenced-min.js.map');
     assert.equal(
       foundMap.filename,
-      path.join(path.dirname(filename), foundMap.url),
+      path.join(__dirname, 'input/sourcemap/referenced-min.js.map'),
     );
     assert.deepEqual(foundMap.map, {
       version: 3,
