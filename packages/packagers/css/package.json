@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.13",
+    "@parcel/source-map": "2.0.0-alpha.4.15",
     "@parcel/utils": "2.0.0-beta.1"
   }
 }

@@ -121,7 +121,7 @@ describe('sourcemaps', function() {
     }
     let map = mapUrlData.map;
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -167,7 +167,7 @@ describe('sourcemaps', function() {
     }
     let map = mapUrlData.map;
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     assert.strictEqual(map.sourceRoot, '/__parcel_source_root/');
     let input = await inputFS.readFile(
@@ -223,7 +223,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = './index.js';
@@ -281,7 +281,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
@@ -370,7 +370,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
@@ -455,7 +455,7 @@ describe('sourcemaps', function() {
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
     // assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
@@ -494,7 +494,7 @@ describe('sourcemaps', function() {
     assert.equal(map.file, 'index.js.map');
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
@@ -546,7 +546,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let input = await inputFS.readFile(
@@ -601,7 +601,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -703,7 +703,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -758,7 +758,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -840,7 +840,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
