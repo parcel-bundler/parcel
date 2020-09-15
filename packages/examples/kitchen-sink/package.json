@@ -1,6 +1,6 @@
 {
   "name": "@parcel/kitchen-sink-example",
-  "version": "2.0.0-frontbucket.44",
+  "version": "2.0.0-frontbucket.45",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -9,9 +9,9 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.14",
-    "@parcel/config-default": "^2.0.0-frontbucket.44",
+    "@parcel/config-default": "^2.0.0-frontbucket.45",
     "@parcel/reporter-sourcemap-visualiser": "^2.0.0-frontbucket.11",
-    "parcel": "^2.0.0-frontbucket.44"
+    "parcel": "^2.0.0-frontbucket.45"
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",
