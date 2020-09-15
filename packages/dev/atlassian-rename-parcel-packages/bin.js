@@ -8,6 +8,9 @@ const path = require('path');
 
 const {shouldReplace, getReplacementName} = require('./utils');
 
+const CORE_PACKAGENAME = '@parcel/core';
+const coreVersion = require('../../core/core/package.json').version;
+
 const jsFiles = glob.sync('packages/*/*/lib/**/*.js', {
   absolute: true,
   cwd: path.resolve(__dirname, '../../..'),
@@ -56,12 +59,23 @@ for (const filePath of packageJsons) {
       continue;
     }
 
-    for (const [key, val] of Object.entries(depMap)) {
-      if (shouldReplace(key)) {
-        delete depMap[key];
-        depMap[getReplacementName(key)] = val;
+    for (const [pkg, ver] of Object.entries(depMap)) {
+      if (shouldReplace(pkg)) {
+        delete depMap[pkg];
+        depMap[getReplacementName(pkg)] = ver;
       }
     }
+  }
+
+  if (
+    typeof contents.peerDependencies === 'object' &&
+    contents.peerDependencies != null &&
+    contents.peerDependencies[CORE_PACKAGENAME] != null
+  ) {
+    // Lerna doesn't update peerDependencies automatically. Update core's ourselves, and rename it.
+    delete contents.peerDependencies[CORE_PACKAGENAME];
+    contents.peerDependencies[getReplacementName(CORE_PACKAGENAME)] =
+      '^' + coreVersion;
   }
 
   fs.writeFileSync(filePath, JSON.stringify(contents, null, 2));
