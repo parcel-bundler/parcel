@@ -304,11 +304,10 @@ export default class BundleGraph {
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
-    let entryAssetIds = new Set(bundle.entryAssetIds);
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
     this._graph.traverse((node, context, actions) => {
-      if (node.type === 'bundle_group' || entryAssetIds.has(node.id)) {
+      if (node.type === 'bundle_group') {
         actions.skipChildren();
         return;
       }
