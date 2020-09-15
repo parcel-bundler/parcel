@@ -3,18 +3,16 @@
 import assert from 'assert';
 import path from 'path';
 import {bundler, outputFS} from '@parcel/test-utils';
-import defaultConfigContents from '@parcel/config-default';
 
-const metricsConfig = {
-  ...defaultConfigContents,
-  reporters: ['@parcel/reporter-build-metrics'],
-  filePath: require.resolve('@parcel/config-default'),
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-build-metrics',
+);
 
 describe('Build Metrics Reporter', () => {
   it('Should dump bundle metrics to parcel-metrics.json', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      defaultConfig: metricsConfig,
+      config,
       logLevel: 'info',
     });
     await b.run();
