@@ -16,6 +16,11 @@ import {version} from '../package.json';
 
 require('v8-compile-cache');
 
+// Exit codes in response to signals are traditionally
+// 128 + signal value
+// https://tldp.org/LDP/abs/html/exitcodes.html
+const SIGINT_EXIT_CODE = 130;
+
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
     for (let diagnostic of e.diagnostics) {
@@ -202,6 +207,7 @@ async function run(entries: Array<string>, command: any) {
     process.exit(exitCode);
   }
 
+  const isWatching = command.name() === 'watch' || command.name() === 'serve';
   if (process.stdin.isTTY) {
     // $FlowFixMe
     process.stdin.setRawMode(true);
@@ -223,7 +229,19 @@ async function run(entries: Array<string>, command: any) {
           // We don't use the SIGINT event for this because when run inside yarn, the parent
           // yarn process ends before Parcel and it appears that Parcel has ended while it may still
           // be cleaning up. Handling events from stdin prevents this impression.
-          await exit(1);
+
+          // Enqueue a busy message to be shown if Parcel doesn't shut down
+          // within the timeout.
+          setTimeout(
+            () =>
+              INTERNAL_ORIGINAL_CONSOLE.log(
+                chalk.bold.yellowBright('Parcel is shutting down...'),
+              ),
+            500,
+          );
+          // When watching, a 0 success code is acceptable when Parcel is interrupted with ctrl-c.
+          // When building, fail with a code as if we received a SIGINT.
+          await exit(isWatching ? 0 : SIGINT_EXIT_CODE);
           break;
         case 'e':
           await (parcel.isProfiling
@@ -238,7 +256,7 @@ async function run(entries: Array<string>, command: any) {
     });
   }
 
-  if (command.name() === 'watch' || command.name() === 'serve') {
+  if (isWatching) {
     ({unsubscribe} = await parcel.watch(err => {
       if (err) {
         throw err;
@@ -262,7 +280,8 @@ async function run(entries: Array<string>, command: any) {
       process.stdin.resume();
     }
 
-    // In non-tty cases, respond to SIGINT by cleaning up.
+    // In non-tty cases, respond to SIGINT by cleaning up. Since we're watching,
+    // a 0 success code is acceptable.
     process.on('SIGINT', exit);
     process.on('SIGTERM', exit);
   } else {
