@@ -37,8 +37,8 @@ class Parser {
     this.registerExtension('styl', './assets/StylusAsset');
     this.registerExtension('stylus', './assets/StylusAsset');
     this.registerExtension('less', './assets/LESSAsset');
-    this.registerExtension('sass', './assets/SASSAsset');
-    this.registerExtension('scss', './assets/SASSAsset');
+    this.registerExtension('sass', './assets/SassAsset');
+    this.registerExtension('scss', './assets/SassAsset');
 
     this.registerExtension('html', './assets/HTMLAsset');
     this.registerExtension('htm', './assets/HTMLAsset');
