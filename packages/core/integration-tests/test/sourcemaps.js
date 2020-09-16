@@ -683,7 +683,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it('should create a valid sourcemap for a SASS asset', async function() {
+  it('should create a valid sourcemap for a Sass asset', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
@@ -738,7 +738,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it('should create a valid sourcemap when for a CSS asset importing SASS', async function() {
+  it('should create a valid sourcemap when for a CSS asset importing Sass', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
