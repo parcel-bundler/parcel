@@ -346,7 +346,7 @@ function addURLDependency(
   asset.setAST(ast);
 }
 
-// TODO: Implement support for non-string values.
+// TODO: Implement support for non-boolean values.
 function objectExpressionNodeToJSONObject(
   objectExpressionNode: ObjectExpression,
 ): JSONObject {
