@@ -384,45 +384,51 @@ export function normaliseNewlines(text: string): string {
 function prepareBrowserContext(
   filePath: FilePath,
   globals: mixed,
-): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
+): {|
+  ctx: vm$Context,
+  promises: Array<Promise<mixed>>,
+|} {
   // for testing dynamic imports
   const fakeElement = {
     remove() {},
   };
 
+  const head = {
+    children: [],
+    appendChild(el) {
+      head.children.push(el);
+
+      if (el.tag === 'script') {
+        let {deferred, promise} = makeDeferredWithPromise();
+        promises.push(promise);
+        setTimeout(function() {
+          vm.runInContext(
+            overlayFS.readFileSync(
+              path.join(path.dirname(filePath), url.parse(el.src).pathname),
+              'utf8',
+            ),
+            ctx,
+          );
+
+          el.onload();
+          deferred.resolve();
+        }, 0);
+      } else if (typeof el.onload === 'function') {
+        el.onload();
+      }
+    },
+  };
+
   let promises = [];
 
   const fakeDocument = {
+    head,
     createElement(tag) {
       return {tag};
     },
 
     getElementsByTagName() {
-      return [
-        {
-          appendChild(el) {
-            let {deferred, promise} = makeDeferredWithPromise();
-            promises.push(promise);
-            setTimeout(function() {
-              if (el.tag === 'script') {
-                vm.runInContext(
-                  overlayFS.readFileSync(
-                    path.join(
-                      path.dirname(filePath),
-                      url.parse(el.src).pathname,
-                    ),
-                    'utf8',
-                  ),
-                  ctx,
-                );
-              }
-
-              el.onload();
-              deferred.resolve();
-            }, 0);
-          },
-        },
-      ];
+      return [head];
     },
 
     createEvent() {
