@@ -3,10 +3,12 @@
 import type {
   AST,
   DependencyOptions,
+  JSONObject,
+  Meta,
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
-import type {Node} from '@babel/types';
+import type {Node, ObjectExpression} from '@babel/types';
 import type {Visitors} from '@parcel/babylon-walk';
 
 import * as types from '@babel/types';
@@ -83,7 +85,7 @@ export default ({
 
       let isDynamicImport =
         callee.type === 'Import' &&
-        args.length === 1 &&
+        args.length > 0 &&
         types.isStringLiteral(args[0]);
 
       if (isDynamicImport) {
@@ -92,7 +94,22 @@ export default ({
           return;
         }
 
-        addDependency(asset, args[0], {isAsync: true});
+        let meta;
+        let importAttributesNode = args[1];
+        if (importAttributesNode != null) {
+          if (importAttributesNode.type !== 'ObjectExpression') {
+            throw new Error(
+              'Second argument to import() must be an object expression',
+            );
+          }
+          meta = {
+            importAttributes: objectExpressionNodeToJSONObject(
+              importAttributesNode,
+            ),
+          };
+        }
+
+        addDependency(asset, args[0], {isAsync: true, meta});
 
         node.callee = types.identifier('require');
         asset.setAST(ast);
@@ -292,14 +309,20 @@ function getFunctionParent(ancestors) {
 function addDependency(
   asset,
   node,
-  opts: ?{|isAsync?: boolean, isOptional?: boolean|},
+  opts: ?{|isAsync?: boolean, isOptional?: boolean, meta?: ?Meta|},
 ) {
-  asset.addDependency({
+  let dependencyOptions: DependencyOptions = {
     moduleSpecifier: node.value,
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
     isAsync: opts ? opts.isAsync : false,
     isOptional: opts ? opts.isOptional : false,
-  });
+  };
+
+  if (opts?.meta != null) {
+    dependencyOptions = {...dependencyOptions, meta: opts.meta};
+  }
+
+  asset.addDependency(dependencyOptions);
 }
 
 function addURLDependency(
@@ -321,4 +344,27 @@ function addURLDependency(
     ]),
   );
   asset.setAST(ast);
+}
+
+// TODO: Implement support for non-string values.
+function objectExpressionNodeToJSONObject(
+  objectExpressionNode: ObjectExpression,
+): JSONObject {
+  let object = {};
+  for (let property of objectExpressionNode.properties) {
+    if (property.type !== 'ObjectProperty') {
+      continue;
+    }
+    let {key, value} = property;
+
+    if (key.type !== 'Identifier') {
+      continue;
+    }
+
+    if (value.type === 'BooleanLiteral') {
+      object[key.name] = value.value;
+    }
+  }
+
+  return object;
 }
