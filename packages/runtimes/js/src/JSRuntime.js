@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
-import {relativeBundlePath} from '@parcel/utils';
+import {flatMap, relativeBundlePath} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
@@ -24,6 +24,12 @@ const DYNAMIC_IMPORT_BROWSERS = {
   opera: '50',
 };
 
+// Used for as="" in preload/prefetch
+const TYPE_TO_RESOURCE_PRIORITY = {
+  css: 'style',
+  js: 'script',
+};
+
 const LOADERS = {
   browser: {
     css: './loaders/browser/css-loader',
@@ -31,6 +37,8 @@ const LOADERS = {
     js: './loaders/browser/js-loader',
     wasm: './loaders/browser/wasm-loader',
     IMPORT_POLYFILL: './loaders/browser/import-polyfill',
+    PRELOAD: './loaders/browser/preload-loader',
+    PREFETCH: './loaders/browser/prefetch-loader',
   },
   worker: {
     js: './loaders/worker/js-loader',
@@ -45,6 +53,7 @@ const LOADERS = {
     IMPORT_POLYFILL: null,
   },
 };
+
 function getLoaders(
   ctx: Environment,
 ): ?{[string]: string, IMPORT_POLYFILL: null | false | string, ...} {
@@ -263,6 +272,23 @@ function getLoaderRuntimes({
         .filter(Boolean)
     : [];
 
+  if (loaders && bundle.env.context === 'browser') {
+    loaderModules.push(
+      ...flatMap(
+        // TODO: Allow css to preload resources as well
+        externalBundles.filter(to => to.type === 'js'),
+        from => {
+          let {preload, prefetch} = getHintedBundleGroups(bundleGraph, from);
+
+          return [
+            ...getHintLoaders(bundleGraph, bundle, preload, loaders.PRELOAD),
+            ...getHintLoaders(bundleGraph, bundle, prefetch, loaders.PREFETCH),
+          ];
+        },
+      ),
+    );
+  }
+
   if (loaderModules.length > 0) {
     let loaders = loaderModules.join(', ');
     if (
@@ -296,6 +322,71 @@ function getLoaderRuntimes({
   }
 
   return assets;
+}
+
+function getHintedBundleGroups(
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+): {|preload: Array<BundleGroup>, prefetch: Array<BundleGroup>|} {
+  let preload = [];
+  let prefetch = [];
+  bundle.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dependency = node.value;
+    // $FlowFixMe
+    let attributes = dependency.meta?.importAttributes;
+    if (
+      dependency.isAsync &&
+      !dependency.isURL &&
+      typeof attributes === 'object' &&
+      attributes != null &&
+      // $FlowFixMe
+      (attributes.preload || attributes.prefetch)
+    ) {
+      let resolved = bundleGraph.resolveAsyncDependency(dependency, bundle);
+      if (resolved?.type === 'bundle_group') {
+        // === true for flow
+        if (attributes.preload === true) {
+          preload.push(resolved.value);
+        }
+        if (attributes.prefetch === true) {
+          prefetch.push(resolved.value);
+        }
+      }
+    }
+  });
+
+  return {preload, prefetch};
+}
+
+function getHintLoaders(
+  bundleGraph: BundleGraph<NamedBundle>,
+  from: NamedBundle,
+  bundleGroups: Array<BundleGroup>,
+  loader: string,
+): Array<string> {
+  let hintLoaders = [];
+  for (let bundleGroupToPreload of bundleGroups) {
+    let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
+      bundleGroupToPreload,
+    );
+    for (let bundleToPreload of bundlesToPreload) {
+      let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
+      let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];
+      hintLoaders.push(
+        `require(${JSON.stringify(
+          loader,
+        )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
+          priority ? JSON.stringify(priority) : 'null'
+        })`,
+      );
+    }
+  }
+
+  return hintLoaders;
 }
 
 function isNewContext(

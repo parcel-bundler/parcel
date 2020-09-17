@@ -21,7 +21,7 @@ module.exports = function cacheLoader(loader, type) {
       return cache[bundle];
     }
 
-    return (cache[bundle] = loader(bundle).catch(function(e) {
+    return (cache[bundle] = loader.apply(null, arguments).catch(function(e) {
       delete cache[bundle];
       throw e;
     }));
