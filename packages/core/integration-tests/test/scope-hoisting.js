@@ -1921,24 +1921,6 @@ describe('scope hoisting', function() {
         await run(b);
       });
 
-      it('support exporting a ES6 module exported as CommonJS', async function() {
-        let b = await bundle(
-          path.join(
-            __dirname,
-            '/integration/scope-hoisting/es6/re-export-commonjs/a.js',
-          ),
-        );
-        let calls = [];
-        let output = await run(b, {
-          sideEffect: caller => {
-            calls.push(caller);
-          },
-        });
-
-        assert.deepEqual(calls, ['other']);
-        assert.deepEqual(output, 'bar');
-      });
-
       it('supports named and namespace exports of the same asset (named used)', async function() {
         let b = await bundle(
           path.join(

@@ -301,17 +301,20 @@ export function getThrowableDiagnosticForNode(
   });
 }
 
+/**
+ * This returns an expression that is a subset (based on the used symbols)
+ * of the asset's static (declared) namespace export.
+ */
 export function getExportNamespaceExpression(
   program: NodePath<Program>,
   bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   bundle: NamedBundle,
+  bundleAssets: Map<string, Asset>,
 ): Identifier | ObjectExpression {
   let exportedSymbols = getExportedSymbolsShallow(bundleGraph, asset, bundle);
   let namespaceExport = exportedSymbols?.find(({exportAs}) => exportAs === '*');
-  if (!exportedSymbols) {
-    return t.identifier(assertString(asset.meta.exportsIdentifier));
-  } else if (namespaceExport) {
+  if (namespaceExport) {
     let {symbol} = namespaceExport;
     invariant(symbol != null && symbol !== false);
     return t.identifier(symbol);
@@ -320,10 +323,22 @@ export function getExportNamespaceExpression(
       exportedSymbols
         .map(({symbol, exportAs, exportSymbol, asset: symbolAsset}) => {
           if (symbol != null && symbol !== false) {
-            return t.objectProperty(
-              t.identifier(exportAs),
-              t.identifier(symbol),
-            );
+            if (bundleAssets.has(assertString(symbolAsset.meta.id))) {
+              return t.objectProperty(
+                t.identifier(exportAs),
+                t.identifier(symbol),
+              );
+            } else {
+              let initIdentifier = getIdentifier(symbolAsset, 'init');
+              invariant(program.scope.hasBinding(initIdentifier.name));
+              return t.objectProperty(
+                t.identifier(exportAs),
+                t.memberExpression(
+                  t.callExpression(initIdentifier, []),
+                  t.identifier(exportSymbol),
+                ),
+              );
+            }
           } else if (exportSymbol === '*') {
             return t.objectProperty(
               t.identifier(exportAs),
@@ -332,6 +347,7 @@ export function getExportNamespaceExpression(
                 bundleGraph,
                 symbolAsset,
                 bundle,
+                bundleAssets,
               ),
             );
           } else {
@@ -359,7 +375,7 @@ export function getExportedSymbolsShallow(
   bundleGraph: BundleGraph<NamedBundle>,
   asset: Asset,
   boundary: ?NamedBundle,
-): ?Array<ExportSymbolResolution> {
+): Array<ExportSymbolResolution> {
   let assetSymbols = asset.symbols;
   let assetSymbolsInverse = new Map(
     [...assetSymbols].map(([key, val]) => [val.local, key]),

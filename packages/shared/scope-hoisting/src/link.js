@@ -10,12 +10,14 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
-  Node,
+  CallExpression,
   Expression,
   File,
   FunctionDeclaration,
   Identifier,
   LVal,
+  MemberExpression,
+  Node,
   ObjectExpression,
   ObjectProperty,
   Program,
@@ -481,8 +483,11 @@ export function link({
 
   function registerIdOrObject(
     program: NodePath<Program>,
-    path: NodePath<ObjectExpression | Identifier>,
+    path: NodePath<
+      ObjectExpression | Identifier | MemberExpression | CallExpression,
+    >,
   ) {
+    // console.log("registerIdOrObject", path.node);
     if (path.isIdentifier()) {
       // TODO Somehow deferred/excluded assets are referenced, causing this function to
       // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
@@ -491,12 +496,37 @@ export function link({
       maybeReplaceIdentifier(path);
       // $FlowFixMe is *is* an Identifier
       program.scope.getBinding(path.node.name)?.reference(path);
+    } else if (path.isMemberExpression()) {
+      // $FlowFixMe is *is* a MemberExpression
+      let object = path.get<NodePath<Expression>>('object');
+      let objectNode = object.node;
+      if (
+        isCallExpression(objectNode) &&
+        isIdentifier(objectNode.callee) &&
+        objectNode.arguments.length === 0
+      ) {
+        // $id$init() call
+        object = object.get<NodePath<Identifier>>('callee');
+      } else {
+        invariant(isIdentifier(object));
+      }
+      // $FlowFixMe is *is* a MemberExpression
+      invariant(isIdentifier(path.node.property));
+      // $FlowFixMe is *is* an Identifer
+      registerIdOrObject(program, object);
+      registerIdOrObject(program, path.get<NodePath<Identifier>>('property'));
     } else {
-      for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
-        'properties',
-      )) {
-        if (isBooleanLiteral(prop.node.value)) continue;
-        registerIdOrObject(program, prop.get('value'));
+      invariant(path.isObjectExpression(), path.node.type);
+      try {
+        for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
+          'properties',
+        )) {
+          if (isBooleanLiteral(prop.node.value)) continue;
+          registerIdOrObject(program, prop.get('value'));
+        }
+      } catch (e) {
+        console.log(path.node);
+        throw e;
       }
     }
   }
@@ -779,6 +809,7 @@ export function link({
                     bundleGraph,
                     a,
                     bundle,
+                    assets,
                   ),
                 });
               }),
