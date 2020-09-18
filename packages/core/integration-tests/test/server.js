@@ -9,7 +9,6 @@ import {
   ncp,
 } from '@parcel/test-utils';
 import http from 'http';
-import http2 from 'http2';
 import https from 'https';
 import getPort from 'get-port';
 
@@ -41,34 +40,6 @@ function get(file, port, client = http) {
         });
       },
     );
-  });
-}
-
-function http2Get(file, port) {
-  return new Promise((resolve, reject) => {
-    let session = http2.connect(`https://localhost:${port}`, {
-      rejectUnauthorized: false,
-    });
-
-    session.on('error', reject);
-
-    let req = session.request({
-      ':path': file,
-    });
-
-    req.on('response', () => {});
-    req.on('error', reject);
-    req.setEncoding('utf8');
-
-    let data = '';
-    req.on('data', chunk => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      session.close();
-      resolve(data);
-    });
-    req.end();
   });
 }
 
@@ -246,53 +217,6 @@ describe('server', function() {
     }
 
     assert.equal(statusCode, 500);
-  });
-
-  it('should support HTTP/2', async function() {
-    let port = await getPort();
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      config,
-      serve: {
-        https: true,
-        port: port,
-        host: 'localhost',
-      },
-      distDir,
-    });
-
-    subscription = await b.watch();
-    await getNextBuild(b);
-
-    let data = await http2Get('/index.js', port);
-    assert.equal(
-      data,
-      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
-    );
-  });
-
-  it('should support HTTP/2 via custom certificate', async function() {
-    let port = await getPort();
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      config,
-      serve: {
-        https: {
-          key: path.join(__dirname, '/integration/https/private.pem'),
-          cert: path.join(__dirname, '/integration/https/primary.crt'),
-        },
-        port: port,
-        host: 'localhost',
-      },
-      distDir,
-    });
-
-    subscription = await b.watch();
-    await getNextBuild(b);
-
-    let data = await http2Get('/index.js', port);
-    assert.equal(
-      data,
-      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8'),
-    );
   });
 
   it('should support HTTPS', async function() {

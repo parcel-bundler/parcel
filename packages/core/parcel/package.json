@@ -32,7 +32,6 @@
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",
-    "react": "^16.7.0",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {

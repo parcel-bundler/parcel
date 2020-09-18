@@ -94,6 +94,7 @@ async function run({input, api, options}: RunOpts) {
   let parcelConfig = new ParcelConfig(
     config,
     options.packageManager,
+    options.inputFS,
     options.autoinstall,
   );
 
@@ -483,9 +484,13 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
+        let pkgDir = path.dirname(nullthrows(pkgFilePath));
         targets.set(targetName, {
           name: targetName,
-          distDir,
+          distDir:
+            descriptor.distDir != null
+              ? path.resolve(pkgDir, descriptor.distDir)
+              : distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           // ATLASSIAN: "stableEntries": false causes entries with hashes

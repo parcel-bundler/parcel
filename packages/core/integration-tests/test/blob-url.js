@@ -4,13 +4,9 @@ import assert from 'assert';
 import path from 'path';
 import {bundle, distDir, outputFS} from '@parcel/test-utils';
 
-const config = path.join(__dirname, '/integration/blob-url/.parcelrc');
-
 describe('blob urls', () => {
   it('should inline compiled content as a blob url with `blob-url:*` imports', async () => {
-    await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      config,
-    });
+    await bundle(path.join(__dirname, '/integration/blob-url/index.js'));
 
     let bundleContent = await outputFS.readFile(
       path.join(distDir, 'index.js'),
@@ -31,7 +27,6 @@ describe('blob urls', () => {
 
   it('should inline minified content as a blob url with `blob-url:*` imports', async () => {
     await bundle(path.join(__dirname, '/integration/blob-url/index.js'), {
-      config,
       minify: true,
     });
 

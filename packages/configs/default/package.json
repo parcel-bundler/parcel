@@ -64,7 +64,9 @@
     "@parcel/transformer-toml": "^2.0.0-frontbucket.30",
     "@parcel/transformer-typescript-types": "^2.0.0-frontbucket.32",
     "@parcel/transformer-workerize": "^2.0.0-frontbucket.36",
-    "@parcel/transformer-yaml": "^2.0.0-frontbucket.30"
+    "@parcel/transformer-yaml": "^2.0.0-frontbucket.30",
+    "@parcel/transformer-image": "2.0.0-beta.1",
+    "@parcel/transformer-vue": "2.0.0-beta.1"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

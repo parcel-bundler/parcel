@@ -104,7 +104,7 @@ export function bundler(
     outputFS,
     workerFarm,
     distDir,
-    packageManager: new NodePackageManager(inputFS),
+    packageManager: new NodePackageManager(opts?.inputFS || inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
       node: '8',
@@ -225,24 +225,12 @@ export async function runBundles(
   return ctx;
 }
 
-export function runBundle(
+export async function runBundle(
   bundleGraph: BundleGraph<NamedBundle>,
   bundle: NamedBundle,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
-  return runBundles(bundleGraph, bundle, [bundle], globals, opts);
-}
-
-export async function run(
-  bundleGraph: BundleGraph<NamedBundle>,
-  globals: mixed,
-  opts: RunOpts = {},
-): Promise<mixed> {
-  let bundles = bundleGraph.getBundles();
-  let bundle = nullthrows(
-    bundles.find(b => b.type === 'js' || b.type === 'html'),
-  );
   if (bundle.type === 'html') {
     let code = await overlayFS.readFile(nullthrows(bundle.filePath));
     let ast = postHtmlParse(code, {
@@ -259,6 +247,8 @@ export async function run(
       }
       return node;
     });
+
+    let bundles = bundleGraph.getBundles();
     return runBundles(
       bundleGraph,
       bundle,
@@ -267,8 +257,19 @@ export async function run(
       opts,
     );
   } else {
-    return runBundle(bundleGraph, bundle, globals, opts);
+    return runBundles(bundleGraph, bundle, [bundle], globals, opts);
   }
+}
+
+export function run(
+  bundleGraph: BundleGraph<NamedBundle>,
+  globals: mixed,
+  opts: RunOpts = {},
+): Promise<any> {
+  let bundle = nullthrows(
+    bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
+  );
+  return runBundle(bundleGraph, bundle, globals, opts);
 }
 
 export function assertBundles(
@@ -427,6 +428,11 @@ function prepareBrowserContext(
       ];
     },
 
+    createEvent() {
+      // For Vue
+      return {timeStamp: Date.now()};
+    },
+
     getElementById() {
       return fakeElement;
     },
@@ -540,7 +546,10 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(overlayFS.readFileSync(res, 'utf8'), ctx);
+    vm.runInContext(
+      '"use strict";\n' + overlayFS.readFileSync(res, 'utf8'),
+      ctx,
+    );
     return ctx.module.exports;
   };
 

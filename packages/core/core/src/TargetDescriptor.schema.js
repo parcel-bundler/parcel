@@ -100,6 +100,9 @@ export const DESCRIPTOR_SCHEMA: SchemaEntity = {
     stableEntries: {
       type: 'boolean',
     },
+    scopeHoist: {
+      type: 'boolean',
+    },
   },
   additionalProperties: false,
 };

@@ -8,7 +8,7 @@
 .*/.parcel-cache/.*
 <PROJECT_ROOT>/packages/core/integration-tests/dist/**
 <PROJECT_ROOT>/packages/core/integration-tests/test/input/**
-<PROJECT_ROOT>/packages/core/integration-tests/test/integration/**
+<PROJECT_ROOT>/packages/core/integration-tests/test/integration/babel-strip-flow-types/**
 
 [untyped]
 .*/node_modules/graphql/error/GraphQLError.js.flow
@@ -42,4 +42,4 @@ untyped-import
 untyped-type-import
 
 [version]
-0.129.0
+0.133.0

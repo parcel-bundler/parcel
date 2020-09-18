@@ -21,6 +21,8 @@ export type ConfigResultWithFilePath = {|
 /** <code>process.env</code> */
 export type EnvMap = typeof process.env;
 
+export type QueryParameters = {[key: string]: string, ...};
+
 export type JSONValue =
   | null
   | void // ? Is this okay?
@@ -442,6 +444,7 @@ export interface BaseAsset {
   /** The file system where the source is located. */
   +fs: FileSystem;
   +filePath: FilePath;
+  +query: QueryParameters;
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
@@ -919,11 +922,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
   getTotalSize(Asset): number;
   /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
-  removeAssetGraphFromBundle(
-    Asset,
-    Bundle,
-    ?{|checkReachability?: boolean|},
-  ): void;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
   removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
@@ -1022,6 +1021,10 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
+  /** Whether this dependency can be deferred by Parcel itself (true by default) */
+  +canDefer?: boolean,
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  +diagnostics?: Diagnostic | Array<Diagnostic>,
 |};
 
 export type ConfigOutput = {|
@@ -1094,11 +1097,17 @@ export type Runtime = {|
  * @section packager
  */
 export type Packager = {|
+  loadConfig?: ({|
+    bundle: NamedBundle,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<?ConfigOutput>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,

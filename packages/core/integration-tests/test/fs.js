@@ -1,3 +1,4 @@
+// @flow
 import assert from 'assert';
 import path from 'path';
 import {
@@ -5,6 +6,7 @@ import {
   bundle,
   removeDistDirectory,
   run,
+  overlayFS,
   outputFS,
   distDir,
 } from '@parcel/test-utils';
@@ -15,6 +17,36 @@ describe('fs', function() {
   });
 
   describe('browser environment', function() {
+    it('should not inline a file if disabled via config', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-disabled/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => run(b), {
+        message: `ENOENT: no such file or directory, open '...'`,
+        code: 'ENOENT',
+      });
+    });
+
+    it('should not inline a file outside of the project root', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-outside-root/index.js'),
+        {
+          inputFS: overlayFS,
+        },
+      );
+
+      // $FlowFixMe
+      await assert.rejects(() => run(b), {
+        message: `ENOENT: no such file or directory, open '...'`,
+        code: 'ENOENT',
+      });
+    });
+
     it('should inline a file as a string', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'));
       let output = await run(b);
@@ -198,7 +230,7 @@ describe('fs', function() {
   describe.skip('electron environment', function() {
     it('should not inline a file in an Electron environment', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
-        target: 'electron',
+        targets: ['electron'],
       });
 
       assertBundles(b, [

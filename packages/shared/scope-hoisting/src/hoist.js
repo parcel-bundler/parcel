@@ -35,13 +35,9 @@ import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
-import {
-  convertBabelLoc,
-  getName,
-  getIdentifier,
-  getExportIdentifier,
-} from './utils';
+import {getName, getIdentifier, getExportIdentifier} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -298,7 +294,23 @@ const VISITOR: Visitor<MutableAsset> = {
   },
 
   ThisExpression(path, asset: MutableAsset) {
-    if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
+    if (!path.scope.getData('shouldWrap')) {
+      let retainThis = false;
+      let scope = path.scope;
+      while (scope?.parent) {
+        if (
+          scope.path.isFunction() &&
+          !scope.path.isArrowFunctionExpression()
+        ) {
+          retainThis = true;
+          break;
+        }
+        scope = scope.parent.getFunctionParent();
+      }
+      if (retainThis) {
+        return;
+      }
+
       if (asset.meta.isES6Module) {
         path.replaceWith(t.identifier('undefined'));
       } else {
@@ -458,10 +470,15 @@ const VISITOR: Visitor<MutableAsset> = {
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
-      let bail = path.findParent(
-        p => p.isConditionalExpression() || p.isLogicalExpression(),
-      );
-      if (!parent.isProgram() || bail) {
+      if (
+        !parent.isProgram() ||
+        path.findParent(
+          p =>
+            p.isConditionalExpression() ||
+            p.isLogicalExpression() ||
+            p.isFunction(),
+        )
+      ) {
         dep.meta.shouldWrap = true;
       }
 
@@ -554,7 +571,7 @@ const VISITOR: Visitor<MutableAsset> = {
       }),
     );
 
-    if (isIdentifier(declaration)) {
+    if (isIdentifier(declaration) && path.scope.hasBinding(declaration.name)) {
       // Rename the variable being exported.
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();

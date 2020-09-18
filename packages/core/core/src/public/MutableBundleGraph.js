@@ -14,6 +14,7 @@ import type {
 import type {ParcelOptions} from '../types';
 
 import invariant from 'assert';
+import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromString} from '@parcel/utils';
 import BundleGraph from './BundleGraph';
@@ -80,6 +81,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       value: bundleGroup,
     };
 
+    // In recursive situations, merge the new bundle group with the old one
+    let existing = this.#graph._graph.getNode(bundleGroupNode.id);
+    if (existing) {
+      invariant(existing.type === 'bundle_group');
+      bundleGroup.bundleIds = existing.value.bundleIds;
+    }
+
     this.#graph._graph.addNode(bundleGroupNode);
     let assetNodes = this.#graph._graph.getNodesConnectedFrom(dependencyNode);
     this.#graph._graph.addEdge(dependencyNode.id, bundleGroupNode.id);
@@ -112,12 +120,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
-    for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
-        this.#graph._graph.removeById(bundle.id);
-      }
-    }
-    this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
+    this.#graph.removeBundleGroup(bundleGroup);
   }
 
   internalizeAsyncDependency(bundle: IBundle, dependency: IDependency): void {
@@ -136,7 +139,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     let bundleId = md5FromString(
       'bundle:' +
         (opts.uniqueKey ?? nullthrows(entryAsset?.id)) +
-        target.distDir,
+        path.relative(this.#options.projectRoot, target.distDir),
     );
 
     let existing = this.#graph._graph.getNode(bundleId);
@@ -186,8 +189,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
-    bundleGroup.bundleIds.add(bundle.id);
     let bundleGroupId = getBundleGroupId(bundleGroup);
+    if (this.#graph._graph.hasEdge(bundleGroupId, bundle.id, 'bundle')) {
+      // Bundle group already has bundle
+      return;
+    }
+
+    bundleGroup.bundleIds.add(bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id);
     this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
 
@@ -262,15 +270,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
-  removeAssetGraphFromBundle(
-    asset: IAsset,
-    bundle: IBundle,
-    options?: ?{|checkReachability?: boolean|},
-  ) {
+  removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
-      options,
     );
   }
 
