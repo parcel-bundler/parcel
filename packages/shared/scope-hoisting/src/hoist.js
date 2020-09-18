@@ -310,7 +310,23 @@ const VISITOR: Visitor<MutableAsset> = {
   },
 
   ThisExpression(path, asset: MutableAsset) {
-    if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
+    if (!path.scope.getData('shouldWrap')) {
+      let retainThis = false;
+      let scope = path.scope;
+      while (scope?.parent) {
+        if (
+          scope.path.isFunction() &&
+          !scope.path.isArrowFunctionExpression()
+        ) {
+          retainThis = true;
+          break;
+        }
+        scope = scope.parent.getFunctionParent();
+      }
+      if (retainThis) {
+        return;
+      }
+
       if (asset.meta.isES6Module) {
         path.replaceWith(t.identifier('undefined'));
       } else {
@@ -617,7 +633,7 @@ const VISITOR: Visitor<MutableAsset> = {
       }),
     );
 
-    if (isIdentifier(declaration)) {
+    if (isIdentifier(declaration) && path.scope.hasBinding(declaration.name)) {
       // Rename the variable being exported.
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();

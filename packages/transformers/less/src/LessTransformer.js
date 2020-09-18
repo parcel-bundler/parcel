@@ -60,7 +60,7 @@ export default (new Transformer({
     }
 
     if (result.map != null) {
-      let map = new SourceMap();
+      let map = new SourceMap(options.projectRoot);
       let rawMap = JSON.parse(result.map);
       map.addRawMappings({
         ...rawMap,

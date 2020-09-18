@@ -20,8 +20,10 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
+    "@parcel/diagnostic": "^2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
-    "@parcel/source-map": "2.0.0-alpha.4.13",
+    "@parcel/source-map": "2.0.0-alpha.4.15",
+    "@parcel/utils": "^2.0.0-beta.1",
     "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   },

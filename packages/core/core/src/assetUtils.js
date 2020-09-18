@@ -55,6 +55,7 @@ type AssetOptions = {|
   uniqueKey?: ?string,
   plugin?: PackageName,
   configPath?: FilePath,
+  configKeyPath?: string,
 |};
 
 export function createAsset(options: AssetOptions): Asset {
@@ -96,6 +97,7 @@ export function createAsset(options: AssetOptions): Asset {
     uniqueKey: uniqueKey,
     plugin: options.plugin,
     configPath: options.configPath,
+    configKeyPath: options.configKeyPath,
   };
 }
 
@@ -120,9 +122,11 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
 
   let pluginName = nullthrows(asset.value.plugin);
   let {plugin} = await loadPlugin<Transformer>(
+    asset.options.inputFS,
     asset.options.packageManager,
     pluginName,
     nullthrows(asset.value.configPath),
+    nullthrows(asset.value.configKeyPath),
     asset.options.autoinstall,
   );
   if (!plugin.generate) {

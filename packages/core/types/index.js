@@ -249,8 +249,8 @@ export type BuildMode = 'development' | 'production' | string;
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +entryRoot?: FilePath,
-  +config?: ResolvedParcelConfigFile,
-  +defaultConfig?: ResolvedParcelConfigFile,
+  +config?: ModuleSpecifier,
+  +defaultConfig?: ModuleSpecifier,
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
@@ -1126,11 +1126,17 @@ export type Runtime = {|
  * @section packager
  */
 export type Packager = {|
+  loadConfig?: ({|
+    bundle: NamedBundle,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<?ConfigOutput>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,

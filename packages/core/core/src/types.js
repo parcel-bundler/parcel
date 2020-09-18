@@ -17,7 +17,6 @@ import type {
   PackageName,
   PackageJSON,
   ReporterEvent,
-  ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
@@ -38,6 +37,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -132,13 +132,14 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
-  config?: ResolvedParcelConfigFile,
-  defaultConfig?: ResolvedParcelConfigFile,
+  config?: ModuleSpecifier,
+  defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,

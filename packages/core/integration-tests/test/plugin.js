@@ -7,6 +7,7 @@ import {
   bundle,
   outputFS as fs,
   distDir,
+  overlayFS,
 } from '@parcel/test-utils';
 
 describe('plugin', function() {
@@ -44,5 +45,31 @@ parcel-transformer-b`,
         assets: ['index.js', 'index.js', 'a.js', 'b.js'],
       },
     ]);
+  });
+
+  it('invalidate the cache based on loadConfig in a packager', async function() {
+    let fixture = path.join(__dirname, '/integration/packager-loadConfig');
+    let entry = path.join(fixture, 'index.txt');
+    let config = path.join(fixture, 'foo.config.json');
+    let b = await bundle(entry, {
+      inputFS: overlayFS,
+      disableCache: false,
+    });
+
+    assert.strictEqual(
+      await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8'),
+      '1234',
+    );
+
+    await overlayFS.writeFile(config, JSON.stringify({contents: 'xyz'}));
+
+    b = await bundle(entry, {
+      inputFS: overlayFS,
+      disableCache: false,
+    });
+    assert.strictEqual(
+      await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8'),
+      'xyz',
+    );
   });
 });

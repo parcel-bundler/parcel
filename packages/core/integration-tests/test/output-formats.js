@@ -402,16 +402,18 @@ describe('output formats', function() {
               filePath: source,
               language: 'js',
               codeFrame: {
-                codeHighlights: {
-                  start: {
-                    line: 1,
-                    column: 10,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 10,
+                    },
+                    end: {
+                      line: 1,
+                      column: 15,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 15,
-                  },
-                },
+                ],
               },
             },
           ],
@@ -677,16 +679,18 @@ describe('output formats', function() {
               filePath: source,
               language: 'js',
               codeFrame: {
-                codeHighlights: {
-                  start: {
-                    line: 1,
-                    column: 10,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 10,
+                    },
+                    end: {
+                      line: 1,
+                      column: 15,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 15,
-                  },
-                },
+                ],
               },
             },
           ],
@@ -1042,16 +1046,18 @@ describe('output formats', function() {
             filePath: source,
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 16,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 16,
+                  },
+                  end: {
+                    line: 1,
+                    column: 40,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 40,
-                },
-              },
+              ],
             },
           },
         ],
@@ -1088,16 +1094,18 @@ describe('output formats', function() {
               filePath: source,
               language: 'js',
               codeFrame: {
-                codeHighlights: {
-                  start: {
-                    line: 1,
-                    column: 1,
+                codeHighlights: [
+                  {
+                    start: {
+                      line: 1,
+                      column: 1,
+                    },
+                    end: {
+                      line: 1,
+                      column: 29,
+                    },
                   },
-                  end: {
-                    line: 1,
-                    column: 29,
-                  },
-                },
+                ],
               },
             },
           ],

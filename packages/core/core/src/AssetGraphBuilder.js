@@ -425,10 +425,12 @@ export default class AssetGraphBuilder extends EventEmitter {
                 language: assetNode.value.type,
                 codeFrame: loc
                   ? {
-                      codeHighlights: {
-                        start: loc.start,
-                        end: loc.end,
-                      },
+                      codeHighlights: [
+                        {
+                          start: loc.start,
+                          end: loc.end,
+                        },
+                      ],
                     }
                   : undefined,
               },
@@ -592,6 +594,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     let config = new ParcelConfig(
       processedConfig,
       this.options.packageManager,
+      this.options.inputFS,
       this.options.autoinstall,
     );
     let trackedRequestsDesc = this.assetRequests.filter(request => {
