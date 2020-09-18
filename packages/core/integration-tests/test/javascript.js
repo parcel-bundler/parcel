@@ -365,6 +365,32 @@ describe('javascript', function() {
     assert(headChildren[2].href.match(/prefetched\..*\.js/));
   });
 
+  it('should preload bundles when declared as an import attribute statically', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-static-preload/index.js'),
+      // TODO: This test fails nondeterministically with MemoryFS
+      {outputFS: inputFS},
+    );
+
+    let output = await run(b);
+    let headChildren = await output.default;
+
+    assert(headChildren.length === 3);
+
+    assert(headChildren[0].tag === 'script');
+    assert(headChildren[0].src.match(/async\..*\.js/));
+
+    assert(headChildren[1].tag === 'link');
+    assert(headChildren[1].rel === 'preload');
+    assert(headChildren[1].as === 'style');
+    assert(headChildren[1].href.match(/preloaded\..*\.css/));
+
+    assert(headChildren[2].tag === 'link');
+    assert(headChildren[2].rel === 'preload');
+    assert(headChildren[2].as === 'script');
+    assert(headChildren[2].href.match(/preloaded\..*\.js/));
+  });
+
   it('should split bundles when a dynamic import is used with a node environment', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-node/index.js'),
