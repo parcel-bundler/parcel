@@ -41,7 +41,6 @@ export default (new Transformer({
     });
     const content = await asset.getCode();
     const render = pug.compile(content, {
-      debug: true,
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
       filename: asset.filePath,
