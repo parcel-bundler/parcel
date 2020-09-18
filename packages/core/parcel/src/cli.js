@@ -179,11 +179,15 @@ async function run(entries: Array<string>, command: any) {
   }
   let Parcel = require('@parcel/core').default;
   let options = await normalizeOptions(command);
-  let packageManager = new NodePackageManager(new NodeFS());
+  let fs = new NodeFS();
+  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: '@parcel/config-default',
+    // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
+    defaultConfig: require.resolve('@parcel/config-default', {
+      paths: [fs.cwd(), __dirname],
+    }),
     patchConsole: true,
     ...options,
   });
