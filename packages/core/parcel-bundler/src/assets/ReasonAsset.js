@@ -21,7 +21,7 @@ class ReasonAsset extends Asset {
 
     // This is a simplified use-case for Reason - it only loads the recommended
     // BuckleScript configuration to simplify the file processing.
-    const outputFile = this.name.replace(/\.(re|ml)$/, '.bs.js');
+    const outputFile = this.name.replace(/\.(re|ml|res)$/, '.bs.js');
     const outputContent = await fs.readFile(outputFile);
     return outputContent.toString();
   }
