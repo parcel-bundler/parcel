@@ -1,0 +1,11 @@
+{
+  "name": "@atlassian/babel-transform-import-attributes-webpack",
+  "version": "0.0.1",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "@babel/plugin-syntax-module-attributes": "^7.10.4"
+  }
+}
