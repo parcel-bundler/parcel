@@ -1097,11 +1097,17 @@ export type Runtime = {|
  * @section packager
  */
 export type Packager = {|
+  loadConfig?: ({|
+    bundle: NamedBundle,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<?ConfigOutput>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,

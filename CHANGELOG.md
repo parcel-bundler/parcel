@@ -27,7 +27,7 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- CSS/SASS/LESS sourcemaps [Details](https://github.com/parcel-bundler/parcel/pull/2489)
+- CSS/Sass/LESS sourcemaps [Details](https://github.com/parcel-bundler/parcel/pull/2489)
 - Add Markdown support [Details](https://github.com/parcel-bundler/parcel/pull/2538)
 - Unhandled HMR updates should cause a page reload [Details](https://github.com/parcel-bundler/parcel/pull/2676)
 - Enables jsx plugin in case jsx syntax is used in js files [Details](https://github.com/parcel-bundler/parcel/pull/2530)
