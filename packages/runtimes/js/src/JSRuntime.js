@@ -111,14 +111,16 @@ export default (new Runtime({
           dependency,
         });
       } else {
-        assets.push(
-          ...getLoaderRuntimes({
-            bundle,
-            dependency,
-            bundleGraph,
-            bundleGroup: resolved.value,
-          }),
-        );
+        let loaderRuntime = getLoaderRuntime({
+          bundle,
+          dependency,
+          bundleGraph,
+          bundleGroup: resolved.value,
+        });
+
+        if (loaderRuntime != null) {
+          assets.push(loaderRuntime);
+        }
       }
     }
 
@@ -198,7 +200,7 @@ export default (new Runtime({
   },
 }): Runtime);
 
-function getLoaderRuntimes({
+function getLoaderRuntime({
   bundle,
   dependency,
   bundleGroup,
@@ -208,8 +210,12 @@ function getLoaderRuntimes({
   dependency: Dependency,
   bundleGroup: BundleGroup,
   bundleGraph: BundleGraph<NamedBundle>,
-|}) {
-  let assets = [];
+|}): ?RuntimeAsset {
+  let loaders = getLoaders(bundle.env);
+  if (loaders == null) {
+    return;
+  }
+
   // Sort so the bundles containing the entry asset appear last
   let externalBundles = bundleGraph
     .getBundlesInBundleGroup(bundleGroup)
@@ -231,8 +237,6 @@ function getLoaderRuntimes({
     externalBundles = externalBundles.slice(-1);
   }
 
-  let loaders = getLoaders(bundle.env);
-
   // Determine if we need to add a dynamic import() polyfill, or if all target browsers support it natively.
   let needsDynamicImportPolyfill = false;
   if (bundle.env.isBrowser() && bundle.env.outputFormat === 'esmodule') {
@@ -241,38 +245,36 @@ function getLoaderRuntimes({
     );
   }
 
-  let loaderModules = loaders
-    ? externalBundles
-        .map(to => {
-          let loader = loaders[to.type];
-          if (!loader) {
-            return;
-          }
+  let loaderModules = externalBundles
+    .map(to => {
+      let loader = loaders[to.type];
+      if (!loader) {
+        return;
+      }
 
-          let relativePathExpr = getRelativePathExpr(bundle, to);
+      let relativePathExpr = getRelativePathExpr(bundle, to);
 
-          // Use esmodule loader if possible
-          if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
-            if (!needsDynamicImportPolyfill) {
-              return `import("./" + ${relativePathExpr})`;
-            }
+      // Use esmodule loader if possible
+      if (to.type === 'js' && to.env.outputFormat === 'esmodule') {
+        if (!needsDynamicImportPolyfill) {
+          return `import("./" + ${relativePathExpr})`;
+        }
 
-            loader = nullthrows(
-              loaders.IMPORT_POLYFILL,
-              `No import() polyfill available for context '${bundle.env.context}'`,
-            );
-          } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
-            return `Promise.resolve(require("./" + ${relativePathExpr}))`;
-          }
+        loader = nullthrows(
+          loaders.IMPORT_POLYFILL,
+          `No import() polyfill available for context '${bundle.env.context}'`,
+        );
+      } else if (to.type === 'js' && to.env.outputFormat === 'commonjs') {
+        return `Promise.resolve(require("./" + ${relativePathExpr}))`;
+      }
 
-          return `require(${JSON.stringify(
-            loader,
-          )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
-        })
-        .filter(Boolean)
-    : [];
+      return `require(${JSON.stringify(
+        loader,
+      )})(require('./bundle-url').getBundleURL() + ${relativePathExpr})`;
+    })
+    .filter(Boolean);
 
-  if (loaders && bundle.env.context === 'browser') {
+  if (bundle.env.context === 'browser') {
     loaderModules.push(
       ...flatMap(
         // TODO: Allow css to preload resources as well
@@ -289,39 +291,39 @@ function getLoaderRuntimes({
     );
   }
 
-  if (loaderModules.length > 0) {
-    let loaders = loaderModules.join(', ');
-    if (
-      loaderModules.length > 1 &&
-      (bundle.env.outputFormat === 'global' ||
-        !externalBundles.every(b => b.type === 'js'))
-    ) {
-      loaders = `Promise.all([${loaders}])`;
-      if (bundle.env.outputFormat !== 'global') {
-        loaders += `.then(r => r[r.length - 1])`;
-      }
-    } else {
-      loaders = `(${loaders})`;
-    }
-
-    if (bundle.env.outputFormat === 'global') {
-      loaders += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
-        bundleGraph.getAssetById(bundleGroup.entryAssetId),
-      )}')${
-        // In global output with scope hoisting, functions return exports are
-        // always returned. Otherwise, the exports are returned.
-        bundle.env.scopeHoist ? '()' : ''
-      })`;
-    }
-
-    assets.push({
-      filePath: __filename,
-      code: `module.exports = ${loaders};`,
-      dependency,
-    });
+  if (loaderModules.length === 0) {
+    return;
   }
 
-  return assets;
+  let loaderCode = loaderModules.join(', ');
+  if (
+    loaderModules.length > 1 &&
+    (bundle.env.outputFormat === 'global' ||
+      !externalBundles.every(b => b.type === 'js'))
+  ) {
+    loaderCode = `Promise.all([${loaderCode}])`;
+    if (bundle.env.outputFormat !== 'global') {
+      loaderCode += `.then(r => r[r.length - 1])`;
+    }
+  } else {
+    loaderCode = `(${loaderCode})`;
+  }
+
+  if (bundle.env.outputFormat === 'global') {
+    loaderCode += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
+      bundleGraph.getAssetById(bundleGroup.entryAssetId),
+    )}')${
+      // In global output with scope hoisting, functions return exports are
+      // always returned. Otherwise, the exports are returned.
+      bundle.env.scopeHoist ? '()' : ''
+    })`;
+  }
+
+  return {
+    filePath: __filename,
+    code: `module.exports = ${loaderCode};`,
+    dependency,
+  };
 }
 
 function getHintedBundleGroups(
