@@ -6,7 +6,7 @@ const os = require('os');
 const Resolver = require('../Resolver');
 const parseCSSImport = require('../utils/parseCSSImport');
 
-class SASSAsset extends Asset {
+class SassAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'css';
@@ -95,7 +95,7 @@ class SASSAsset extends Asset {
   }
 }
 
-module.exports = SASSAsset;
+module.exports = SassAsset;
 
 async function getSassRuntime(searchPath) {
   try {
