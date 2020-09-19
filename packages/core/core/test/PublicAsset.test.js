@@ -13,6 +13,7 @@ describe('Public Asset', () => {
     internalAsset = new UncommittedAsset({
       options: DEFAULT_OPTIONS,
       value: createAsset({
+        id: '0',
         filePath: '/does/not/exist',
         type: 'js',
         env: createEnvironment({}),

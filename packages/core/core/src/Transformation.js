@@ -20,7 +20,7 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject, normalizeSeparators} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
@@ -37,7 +37,7 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset} from './assetUtils';
+import {createAsset, generateIdBase} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
@@ -175,6 +175,7 @@ export default class Transformation {
 
   async loadAsset(): Promise<UncommittedAsset> {
     let {
+      uniqueKey,
       filePath,
       env,
       code,
@@ -193,14 +194,15 @@ export default class Transformation {
     // Prefer `isSource` originating from the AssetRequest.
     let isSource = isSourceOverride ?? summarizedIsSource;
 
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the base for the id to ensure it is unique.
-    let idBase =
-      code != null
-        ? hash
-        : normalizeSeparators(
-            path.relative(this.options.projectRoot, filePath),
-          );
+    let idBase = generateIdBase({
+      code,
+      filePath,
+      hash,
+      isSource,
+      options: this.options,
+      uniqueKey,
+    });
+
     return new UncommittedAsset({
       idBase,
       value: createAsset({

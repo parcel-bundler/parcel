@@ -150,19 +150,36 @@ export default class NodeResolver {
       }
 
       if (resolved) {
-        return {
-          filePath: resolved.path,
-          sideEffects:
-            resolved.pkg && !this.hasSideEffects(resolved.path, resolved.pkg)
+        if (resolved.pkg) {
+          let {pkg} = resolved;
+          return {
+            filePath: resolved.path,
+            uniqueKey:
+              pkg.name && pkg.version
+                ? pkg.name +
+                  '@' +
+                  pkg.version +
+                  '/' +
+                  normalizeSeparators(path.relative(pkg.pkgdir, resolved.path))
+                : undefined,
+            sideEffects: !this.hasSideEffects(resolved.path, pkg)
               ? false
               : undefined,
-        };
+          };
+        } else {
+          return {
+            filePath: resolved.path,
+            sideEffects: undefined,
+          };
+        }
       }
     } catch (err) {
       if (err instanceof ThrowableDiagnostic) {
         return {
           diagnostics: err.diagnostics,
         };
+      } else {
+        throw err;
       }
     }
 
@@ -199,6 +216,8 @@ export default class NodeResolver {
       filename = alias[1];
     } else if (typeof alias === 'string') {
       filename = alias;
+    } else if (alias === false) {
+      filename = EMPTY_SHIM;
     }
 
     // Return just the file path if this is a file, not in node_modules
@@ -663,9 +682,9 @@ export default class NodeResolver {
     pkg: InternalPackageJSON | null,
   |}): Promise<?ResolvedFile> {
     // Try all supported extensions
-    for (let f of await this.expandFile(file, extensions, env, pkg)) {
+    for (let {f, p} of await this.expandFile(file, extensions, env, pkg)) {
       if (await this.isFile(f)) {
-        return {path: f, pkg};
+        return {path: f, pkg: p};
       }
     }
   }
@@ -676,11 +695,12 @@ export default class NodeResolver {
     env: Env,
     pkg: InternalPackageJSON | null,
     expandAliases?: boolean = true,
-  ): Promise<Array<string>> {
+  ): Promise<Array<{|f: FilePath, p: InternalPackageJSON | null|}>> {
     // Expand extensions and aliases
     let res = [];
     for (let ext of extensions) {
       let f = file + ext;
+      let p = pkg;
 
       if (expandAliases) {
         let alias = await this.resolveAliases(f, env, pkg);
@@ -690,15 +710,19 @@ export default class NodeResolver {
           } else {
             alias = alias[1];
           }
+        } else if (alias === false) {
+          alias = EMPTY_SHIM;
+          p = await this.findPackage(alias);
         }
+
         if (alias !== f) {
           res = res.concat(
-            await this.expandFile(alias, extensions, env, pkg, false),
+            await this.expandFile(alias, extensions, env, p, false),
           );
         }
       }
 
-      res.push(f);
+      res.push({f, p});
     }
 
     return res;
@@ -708,7 +732,7 @@ export default class NodeResolver {
     filename: string,
     env: Env,
     pkg: InternalPackageJSON | null,
-  ): Promise<string | Array<string>> {
+  ): Promise<false | string | ['global' | 'file', string]> {
     let localAliases = await this.resolvePackageAliases(filename, env, pkg);
     if (Array.isArray(localAliases) || typeof localAliases === 'boolean') {
       return localAliases;
@@ -722,7 +746,7 @@ export default class NodeResolver {
     filename: string,
     env: Env,
     pkg: InternalPackageJSON | null,
-  ): Promise<string | Array<string>> {
+  ): Promise<false | string | ['global' | 'file', string]> {
     if (!pkg) {
       return filename;
     }
@@ -741,7 +765,7 @@ export default class NodeResolver {
     filename: FilePath,
     dir: FilePath,
     aliases: ?Aliases,
-  ): Promise<null | Array<string>> {
+  ): Promise<false | ?['global' | 'file', string]> {
     if (!filename || !aliases || typeof aliases !== 'object') {
       return null;
     }
@@ -771,7 +795,7 @@ export default class NodeResolver {
 
     // If the alias is set to `false`, return an empty file.
     if (alias === false) {
-      return ['file', EMPTY_SHIM];
+      return false;
     }
 
     if (alias instanceof Object) {
@@ -841,7 +865,7 @@ export default class NodeResolver {
     filename: string,
     dir: string,
     env: Env,
-  ): Promise<string | Array<string>> {
+  ): Promise<false | string | ['global' | 'file', string]> {
     // Load the root project's package.json file if we haven't already
     if (!this.rootPackage) {
       this.rootPackage = await this.findPackage(this.projectRoot);
