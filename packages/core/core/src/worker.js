@@ -96,13 +96,12 @@ export async function runValidate(
   }).run();
 }
 
-export function runPackage(
+export async function runPackage(
   workerApi: WorkerApi,
   {
     bundle,
     bundleGraphReference,
     configRef,
-    cacheKeys,
     optionsRef,
   }: {|
     bundle: Bundle,
@@ -123,16 +122,31 @@ export function runPackage(
     configRef,
     // $FlowFixMe
   ): any): ProcessedParcelConfig);
-  let config = new ParcelConfig(
+  let parcelConfig = new ParcelConfig(
     processedConfig,
     options.packageManager,
     options.inputFS,
     options.autoinstall,
   );
 
-  return new PackagerRunner({
-    config,
+  let runner = new PackagerRunner({
+    config: parcelConfig,
     options,
     report: reportWorker.bind(null, workerApi),
-  }).getBundleInfo(bundle, bundleGraph, cacheKeys);
+  });
+
+  let config = await runner.loadConfig(bundleGraph, bundle);
+  // TODO: add invalidations in `config?.files` once packaging is a request
+
+  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, config?.config);
+  let cacheKeys = {
+    content: PackagerRunner.getContentKey(cacheKey),
+    map: PackagerRunner.getMapKey(cacheKey),
+    info: PackagerRunner.getInfoKey(cacheKey),
+  };
+
+  return (
+    (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
+    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, config?.config)
+  );
 }
