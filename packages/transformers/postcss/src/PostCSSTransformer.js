@@ -30,7 +30,7 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
   },
 
   async parse({asset, config}) {
@@ -40,7 +40,7 @@ export default (new Transformer({
 
     return {
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: postcss.parse(await asset.getCode(), {
         from: asset.filePath,
       }),
@@ -107,7 +107,7 @@ export default (new Transformer({
     ast.program = root;
     asset.setAST({
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: root,
     });
     for (let msg of messages) {
