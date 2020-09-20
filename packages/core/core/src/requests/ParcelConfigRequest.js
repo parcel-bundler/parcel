@@ -31,7 +31,6 @@ import {parse} from 'json5';
 import path from 'path';
 import assert from 'assert';
 
-import ParcelConfig from '../ParcelConfig';
 import ParcelConfigSchema from '../ParcelConfig.schema';
 
 const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
@@ -56,7 +55,7 @@ export type ParcelConfigRequest = {|
 |};
 
 type ParcelConfigChain = {|
-  config: ParcelConfig,
+  config: ProcessedParcelConfig,
   extendedFiles: Array<FilePath>,
 |};
 
@@ -67,8 +66,9 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     id: type,
     type,
     async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
-      let {config, extendedFiles} = await loadParcelConfig(options);
-      let processedConfig = config.getConfig();
+      let {config, extendedFiles, usedDefault} = await loadParcelConfig(
+        options,
+      );
 
       api.invalidateOnFileUpdate(config.filePath);
       api.invalidateOnFileDelete(config.filePath);
@@ -78,13 +78,13 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
         api.invalidateOnFileDelete(filePath);
       }
 
-      if (config.filePath === options.defaultConfig?.filePath) {
+      if (usedDefault) {
         api.invalidateOnFileCreate('**/.parcelrc');
       }
 
-      let cachePath = md5FromObject(processedConfig);
-      await options.cache.set(cachePath, processedConfig);
-      let result = {config: processedConfig, cachePath};
+      let cachePath = md5FromObject(config);
+      await options.cache.set(cachePath, config);
+      let result = {config, cachePath};
       // TODO: don't store config twice (once in the graph and once in a separate cache entry)
       api.storeResult(result);
       return result;
@@ -95,26 +95,8 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
 
 export async function loadParcelConfig(
   options: ParcelOptions,
-): Promise<ParcelConfigChain> {
-  // Resolve plugins from cwd when a config is passed programmatically
-  let parcelConfig = options.config
-    ? await create(
-        {
-          ...options.config,
-          resolveFrom: options.inputFS.cwd(),
-        },
-        options,
-      )
-    : await resolveParcelConfig(options);
-  if (!parcelConfig && options.defaultConfig) {
-    parcelConfig = await create(
-      {
-        ...options.defaultConfig,
-        resolveFrom: options.inputFS.cwd(),
-      },
-      options,
-    );
-  }
+): Promise<{|...ParcelConfigChain, usedDefault: boolean|}> {
+  let parcelConfig = await resolveParcelConfig(options);
 
   if (!parcelConfig) {
     throw new Error('Could not find a .parcelrc');
@@ -125,11 +107,27 @@ export async function loadParcelConfig(
 
 export async function resolveParcelConfig(
   options: ParcelOptions,
-): Promise<?ParcelConfigChain> {
-  let filePath = getResolveFrom(options);
-  let configPath = await resolveConfig(options.inputFS, filePath, [
-    '.parcelrc',
-  ]);
+): Promise<?{|...ParcelConfigChain, usedDefault: boolean|}> {
+  let resolveFrom = getResolveFrom(options);
+  let configPath =
+    options.config != null
+      ? (
+          await resolve(options.inputFS, options.config, {
+            basedir: resolveFrom,
+          })
+        ).resolved
+      : await resolveConfig(options.inputFS, resolveFrom, ['.parcelrc']);
+
+  let usedDefault = false;
+  if (configPath == null && options.defaultConfig != null) {
+    usedDefault = true;
+    configPath = (
+      await resolve(options.inputFS, options.defaultConfig, {
+        basedir: resolveFrom,
+      })
+    ).resolved;
+  }
+
   if (configPath == null) {
     return null;
   }
@@ -149,7 +147,12 @@ export async function resolveParcelConfig(
     });
   }
 
-  return parseAndProcessConfig(configPath, contents, options);
+  let {config, extendedFiles} = await parseAndProcessConfig(
+    configPath,
+    contents,
+    options,
+  );
+  return {config, extendedFiles, usedDefault};
 }
 
 export function create(
@@ -301,16 +304,10 @@ export async function processConfigChain(
   validateConfigFile(configFile, relativePath);
 
   // Process config...
-  let resolvedFile: ProcessedParcelConfig = processConfig({
+  let config: ProcessedParcelConfig = processConfig({
     filePath,
     ...configFile,
   });
-  let config = new ParcelConfig(
-    resolvedFile,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
 
   let extendedFiles: Array<FilePath> = [];
   if (configFile.extends != null) {
@@ -351,7 +348,7 @@ export async function processConfigChain(
 
       // Merge with the inline config last
       if (extStartConfig) {
-        config = mergeConfigs(extStartConfig, resolvedFile);
+        config = mergeConfigs(extStartConfig, config);
       }
     }
 
@@ -481,31 +478,26 @@ export function validateNotEmpty(
 }
 
 export function mergeConfigs(
-  base: ParcelConfig,
-  ext: ProcessedParcelConfig | ParcelConfig,
-): ParcelConfig {
-  return new ParcelConfig(
-    {
-      filePath: ext.filePath,
-      resolvers: mergePipelines(base.resolvers, ext.resolvers),
-      transformers: mergeMaps(
-        base.transformers,
-        ext.transformers,
-        mergePipelines,
-        true,
-      ),
-      validators: mergeMaps(base.validators, ext.validators, mergePipelines),
-      bundler: ext.bundler || base.bundler,
-      namers: mergePipelines(base.namers, ext.namers),
-      runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
-      packagers: mergeMaps(base.packagers, ext.packagers),
-      optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-      reporters: mergePipelines(base.reporters, ext.reporters),
-    },
-    base.packageManager,
-    base.fs,
-    base.autoinstall,
-  );
+  base: ProcessedParcelConfig,
+  ext: ProcessedParcelConfig,
+): ProcessedParcelConfig {
+  return {
+    filePath: ext.filePath,
+    resolvers: mergePipelines(base.resolvers, ext.resolvers),
+    transformers: mergeMaps(
+      base.transformers,
+      ext.transformers,
+      mergePipelines,
+      true,
+    ),
+    validators: mergeMaps(base.validators, ext.validators, mergePipelines),
+    bundler: ext.bundler || base.bundler,
+    namers: mergePipelines(base.namers, ext.namers),
+    runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
+    packagers: mergeMaps(base.packagers, ext.packagers),
+    optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+    reporters: mergePipelines(base.reporters, ext.reporters),
+  };
 }
 
 function getResolveFrom(options: ParcelOptions) {
@@ -521,8 +513,8 @@ export function mergePipelines(
   ext: ?ExtendableParcelConfigPipeline,
   // $FlowFixMe
 ): any {
-  if (!ext || ext.length === 0) {
-    return base || [];
+  if (ext == null) {
+    return base ?? [];
   }
 
   if (base) {

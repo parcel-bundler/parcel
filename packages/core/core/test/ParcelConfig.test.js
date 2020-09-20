@@ -246,9 +246,15 @@ describe('ParcelConfig', () => {
         code,
         DEFAULT_OPTIONS,
       );
+      let parcelConfig = new ParcelConfig(
+        config,
+        DEFAULT_OPTIONS.packageManager,
+        DEFAULT_OPTIONS.inputFS,
+        DEFAULT_OPTIONS.autoinstall,
+      );
 
       // $FlowFixMe
-      await assert.rejects(() => config.getTransformers('test.js'), {
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
         name: 'Error',
         diagnostics: [
           {

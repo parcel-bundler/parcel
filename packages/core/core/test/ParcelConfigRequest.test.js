@@ -1,5 +1,6 @@
 // @flow
 import assert from 'assert';
+import nullthrows from 'nullthrows';
 import path from 'path';
 import ParcelConfig from '../src/ParcelConfig';
 import {
@@ -541,57 +542,53 @@ describe('loadParcelConfig', () => {
         },
       };
 
-      let merged = new ParcelConfig(
-        {
-          filePath: '.parcelrc',
-          resolvers: [
+      let merged = {
+        filePath: '.parcelrc',
+        resolvers: [
+          {
+            packageName: 'parcel-resolver-ext',
+            resolveFrom: '.parcelrc',
+            keyPath: '/resolvers/0',
+          },
+          {
+            packageName: 'parcel-resolver-base',
+            resolveFrom: '.parcelrc',
+            keyPath: '/resolvers/0',
+          },
+        ],
+        transformers: {
+          '*.js': [
             {
-              packageName: 'parcel-resolver-ext',
+              packageName: 'parcel-transform-ext',
               resolveFrom: '.parcelrc',
-              keyPath: '/resolvers/0',
+              keyPath: '/transformers/*.js/0',
             },
             {
-              packageName: 'parcel-resolver-base',
+              packageName: 'parcel-transform-base',
               resolveFrom: '.parcelrc',
-              keyPath: '/resolvers/0',
+              keyPath: '/transformers/*.js/0',
             },
           ],
-          transformers: {
-            '*.js': [
-              {
-                packageName: 'parcel-transform-ext',
-                resolveFrom: '.parcelrc',
-                keyPath: '/transformers/*.js/0',
-              },
-              {
-                packageName: 'parcel-transform-base',
-                resolveFrom: '.parcelrc',
-                keyPath: '/transformers/*.js/0',
-              },
-            ],
-            '*.css': [
-              {
-                packageName: 'parcel-transform-css',
-                resolveFrom: '.parcelrc',
-                keyPath: '/transformers/*.css/0',
-              },
-            ],
-          },
-          bundler: {
-            packageName: 'parcel-bundler-base',
-            resolveFrom: '.parcelrc',
-            keyPath: '/bundler',
-          },
-          runtimes: {},
-          namers: [],
-          optimizers: {},
-          packagers: {},
-          reporters: [],
+          '*.css': [
+            {
+              packageName: 'parcel-transform-css',
+              resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.css/0',
+            },
+          ],
         },
-        DEFAULT_OPTIONS.packageManager,
-        DEFAULT_OPTIONS.inputFS,
-        false,
-      );
+        bundler: {
+          packageName: 'parcel-bundler-base',
+          resolveFrom: '.parcelrc',
+          keyPath: '/bundler',
+        },
+        runtimes: {},
+        namers: [],
+        optimizers: {},
+        packagers: {},
+        reporters: [],
+        validators: {},
+      };
 
       // $FlowFixMe
       assert.deepEqual(mergeConfigs(base, ext), merged);
@@ -649,7 +646,8 @@ describe('loadParcelConfig', () => {
         DEFAULT_OPTIONS,
       );
 
-      assert.deepEqual(config.transformers['*.js'], [
+      let transformers = nullthrows(config.transformers);
+      assert.deepEqual(transformers['*.js'], [
         {
           packageName: 'parcel-transformer-sub',
           resolveFrom: subConfigFilePath,
@@ -662,7 +660,7 @@ describe('loadParcelConfig', () => {
         },
         '...',
       ]);
-      assert(Object.keys(config.transformers).length > 1);
+      assert(Object.keys(transformers).length > 1);
       assert.deepEqual(config.resolvers, defaultConfig.resolvers);
       assert.deepEqual(config.bundler, defaultConfig.bundler);
       assert.deepEqual(config.namers, defaultConfig.namers || []);

@@ -1,18 +1,13 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  bundler,
-  getNextBuild,
-  inputFS,
-  defaultConfig,
-} from '@parcel/test-utils';
+import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
 import http from 'http';
 import getPort from 'get-port';
 
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
 function apiServer() {
   const server = http
