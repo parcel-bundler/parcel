@@ -295,20 +295,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       optionsRef: this.optionsRef,
     });
 
-    // Add invalidations to the request if a node already exists in the graph.
-    // These are used to compute the cache key for assets during transformation.
-    if (this.requestGraph.hasNode(request.id)) {
-      request.input.invalidations = this.requestGraph
-        .getInvalidations(request.id)
-        .filter(invalidation => {
-          // Filter out invalidation node for the input file itself.
-          return (
-            invalidation.type !== 'file' ||
-            invalidation.filePath !== input.filePath
-          );
-        });
-    }
-
     let assets = await this.requestTracker.runRequest<
       AssetRequestInput,
       Array<Asset>,

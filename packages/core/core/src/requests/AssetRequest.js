@@ -45,13 +45,28 @@ function getId(input: AssetRequestInput) {
   return `${type}:${md5FromObject(hashInput)}`;
 }
 
-async function run({input, api, options, farm}: RunInput) {
+async function run({requestId, input, api, options, farm, requestGraph}: RunInput) {
   api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
   let start = Date.now();
   let {optionsRef, ...request} = input;
   let {cachePath} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
   );
+
+  // Add invalidations to the request if a node already exists in the graph.
+  // These are used to compute the cache key for assets during transformation.
+  if (requestGraph.hasNode(requestId)) {
+    request.invalidations = requestGraph
+      .getInvalidations(requestId)
+      .filter(invalidation => {
+        // Filter out invalidation node for the input file itself.
+        return (
+          invalidation.type !== 'file' ||
+          invalidation.filePath !== input.filePath
+        );
+      });
+  }
+
   let {assets, configRequests, invalidations} = (await farm.createHandle(
     'runTransform',
   )({
