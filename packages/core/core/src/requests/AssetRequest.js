@@ -45,7 +45,14 @@ function getId(input: AssetRequestInput) {
   return `${type}:${md5FromObject(hashInput)}`;
 }
 
-async function run({requestId, input, api, options, farm, requestGraph}: RunInput) {
+async function run({
+  requestId,
+  input,
+  api,
+  options,
+  farm,
+  requestGraph,
+}: RunInput) {
   api.invalidateOnFileUpdate(await options.inputFS.realpath(input.filePath));
   let start = Date.now();
   let {optionsRef, ...request} = input;

@@ -73,7 +73,7 @@ export type StaticRunOpts = {|
   options: ParcelOptions,
   api: RunAPI,
   requestId: string,
-  requestGraph: RequestGraph
+  requestGraph: RequestGraph,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -475,7 +475,7 @@ export default class RequestTracker {
         api,
         farm: this.farm,
         options: this.options,
-        requestGraph: this.graph
+        requestGraph: this.graph,
       });
 
       assertSignalNotAborted(this.signal);
