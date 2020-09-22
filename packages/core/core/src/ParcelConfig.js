@@ -24,7 +24,8 @@ import type {
 } from './types';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
-import loadPlugin from './loadParcelPlugin';
+import {resolvePlugin, loadPlugin} from './loadParcelPlugin';
+import type {PackageJSON} from '@parcel/types';
 
 type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {|
@@ -117,6 +118,41 @@ export default class ParcelConfig {
     );
     this.pluginCache.set(node.packageName, plugin);
     return plugin;
+  }
+
+  resolvePlugin(
+    node: ParcelPluginNode,
+  ): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
+    return resolvePlugin(
+      this.packageManager,
+      node.packageName,
+      node.resolveFrom,
+      this.autoinstall,
+    );
+  }
+
+  resolvePlugins<T>(
+    plugins: PureParcelConfigPipeline,
+  ): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return Promise.all(
+      plugins.map(async p => {
+        let {resolved} = await this.resolvePlugin(p);
+        let {version} = await this.loadPlugin<T>(p);
+        return {
+          name: p.packageName,
+          resolved: resolved,
+          resolveFrom: p.resolveFrom,
+          version: version,
+        };
+      }),
+    );
   }
 
   loadPlugins<T>(
@@ -218,6 +254,23 @@ export default class ParcelConfig {
     }
 
     return transformers;
+  }
+
+  resolveTransformers(
+    filePath: FilePath,
+    pipeline?: ?string,
+    allowEmpty?: boolean,
+  ): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return this.resolvePlugins<Transformer>(
+      this._getTransformerNodes(filePath, pipeline, allowEmpty),
+    );
   }
 
   getTransformerNames(

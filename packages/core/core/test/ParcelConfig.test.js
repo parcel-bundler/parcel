@@ -108,6 +108,10 @@ describe('ParcelConfig', () => {
     });
   });
 
+  describe('resolvePlugin', () => {
+    it('should return ');
+  });
+
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
       let configFilePath = path.join(

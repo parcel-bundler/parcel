@@ -1,7 +1,7 @@
 // @flow
 import type {FilePath, PackageName, Semver} from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
-
+import type {PackageJSON} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
@@ -9,12 +9,12 @@ import nullthrows from 'nullthrows';
 
 const PARCEL_VERSION = require('../package.json').version;
 
-export default async function loadPlugin<T>(
+export async function resolvePlugin(
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
   autoinstall: boolean,
-): Promise<{|plugin: T, version: Semver|}> {
+): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
   let {resolved, pkg} = await packageManager.resolve(
     pluginName,
     `${resolveFrom}/index`,
@@ -38,6 +38,21 @@ export default async function loadPlugin<T>(
       `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
     );
   }
+  return {resolved, pkg};
+}
+
+export async function loadPlugin<T>(
+  packageManager: PackageManager,
+  pluginName: PackageName,
+  resolveFrom: FilePath,
+  autoinstall: boolean,
+): Promise<{|plugin: T, version: Semver|}> {
+  let {resolved, pkg} = await resolvePlugin(
+    packageManager,
+    pluginName,
+    resolveFrom,
+    autoinstall,
+  );
 
   let plugin = await packageManager.require(resolved, `${resolveFrom}/index`, {
     autoinstall,

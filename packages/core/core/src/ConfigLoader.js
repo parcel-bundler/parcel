@@ -46,7 +46,7 @@ export default class ConfigLoader {
     return this.loadPluginConfig(configRequest);
   }
 
-  loadParcelConfig(configRequest: ConfigRequestDesc): Config {
+  async loadParcelConfig(configRequest: ConfigRequestDesc): Promise<Config> {
     let {filePath, isSource, env, pipeline, isURL} = configRequest;
     let dir = isSource ? path.dirname(filePath) : this.options.projectRoot;
     let searchPath = path.join(dir, 'index');
@@ -60,20 +60,27 @@ export default class ConfigLoader {
     let devDeps = [];
     switch (configRequest.meta.actionType) {
       case 'transformation':
-        devDeps = this.parcelConfig.getTransformerNames(
+        devDeps = await this.parcelConfig.resolveTransformers(
           filePath,
           pipeline,
           isURL,
         );
+        devDeps.forEach(async devDep =>
+          publicConfig.addDevDependency(
+            (await devDep).name,
+            (await devDep).version,
+          ),
+        );
         break;
       case 'validation':
         devDeps = this.parcelConfig.getValidatorNames(filePath);
+        devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
         break;
       case 'dependency':
         devDeps = this.parcelConfig.getResolverNames();
+        devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
         break;
     }
-    devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
 
     publicConfig.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
