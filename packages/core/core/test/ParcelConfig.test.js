@@ -109,10 +109,6 @@ describe('ParcelConfig', () => {
   });
 
   describe('resolvePlugin', () => {
-    it('should return ');
-  });
-
-  describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
       let configFilePath = path.join(
         __dirname,
@@ -138,12 +134,12 @@ describe('ParcelConfig', () => {
       );
 
       sinon.stub(logger, 'warn');
-      let {plugin} = await config.loadPlugin({
+      let {resolved, pkg} = await config.resolvePlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
       });
-      assert(plugin);
-      assert.equal(typeof plugin.transform, 'function');
+      assert(resolved);
+      assert(pkg);
       assert(logger.warn.calledOnce);
       assert.deepEqual(logger.warn.getCall(0).args[0], {
         origin: '@parcel/core',
@@ -152,7 +148,6 @@ describe('ParcelConfig', () => {
       });
       logger.warn.restore();
     });
-
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
       let configFilePath = path.join(
         __dirname,

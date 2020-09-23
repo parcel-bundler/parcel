@@ -65,11 +65,8 @@ export default class ConfigLoader {
           pipeline,
           isURL,
         );
-        devDeps.forEach(async devDep =>
-          publicConfig.addDevDependency(
-            (await devDep).name,
-            (await devDep).version,
-          ),
+        devDeps.forEach(({name, version}) =>
+          publicConfig.addDevDependency(name, version),
         );
         break;
       case 'validation':

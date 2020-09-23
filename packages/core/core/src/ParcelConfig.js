@@ -131,7 +131,7 @@ export default class ParcelConfig {
     );
   }
 
-  resolvePlugins<T>(
+  resolvePlugins(
     plugins: PureParcelConfigPipeline,
   ): Promise<
     Array<{|
@@ -143,13 +143,12 @@ export default class ParcelConfig {
   > {
     return Promise.all(
       plugins.map(async p => {
-        let {resolved} = await this.resolvePlugin(p);
-        let {version} = await this.loadPlugin<T>(p);
+        let {resolved, pkg} = await await this.resolvePlugin(p);
         return {
           name: p.packageName,
           resolved: resolved,
           resolveFrom: p.resolveFrom,
-          version: version,
+          version: pkg.version,
         };
       }),
     );
@@ -268,7 +267,7 @@ export default class ParcelConfig {
       version: Semver,
     |}>,
   > {
-    return this.resolvePlugins<Transformer>(
+    return this.resolvePlugins(
       this._getTransformerNodes(filePath, pipeline, allowEmpty),
     );
   }
