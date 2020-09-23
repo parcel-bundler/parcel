@@ -15,6 +15,7 @@
     "@babel/core": "^7.4.4",
     "@babel/plugin-syntax-export-default-from": "^7.2.0",
     "@babel/plugin-syntax-export-namespace-from": "^7.2.0",
+    "@babel/plugin-syntax-module-attributes": "^7.10.4",
     "@babel/preset-env": "^7.1.0",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
