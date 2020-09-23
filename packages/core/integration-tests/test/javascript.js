@@ -391,6 +391,26 @@ describe('javascript', function() {
     assert(headChildren[2].href.match(/preloaded\..*\.js/));
   });
 
+  it('should remove unknown import attributes targetting global', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
+    );
+
+    let mainBundle = b.getBundles().find(b => b.isEntry);
+    let mainBundleContent = await outputFS.readFile(
+      mainBundle.filePath,
+      'utf8',
+    );
+    assert(mainBundleContent.includes("require('./async')"));
+    assert(
+      mainBundleContent.includes(`require('./async2', {
+  assert: {
+    type: 'js'
+  }
+})`),
+    );
+  });
+
   it('should split bundles when a dynamic import is used with a node environment', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-node/index.js'),

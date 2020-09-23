@@ -107,6 +107,18 @@ export default ({
               importAttributesNode,
             ),
           };
+
+          let newAttributesNode = withoutUnknownImportAttributes(
+            importAttributesNode,
+          );
+          if (newAttributesNode.properties.length > 0) {
+            // Replace the import attributes with only the allowed attribute(s)
+            args[1] = newAttributesNode;
+          } else {
+            // If no allowed attribute(s) are left, remove the attributes argument
+            // from the import() call entirely
+            args.splice(1, 1);
+          }
         }
 
         addDependency(asset, args[0], {isAsync: true, meta});
@@ -367,4 +379,22 @@ function objectExpressionNodeToJSONObject(
   }
 
   return object;
+}
+
+function withoutUnknownImportAttributes(
+  objectExpressionNode: ObjectExpression,
+): ObjectExpression {
+  let properties = [];
+  for (let property of objectExpressionNode.properties) {
+    if (
+      property.type === 'ObjectProperty' &&
+      property.key.type === 'Identifier' &&
+      property.key.name === 'assert'
+    ) {
+      properties.push(property);
+      break;
+    }
+  }
+
+  return types.objectExpression(properties);
 }
