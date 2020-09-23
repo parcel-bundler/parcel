@@ -107,6 +107,9 @@ export default ({
               importAttributesNode,
             ),
           };
+
+          // Remove the attributes argument from the import() call
+          args.splice(1, 1);
         }
 
         addDependency(asset, args[0], {isAsync: true, meta});
