@@ -62,6 +62,7 @@ type RunAPI = {|
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
   invalidateOnEnvChange: string => void,
+  getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed) => void,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -72,8 +73,6 @@ export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
-  requestId: string,
-  requestGraph: RequestGraph,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -293,6 +292,10 @@ export class RequestGraph extends Graph<
   }
 
   getInvalidations(requestId: string): Array<RequestInvalidation> {
+    if (!this.hasNode(requestId)) {
+      return [];
+    }
+
     // For now just handling updates. Could add creates/deletes later if needed.
     let requestNode = this.getRequestNode(requestId);
     let invalidations = this.getNodesConnectedFrom(
@@ -470,12 +473,10 @@ export default class RequestTracker {
     try {
       this.startRequest({id, type: request.type, input: request.input});
       let result = await request.run({
-        requestId: request.id,
         input: request.input,
         api,
         farm: this.farm,
         options: this.options,
-        requestGraph: this.graph,
       });
 
       assertSignalNotAborted(this.signal);
@@ -511,6 +512,7 @@ export default class RequestTracker {
           env,
           this.options.env[env] || '',
         ),
+      getInvalidations: () => this.graph.getInvalidations(requestId),
       storeResult: result => {
         this.storeResult(requestId, result);
       },
