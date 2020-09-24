@@ -1,7 +1,9 @@
 // @flow
 import type {FilePath, PackageName, Semver} from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
+import type {FileSystem} from '@parcel/fs';
 import type {PackageJSON} from '@parcel/types';
+
 import semver from 'semver';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
@@ -14,17 +16,46 @@ import path from 'path';
 import {version as PARCEL_VERSION} from '../package.json';
 
 export async function resolvePlugin(
+  fs: FileSystem,
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
   keyPath: string,
   autoinstall: boolean,
 ): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
-  let {resolved, pkg} = await packageManager.resolve(
-    pluginName,
-    `${resolveFrom}/index`,
-    {autoinstall},
-  );
+  let resolved, pkg;
+  try {
+    ({resolved, pkg} = await packageManager.resolve(pluginName, resolveFrom, {
+      autoinstall,
+    }));
+  } catch (err) {
+    let configContents = await fs.readFile(resolveFrom, 'utf8');
+    let alternatives = await findAlternativeNodeModules(
+      fs,
+      pluginName,
+      path.dirname(resolveFrom),
+    );
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: `Cannot find parcel plugin "${pluginName}"`,
+        origin: '@parcel/core',
+        filePath: resolveFrom,
+        language: 'json5',
+        codeFrame: {
+          code: configContents,
+          codeHighlights: generateJSONCodeHighlights(configContents, [
+            {
+              key: keyPath,
+              type: 'value',
+              message: `Cannot find module "${pluginName}"${
+                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
+              }`,
+            },
+          ]),
+        },
+      },
+    });
+  }
 
   // Validate the engines.parcel field in the plugin's package.json
   let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
@@ -64,18 +95,21 @@ export async function resolvePlugin(
 }
 
 export async function loadPlugin<T>(
+  fs: FileSystem,
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
   autoinstall: boolean,
 ): Promise<{|plugin: T, version: Semver|}> {
   let {resolved, pkg} = await resolvePlugin(
+    fs,
     packageManager,
     pluginName,
     resolveFrom,
+    keyPath,
     autoinstall,
   );
-
   let plugin = await packageManager.require(resolved, resolveFrom, {
     autoinstall,
   });

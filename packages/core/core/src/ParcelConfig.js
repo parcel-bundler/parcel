@@ -121,9 +121,11 @@ export default class ParcelConfig {
     node: ParcelPluginNode,
   ): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
     return resolvePlugin(
+      this.fs,
       this.packageManager,
       node.packageName,
       node.resolveFrom,
+      node.keyPath,
       this.autoinstall,
     );
   }

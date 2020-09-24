@@ -163,6 +163,7 @@ describe('ParcelConfig', () => {
       });
       logger.warn.restore();
     });
+
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
       let configFilePath = path.join(
         __dirname,
@@ -189,20 +190,68 @@ describe('ParcelConfig', () => {
         false,
       );
 
-      let errored = false;
-      try {
-        await config.resolvePlugin({
-          packageName: 'parcel-transformer-bad-engines',
-          resolveFrom: configFilePath,
-        });
-      } catch (err) {
-        errored = true;
-        let parcelVersion = require('../package.json').version;
-        assert.equal(
-          err.message,
-          `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`,
-        );
-      }
+      let parcelVersion = require('../package.json').version;
+      let pkgJSON = path.join(
+        __dirname,
+        'fixtures',
+        'plugins',
+        'node_modules',
+        'parcel-transformer-bad-engines',
+        'package.json',
+      );
+      let code = inputFS.readFileSync(pkgJSON, 'utf8');
+
+      // $FlowFixMe
+      await assert.rejects(
+        () =>
+          config.resolvePlugin({
+            packageName: 'parcel-transformer-bad-engines',
+            resolveFrom: configFilePath,
+            keyPath: '/transformers/*.js/0',
+          }),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: `The plugin "parcel-transformer-bad-engines" is not compatible with the current version of Parcel. Requires "5.x" but the current version is "${parcelVersion}".`,
+              origin: '@parcel/core',
+              filePath: pkgJSON,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    start: {line: 5, column: 5},
+                    end: {line: 5, column: 19},
+                    message: undefined,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      );
+    });
+
+    it('should error with a codeframe if a plugin is not resolved', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-plugin-not-found',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      let {config} = await parseAndProcessConfig(
+        configFilePath,
+        code,
+        DEFAULT_OPTIONS,
+      );
+      let parcelConfig = new ParcelConfig(
+        config,
+        DEFAULT_OPTIONS.packageManager,
+        DEFAULT_OPTIONS.inputFS,
+        DEFAULT_OPTIONS.autoinstall,
+      );
 
       // $FlowFixMe
       await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
