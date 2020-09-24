@@ -7,7 +7,6 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
-  File,
   FilePath,
   Glob,
   JSONObject,
@@ -111,7 +110,6 @@ export type Asset = {|
   query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
   isSplittable: ?boolean,
@@ -132,6 +130,18 @@ export type Asset = {|
   plugin: ?PackageName,
   configKeyPath?: string,
 |};
+
+export type FileInvalidation = {|
+  type: 'file',
+  filePath: FilePath,
+|};
+
+export type EnvInvalidation = {|
+  type: 'env',
+  key: string,
+|};
+
+export type RequestInvalidation = FileInvalidation | EnvInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
@@ -214,6 +224,7 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query: QueryParameters,
+  invalidations?: Array<RequestInvalidation>,
 |};
 
 export type AssetRequestResult = Array<Asset>;
