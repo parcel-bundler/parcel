@@ -6,6 +6,8 @@ import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
 import {NodePackageManager} from '@parcel/package-manager';
+import {parseAndProcessConfig} from '../src/requests/ParcelConfigRequest';
+import {DEFAULT_OPTIONS} from './test-utils';
 
 const packageManager = new NodePackageManager(inputFS);
 
@@ -19,14 +21,17 @@ describe('ParcelConfig', () => {
           '*.css': {
             packageName: 'parcel-packager-css',
             resolveFrom: '.parcelrc',
+            keyPath: '/packagers/*.css',
           },
           '*.js': {
             packageName: 'parcel-packager-js',
             resolveFrom: '.parcelrc',
+            keyPath: '/packagers/*.js',
           },
         },
       },
       packageManager,
+      inputFS,
       false,
     );
 
@@ -40,6 +45,7 @@ describe('ParcelConfig', () => {
       assert.deepEqual(result, {
         packageName: 'parcel-packager-js',
         resolveFrom: '.parcelrc',
+        keyPath: '/packagers/*.js',
       });
     });
   });
@@ -54,6 +60,7 @@ describe('ParcelConfig', () => {
             {
               packageName: 'parcel-transform-jsx',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.jsx/0',
             },
             '...',
           ],
@@ -61,11 +68,13 @@ describe('ParcelConfig', () => {
             {
               packageName: 'parcel-transform-js',
               resolveFrom: '.parcelrc',
+              keyPath: '/transformers/*.{js,jsx}/0',
             },
           ],
         },
       },
       packageManager,
+      inputFS,
       false,
     );
 
@@ -86,6 +95,7 @@ describe('ParcelConfig', () => {
         {
           packageName: 'parcel-transform-js',
           resolveFrom: '.parcelrc',
+          keyPath: '/transformers/*.{js,jsx}/0',
         },
       ]);
     });
@@ -99,10 +109,12 @@ describe('ParcelConfig', () => {
         {
           packageName: 'parcel-transform-jsx',
           resolveFrom: '.parcelrc',
+          keyPath: '/transformers/*.jsx/0',
         },
         {
           packageName: 'parcel-transform-js',
           resolveFrom: '.parcelrc',
+          keyPath: '/transformers/*.{js,jsx}/0',
         },
       ]);
     });
@@ -125,11 +137,13 @@ describe('ParcelConfig', () => {
               {
                 packageName: 'parcel-transformer-no-engines',
                 resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
               },
             ],
           },
         },
         packageManager,
+        inputFS,
         false,
       );
 
@@ -137,6 +151,7 @@ describe('ParcelConfig', () => {
       let {resolved, pkg} = await config.resolvePlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
+        keyPath: '/transformers/*.js/0',
       });
       assert(resolved);
       assert(pkg);
@@ -162,13 +177,15 @@ describe('ParcelConfig', () => {
           transformers: {
             '*.js': [
               {
-                packageName: 'parcel-transformer-bad-engines',
+                packageName: 'parcel-transformer-not-found',
                 resolveFrom: configFilePath,
+                keyPath: '/transformers/*.js/0',
               },
             ],
           },
         },
         packageManager,
+        inputFS,
         false,
       );
 
@@ -187,7 +204,28 @@ describe('ParcelConfig', () => {
         );
       }
 
-      assert(errored, 'did not error');
+      // $FlowFixMe
+      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
+        name: 'Error',
+        diagnostics: [
+          {
+            message: 'Cannot find parcel plugin "@parcel/transformer-jj"',
+            origin: '@parcel/core',
+            filePath: configFilePath,
+            language: 'json5',
+            codeFrame: {
+              code,
+              codeHighlights: [
+                {
+                  start: {line: 4, column: 14},
+                  end: {line: 4, column: 37},
+                  message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
+                },
+              ],
+            },
+          },
+        ],
+      });
     });
   });
 });

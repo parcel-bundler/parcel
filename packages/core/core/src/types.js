@@ -7,7 +7,6 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
-  File,
   FilePath,
   Glob,
   JSONObject,
@@ -17,7 +16,6 @@ import type {
   PackageName,
   PackageJSON,
   ReporterEvent,
-  ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
@@ -38,6 +36,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -111,7 +110,6 @@ export type Asset = {|
   query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
   isSplittable: ?boolean,
@@ -130,13 +128,26 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
+
+export type FileInvalidation = {|
+  type: 'file',
+  filePath: FilePath,
+|};
+
+export type EnvInvalidation = {|
+  type: 'env',
+  key: string,
+|};
+
+export type RequestInvalidation = FileInvalidation | EnvInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
   entryRoot: FilePath,
-  config?: ResolvedParcelConfigFile,
-  defaultConfig?: ResolvedParcelConfigFile,
+  config?: ModuleSpecifier,
+  defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,
@@ -213,6 +224,7 @@ export type AssetRequestInput = {|
   optionsRef: SharedReference,
   isURL?: boolean,
   query: QueryParameters,
+  invalidations?: Array<RequestInvalidation>,
 |};
 
 export type AssetRequestResult = Array<Asset>;

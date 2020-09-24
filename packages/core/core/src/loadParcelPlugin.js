@@ -6,13 +6,18 @@ import semver from 'semver';
 import logger from '@parcel/logger';
 import {CONFIG} from '@parcel/plugin';
 import nullthrows from 'nullthrows';
-
-const PARCEL_VERSION = require('../package.json').version;
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
+import {findAlternativeNodeModules, resolveConfig} from '@parcel/utils';
+import path from 'path';
+import {version as PARCEL_VERSION} from '../package.json';
 
 export async function resolvePlugin(
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
   autoinstall: boolean,
 ): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
   let {resolved, pkg} = await packageManager.resolve(
@@ -34,9 +39,26 @@ export async function resolvePlugin(
     parcelVersionRange &&
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
-    throw new Error(
-      `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+    let pkgFile = nullthrows(
+      await resolveConfig(fs, resolved, ['package.json']),
     );
+    let pkgContents = await fs.readFile(pkgFile, 'utf8');
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
+        origin: '@parcel/core',
+        filePath: pkgFile,
+        language: 'json5',
+        codeFrame: {
+          code: pkgContents,
+          codeHighlights: generateJSONCodeHighlights(pkgContents, [
+            {
+              key: '/engines/parcel',
+            },
+          ]),
+        },
+      },
+    });
   }
   return {resolved, pkg};
 }
@@ -54,7 +76,7 @@ export async function loadPlugin<T>(
     autoinstall,
   );
 
-  let plugin = await packageManager.require(resolved, `${resolveFrom}/index`, {
+  let plugin = await packageManager.require(resolved, resolveFrom, {
     autoinstall,
   });
   plugin = plugin.default ? plugin.default : plugin;

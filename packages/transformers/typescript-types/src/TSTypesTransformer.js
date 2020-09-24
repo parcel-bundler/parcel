@@ -119,11 +119,13 @@ export default (new Transformer({
 
             codeframe = {
               code: source,
-              codeHighlights: {
-                start,
-                end,
-                message: diagnosticMessage,
-              },
+              codeHighlights: [
+                {
+                  start,
+                  end,
+                  message: diagnosticMessage,
+                },
+              ],
             };
           }
         }
@@ -146,7 +148,7 @@ export default (new Transformer({
 
     let sourceMap = null;
     if (map.mappings) {
-      sourceMap = new SourceMap();
+      sourceMap = new SourceMap(options.projectRoot);
       sourceMap.addRawMappings(map);
     }
 

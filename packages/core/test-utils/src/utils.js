@@ -10,7 +10,6 @@ import type {
 
 import invariant from 'assert';
 import Parcel, {createWorkerFarm} from '@parcel/core';
-import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
@@ -49,12 +48,6 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   // Spin down the worker farm to stop it from preventing the main process from exiting
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
-
-export const defaultConfig = {
-  ...defaultConfigContents,
-  filePath: (require.resolve('@parcel/config-default'): string),
-  reporters: ([]: Array<any>),
-};
 
 const chalk = new _chalk.constructor({enabled: true});
 const warning = chalk.keyword('orange');
@@ -106,12 +99,12 @@ export function bundler(
     entries,
     disableCache: true,
     logLevel: 'none',
-    defaultConfig,
+    defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
     inputFS,
     outputFS,
     workerFarm,
     distDir,
-    packageManager: new NodePackageManager(inputFS),
+    packageManager: new NodePackageManager(opts?.inputFS || inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
       node: '8',
@@ -285,10 +278,6 @@ export function assertBundles(
     name?: string | RegExp,
     type?: string,
     assets: Array<string>,
-    includedFiles?: {
-      [key: string]: Array<string>,
-      ...,
-    },
   |}>,
 ) {
   let actualBundles = [];
@@ -296,15 +285,10 @@ export function assertBundles(
 
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
-    const includedFiles = {};
 
     bundle.traverseAssets(asset => {
       const name = path.basename(asset.filePath);
       assets.push(name);
-      includedFiles[name] = asset
-        .getIncludedFiles()
-        .map(({filePath}) => path.basename(filePath))
-        .sort(byAlphabet);
     });
 
     assets.sort(byAlphabet);
@@ -312,7 +296,6 @@ export function assertBundles(
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
       assets,
-      includedFiles,
     });
   });
 
@@ -367,19 +350,6 @@ export function assertBundles(
 
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
-    }
-
-    if (bundle.includedFiles) {
-      for (let asset of actualBundle.assets) {
-        const files = bundle.includedFiles[asset];
-        if (!files) {
-          continue;
-        }
-        assert.deepEqual(
-          actualBundle.includedFiles[asset],
-          files.sort(byAlphabet),
-        );
-      }
     }
   }
 }
@@ -538,6 +508,7 @@ function prepareNodeContext(filePath, globals) {
     }
 
     if (res === specifier) {
+      // $FlowFixMe
       return require(specifier);
     }
 

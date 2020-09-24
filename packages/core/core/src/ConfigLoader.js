@@ -93,7 +93,7 @@ export default class ConfigLoader {
     env,
     isSource,
     filePath,
-    meta: {parcelConfigPath},
+    meta: {parcelConfigPath, parcelConfigKeyPath},
   }: ConfigRequestDesc): Promise<Config> {
     let config = createConfig({
       isSource,
@@ -102,9 +102,11 @@ export default class ConfigLoader {
     });
 
     invariant(typeof parcelConfigPath === 'string');
+    invariant(typeof parcelConfigKeyPath === 'string');
     let {plugin: pluginInstance} = await this.parcelConfig.loadPlugin({
       packageName: nullthrows(plugin),
       resolveFrom: parcelConfigPath,
+      keyPath: parcelConfigKeyPath,
     });
 
     if (pluginInstance.loadConfig != null) {
