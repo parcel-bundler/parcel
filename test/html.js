@@ -537,6 +537,12 @@ describe('html', function() {
         }
       ]
     });
+
+    // ensure space after comma
+    const {html} = b.entryAsset.generated;
+    assert(
+      html.match(/srcset="\/200x200.[^.]+.png 250w, \/300x300.[^.]+.png 500w"/)
+    );
   });
 
   it('should detect srcset attribute of source element', async function() {
