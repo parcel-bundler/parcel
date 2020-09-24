@@ -174,7 +174,7 @@ describe('ParcelConfig', () => {
 
       let errored = false;
       try {
-        await config.loadPlugin({
+        await config.resolvePlugin({
           packageName: 'parcel-transformer-bad-engines',
           resolveFrom: configFilePath,
         });

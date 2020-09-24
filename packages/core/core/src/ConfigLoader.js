@@ -65,19 +65,18 @@ export default class ConfigLoader {
           pipeline,
           isURL,
         );
-        devDeps.forEach(({name, version}) =>
-          publicConfig.addDevDependency(name, version),
-        );
         break;
       case 'validation':
-        devDeps = this.parcelConfig.getValidatorNames(filePath);
-        devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
+        devDeps = await this.parcelConfig.resolveValidators(filePath);
         break;
       case 'dependency':
-        devDeps = this.parcelConfig.getResolverNames();
-        devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
+        devDeps = await this.parcelConfig.resolveResolvers();
         break;
     }
+
+    devDeps.forEach(({name, version}) =>
+      publicConfig.addDevDependency(name, version),
+    );
 
     publicConfig.setResultHash(md5FromString(JSON.stringify(devDeps)));
 

@@ -102,24 +102,6 @@ export default class ParcelConfig {
     };
   }
 
-  loadPlugin<T>(
-    node: ParcelPluginNode,
-  ): Promise<{|plugin: T, version: Semver|}> {
-    let plugin = this.pluginCache.get(node.packageName);
-    if (plugin) {
-      return plugin;
-    }
-
-    plugin = loadPlugin<T>(
-      this.packageManager,
-      node.packageName,
-      node.resolveFrom,
-      this.autoinstall,
-    );
-    this.pluginCache.set(node.packageName, plugin);
-    return plugin;
-  }
-
   resolvePlugin(
     node: ParcelPluginNode,
   ): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
@@ -152,6 +134,24 @@ export default class ParcelConfig {
         };
       }),
     );
+  }
+
+  loadPlugin<T>(
+    node: ParcelPluginNode,
+  ): Promise<{|plugin: T, version: Semver|}> {
+    let plugin = this.pluginCache.get(node.packageName);
+    if (plugin) {
+      return plugin;
+    }
+
+    plugin = loadPlugin<T>(
+      this.packageManager,
+      node.packageName,
+      node.resolveFrom,
+      this.autoinstall,
+    );
+    this.pluginCache.set(node.packageName, plugin);
+    return plugin;
   }
 
   loadPlugins<T>(
@@ -253,23 +253,6 @@ export default class ParcelConfig {
     }
 
     return transformers;
-  }
-
-  resolveTransformers(
-    filePath: FilePath,
-    pipeline?: ?string,
-    allowEmpty?: boolean,
-  ): Promise<
-    Array<{|
-      name: string,
-      resolved: FilePath,
-      resolveFrom: FilePath,
-      version: Semver,
-    |}>,
-  > {
-    return this.resolvePlugins(
-      this._getTransformerNodes(filePath, pipeline, allowEmpty),
-    );
   }
 
   getTransformerNames(
@@ -422,6 +405,47 @@ export default class ParcelConfig {
     |}>,
   > {
     return this.loadPlugins<Reporter>(this.reporters);
+  }
+
+  resolveTransformers(
+    filePath: FilePath,
+    pipeline?: ?string,
+    allowEmpty?: boolean,
+  ): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return this.resolvePlugins(
+      this._getTransformerNodes(filePath, pipeline, allowEmpty),
+    );
+  }
+
+  resolveValidators(
+    filePath: FilePath,
+  ): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return this.resolvePlugins(this._getValidatorNodes(filePath));
+  }
+
+  resolveResolvers(): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return this.resolvePlugins(this._getResolverNodes());
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob, pipeline?: ?string): boolean {
