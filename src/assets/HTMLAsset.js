@@ -111,7 +111,7 @@ class HTMLAsset extends Asset {
       pair[0] = this.processSingleDependency(pair[0], opts);
       newSources.push(pair.join(' '));
     }
-    return newSources.join(',');
+    return newSources.join(', ');
   }
 
   getAttrDepHandler(attr) {
