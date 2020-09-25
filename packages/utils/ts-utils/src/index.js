@@ -1,6 +1,6 @@
 // @flow
-export * from './FSHost';
-export * from './CompilerHost';
-export * from './ParseConfigHost';
-export * from './LanguageServiceHost';
-export * from './loadTSConfig';
+export {FSHost} from './FSHost';
+export {CompilerHost} from './CompilerHost';
+export {ParseConfigHost} from './ParseConfigHost';
+export {LanguageServiceHost} from './LanguageServiceHost';
+export {loadTSConfig} from './loadTSConfig';

@@ -86,7 +86,7 @@ describe('watcher', function() {
     let copyPath = path.join(inDir, 'configCopy');
     let configPath = path.join(inDir, '.parcelrc');
     let b = bundler(path.join(inDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           distDir: outDir,

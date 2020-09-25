@@ -346,16 +346,18 @@ describe('scope hoisting', function() {
             filePath: source,
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 8,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 8,
+                  },
+                  end: {
+                    line: 1,
+                    column: 8,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 8,
-                },
-              },
+              ],
             },
           },
         ],
@@ -381,16 +383,18 @@ describe('scope hoisting', function() {
             ),
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 1,
-                  column: 9,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 9,
+                  },
+                  end: {
+                    line: 1,
+                    column: 11,
+                  },
                 },
-                end: {
-                  line: 1,
-                  column: 11,
-                },
-              },
+              ],
             },
           },
         ],
@@ -464,6 +468,20 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['test']);
+    });
+
+    it('should default export globals', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-global/a.js',
+        ),
+      );
+
+      let Test = Symbol('Test');
+
+      let output = await run(b, {Test});
+      assert.strictEqual(output, Test);
     });
 
     it('throws a meaningful error on undefined exports', async function() {
@@ -1847,16 +1865,18 @@ describe('scope hoisting', function() {
             filePath: source,
             language: 'js',
             codeFrame: {
-              codeHighlights: {
-                start: {
-                  line: 3,
-                  column: 10,
+              codeHighlights: [
+                {
+                  start: {
+                    line: 3,
+                    column: 10,
+                  },
+                  end: {
+                    line: 3,
+                    column: 31,
+                  },
                 },
-                end: {
-                  line: 3,
-                  column: 31,
-                },
-              },
+              ],
             },
           },
         ],

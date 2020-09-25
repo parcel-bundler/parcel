@@ -120,12 +120,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   removeBundleGroup(bundleGroup: BundleGroup): void {
-    for (let bundle of this.getBundlesInBundleGroup(bundleGroup)) {
-      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
-        this.#graph._graph.removeById(bundle.id);
-      }
-    }
-    this.#graph._graph.removeById(getBundleGroupId(bundleGroup));
+    this.#graph.removeBundleGroup(bundleGroup);
   }
 
   internalizeAsyncDependency(bundle: IBundle, dependency: IDependency): void {

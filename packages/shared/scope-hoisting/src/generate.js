@@ -102,7 +102,7 @@ export function generate({
 
   let map = null;
   if (options.sourceMaps && rawMappings != null) {
-    map = new SourceMap();
+    map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(rawMappings);
   }
 
