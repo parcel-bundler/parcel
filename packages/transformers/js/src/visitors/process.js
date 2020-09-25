@@ -38,18 +38,14 @@ export default {
           (process.env.PARCEL_BUILD_ENV === 'test' &&
             value === 'PARCEL_BUILD_ENV');
 
-        // Try using the value from the passed env (either from `new Parcel`
-        // options or from dotenv), and fall back to process.env
-        let prop = shouldInline ? env[value] ?? process.env[value] : undefined;
+        let prop = shouldInline ? env[value] : undefined;
         if (typeof prop !== 'function') {
           let value = types.valueToNode(prop);
           morph(node, value);
 
           // Mark AST dirty
           asset.setAST(ast);
-
-          // TODO bust the cache on changes
-          // asset.meta.env[key.value] = process.env[key.value];
+          asset.invalidateOnEnvChange(key.value);
         }
       }
       // Inline process.browser

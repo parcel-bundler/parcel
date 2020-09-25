@@ -470,6 +470,20 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['test']);
     });
 
+    it('should default export globals', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-default-global/a.js',
+        ),
+      );
+
+      let Test = Symbol('Test');
+
+      let output = await run(b, {Test});
+      assert.strictEqual(output, Test);
+    });
+
     it('throws a meaningful error on undefined exports', async function() {
       let threw = false;
       try {
