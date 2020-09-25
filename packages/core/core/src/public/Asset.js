@@ -14,7 +14,6 @@ import type {
   DependencyOptions,
   Environment as IEnvironment,
   EnvironmentOpts,
-  File,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
@@ -163,10 +162,6 @@ class BaseAsset {
     return this.#asset.getConfig(filePaths, options);
   }
 
-  getIncludedFiles(): $ReadOnlyArray<File> {
-    return this.#asset.getIncludedFiles();
-  }
-
   getDependencies(): $ReadOnlyArray<IDependency> {
     return this.#asset.getDependencies().map(dep => new Dependency(dep));
   }
@@ -280,8 +275,12 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File): void {
-    this.#asset.addIncludedFile(file);
+  addIncludedFile(filePath: FilePath): void {
+    this.#asset.addIncludedFile(filePath);
+  }
+
+  invalidateOnEnvChange(env: string): void {
+    this.#asset.invalidateOnEnvChange(env);
   }
 
   isASTDirty(): boolean {

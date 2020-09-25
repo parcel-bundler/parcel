@@ -135,6 +135,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
+      this.requestGraph.invalidateEnvNodes(options.env);
       this.requestTracker.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
@@ -688,6 +689,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       ...input,
       optionsRef: this.optionsRef,
     });
+
     let assets = await this.requestTracker.runRequest<
       AssetRequestInput,
       Array<Asset>,

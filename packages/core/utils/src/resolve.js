@@ -176,7 +176,7 @@ export function resolveSync(
 
     // $FlowFixMe
     opts.packageFilter = pkg => {
-      if (pkg.name.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
+      if (pkg.name?.startsWith('@parcel/') && pkg.name !== '@parcel/watcher') {
         if (pkg.source) {
           pkg.main = pkg.source;
         }
