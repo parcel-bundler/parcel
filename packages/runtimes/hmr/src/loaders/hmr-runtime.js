@@ -30,6 +30,7 @@ function getHostname() {
     (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost')
   );
 }
+
 function getPort() {
   return HMR_PORT || location.port;
 }
