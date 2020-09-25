@@ -58,6 +58,7 @@ type Module = {|
   subPath?: ?string,
   moduleDir?: FilePath,
   filePath?: FilePath,
+  isSymlink?: boolean,
   code?: string,
 |};
 
@@ -428,12 +429,15 @@ export default class NodeResolver {
         let stats = await this.fs.stat(moduleDir);
         if (stats.isDirectory()) {
           const realModuleDir = this.fs.realpathSync(moduleDir);
-          
+
           return {
             moduleName: moduleName,
             subPath: subPath,
             moduleDir: realModuleDir || moduleDir,
-            filePath: realModuleDir ? path.join(realModuleDir, subPath || '') : path.join(dir, 'node_modules', filename),
+            filePath: realModuleDir
+              ? path.join(realModuleDir, subPath || '')
+              : path.join(dir, 'node_modules', filename),
+            isSymlink: realModuleDir ? realModuleDir !== moduleDir : false,
           };
         }
       } catch (err) {
@@ -455,7 +459,7 @@ export default class NodeResolver {
     // If a module was specified as a module sub-path (e.g. some-module/some/path),
     // it is likely a file. Try loading it as a file first.
     if (module.subPath && module.moduleDir) {
-      let pkg = await this.readPackage(module.moduleDir);
+      let pkg = await this.readPackage(module.moduleDir, module.isSymlink);
       let res = await this.loadAsFile({
         file: nullthrows(module.filePath),
         extensions,
@@ -472,6 +476,7 @@ export default class NodeResolver {
       dir: nullthrows(module.filePath),
       extensions,
       env,
+      isSymlink: module.isSymlink,
     });
   }
 
@@ -489,15 +494,17 @@ export default class NodeResolver {
     extensions,
     env,
     pkg,
+    isSymlink,
   }: {|
     dir: string,
     extensions: Array<string>,
     env: Env,
     pkg?: InternalPackageJSON | null,
+    isSymlink?: boolean,
   |}): Promise<?ResolvedFile> {
     let failedEntry;
     try {
-      pkg = await this.readPackage(dir);
+      pkg = await this.readPackage(dir, isSymlink);
 
       if (pkg) {
         // Get a list of possible package entry points.
@@ -517,6 +524,7 @@ export default class NodeResolver {
               extensions,
               env,
               pkg,
+              isSymlink,
             }));
 
           if (res) {
@@ -581,7 +589,10 @@ export default class NodeResolver {
     });
   }
 
-  async readPackage(dir: string): Promise<InternalPackageJSON> {
+  async readPackage(
+    dir: string,
+    isSymlink: boolean = false,
+  ): Promise<InternalPackageJSON> {
     let file = path.join(dir, 'package.json');
     let cached = this.packageCache.get(file);
 
@@ -598,8 +609,7 @@ export default class NodeResolver {
     // If the package has a `source` field, check if it is behind a symlink.
     // If so, we treat the module as source code rather than a pre-compiled module.
     if (pkg.source) {
-      let realpath = await this.fs.realpath(file);
-      if (realpath === file) {
+      if (!isSymlink) {
         delete pkg.source;
       }
     }
