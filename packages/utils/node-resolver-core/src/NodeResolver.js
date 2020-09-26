@@ -164,6 +164,8 @@ export default class NodeResolver {
         return {
           diagnostics: err.diagnostics,
         };
+      } else {
+        throw err;
       }
     }
 
