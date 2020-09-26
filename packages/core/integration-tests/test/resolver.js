@@ -1,8 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, run} from '@parcel/test-utils';
-import fs from 'fs';
-import os from 'os';
+import {bundle, run, ncp, overlayFS, outputFS} from '@parcel/test-utils';
 
 describe('resolver', function() {
   it('should support resolving tilde in monorepo packages', async function() {
@@ -260,17 +258,30 @@ describe('resolver', function() {
   });
 
   it('should support symlinked node_modules structure', async function() {
-    const symlinks = [
-      [
-        '/node_modules/.origin/library@1.0.0/node_modules/library-dep',
-        '../../library-dep@1.0.0/node_modules/library-dep',
-      ],
-      ['/node_modules/library', '.origin/library@1.0.0/node_modules/library'],
-    ];
+    const rootDir = path.join(
+      __dirname,
+      'integration/resolve-symlinked-node_modules-structure',
+    );
 
-    createSymlinks(
-      '/integration/resolve-symlinked-node_modules-structure',
-      symlinks,
+    await overlayFS.mkdirp(rootDir);
+    await ncp(rootDir, rootDir);
+
+    await outputFS.symlink(
+      path.join(
+        rootDir,
+        'node_modules/.origin/library@1.0.0/node_modules/library',
+      ),
+      path.join(rootDir, 'node_modules/library'),
+    );
+    await outputFS.symlink(
+      path.join(
+        rootDir,
+        'node_modules/.origin/library-dep@1.0.0/node_modules/library-dep',
+      ),
+      path.join(
+        rootDir,
+        'node_modules/.origin/library@1.0.0/node_modules/library-dep',
+      ),
     );
 
     let b = await bundle(
@@ -278,11 +289,10 @@ describe('resolver', function() {
         __dirname,
         '/integration/resolve-symlinked-node_modules-structure/index.js',
       ),
-    );
-
-    removeSymlinks(
-      '/integration/resolve-symlinked-node_modules-structure',
-      symlinks,
+      {
+        inputFS: overlayFS,
+        outputFS,
+      },
     );
 
     let output = await run(b);
@@ -290,46 +300,39 @@ describe('resolver', function() {
   });
 
   it('should support symlinked monorepos structure', async function() {
-    const symlinks = [
-      ['/packages/app/node_modules/library', '../../library'],
-      [
-        '/packages/app/node_modules/pkg',
-        '../../../node_modules/.origin/pkg@1.0.0/node_modules/pkg',
-      ],
-      [
-        '/packages/library/node_modules/pkg',
-        '../../../node_modules/.origin/pkg@1.0.0/node_modules/pkg',
-      ],
-    ];
+    const rootDir = path.join(
+      __dirname,
+      'integration/resolve-symlinked-monorepos',
+    );
 
-    createSymlinks('/integration/resolve-symlinked-monorepos', symlinks);
+    await overlayFS.mkdirp(rootDir);
+    await ncp(rootDir, rootDir);
+
+    await outputFS.symlink(
+      path.join(rootDir, 'packages/library'),
+      path.join(rootDir, 'packages/app/node_modules/library'),
+    );
+    await outputFS.symlink(
+      path.join(rootDir, 'node_modules/.origin/pkg@1.0.0/node_modules/pkg'),
+      path.join(rootDir, 'packages/app/node_modules/pkg'),
+    );
+    await outputFS.symlink(
+      path.join(rootDir, 'node_modules/.origin/pkg@1.0.0/node_modules/pkg'),
+      path.join(rootDir, 'packages/library/node_modules/pkg'),
+    );
 
     let b = await bundle(
       path.join(
         __dirname,
         '/integration/resolve-symlinked-monorepos/packages/app/index.js',
       ),
+      {
+        inputFS: overlayFS,
+        outputFS,
+      },
     );
-
-    removeSymlinks('/integration/resolve-symlinked-monorepos', symlinks);
 
     let output = await run(b);
     assert.strictEqual(output.default, 2);
   });
 });
-
-function createSymlinks(dir, symlinks) {
-  const symlinkType = os.platform() === 'win32' ? 'junction' : 'file';
-
-  symlinks.forEach(([linkFile, linkTarget]) => {
-    const file = path.join(__dirname, dir, linkFile);
-    fs.symlinkSync(linkTarget, file, symlinkType);
-  });
-}
-
-function removeSymlinks(dir, symlinks) {
-  symlinks.forEach(([linkFile]) => {
-    const file = path.join(__dirname, dir, linkFile);
-    fs.unlinkSync(file);
-  });
-}
