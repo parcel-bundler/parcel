@@ -52,7 +52,7 @@ export default (new Transformer({
     });
 
     for (let filePath of render.dependencies) {
-      await asset.addIncludedFile({filePath});
+      await asset.addIncludedFile(filePath);
     }
 
     asset.type = 'html';

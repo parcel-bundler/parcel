@@ -22,7 +22,7 @@
   "dependencies": {
     "@babel/generator": "^7.3.3",
     "@babel/parser": "^7.0.0",
-    "@babel/template": "^7.2.2",
+    "@babel/template": "^7.4.0",
     "@babel/traverse": "^7.2.3",
     "@babel/types": "^7.3.3",
     "@parcel/babel-ast-utils": "2.0.0-beta.1",

@@ -296,6 +296,60 @@ describe('cache', function() {
     });
   });
 
+  describe('transformations', function() {
+    it('should invalidate when included files changes', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/test.txt'),
+            'hi',
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = require("fs").readFileSync(__dirname + "/test.txt", "utf8")',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b), 'hi');
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/test.txt'),
+            'updated',
+          );
+        },
+      });
+
+      assert.equal(await run(b), 'updated');
+    });
+
+    it('should invalidate when environment variables change', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=hi',
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b), 'hi');
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=updated',
+          );
+        },
+      });
+
+      assert.equal(await run(b), 'updated');
+    });
+  });
+
   describe('entries', function() {
     it('should support adding an entry that matches a glob', function() {});
 
