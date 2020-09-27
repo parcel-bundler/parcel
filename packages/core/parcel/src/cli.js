@@ -98,6 +98,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--no-autoinstall': 'disable autoinstall',
+  '--hmr-port <port>': 'hot module replacement port',
 };
 
 function applyOptions(cmd, options) {
