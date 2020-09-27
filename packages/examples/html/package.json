@@ -4,7 +4,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.html"
+    "demo": "parcel build src/index.html",
+    "hmrtest": "parcel src/index.html --hmr-port 4444"
   },
   "browserslist": [
     "last 2 versions",
