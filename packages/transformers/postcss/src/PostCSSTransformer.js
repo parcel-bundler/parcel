@@ -119,9 +119,7 @@ export default (new Transformer({
           parent: string,
         |});
 
-        asset.addIncludedFile({
-          filePath: msg.file,
-        });
+        asset.addIncludedFile(msg.file);
       }
     }
 

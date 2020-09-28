@@ -20,12 +20,12 @@ describe('InternalAsset', () => {
       }),
       options: DEFAULT_OPTIONS,
     });
-    asset.addIncludedFile({filePath: '/foo/file', hash: 'abc'});
-    asset.addIncludedFile({filePath: '/foo/file', hash: 'bcd'});
-    assert.deepEqual(asset.getIncludedFiles(), [
+    asset.addIncludedFile('/foo/file');
+    asset.addIncludedFile('/foo/file');
+    assert.deepEqual(asset.getInvalidations(), [
       {
+        type: 'file',
         filePath: '/foo/file',
-        hash: 'bcd',
       },
     ]);
   });
