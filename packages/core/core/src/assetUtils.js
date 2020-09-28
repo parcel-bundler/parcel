@@ -101,7 +101,7 @@ export function createAsset(options: AssetOptions): Asset {
     env: options.env,
     meta: options.meta || {},
     stats: options.stats,
-    symbols: options.symbols || new Map(),
+    symbols: options.symbols,
     sideEffects: options.sideEffects ?? true,
     uniqueKey: uniqueKey,
     plugin: options.plugin,

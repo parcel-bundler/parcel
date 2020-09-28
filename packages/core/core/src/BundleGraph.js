@@ -967,13 +967,13 @@ export default class BundleGraph {
   ): InternalSymbolResolution {
     let assetOutside = boundary && !this.bundleHasAsset(boundary, asset);
 
-    let identifier = asset.symbols.get(symbol)?.local;
+    let identifier = asset.symbols?.get(symbol)?.local;
     if (symbol === '*') {
       return {
         asset,
         exportSymbol: '*',
         symbol: identifier ?? null,
-        loc: asset.symbols.get(symbol)?.loc,
+        loc: asset.symbols?.get(symbol)?.loc,
       };
     }
 
@@ -1021,7 +1021,7 @@ export default class BundleGraph {
 
         if (!loc) {
           // Remember how we got there
-          loc = asset.symbols.get(symbol)?.loc;
+          loc = asset.symbols?.get(symbol)?.loc;
         }
 
         return {
@@ -1056,7 +1056,7 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: result.exportSymbol,
-            loc: resolved.symbols.get(symbol)?.loc,
+            loc: resolved.symbols?.get(symbol)?.loc,
           };
         }
         if (result.symbol === null) {
@@ -1067,7 +1067,7 @@ export default class BundleGraph {
             asset: result.asset,
             symbol: result.symbol,
             exportSymbol: result.exportSymbol,
-            loc: resolved.symbols.get(symbol)?.loc,
+            loc: resolved.symbols?.get(symbol)?.loc,
           });
           found = true;
         }
@@ -1085,10 +1085,10 @@ export default class BundleGraph {
         exportSymbol: symbol,
         symbol: skipped
           ? false
-          : found || asset.symbols.has('*')
+          : found || asset.symbols?.has('*')
           ? null
           : identifier,
-        loc: asset.symbols.get(symbol)?.loc,
+        loc: asset.symbols?.get(symbol)?.loc,
       };
     }
   }

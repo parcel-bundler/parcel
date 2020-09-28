@@ -89,7 +89,9 @@ export default async function dumpGraphToGraphViz(
     } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
       if (detailedSymbols) {
-        if (node.value.symbols.size) {
+        if (!node.value.symbols) {
+          label += '\nsymbols: cleared';
+        } else if (node.value.symbols.size) {
           label +=
             '\nsymbols: ' +
             [...node.value.symbols].map(([e, {local}]) => [e, local]).join(';');

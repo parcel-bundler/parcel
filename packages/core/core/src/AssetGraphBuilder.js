@@ -194,8 +194,9 @@ export default class AssetGraphBuilder extends EventEmitter {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
+    dumpToGraphViz(this.assetGraph, this.name + 1);
     this.propagateSymbols();
-    dumpToGraphViz(this.assetGraph, this.name);
+    dumpToGraphViz(this.assetGraph, this.name + 2);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 
@@ -207,6 +208,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   propagateSymbols() {
     // Propagate the requested symbols down from the root to the leaves
     this.propagateSymbolsDown((assetNode, incomingDeps, outgoingDeps) => {
+      if (!assetNode.value.symbols) return;
+
       // exportSymbol -> identifier
       let assetSymbols: $ReadOnlyMap<
         Symbol,
@@ -349,6 +352,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
+      if (!assetNode.value.symbols) return;
+
       let assetSymbols: $ReadOnlyMap<
         Symbol,
         {|local: Symbol, loc: ?SourceLocation|},

@@ -88,6 +88,7 @@ export function hoist(asset: MutableAsset, ast: AST) {
 const VISITOR: Visitor<MutableAsset> = {
   Program: {
     enter(path, asset: MutableAsset) {
+      asset.symbols.ensure();
       asset.meta.id = asset.id;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
 
@@ -542,6 +543,7 @@ const VISITOR: Visitor<MutableAsset> = {
       //     }
       //   } else {
       dep.meta.isCommonJS = true;
+      dep.symbols.ensure();
       dep.symbols.set(
         '*',
         getName(asset, 'require', source),
@@ -664,6 +666,12 @@ const VISITOR: Visitor<MutableAsset> = {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
+      let dep = asset
+        .getDependencies()
+        .find(dep => dep.moduleSpecifier === source.value);
+
+      if (dep) dep.symbols.ensure();
+
       for (let specifier of nullthrows(specifiers)) {
         let exported = specifier.exported;
         let imported;
@@ -679,10 +687,6 @@ const VISITOR: Visitor<MutableAsset> = {
         }
 
         let id = getIdentifier(asset, 'import', exported.name);
-
-        let dep = asset
-          .getDependencies()
-          .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
           let existing = dep.symbols.get(imported)?.local;
           if (existing) {
@@ -740,6 +744,7 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
+      dep.symbols.ensure();
       dep.symbols.set('*', '*', convertBabelLoc(path.node.loc), true);
     }
 

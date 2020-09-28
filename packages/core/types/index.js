@@ -347,16 +347,29 @@ export type Meta = JSONObject;
  * An identifier in an asset (likely imported/exported).
  */
 export type Symbol = string;
+
+/**
+ * A map from extert names to the corespinding asset's lcoal variable name.
+ */
 export interface AssetSymbols // eslint-disable-next-line no-undef
   extends Iterable<[Symbol, {|local: Symbol, loc: ?SourceLocation|}]> {
+  /**
+   * The exports of the asset are unknown, rather than just empty.
+   * This is the default state.
+   */
+  +isCleared: boolean;
   get(exportSymbol: Symbol): ?{|local: Symbol, loc: ?SourceLocation|};
   hasExportSymbol(exportSymbol: Symbol): boolean;
   hasLocalSymbol(local: Symbol): boolean;
   exportSymbols(): Iterable<Symbol>;
 }
 export interface MutableAssetSymbols extends AssetSymbols {
-  clear(): void;
+  /**
+   * Initilizes the map, sets isCleared to false.
+   */
+  ensure(): void;
   set(exportSymbol: Symbol, local: Symbol, loc: ?SourceLocation): void;
+  delete(exportSymbol: Symbol): void;
 }
 /**
  * isWeak means: the symbol is not used by the parent asset itself and is merely reexported
@@ -365,7 +378,14 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
   extends Iterable<
     [Symbol, {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|}],
   > {
+  /**
+   * Initilizes the map, sets isCleared to false.
+   */
   ensure(): void;
+  /**
+   * The symbols taht are imports are unknown, rather than just empty.
+   * This is the default state.
+   */
   +isCleared: boolean;
   get(
     exportSymbol: Symbol,
@@ -379,6 +399,7 @@ export interface MutableDependencySymbols // eslint-disable-next-line no-undef
     loc: ?SourceLocation,
     isWeak: ?boolean,
   ): void;
+  delete(exportSymbol: Symbol): void;
 }
 
 /**

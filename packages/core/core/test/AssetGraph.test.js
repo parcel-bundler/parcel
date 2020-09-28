@@ -462,7 +462,6 @@ describe('AssetGraph', () => {
         ['./bar', indexBarDep],
       ]),
       env: DEFAULT_ENV,
-      includedFiles: new Map(),
     });
     graph.resolveAssetGroup(indexAssetGroup, [indexAsset], '0');
 
@@ -519,7 +518,6 @@ describe('AssetGraph', () => {
       stats,
       dependencies: new Map([['./utils', barUtilsDep]]),
       env: DEFAULT_ENV,
-      includedFiles: new Map(),
     });
     let barAssetNode = nodeFromAsset(barAsset);
     graph.resolveAssetGroup(barAssetGroup, [barAsset], '3');
