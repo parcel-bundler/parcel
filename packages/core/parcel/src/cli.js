@@ -348,7 +348,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let hmrport = command.hmrPort ? command.hmrPort : port;
+    let hmrport = command.hmrPort ? Number(command.hmrPort) : port;
     hmr = {port: hmrport, host};
   }
 
