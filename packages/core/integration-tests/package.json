@@ -15,6 +15,7 @@
     "@babel/core": "^7.4.4",
     "@babel/plugin-syntax-export-default-from": "^7.2.0",
     "@babel/plugin-syntax-export-namespace-from": "^7.2.0",
+    "@babel/plugin-syntax-module-attributes": "^7.10.4",
     "@babel/preset-env": "^7.1.0",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@mdx-js/react": "^1.5.3",
@@ -36,12 +37,12 @@
     "parcel-bundler": "2.0.0-beta.1",
     "postcss-custom-properties": "^8.0.9",
     "postcss-import": "^12.0.1",
+    "posthtml-obfuscate": "^0.1.5",
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
     "tempy": "^0.3.0",
-    "ws": "^5.1.1",
-    "posthtml-obfuscate": "^0.1.5"
+    "ws": "^5.1.1"
   }
 }
