@@ -5,7 +5,6 @@
   "private": true,
   "scripts": {
     "demo": "PARCEL_WORKERS=0 parcel src/index.js",
-    "hmr-demo": "parcel --port 8080 --hmr-port 8080  src/index.js ",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {
