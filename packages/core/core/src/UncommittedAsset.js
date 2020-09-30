@@ -5,13 +5,17 @@ import type {
   Blob,
   ConfigResult,
   DependencyOptions,
-  File,
   FilePath,
   PackageJSON,
   PackageName,
   TransformerResult,
 } from '@parcel/types';
-import type {Asset, Dependency, ParcelOptions} from './types';
+import type {
+  Asset,
+  RequestInvalidation,
+  Dependency,
+  ParcelOptions,
+} from './types';
 
 import v8 from 'v8';
 import {Readable} from 'stream';
@@ -28,7 +32,12 @@ import {
 import {createDependency, mergeDependencies} from './Dependency';
 import {mergeEnvironments} from './Environment';
 import {PARCEL_VERSION} from './constants';
-import {createAsset, getConfig} from './assetUtils';
+import {
+  createAsset,
+  getConfig,
+  getInvalidationId,
+  getInvalidationHash,
+} from './assetUtils';
 
 type UncommittedAssetOptions = {|
   value: Asset,
@@ -38,6 +47,7 @@ type UncommittedAssetOptions = {|
   ast?: ?AST,
   isASTDirty?: ?boolean,
   idBase?: ?string,
+  invalidations?: Map<string, RequestInvalidation>,
 |};
 
 export default class UncommittedAsset {
@@ -49,6 +59,7 @@ export default class UncommittedAsset {
   ast: ?AST;
   isASTDirty: boolean;
   idBase: ?string;
+  invalidations: Map<string, RequestInvalidation>;
 
   constructor({
     value,
@@ -58,6 +69,7 @@ export default class UncommittedAsset {
     ast,
     isASTDirty,
     idBase,
+    invalidations,
   }: UncommittedAssetOptions) {
     this.value = value;
     this.options = options;
@@ -66,6 +78,7 @@ export default class UncommittedAsset {
     this.ast = ast;
     this.isASTDirty = isASTDirty || false;
     this.idBase = idBase;
+    this.invalidations = invalidations || new Map();
   }
 
   /*
@@ -114,7 +127,11 @@ export default class UncommittedAsset {
     this.value.mapKey = mapKey;
     this.value.astKey = astKey;
     this.value.outputHash = md5FromString(
-      [this.value.hash, pipelineKey].join(':'),
+      [
+        this.value.hash,
+        pipelineKey,
+        await getInvalidationHash(this.getInvalidations(), this.options),
+      ].join(':'),
     );
 
     if (this.content != null) {
@@ -271,12 +288,26 @@ export default class UncommittedAsset {
     return dep.id;
   }
 
-  addIncludedFile(file: File) {
-    this.value.includedFiles.set(file.filePath, file);
+  addIncludedFile(filePath: FilePath) {
+    let invalidation: RequestInvalidation = {
+      type: 'file',
+      filePath,
+    };
+
+    this.invalidations.set(getInvalidationId(invalidation), invalidation);
   }
 
-  getIncludedFiles(): Array<File> {
-    return Array.from(this.value.includedFiles.values());
+  invalidateOnEnvChange(key: string) {
+    let invalidation: RequestInvalidation = {
+      type: 'env',
+      key,
+    };
+
+    this.invalidations.set(getInvalidationId(invalidation), invalidation);
+  }
+
+  getInvalidations(): Array<RequestInvalidation> {
+    return [...this.invalidations.values()];
   }
 
   getDependencies(): Array<Dependency> {
@@ -306,7 +337,6 @@ export default class UncommittedAsset {
           this.value.type === result.type
             ? new Map(this.value.dependencies)
             : new Map(),
-        includedFiles: new Map(this.value.includedFiles),
         meta: {
           ...this.value.meta,
           ...result.meta,
@@ -337,19 +367,13 @@ export default class UncommittedAsset {
       isASTDirty: result.ast === this.ast ? this.isASTDirty : true,
       mapBuffer: result.map ? result.map.toBuffer() : null,
       idBase: this.idBase,
+      invalidations: this.invalidations,
     });
 
     let dependencies = result.dependencies;
     if (dependencies) {
       for (let dep of dependencies) {
         asset.addDependency(dep);
-      }
-    }
-
-    let includedFiles = result.includedFiles;
-    if (includedFiles) {
-      for (let file of includedFiles) {
-        asset.addIncludedFile(file);
       }
     }
 
@@ -369,7 +393,7 @@ export default class UncommittedAsset {
     }
 
     for (let file of conf.files) {
-      this.addIncludedFile(file);
+      this.addIncludedFile(file.filePath);
     }
 
     return conf.config;
