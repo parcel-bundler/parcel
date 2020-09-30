@@ -41,7 +41,6 @@ export default (new Transformer({
     });
     const content = await asset.getCode();
     const render = pug.compile(content, {
-      degug: true,
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
       filename: asset.filePath,
@@ -53,7 +52,7 @@ export default (new Transformer({
     });
 
     for (let filePath of render.dependencies) {
-      await asset.addIncludedFile({filePath});
+      await asset.addIncludedFile(filePath);
     }
 
     asset.type = 'html';

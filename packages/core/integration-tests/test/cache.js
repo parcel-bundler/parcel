@@ -9,11 +9,11 @@ function runBundle() {
   });
 }
 
-async function testCache(update) {
+async function testCache(update, integration) {
   // Delete cache from previous test and perform initial build
   await overlayFS.rimraf(path.join(__dirname, '/input'));
   await ncp(
-    path.join(__dirname, '/integration/cache'),
+    path.join(__dirname, '/integration', integration ?? 'cache'),
     path.join(__dirname, '/input'),
   );
   await overlayFS.rimraf(path.join(__dirname, '/input/.parcel-cache'));
@@ -296,6 +296,60 @@ describe('cache', function() {
     });
   });
 
+  describe('transformations', function() {
+    it('should invalidate when included files changes', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/test.txt'),
+            'hi',
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = require("fs").readFileSync(__dirname + "/test.txt", "utf8")',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b), 'hi');
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/test.txt'),
+            'updated',
+          );
+        },
+      });
+
+      assert.equal(await run(b), 'updated');
+    });
+
+    it('should invalidate when environment variables change', async function() {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=hi',
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b), 'hi');
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=updated',
+          );
+        },
+      });
+
+      assert.equal(await run(b), 'updated');
+    });
+  });
+
   describe('entries', function() {
     it('should support adding an entry that matches a glob', function() {});
 
@@ -350,5 +404,27 @@ describe('cache', function() {
     it('should support updating sideEffects config', function() {});
 
     it('should support removing sideEffects config', function() {});
+  });
+
+  describe('runtime', () => {
+    it('should support updating files added by runtimes', async function() {
+      let b = await testCache(async b => {
+        let contents = await overlayFS.readFile(
+          b.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('INITIAL CODE'));
+        await overlayFS.writeFile(
+          path.join(__dirname, 'input/dynamic-runtime.js'),
+          "module.exports = 'UPDATED CODE'",
+        );
+      }, 'runtime-update');
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('UPDATED CODE'));
+    });
   });
 });
