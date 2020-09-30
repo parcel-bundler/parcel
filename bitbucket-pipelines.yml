@@ -17,55 +17,24 @@ definitions:
           - yarn run lint
     - step: &test-unit
         name: Run unit tests
+        size: 2x
         script:
           - yarn install --frozen-lockfile
           - yarn run test:unit
     - step: &test-integration
         name: Run integration tests
+        size: 2x
         script:
           - yarn install --frozen-lockfile
           - yarn run test:integration-ci
     - step: &build-release-parcel
         name: Build and Release Parcel
         script:
-          - curl -u $ARTIFACTORY_AUTH https://packages.atlassian.com/api/npm/atlassian-npm/auth/atlassian >> ~/.npmrc
+          - pipe: docker://atlassian/artifactory-sidekick:staging
+          - . .artifactory/activate.sh
           - npm set unsafe-perm true
           - yarn install --frozen-lockfile
           - yarn lerna publish from-git --no-push --yes --registry https://packages.atlassian.com/api/npm/atlassian-npm/
-    - step: &bitbucket-parcel-setup
-        name: Build and link Parcel in Bitbucket
-        artifacts:
-          - node_modules/**
-          - packages/*/*/lib/**
-          - packages/*/*/node_modules/**
-          - .bitbucket/**
-        script:
-          - yarn install
-          - yarn build
-          - PARCEL_PATH=$PWD
-          - git clone --depth 1 https://${BB_AUTH}@staging.bb-inf.net/bitbucket/frontbucket.git --branch parcel/warmbuild-perf-test .bitbucket
-          - cd .bitbucket
-          - curl -u $ARTIFACTORY_AUTH https://packages.atlassian.com/api/npm/atlassian-npm/auth/atlassian >> ~/.npmrc
-          - npm set @atlassiansox:registry https://packages.atlassian.com/api/npm/atlassian-npm/
-          - yarn --unsafe-perm --frozen-lockfile
-          - ./scripts/link-parcel.sh $PARCEL_PATH
-
-    - step: &build-parcel-cold
-        name: Build with Parcel
-        size: 2x
-        artifacts:
-          - .bitbucket/**
-        script:
-          - cd .bitbucket
-          - yarn build:parcel
-
-    - step: &build-parcel-warm
-        name: Build p50 PR changes with Parcel from cache
-        size: 2x
-        script:
-          - cd .bitbucket
-          - git apply p50-pr.diff
-          - yarn build:parcel
 
 pipelines:
   default:
@@ -82,8 +51,3 @@ pipelines:
           - step: *test-unit
           - step: *test-integration
       - step: *build-release-parcel
-  custom:
-    warm-build-perf:
-      - step: *bitbucket-parcel-setup
-      - step: *build-parcel-cold
-      - step: *build-parcel-warm
