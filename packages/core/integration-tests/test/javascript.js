@@ -2844,4 +2844,25 @@ describe('javascript', function() {
 
     assert.deepEqual(await (await run(b)).default, 43);
   });
+
+  it('can share sibling bundles reachable from a common dependency', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/shared-sibling-common-dependency/index.js',
+      ),
+    );
+
+    let bundles = b.getBundles();
+    let asyncJsBundles = bundles.filter(b => !b.isEntry && b.type === 'js');
+    assert.equal(asyncJsBundles.length, 2);
+
+    // Every bundlegroup with an async js bundle should have the corresponding css
+    for (let bundle of asyncJsBundles) {
+      for (let bundleGroup of b.getBundleGroupsContainingBundle(bundle)) {
+        let bundlesInGroup = b.getBundlesInBundleGroup(bundleGroup);
+        assert(bundlesInGroup.find(s => s.type === 'css'));
+      }
+    }
+  });
 });
