@@ -5,7 +5,9 @@ import {promisify} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
 
 export default (new Transformer({
-  async parse({asset, options}) {
+  async transform({asset, options, resolve}) {
+    asset.type = 'js';
+
     let glslifyDeps = await options.packageManager.require(
       'glslify-deps',
       asset.filePath,
@@ -16,13 +18,25 @@ export default (new Transformer({
 
     // Parse and collect dependencies with glslify-deps
     let cwd = path.dirname(asset.filePath);
-    let depper = glslifyDeps({cwd});
+    let depper = glslifyDeps({
+      cwd,
+      resolve: async (target, opts, next) => {
+        try {
+          let filePath = await resolve(asset.filePath, target);
 
-    return promisify(depper.inline.bind(depper))(await asset.getCode(), cwd);
-  },
+          asset.addIncludedFile(filePath);
 
-  async transform({asset, options}) {
-    asset.type = 'js';
+          next(null, filePath);
+        } catch (err) {
+          next(err);
+        }
+      },
+    });
+
+    let ast = await promisify(depper.inline.bind(depper))(
+      await asset.getCode(),
+      cwd,
+    );
 
     let glslifyBundle = await options.packageManager.require(
       'glslify-bundle',
@@ -33,7 +47,7 @@ export default (new Transformer({
     );
 
     // Generate the bundled glsl file
-    let glsl = await glslifyBundle(await asset.getAST());
+    let glsl = await glslifyBundle(ast);
 
     asset.setCode(`module.exports=${JSON.stringify(glsl)};`);
 
