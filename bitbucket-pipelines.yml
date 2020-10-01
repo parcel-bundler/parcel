@@ -17,11 +17,13 @@ definitions:
           - yarn run lint
     - step: &test-unit
         name: Run unit tests
+        size: 2x
         script:
           - yarn install --frozen-lockfile
           - yarn run test:unit
     - step: &test-integration
         name: Run integration tests
+        size: 2x
         script:
           - yarn install --frozen-lockfile
           - yarn run test:integration-ci
