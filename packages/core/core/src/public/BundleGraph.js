@@ -113,6 +113,14 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
+  getRequiredBundlesForBundle(bundle: IBundle): Array<TBundle> {
+    return this.#graph
+      .getReferencedBundles(bundleToInternalBundle(bundle))
+      .map(bundle =>
+        this.#createBundle.call(null, bundle, this.#graph, this.#options),
+      );
+  }
+
   resolveAsyncDependency(
     dependency: IDependency,
     bundle: ?IBundle,
