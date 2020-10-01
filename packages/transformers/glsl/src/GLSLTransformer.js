@@ -24,8 +24,6 @@ export default (new Transformer({
         try {
           let filePath = await resolve(asset.filePath, target);
 
-          asset.addIncludedFile(filePath);
-
           next(null, filePath);
         } catch (err) {
           next(err);
@@ -46,6 +44,8 @@ export default (new Transformer({
       },
     );
 
+    collectDependencies(asset, ast);
+
     // Generate the bundled glsl file
     let glsl = await glslifyBundle(ast);
 
@@ -54,3 +54,11 @@ export default (new Transformer({
     return [asset];
   },
 }): Transformer);
+
+function collectDependencies(asset, ast) {
+  for (let dep of ast) {
+    if (!dep.entry) {
+      asset.addIncludedFile(dep.file);
+    }
+  }
+}
