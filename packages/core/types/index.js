@@ -926,6 +926,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   traverseContents<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
+  requireBundleForAsset(bundle: Bundle, asset: Asset): void;
 }
 
 /**

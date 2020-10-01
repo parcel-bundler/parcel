@@ -189,21 +189,10 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
-    let bundleGroupId = getBundleGroupId(bundleGroup);
-    if (this.#graph._graph.hasEdge(bundleGroupId, bundle.id, 'bundle')) {
-      // Bundle group already has bundle
-      return;
-    }
-
-    bundleGroup.bundleIds.push(bundle.id);
-    this.#graph._graph.addEdge(bundleGroupId, bundle.id);
-    this.#graph._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
-
-    for (let entryAsset of bundle.getEntryAssets()) {
-      if (this.#graph._graph.hasEdge(bundleGroupId, entryAsset.id)) {
-        this.#graph._graph.removeEdge(bundleGroupId, entryAsset.id);
-      }
-    }
+    this.#graph.addBundleToBundleGroup(
+      bundleToInternalBundle(bundle),
+      bundleGroup,
+    );
   }
 
   createAssetReference(dependency: IDependency, asset: IAsset): void {
@@ -291,6 +280,13 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
               },
         visit,
       ),
+    );
+  }
+
+  requireBundleForAsset(bundle: IBundle, asset: IAsset) {
+    this.#graph.requireBundleForAsset(
+      bundleToInternalBundle(bundle),
+      assetToAssetValue(asset),
     );
   }
 }

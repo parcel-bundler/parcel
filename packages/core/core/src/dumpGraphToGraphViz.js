@@ -21,6 +21,7 @@ const TYPE_COLORS = {
   contains: 'grey',
   internal_async: 'orange',
   references: 'red',
+  asset_requires_bundle: 'green',
 };
 
 export default async function dumpGraphToGraphViz(
