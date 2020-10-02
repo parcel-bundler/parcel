@@ -1547,4 +1547,4 @@ If your plugin implements `validateAll`, Parcel will make sure to always invoke 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/parcel-bundler/parcel/blob/v2/LICENSE) file for details
