@@ -1544,3 +1544,7 @@ export default new Validator({
 ```
 
 If your plugin implements `validateAll`, Parcel will make sure to always invoke this method on the same thread (so that your cache state is accessible).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
