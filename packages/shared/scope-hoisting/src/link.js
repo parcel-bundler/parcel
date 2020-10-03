@@ -487,11 +487,11 @@ export function link({
       ObjectExpression | Identifier | MemberExpression | CallExpression,
     >,
   ) {
-    // console.log("registerIdOrObject", path.node);
     if (path.isIdentifier()) {
       // TODO Somehow deferred/excluded assets are referenced, causing this function to
       // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
       // But a asset that isn't here should never be referenced in the first place.
+
       // $FlowFixMe is *is* an Identifier
       maybeReplaceIdentifier(path);
       // $FlowFixMe is *is* an Identifier
@@ -515,18 +515,22 @@ export function link({
       // $FlowFixMe is *is* an Identifer
       registerIdOrObject(program, object);
       registerIdOrObject(program, path.get<NodePath<Identifier>>('property'));
+    } else if (
+      path.isCallExpression() &&
+      // $FlowFixMe is *is* a CallExpression
+      t.isIdentifier(path.node.callee, {name: '$parcel$defineInteropFlag'})
+    ) {
+      registerIdOrObject(
+        program,
+        path.get<NodePath<CallExpression | ObjectExpression>>('arguments.0'),
+      );
     } else {
       invariant(path.isObjectExpression(), path.node.type);
-      try {
-        for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
-          'properties',
-        )) {
-          if (isBooleanLiteral(prop.node.value)) continue;
-          registerIdOrObject(program, prop.get('value'));
-        }
-      } catch (e) {
-        console.log(path.node);
-        throw e;
+      for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
+        'properties',
+      )) {
+        if (isBooleanLiteral(prop.node.value)) continue;
+        registerIdOrObject(program, prop.get('value'));
       }
     }
   }
@@ -802,22 +806,36 @@ export function link({
             ([...referencedAssets]: Array<Asset>)
               .filter(a => !wrappedAssets.has(a.id))
               .map(a => {
+                let obj = getExportNamespaceExpression(
+                  path,
+                  bundleGraph,
+                  a,
+                  bundle,
+                  assets,
+                );
+
+                if (
+                  isObjectExpression(obj) &&
+                  path.scope
+                    .getBinding(assertString(a.meta.exportsIdentifier))
+                    ?.path.getData('hasESModuleFlag')
+                ) {
+                  obj = t.callExpression(
+                    t.identifier('$parcel$defineInteropFlag'),
+                    [obj],
+                  );
+                }
+
                 return FAKE_INIT_TEMPLATE({
                   INIT: getIdentifier(a, 'init'),
-                  EXPORTS: getExportNamespaceExpression(
-                    path,
-                    bundleGraph,
-                    a,
-                    bundle,
-                    assets,
-                  ),
+                  EXPORTS: obj,
                 });
               }),
           );
           for (let decl of decls) {
             path.scope.registerDeclaration(decl);
             let returnId = decl.get<
-              NodePath<Identifier> | NodePath<ObjectExpression>,
+              NodePath<Identifier | ObjectExpression | CallExpression>,
             >('body.body.0.argument');
 
             registerIdOrObject(path, returnId);

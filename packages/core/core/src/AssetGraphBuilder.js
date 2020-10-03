@@ -194,9 +194,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
-    dumpToGraphViz(this.assetGraph, this.name + 1);
     this.propagateSymbols();
-    dumpToGraphViz(this.assetGraph, this.name + 2);
+    dumpToGraphViz(this.assetGraph, this.name);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
 

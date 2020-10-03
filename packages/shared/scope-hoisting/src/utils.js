@@ -352,21 +352,10 @@ export function getExportNamespaceExpression(
             );
           } else {
             invariant(false);
-            // TODO this shouldn't even be in usedSymbols
+            // This shouldn't even be in usedSymbols
           }
         })
-        .filter(Boolean)
-        .concat(
-          asset.meta.isES6Module
-            ? [
-                // TODO why do shared bundle imports sometimes need interop?
-                t.objectProperty(
-                  t.identifier('__esModule'),
-                  t.booleanLiteral(true),
-                ),
-              ]
-            : [],
-        ),
+        .filter(Boolean),
     );
   }
 }

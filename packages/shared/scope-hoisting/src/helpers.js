@@ -3,7 +3,7 @@ function $parcel$interopDefault(a) {
 }
 
 function $parcel$defineInteropFlag(a) {
-  Object.defineProperty(a, '__esModule', {value: true});
+  return Object.defineProperty(a, '__esModule', {value: true});
 }
 
 function $parcel$exportWildcard(dest, source) {
