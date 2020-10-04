@@ -1,5 +1,7 @@
 // @flow
 
+import type {Root} from 'postcss';
+
 import path from 'path';
 import SourceMap from '@parcel/source-map';
 import {Packager} from '@parcel/plugin';
@@ -10,6 +12,9 @@ import {
   replaceURLReferences,
 } from '@parcel/utils';
 
+import postcss from 'postcss';
+import nullthrows from 'nullthrows';
+
 export default (new Packager({
   async package({
     bundle,
@@ -18,7 +23,9 @@ export default (new Packager({
     options,
     getSourceMapReference,
   }) {
-    let queue = new PromiseQueue({maxConcurrent: 32});
+    let queue = new PromiseQueue({
+      maxConcurrent: 32,
+    });
     bundle.traverseAssets({
       exit: asset => {
         // Figure out which media types this asset was imported with.
@@ -33,19 +40,88 @@ export default (new Packager({
           media.push(dep.meta.media);
         }
 
-        queue.add(() =>
-          Promise.all([
-            asset,
-            asset.getCode().then((css: string) => {
-              if (media.length) {
-                return `@media ${media.join(', ')} {\n${css}\n}\n`;
-              }
+        queue.add(async () => {
+          if (!asset.symbols.isCleared && options.mode === 'production') {
+            // a CSS Modules asset
 
-              return css;
-            }),
-            bundle.env.sourceMap && asset.getMapBuffer(),
-          ]),
-        );
+            // TODO
+            // 1. Transformation.js always generates and clears the AST
+            // 2. The PostCSS AST isn't serializeable as it contains functions...
+            let ast: ?Root = (await asset.getAST())?.program;
+            if (!ast) {
+              let [code, map] = await Promise.all([
+                asset.getCode(),
+                asset.getMap(),
+              ]);
+              ast = postcss.parse(code, {
+                from: asset.filePath,
+                map: {
+                  prev: await map?.stringify({format: 'string'}),
+                },
+              });
+            }
+
+            let usedSymbols = bundleGraph.getUsedSymbols(asset);
+            let localSymbols = new Set(
+              [...asset.symbols].map(([, {local}]) => `.${local}`),
+            );
+            let usedLocalSymbols = usedSymbols.has('*')
+              ? null
+              : new Set(
+                  [...usedSymbols].map(
+                    exportSymbol =>
+                      `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+                  ),
+                );
+
+            if (usedLocalSymbols) {
+              ast.walkRules(rule => {
+                if (
+                  localSymbols.has(rule.selector) &&
+                  !usedLocalSymbols.has(rule.selector)
+                ) {
+                  rule.remove();
+                }
+              });
+            }
+
+            let {content, map} = await postcss().process(ast, {
+              from: undefined,
+              to: options.projectRoot + '/index',
+              map: {
+                annotation: false,
+                inline: false,
+              },
+              // Pass postcss's own stringifier to it to silence its warning
+              // as we don't want to perform any transformations -- only generate
+              stringifier: postcss.stringify,
+            });
+
+            let sourceMap;
+            if (bundle.env.sourceMap && map != null) {
+              sourceMap = new SourceMap(options.projectRoot);
+              sourceMap.addRawMappings(map.toJSON());
+            }
+
+            if (media.length) {
+              content = `@media ${media.join(', ')} {\n${content}\n}\n`;
+            }
+
+            return [asset, content, sourceMap?.toBuffer()];
+          } else {
+            return Promise.all([
+              asset,
+              asset.getCode().then((css: string) => {
+                if (media.length) {
+                  return `@media ${media.join(', ')} {\n${css}\n}\n`;
+                }
+
+                return css;
+              }),
+              bundle.env.sourceMap && asset.getMapBuffer(),
+            ]);
+          }
+        });
       },
     });
 

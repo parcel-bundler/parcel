@@ -9,16 +9,24 @@ import typeof {SourceMapGenerator} from 'source-map';
 
 declare module 'postcss' {
   declare type NodeCallback = (Node, number) => false | void;
+  declare type RuleCallback = (Rule, number) => false | void;
 
   declare interface Node {
     parent: Container;
     type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
   }
 
+  declare interface Rule {
+    selector: string;
+    type: 'atrule' | 'comment' | 'decl' | 'root' | 'rule';
+    remove(): void
+  }
+
   declare interface Container extends Node {
     each(callback: NodeCallback): false | void;
     nodes: Array<Node>;
     walk(callback: NodeCallback): false | void;
+    walkRules(callback: RuleCallback): false | void;
   }
 
   declare interface Root extends Container {}

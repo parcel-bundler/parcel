@@ -65,6 +65,7 @@ export default (new Transformer({
     );
 
     let plugins = [...config.hydrated.plugins];
+    let cssModules: ?{|[string]: string|} = null;
     if (config.hydrated.modules) {
       let postcssModules = await options.packageManager.require(
         'postcss-modules',
@@ -74,10 +75,12 @@ export default (new Transformer({
 
       plugins.push(
         postcssModules({
-          getJSON: (filename, json) => (asset.meta.cssModules = json),
+          getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
-          generateScopedName: (name, filename, css) =>
-            `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
+          generateScopedName: (name, filename) =>
+            `_${name}_${md5FromString(
+              path.relative(options.projectRoot, filename),
+            ).substr(0, 6)}`,
           ...config.hydrated.modules,
         }),
       );
@@ -128,18 +131,38 @@ export default (new Transformer({
     }
 
     let assets = [asset];
-    if (asset.meta.cssModules) {
-      let code = JSON.stringify(asset.meta.cssModules, null, 2);
+    if (cssModules) {
+      // $FlowFixMe
+      let cssModulesList = (Object.entries(cssModules): Array<
+        [string, string],
+      >);
       let deps = asset.getDependencies().filter(dep => !dep.isURL);
+      let code: string;
       if (deps.length > 0) {
         code = `
           module.exports = Object.assign({}, ${deps
             .map(dep => `require(${JSON.stringify(dep.moduleSpecifier)})`)
-            .join(', ')}, ${code});
+            .join(', ')}, ${JSON.stringify(cssModules, null, 2)});
         `;
       } else {
-        code = `module.exports = ${code};`;
+        code = cssModulesList
+          .map(
+            // This syntax enables shaking the invidual statements, so that unused classes don't even exist in JS.
+            ([className, classNameHashed]) =>
+              `module.exports[${JSON.stringify(className)}] = ${JSON.stringify(
+                classNameHashed,
+              )};`,
+          )
+          .join('\n');
       }
+
+      // FIXME ???
+      // if (asset.env.scopeHoist) {
+      asset.symbols.ensure();
+      for (let [k, v] of cssModulesList) {
+        asset.symbols.set(k, v);
+      }
+      // }
 
       assets.push({
         type: 'js',
