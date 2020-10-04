@@ -157,11 +157,13 @@ const VISITOR: Visitor<MutableAsset> = {
           if (node.name === 'exports' && !path.scope.hasBinding('exports')) {
             asset.meta.isCommonJS = true;
             if (
-              !isAssignmentExpression(parent, {left: node}) &&
-              (!isMemberExpression(parent) ||
-                !(isIdentifier(parent.property) && !parent.computed) ||
-                isStringLiteral(parent.property)) &&
-              !path.scope.getData('shouldWrap')
+              !(
+                isAssignmentExpression(parent, {left: node}) ||
+                (isMemberExpression(parent) &&
+                  ((isIdentifier(parent.property) && !parent.computed) ||
+                    isStringLiteral(parent.property))) ||
+                path.scope.getData('shouldWrap')
+              )
             ) {
               asset.meta.resolveExportsBailedOut = true;
             }
@@ -180,11 +182,13 @@ const VISITOR: Visitor<MutableAsset> = {
           ) {
             asset.meta.isCommonJS = true;
             if (
-              !isAssignmentExpression(parent, {left: node}) &&
-              (!isMemberExpression(parent) ||
-                !(isIdentifier(parent.property) && !parent.computed) ||
-                isStringLiteral(parent.property)) &&
-              !path.scope.getData('shouldWrap')
+              !(
+                isAssignmentExpression(parent, {left: node}) ||
+                (isMemberExpression(parent) &&
+                  ((isIdentifier(parent.property) && !parent.computed) ||
+                    isStringLiteral(parent.property))) ||
+                path.scope.getData('shouldWrap')
+              )
             ) {
               asset.meta.resolveExportsBailedOut = true;
             }

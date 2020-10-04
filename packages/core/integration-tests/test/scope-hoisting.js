@@ -2994,6 +2994,25 @@ describe('scope hoisting', function() {
       assert(!contents.includes('bar'));
     });
 
+    it('removes unused exports when assigning with a string literal', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/tree-shaking-string/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [2, 20]);
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('foo'));
+      assert(!contents.includes('bar'));
+    });
+
     it('supports removing an unused inline export with uglify minification', async function() {
       // Uglify does strange things to multiple assignments in a line.
       // See https://github.com/parcel-bundler/parcel/issues/1549
