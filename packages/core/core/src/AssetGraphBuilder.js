@@ -269,7 +269,7 @@ export default class AssetGraphBuilder extends EventEmitter {
             // (but only if we actually have namespace-exporting outgoing dependencies,
             // This usually happens with a reexporting asset with many namespace exports which means that
             // we cannot match up the correct asset with the used symbol at this level.)
-            else if (hasNamespaceOutgoingDeps) {
+            else if (hasNamespaceOutgoingDeps && exportSymbol !== 'default') {
               namespaceReexportedSymbols.add(exportSymbol);
             }
           }

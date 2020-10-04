@@ -629,6 +629,12 @@ const VISITOR: Visitor<MutableAsset> = {
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       let binding = nullthrows(path.scope.getBinding(specifier.local.name));
+
+      // Ignore unused specifiers in node-modules, especially for when TS was poorly transpiled.
+      if (!binding.referenced && !asset.isSource) {
+        continue;
+      }
+
       // mark this as a weak import:
       // import {x} from './c'; export {x};
       let isWeak =
@@ -636,8 +642,8 @@ const VISITOR: Visitor<MutableAsset> = {
         isExportSpecifier(binding.referencePaths[0].parent, {
           local: binding.referencePaths[0].node,
         });
-      let id = getIdentifier(asset, 'import', specifier.local.name);
 
+      let id = getIdentifier(asset, 'import', specifier.local.name);
       if (dep) {
         let imported: string;
         if (isImportDefaultSpecifier(specifier)) {

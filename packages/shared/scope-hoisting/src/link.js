@@ -202,8 +202,8 @@ export function link({
         // import was deferred
         node = t.objectExpression([]);
       } else {
-        let [asset, symbol, loc] = imported;
-        node = replaceImportNode(asset, symbol, path, loc);
+        let [asset, symbol] = imported;
+        node = replaceImportNode(asset, symbol, path);
 
         // If the export does not exist, replace with an empty object.
         if (!node) {
@@ -247,7 +247,7 @@ export function link({
   }
 
   // path is an Identifier like $id$import$foo that directly imports originalName from originalModule
-  function replaceImportNode(originalModule, originalName, path, depLoc) {
+  function replaceImportNode(originalModule, originalName, path) {
     let {asset: mod, symbol, identifier} = resolveSymbol(
       originalModule,
       originalName,
@@ -266,15 +266,7 @@ export function link({
       return node ? interop(mod, symbol, path, node) : null;
     }
 
-    // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (node === undefined && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      let relativePath = relative(options.projectRoot, mod.filePath);
-      throw getThrowableDiagnosticForNode(
-        `${relativePath} does not export '${symbol}'`,
-        depLoc?.filePath ?? path.node.loc?.filename,
-        depLoc,
-      );
-    }
+    // The ESM 'does not export' case was already handled by core's symbol proapgation.
 
     // Look for an exports object if we bailed out.
     // TODO remove the first part of the condition once bundleGraph.resolveSymbol().identifier === null covers this

@@ -347,7 +347,7 @@ describe('scope hoisting', function() {
         diagnostics: [
           {
             message,
-            origin: '@parcel/packager-js',
+            origin: '@parcel/core',
             filePath: source,
             language: 'js',
             codeFrame: {
@@ -2367,6 +2367,53 @@ describe('scope hoisting', function() {
         assert.deepEqual(calls, ['commonjs']);
         assert.deepEqual(output, 'Message 2');
       });
+    });
+
+    it("doesn't ignore missing import specifiers in source assets", async function() {
+      let source = path.normalize(
+        'integration/scope-hoisting/es6/unused-import-specifier/a.js',
+      );
+      let message = `${path.normalize(
+        'integration/scope-hoisting/es6/unused-import-specifier/b.js',
+      )} does not export 'unused'`;
+      await assert.rejects(() => bundle(path.join(__dirname, source)), {
+        name: 'BuildError',
+        message,
+        diagnostics: [
+          {
+            message,
+            origin: '@parcel/core',
+            filePath: source,
+            language: 'js',
+            codeFrame: {
+              codeHighlights: [
+                {
+                  start: {
+                    line: 1,
+                    column: 15,
+                  },
+                  end: {
+                    line: 1,
+                    column: 20,
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    });
+
+    it('ignores unused import specifiers in node-modules', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/unused-import-specifier-node-modules/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, 123);
     });
   });
 
