@@ -442,12 +442,12 @@ export default class PackagerRunner {
     ).map(({name, version}) => [name, version]);
 
     // TODO: add third party configs to the cache key
-    let {sourceMaps} = this.options;
+    let {sourceMap, publicUrl} = bundle.target;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
       packager,
       optimizers,
-      opts: {sourceMaps},
+      target: {sourceMap, publicUrl},
       hash: bundleGraph.getHash(bundle),
       configResult,
     });
