@@ -56,7 +56,7 @@ type RequestGraphEdgeType =
   | 'invalidated_by_delete'
   | 'invalidated_by_create';
 
-type RunAPI = {|
+export type RunAPI = {|
   invalidateOnFileCreate: Glob => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
