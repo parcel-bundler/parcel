@@ -298,13 +298,43 @@ export class TargetResolver {
         'Invalid engines in package.json',
       ) || {};
     if (pkgEngines.browsers == null) {
-      let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
+      if (pkg.browserslist != null) {
+        pkgEngines = {
+          ...pkgEngines,
+          browsers: pkg.browserslist,
+        };
+      } else {
+        let browserslistConfig = await resolveConfig(
+          this.fs,
+          path.join(rootDir, 'index'),
+          ['browserslist', '.browserslistrc'],
+        );
+
+        this.api.invalidateOnFileCreate('**/{browserslist,.browserslistrc}');
+
+        if (browserslistConfig != null) {
+          let contents = await this.fs.readFile(browserslistConfig, 'utf8');
+          let config = browserslist.parseConfig(contents);
+          let env =
+            this.options.env.BROWSERSLIST_ENV ??
+            this.options.env.NODE_ENV ??
+            'production';
+          let browserslistBrowsers = config[env] || config.defaults;
+
           if (browserslistBrowsers) {
             pkgEngines = {
               ...pkgEngines,
               browsers: browserslistBrowsers,
             };
           }
+
+          // Invalidate whenever browserslist config file or relevant environment variables change
+          this.api.invalidateOnFileUpdate(browserslistConfig);
+          this.api.invalidateOnFileDelete(browserslistConfig);
+          this.api.invalidateOnEnvChange('BROWSERSLIST_ENV');
+          this.api.invalidateOnEnvChange('NODE_ENV');
+        }
+      }
     }
 
     let targets: Map<string, Target> = new Map();
