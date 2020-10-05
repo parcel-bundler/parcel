@@ -13,10 +13,10 @@ import type {
   Entry,
   ParcelOptions,
   ValidationOpts,
+  Target,
 } from './types';
 import type {ConfigAndCachePath} from './requests/ParcelConfigRequest';
 import type {EntryResult} from './requests/EntryRequest';
-import type {TargetResolveResult} from './requests/TargetRequest';
 
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';
@@ -273,11 +273,10 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let result = await this.requestTracker.runRequest<
-      Entry,
-      TargetResolveResult,
-    >(request);
-    this.assetGraph.resolveTargets(request.input, result.targets, request.id);
+    let targets = await this.requestTracker.runRequest<Entry, Array<Target>>(
+      request,
+    );
+    this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
   async runPathRequest(input: Dependency) {
