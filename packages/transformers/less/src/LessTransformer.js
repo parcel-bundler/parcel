@@ -15,6 +15,68 @@ type LessConfig = {
   ...
 };
 
+type LessFileInfo = {|
+  rewriteUrls?: boolean,
+  filename: string,
+  rootpath: string,
+  currentDirectory: string,
+  rootFilename: string,
+  entryPath: string,
+  reference?: boolean,
+|};
+
+type LessContext = {...};
+
+interface LessVisitor {
+  visit(value: LessNode): LessNode;
+}
+
+interface LessNode {
+  parent: ?LessNode;
+  visibilityBlocks: ?number;
+  nodeVisible: ?boolean;
+  rootNode: ?LessNode;
+  parsed: ?boolean;
+
+  +currentFileInfo: LessFileInfo;
+  +index: number;
+
+  setParent(nodes: LessNode | Array<LessNode>, parent: LessNode): void;
+
+  getIndex(): number;
+  fileInfo(): LessFileInfo;
+  isRulesetLike(): boolean;
+
+  toCSS(context: LessContext): string;
+  genCSS(context: LessContext, output: mixed): void;
+  accept(visitor: LessVisitor): void;
+  eval(): mixed;
+
+  fround(context: LessContext, value: number): number;
+  blocksVisibility(): boolean;
+  addVisibilityBlock(): void;
+  removeVisibilityBlock(): void;
+  ensureVisibility(): void;
+  ensureInvisibility(): void;
+  isVisible(): ?boolean;
+  visibilityInfo(): {|visibilityBlocks: ?number, nodeVisible: ?boolean|};
+  copyVisibilityInfo(info: {
+    visibilityBlocks: ?number,
+    nodeVisible: ?boolean,
+    ...
+  }): void;
+}
+
+interface LessURL extends LessNode {
+  value: LessNode;
+  isEvald: boolean;
+}
+
+// This is a hack; no such interface exists, even conceptually, in Less.
+interface LessNodeWithValue extends LessNode {
+  value: any;
+}
+
 export default (new Transformer({
   loadConfig({config}) {
     return load({config});
@@ -79,14 +141,13 @@ function urlPlugin({asset}) {
   return {
     install(less, pluginManager) {
       const visitor = new less.visitors.Visitor({
-        visitUrl(node) {
+        visitUrl(node: LessURL) {
+          const valueNode = ((node.value: any): LessNodeWithValue);
+          const stringValue = (valueNode.value: string);
           if (
-            !node.value.value.startsWith('#') // IE's `behavior: url(#default#VML)`)
+            !stringValue.startsWith('#') // IE's `behavior: url(#default#VML)`)
           ) {
-            node.value.value = asset.addURLDependency(
-              node.value.value,
-              node.currentFileInfo.filename,
-            );
+            valueNode.value = asset.addURLDependency(stringValue, {});
           }
           return node;
         },

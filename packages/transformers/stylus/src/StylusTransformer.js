@@ -1,10 +1,39 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import {isGlob, glob} from '@parcel/utils';
+import {createDependencyLocation, isGlob, glob} from '@parcel/utils';
 import path from 'path';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
+
+interface StylusNode {
+  lineno: number;
+  column: number;
+  filename: string;
+  +first: StylusNode;
+  +hash: string;
+  +nodeName: string;
+  clone(): StylusNode;
+  toJSON(): {lineno: number, column: number, filename: string, ...};
+  eval(): mixed;
+  toBoolean(): boolean;
+  toExpression(): StylusNode;
+  operate(op: string, right: StylusNode): StylusNode;
+  coerce(other: StylusNode): StylusNode;
+}
+
+interface StylusLiteral extends StylusNode {
+  val: string;
+  string: string;
+  prefixed: false;
+}
+
+interface StylusString extends StylusNode {
+  val: string;
+  string: string;
+  prefixed: false;
+  quote: string;
+}
 
 export default (new Transformer({
   async loadConfig({config}) {
@@ -49,8 +78,13 @@ export default (new Transformer({
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
-    style.define('url', node => {
-      let filename = asset.addURLDependency(node.val, node.filename);
+    style.define('url', (node: StylusString | StylusLiteral) => {
+      let filename = asset.addURLDependency(node.val, {
+        loc: createDependencyLocation(
+          {line: node.lineno, column: node.column},
+          node.val,
+        ),
+      });
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
     style.set(
