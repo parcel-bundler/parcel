@@ -1133,6 +1133,7 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = crypto.createHash('md5');
+    hash.update(bundle.id);
 
     let seen = new Set();
     let addReferencedBundles = bundle => {

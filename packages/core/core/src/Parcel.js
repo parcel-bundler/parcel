@@ -380,8 +380,14 @@ export default class Parcel {
           return;
         }
 
-        let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
-        if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
+        let sourceInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
+        let runtimeInvalid = this.#runtimesAssetGraphBuilder.respondToFSEvents(
+          events,
+        );
+        if (
+          (sourceInvalid || runtimeInvalid) &&
+          this.#watchQueue.getNumWaiting() === 0
+        ) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
           }
