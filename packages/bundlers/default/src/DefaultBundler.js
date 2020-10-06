@@ -168,7 +168,6 @@ export default (new Bundler({
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
             bundleGraph.createBundleReference(parentAsset, bundle);
-            bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
 
             // The bundle may have already been created, and the graph gave us back the original one...
             if (!bundleRoots.has(bundle)) {

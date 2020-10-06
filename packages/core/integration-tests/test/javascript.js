@@ -347,7 +347,7 @@ describe('javascript', function() {
     let output = await run(b);
     let headChildren = await output.default;
 
-    assert(headChildren.length === 3);
+    assert.equal(headChildren.length, 3);
 
     assert(headChildren[0].tag === 'script');
     assert(headChildren[0].src.match(/async\..*\.js/));

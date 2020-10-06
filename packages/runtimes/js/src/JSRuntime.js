@@ -386,6 +386,7 @@ function getHintLoaders(
     let bundlesToPreload = bundleGraph.getBundlesInBundleGroup(
       bundleGroupToPreload,
     );
+
     for (let bundleToPreload of bundlesToPreload) {
       let relativePathExpr = getRelativePathExpr(from, bundleToPreload);
       let priority = TYPE_TO_RESOURCE_PRIORITY[bundleToPreload.type];
