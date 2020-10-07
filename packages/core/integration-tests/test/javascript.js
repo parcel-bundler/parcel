@@ -354,13 +354,13 @@ describe('javascript', function() {
 
     assert(headChildren[1].tag === 'link');
     assert(headChildren[1].rel === 'prefetch');
-    assert(headChildren[1].as === 'style');
-    assert(headChildren[1].href.match(/prefetched\..*\.css/));
+    assert(headChildren[1].as === 'script');
+    assert(headChildren[1].href.match(/prefetched\..*\.js/));
 
     assert(headChildren[2].tag === 'link');
     assert(headChildren[2].rel === 'prefetch');
-    assert(headChildren[2].as === 'script');
-    assert(headChildren[2].href.match(/prefetched\..*\.js/));
+    assert(headChildren[2].as === 'style');
+    assert(headChildren[2].href.match(/prefetched\..*\.css/));
   });
 
   it('should preload bundles when declared as an import attribute statically', async function() {
@@ -378,13 +378,13 @@ describe('javascript', function() {
 
     assert(headChildren[1].tag === 'link');
     assert(headChildren[1].rel === 'preload');
-    assert(headChildren[1].as === 'style');
-    assert(headChildren[1].href.match(/preloaded\..*\.css/));
+    assert(headChildren[1].as === 'script');
+    assert(headChildren[1].href.match(/preloaded\..*\.js/));
 
     assert(headChildren[2].tag === 'link');
     assert(headChildren[2].rel === 'preload');
-    assert(headChildren[2].as === 'script');
-    assert(headChildren[2].href.match(/preloaded\..*\.js/));
+    assert(headChildren[2].as === 'style');
+    assert(headChildren[2].href.match(/preloaded\..*\.css/));
   });
 
   // TODO: Implement when we can evaluate bundles against esmodule targets

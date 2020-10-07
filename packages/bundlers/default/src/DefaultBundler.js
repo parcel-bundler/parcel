@@ -117,11 +117,6 @@ export default (new Bundler({
             // and this bundle.
             if (bundleGroup === context?.bundleGroup) {
               bundleGraph.createAssetReference(dependency, asset);
-              invariant(context != null && context.parentNode.type === 'asset');
-              bundleGraph.createBundleReference(
-                context.parentNode.value,
-                bundle,
-              );
             }
           }
 
@@ -153,7 +148,6 @@ export default (new Bundler({
             nullthrows(bundleRoots.get(existingBundle)).push(asset);
             bundlesByEntryAsset.set(asset, existingBundle);
             bundleGraph.createAssetReference(dependency, asset);
-            bundleGraph.createBundleReference(parentAsset, existingBundle);
           } else {
             let bundle = bundleGraph.createBundle({
               uniqueKey: asset.id,
@@ -171,7 +165,6 @@ export default (new Bundler({
             bundleByType.set(bundle.type, bundle);
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
-            bundleGraph.createBundleReference(parentAsset, bundle);
 
             // The bundle may have already been created, and the graph gave us back the original one...
             if (!bundleRoots.has(bundle)) {

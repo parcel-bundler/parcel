@@ -1307,7 +1307,7 @@ describe('html', function() {
     assert.deepEqual(output, ['client', 'client', 'viewer']);
   });
 
-  it.only('should not point to unrelated sibling bundles', async function() {
+  it('should not point to unrelated sibling bundles', async function() {
     await bundle(
       path.join(
         __dirname,
