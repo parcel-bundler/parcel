@@ -113,11 +113,15 @@ export default (new Bundler({
             }
 
             // If the bundle is in the same bundle group as the parent, create an asset reference
-            // between the dependency and the asset, and a bundle reference between the parent bundle
-            // and the child bundle.
+            // between the dependency and the asset, and a bundle reference between the parent asset
+            // and this bundle.
             if (bundleGroup === context?.bundleGroup) {
               bundleGraph.createAssetReference(dependency, asset);
-              bundleGraph.createBundleReference(asset, bundle);
+              invariant(context != null && context.parentNode.type === 'asset');
+              bundleGraph.createBundleReference(
+                context.parentNode.value,
+                bundle,
+              );
             }
           }
 

@@ -37,21 +37,17 @@ export default (new Packager({
     let asset = assets[0];
     let code = await asset.getCode();
 
-    let dependencies = [];
-    bundle.traverse(node => {
-      if (node.type === 'dependency') {
-        dependencies.push(node.value);
-      }
-    });
-
     // Add bundles in the same bundle group that are not inline. For example, if two inline
     // bundles refer to the same library that is extracted into a shared bundle.
-    let referenced = new Set(
-      bundleGraph.getReferencedBundles(bundle).map(b => b.id),
+    let bundles = bundleGraph.getReferencedBundles(bundle);
+    console.log(
+      'ref bun',
+      bundle.id,
+      bundles.map(b => b.id),
     );
-    let bundles = bundleGraph
-      .getSiblingBundles(bundle)
-      .filter(b => !b.isInline && !referenced.has(b.id));
+    // let bundles = bundleGraph
+    //   .getSiblingBundles(bundle)
+    //   .filter(b => !b.isInline && !referenced.has(b.id));
 
     let posthtmlConfig = await asset.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
