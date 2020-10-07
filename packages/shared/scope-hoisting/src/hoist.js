@@ -663,12 +663,11 @@ const VISITOR: Visitor<MutableAsset> = {
           addExport(asset, path, identifiers[id], identifiers[id]);
         }
       }
-    } else if (specifiers.length > 0) {
+    } else {
       for (let specifier of specifiers) {
         invariant(isExportSpecifier(specifier)); // because source is empty
         addExport(asset, path, specifier.local, specifier.exported);
       }
-
       path.remove();
     }
   },
