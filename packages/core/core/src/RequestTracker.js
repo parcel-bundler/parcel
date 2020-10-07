@@ -2,13 +2,15 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {Async, File, FilePath, Glob, EnvMap} from '@parcel/types';
-import type {Event} from '@parcel/watcher';
+import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {isGlobMatch} from '@parcel/utils';
+import path from 'path';
+import {isGlobMatch, md5FromObject, md5FromString} from '@parcel/utils';
+import {PARCEL_VERSION} from './constants';
 import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted} from './utils';
 
@@ -56,7 +58,7 @@ type RequestGraphEdgeType =
   | 'invalidated_by_delete'
   | 'invalidated_by_create';
 
-type RunAPI = {|
+export type RunAPI = {|
   invalidateOnFileCreate: Glob => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
@@ -73,6 +75,7 @@ export type StaticRunOpts = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
+  prevResult: any,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -465,8 +468,11 @@ export default class RequestTracker {
   ): Async<TResult> {
     let id = request.id;
 
+    let prevResult = this.graph.hasNode(id)
+      ? this.getRequestResult<TResult>(id)
+      : undefined;
     if (this.hasValidResult(id)) {
-      return this.getRequestResult<TResult>(id);
+      return prevResult;
     }
 
     let {api, subRequests} = this.createAPI(id);
@@ -477,6 +483,7 @@ export default class RequestTracker {
         api,
         farm: this.farm,
         options: this.options,
+        prevResult,
       });
 
       assertSignalNotAborted(this.signal);
@@ -522,4 +529,56 @@ export default class RequestTracker {
 
     return {api, subRequests};
   }
+
+  static async init({
+    farm,
+    options,
+  }: {|
+    farm: WorkerFarm,
+    options: ParcelOptions,
+  |}): Async<RequestTracker> {
+    let graph = await loadRequestGraph(options);
+    return new RequestTracker({farm, options, graph});
+  }
+}
+
+export function getWatcherOptions(options: ParcelOptions): WatcherOptions {
+  let vcsDirs = ['.git', '.hg'].map(dir => path.join(options.projectRoot, dir));
+  let ignore = [options.cacheDir, ...vcsDirs];
+  return {ignore};
+}
+
+async function loadRequestGraph(options): Async<RequestGraph> {
+  if (options.disableCache) {
+    return new RequestGraph();
+  }
+
+  // TODO: changing these should not throw away the entire graph.
+  // We just need to re-run target resolution.
+  let {hot, publicUrl, distDir, minify, scopeHoist, entries} = options;
+  let cacheKey = md5FromObject({
+    parcelVersion: PARCEL_VERSION,
+    options: {hot, publicUrl, distDir, minify, scopeHoist},
+    entries,
+  });
+
+  let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
+  let requestGraph = await options.cache.get<RequestGraph>(requestGraphKey);
+
+  if (requestGraph) {
+    let opts = getWatcherOptions(options);
+    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+    let snapshotPath = options.cache._getCachePath(snapshotKey, '.txt');
+    let events = await options.inputFS.getEventsSince(
+      options.projectRoot,
+      snapshotPath,
+      opts,
+    );
+    requestGraph.invalidateUnpredictableNodes();
+    requestGraph.respondToFSEvents(events);
+
+    return requestGraph;
+  }
+
+  return new RequestGraph();
 }

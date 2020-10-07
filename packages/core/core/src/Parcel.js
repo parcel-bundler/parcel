@@ -4,28 +4,22 @@ import type {
   AsyncSubscription,
   BuildEvent,
   BuildSuccessEvent,
-  EnvironmentOpts,
-  FilePath,
   InitialParcelOptions,
-  ModuleSpecifier,
 } from '@parcel/types';
-import type {AssetRequestResult, ParcelOptions} from './types';
-import type {FarmOptions} from '@parcel/workers';
+import type {ParcelOptions} from './types';
+import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 // eslint-disable-next-line no-unused-vars
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
-import {createDependency} from './Dependency';
-import {createEnvironment} from './Environment';
 import {assetFromValue} from './public/Asset';
 import {NamedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import AssetGraphBuilder from './AssetGraphBuilder';
 import {assertSignalNotAborted, BuildAbortError} from './utils';
 import PackagerRunner from './PackagerRunner';
 import {loadParcelConfig} from './requests/ParcelConfigRequest';
@@ -39,6 +33,8 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
+import RequestTracker, {getWatcherOptions} from './RequestTracker';
+import createAssetGraphRequest from './requests/AssetGraphRequest';
 
 registerCoreWithSerializer();
 
@@ -46,8 +42,7 @@ export const INTERNAL_TRANSFORM: symbol = Symbol('internal_transform');
 export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
-  #assetGraphBuilder /*: AssetGraphBuilder*/;
-  #runtimesAssetGraphBuilder /*: AssetGraphBuilder*/;
+  #requestTracker /*: RequestTracker*/;
   #bundlerRunner /*: BundlerRunner*/;
   #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
@@ -56,6 +51,7 @@ export default class Parcel {
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
+  #optionsRef /*: SharedReference */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -116,30 +112,18 @@ export default class Parcel {
     let {ref: optionsRef} = await this.#farm.createSharedReference(
       resolvedOptions,
     );
+    this.#optionsRef = optionsRef;
     let {ref: configRef} = await this.#farm.createSharedReference(config);
 
-    this.#assetGraphBuilder = new AssetGraphBuilder();
-    this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
-
-    await Promise.all([
-      this.#assetGraphBuilder.init({
-        name: 'MainAssetGraph',
-        options: resolvedOptions,
-        optionsRef,
-        entries: resolvedOptions.entries,
-        workerFarm: this.#farm,
-      }),
-      this.#runtimesAssetGraphBuilder.init({
-        name: 'RuntimesAssetGraph',
-        options: resolvedOptions,
-        optionsRef,
-        workerFarm: this.#farm,
-      }),
-    ]);
+    this.#requestTracker = await RequestTracker.init({
+      farm: this.#farm,
+      options: resolvedOptions,
+    });
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
-      runtimesBuilder: this.#runtimesAssetGraphBuilder,
+      optionsRef: optionsRef,
+      requestTracker: this.#requestTracker,
       config: this.#config,
       workerFarm: this.#farm,
     });
@@ -169,10 +153,7 @@ export default class Parcel {
     }
 
     let result = await this.build({startTime});
-    await Promise.all([
-      this.#assetGraphBuilder.writeToCache(),
-      this.#runtimesAssetGraphBuilder.writeToCache(),
-    ]);
+    // TODO: persist request graph
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
@@ -240,10 +221,7 @@ export default class Parcel {
         await nullthrows(this.#watcherSubscription).unsubscribe();
         this.#watcherSubscription = null;
         await this.#reporterRunner.report({type: 'watchEnd'});
-        await Promise.all([
-          this.#assetGraphBuilder.writeToCache(),
-          this.#runtimesAssetGraphBuilder.writeToCache(),
-        ]);
+        // TODO: persist request graph
       }
     };
 
@@ -265,6 +243,7 @@ export default class Parcel {
     signal?: AbortSignal,
     startTime?: number,
   |}): Promise<BuildEvent> {
+    this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
       if (options.profile) {
@@ -273,8 +252,13 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
-        signal,
+      let request = createAssetGraphRequest({
+        name: 'Main',
+        entries: nullthrows(this.#resolvedOptions).entries,
+        optionsRef: this.#optionsRef,
+      }); // ? should we create this on every build?
+      let {assetGraph, changedAssets} = await this.#requestTracker.runRequest(
+        request,
       );
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
@@ -300,7 +284,7 @@ export default class Parcel {
 
       await this.#reporterRunner.report(event);
 
-      await this.#assetGraphBuilder.validate();
+      // TODO: validate
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -323,54 +307,55 @@ export default class Parcel {
     }
   }
 
-  // $FlowFixMe
-  async [INTERNAL_TRANSFORM]({
-    filePath,
-    env,
-    code,
-  }: {|
-    filePath: FilePath,
-    env: EnvironmentOpts,
-    code?: string,
-  |}): Promise<AssetRequestResult> {
-    let [result] = await Promise.all([
-      this.#assetGraphBuilder.runTransform({
-        filePath,
-        code,
-        env: createEnvironment(env),
-      }),
-      this.#reporterRunner.config.getReporters(),
-    ]);
+  // ? What are these for again?
+  // // $FlowFixMe
+  // async [INTERNAL_TRANSFORM]({
+  //   filePath,
+  //   env,
+  //   code,
+  // }: {|
+  //   filePath: FilePath,
+  //   env: EnvironmentOpts,
+  //   code?: string,
+  // |}): Promise<AssetRequestResult> {
+  //   let [result] = await Promise.all([
+  //     this.#assetGraphBuilder.runTransform({
+  //       filePath,
+  //       code,
+  //       env: createEnvironment(env),
+  //     }),
+  //     this.#reporterRunner.config.getReporters(),
+  //   ]);
 
-    return result;
-  }
+  //   return result;
+  // }
 
-  // $FlowFixMe
-  async [INTERNAL_RESOLVE]({
-    moduleSpecifier,
-    sourcePath,
-    env,
-  }: {|
-    moduleSpecifier: ModuleSpecifier,
-    sourcePath: FilePath,
-    env: EnvironmentOpts,
-  |}): Promise<FilePath> {
-    let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
-      createDependency({
-        moduleSpecifier,
-        sourcePath,
-        env: createEnvironment(env),
-      }),
-    );
+  // // $FlowFixMe
+  // async [INTERNAL_RESOLVE]({
+  //   moduleSpecifier,
+  //   sourcePath,
+  //   env,
+  // }: {|
+  //   moduleSpecifier: ModuleSpecifier,
+  //   sourcePath: FilePath,
+  //   env: EnvironmentOpts,
+  // |}): Promise<FilePath> {
+  //   let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
+  //     createDependency({
+  //       moduleSpecifier,
+  //       sourcePath,
+  //       env: createEnvironment(env),
+  //     }),
+  //   );
 
-    return resolved.filePath;
-  }
+  //   return resolved.filePath;
+  // }
 
   _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
-    let opts = this.#assetGraphBuilder.getWatcherOptions();
+    let opts = getWatcherOptions(resolvedOptions);
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
@@ -379,14 +364,8 @@ export default class Parcel {
           return;
         }
 
-        let sourceInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
-        let runtimeInvalid = this.#runtimesAssetGraphBuilder.respondToFSEvents(
-          events,
-        );
-        if (
-          (sourceInvalid || runtimeInvalid) &&
-          this.#watchQueue.getNumWaiting() === 0
-        ) {
+        let isInvalid = this.#requestTracker.respondToFSEvents(events);
+        if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
           }
