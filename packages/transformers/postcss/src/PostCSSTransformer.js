@@ -7,7 +7,6 @@ import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import postcss from 'postcss';
 import semver from 'semver';
 import valueParser from 'postcss-value-parser';
 
@@ -30,17 +29,23 @@ export default (new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
   },
 
-  async parse({asset, config}) {
+  async parse({asset, config, options}) {
     if (!config) {
       return;
     }
 
+    let postcss = await options.packageManager.require(
+      'postcss',
+      asset.filePath,
+      {autoinstall: options.autoinstall, range: '^8.0.0'},
+    );
+
     return {
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: postcss.parse(await asset.getCode(), {
         from: asset.filePath,
       }),
@@ -52,6 +57,12 @@ export default (new Transformer({
     if (!config) {
       return [asset];
     }
+
+    let postcss = await options.packageManager.require(
+      'postcss',
+      asset.filePath,
+      {autoinstall: options.autoinstall, range: '^8.0.0'},
+    );
 
     let plugins = [...config.hydrated.plugins];
     if (config.hydrated.modules) {
@@ -107,7 +118,7 @@ export default (new Transformer({
     ast.program = root;
     asset.setAST({
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: root,
     });
     for (let msg of messages) {
@@ -146,7 +157,13 @@ export default (new Transformer({
     return assets;
   },
 
-  generate({ast}) {
+  async generate({ast, asset, options}) {
+    let postcss = await options.packageManager.require(
+      'postcss',
+      asset.filePath,
+      {autoinstall: options.autoinstall, range: '^8.0.0'},
+    );
+
     let code = '';
     postcss.stringify(ast.program, c => {
       code += c;
