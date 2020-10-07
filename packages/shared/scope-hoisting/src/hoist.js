@@ -680,13 +680,23 @@ const VISITOR: Visitor<MutableAsset> = {
       dep.symbols.set('*', '*', convertBabelLoc(path.node.loc));
     }
 
-    path.replaceWith(
-      EXPORT_ALL_TEMPLATE({
-        OLD_NAME: getExportsIdentifier(asset, path.scope),
-        SOURCE: t.stringLiteral(path.node.source.value),
-        ID: t.stringLiteral(asset.id),
-      }),
-    );
+    let replacement = EXPORT_ALL_TEMPLATE({
+      OLD_NAME: getExportsIdentifier(asset, path.scope),
+      SOURCE: t.stringLiteral(path.node.source.value),
+      ID: t.stringLiteral(asset.id),
+    });
+
+    let {parentPath, scope} = path;
+    path.remove();
+
+    // Make sure that the relative order of imports and reexports is retained.
+    let lastImport = scope.getData('hoistedImport');
+    if (lastImport) {
+      [lastImport] = lastImport.insertAfter(replacement);
+    } else {
+      [lastImport] = parentPath.unshiftContainer('body', [replacement]);
+    }
+    path.scope.setData('hoistedImport', lastImport);
   },
 };
 
