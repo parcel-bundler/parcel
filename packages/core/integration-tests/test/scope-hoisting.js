@@ -484,6 +484,21 @@ describe('scope hoisting', function() {
       assert.strictEqual(output, Test);
     });
 
+    it('should remove export named declaration without specifiers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-named-empty/a.js',
+        ),
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!/export\s*{\s*}\s*;/.test(content));
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
+    });
+
     it('throws a meaningful error on undefined exports', async function() {
       let threw = false;
       try {
