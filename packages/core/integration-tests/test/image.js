@@ -29,17 +29,29 @@ describe('image', function() {
     assert.equal(image.width, 600);
   });
 
-  it('Should be able to change image format', async () => {
-    await bundle(path.join(__dirname, '/integration/image/reformat.js'));
+  describe('Should be able to change image format', () => {
+    function testCase(ext) {
+      return async () => {
+        await bundle(
+          path.join(__dirname, `/integration/image/reformat.${ext}`),
+        );
 
-    let dirContent = await outputFS.readdir(distDir);
-    let foundExtensions = [];
-    for (let filename of dirContent) {
-      foundExtensions.push(path.extname(filename));
+        let dirContent = await outputFS.readdir(distDir);
+        let foundExtensions = [];
+        for (let filename of dirContent) {
+          const foundExt = path.extname(filename);
+          if (foundExt !== '.map') {
+            foundExtensions.push(foundExt);
+          }
+        }
+        assert.deepStrictEqual(
+          foundExtensions.sort(),
+          ['.webp', `.${ext}`].sort(),
+        );
+      };
     }
-    assert.deepStrictEqual(
-      foundExtensions.sort(),
-      ['.webp', '.js', '.map'].sort(),
-    );
+    it('from JS', testCase('js'));
+    it.skip('from HTML', testCase('html'));
+    it('from CSS', testCase('css'));
   });
 });
