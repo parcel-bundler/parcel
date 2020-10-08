@@ -208,9 +208,6 @@ export default (new Bundler({
         return;
       }
 
-      let siblings = bundleGraph
-        .getReferencedBundles(bundle)
-        .filter(sibling => !sibling.isInline);
       let candidates = bundleGraph.findBundlesWithAsset(mainEntry).filter(
         containingBundle =>
           containingBundle.id !== bundle.id &&
@@ -234,12 +231,8 @@ export default (new Bundler({
                 .filter(b => !b.isInline).length < config.maxParallelRequests,
           )
         ) {
+          bundleGraph.createBundleReference(candidate, bundle);
           bundleGraph.removeAssetGraphFromBundle(mainEntry, candidate);
-          for (let bundleGroup of bundleGroups) {
-            for (let bundleToAdd of [bundle, ...siblings]) {
-              bundleGraph.addBundleToBundleGroup(bundleToAdd, bundleGroup);
-            }
-          }
         }
       }
     });
@@ -348,19 +341,8 @@ export default (new Bundler({
         type: firstBundle.type,
       });
 
-      // Create new bundle node and connect it to all of the original bundle groups
-      for (let bundleGroup of bundleGroups) {
-        // If the bundle group is within the parallel request limit, then add the shared bundle.
-        if (
-          bundleGraph
-            .getBundlesInBundleGroup(bundleGroup)
-            .filter(b => !b.isInline).length < config.maxParallelRequests
-        ) {
-          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
-        }
-      }
-
       // Remove all of the root assets from each of the original bundles
+      // and reference the new shared bundle.
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
 
@@ -378,6 +360,7 @@ export default (new Bundler({
                   .filter(b => !b.isInline).length < config.maxParallelRequests,
             )
           ) {
+            bundleGraph.createBundleReference(bundle, sharedBundle);
             bundleGraph.removeAssetGraphFromBundle(asset, bundle);
           }
         }

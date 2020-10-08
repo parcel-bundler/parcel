@@ -463,10 +463,10 @@ export default class BundleGraph {
     if (this._graph.hasEdge(dependency.id, asset.id)) {
       this._graph.removeEdge(dependency.id, asset.id);
     }
+  }
 
-    for (let bundle of this.findBundlesWithDependency(dependency)) {
-      this._graph.addEdge(bundle.id, dependency.id, 'references');
-    }
+  createBundleReference(from: Bundle, to: Bundle): void {
+    this._graph.addEdge(from.id, to.id, 'references');
   }
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
@@ -900,36 +900,64 @@ export default class BundleGraph {
 
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup> {
     let bundleGroups: Set<BundleGroup> = new Set();
-    for (let bundleGroup of this.getDirectParentBundleGroups(bundle)) {
-      bundleGroups.add(bundleGroup);
-    }
 
-    for (let entryAssetId of bundle.entryAssetIds) {
-      let entryAssetNode = nullthrows(this._graph.getNode(entryAssetId));
-      for (let referencingDependencyNode of this._graph.getNodesConnectedTo(
-        entryAssetNode,
+    let bundlesSeen: Set<Bundle> = new Set([bundle]);
+    let stack = [bundle];
+    let currentBundle;
+    while ((currentBundle = stack.pop())) {
+      for (let bundleGroup of this.getDirectParentBundleGroups(currentBundle)) {
+        bundleGroups.add(bundleGroup);
+      }
+
+      for (let referencedNode of this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(bundle.id)),
         'references',
       )) {
-        invariant(referencingDependencyNode.type === 'dependency');
-        if (referencingDependencyNode.value.isAsync) {
-          continue;
+        invariant(referencedNode.type === 'bundle');
+        let referencedBundle = referencedNode.value;
+        if (!bundlesSeen.has(referencedBundle)) {
+          stack.push(referencedBundle);
+          bundlesSeen.add(referencedBundle);
         }
+      }
 
-        for (let referencingBundleNode of this._graph.getNodesConnectedTo(
-          referencingDependencyNode,
-          'references',
+      for (let entryAssetId of currentBundle.entryAssetIds) {
+        for (let bundle of this.getBundlesDependingOnAsset(
+          this.getAssetById(entryAssetId),
         )) {
-          invariant(referencingBundleNode.type === 'bundle');
-          for (let bundleGroup of this.getDirectParentBundleGroups(
-            referencingBundleNode.value,
-          )) {
-            bundleGroups.add(bundleGroup);
+          if (!bundlesSeen.has(bundle)) {
+            stack.push(bundle);
+            bundlesSeen.add(bundle);
           }
         }
       }
     }
 
     return [...bundleGroups];
+  }
+
+  getBundlesDependingOnAsset(asset: Asset): Array<Bundle> {
+    let bundles = new Set();
+    let entryAssetNode = nullthrows(this._graph.getNode(asset.id));
+    for (let referencingDependencyNode of this._graph.getNodesConnectedTo(
+      entryAssetNode,
+      'references',
+    )) {
+      invariant(referencingDependencyNode.type === 'dependency');
+      if (referencingDependencyNode.value.isAsync) {
+        continue;
+      }
+
+      for (let referencingBundleNode of this._graph.getNodesConnectedTo(
+        referencingDependencyNode,
+        'references',
+      )) {
+        invariant(referencingBundleNode.type === 'bundle');
+        bundles.add(referencingBundleNode.value);
+      }
+    }
+
+    return [...bundles];
   }
 
   getDirectParentBundleGroups(bundle: Bundle): Array<BundleGroup> {
@@ -978,22 +1006,34 @@ export default class BundleGraph {
         bundleNode,
         'references',
       )) {
-        invariant(node.type === 'dependency');
-        let dependency = node.value;
-        for (let referencedBundle of this.getBundlesReferencedByDependency(
-          dependency,
-        )) {
-          if (
-            dependency.isAsync &&
-            (!includeInline || !referencedBundle.isInline)
-          ) {
-            continue;
-          }
+        if (node.type === 'dependency') {
+          let dependency = node.value;
+          for (let referencedBundle of this.getBundlesReferencedByDependency(
+            dependency,
+          )) {
+            if (
+              dependency.isAsync &&
+              (!includeInline || !referencedBundle.isInline)
+            ) {
+              continue;
+            }
 
-          if (!siblings.has(referencedBundle)) {
+            if (!siblings.has(referencedBundle)) {
+              siblings.add(referencedBundle);
+              stack.push(referencedBundle);
+            }
+          }
+        } else if (node.type === 'bundle') {
+          let referencedBundle = node.value;
+          if (
+            (!includeInline || referencedBundle.isInline) &&
+            !siblings.has(referencedBundle)
+          ) {
             siblings.add(referencedBundle);
             stack.push(referencedBundle);
           }
+        } else {
+          throw new Error('Unexpected reference node of type ' + node.type);
         }
       }
     }
