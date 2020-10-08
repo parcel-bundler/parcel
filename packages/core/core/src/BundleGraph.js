@@ -922,7 +922,7 @@ export default class BundleGraph {
       }
 
       for (let entryAssetId of currentBundle.entryAssetIds) {
-        for (let bundle of this.getBundlesDependingOnAsset(
+        for (let bundle of this.getBundlesReferencingAsset(
           this.getAssetById(entryAssetId),
         )) {
           if (!bundlesSeen.has(bundle)) {
@@ -936,7 +936,7 @@ export default class BundleGraph {
     return [...bundleGroups];
   }
 
-  getBundlesDependingOnAsset(asset: Asset): Array<Bundle> {
+  getBundlesReferencingAsset(asset: Asset): Array<Bundle> {
     let bundles = new Set();
     let entryAssetNode = nullthrows(this._graph.getNode(asset.id));
     for (let referencingDependencyNode of this._graph.getNodesConnectedTo(
@@ -944,7 +944,11 @@ export default class BundleGraph {
       'references',
     )) {
       invariant(referencingDependencyNode.type === 'dependency');
-      if (referencingDependencyNode.value.isAsync) {
+      if (
+        this._graph
+          .getNodesConnectedFrom(referencingDependencyNode)
+          .some(node => node.type === 'bundle_group')
+      ) {
         continue;
       }
 
@@ -1010,7 +1014,11 @@ export default class BundleGraph {
           for (let referencedBundle of this.getBundlesReferencedByDependency(
             dependency,
           )) {
-            if (dependency.isAsync && !referencedBundle.isInline) {
+            if (
+              this._graph
+                .getNodesConnectedFrom(node)
+                .some(node => node.type === 'bundle_group')
+            ) {
               continue;
             }
 
