@@ -149,8 +149,8 @@ export class AssetGraphBuilder {
     return (
       node.complete === true ||
       !typesWithRequests.has(node.type) ||
-      (node.correspondingRequest != null && false) // TODO: figure out best way to skip
-      //this.api.hasValidResult(node.correspondingRequest))
+      (node.correspondingRequest != null &&
+        this.api.canSkipSubrequest(node.correspondingRequest))
     );
   }
 

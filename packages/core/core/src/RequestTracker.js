@@ -66,6 +66,7 @@ export type RunAPI = {|
   invalidateOnEnvChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed) => void,
+  canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
   ) => Async<TResult>,
@@ -518,6 +519,14 @@ export default class RequestTracker {
       getInvalidations: () => this.graph.getInvalidations(requestId),
       storeResult: result => {
         this.storeResult(requestId, result);
+      },
+      canSkipSubrequest: id => {
+        if (this.hasValidResult(id)) {
+          subRequests.add(id);
+          return true;
+        }
+
+        return false;
       },
       runRequest: <TInput, TResult>(
         subRequest: Request<TInput, TResult>,
