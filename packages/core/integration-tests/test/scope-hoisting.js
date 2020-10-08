@@ -547,7 +547,32 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'name:1.2.3');
     });
 
-    it('supports import default CommonJS interop', async function() {
+    it('supports default importing CommonJS (export namespace)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-commonjs-export-object-default/a.js',
+        ),
+      );
+
+      assert.deepStrictEqual(
+        new Set(nullthrows(findAsset(b, 'b1.js')).symbols.exportSymbols()),
+        new Set(['*']),
+      );
+
+      assert.deepStrictEqual(
+        new Set(nullthrows(findAsset(b, 'b2.js')).symbols.exportSymbols()),
+        new Set(['*']),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        x: {foo: 1, default: 2},
+        y: 4,
+      });
+    });
+
+    it('supports import default CommonJS interop (export value)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -563,6 +588,37 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 'foobar:foo:bar');
+    });
+
+    it('supports import default CommonJS interop (individual exports)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-commonjs-export-individual-default/a.js',
+        ),
+      );
+
+      assert.deepStrictEqual(
+        new Set(nullthrows(findAsset(b, 'b1.js')).symbols.exportSymbols()),
+        new Set(['*', 'foo']),
+      );
+
+      assert.deepStrictEqual(
+        new Set(nullthrows(findAsset(b, 'b2.js')).symbols.exportSymbols()),
+        new Set(['*', 'foo', '__esModule']),
+      );
+
+      assert.deepStrictEqual(
+        new Set(nullthrows(findAsset(b, 'b3.js')).symbols.exportSymbols()),
+        new Set(['*']),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        x: {foo: 1, default: 2},
+        y: 4,
+        z: 6,
+      });
     });
 
     it('does not export reassigned CommonJS exports references', async function() {

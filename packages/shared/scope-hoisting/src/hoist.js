@@ -248,7 +248,13 @@ const VISITOR: Visitor<MutableAsset> = {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
         }
 
-        if (asset.meta.isCommonJS && asset.meta.resolveExportsBailedOut) {
+        if (asset.meta.isCommonJS) {
+          if (asset.meta.resolveExportsBailedOut) {
+            for (let s of asset.symbols.exportSymbols()) {
+              asset.symbols.delete(s);
+            }
+          }
+
           asset.symbols.set('*', exportsIdentifier.name);
         }
       }
@@ -414,11 +420,15 @@ const VISITOR: Visitor<MutableAsset> = {
       // Otherwise, assign to the existing export binding.
       let scope = path.scope.getProgramParent();
       if (!scope.hasBinding(identifier.name)) {
-        asset.symbols.set(
-          name,
-          identifier.name,
-          convertBabelLoc(path.node.loc),
-        );
+        // These have a special meaning, we'll have to fallback from the '*' symbol.
+        // '*' will always be registered into the symbols at the end.
+        if (name !== 'default' && name !== '*') {
+          asset.symbols.set(
+            name,
+            identifier.name,
+            convertBabelLoc(path.node.loc),
+          );
+        }
 
         // If in the program scope, create a variable declaration and initialize with the exported value.
         // Otherwise, declare the variable in the program scope, and assign to it here.
