@@ -944,7 +944,7 @@ export interface BundleGraph<TBundle: Bundle> {
   /** See BundleGroup */
   getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
-  getReferencedBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(bundle: Bundle, recursive?: boolean): Array<TBundle>;
   /** Get the dependencies that require the asset */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
