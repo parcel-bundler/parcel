@@ -78,24 +78,17 @@ export class AssetGraphBuilder {
 
   constructor({input, prevResult, api}: RunInput) {
     let {entries, assetGroups, optionsRef} = input;
-    let assetGraph = prevResult?.assetGraph;
-    if (!assetGraph) {
-      assetGraph = new AssetGraph();
-      assetGraph.initialize({
-        entries,
-        assetGroups,
-      });
-    }
+    let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
+    assetGraph.setRootConnections({
+      entries,
+      assetGroups,
+    });
     this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
     this.api = api;
     this.assetRequests = [];
 
     this.queue = new PromiseQueue();
-
-    // this.assetGraph.initOptions({
-    //   onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node),
-    // });
   }
 
   async build(): Promise<{|
@@ -213,10 +206,4 @@ export class AssetGraphBuilder {
       this.assetGraph.resolveAssetGroup(input, assets, request.id);
     }
   }
-
-  // handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
-  //   // if (node.correspondingRequest != null) {
-  //   //   this.api.removeRequest(node.correspondingRequest);
-  //   // }
-  // }
 }

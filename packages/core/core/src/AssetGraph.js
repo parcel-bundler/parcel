@@ -95,6 +95,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       this.hash = hash;
     } else {
       super();
+      let rootNode = {id: '@@root', type: 'root', value: null};
+      this.setRootNode(rootNode);
     }
   }
 
@@ -116,10 +118,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved = onNodeRemoved;
   }
 
-  initialize({entries, assetGroups}: InitOpts) {
-    let rootNode = {id: '@@root', type: 'root', value: null};
-    this.setRootNode(rootNode);
-
+  setRootConnections({entries, assetGroups}: InitOpts) {
     let nodes = [];
     if (entries) {
       for (let entry of entries) {
@@ -131,7 +130,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         ...assetGroups.map(assetGroup => nodeFromAssetGroup(assetGroup)),
       );
     }
-    this.replaceNodesConnectedTo(rootNode, nodes);
+    this.replaceNodesConnectedTo(nullthrows(this.getRootNode()), nodes);
   }
 
   addNode(node: AssetGraphNode): AssetGraphNode {

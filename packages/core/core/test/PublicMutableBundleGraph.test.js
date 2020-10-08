@@ -89,8 +89,7 @@ describe('MutableBundleGraph', () => {
 const stats = {size: 0, time: 0};
 function createMockAssetGraph() {
   let graph = new AssetGraph();
-  graph.initialize({
-    targets: DEFAULT_TARGETS,
+  graph.setRootConnections({
     entries: ['./index', './index2'],
   });
 
