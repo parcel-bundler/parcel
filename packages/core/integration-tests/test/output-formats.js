@@ -1025,7 +1025,7 @@ describe('output formats', function() {
     });
   });
 
-  it.only("doesn't overwrite used global variables", async function() {
+  it("doesn't overwrite used global variables", async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/formats/conflict-global/index.js'),
     );
