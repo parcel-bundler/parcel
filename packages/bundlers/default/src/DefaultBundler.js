@@ -113,10 +113,9 @@ export default (new Bundler({
             }
 
             // If the bundle is in the same bundle group as the parent, create an asset reference
-            // between the dependency and the asset, and a bundle reference between the parent asset
-            // and this bundle.
+            // between the dependency, the asset, and the target bundle.
             if (bundleGroup === context?.bundleGroup) {
-              bundleGraph.createAssetReference(dependency, asset);
+              bundleGraph.createAssetReference(dependency, asset, bundle);
             }
           }
 
@@ -147,7 +146,7 @@ export default (new Bundler({
             // merge this subgraph into it.
             nullthrows(bundleRoots.get(existingBundle)).push(asset);
             bundlesByEntryAsset.set(asset, existingBundle);
-            bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.createAssetReference(dependency, asset, existingBundle);
           } else {
             let bundle = bundleGraph.createBundle({
               uniqueKey: asset.id,
@@ -164,7 +163,7 @@ export default (new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             bundlesByEntryAsset.set(asset, bundle);
-            bundleGraph.createAssetReference(dependency, asset);
+            bundleGraph.createAssetReference(dependency, asset, bundle);
 
             // The bundle may have already been created, and the graph gave us back the original one...
             if (!bundleRoots.has(bundle)) {

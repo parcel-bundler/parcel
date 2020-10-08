@@ -51,7 +51,6 @@ type BundleGraphEdgeTypes =
   // Signals that the dependency is internally resolvable via the bundle's ancestry,
   // and that the bundle connected to the dependency is not necessary for the source bundle.
   | 'internal_async';
-// | 'sibling';
 
 type InternalSymbolResolution = {|
   asset: Asset,
@@ -205,7 +204,13 @@ export default class BundleGraph {
           this._graph.addEdge(bundle.id, bundleGroupNode.id, 'bundle');
         }
 
-        if (this._graph.getNodesConnectedFrom(node, 'references').length > 0) {
+        // If the dependency references a target bundle, add a reference edge from
+        // the source bundle to the dependency for easy traversal.
+        if (
+          this._graph
+            .getNodesConnectedFrom(node, 'references')
+            .some(node => node.type === 'bundle')
+        ) {
           this._graph.addEdge(bundle.id, node.id, 'references');
         }
       }
@@ -458,8 +463,13 @@ export default class BundleGraph {
     }
   }
 
-  createAssetReference(dependency: Dependency, asset: Asset): void {
+  createAssetReference(
+    dependency: Dependency,
+    asset: Asset,
+    bundle: Bundle,
+  ): void {
     this._graph.addEdge(dependency.id, asset.id, 'references');
+    this._graph.addEdge(dependency.id, bundle.id, 'references');
     if (this._graph.hasEdge(dependency.id, asset.id)) {
       this._graph.removeEdge(dependency.id, asset.id);
     }
@@ -900,26 +910,32 @@ export default class BundleGraph {
         bundleGroups.add(bundleGroup);
       }
 
-      for (let referencedNode of this._graph.getNodesConnectedTo(
+      for (let referencingNode of this._graph.getNodesConnectedTo(
         nullthrows(this._graph.getNode(bundle.id)),
         'references',
       )) {
-        invariant(referencedNode.type === 'bundle');
-        let referencedBundle = referencedNode.value;
-        if (!bundlesSeen.has(referencedBundle)) {
-          stack.push(referencedBundle);
-          bundlesSeen.add(referencedBundle);
-        }
-      }
-
-      for (let entryAssetId of currentBundle.entryAssetIds) {
-        for (let bundle of this.getBundlesReferencingAsset(
-          this.getAssetById(entryAssetId),
-        )) {
-          if (!bundlesSeen.has(bundle)) {
-            stack.push(bundle);
-            bundlesSeen.add(bundle);
+        if (referencingNode.type === 'bundle') {
+          let referencingBundle = referencingNode.value;
+          if (!bundlesSeen.has(referencingBundle)) {
+            stack.push(referencingBundle);
+            bundlesSeen.add(referencingBundle);
           }
+        } else if (referencingNode.type === 'dependency') {
+          for (let referencingBundleNode of this._graph.getNodesConnectedTo(
+            referencingNode,
+            'references',
+          )) {
+            invariant(referencingBundleNode.type === 'bundle');
+            let referencingBundle = referencingBundleNode.value;
+            if (!bundlesSeen.has(referencingBundle)) {
+              stack.push(referencingBundle);
+              bundlesSeen.add(referencingBundle);
+            }
+          }
+        } else {
+          throw new Error(
+            'Unexpected referencing node of type ' + referencingNode.type,
+          );
         }
       }
     }
@@ -1328,8 +1344,9 @@ export default class BundleGraph {
     return this._graph
       .getNodesConnectedFrom(dependencyNode, 'references')
       .map(node => {
-        invariant(node.type === 'asset');
-        return this.getBundleWithAssetAsEntry(node.value);
+        if (node.type === 'bundle') {
+          return node.value;
+        }
       })
       .filter(Boolean);
   }

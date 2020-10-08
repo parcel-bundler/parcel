@@ -195,10 +195,15 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
-  createAssetReference(dependency: IDependency, asset: IAsset): void {
+  createAssetReference(
+    dependency: IDependency,
+    asset: IAsset,
+    bundle: IBundle,
+  ): void {
     return this.#graph.createAssetReference(
       dependencyToInternalDependency(dependency),
       assetToAssetValue(asset),
+      bundleToInternalBundle(bundle),
     );
   }
 

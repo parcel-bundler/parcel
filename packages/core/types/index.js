@@ -907,7 +907,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addAssetGraphToBundle(Asset, Bundle): void;
   addEntryToBundle(Asset, Bundle): void;
   addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset): void;
+  createAssetReference(Dependency, Asset, Bundle): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
