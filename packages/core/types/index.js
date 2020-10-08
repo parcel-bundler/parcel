@@ -969,7 +969,6 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
   findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferenced(asset: Asset): boolean;
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**

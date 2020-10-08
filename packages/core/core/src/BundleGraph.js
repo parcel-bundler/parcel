@@ -563,15 +563,6 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferenced(asset: Asset): boolean {
-    return (
-      this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(asset.id)),
-        'references',
-      ).length > 0
-    );
-  }
-
   isAssetReferencedByDependant(
     bundle: Bundle,
     asset: Asset,

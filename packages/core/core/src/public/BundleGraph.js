@@ -185,10 +185,6 @@ export default class BundleGraph<TBundle: IBundle>
     return null;
   }
 
-  isAssetReferenced(asset: IAsset): boolean {
-    return this.#graph.isAssetReferenced(assetToAssetValue(asset));
-  }
-
   isAssetReferencedByDependant(bundle: IBundle, asset: IAsset): boolean {
     return this.#graph.isAssetReferencedByDependant(
       bundleToInternalBundle(bundle),
