@@ -1,39 +1,11 @@
 // @flow
 
+import {typeof default as Stylus} from 'stylus';
 import {Transformer} from '@parcel/plugin';
 import {createDependencyLocation, isGlob, glob} from '@parcel/utils';
 import path from 'path';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
-
-interface StylusNode {
-  lineno: number;
-  column: number;
-  filename: string;
-  +first: StylusNode;
-  +hash: string;
-  +nodeName: string;
-  clone(): StylusNode;
-  toJSON(): {lineno: number, column: number, filename: string, ...};
-  eval(): mixed;
-  toBoolean(): boolean;
-  toExpression(): StylusNode;
-  operate(op: string, right: StylusNode): StylusNode;
-  coerce(other: StylusNode): StylusNode;
-}
-
-interface StylusLiteral extends StylusNode {
-  val: string;
-  string: string;
-  prefixed: false;
-}
-
-interface StylusString extends StylusNode {
-  val: string;
-  string: string;
-  prefixed: false;
-  quote: string;
-}
 
 export default (new Transformer({
   async loadConfig({config}) {
@@ -67,18 +39,18 @@ export default (new Transformer({
   async transform({asset, resolve, config, options}) {
     let stylusConfig = config ? config.contents : {};
     // stylus should be installed locally in the module that's being required
-    let stylus = await options.packageManager.require(
+    let stylus = (await options.packageManager.require(
       'stylus',
       asset.filePath,
       {autoinstall: options.autoinstall},
-    );
+    ): Stylus);
 
     let code = await asset.getCode();
     let style = stylus(code, stylusConfig);
     style.set('filename', asset.filePath);
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
-    style.define('url', (node: StylusString | StylusLiteral) => {
+    style.define('url', (node: stylus.nodes.String | stylus.nodes.Literal) => {
       let filename = asset.addURLDependency(node.val, {
         loc: createDependencyLocation(
           {line: node.lineno, column: node.column},

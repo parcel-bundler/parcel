@@ -1,4 +1,5 @@
 // @flow
+import {typeof default as Less} from 'less';
 import path from 'path';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
@@ -14,68 +15,6 @@ type LessConfig = {
   plugins: Array<any>,
   ...
 };
-
-type LessFileInfo = {|
-  rewriteUrls?: boolean,
-  filename: string,
-  rootpath: string,
-  currentDirectory: string,
-  rootFilename: string,
-  entryPath: string,
-  reference?: boolean,
-|};
-
-type LessContext = {...};
-
-interface LessVisitor {
-  visit(value: LessNode): LessNode;
-}
-
-interface LessNode {
-  parent: ?LessNode;
-  visibilityBlocks: ?number;
-  nodeVisible: ?boolean;
-  rootNode: ?LessNode;
-  parsed: ?boolean;
-
-  +currentFileInfo: LessFileInfo;
-  +index: number;
-
-  setParent(nodes: LessNode | Array<LessNode>, parent: LessNode): void;
-
-  getIndex(): number;
-  fileInfo(): LessFileInfo;
-  isRulesetLike(): boolean;
-
-  toCSS(context: LessContext): string;
-  genCSS(context: LessContext, output: mixed): void;
-  accept(visitor: LessVisitor): void;
-  eval(): mixed;
-
-  fround(context: LessContext, value: number): number;
-  blocksVisibility(): boolean;
-  addVisibilityBlock(): void;
-  removeVisibilityBlock(): void;
-  ensureVisibility(): void;
-  ensureInvisibility(): void;
-  isVisible(): ?boolean;
-  visibilityInfo(): {|visibilityBlocks: ?number, nodeVisible: ?boolean|};
-  copyVisibilityInfo(info: {
-    visibilityBlocks: ?number,
-    nodeVisible: ?boolean,
-    ...
-  }): void;
-}
-
-interface LessURL extends LessNode {
-  value: LessNode;
-  isEvald: boolean;
-}
-
-// This is a hack; no such interface exists, even conceptually, in Less.
-interface LessNodeWithValue extends LessNode {
-  value: any;
-}
 
 export default (new Transformer({
   loadConfig({config}) {
@@ -139,9 +78,12 @@ export default (new Transformer({
 
 function urlPlugin({asset}) {
   return {
-    install(less, pluginManager) {
+    install(less: Less, pluginManager) {
+      // This is a hack; no such interface exists, even conceptually, in Less.
+      type LessNodeWithValue = less.tree.Node & {value: any, ...};
+
       const visitor = new less.visitors.Visitor({
-        visitUrl(node: LessURL) {
+        visitUrl(node) {
           const valueNode = ((node.value: any): LessNodeWithValue);
           const stringValue = (valueNode.value: string);
           if (
