@@ -1425,14 +1425,14 @@ describe('html', function() {
     ]);
 
     let htmlBundle = b.getBundles().find(b => b.type === 'html');
-    let htmlSiblings = b.getReferencedBundles(htmlBundle, true);
+    let htmlSiblings = b.getReferencedBundles(htmlBundle);
     assert.equal(htmlSiblings.length, 2);
     assert(htmlSiblings.some(b => b.type === 'js'));
     assert(htmlSiblings.some(b => b.type === 'css'));
 
     let worker = b.getChildBundles(htmlSiblings.find(b => b.type === 'js'));
     assert.equal(worker.length, 1);
-    let workerSiblings = b.getReferencedBundles(worker[0], true);
+    let workerSiblings = b.getReferencedBundles(worker[0]);
     assert.equal(workerSiblings.length, 0);
   });
 

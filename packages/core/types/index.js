@@ -942,7 +942,10 @@ export interface BundleGraph<TBundle: Bundle> {
   getChildBundles(bundle: Bundle): Array<TBundle>;
   getParentBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
-  getReferencedBundles(bundle: Bundle, recursive?: boolean): Array<TBundle>;
+  getReferencedBundles(
+    bundle: Bundle,
+    opts?: {|recursive: boolean|},
+  ): Array<TBundle>;
   /** Get the dependencies that require the asset */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */

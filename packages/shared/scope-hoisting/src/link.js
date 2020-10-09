@@ -103,7 +103,7 @@ export function link({
   // of each bundle group pointing at the sibling bundles. These can be
   // picked up by another bundler later at which point runtimes will be added.
   if (bundle.env.isLibrary) {
-    let bundles = bundleGraph.getReferencedBundles(bundle, true);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importedFiles.set(nullthrows(b.filePath), {
         bundle: b,

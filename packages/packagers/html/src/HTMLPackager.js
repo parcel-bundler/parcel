@@ -42,8 +42,8 @@ export default (new Packager({
     // bundles refer to the same library that is extracted into a shared bundle.
     let referencedBundles = [
       ...setDifference(
-        new Set(bundleGraph.getReferencedBundles(bundle, true)),
         new Set(bundleGraph.getReferencedBundles(bundle)),
+        new Set(bundleGraph.getReferencedBundles(bundle, {recursive: false})),
       ),
     ].filter(b => !b.isInline);
     let posthtmlConfig = await asset.getConfig(

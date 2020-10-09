@@ -219,7 +219,7 @@ function getPrefix(
 
   let importScripts = '';
   if (bundle.env.isWorker()) {
-    let bundles = bundleGraph.getReferencedBundles(bundle, true);
+    let bundles = bundleGraph.getReferencedBundles(bundle);
     for (let b of bundles) {
       importScripts += `importScripts("${relativeBundlePath(bundle, b)}");\n`;
     }
