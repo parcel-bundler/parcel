@@ -617,16 +617,20 @@ export default class BundleGraph {
         return;
       }
 
-      let similarSiblings = this.getReferencedBundles(descendant).filter(
-        sibling =>
-          sibling.type === bundle.type &&
-          sibling.env.context === bundle.env.context,
+      let referencers = this.getReferencingBundles(descendant).filter(
+        referencer =>
+          referencer.type === bundle.type &&
+          referencer.env.context === bundle.env.context,
       );
       if (
-        similarSiblings.some(
-          sibling =>
-            bundleHasReference(sibling) ||
-            this.isAssetReferencedByDependant(sibling, asset, visitedBundles),
+        referencers.some(
+          referencer =>
+            bundleHasReference(referencer) ||
+            this.isAssetReferencedByDependant(
+              referencer,
+              asset,
+              visitedBundles,
+            ),
         )
       ) {
         isReferenced = true;
@@ -885,19 +889,15 @@ export default class BundleGraph {
     return size;
   }
 
-  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup> {
-    let bundleGroups: Set<BundleGroup> = new Set();
+  getReferencingBundles(bundle: Bundle): Array<Bundle> {
     let bundlesSeen: Set<Bundle> = new Set();
-    let addBundleGroups = (currentBundle: Bundle) => {
+    let referencingBundles: Set<Bundle> = new Set();
+    let addReferencingBundles = (currentBundle: Bundle) => {
       if (bundlesSeen.has(currentBundle)) {
         return;
       }
 
       bundlesSeen.add(currentBundle);
-
-      for (let bundleGroup of this.getDirectParentBundleGroups(currentBundle)) {
-        bundleGroups.add(bundleGroup);
-      }
 
       // Reverse the references.
       // TODO: Remove when sibling bundle names no longer rely on bundle group
@@ -907,14 +907,16 @@ export default class BundleGraph {
         'references',
       )) {
         if (referencingNode.type === 'bundle') {
-          addBundleGroups(referencingNode.value);
+          referencingBundles.add(referencingNode.value);
+          addReferencingBundles(referencingNode.value);
         } else if (referencingNode.type === 'dependency') {
           for (let referencingBundleNode of this._graph.getNodesConnectedTo(
             referencingNode,
             'references',
           )) {
             invariant(referencingBundleNode.type === 'bundle');
-            addBundleGroups(referencingBundleNode.value);
+            referencingBundles.add(referencingBundleNode.value);
+            addReferencingBundles(referencingBundleNode.value);
           }
         } else {
           throw new Error(
@@ -924,37 +926,21 @@ export default class BundleGraph {
       }
     };
 
-    addBundleGroups(bundle);
+    addReferencingBundles(bundle);
 
-    return [...bundleGroups];
+    return [...referencingBundles];
   }
 
-  getBundlesReferencingAsset(asset: Asset): Array<Bundle> {
-    let bundles = new Set();
-    let entryAssetNode = nullthrows(this._graph.getNode(asset.id));
-    for (let referencingDependencyNode of this._graph.getNodesConnectedTo(
-      entryAssetNode,
-      'references',
-    )) {
-      invariant(referencingDependencyNode.type === 'dependency');
-      if (
-        this._graph
-          .getNodesConnectedFrom(referencingDependencyNode)
-          .some(node => node.type === 'bundle_group')
-      ) {
-        continue;
-      }
+  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup> {
+    let bundleGroups: Set<BundleGroup> = new Set();
 
-      for (let referencingBundleNode of this._graph.getNodesConnectedTo(
-        referencingDependencyNode,
-        'references',
-      )) {
-        invariant(referencingBundleNode.type === 'bundle');
-        bundles.add(referencingBundleNode.value);
+    for (let currentBundle of [bundle, ...this.getReferencingBundles(bundle)]) {
+      for (let bundleGroup of this.getDirectParentBundleGroups(currentBundle)) {
+        bundleGroups.add(bundleGroup);
       }
     }
 
-    return [...bundles];
+    return [...bundleGroups];
   }
 
   getDirectParentBundleGroups(bundle: Bundle): Array<BundleGroup> {
