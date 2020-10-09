@@ -44,7 +44,7 @@ export default function createPathRequest(
   +type: string,
 |} {
   return {
-    id: input.id,
+    id: input.id + ':' + input.name,
     type,
     run,
     input,

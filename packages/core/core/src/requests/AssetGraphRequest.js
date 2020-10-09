@@ -75,9 +75,10 @@ export class AssetGraphBuilder {
   changedAssets: Map<string, Asset> = new Map();
   optionsRef: SharedReference;
   api: RunAPI;
+  name: string;
 
   constructor({input, prevResult, api}: RunInput) {
-    let {entries, assetGroups, optionsRef} = input;
+    let {entries, assetGroups, optionsRef, name} = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
     assetGraph.setRootConnections({
       entries,
@@ -86,6 +87,7 @@ export class AssetGraphBuilder {
     this.assetGraph = assetGraph;
     this.optionsRef = optionsRef;
     this.api = api;
+    this.name = name;
     this.assetRequests = [];
 
     this.queue = new PromiseQueue();
@@ -184,7 +186,7 @@ export class AssetGraphBuilder {
   }
 
   async runPathRequest(input: Dependency) {
-    let request = createPathRequest(input);
+    let request = createPathRequest({...input, name: this.name});
     let result = await this.api.runRequest<Dependency, ?AssetGroup>(request);
     this.assetGraph.resolveDependency(input, result, request.id);
   }
@@ -193,6 +195,7 @@ export class AssetGraphBuilder {
     this.assetRequests.push(input);
     let request = createAssetRequest({
       ...input,
+      name: this.name,
       optionsRef: this.optionsRef,
     });
     let assets = await this.api.runRequest<AssetRequestInput, Array<Asset>>(
