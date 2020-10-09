@@ -703,6 +703,19 @@ describe('html', function() {
     ]);
   });
 
+  it('should ignore svgs referencing local symbols via <use xlink:href="#">', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-svg-local-symbol/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+  });
+
   it('should bundle svg files using <image xlink:href=""> correctly', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-image/index.html'),
