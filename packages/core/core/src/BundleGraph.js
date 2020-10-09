@@ -392,10 +392,6 @@ export default class BundleGraph {
       invariant(bundleGroupNode.type === 'bundle_group');
       let bundleGroup = bundleGroupNode.value;
 
-      let index = bundleGroup.bundleIds.indexOf(bundle.id);
-      invariant(index >= 0);
-      bundleGroup.bundleIds.splice(index, 1);
-
       if (
         // If the bundle group's entry asset belongs to this bundle, the group
         // was created because of this bundle. Remove the group.
@@ -1302,7 +1298,6 @@ export default class BundleGraph {
       return;
     }
 
-    bundleGroup.bundleIds.push(bundle.id);
     this._graph.addEdge(bundleGroupId, bundle.id);
     this._graph.addEdge(bundleGroupId, bundle.id, 'bundle');
 

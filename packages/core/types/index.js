@@ -893,9 +893,8 @@ export interface NamedBundle extends Bundle {
  * @section bundler
  */
 export type BundleGroup = {|
-  target: Target,
-  entryAssetId: string,
-  bundleIds: Array<string>,
+  +target: Target,
+  +entryAssetId: string,
 |};
 
 /**
