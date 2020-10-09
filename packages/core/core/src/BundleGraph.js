@@ -985,10 +985,12 @@ export default class BundleGraph {
     let _bundle;
     while ((_bundle = stack.pop())) {
       let bundleNode = nullthrows(this._graph.getNode(_bundle.id));
-      for (let node of this._graph.getNodesConnectedFrom(
-        bundleNode,
-        'references',
-      )) {
+      for (let node of this._graph
+        .getNodesConnectedFrom(bundleNode, 'references')
+        // Shared bundles seem to depend on being used in the opposite order
+        // they were added.
+        // TODO: Should this be the case?
+        .reverse()) {
         if (node.type === 'dependency') {
           let dependency = node.value;
           for (let referencedBundle of this.getBundlesReferencedByDependency(
