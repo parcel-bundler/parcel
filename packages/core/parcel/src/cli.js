@@ -62,7 +62,7 @@ program.version(version);
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
   '--config <path>':
-    'specify which config to use. can be a path or a package name',
+    'specify which config to use. can be a path or a package name', // TODO: pass flag through to API
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-content-hash': 'disable content hashing',

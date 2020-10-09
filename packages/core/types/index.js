@@ -132,8 +132,8 @@ export type PackageTargetDescriptor = {|
   +distDir?: FilePath,
   +sourceMap?: boolean | TargetSourceMapOptions,
   +isLibrary?: boolean,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
+  +minify?: boolean, // shouldOptimize
+  +scopeHoist?: boolean, // shouldScopeHoist
 |};
 
 /**
@@ -182,8 +182,9 @@ export type VersionMap = {
 /**
  * Defines the environment in for the output bundle
  */
+// TODO: some of these should not affect cache key/id of asset depending on transformer
 export interface Environment {
-  +context: EnvironmentContext;
+  +context: EnvironmentContext; // contexts?: Set<EnvironmentContext>
   +engines: Engines;
   /** Whether to include all/none packages \
    *  (<code>true / false</code>), an array of package names to include, or an object \
@@ -197,9 +198,9 @@ export interface Environment {
   /** Whether this is a library build (e.g. less loaders) */
   +isLibrary: boolean;
   /** Whether the output should be minified. */
-  +minify: boolean;
+  +minify: boolean; // shouldMinify
   /** Whether scope hoisting is enabled. */
-  +scopeHoist: boolean;
+  +scopeHoist: boolean; // shouldScopeHoist
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -248,37 +249,53 @@ export type BuildMode = 'development' | 'production' | string;
 
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
-  +entryRoot?: FilePath,
-  +config?: ModuleSpecifier,
+  +entryRoot?: FilePath, // TODO: remove. Replace with projectRoot.
+  +config?: ModuleSpecifier, // TODO: remove??
   +defaultConfig?: ModuleSpecifier,
+  /** Variables to set on process.env. */
   +env?: EnvMap,
+  /**
+   * Array of strings: a filter of targets from package.json version
+   * Object: override the target objects.
+   * TODO: fix cache: https://github.com/parcel-bundler/parcel/issues/3694
+   * TODO: possibly remove object form for now until a usecase arises.
+   */
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
-  +disableCache?: boolean,
+  +disableCache?: boolean, // shouldDisableCache
   +cacheDir?: FilePath,
-  +killWorkers?: boolean,
+  +killWorkers?: boolean, // TODO: remove
   +mode?: BuildMode,
-  +minify?: boolean,
-  +scopeHoist?: boolean,
-  +sourceMaps?: boolean,
-  +publicUrl?: string,
-  +distDir?: FilePath,
-  +hot?: ?HMROptions,
-  +contentHash?: boolean,
-  +serve?: InitialServerOptions | false,
-  +autoinstall?: boolean,
+  // +minify?: boolean, // rename - shouldOptimize
+  // +scopeHoist?: boolean, // shouldScopeHoist
+  // +sourceMaps?: boolean | TargetSourceMapOptions, // TODO: change this to not override the targets. Should be a default.
+  // +publicUrl?: string,
+  +defaultTargetOptions?: {|
+    +shouldOptimize?: boolean,
+    +shouldScopeHoist?: boolean,
+    +sourceMaps?: boolean | TargetSourceMapOptions,
+    +publicUrl?: string,
+    +distDir?: FilePath,
+    +engines?: Engines,
+  |},
+  +hot?: HMROptions | false, // rename - hmrOptions
+  +contentHash?: boolean, // rename - shouldContentHash
+  +serve?: InitialServerOptions | false, // rename - serveOptions
+  +autoinstall?: boolean, // rename - shouldAutoInstall
   +logLevel?: LogLevel,
-  +profile?: boolean,
-  +patchConsole?: boolean,
+  +profile?: boolean, // rename - shouldProfile
+  +patchConsole?: boolean, // rename - shouldPatchConsole
 
   +inputFS?: FileSystem,
   +outputFS?: FileSystem,
   +workerFarm?: WorkerFarm,
   +packageManager?: PackageManager,
-  +defaultEngines?: Engines,
-  +detailedReport?: number | boolean,
+  // +defaultEngines?: Engines,
+  // +detailedReport?: number | boolean,
+  +detailedReport?: boolean | {|
+    assetsPerBundle?: number
+  |}
 
-  // contentHash
   // throwErrors
   // global?
 |};
@@ -290,6 +307,7 @@ export type InitialServerOptions = {|
   +https?: HTTPSOptions | boolean,
 |};
 
+// Rename to match initial parcel options above
 export interface PluginOptions {
   +mode: BuildMode;
   +sourceMaps: boolean;
@@ -367,17 +385,39 @@ export interface MutableSymbols extends Symbols {
  */
 export type DependencyOptions = {|
   +moduleSpecifier: ModuleSpecifier,
+  /** Creates a new bundle in a new bundle group. Also resolves to a promise in JS. */
   +isAsync?: boolean,
-  /** Is merged with the environment of the importer */
+  /** Needs a predicatable url - ie not content hashed */
   +isEntry?: boolean,
+  /** Doesn't throw if resolution fails? */
   +isOptional?: boolean,
+  /** Whether the specifier should be treated as a url */
   +isURL?: boolean,
+  /** Removed by symbol propagation */
   +isWeak?: ?boolean,
+  /** Creates a new bundle in the same bundle group as the the parent. */
   +isIsolated?: boolean,
+
+  /**
+   * sync - resolvable synchronously. same bundle or another bundle already on the page.
+   * parallel (isIsolated) - a separate bundle that's loaded together with this bundle.
+   * lazy (isAsync) - a separate bundle that's loaded later.
+   */
+  +priority?: 'sync' | 'parallel' | 'lazy',
+
+  +needsStableName?: boolean,
+
+  // Replaces isURL
+  // commonjs
+  // esm - url but bare specifiers treated as node_modules
+  // url - like a browser. bare specifiers are relative urls.
+  // custom - you must have a resolver that can handle this?
+  +specifierType?: 'commonjs' | 'esm' | 'url' | 'custom',
+
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
-  +target?: Target,
+  +target?: Target, // TODO: remove?
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
 |};
 
@@ -437,17 +477,18 @@ export type ASTGenerator = {|
  * @section transformer
  */
 export interface BaseAsset {
-  +env: Environment;
+  +env: Environment; // TODO: maybe remove this and only pass it to loadConfig
   /** The file system where the source is located. */
   +fs: FileSystem;
   +filePath: FilePath;
   +query: QueryParameters;
   +id: string;
   +meta: Meta;
-  +isIsolated: boolean;
+  // +isIsolated: boolean;
   /** Whether this asset will/should later be inserted back into the importer. */
-  +isInline: boolean;
-  +isSplittable: ?boolean;
+  // +isInline: boolean;
+  +bundleBehavior: null | 'isolated' | 'inline'; // TODO: possibly rename?
+  +isBundleSplittable: ?boolean;
   /** Whether this is asset is part of the users project (and not of an external dependencies) and should be transpiled. */
   +isSource: boolean;
   /** Usually corresponds to the file extension */
@@ -458,7 +499,7 @@ export interface BaseAsset {
    * Inline assets inheirit the parent's <code>id</code>, making it not be enough for a unique identification
    * (this could be a counter that is unique per asset)
    */
-  +uniqueKey: ?string;
+  +uniqueKey: ?string; // TODO: remove after we get rid of returning multiple assets from transformer and use dependencies instead.
   /** The type of the AST. */
   +astGenerator: ?ASTGenerator;
   +pipeline: ?string;
@@ -467,7 +508,7 @@ export interface BaseAsset {
   +symbols: Symbols;
 
   /** Returns to current AST. See notes in subclasses (Asset, MutableAsset).*/
-  getAST(): Promise<?AST>;
+  getAST(): Promise<?AST>; // TODO: make it not throw?
   /** Returns to current source code. See notes in MutableAsset. */
   getCode(): Promise<string>;
   /** Returns the contents as a buffer. */
@@ -482,7 +523,7 @@ export interface BaseAsset {
   /** Used to load config files, (looks in every parent folder until a module root) \
    * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
    */
-  getConfig(
+  getConfig( // TODO: remove
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
@@ -490,7 +531,7 @@ export interface BaseAsset {
     |},
   ): Promise<ConfigResult | null>;
   /** Returns the package.json this file belongs to. */
-  getPackage(): Promise<PackageJSON | null>;
+  getPackage(): Promise<PackageJSON | null>; // TODO: Remove
 }
 
 /**
@@ -498,15 +539,19 @@ export interface BaseAsset {
  * @section transformer
  */
 export interface MutableAsset extends BaseAsset {
-  isIsolated: boolean;
-  isInline: boolean;
-  isSplittable: ?boolean;
+  // isIsolated: boolean;
+  // isInline: boolean;
+  // isSplittable: ?boolean;
+  bundleBehavior: null | 'isolated' | 'inline'; // TODO: possibly rename?
+  isBundleSplittable: ?boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  addIncludedFile(filePath: FilePath): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  addIncludedFile(filePath: FilePath): void; // TODO: rename - invalidateOnFileChange
   invalidateOnEnvChange(env: string): void;
+  invalidateOnOptionChange(option: string): void;
+  invalidateOnStartup(): void; // Maybe only in config??
 
   +symbols: MutableSymbols;
 
@@ -518,7 +563,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOpts): void;
+  setEnvironment(opts: EnvironmentOpts): void; // TODO: replace with something else?!
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
