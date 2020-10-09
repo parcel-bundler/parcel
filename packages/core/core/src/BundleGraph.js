@@ -887,11 +887,14 @@ export default class BundleGraph {
 
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup> {
     let bundleGroups: Set<BundleGroup> = new Set();
+    let bundlesSeen: Set<Bundle> = new Set();
+    let addBundleGroups = (currentBundle: Bundle) => {
+      if (bundlesSeen.has(currentBundle)) {
+        return;
+      }
 
-    let bundlesSeen: Set<Bundle> = new Set([bundle]);
-    let stack = [bundle];
-    let currentBundle;
-    while ((currentBundle = stack.pop())) {
+      bundlesSeen.add(currentBundle);
+
       for (let bundleGroup of this.getDirectParentBundleGroups(currentBundle)) {
         bundleGroups.add(bundleGroup);
       }
@@ -899,29 +902,19 @@ export default class BundleGraph {
       // Reverse the references.
       // TODO: Remove when sibling bundle names no longer rely on bundle group
       // order. Mostly for compatibility with existing tests.
-      for (let referencingNode of this._graph
-        .getNodesConnectedTo(
-          nullthrows(this._graph.getNode(bundle.id)),
-          'references',
-        )
-        .reverse()) {
+      for (let referencingNode of this._graph.getNodesConnectedTo(
+        nullthrows(this._graph.getNode(bundle.id)),
+        'references',
+      )) {
         if (referencingNode.type === 'bundle') {
-          let referencingBundle = referencingNode.value;
-          if (!bundlesSeen.has(referencingBundle)) {
-            stack.push(referencingBundle);
-            bundlesSeen.add(referencingBundle);
-          }
+          addBundleGroups(referencingNode.value);
         } else if (referencingNode.type === 'dependency') {
           for (let referencingBundleNode of this._graph.getNodesConnectedTo(
             referencingNode,
             'references',
           )) {
             invariant(referencingBundleNode.type === 'bundle');
-            let referencingBundle = referencingBundleNode.value;
-            if (!bundlesSeen.has(referencingBundle)) {
-              stack.push(referencingBundle);
-              bundlesSeen.add(referencingBundle);
-            }
+            addBundleGroups(referencingBundleNode.value);
           }
         } else {
           throw new Error(
@@ -929,7 +922,9 @@ export default class BundleGraph {
           );
         }
       }
-    }
+    };
+
+    addBundleGroups(bundle);
 
     return [...bundleGroups];
   }
@@ -998,7 +993,7 @@ export default class BundleGraph {
     opts?: {|recursive: boolean|},
   ): Array<Bundle> {
     let recursive = opts?.recursive ?? true;
-    let siblings = new Set();
+    let referencedBundles = new Set();
     let stack = [bundle];
 
     let _bundle;
@@ -1021,8 +1016,8 @@ export default class BundleGraph {
               continue;
             }
 
-            if (!siblings.has(referencedBundle)) {
-              siblings.add(referencedBundle);
+            if (!referencedBundles.has(referencedBundle)) {
+              referencedBundles.add(referencedBundle);
               if (recursive) {
                 stack.push(referencedBundle);
               }
@@ -1030,8 +1025,8 @@ export default class BundleGraph {
           }
         } else if (node.type === 'bundle') {
           let referencedBundle = node.value;
-          if (!siblings.has(referencedBundle)) {
-            siblings.add(referencedBundle);
+          if (!referencedBundles.has(referencedBundle)) {
+            referencedBundles.add(referencedBundle);
             if (recursive) {
               stack.push(referencedBundle);
             }
@@ -1042,7 +1037,7 @@ export default class BundleGraph {
       }
     }
 
-    return [...siblings];
+    return [...referencedBundles];
   }
 
   getIncomingDependencies(asset: Asset): Array<Dependency> {
