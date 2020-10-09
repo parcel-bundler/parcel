@@ -97,14 +97,6 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
-  getSiblingBundles(bundle: IBundle): Array<TBundle> {
-    return this.#graph
-      .getSiblingBundles(bundleToInternalBundle(bundle))
-      .map(bundle =>
-        this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      );
-  }
-
   getReferencedBundles(
     bundle: IBundle,
     recursive?: boolean = false,

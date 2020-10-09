@@ -1425,14 +1425,14 @@ describe('html', function() {
     ]);
 
     let htmlBundle = b.getBundles().find(b => b.type === 'html');
-    let htmlSiblings = b.getSiblingBundles(htmlBundle);
+    let htmlSiblings = b.getReferencedBundles(htmlBundle, true);
     assert.equal(htmlSiblings.length, 2);
     assert(htmlSiblings.some(b => b.type === 'js'));
     assert(htmlSiblings.some(b => b.type === 'css'));
 
     let worker = b.getChildBundles(htmlSiblings.find(b => b.type === 'js'));
     assert.equal(worker.length, 1);
-    let workerSiblings = b.getSiblingBundles(worker[0]);
+    let workerSiblings = b.getReferencedBundles(worker[0], true);
     assert.equal(workerSiblings.length, 0);
   });
 
@@ -1474,7 +1474,7 @@ describe('html', function() {
 
     for (let htmlBundle of b.getBundles().filter(b => b.type === 'html')) {
       let htmlSiblings = b
-        .getSiblingBundles(htmlBundle)
+        .getReferencedBundles(htmlBundle, true)
         .map(b => b.type)
         .sort();
       assert.deepEqual(htmlSiblings, ['css', 'js']);

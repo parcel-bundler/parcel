@@ -941,8 +941,6 @@ export interface BundleGraph<TBundle: Bundle> {
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
   getChildBundles(bundle: Bundle): Array<TBundle>;
   getParentBundles(bundle: Bundle): Array<TBundle>;
-  /** See BundleGroup */
-  getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
   getReferencedBundles(bundle: Bundle, recursive?: boolean): Array<TBundle>;
   /** Get the dependencies that require the asset */
