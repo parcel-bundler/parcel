@@ -886,43 +886,18 @@ export default class BundleGraph {
   }
 
   getReferencingBundles(bundle: Bundle): Array<Bundle> {
-    let bundlesSeen: Set<Bundle> = new Set();
     let referencingBundles: Set<Bundle> = new Set();
-    let addReferencingBundles = (currentBundle: Bundle) => {
-      if (bundlesSeen.has(currentBundle)) {
-        return;
-      }
 
-      bundlesSeen.add(currentBundle);
-
-      // Reverse the references.
-      // TODO: Remove when sibling bundle names no longer rely on bundle group
-      // order. Mostly for compatibility with existing tests.
-      for (let referencingNode of this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(bundle.id)),
-        'references',
-      )) {
-        if (referencingNode.type === 'bundle') {
-          referencingBundles.add(referencingNode.value);
-          addReferencingBundles(referencingNode.value);
-        } else if (referencingNode.type === 'dependency') {
-          for (let referencingBundleNode of this._graph.getNodesConnectedTo(
-            referencingNode,
-            'references',
-          )) {
-            invariant(referencingBundleNode.type === 'bundle');
-            referencingBundles.add(referencingBundleNode.value);
-            addReferencingBundles(referencingBundleNode.value);
-          }
-        } else {
-          throw new Error(
-            'Unexpected referencing node of type ' + referencingNode.type,
-          );
+    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
+    this._graph.traverseAncestors(
+      bundleNode,
+      node => {
+        if (node.type === 'bundle' && node.value.id !== bundle.id) {
+          referencingBundles.add(node.value);
         }
-      }
-    };
-
-    addReferencingBundles(bundle);
+      },
+      'references',
+    );
 
     return [...referencingBundles];
   }
