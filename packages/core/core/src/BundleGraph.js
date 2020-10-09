@@ -40,7 +40,7 @@ type BundleGraphEdgeTypes =
   | 'bundle'
   // When dependency -> asset: Indicates that the asset a dependency references
   //                           is contained in another bundle.
-  // Whe dependency -> bundle: Indicates the bundle is necessary for any bundles
+  // When dependency -> bundle: Indicates the bundle is necessary for any bundles
   //                           with the dependency.
   // When bundle -> bundle:    Indicates the target bundle is necessary for the
   //                           source bundle.
@@ -976,50 +976,29 @@ export default class BundleGraph {
   ): Array<Bundle> {
     let recursive = opts?.recursive ?? true;
     let referencedBundles = new Set();
-    let stack = [bundle];
+    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
+    this._graph.dfs({
+      visit: (node, _, actions) => {
+        if (node.type !== 'bundle') {
+          return;
+        }
 
-    let _bundle;
-    while ((_bundle = stack.pop())) {
-      let bundleNode = nullthrows(this._graph.getNode(_bundle.id));
-      for (let node of this._graph
-        .getNodesConnectedFrom(bundleNode, 'references')
+        if (node.value.id === bundle.id) {
+          return;
+        }
+
+        referencedBundles.add(node.value);
+        if (!recursive) {
+          actions.skipChildren();
+        }
+      },
+      startNode: bundleNode,
+      getChildren: node =>
         // Shared bundles seem to depend on being used in the opposite order
         // they were added.
         // TODO: Should this be the case?
-        .reverse()) {
-        if (node.type === 'dependency') {
-          let dependency = node.value;
-          for (let referencedBundle of this.getBundlesReferencedByDependency(
-            dependency,
-          )) {
-            if (
-              this._graph
-                .getNodesConnectedFrom(node)
-                .some(node => node.type === 'bundle_group')
-            ) {
-              continue;
-            }
-
-            if (!referencedBundles.has(referencedBundle)) {
-              referencedBundles.add(referencedBundle);
-              if (recursive) {
-                stack.push(referencedBundle);
-              }
-            }
-          }
-        } else if (node.type === 'bundle') {
-          let referencedBundle = node.value;
-          if (!referencedBundles.has(referencedBundle)) {
-            referencedBundles.add(referencedBundle);
-            if (recursive) {
-              stack.push(referencedBundle);
-            }
-          }
-        } else {
-          throw new Error('Unexpected reference node of type ' + node.type);
-        }
-      }
-    }
+        this._graph.getNodesConnectedFrom(node, 'references').reverse(),
+    });
 
     return [...referencedBundles];
   }
@@ -1277,18 +1256,6 @@ export default class BundleGraph {
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
-  }
-
-  getBundlesReferencedByDependency(dependency: Dependency): Array<Bundle> {
-    let dependencyNode = nullthrows(this._graph.getNode(dependency.id));
-    return this._graph
-      .getNodesConnectedFrom(dependencyNode, 'references')
-      .map(node => {
-        if (node.type === 'bundle') {
-          return node.value;
-        }
-      })
-      .filter(Boolean);
   }
 
   addBundleToBundleGroup(bundle: Bundle, bundleGroup: BundleGroup) {
