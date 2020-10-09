@@ -1266,13 +1266,13 @@ describe('html', function() {
 
     // Both HTML files should point to the sibling CSS file
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
-    assert(/<link rel="stylesheet" href="\/c\.[a-z0-9]+\.css">/.test(html));
+    assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
 
     html = await outputFS.readFile(path.join(distDir, 'b.html'), 'utf8');
-    assert(/<link rel="stylesheet" href="\/c\.[a-z0-9]+\.css">/.test(html));
+    assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
 
     html = await outputFS.readFile(path.join(distDir, 'c.html'), 'utf8');
-    assert(/<link rel="stylesheet" href="\/c\.[a-z0-9]+\.css">/.test(html));
+    assert(/<link rel="stylesheet" href="\/a\.[a-z0-9]+\.css">/.test(html));
   });
 
   it('should insert JS sibling bundle script tags in the correct order', async function() {
@@ -1530,13 +1530,9 @@ describe('html', function() {
       }
     };
 
-    checkHtml('a.html');
-    checkHtml('b.html');
-    checkHtml('c.html');
-    checkHtml('d.html');
-    checkHtml('e.html');
-    checkHtml('f.html');
-    checkHtml('g.html');
+    for (let letter of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+      await checkHtml(letter + '.html');
+    }
   });
 
   it('should include the correct paths when using multiple entries and referencing style from html and js', async function() {

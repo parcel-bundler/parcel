@@ -853,22 +853,8 @@ export default class BundleGraph {
     visit: GraphVisitor<Bundle, TContext>,
     startBundle: ?Bundle,
   ): ?TContext {
-    let seen: Set<Bundle> = new Set();
     return this._graph.filteredTraverse(
-      node => {
-        if (node.type === 'asset') {
-          let bundle = this.getBundleWithAssetAsEntry(node.value);
-          if (bundle != null && !seen.has(bundle)) {
-            seen.add(bundle);
-            return bundle;
-          }
-          return null;
-        } else if (node.type === 'bundle' && !seen.has(node.value)) {
-          seen.add(node.value);
-          return node.value;
-        }
-        return null;
-      },
+      node => (node.type === 'bundle' ? node.value : null),
       visit,
       startBundle ? nullthrows(this._graph.getNode(startBundle.id)) : null,
       ['bundle', 'references'],
@@ -910,10 +896,15 @@ export default class BundleGraph {
         bundleGroups.add(bundleGroup);
       }
 
-      for (let referencingNode of this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(bundle.id)),
-        'references',
-      )) {
+      // Reverse the references.
+      // TODO: Remove when sibling bundle names no longer rely on bundle group
+      // order. Mostly for compatibility with existing tests.
+      for (let referencingNode of this._graph
+        .getNodesConnectedTo(
+          nullthrows(this._graph.getNode(bundle.id)),
+          'references',
+        )
+        .reverse()) {
         if (referencingNode.type === 'bundle') {
           let referencingBundle = referencingNode.value;
           if (!bundlesSeen.has(referencingBundle)) {
@@ -1065,21 +1056,6 @@ export default class BundleGraph {
         invariant(node.type === 'dependency');
         return node.value;
       });
-  }
-
-  getBundleWithAssetAsEntry(asset: Asset): ?Bundle {
-    let assetNode = nullthrows(this._graph.getNode(asset.id));
-    let bundleNode = this._graph
-      .getNodesConnectedTo(assetNode)
-      .find(
-        node =>
-          node.type === 'bundle' && node.value.entryAssetIds.includes(asset.id),
-      );
-
-    if (bundleNode != null) {
-      invariant(bundleNode.type === 'bundle');
-      return bundleNode.value;
-    }
   }
 
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
