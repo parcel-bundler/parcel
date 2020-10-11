@@ -75,7 +75,9 @@ class EntryResolver {
         absolute: true,
         onlyFiles: false,
       });
-      let results = await Promise.all(files.map(f => this.resolveEntry(f)));
+      let results = await Promise.all(
+        files.map(f => this.resolveEntry(path.normalize(f)))
+      );
       return results.reduce(
         (p, res) => ({
           entries: p.entries.concat(res.entries),
