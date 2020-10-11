@@ -167,8 +167,10 @@ export function getURLReplacement({
       ),
     );
   } else {
-    let pathname = URL.format(URL.parse(nullthrows(toBundle.name)));
-    to = urlJoin(toBundle.target.publicUrl, pathname);
+    to = urlJoin(
+      toBundle.target.publicUrl,
+      URL.format(URL.parse(nullthrows(toBundle.name))),
+    );
   }
 
   return {
