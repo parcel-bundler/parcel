@@ -50,8 +50,9 @@ describe('image', function() {
         );
       };
     }
+
     it('from JS', testCase('js'));
-    it.skip('from HTML', testCase('html'));
+    it('from HTML', testCase('html'));
     it('from CSS', testCase('css'));
   });
 });
