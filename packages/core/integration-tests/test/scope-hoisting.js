@@ -329,6 +329,18 @@ describe('scope hoisting', function() {
       });
     });
 
+    it('has the correct order with namespace re-exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-namespace-order/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, Symbol.for('abc'));
+    });
+
     it('excludes default when re-exporting a module', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
