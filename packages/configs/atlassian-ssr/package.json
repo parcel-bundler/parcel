@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-atlassian-ssr",
-  "version": "2.0.0-frontbucket.37",
+  "version": "2.0.0-frontbucket.39",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -14,8 +14,8 @@
     "test-ci": "mocha"
   },
   "dependencies": {
-    "@atlassian/parcel-reporter-analytics": "^2.0.0-frontbucket.42",
-    "@parcel/config-default": "^2.0.0-frontbucket.46",
+    "@atlassian/parcel-reporter-analytics": "^2.0.0-frontbucket.44",
+    "@parcel/config-default": "^2.0.0-frontbucket.48",
     "@parcel/reporter-bundle-analyzer": "^2.0.0-frontbucket.21",
     "@parcel/reporter-cli": "^2.0.0-frontbucket.33",
     "@parcel/reporter-dev-server": "^2.0.0-frontbucket.33",
