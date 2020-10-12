@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-frontbucket.48",
+  "version": "2.0.0-frontbucket.49",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,20 +21,20 @@
     "node": ">= 10.0.0"
   },
   "dependencies": {
-    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.29",
-    "@parcel/config-default": "^2.0.0-frontbucket.48",
-    "@parcel/core": "^2.0.0-frontbucket.36",
-    "@parcel/diagnostic": "^2.0.0-frontbucket.15",
-    "@parcel/fs": "^2.0.0-frontbucket.27",
-    "@parcel/logger": "^2.0.0-frontbucket.17",
-    "@parcel/package-manager": "^2.0.0-frontbucket.27",
-    "@parcel/utils": "^2.0.0-frontbucket.26",
+    "@atlassian/internal-parcel-utils": "^2.0.0-frontbucket.30",
+    "@parcel/config-default": "^2.0.0-frontbucket.49",
+    "@parcel/core": "^2.0.0-frontbucket.37",
+    "@parcel/diagnostic": "^2.0.0-frontbucket.16",
+    "@parcel/fs": "^2.0.0-frontbucket.28",
+    "@parcel/logger": "^2.0.0-frontbucket.18",
+    "@parcel/package-manager": "^2.0.0-frontbucket.28",
+    "@parcel/utils": "^2.0.0-frontbucket.27",
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0-frontbucket.14"
+    "@parcel/babel-register": "^2.0.0-frontbucket.15"
   }
 }

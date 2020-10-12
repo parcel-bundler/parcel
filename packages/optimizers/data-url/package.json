@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-data-url",
-  "version": "2.0.0-frontbucket.32",
+  "version": "2.0.0-frontbucket.33",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -19,8 +19,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.30",
-    "@parcel/utils": "^2.0.0-frontbucket.26",
+    "@parcel/plugin": "^2.0.0-frontbucket.31",
+    "@parcel/utils": "^2.0.0-frontbucket.27",
     "isbinaryfile": "^4.0.2",
     "mime": "^2.4.4"
   }

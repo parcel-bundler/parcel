@@ -1,6 +1,6 @@
 {
   "name": "@parcel/reporter-dev-server",
-  "version": "2.0.0-frontbucket.33",
+  "version": "2.0.0-frontbucket.34",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,8 +21,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-frontbucket.30",
-    "@parcel/utils": "^2.0.0-frontbucket.26",
+    "@parcel/plugin": "^2.0.0-frontbucket.31",
+    "@parcel/utils": "^2.0.0-frontbucket.27",
     "connect": "^3.7.0",
     "ejs": "^2.6.1",
     "http-proxy-middleware": "^0.19.1",
@@ -31,7 +31,7 @@
     "ws": "^6.2.0"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "^2.0.0-frontbucket.13",
-    "@parcel/types": "^2.0.0-frontbucket.30"
+    "@parcel/babel-preset": "^2.0.0-frontbucket.14",
+    "@parcel/types": "^2.0.0-frontbucket.31"
   }
 }
