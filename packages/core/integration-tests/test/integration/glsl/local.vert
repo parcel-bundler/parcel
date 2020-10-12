@@ -1,6 +1,6 @@
 #version 300 es
 
-#pragma glslify: test = require('~/lib')
+#pragma glslify: test = require('./lib.glsl')
 
 precision mediump float;
 

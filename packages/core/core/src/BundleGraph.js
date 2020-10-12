@@ -19,6 +19,7 @@ import type {
 } from './types';
 import type AssetGraph from './AssetGraph';
 
+import assert from 'assert';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
@@ -312,7 +313,11 @@ export default class BundleGraph {
       }
 
       if (node.type === 'asset' || node.type === 'dependency') {
-        if (this._graph.hasEdge(bundle.id, node.id, 'contains')) {
+        if (
+          this._graph.hasEdge(bundle.id, node.id, 'contains') &&
+          (node.type !== 'asset' ||
+            this.isAssetReachableFromBundle(node.value, bundle))
+        ) {
           this._graph.removeEdge(
             bundle.id,
             node.id,
@@ -344,26 +349,69 @@ export default class BundleGraph {
     // Remove bundle node if it no longer has any entry assets
     let bundleNode = nullthrows(this._graph.getNode(bundle.id));
     if (this._graph.getNodesConnectedFrom(bundleNode).length === 0) {
-      let bundleGroupNodes = this._graph.getNodesConnectedTo(
-        bundleNode,
-        'bundle',
-      );
-      this._graph.removeNode(bundleNode);
+      this.removeBundle(bundle);
+    }
 
-      // Remove bundle group node if it no longer has any bundles
-      for (let bundleGroupNode of bundleGroupNodes) {
-        invariant(bundleGroupNode.type === 'bundle_group');
-        if (this._graph.getNodesConnectedTo(bundleGroupNode).length === 0) {
-          this._graph.removeNode(bundleGroupNode);
-        } else {
-          let index = bundleGroupNode.value.bundleIds.indexOf(bundle.id);
-          invariant(index >= 0);
-          bundleGroupNode.value.bundleIds.splice(index, 1);
-        }
+    this._bundleContentHashes.delete(bundle.id);
+  }
+
+  removeBundle(bundle: Bundle) {
+    // Remove bundle node if it no longer has any entry assets
+    let bundleNode = nullthrows(this._graph.getNode(bundle.id));
+
+    let bundleGroupNodes = this._graph.getNodesConnectedTo(
+      bundleNode,
+      'bundle',
+    );
+    this._graph.removeNode(bundleNode);
+
+    // Remove bundle group node if it no longer has any bundles
+    for (let bundleGroupNode of bundleGroupNodes) {
+      invariant(bundleGroupNode.type === 'bundle_group');
+      let bundleGroup = bundleGroupNode.value;
+
+      let index = bundleGroup.bundleIds.indexOf(bundle.id);
+      invariant(index >= 0);
+      bundleGroup.bundleIds.splice(index, 1);
+
+      if (
+        // If the bundle group's entry asset belongs to this bundle, the group
+        // was created because of this bundle. Remove the group.
+        bundle.entryAssetIds.includes(bundleGroup.entryAssetId) ||
+        // If the bundle group is now empty, remove it.
+        this.getBundlesInBundleGroup(bundleGroup).length === 0
+      ) {
+        this.removeBundleGroup(bundleGroup);
       }
     }
 
     this._bundleContentHashes.delete(bundle.id);
+  }
+
+  removeBundleGroup(bundleGroup: BundleGroup) {
+    let bundleGroupNode = nullthrows(
+      this._graph.getNode(getBundleGroupId(bundleGroup)),
+    );
+    invariant(bundleGroupNode.type === 'bundle_group');
+
+    let bundlesInGroup = this.getBundlesInBundleGroup(bundleGroupNode.value);
+    for (let bundle of bundlesInGroup) {
+      if (this.getBundleGroupsContainingBundle(bundle).length === 1) {
+        this.removeBundle(bundle);
+      }
+    }
+
+    // This function can be reentered through removeBundle above. In this case,
+    // the node may already been removed.
+    if (this._graph.hasNode(bundleGroupNode.id)) {
+      this._graph.removeNode(bundleGroupNode);
+    }
+
+    assert(
+      bundlesInGroup.every(
+        bundle => this.getBundleGroupsContainingBundle(bundle).length > 0,
+      ),
+    );
   }
 
   removeExternalDependency(bundle: Bundle, dependency: Dependency) {
@@ -1085,6 +1133,7 @@ export default class BundleGraph {
 
   getHash(bundle: Bundle): string {
     let hash = crypto.createHash('md5');
+    hash.update(bundle.id);
 
     let seen = new Set();
     let addReferencedBundles = bundle => {

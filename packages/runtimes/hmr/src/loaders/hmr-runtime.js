@@ -24,13 +24,22 @@ function Module(moduleName) {
 module.bundle.Module = Module;
 var checkedAssets, assetsToAccept, acceptedAssets;
 
+function getHostname() {
+  return (
+    HMR_HOST ||
+    (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost')
+  );
+}
+
+function getPort() {
+  return HMR_PORT || location.port;
+}
+
 // eslint-disable-next-line no-redeclare
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname =
-    HMR_HOST ||
-    (location.protocol.indexOf('http') === 0 ? location.hostname : 'localhost');
-  var port = HMR_PORT || location.port;
+  var hostname = getHostname();
+  var port = getPort();
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
@@ -198,9 +207,17 @@ function reloadCSS() {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       var href = links[i].getAttribute('href');
+      var hostname = getHostname();
+      var servedFromHMRServer =
+        hostname === 'localhost'
+          ? new RegExp(
+              '^(https?:\\/\\/(0.0.0.0|127.0.0.1)|localhost):' + getPort(),
+            ).test(href)
+          : href.indexOf(hostname + ':' + getPort());
       var absolute =
         /^https?:\/\//i.test(href) &&
-        href.indexOf(window.location.origin) !== 0;
+        href.indexOf(window.location.origin) !== 0 &&
+        !servedFromHMRServer;
       if (!absolute) {
         updateLink(links[i]);
       }

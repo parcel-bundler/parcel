@@ -1,18 +1,13 @@
 import assert from 'assert';
 import path from 'path';
-import {
-  bundler,
-  getNextBuild,
-  inputFS,
-  defaultConfig,
-} from '@parcel/test-utils';
+import {bundler, getNextBuild, inputFS} from '@parcel/test-utils';
 import http from 'http';
 import getPort from 'get-port';
 
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
 function apiServer() {
   const server = http
@@ -73,6 +68,32 @@ describe('proxy', function() {
 
   it('should handle proxy table written in .proxyrc', async function() {
     let dir = path.join(__dirname, 'integration/proxyrc');
+    inputFS.chdir(dir);
+
+    let port = await getPort();
+    let b = bundler(path.join(dir, 'index.js'), {
+      config,
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost',
+      },
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    server = apiServer();
+
+    let data = await get('/index.js', port);
+    assert.notEqual(data, 'Request URL: /index.js');
+
+    data = await get('/api/get', port);
+    assert.equal(data, 'Request URL: /api/get');
+  });
+
+  it('should handle proxy table written in .proxyrc.json', async function() {
+    let dir = path.join(__dirname, 'integration/proxyrc-json');
     inputFS.chdir(dir);
 
     let port = await getPort();

@@ -51,7 +51,7 @@ export default (new Packager({
 
     let outputs = await queue.run();
     let contents = '';
-    let map = new SourceMap();
+    let map = new SourceMap(options.projectRoot);
     let lineOffset = 0;
     for (let [asset, code, mapBuffer] of outputs) {
       contents += code + '\n';

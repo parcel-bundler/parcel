@@ -167,16 +167,18 @@ function createDiagnostic(err, filePath) {
   };
   if (err.loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: {
-          line: err.loc.start.line + err.loc.start.offset,
-          column: err.loc.start.column,
+      codeHighlights: [
+        {
+          start: {
+            line: err.loc.start.line + err.loc.start.offset,
+            column: err.loc.start.column,
+          },
+          end: {
+            line: err.loc.end.line + err.loc.end.offset,
+            column: err.loc.end.column,
+          },
         },
-        end: {
-          line: err.loc.end.line + err.loc.end.offset,
-          column: err.loc.end.column,
-        },
-      },
+      ],
     };
   }
   return diagnostic;
@@ -266,7 +268,9 @@ async function processPipeline({
         type: 'js',
         uniqueKey: asset.id + '-template',
         ...(!template.src &&
-          options.sourceMaps && {map: createMap(templateComp.map)}),
+          options.sourceMaps && {
+            map: createMap(templateComp.map, options.projectRoot),
+          }),
         content:
           templateComp.code +
           `
@@ -318,7 +322,10 @@ ${
         type,
         uniqueKey: asset.id + '-script',
         content: script.content,
-        ...(!script.src && options.sourceMaps && {map: createMap(script.map)}),
+        ...(!script.src &&
+          options.sourceMaps && {
+            map: createMap(script.map, options.projectRoot),
+          }),
       };
 
       return [scriptAsset];
@@ -389,7 +396,9 @@ ${
             content: styleComp.code,
             sideEffects: !style.module,
             ...(!style.src &&
-              options.sourceMaps && {map: createMap(style.map)}),
+              options.sourceMaps && {
+                map: createMap(style.map, options.projectRoot),
+              }),
             uniqueKey: asset.id + '-style' + i,
           };
           if (styleComp.modules) {
@@ -486,8 +495,8 @@ export default script => {
   }
 }
 
-function createMap(...params) {
-  let newMap = new SourceMap();
-  newMap.addRawMappings(...params);
+function createMap(rawMap, projectRoot: string) {
+  let newMap = new SourceMap(projectRoot);
+  newMap.addRawMappings(rawMap);
   return newMap;
 }

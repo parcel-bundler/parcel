@@ -66,7 +66,7 @@ export async function generate({
   let map = null;
   let originalSourceMap = await asset.getMap();
   if (generated.rawMappings) {
-    map = new SourceMap();
+    map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(generated.rawMappings);
     if (originalSourceMap) {
       map.extends(originalSourceMap.toBuffer());
