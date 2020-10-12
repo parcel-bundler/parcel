@@ -87,13 +87,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.workerFarm = workerFarm;
     this.assetRequests = [];
 
-    // TODO: changing these should not throw away the entire graph.
-    // We just need to re-run target resolution.
-    let {hot, publicUrl, distDir, minify, scopeHoist} = options;
     this.cacheKey = md5FromObject({
       parcelVersion: PARCEL_VERSION,
       name,
-      options: {hot, publicUrl, distDir, minify, scopeHoist},
       entries,
     });
 
@@ -120,6 +116,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
       this.requestGraph.invalidateEnvNodes(options.env);
+      this.requestGraph.invalidateOptionNodes(options);
       this.requestTracker.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({

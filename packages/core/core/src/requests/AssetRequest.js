@@ -84,6 +84,11 @@ async function run({input, api, options, farm}: RunInput) {
       case 'env':
         api.invalidateOnEnvChange(invalidation.key);
         break;
+      case 'option':
+        api.invalidateOnOptionChange(invalidation.key);
+        break;
+      default:
+        throw new Error(`Unknown invalidation type: ${invalidation.type}`);
     }
   }
 

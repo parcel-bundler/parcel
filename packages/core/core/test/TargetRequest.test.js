@@ -67,6 +67,7 @@ describe('TargetResolver', () => {
     invalidateOnFileUpdate() {},
     invalidateOnFileDelete() {},
     invalidateOnEnvChange() {},
+    invalidateOnOptionChange() {},
     invalidateOnStartup() {},
     getInvalidations() {
       return [];
@@ -111,8 +112,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
         },
         {
           name: 'customB',
@@ -128,8 +129,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
         },
       ],
     );
@@ -156,8 +157,8 @@ describe('TargetResolver', () => {
             isLibrary: true,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -185,9 +186,9 @@ describe('TargetResolver', () => {
             isLibrary: true,
             minify: false,
             scopeHoist: false,
-          },
-          sourceMap: {
-            inlineSources: true,
+            sourceMap: {
+              inlineSources: true,
+            },
           },
           loc: {
             filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
@@ -216,8 +217,8 @@ describe('TargetResolver', () => {
             isLibrary: true,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -255,8 +256,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: undefined,
           },
-          sourceMap: undefined,
           loc: {
             filePath: path.join(
               COMMON_TARGETS_IGNORE_FIXTURE_PATH,
@@ -296,8 +297,8 @@ describe('TargetResolver', () => {
             isLibrary: true,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -328,8 +329,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -360,8 +361,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(CUSTOM_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -398,8 +399,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: undefined,
         },
       ],
@@ -429,8 +430,8 @@ describe('TargetResolver', () => {
           outputFormat: 'commonjs',
           minify: false,
           scopeHoist: false,
+          sourceMap: {},
         },
-        sourceMap: {},
         loc: {
           filePath: path.join(CONTEXT_FIXTURE_PATH, 'package.json'),
           start: {
@@ -470,8 +471,8 @@ describe('TargetResolver', () => {
           outputFormat: 'global',
           minify: false,
           scopeHoist: false,
+          sourceMap: {},
         },
-        sourceMap: {},
         loc: {
           filePath: path.join(fixture, 'package.json'),
           start: {
@@ -511,8 +512,8 @@ describe('TargetResolver', () => {
             isLibrary: true,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -540,8 +541,8 @@ describe('TargetResolver', () => {
             isLibrary: true,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: {
             filePath: path.join(COMMON_TARGETS_FIXTURE_PATH, 'package.json'),
             start: {
@@ -588,8 +589,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
         },
       ],
     );
@@ -615,8 +616,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
         },
       ],
     );
@@ -643,8 +644,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: undefined,
         },
       ],
@@ -676,8 +677,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: undefined,
         },
         {
@@ -699,8 +700,8 @@ describe('TargetResolver', () => {
             isLibrary: false,
             minify: false,
             scopeHoist: false,
+            sourceMap: {},
           },
-          sourceMap: {},
           loc: undefined,
         },
       ],
