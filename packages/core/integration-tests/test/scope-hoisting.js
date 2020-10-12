@@ -329,6 +329,18 @@ describe('scope hoisting', function() {
       });
     });
 
+    it('has the correct order with namespace re-exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-namespace-order/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, Symbol.for('abc'));
+    });
+
     // ATLASSIAN: Warn and return an empty object expression for unresolvable
     // imports.
     it.skip('excludes default when re-exporting a module', async function() {
@@ -486,6 +498,21 @@ describe('scope hoisting', function() {
 
       let output = await run(b, {Test});
       assert.strictEqual(output, Test);
+    });
+
+    it('should remove export named declaration without specifiers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-named-empty/a.js',
+        ),
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!/export\s*{\s*}\s*;/.test(content));
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
     });
 
     it('throws a meaningful error on undefined exports', async function() {

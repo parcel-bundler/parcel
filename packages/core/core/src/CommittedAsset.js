@@ -4,7 +4,6 @@ import type {
   AST,
   Blob,
   ConfigResult,
-  File,
   FilePath,
   PackageJSON,
 } from '@parcel/types';
@@ -135,10 +134,6 @@ export default class CommittedAsset {
     }
 
     return this.ast;
-  }
-
-  getIncludedFiles(): Array<File> {
-    return Array.from(this.value.includedFiles.values());
   }
 
   getDependencies(): Array<Dependency> {

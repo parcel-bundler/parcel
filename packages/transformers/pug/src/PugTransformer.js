@@ -44,15 +44,12 @@ export default (new Transformer({
       compileDebug: false,
       basedir: path.dirname(asset.filePath),
       filename: asset.filePath,
+      ...pugConfig,
       pretty: pugConfig.pretty || false,
-      doctype: pugConfig.doctype,
-      filters: pugConfig.filters,
-      filterOptions: pugConfig.filterOptions,
-      filterAliases: pugConfig.filterAliases,
     });
 
     for (let filePath of render.dependencies) {
-      await asset.addIncludedFile({filePath});
+      await asset.addIncludedFile(filePath);
     }
 
     asset.type = 'html';

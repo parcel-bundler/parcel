@@ -78,7 +78,7 @@ export default (new Transformer({
       css = result.css;
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
-          asset.addIncludedFile({filePath: included});
+          asset.addIncludedFile(included);
         }
       }
 

@@ -61,7 +61,7 @@
     "node-forge": "^0.10.0",
     "node-libs-browser": "^2.0.0",
     "open": "^6.3.0",
-    "postcss": "^7.0.11",
+    "postcss": "^8.0.5",
     "postcss-value-parser": "^3.3.1",
     "posthtml": "^0.11.2",
     "posthtml-parser": "^0.4.0",

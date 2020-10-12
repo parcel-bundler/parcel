@@ -1,10 +1,10 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {Async, File, FilePath, Glob} from '@parcel/types';
+import type {Async, File, FilePath, Glob, EnvMap} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
-import type {NodeId, ParcelOptions} from './types';
+import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -17,11 +17,17 @@ type SerializedRequestGraph = {|
   invalidNodeIds: Set<NodeId>,
   incompleteNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
+  envNodeIds: Set<NodeId>,
   unpredicatableNodeIds: Set<NodeId>,
 |};
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
+type EnvNode = {|
+  id: string,
+  +type: 'env',
+  value: {|key: string, value: string|},
+|};
 
 type Request<TInput, TResult> = {|
   id: string,
@@ -42,7 +48,7 @@ type RequestNode = {|
   +type: 'request',
   value: StoredRequest,
 |};
-type RequestGraphNode = RequestNode | FileNode | GlobNode;
+type RequestGraphNode = RequestNode | FileNode | GlobNode | EnvNode;
 
 type RequestGraphEdgeType =
   | 'subrequest'
@@ -55,6 +61,8 @@ type RunAPI = {|
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
+  invalidateOnEnvChange: string => void,
+  getInvalidations(): Array<RequestInvalidation>,
   storeResult: (result: mixed) => void,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
@@ -85,6 +93,15 @@ const nodeFromRequest = (request: StoredRequest) => ({
   value: request,
 });
 
+const nodeFromEnv = (env: string, value: string) => ({
+  id: 'env:' + env,
+  type: 'env',
+  value: {
+    key: env,
+    value,
+  },
+});
+
 export class RequestGraph extends Graph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -92,6 +109,7 @@ export class RequestGraph extends Graph<
   invalidNodeIds: Set<NodeId> = new Set();
   incompleteNodeIds: Set<NodeId> = new Set();
   globNodeIds: Set<NodeId> = new Set();
+  envNodeIds: Set<NodeId> = new Set();
   // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
   // filesystem changes alone. They should rerun on each startup of Parcel.
   unpredicatableNodeIds: Set<NodeId> = new Set();
@@ -103,6 +121,7 @@ export class RequestGraph extends Graph<
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.incompleteNodeIds = opts.incompleteNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
+    deserialized.envNodeIds = opts.envNodeIds;
     deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
     return deserialized;
@@ -115,6 +134,7 @@ export class RequestGraph extends Graph<
       invalidNodeIds: this.invalidNodeIds,
       incompleteNodeIds: this.incompleteNodeIds,
       globNodeIds: this.globNodeIds,
+      envNodeIds: this.envNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
     };
   }
@@ -123,6 +143,10 @@ export class RequestGraph extends Graph<
     if (!this.hasNode(node.id)) {
       if (node.type === 'glob') {
         this.globNodeIds.add(node.id);
+      }
+
+      if (node.type === 'env') {
+        this.envNodeIds.add(node.id);
       }
     }
 
@@ -134,6 +158,9 @@ export class RequestGraph extends Graph<
     this.incompleteNodeIds.delete(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.delete(node.id);
+    }
+    if (node.type === 'env') {
+      this.envNodeIds.delete(node.id);
     }
     return super.removeNode(node);
   }
@@ -172,7 +199,6 @@ export class RequestGraph extends Graph<
     invariant(node.type === 'request');
     if (this.hasNode(node.id)) {
       this.invalidNodeIds.add(node.id);
-      this.clearInvalidations(node);
 
       let parentNodes = this.getNodesConnectedTo(node, 'subrequest');
       for (let parentNode of parentNodes) {
@@ -186,6 +212,22 @@ export class RequestGraph extends Graph<
       let node = nullthrows(this.getNode(nodeId));
       invariant(node.type !== 'file' && node.type !== 'glob');
       this.invalidateNode(node);
+    }
+  }
+
+  invalidateEnvNodes(env: EnvMap) {
+    for (let nodeId of this.envNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type === 'env');
+      if (env[node.value.key] !== node.value.value) {
+        let parentNodes = this.getNodesConnectedTo(
+          node,
+          'invalidated_by_update',
+        );
+        for (let parentNode of parentNodes) {
+          this.invalidateNode(parentNode);
+        }
+      }
     }
   }
 
@@ -230,11 +272,46 @@ export class RequestGraph extends Graph<
     this.unpredicatableNodeIds.add(requestNode.id);
   }
 
+  invalidateOnEnvChange(requestId: string, env: string, value: string) {
+    let requestNode = this.getRequestNode(requestId);
+    let envNode = nodeFromEnv(env, value);
+    if (!this.hasNode(envNode.id)) {
+      this.addNode(envNode);
+    }
+
+    if (!this.hasEdge(requestNode.id, envNode.id, 'invalidated_by_update')) {
+      this.addEdge(requestNode.id, envNode.id, 'invalidated_by_update');
+    }
+  }
+
   clearInvalidations(node: RequestNode) {
     this.unpredicatableNodeIds.delete(node.id);
     this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_update');
     this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_delete');
     this.replaceNodesConnectedTo(node, [], null, 'invalidated_by_create');
+  }
+
+  getInvalidations(requestId: string): Array<RequestInvalidation> {
+    if (!this.hasNode(requestId)) {
+      return [];
+    }
+
+    // For now just handling updates. Could add creates/deletes later if needed.
+    let requestNode = this.getRequestNode(requestId);
+    let invalidations = this.getNodesConnectedFrom(
+      requestNode,
+      'invalidated_by_update',
+    );
+    return invalidations
+      .map(node => {
+        switch (node.type) {
+          case 'file':
+            return {type: 'file', filePath: node.value.filePath};
+          case 'env':
+            return {type: 'env', key: node.value.key};
+        }
+      })
+      .filter(Boolean);
   }
 
   respondToFSEvents(events: Array<Event>): boolean {
@@ -309,6 +386,10 @@ export default class RequestTracker {
     if (!this.graph.hasNode(request.id)) {
       let node = nodeFromRequest(request);
       this.graph.addNode(node);
+    } else {
+      // Clear existing invalidations for the request so that the new
+      // invalidations created during the request replace the existing ones.
+      this.graph.clearInvalidations(this.graph.getRequestNode(request.id));
     }
 
     this.graph.incompleteNodeIds.add(request.id);
@@ -425,6 +506,13 @@ export default class RequestTracker {
       invalidateOnFileUpdate: filePath =>
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
+      invalidateOnEnvChange: env =>
+        this.graph.invalidateOnEnvChange(
+          requestId,
+          env,
+          this.options.env[env] || '',
+        ),
+      getInvalidations: () => this.graph.getInvalidations(requestId),
       storeResult: result => {
         this.storeResult(requestId, result);
       },
