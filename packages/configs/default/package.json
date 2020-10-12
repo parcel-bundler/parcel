@@ -45,6 +45,7 @@
     "@parcel/transformer-coffeescript": "^2.0.0-frontbucket.32",
     "@parcel/transformer-css": "^2.0.0-frontbucket.32",
     "@parcel/transformer-graphql": "^2.0.0-frontbucket.30",
+    "@parcel/transformer-glsl": "^2.0.0-beta.1",
     "@parcel/transformer-html": "^2.0.0-frontbucket.32",
     "@parcel/transformer-inline-string": "^2.0.0-frontbucket.30",
     "@parcel/transformer-js": "^2.0.0-frontbucket.35",

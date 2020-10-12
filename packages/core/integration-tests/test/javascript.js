@@ -342,8 +342,6 @@ describe('javascript', function() {
   it('should prefetch bundles when declared as an import attribute statically', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-prefetch/index.js'),
-      // TODO: This test fails nondeterministically with MemoryFS
-      {outputFS: inputFS},
     );
 
     let output = await run(b);
@@ -368,8 +366,6 @@ describe('javascript', function() {
   it('should preload bundles when declared as an import attribute statically', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-static-preload/index.js'),
-      // TODO: This test fails nondeterministically with MemoryFS
-      {outputFS: inputFS},
     );
 
     let output = await run(b);
@@ -391,7 +387,12 @@ describe('javascript', function() {
     assert(headChildren[2].href.match(/preloaded\..*\.js/));
   });
 
-  it('should remove unknown import attributes targetting global', async () => {
+  // TODO: Implement when we can evaluate bundles against esmodule targets
+  it(
+    'targetting esmodule, should modulepreload bundles when declared as an import attribute statically',
+  );
+
+  it('should remove import attributes', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
     );
@@ -402,13 +403,7 @@ describe('javascript', function() {
       'utf8',
     );
     assert(mainBundleContent.includes("require('./async')"));
-    assert(
-      mainBundleContent.includes(`require('./async2', {
-  assert: {
-    type: 'js'
-  }
-})`),
-    );
+    assert(mainBundleContent.includes(`require('./async2')`));
   });
 
   it('should split bundles when a dynamic import is used with a node environment', async function() {

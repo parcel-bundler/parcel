@@ -30,6 +30,9 @@ const TYPE_TO_RESOURCE_PRIORITY = {
   js: 'script',
 };
 
+const BROWSER_PRELOAD_LOADER = './loaders/browser/preload-loader';
+const BROWSER_PREFETCH_LOADER = './loaders/browser/prefetch-loader';
+
 const LOADERS = {
   browser: {
     css: './loaders/browser/css-loader',
@@ -37,8 +40,6 @@ const LOADERS = {
     js: './loaders/browser/js-loader',
     wasm: './loaders/browser/wasm-loader',
     IMPORT_POLYFILL: './loaders/browser/import-polyfill',
-    PRELOAD: './loaders/browser/preload-loader',
-    PREFETCH: './loaders/browser/prefetch-loader',
   },
   worker: {
     js: './loaders/worker/js-loader',
@@ -283,8 +284,18 @@ function getLoaderRuntime({
           let {preload, prefetch} = getHintedBundleGroups(bundleGraph, from);
 
           return [
-            ...getHintLoaders(bundleGraph, bundle, preload, loaders.PRELOAD),
-            ...getHintLoaders(bundleGraph, bundle, prefetch, loaders.PREFETCH),
+            ...getHintLoaders(
+              bundleGraph,
+              bundle,
+              preload,
+              BROWSER_PRELOAD_LOADER,
+            ),
+            ...getHintLoaders(
+              bundleGraph,
+              bundle,
+              prefetch,
+              BROWSER_PREFETCH_LOADER,
+            ),
           ];
         },
       ),
@@ -383,7 +394,9 @@ function getHintLoaders(
           loader,
         )})(require('./bundle-url').getBundleURL() + ${relativePathExpr}, ${
           priority ? JSON.stringify(priority) : 'null'
-        })`,
+        }, ${JSON.stringify(
+          bundleToPreload.target.env.outputFormat === 'esmodule',
+        )})`,
       );
     }
   }

@@ -21,6 +21,6 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-frontbucket.30",
-    "postcss": "^7.0.5"
+    "postcss": "^8.0.5"
   }
 }

@@ -261,7 +261,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -281,7 +280,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '3',
@@ -292,7 +290,6 @@ describe('AssetGraph', () => {
         dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        includedFiles: new Map(),
       }),
     ];
 
@@ -327,7 +324,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -338,7 +334,6 @@ describe('AssetGraph', () => {
         stats,
         dependencies: new Map(),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
     ];
 
@@ -460,7 +455,6 @@ describe('AssetGraph', () => {
       stats,
       dependencies: new Map([['utils', dependency]]),
       env: DEFAULT_ENV,
-      includedFiles: new Map(),
     });
     let assetNode = nodeFromAsset(asset);
     graph.resolveAssetGroup(assetGroup, [asset], '1');

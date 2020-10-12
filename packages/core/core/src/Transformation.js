@@ -11,6 +11,7 @@ import type {WorkerApi} from '@parcel/workers';
 import type {
   Asset as AssetValue,
   AssetRequestInput,
+  RequestInvalidation,
   Config,
   ConfigRequestDesc,
   ParcelOptions,
@@ -20,11 +21,15 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject, normalizeSeparators} from '@parcel/utils';
+import {
+  escapeMarkdown,
+  md5FromObject,
+  normalizeSeparators,
+} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS, relativePath} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS, flatMap} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -37,7 +42,7 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset} from './assetUtils';
+import {createAsset, getInvalidationHash} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
@@ -59,6 +64,7 @@ export type TransformationOpts = {|
 export type TransformationResult = {|
   assets: Array<AssetValue>,
   configRequests: Array<ConfigRequestAndResult>,
+  invalidations: Array<RequestInvalidation>,
 |};
 
 type ConfigMap = Map<PackageName, Config>;
@@ -76,6 +82,7 @@ export default class Transformation {
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
   report: ReportFn;
+  invalidations: Map<string, RequestInvalidation>;
 
   constructor({
     report,
@@ -91,6 +98,7 @@ export default class Transformation {
     this.report = report;
     this.request = request;
     this.workerApi = workerApi;
+    this.invalidations = new Map();
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {hot} = this.options;
@@ -119,18 +127,17 @@ export default class Transformation {
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
-        logger.warn([
+        logger.verbose([
           {
             origin: '@parcel/core',
-            message: `Could not load existing source map for ${relativePath(
-              this.options.projectRoot,
-              asset.value.filePath,
+            message: `Could not load existing source map for ${escapeMarkdown(
+              path.relative(this.options.projectRoot, asset.value.filePath),
             )}`,
             filePath: asset.value.filePath,
           },
           {
             origin: '@parcel/core',
-            message: err.message,
+            message: escapeMarkdown(err.message),
             filePath: asset.value.filePath,
           },
         ]);
@@ -170,7 +177,11 @@ export default class Transformation {
       }
     }
 
-    return {assets, configRequests: this.configRequests};
+    return {
+      assets,
+      configRequests: this.configRequests,
+      invalidations: [...this.invalidations.values()],
+    };
   }
 
   async loadAsset(): Promise<UncommittedAsset> {
@@ -220,6 +231,7 @@ export default class Transformation {
       }),
       options: this.options,
       content,
+      invalidations: this.invalidations,
     });
   }
 
@@ -231,6 +243,7 @@ export default class Transformation {
     let initialAssetCacheKey = this.getCacheKey(
       [initialAsset],
       pipeline.configs,
+      await getInvalidationHash(this.request.invalidations || [], this.options),
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
@@ -238,7 +251,15 @@ export default class Transformation {
       initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
 
     if (!initialCacheEntry) {
-      await this.writeToCache(initialAssetCacheKey, assets, pipeline.configs);
+      let resultCacheKey = this.getCacheKey(
+        [initialAsset],
+        pipeline.configs,
+        await getInvalidationHash(
+          flatMap(assets, asset => asset.getInvalidations()),
+          this.options,
+        ),
+      );
+      await this.writeToCache(resultCacheKey, assets, pipeline.configs);
     }
 
     let finalAssets: Array<UncommittedAsset> = [];
@@ -266,7 +287,14 @@ export default class Transformation {
     }
 
     let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(finalAssets, pipeline.configs),
+      this.getCacheKey(
+        finalAssets,
+        pipeline.configs,
+        await getInvalidationHash(
+          flatMap(finalAssets, asset => asset.getInvalidations()),
+          this.options,
+        ),
+      ),
     );
 
     invariant(pipeline.postProcess != null);
@@ -275,7 +303,14 @@ export default class Transformation {
 
     if (!processedCacheEntry) {
       await this.writeToCache(
-        this.getCacheKey(processedFinalAssets, pipeline.configs),
+        this.getCacheKey(
+          processedFinalAssets,
+          pipeline.configs,
+          await getInvalidationHash(
+            flatMap(processedFinalAssets, asset => asset.getInvalidations()),
+            this.options,
+          ),
+        ),
         processedFinalAssets,
         pipeline.configs,
       );
@@ -413,7 +448,11 @@ export default class Transformation {
     );
   }
 
-  getCacheKey(assets: Array<UncommittedAsset>, configs: ConfigMap): string {
+  getCacheKey(
+    assets: Array<UncommittedAsset>,
+    configs: ConfigMap,
+    invalidationHash: string,
+  ): string {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
       pipeline: a.value.pipeline,
@@ -427,6 +466,7 @@ export default class Transformation {
       configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
       impactfulOptions: this.impactfulOptions,
+      invalidationHash,
     });
   }
 
@@ -701,7 +741,6 @@ function normalizeAssets(
         dependencies: [...internalAsset.value.dependencies.values()],
         env: internalAsset.value.env,
         filePath: result.filePath,
-        includedFiles: result.getIncludedFiles(),
         isInline: result.isInline,
         isIsolated: result.isIsolated,
         map: await internalAsset.getMap(),

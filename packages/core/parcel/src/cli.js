@@ -99,6 +99,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--no-autoinstall': 'disable autoinstall',
+  '--hmr-port <port>': 'hot module replacement port',
 };
 
 function applyOptions(cmd, options) {
@@ -348,7 +349,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port, host};
+    let hmrport = command.hmrPort ? Number(command.hmrPort) : port;
+    hmr = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';

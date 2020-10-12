@@ -20,6 +20,7 @@
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
+    "*.{glsl,vert,frag}": ["@parcel/transformer-glsl"],
     "*.{gql,graphql}": ["@parcel/transformer-graphql"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
