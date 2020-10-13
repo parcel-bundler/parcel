@@ -116,7 +116,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
   getNodesConnectedTo(
     node: TNode,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): Array<TNode> {
     assertHasNode(this, node);
 
@@ -130,6 +130,13 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
       nodes = new Set();
       for (let [, typeNodes] of inboundByType) {
         for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else if (Array.isArray(type)) {
+      nodes = new Set();
+      for (let typeName of type) {
+        for (let node of inboundByType.get(typeName)?.values() ?? []) {
           nodes.add(node);
         }
       }
@@ -362,7 +369,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   traverseAncestors<TContext>(
     startNode: TNode,
     visit: GraphVisitor<TNode, TContext>,
-    type: TEdgeType | null = null,
+    type: TEdgeType | null | Array<TEdgeType | null> = null,
   ): ?TContext {
     return this.dfs({
       visit,
