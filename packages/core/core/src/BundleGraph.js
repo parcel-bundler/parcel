@@ -644,22 +644,16 @@ export default class BundleGraph {
   }
 
   getParentBundles(bundle: Bundle): Array<Bundle> {
-    return unique(
-      flatMap(
-        this._graph.getNodesConnectedTo(
-          nullthrows(this._graph.getNode(bundle.id)),
-          'bundle',
-        ),
-        bundleGroupNode =>
-          this._graph
-            .getNodesConnectedTo(bundleGroupNode, 'bundle')
-            // Entry bundle groups have the root node as their parent
-            .filter(node => node.type !== 'root'),
-      ).map(node => {
-        invariant(node.type === 'bundle');
-        return node.value;
-      }),
-    );
+    let parentBundles: Set<Bundle> = new Set();
+    for (let bundleGroup of this.getBundleGroupsContainingBundle(bundle)) {
+      for (let parentBundle of this.getParentBundlesOfBundleGroup(
+        bundleGroup,
+      )) {
+        parentBundles.add(parentBundle);
+      }
+    }
+
+    return [...parentBundles];
   }
 
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean {
