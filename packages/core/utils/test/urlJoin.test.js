@@ -14,6 +14,11 @@ describe('urlJoin', () => {
     assert.equal(joinedUrl, '/static/image.jpeg?test=test');
   });
 
+  it('Should join two paths with longer publicUrl', () => {
+    let joinedUrl = urlJoin('/static', 'image.jpeg?test=test');
+    assert.equal(joinedUrl, '/static/image.jpeg?test=test');
+  });
+
   it('Should turn windows path into posix', () => {
     let joinedUrl = urlJoin('/static', '.\\image.jpeg?test=test');
     assert.equal(joinedUrl, '/static/image.jpeg?test=test');
