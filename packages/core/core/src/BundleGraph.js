@@ -23,7 +23,7 @@ import assert from 'assert';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap, objectSortedEntriesDeep, unique} from '@parcel/utils';
+import {objectSortedEntriesDeep} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {mapVisitor, type GraphOpts} from './Graph';
@@ -723,14 +723,13 @@ export default class BundleGraph {
         return res;
       }
 
-      // Get a list of parent bundle nodes pointing to the bundle group
-      let parentBundleNodes = this._graph.getNodesConnectedTo(
-        nullthrows(this._graph.getNode(getBundleGroupId(bundleGroup))),
-        'bundle',
-      );
+      let parentBundleNodes = this.getParentBundlesOfBundleGroup(
+        bundleGroup,
+      ).map(bundle => nullthrows(this._graph.getNode(bundle.id)));
 
       // Find the nearest ancestor bundle that includes the asset.
       for (let bundleNode of parentBundleNodes) {
+        invariant(bundleNode.type === 'bundle');
         this._graph.traverseAncestors(
           bundleNode,
           (node, ctx, actions) => {
@@ -755,7 +754,7 @@ export default class BundleGraph {
               actions.skipChildren();
             }
           },
-          'bundle',
+          ['references', 'bundle'],
         );
 
         if (res != null) {
