@@ -48,7 +48,12 @@ export default (new Transformer({
       asset,
       code,
       options,
-      plugins: ['jsx', 'typescript', 'classProperties'],
+      plugins: [
+        'jsx',
+        'typescript',
+        'classProperties',
+        ['moduleAttributes', {version: 'may-2020'}],
+      ],
     });
   },
 
