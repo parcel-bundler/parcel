@@ -1,5 +1,5 @@
 {
-  "name": "@atlassian/babel-transform-import-attributes-webpack",
+  "name": "@atlassian/babel-plugin-transform-import-attributes-webpack",
   "version": "0.0.2-frontbucket.0",
   "main": "src/index.js",
   "scripts": {
