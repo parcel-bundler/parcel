@@ -16,7 +16,7 @@ describe('BundleGraph', () => {
       createMockAssetGraph([id1, id2]),
     );
     assert.deepEqual(
-      getAssets(bundleGraph).map(a => a.publicId),
+      getAssets(bundleGraph).map(a => bundleGraph.getAssetPublicId(a)),
       ['296TI', '4DGUq'],
     );
   });
@@ -26,7 +26,7 @@ describe('BundleGraph', () => {
       createMockAssetGraph([id1, id1.slice(0, 16) + '7' + id1.slice(17)]),
     );
     assert.deepEqual(
-      getAssets(bundleGraph).map(a => a.publicId),
+      getAssets(bundleGraph).map(a => bundleGraph.getAssetPublicId(a)),
       ['296TI', '296TII'],
     );
   });
@@ -60,12 +60,11 @@ function createMockAssetGraph(ids: [string, string]) {
 
   let dep = createDependency({
     moduleSpecifier: '/path/to/index/src/main.js',
-    pipeline: 'test',
     env: DEFAULT_ENV,
     target: DEFAULT_TARGETS[0],
   });
   let filePath = '/index.js';
-  let req = {filePath, env: DEFAULT_ENV};
+  let req = {filePath, env: DEFAULT_ENV, query: {}};
   graph.resolveDependency(dep, nodeFromAssetGroup(req).value, '3');
 
   let dep1 = createDependency({

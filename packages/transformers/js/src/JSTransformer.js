@@ -1,6 +1,7 @@
 // @flow
 
 import type {GlobalsMap} from './visitors/globals';
+import type {SchemaEntity} from '@parcel/utils';
 
 import template from '@babel/template';
 import semver from 'semver';
@@ -14,6 +15,31 @@ import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import {generate, parse} from '@parcel/babel-ast-utils';
+import {validateSchema} from '@parcel/utils';
+import {encodeJSONKeyComponent} from '@parcel/diagnostic';
+
+const CONFIG_SCHEMA: SchemaEntity = {
+  type: 'object',
+  properties: {
+    inlineFS: {
+      type: 'boolean',
+    },
+    inlineEnvironment: {
+      oneOf: [
+        {
+          type: 'boolean',
+        },
+        {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+        },
+      ],
+    },
+  },
+  additionalProperties: false,
+};
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -22,10 +48,6 @@ const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
-
-// Sourcemap extraction
-// const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
-// const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 function canHaveDependencies(code) {
   return (
@@ -36,7 +58,27 @@ function canHaveDependencies(code) {
   );
 }
 
-export default new Transformer({
+export default (new Transformer({
+  async loadConfig({options, config}) {
+    let result = await config.getConfig([], {
+      packageKey: '@parcel/transformer-js',
+    });
+
+    if (result) {
+      validateSchema.diagnostic(
+        CONFIG_SCHEMA,
+        result.contents,
+        result.filePath,
+        // FIXME
+        await options.inputFS.readFile(result.filePath, 'utf8'),
+        '@parcel/transformer-js',
+        `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
+        'Invalid config for @parcel/transformer-js',
+      );
+      config.setResult(result.contents);
+    }
+  },
+
   canReuseAST({ast}) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
@@ -60,7 +102,7 @@ export default new Transformer({
     });
   },
 
-  async transform({asset, options, logger}) {
+  async transform({asset, config, options, logger}) {
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.
     // Only set here if it is null to allow previous transformers to override this behavior.
     if (asset.isSplittable == null) {
@@ -72,6 +114,8 @@ export default new Transformer({
     if (!ast) {
       return [asset];
     }
+
+    let {inlineEnvironment = true, inlineFS = true} = config || {};
 
     let code = asset.isASTDirty() ? null : await asset.getCode();
 
@@ -85,6 +129,7 @@ export default new Transformer({
         ast,
         env: options.env,
         isNode: asset.env.isNode(),
+        replaceEnv: inlineEnvironment,
         isBrowser: asset.env.isBrowser(),
       });
     }
@@ -104,7 +149,13 @@ export default new Transformer({
 
         if (!ignore) {
           traverse.cache.clearScope();
-          traverse(ast.program, fsVisitor, null, {asset, logger, ast});
+          traverse(ast.program, fsVisitor, null, {
+            asset,
+            logger,
+            ast,
+            options,
+            inlineFS,
+          });
         }
       }
 
@@ -172,4 +223,4 @@ export default new Transformer({
   generate({asset, ast, options}) {
     return generate({asset, ast, options});
   },
-});
+}): Transformer);

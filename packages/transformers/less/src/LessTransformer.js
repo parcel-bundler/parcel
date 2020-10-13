@@ -15,7 +15,7 @@ type LessConfig = {
   ...
 };
 
-export default new Transformer({
+export default (new Transformer({
   loadConfig({config}) {
     return load({config});
   },
@@ -60,7 +60,7 @@ export default new Transformer({
     }
 
     if (result.map != null) {
-      let map = new SourceMap();
+      let map = new SourceMap(options.projectRoot);
       let rawMap = JSON.parse(result.map);
       map.addRawMappings({
         ...rawMap,
@@ -73,7 +73,7 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);
 
 function urlPlugin({asset}) {
   return {

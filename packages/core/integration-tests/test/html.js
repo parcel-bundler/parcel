@@ -415,10 +415,12 @@ describe('html', function() {
 
     // mergeStyles
     assert(
-      html.match(
-        /<style>h1{color:red}div{font-size:20px}\n\/\*# sourceMappingURL=.*\*\/<\/style><style media="print">div{color:#00f}\n\/\*# sourceMappingURL=.*\*\/<\/style>/,
+      html.includes(
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>',
       ),
     );
+
+    assert(!html.includes('sourceMappingURL'));
 
     // minifySvg is false
     assert(
@@ -701,6 +703,19 @@ describe('html', function() {
     ]);
   });
 
+  it('should ignore svgs referencing local symbols via <use xlink:href="#">', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-svg-local-symbol/index.html'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html'],
+      },
+    ]);
+  });
+
   it('should bundle svg files using <image xlink:href=""> correctly', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-image/index.html'),
@@ -801,37 +816,6 @@ describe('html', function() {
     assert(!html.includes('someArgument'));
   });
 
-  it('should add an inline sourcemap to inline JS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {minify: false},
-    );
-
-    // inline bundles are not output, but are apart of the bundleGraph
-    assertBundles(b, [
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {type: 'js', assets: ['index.html']},
-      {name: 'index.html', assets: ['index.html']},
-    ]);
-
-    let files = await outputFS.readdir(distDir);
-    // assert that the inline js files are not output
-    assert(!files.some(filename => filename.includes('js')));
-
-    let html = await outputFS.readFile(
-      path.join(distDir, 'index.html'),
-      'utf-8',
-    );
-
-    assert(
-      html.includes(
-        '\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,ey',
-      ),
-    );
-  });
-
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
@@ -920,11 +904,8 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8',
     );
-    assert(
-      html.match(
-        /<style>.index{color:#00f}\n\/\*# sourceMappingURL=.*<\/style>/,
-      ),
-    );
+    assert(html.includes('<style>.index{color:#00f}</style>'));
+    assert(!html.includes('sourceMappingURL'));
   });
 
   it('should process inline non-js scripts', async function() {
@@ -1244,10 +1225,44 @@ describe('html', function() {
   });
 
   it('should support multiple entries with shared sibling bundles', async function() {
-    await bundle(
+    let b = await bundle(
       path.join(__dirname, '/integration/shared-sibling-entries/*.html'),
       {production: true, scopeHoist: true},
     );
+
+    assertBundles(b, [
+      {
+        name: 'a.html',
+        type: 'html',
+        assets: ['a.html'],
+      },
+      {
+        name: 'b.html',
+        type: 'html',
+        assets: ['b.html'],
+      },
+      {
+        name: 'c.html',
+        type: 'html',
+        assets: ['c.html'],
+      },
+      {
+        type: 'js',
+        assets: ['a.html', 'shared.js'],
+      },
+      {
+        type: 'js',
+        assets: ['b.html', 'shared.js'],
+      },
+      {
+        type: 'js',
+        assets: ['c.html', 'shared.js'],
+      },
+      {
+        type: 'css',
+        assets: ['shared.css', 'other.css'],
+      },
+    ]);
 
     // Both HTML files should point to the sibling CSS file
     let html = await outputFS.readFile(path.join(distDir, 'a.html'), 'utf8');
@@ -1570,5 +1585,23 @@ describe('html', function() {
     assert(!html.includes('module.exports = "hello world"'));
     assert(html.includes('module.exports = "foo bar"'));
     assert(html.includes('console.log'));
+  });
+
+  it('should inline data-urls', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/data-url/index.html'),
+      {
+        sourceMaps: false,
+      },
+    );
+
+    let contents = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'html').filePath,
+      'utf8',
+    );
+    assert.equal(
+      contents.trim(),
+      `<img src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%27120%27%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%3Cfilter%20id%3D%22blur-_.%21~%2a%22%3E%0A%20%20%20%20%3CfeGaussianBlur%20stdDeviation%3D%225%22%2F%3E%0A%20%20%3C%2Ffilter%3E%0A%20%20%3Ccircle%20cx%3D%2260%22%20cy%3D%2260%22%20r%3D%2250%22%20fill%3D%22green%22%20filter%3D%22url%28%23blur-_.%21~%2a%29%22%20%2F%3E%0A%3C%2Fsvg%3E%0A">`,
+    );
   });
 });

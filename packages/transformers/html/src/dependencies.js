@@ -160,6 +160,11 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
         continue;
       }
 
+      // Check for id references
+      if (attrs[attr][0] === '#') {
+        continue;
+      }
+
       let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
         let depHandler = getAttrDepHandler(attr);

@@ -4,7 +4,6 @@ import type {
   BundleGraph,
   MutableAsset,
   NamedBundle,
-  SourceLocation,
 } from '@parcel/types';
 import type {NodePath, Scope, VariableDeclarationKind} from '@babel/traverse';
 import type {
@@ -18,7 +17,6 @@ import type {
   VariableDeclarator,
 } from '@babel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
-import type {SourceLocation as BabelSourceLocation} from '@babel/types';
 
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
@@ -32,7 +30,7 @@ export function getName(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
-) {
+): string {
   return (
     '$' +
     t.toIdentifier(asset.id) +
@@ -51,18 +49,21 @@ export function getIdentifier(
   asset: Asset | MutableAsset,
   type: string,
   ...rest: Array<string>
-) {
+): BabelNodeIdentifier {
   return t.identifier(getName(asset, type, ...rest));
 }
 
-export function getExportIdentifier(asset: Asset | MutableAsset, name: string) {
+export function getExportIdentifier(
+  asset: Asset | MutableAsset,
+  name: string,
+): BabelNodeIdentifier {
   return getIdentifier(asset, 'export', name);
 }
 
 export function needsPrelude(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
-) {
+): boolean {
   if (bundle.env.outputFormat !== 'global') {
     return false;
   }
@@ -85,7 +86,7 @@ export function needsPrelude(
 export function isEntry(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
-) {
+): boolean {
   // If there is no parent JS bundle (e.g. in an HTML page), or environment is isolated (e.g. worker)
   // then this bundle is an "entry"
   return (
@@ -98,7 +99,7 @@ export function isEntry(
 export function isReferenced(
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
-) {
+): boolean {
   let isReferenced = false;
   bundle.traverseAssets((asset, _, actions) => {
     // A bundle is potentially referenced if any of its assets is referenced
@@ -168,7 +169,6 @@ function dereferenceIdentifier(node, scope) {
     if (i >= 0) {
       binding.dereference();
       binding.referencePaths.splice(i, 1);
-      return;
     }
 
     let j = binding.constantViolations.findIndex(v =>
@@ -179,7 +179,6 @@ function dereferenceIdentifier(node, scope) {
       if (binding.constantViolations.length == 0) {
         binding.constant = true;
       }
-      return;
     }
   }
 }
@@ -275,7 +274,7 @@ export function getThrowableDiagnosticForNode(
     |},
     ...
   },
-) {
+): ThrowableDiagnostic {
   let diagnostic: Diagnostic = {
     message,
     language: 'js',
@@ -286,36 +285,15 @@ export function getThrowableDiagnosticForNode(
   }
   if (loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: {
-          line: loc.start.line,
-          column: loc.start.column + 1,
+      codeHighlights: [
+        {
+          start: loc.start,
+          end: loc.end,
         },
-        // - Babel's columns are exclusive, ours are inclusive (column - 1)
-        // - Babel has 0-based columns, ours are 1-based (column + 1)
-        // = +-0
-        end: loc.end,
-      },
+      ],
     };
   }
   return new ThrowableDiagnostic({
     diagnostic,
   });
-}
-
-export function convertBabelLoc(loc: ?BabelSourceLocation): ?SourceLocation {
-  if (!loc || !loc.filename) return null;
-
-  let {filename, start, end} = loc;
-  return {
-    filePath: path.normalize(filename),
-    start: {
-      line: start.line,
-      column: start.column,
-    },
-    end: {
-      line: end.line,
-      column: end.column,
-    },
-  };
 }

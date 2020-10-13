@@ -1,7 +1,7 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options, resolve}) {
     const {
       parse,
@@ -27,7 +27,7 @@ export default new Transformer({
     async function loadImport(to, from) {
       const filePath = await resolve(to, from);
 
-      asset.addIncludedFile({filePath});
+      asset.addIncludedFile(filePath);
 
       return parse(
         new Source(await options.inputFS.readFile(filePath, 'utf-8'), filePath),
@@ -43,4 +43,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);

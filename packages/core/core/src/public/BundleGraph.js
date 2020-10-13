@@ -65,6 +65,10 @@ export default class BundleGraph<TBundle: IBundle>
     return assetFromValue(this.#graph.getAssetById(id), this.#options);
   }
 
+  getAssetPublicId(asset: IAsset): string {
+    return this.#graph.getAssetPublicId(assetToAssetValue(asset));
+  }
+
   isDependencyDeferred(dep: IDependency): boolean {
     return this.#graph.isDependencyDeferred(
       dependencyToInternalDependency(dep),
@@ -191,15 +195,9 @@ export default class BundleGraph<TBundle: IBundle>
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .sort(
-        (a, b) =>
-          bundleGroup.bundleIds.indexOf(a.id) -
-          bundleGroup.bundleIds.indexOf(b.id),
-      )
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
-      )
-      .reverse();
+      );
   }
 
   getBundles(): Array<TBundle> {

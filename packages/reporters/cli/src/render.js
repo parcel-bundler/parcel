@@ -13,8 +13,9 @@ type ColumnType = {|
   align: PadAlign,
 |};
 
-// $FlowFixMe
-export const isTTY = process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
+export const isTTY: any | boolean | true =
+  // $FlowFixMe
+  process.env.NODE_ENV !== 'test' && process.stdout.isTTY;
 
 let stdout = process.stdout;
 let stderr = process.stderr;

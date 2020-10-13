@@ -54,7 +54,7 @@ export function generate({
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
-|}) {
+|}): {|contents: string, map: ?SourceMap|} {
   let interpreter;
   let mainEntry = bundle.getMainEntry();
   if (mainEntry && !bundle.target.env.isBrowser()) {
@@ -76,7 +76,9 @@ export function generate({
             REFERENCED_IDS: t.arrayExpression(
               [mainEntry, ...referencedAssets]
                 .filter(Boolean)
-                .map(asset => t.stringLiteral(asset.publicId)),
+                .map(asset =>
+                  t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
+                ),
             ),
           }),
         ]
@@ -100,7 +102,7 @@ export function generate({
 
   let map = null;
   if (options.sourceMaps && rawMappings != null) {
-    map = new SourceMap();
+    map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(rawMappings);
   }
 

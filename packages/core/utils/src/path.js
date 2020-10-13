@@ -2,7 +2,12 @@
 import type {FilePath} from '@parcel/types';
 import path from 'path';
 
+const ABSOLUTE_PATH_REGEX = /^([a-zA-Z]:){0,1}[\\/]+/;
 const SEPARATOR_REGEX = /[\\]+/g;
+
+export function isAbsolute(filepath: string): boolean {
+  return ABSOLUTE_PATH_REGEX.test(filepath);
+}
 
 export function normalizeSeparators(filePath: FilePath): FilePath {
   return filePath.replace(SEPARATOR_REGEX, '/');
@@ -28,6 +33,6 @@ export function relativePath(
   from: string,
   to: string,
   leadingDotSlash: boolean = true,
-) {
+): FilePath {
   return normalizePath(path.relative(from, to), leadingDotSlash);
 }

@@ -30,7 +30,7 @@ type HMRMessage =
     |};
 
 export default class HMRServer {
-  wss: WebSocket.Server;
+  wss: typeof WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
   options: HMRServerOptions;
 
@@ -38,7 +38,7 @@ export default class HMRServer {
     this.options = options;
   }
 
-  start() {
+  start(): any {
     let websocketOptions = {
       /*verifyClient: info => {
           if (!this.options.host) return true;
@@ -114,14 +114,16 @@ export default class HMRServer {
               bundle,
             );
             if (resolved) {
-              deps[dep.moduleSpecifier] = resolved.publicId;
+              deps[dep.moduleSpecifier] = event.bundleGraph.getAssetPublicId(
+                resolved,
+              );
             }
           }
           depsByBundle[bundle.id] = deps;
         }
 
         return {
-          id: asset.publicId,
+          id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
           output: await asset.getCode(),
           envHash: md5FromObject(asset.env),

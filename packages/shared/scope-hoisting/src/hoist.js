@@ -35,13 +35,9 @@ import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
 import invariant from 'assert';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
-import {
-  convertBabelLoc,
-  getName,
-  getIdentifier,
-  getExportIdentifier,
-} from './utils';
+import {getName, getIdentifier, getExportIdentifier} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -296,7 +292,23 @@ const VISITOR: Visitor<MutableAsset> = {
   },
 
   ThisExpression(path, asset: MutableAsset) {
-    if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
+    if (!path.scope.getData('shouldWrap')) {
+      let retainThis = false;
+      let scope = path.scope;
+      while (scope?.parent) {
+        if (
+          scope.path.isFunction() &&
+          !scope.path.isArrowFunctionExpression()
+        ) {
+          retainThis = true;
+          break;
+        }
+        scope = scope.parent.getFunctionParent();
+      }
+      if (retainThis) {
+        return;
+      }
+
       if (asset.meta.isES6Module) {
         path.replaceWith(t.identifier('undefined'));
       } else {
@@ -456,10 +468,15 @@ const VISITOR: Visitor<MutableAsset> = {
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
       let parent = path.getStatementParent().parentPath;
-      let bail = path.findParent(
-        p => p.isConditionalExpression() || p.isLogicalExpression(),
-      );
-      if (!parent.isProgram() || bail) {
+      if (
+        !parent.isProgram() ||
+        path.findParent(
+          p =>
+            p.isConditionalExpression() ||
+            p.isLogicalExpression() ||
+            p.isFunction(),
+        )
+      ) {
         dep.meta.shouldWrap = true;
       }
 
@@ -552,7 +569,7 @@ const VISITOR: Visitor<MutableAsset> = {
       }),
     );
 
-    if (isIdentifier(declaration)) {
+    if (isIdentifier(declaration) && path.scope.hasBinding(declaration.name)) {
       // Rename the variable being exported.
       safeRename(path, asset, declaration.name, identifier.name);
       path.remove();
@@ -646,12 +663,11 @@ const VISITOR: Visitor<MutableAsset> = {
           addExport(asset, path, identifiers[id], identifiers[id]);
         }
       }
-    } else if (specifiers.length > 0) {
+    } else {
       for (let specifier of specifiers) {
         invariant(isExportSpecifier(specifier)); // because source is empty
         addExport(asset, path, specifier.local, specifier.exported);
       }
-
       path.remove();
     }
   },
@@ -664,13 +680,23 @@ const VISITOR: Visitor<MutableAsset> = {
       dep.symbols.set('*', '*', convertBabelLoc(path.node.loc));
     }
 
-    path.replaceWith(
-      EXPORT_ALL_TEMPLATE({
-        OLD_NAME: getExportsIdentifier(asset, path.scope),
-        SOURCE: t.stringLiteral(path.node.source.value),
-        ID: t.stringLiteral(asset.id),
-      }),
-    );
+    let replacement = EXPORT_ALL_TEMPLATE({
+      OLD_NAME: getExportsIdentifier(asset, path.scope),
+      SOURCE: t.stringLiteral(path.node.source.value),
+      ID: t.stringLiteral(asset.id),
+    });
+
+    let {parentPath, scope} = path;
+    path.remove();
+
+    // Make sure that the relative order of imports and reexports is retained.
+    let lastImport = scope.getData('hoistedImport');
+    if (lastImport) {
+      [lastImport] = lastImport.insertAfter(replacement);
+    } else {
+      [lastImport] = parentPath.unshiftContainer('body', [replacement]);
+    }
+    path.scope.setData('hoistedImport', lastImport);
   },
 };
 

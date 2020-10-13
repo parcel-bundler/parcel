@@ -2,8 +2,7 @@
 
 import type {FilePath} from '@parcel/types';
 import {isGlob} from './glob';
-
-const path = require('path');
+import path from 'path';
 
 export default function getRootDir(files: Array<FilePath>): FilePath {
   let cur = null;

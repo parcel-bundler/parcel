@@ -142,6 +142,9 @@ export function generateBundleImports(
   from: NamedBundle,
   {bundle, assets}: ExternalBundle,
   path: NodePath<Program>,
+  // Implement an interface consistent with other formats
+  // eslint-disable-next-line no-unused-vars
+  bundleGraph: BundleGraph<NamedBundle>,
 ) {
   let specifiers: Array<ObjectProperty> = [...assets].map(asset => {
     let id = getName(asset, 'init');
@@ -374,7 +377,7 @@ export function generateExports(
   path: NodePath<Program>,
   replacements: Map<Symbol, Symbol>,
   options: PluginOptions,
-) {
+): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];
 
@@ -434,15 +437,17 @@ export function generateExports(
 
           // If there is an existing binding with the exported name (e.g. an import),
           // rename it so we can use the name for the export instead.
-          if (path.scope.hasBinding(exportAs) && exportAs !== symbol) {
+          if (path.scope.hasBinding(exportAs, true) && exportAs !== symbol) {
             rename(path.scope, exportAs, path.scope.generateUid(exportAs));
           }
 
           let binding = nullthrows(path.scope.getBinding(symbol));
           if (!hasReplacement) {
-            let id = !t.isValidIdentifier(exportAs)
-              ? path.scope.generateUid(exportAs)
-              : exportAs;
+            let id =
+              // We cannot use the name if it's already used as global (e.g. `Map`).
+              !t.isValidIdentifier(exportAs) || path.scope.hasGlobal(exportAs)
+                ? path.scope.generateUid(exportAs)
+                : exportAs;
             // rename only once, avoid having to update `replacements` transitively
             rename(path.scope, symbol, id);
             replacements.set(symbol, id);

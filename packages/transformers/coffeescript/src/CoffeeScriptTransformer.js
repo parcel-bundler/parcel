@@ -4,7 +4,7 @@ import SourceMap from '@parcel/source-map';
 import coffee from 'coffeescript';
 import {relativeUrl} from '@parcel/utils';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
@@ -21,7 +21,7 @@ export default new Transformer({
     if (options.sourceMaps) {
       let map = null;
       if (output.v3SourceMap) {
-        map = new SourceMap();
+        map = new SourceMap(options.projectRoot);
         map.addRawMappings(JSON.parse(output.v3SourceMap));
       }
 
@@ -33,4 +33,4 @@ export default new Transformer({
 
     return [asset];
   },
-});
+}): Transformer);

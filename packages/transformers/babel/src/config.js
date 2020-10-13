@@ -23,7 +23,7 @@ export async function load(
   config: Config,
   options: PluginOptions,
   logger: PluginLogger,
-) {
+): Promise<void> {
   // Don't transpile inside node_modules
   if (!config.isSource) {
     return;

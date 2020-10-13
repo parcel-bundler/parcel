@@ -86,7 +86,7 @@ describe('watcher', function() {
     let copyPath = path.join(inDir, 'configCopy');
     let configPath = path.join(inDir, '.parcelrc');
     let b = bundler(path.join(inDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           distDir: outDir,
@@ -392,6 +392,8 @@ describe('watcher', function() {
       if (e.code == 'EPERM') {
         symlinkPrivilegeWarning();
         this.skip();
+      } else {
+        throw e;
       }
     }
   });

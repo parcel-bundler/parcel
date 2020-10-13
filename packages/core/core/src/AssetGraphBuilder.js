@@ -2,8 +2,8 @@
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import type {FilePath, ModuleSpecifier} from '@parcel/types';
-import type WorkerFarm, {Handle} from '@parcel/workers';
-import type {Event} from '@parcel/watcher';
+import type WorkerFarm, {Handle, SharedReference} from '@parcel/workers';
+import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type {
   Asset,
   AssetGraphNode,
@@ -40,7 +40,7 @@ import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
-  optionsRef: number,
+  optionsRef: SharedReference,
   name: string,
   entries?: Array<string>,
   assetGroups?: Array<AssetGroup>,
@@ -64,7 +64,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
-  optionsRef: number;
+  optionsRef: SharedReference;
   workerFarm: WorkerFarm;
   cacheKey: string;
   entries: ?Array<string>;
@@ -119,6 +119,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
+      this.requestGraph.invalidateEnvNodes(options.env);
       this.requestTracker.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
@@ -199,6 +200,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     let config = new ParcelConfig(
       processedConfig,
       this.options.packageManager,
+      this.options.inputFS,
       this.options.autoinstall,
     );
     let trackedRequestsDesc = this.assetRequests.filter(request => {
@@ -234,7 +236,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     await Promise.all(promises);
   }
 
-  shouldSkipRequest(node: AssetGraphNode) {
+  shouldSkipRequest(node: AssetGraphNode): boolean {
     return (
       node.complete === true ||
       !typesWithRequests.has(node.type) ||
@@ -244,7 +246,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     );
   }
 
-  queueCorrespondingRequest(node: AssetGraphNode) {
+  queueCorrespondingRequest(node: AssetGraphNode): Promise<mixed> {
     switch (node.type) {
       case 'entry_specifier':
         return this.queue.add(() => this.runEntryRequest(node.value));
@@ -292,6 +294,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       ...input,
       optionsRef: this.optionsRef,
     });
+
     let assets = await this.requestTracker.runRequest<
       AssetRequestInput,
       Array<Asset>,
@@ -311,11 +314,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
-  respondToFSEvents(events: Array<Event>) {
+  respondToFSEvents(events: Array<Event>): boolean {
     return this.requestGraph.respondToFSEvents(events);
   }
 
-  getWatcherOptions() {
+  getWatcherOptions(): WatcherOptions {
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(this.options.projectRoot, dir),
     );
@@ -323,7 +326,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {ignore};
   }
 
-  getCacheKeys() {
+  getCacheKeys(): {|
+    assetGraphKey: string,
+    requestGraphKey: string,
+    snapshotKey: string,
+  |} {
     let assetGraphKey = md5FromString(`${this.cacheKey}:assetGraph`);
     let requestGraphKey = md5FromString(`${this.cacheKey}:requestGraph`);
     let snapshotKey = md5FromString(`${this.cacheKey}:snapshot`);
@@ -336,8 +343,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     let {assetGraphKey, requestGraphKey, snapshotKey} = this.getCacheKeys();
-    let assetGraph = await this.options.cache.get(assetGraphKey);
-    let requestGraph = await this.options.cache.get(requestGraphKey);
+    let assetGraph = await this.options.cache.get<AssetGraph>(assetGraphKey);
+    let requestGraph = await this.options.cache.get<RequestGraph>(
+      requestGraphKey,
+    );
 
     if (assetGraph && requestGraph) {
       this.assetGraph = assetGraph;

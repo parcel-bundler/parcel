@@ -7,7 +7,6 @@ import type {
   Engines,
   EnvironmentContext,
   EnvMap,
-  File,
   FilePath,
   Glob,
   JSONObject,
@@ -17,7 +16,6 @@ import type {
   PackageName,
   PackageJSON,
   ReporterEvent,
-  ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
@@ -28,8 +26,9 @@ import type {
   OutputFormat,
   TargetDescriptor,
   HMROptions,
+  QueryParameters,
 } from '@parcel/types';
-
+import type {SharedReference} from '@parcel/workers';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -37,6 +36,7 @@ import type {PackageManager} from '@parcel/package-manager';
 export type ParcelPluginNode = {|
   packageName: PackageName,
   resolveFrom: FilePath,
+  keyPath: string,
 |};
 
 export type PureParcelConfigPipeline = $ReadOnlyArray<ParcelPluginNode>;
@@ -80,6 +80,7 @@ export type Target = {|
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
+  pipeline?: string,
 |};
 
 export type Dependency = {|
@@ -106,9 +107,9 @@ export type Asset = {|
   committed: boolean,
   hash: ?string,
   filePath: FilePath,
+  query: QueryParameters,
   type: string,
   dependencies: Map<string, Dependency>,
-  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   isInline: boolean,
   isSplittable: ?boolean,
@@ -120,7 +121,6 @@ export type Asset = {|
   mapKey: ?string,
   outputHash: ?string,
   pipeline: ?string,
-  publicId: ?string,
   astKey: ?string,
   astGenerator: ?ASTGenerator,
   symbols: ?Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
@@ -128,13 +128,26 @@ export type Asset = {|
   uniqueKey: ?string,
   configPath?: FilePath,
   plugin: ?PackageName,
+  configKeyPath?: string,
 |};
+
+export type FileInvalidation = {|
+  type: 'file',
+  filePath: FilePath,
+|};
+
+export type EnvInvalidation = {|
+  type: 'env',
+  key: string,
+|};
+
+export type RequestInvalidation = FileInvalidation | EnvInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
-  rootDir: FilePath,
-  config?: ResolvedParcelConfigFile,
-  defaultConfig?: ResolvedParcelConfigFile,
+  entryRoot: FilePath,
+  config?: ModuleSpecifier,
+  defaultConfig?: ModuleSpecifier,
   env: EnvMap,
   targets: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
   defaultEngines?: Engines,
@@ -204,15 +217,22 @@ export type AssetRequestInput = {|
   filePath: FilePath,
   env: Environment,
   isSource?: boolean,
+  canDefer?: boolean,
   sideEffects?: boolean,
   code?: string,
   pipeline?: ?string,
-  optionsRef: number,
+  optionsRef: SharedReference,
+  isURL?: boolean,
+  query: QueryParameters,
+  invalidations?: Array<RequestInvalidation>,
 |};
 
 export type AssetRequestResult = Array<Asset>;
 // Asset group nodes are essentially used as placeholders for the results of an asset request
-export type AssetGroup = $Rest<AssetRequestInput, {|optionsRef: number|}>;
+export type AssetGroup = $Rest<
+  AssetRequestInput,
+  {|optionsRef: SharedReference|},
+>;
 export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
@@ -297,6 +317,7 @@ export type ConfigRequestDesc = {|
   env: Environment,
   isSource: boolean,
   pipeline?: ?string,
+  isURL?: boolean,
   plugin?: PackageName,
   meta: JSONObject,
 |};
@@ -372,13 +393,13 @@ export type BundleGroupNode = {|
 
 export type TransformationOpts = {|
   request: AssetGroup,
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 
 export type ValidationOpts = {|
   requests: AssetGroup[],
-  optionsRef: number,
+  optionsRef: SharedReference,
   configCachePath: string,
 |};
 

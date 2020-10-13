@@ -29,7 +29,7 @@ type TSValidatorConfig = {|
   tsconfig: ConfigResult | null,
 |};
 
-export default new Validator({
+export default (new Validator({
   async validateAll({
     assets,
     options,
@@ -75,7 +75,7 @@ export default new Validator({
 
     return validatorResults;
   },
-});
+}): Validator);
 
 async function getConfig(
   asset,
@@ -173,7 +173,10 @@ function getValidateResultFromDiagnostics(
             column: start.column + 1,
           };
 
-          if (typeof diagnostic.length === 'number') {
+          if (
+            typeof diagnostic.start === 'number' &&
+            typeof diagnostic.length === 'number'
+          ) {
             let endCharPosition = file.getLineAndCharacterOfPosition(
               diagnostic.start + diagnostic.length,
             );
@@ -186,11 +189,13 @@ function getValidateResultFromDiagnostics(
 
           codeframe = {
             code: source,
-            codeHighlights: {
-              start,
-              end,
-              message: diagnosticMessage,
-            },
+            codeHighlights: [
+              {
+                start,
+                end,
+                message: diagnosticMessage,
+              },
+            ],
           };
         }
       }

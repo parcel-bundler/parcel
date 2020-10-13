@@ -10,6 +10,8 @@ import type {
   Dependency,
   DependencyNode,
   Entry,
+  EntryFileNode,
+  EntrySpecifierNode,
   Target,
 } from './types';
 
@@ -33,7 +35,7 @@ type InitOpts = {|
 
 type SerializedAssetGraph = {|
   ...GraphOpts<AssetGraphNode>,
-  hash: ?string,
+  hash?: ?string,
 |};
 
 export function nodeFromDep(dep: Dependency): DependencyNode {
@@ -44,15 +46,21 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
   };
 }
 
-export function nodeFromAssetGroup(assetGroup: AssetGroup) {
+export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
-    id: md5FromObject(assetGroup),
+    id: md5FromObject({
+      ...assetGroup,
+      // only influences building the asset graph
+      canDefer: undefined,
+      // if only the isURL property is different, no need to re-run transformation.
+      isURL: undefined,
+    }),
     type: 'asset_group',
     value: assetGroup,
   };
 }
 
-export function nodeFromAsset(asset: Asset) {
+export function nodeFromAsset(asset: Asset): AssetNode {
   return {
     id: asset.id,
     type: 'asset',
@@ -60,7 +68,7 @@ export function nodeFromAsset(asset: Asset) {
   };
 }
 
-export function nodeFromEntrySpecifier(entry: string) {
+export function nodeFromEntrySpecifier(entry: string): EntrySpecifierNode {
   return {
     id: 'entry_specifier:' + entry,
     type: 'entry_specifier',
@@ -68,7 +76,7 @@ export function nodeFromEntrySpecifier(entry: string) {
   };
 }
 
-export function nodeFromEntryFile(entry: Entry) {
+export function nodeFromEntryFile(entry: Entry): EntryFileNode {
   return {
     id: 'entry_file:' + md5FromObject(entry),
     type: 'entry_file',
@@ -80,13 +88,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
 
+  constructor(opts: ?SerializedAssetGraph) {
+    if (opts) {
+      let {hash, ...rest} = opts;
+      super(rest);
+      this.hash = hash;
+    } else {
+      super();
+    }
+  }
+
   // $FlowFixMe
   static deserialize(opts: SerializedAssetGraph): AssetGraph {
-    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    let res = new AssetGraph(opts);
-    // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-    res.hash = opts.hash;
-    return res;
+    return new AssetGraph(opts);
   }
 
   // $FlowFixMe
@@ -120,12 +134,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.replaceNodesConnectedTo(rootNode, nodes);
   }
 
-  addNode(node: AssetGraphNode) {
+  addNode(node: AssetGraphNode): AssetGraphNode {
     this.hash = null;
     return super.addNode(node);
   }
 
-  removeNode(node: AssetGraphNode) {
+  removeNode(node: AssetGraphNode): void {
     this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
@@ -154,7 +168,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       nodeFromDep(
         createDependency({
           moduleSpecifier: entry.filePath,
-          pipeline: target.name,
+          pipeline: target.pipeline,
           target: target,
           env: target.env,
           isEntry: true,
@@ -184,10 +198,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return;
     }
 
-    this.replaceNodesConnectedTo(depNode, [nodeFromAssetGroup(assetGroup)]);
+    let assetGroupNode = nodeFromAssetGroup(assetGroup);
+    let existing = this.getNode(assetGroupNode.id);
+    if (existing) {
+      invariant(existing.type === 'asset_group');
+      assetGroupNode.value.canDefer =
+        assetGroupNode.value.canDefer && existing.value.canDefer;
+    }
+
+    this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
   }
 
-  shouldVisitChild(node: AssetGraphNode, childNode: AssetGraphNode) {
+  shouldVisitChild(node: AssetGraphNode, childNode: AssetGraphNode): boolean {
     if (
       node.type !== 'dependency' ||
       childNode.type !== 'asset_group' ||
@@ -196,10 +218,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return true;
     }
 
-    let sideEffects = childNode.value.sideEffects;
+    let {sideEffects, canDefer = true} = childNode.value;
     let dependency = node.value;
     let previouslyDeferred = childNode.deferred;
-    let defer = this.shouldDeferDependency(dependency, sideEffects);
+    let defer = this.shouldDeferDependency(dependency, sideEffects, canDefer);
     node.hasDeferred = defer;
     childNode.deferred = defer;
 
@@ -251,11 +273,16 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   // using a wildcard and isn't an entry (in library mode).
   // This helps with performance building large libraries like `lodash-es`, which re-exports
   // a huge number of functions since we can avoid even transforming the files that aren't used.
-  shouldDeferDependency(dependency: Dependency, sideEffects: ?boolean) {
+  shouldDeferDependency(
+    dependency: Dependency,
+    sideEffects: ?boolean,
+    canDefer: boolean,
+  ): boolean {
     let defer = false;
     if (
       dependency.isWeak &&
       sideEffects === false &&
+      canDefer &&
       !dependency.symbols.has('*')
     ) {
       let depNode = this.getNode(dependency.id);
@@ -398,7 +425,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return entries;
   }
 
-  getHash() {
+  getHash(): string {
     if (this.hash != null) {
       return this.hash;
     }

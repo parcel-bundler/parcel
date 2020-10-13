@@ -3,7 +3,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  defaultConfig,
   getNextBuild,
   ncp,
   outputFS,
@@ -15,12 +14,12 @@ import json5 from 'json5';
 import getPort from 'get-port';
 import JSDOM from 'jsdom';
 
-const config = {
-  ...defaultConfig,
-  reporters: ['@parcel/reporter-dev-server'],
-};
+const config = path.join(
+  __dirname,
+  './integration/custom-configs/.parcelrc-dev-server',
+);
 
-async function closeSocket(ws: WebSocket) {
+async function closeSocket(ws: typeof WebSocket) {
   ws.close();
   await new Promise(resolve => (ws.onclose = resolve));
 }
@@ -36,7 +35,7 @@ async function openSocket(uri: string, opts: any) {
   return ws;
 }
 
-async function nextWSMessage(ws: WebSocket) {
+async function nextWSMessage(ws: typeof WebSocket) {
   return json5.parse(await new Promise(resolve => ws.once('message', resolve)));
 }
 
@@ -654,10 +653,7 @@ describe('hmr', function() {
           host: '127.0.0.1',
         },
         hot: {port},
-        defaultConfig: {
-          ...defaultConfig,
-          reporters: ['@parcel/reporter-dev-server'],
-        },
+        config,
       });
 
       subscription = await b.watch();

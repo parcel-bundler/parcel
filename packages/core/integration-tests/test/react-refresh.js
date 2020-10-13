@@ -2,7 +2,6 @@ import assert from 'assert';
 import path from 'path';
 import {
   bundler,
-  defaultConfig,
   getNextBuild,
   overlayFS as fs,
   sleep,
@@ -177,10 +176,10 @@ async function setup(entry) {
     hot: {
       port,
     },
-    defaultConfig: {
-      ...defaultConfig,
-      reporters: ['@parcel/reporter-dev-server'],
-    },
+    defaultConfig: path.join(
+      __dirname,
+      'integration/custom-configs/.parcelrc-dev-server',
+    ),
   });
 
   subscription = await b.watch();
@@ -209,7 +208,11 @@ async function setup(entry) {
     bundleEvent.bundleGraph.getBundles().find(b => b.type === 'js'),
   );
   // ReactDOM.render
-  await window.parcelRequire(bundle.getEntryAssets().pop().publicId).default();
+  await window
+    .parcelRequire(
+      bundleEvent.bundleGraph.getAssetPublicId(bundle.getEntryAssets().pop()),
+    )
+    .default();
   await sleep(100);
 
   let [, indexNum, appNum, fooText, fooNum] = root.textContent.match(

@@ -6,7 +6,7 @@ import path from 'path';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
-export default new Transformer({
+export default (new Transformer({
   async loadConfig({config}) {
     let configFile = await config.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus',
@@ -63,7 +63,7 @@ export default new Transformer({
     asset.meta.hasDependencies = false;
     return [asset];
   },
-});
+}): Transformer);
 
 async function getDependencies(
   code,
@@ -161,7 +161,7 @@ async function getDependencies(
       // Recursively process resolved files as well to get nested deps
       for (let resolved of found) {
         if (!seen.has(resolved)) {
-          await asset.addIncludedFile({filePath: resolved});
+          await asset.addIncludedFile(resolved);
 
           let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(

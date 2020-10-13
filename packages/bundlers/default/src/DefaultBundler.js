@@ -30,7 +30,7 @@ const HTTP_OPTIONS = {
   },
 };
 
-export default new Bundler({
+export default (new Bundler({
   // RULES:
   // 1. If dep.isAsync or dep.isEntry, start a new bundle group.
   // 2. If an asset is a different type than the current bundle, make a parallel bundle in the same bundle group.
@@ -105,10 +105,14 @@ export default new Bundler({
               target: bundleGroup.target,
             });
             bundleByType.set(bundle.type, bundle);
-            bundleRoots.set(bundle, [asset]);
             bundlesByEntryAsset.set(asset, bundle);
             siblingBundlesByAsset.set(asset.id, []);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+            // The bundle may have already been created, and the graph gave us back the original one...
+            if (!bundleRoots.has(bundle)) {
+              bundleRoots.set(bundle, [asset]);
+            }
 
             // If the bundle is in the same bundle group as the parent, create an asset reference
             // between the dependency and the asset, and a bundle reference between the parent bundle
@@ -192,11 +196,15 @@ export default new Bundler({
             });
             bundleByType.set(bundle.type, bundle);
             siblingBundles.push(bundle);
-            bundleRoots.set(bundle, [asset]);
             bundlesByEntryAsset.set(asset, bundle);
             bundleGraph.createAssetReference(dependency, asset);
             bundleGraph.createBundleReference(parentBundle, bundle);
             bundleGraph.addBundleToBundleGroup(bundle, bundleGroup);
+
+            // The bundle may have already been created, and the graph gave us back the original one...
+            if (!bundleRoots.has(bundle)) {
+              bundleRoots.set(bundle, [asset]);
+            }
           }
 
           if (!siblings) {
@@ -345,7 +353,6 @@ export default new Bundler({
       .filter(bundle => bundle.size >= config.minBundleSize)
       .sort((a, b) => b.size - a.size);
 
-    let sharedBundles = [];
     for (let {assets, sourceBundles} of sortedCandidates) {
       // Find all bundle groups connected to the original bundles
       let bundleGroups = new Set();
@@ -380,6 +387,18 @@ export default new Bundler({
         type: firstBundle.type,
       });
 
+      // Create new bundle node and connect it to all of the original bundle groups
+      for (let bundleGroup of bundleGroups) {
+        // If the bundle group is within the parallel request limit, then add the shared bundle.
+        if (
+          bundleGraph
+            .getBundlesInBundleGroup(bundleGroup)
+            .filter(b => !b.isInline).length < config.maxParallelRequests
+        ) {
+          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
+        }
+      }
+
       // Remove all of the root assets from each of the original bundles
       for (let asset of assets) {
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
@@ -402,20 +421,6 @@ export default new Bundler({
           }
         }
       }
-
-      // Create new bundle node and connect it to all of the original bundle groups
-      for (let bundleGroup of bundleGroups) {
-        // If the bundle group is within the parallel request limit, then add the shared bundle.
-        if (
-          bundleGraph
-            .getBundlesInBundleGroup(bundleGroup)
-            .filter(b => !b.isInline).length < config.maxParallelRequests
-        ) {
-          bundleGraph.addBundleToBundleGroup(sharedBundle, bundleGroup);
-        }
-      }
-
-      sharedBundles.push(sharedBundle);
     }
 
     // Remove assets that are duplicated between shared bundles.
@@ -442,8 +447,9 @@ export default new Bundler({
       }
 
       let externalResolution = bundleGraph.resolveAsyncDependency(dependency);
-      invariant(externalResolution?.type === 'bundle_group');
-      asyncBundleGroups.add(externalResolution.value);
+      if (externalResolution?.type === 'bundle_group') {
+        asyncBundleGroups.add(externalResolution.value);
+      }
 
       for (let bundle of bundleGraph.findBundlesWithDependency(dependency)) {
         if (
@@ -462,7 +468,7 @@ export default new Bundler({
       }
     }
   },
-});
+}): Bundler);
 
 function deduplicate(bundleGraph: MutableBundleGraph) {
   bundleGraph.traverse(node => {
@@ -510,6 +516,7 @@ const CONFIG_SCHEMA: SchemaEntity = {
       type: 'number',
     },
   },
+  additionalProperties: false,
 };
 
 async function loadBundlerConfig(options: PluginOptions) {

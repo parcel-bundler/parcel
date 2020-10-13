@@ -1,7 +1,7 @@
 // @flow strict-local
 
 let bundleURL: ?string = null;
-function getBundleURLCached() {
+function getBundleURLCached(): string {
   if (bundleURL == null) {
     bundleURL = _getBundleURL();
   }

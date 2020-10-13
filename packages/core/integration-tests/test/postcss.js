@@ -257,9 +257,10 @@ describe('postcss', () => {
     let distDir = path.join(outputFS.cwd(), 'dist');
 
     await bundle(path.join(__dirname, '/input/index.css'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       packageManager,
       distDir,
+      autoinstall: true,
     });
 
     // cssnext was installed
@@ -290,9 +291,6 @@ describe('postcss', () => {
       {
         name: 'style.css',
         assets: ['style.css'],
-        includedFiles: {
-          'style.css': ['config.css'],
-        },
       },
     ]);
 
@@ -310,9 +308,6 @@ describe('postcss', () => {
       {
         name: 'style.css',
         assets: ['style.css'],
-        includedFiles: {
-          'style.css': [],
-        },
       },
     ]);
 

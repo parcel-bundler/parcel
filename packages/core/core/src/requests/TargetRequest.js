@@ -1,7 +1,9 @@
 // @flow strict-local
+
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {FileSystem} from '@parcel/fs';
 import type {
+  Async,
   Engines,
   File,
   FilePath,
@@ -11,6 +13,7 @@ import type {
 } from '@parcel/types';
 import type {StaticRunOpts} from '../RequestTracker';
 import type {Entry, ParcelOptions, Target} from '../types';
+import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
@@ -19,11 +22,14 @@ import ThrowableDiagnostic, {
 import path from 'path';
 import {loadConfig, md5FromObject, validateSchema} from '@parcel/utils';
 import {createEnvironment} from '../Environment';
+import createParcelConfigRequest from './ParcelConfigRequest';
+import ParcelConfig from '../ParcelConfig';
 // $FlowFixMe
 import browserslist from 'browserslist';
 // $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import {
   COMMON_TARGET_DESCRIPTOR_SCHEMA,
   DESCRIPTOR_SCHEMA,
@@ -47,13 +53,13 @@ const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: RunOpts => Promise<TargetResolveResult>,
+  run: RunOpts => Async<TargetResolveResult>,
   input: Entry,
 |};
 
 const type = 'target_request';
 
-export default function createTargetRequest(input: Entry) {
+export default function createTargetRequest(input: Entry): TargetRequest {
   return {
     id: `${type}:${md5FromObject(input)}`,
     type,
@@ -65,6 +71,25 @@ export default function createTargetRequest(input: Entry) {
 async function run({input, api, options}: RunOpts) {
   let targetResolver = new TargetResolver(options);
   let result = await targetResolver.resolve(input.packagePath);
+
+  let {config} = nullthrows(
+    await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
+  );
+
+  let parcelConfig = new ParcelConfig(
+    config,
+    options.packageManager,
+    options.inputFS,
+    options.autoinstall,
+  );
+
+  // Find named pipelines for each target.
+  let pipelineNames = new Set(parcelConfig.getNamedPipelines());
+  for (let target of result.targets) {
+    if (pipelineNames.has(target.name)) {
+      target.pipeline = target.name;
+    }
+  }
 
   // Connect files like package.json that affect the target
   // resolution so we invalidate when they change.
@@ -217,7 +242,9 @@ export class TargetResolver {
     return {targets, files};
   }
 
-  async resolvePackageTargets(rootDir: FilePath) {
+  async resolvePackageTargets(
+    rootDir: FilePath,
+  ): Promise<{|files: Array<File>, targets: Map<string, Target>|}> {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json',
     ]);
@@ -444,9 +471,13 @@ export class TargetResolver {
           pkgFilePath,
           pkgContents,
         );
+        let pkgDir = path.dirname(nullthrows(pkgFilePath));
         targets.set(targetName, {
           name: targetName,
-          distDir,
+          distDir:
+            descriptor.distDir != null
+              ? path.resolve(pkgDir, descriptor.distDir)
+              : distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? this.options.publicUrl,
           env: createEnvironment({

@@ -22,6 +22,14 @@
 - 🔥 Built in support for **hot module replacement**
 - 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
 
+
+---
+
+**Below is the design document that was created before work on the implementation of Parcel 2 started and some sections are outdated. The actual (somewhat complete) documentation for Parcel 2 is available here: https://v2.parceljs.org/.**
+
+
+----
+
 ## Getting Started
 
 Before we get started, you'll need to install Node and Yarn (or npm) and create
@@ -131,6 +139,7 @@ console.log("Hello World");
     - [`--https`](#--https)
       - [`--cert <path>`](#--cert-path)
       - [`--key <path>`](#--key-path)
+    - [`--dist-dir <dir>`](#--dist-dir-dir)
     - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
     - [`--hot`, `--no-hot`](#--hot---no-hot)
       - [`--hot-host <hostname>`](#--hot-host-hostname)
@@ -315,6 +324,10 @@ Specify the filepath to your SSL certificate when using `--https`.
 ##### `--key <path>`
 
 Specify the filepath to your SSL key when using `--https`.
+
+#### `--dist-dir <dir>`
+
+Configure the directory where compiled assets are output. Default is `./dist`.
 
 #### `--cache-dir <dir>`, `--no-cache`
 
@@ -674,7 +687,7 @@ See [Bundlers](#bundlers)
 
 #### `.parcelrc#namers`
 
-`bundler` is an array of Parcel namer packages.
+`namers` is an array of Parcel namer packages.
 
 ```json
 {
@@ -1087,6 +1100,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 
 - `@parcel/transformer-babel`
 - `@parcel/transformer-coffeescript`
+- `@parcel/transformer-glsl`
 - `@parcel/transformer-graphql`
 - `@parcel/transformer-json`
 - `@parcel/transformer-json5`
