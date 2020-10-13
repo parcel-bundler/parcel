@@ -114,9 +114,9 @@ export class AssetGraphBuilder {
       if (this.shouldSkipRequest(node)) {
         visitChildren(node);
       } else {
-        this.queueCorrespondingRequest(node).then(
-          () => visitChildren(node),
-          error => errors.push(error),
+        // ? do we need to visit children inside of the promise that is queued?
+        this.queueCorrespondingRequest(node, errors).then(() =>
+          visitChildren(node),
         );
       }
     };
@@ -137,6 +137,7 @@ export class AssetGraphBuilder {
     await this.queue.run();
 
     if (errors.length) {
+      this.api.storeResult({assetGraph: this.assetGraph, changedAssets: []});
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
@@ -156,21 +157,32 @@ export class AssetGraphBuilder {
     );
   }
 
-  queueCorrespondingRequest(node: AssetGraphNode): Promise<mixed> {
+  queueCorrespondingRequest(
+    node: AssetGraphNode,
+    errors: Array<Error>,
+  ): Promise<mixed> {
+    let promise;
     switch (node.type) {
       case 'entry_specifier':
-        return this.queue.add(() => this.runEntryRequest(node.value));
+        promise = this.runEntryRequest(node.value);
+        break;
       case 'entry_file':
-        return this.queue.add(() => this.runTargetRequest(node.value));
+        promise = this.runTargetRequest(node.value);
+        break;
       case 'dependency':
-        return this.queue.add(() => this.runPathRequest(node.value));
+        promise = this.runPathRequest(node.value);
+        break;
       case 'asset_group':
-        return this.queue.add(() => this.runAssetRequest(node.value));
+        promise = this.runAssetRequest(node.value);
+        break;
       default:
         throw new Error(
           `Can not queue corresponding request of node with type ${node.type}`,
         );
     }
+    return this.queue.add(() =>
+      promise.then(null, error => errors.push(error)),
+    );
   }
 
   async runEntryRequest(input: ModuleSpecifier) {
