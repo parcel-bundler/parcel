@@ -99,7 +99,7 @@ export async function concat({
 
   let usedExports = getUsedExports(bundle, bundleGraph);
 
-  // Node: for each asset, the order of `$parcel$require` calls and the corresponding
+  // Note: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
