@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-atlassian-ssr",
-  "version": "2.0.0-frontbucket.40",
+  "version": "2.0.0-frontbucket.41",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -41,7 +41,7 @@
     "@parcel/transformer-sass": "^2.0.0-frontbucket.33",
     "@parcel/transformer-stylus": "^2.0.0-frontbucket.33",
     "@parcel/transformer-sugarss": "^2.0.0-frontbucket.31",
-    "@parcel/transformer-sync-dynamic-import": "^0.0.2-frontbucket.4",
+    "@parcel/transformer-sync-dynamic-import": "^0.0.2-frontbucket.5",
     "@parcel/transformer-toml": "^2.0.0-frontbucket.31",
     "@parcel/transformer-typescript-types": "^2.0.0-frontbucket.33",
     "@parcel/transformer-workerize": "^2.0.0-frontbucket.37",
