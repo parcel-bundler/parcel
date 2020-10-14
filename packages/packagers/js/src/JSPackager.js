@@ -14,8 +14,10 @@ import {
   relativeBundlePath,
   replaceInlineReferences,
   md5FromString,
+  loadConfig,
 } from '@parcel/utils';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 const PRELUDE = fs
   .readFileSync(path.join(__dirname, 'prelude.js'), 'utf8')
@@ -23,11 +25,24 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default (new Packager({
+  async loadConfig({options}) {
+    // Generate a name for the global parcelRequire function that is unique to this project.
+    // This allows multiple parcel builds to coexist on the same page.
+    let pkg = await loadConfig(options.inputFS, path.join(options.entryRoot, 'index'), ['package.json']);
+    let name = pkg?.config.name ?? '';
+    return {
+      config: {
+        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4)
+      },
+      files: pkg?.files ?? []
+    };
+  },
   async package({
     bundle,
     bundleGraph,
     getInlineBundleContents,
     getSourceMapReference,
+    config,
     options,
   }) {
     function replaceReferences({contents, map}) {
@@ -44,10 +59,7 @@ export default (new Packager({
       });
     }
 
-    // Generate a name for the global parcelRequire function that is unique to this project.
-    // This allows multiple parcel builds to coexist on the same page.
-    let parcelRequireName =
-      'parcelRequire' + md5FromString(options.projectRoot).slice(-4);
+    let parcelRequireName = nullthrows(config).parcelRequireName;
 
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
