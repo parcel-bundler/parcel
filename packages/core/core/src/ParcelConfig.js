@@ -25,7 +25,12 @@ import type {
 } from './types';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
-import {resolvePlugin, loadPlugin} from './loadParcelPlugin';
+import path from 'path';
+import {loadPlugin} from './loadParcelPlugin';
+import {findAlternativeNodeModules} from '@parcel/utils';
+import ThrowableDiagnostic, {
+  generateJSONCodeHighlights,
+} from '@parcel/diagnostic';
 import type {PackageJSON} from '@parcel/types';
 
 type GlobMap<T> = {[Glob]: T, ...};
@@ -117,17 +122,50 @@ export default class ParcelConfig {
     };
   }
 
-  resolvePlugin(
+  async resolvePlugin(
     node: ParcelPluginNode,
   ): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
-    return resolvePlugin(
-      this.fs,
-      this.packageManager,
-      node.packageName,
-      node.resolveFrom,
-      node.keyPath,
-      this.autoinstall,
-    );
+    let resolved, pkg;
+    let autoinstall = this.autoinstall;
+    try {
+      ({resolved, pkg} = await this.packageManager.resolve(
+        node.packageName,
+        node.resolveFrom,
+        {
+          autoinstall,
+        },
+      ));
+    } catch (err) {
+      let configContents = await this.fs.readFile(node.resolveFrom, 'utf8');
+      let alternatives = await findAlternativeNodeModules(
+        this.fs,
+        node.packageName,
+        path.dirname(node.resolveFrom),
+      );
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: `Cannot find parcel plugin "${node.packageName}"`,
+          origin: '@parcel/core',
+          filePath: node.resolveFrom,
+          language: 'json5',
+          codeFrame: {
+            code: configContents,
+            codeHighlights: generateJSONCodeHighlights(configContents, [
+              {
+                key: node.keyPath,
+                type: 'value',
+                message: `Cannot find module "${node.packageName}"${
+                  alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
+                }`,
+              },
+            ]),
+          },
+        },
+      });
+    }
+    this.pluginCache.set(node.packageName, {resolved});
+
+    return {resolved, pkg};
   }
 
   resolvePlugins(
@@ -153,23 +191,38 @@ export default class ParcelConfig {
     );
   }
 
-  loadPlugin<T>(
+  async loadPlugin<T>(
     node: ParcelPluginNode,
   ): Promise<{|plugin: T, version: Semver|}> {
-    let plugin = this.pluginCache.get(node.packageName);
-    if (plugin) {
-      return plugin;
+    let packageCache = this.pluginCache.get(node.packageName);
+    if (
+      packageCache &&
+      packageCache.resolved &&
+      packageCache.plugin &&
+      packageCache.version
+    ) {
+      return packageCache.plugin;
     }
 
-    plugin = loadPlugin<T>(
+    let {resolved, pkg} = await await this.resolvePlugin(node);
+
+    let plugin = loadPlugin<T>(
       this.fs,
       this.packageManager,
       node.packageName,
       node.resolveFrom,
       node.keyPath,
       this.autoinstall,
+      resolved,
+      pkg,
     );
-    this.pluginCache.set(node.packageName, plugin);
+    this.pluginCache.set(node.packageName, {
+      ...packageCache,
+      resolved,
+      plugin,
+      version: (await plugin).version,
+    });
+
     return plugin;
   }
 

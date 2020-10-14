@@ -11,53 +11,19 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-import {findAlternativeNodeModules, resolveConfig} from '@parcel/utils';
-import path from 'path';
+import {resolveConfig} from '@parcel/utils';
 import {version as PARCEL_VERSION} from '../package.json';
 
-export async function resolvePlugin(
+export async function loadPlugin<T>(
   fs: FileSystem,
   packageManager: PackageManager,
   pluginName: PackageName,
   resolveFrom: FilePath,
   keyPath: string,
   autoinstall: boolean,
-): Promise<{|resolved: FilePath, pkg?: ?PackageJSON|}> {
-  let resolved, pkg;
-  try {
-    ({resolved, pkg} = await packageManager.resolve(pluginName, resolveFrom, {
-      autoinstall,
-    }));
-  } catch (err) {
-    let configContents = await fs.readFile(resolveFrom, 'utf8');
-    let alternatives = await findAlternativeNodeModules(
-      fs,
-      pluginName,
-      path.dirname(resolveFrom),
-    );
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        message: `Cannot find parcel plugin "${pluginName}"`,
-        origin: '@parcel/core',
-        filePath: resolveFrom,
-        language: 'json5',
-        codeFrame: {
-          code: configContents,
-          codeHighlights: generateJSONCodeHighlights(configContents, [
-            {
-              key: keyPath,
-              type: 'value',
-              message: `Cannot find module "${pluginName}"${
-                alternatives[0] ? `, did you mean "${alternatives[0]}"?` : ''
-              }`,
-            },
-          ]),
-        },
-      },
-    });
-  }
-
-  // Validate the engines.parcel field in the plugin's package.json
+  resolved: FilePath,
+  pkg: PackageJSON,
+): Promise<{|plugin: T, version: Semver|}> {
   let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
   if (!parcelVersionRange) {
     logger.warn({
@@ -71,9 +37,9 @@ export async function resolvePlugin(
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
     let pkgFile = nullthrows(
-      await resolveConfig(fs, resolved, ['package.json']),
+      await resolveConfig(this.fs, resolved, ['package.json']),
     );
-    let pkgContents = await fs.readFile(pkgFile, 'utf8');
+    let pkgContents = await this.fs.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
@@ -91,25 +57,6 @@ export async function resolvePlugin(
       },
     });
   }
-  return {resolved, pkg};
-}
-
-export async function loadPlugin<T>(
-  fs: FileSystem,
-  packageManager: PackageManager,
-  pluginName: PackageName,
-  resolveFrom: FilePath,
-  keyPath: string,
-  autoinstall: boolean,
-): Promise<{|plugin: T, version: Semver|}> {
-  let {resolved, pkg} = await resolvePlugin(
-    fs,
-    packageManager,
-    pluginName,
-    resolveFrom,
-    keyPath,
-    autoinstall,
-  );
   let plugin = await packageManager.require(resolved, resolveFrom, {
     autoinstall,
   });

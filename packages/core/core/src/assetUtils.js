@@ -130,6 +130,8 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   }
 
   let pluginName = nullthrows(asset.value.plugin);
+
+  // call packageManager.resolve(pluginName, asset.value.configPath)
   let {plugin} = await loadPlugin<Transformer>(
     asset.options.inputFS,
     asset.options.packageManager,
