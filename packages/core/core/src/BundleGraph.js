@@ -702,7 +702,7 @@ export default class BundleGraph {
               actions.skipChildren();
             }
           },
-          'bundle',
+          ['references', 'bundle'],
         );
 
         return inBundle;
