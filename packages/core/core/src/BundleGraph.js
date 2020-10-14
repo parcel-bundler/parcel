@@ -565,11 +565,7 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferencedByDependant(
-    bundle: Bundle,
-    asset: Asset,
-    visitedBundles: Set<Bundle> = new Set(),
-  ): boolean {
+  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean {
     let dependencies = this._graph
       .getNodesConnectedTo(nullthrows(this._graph.getNode(asset.id)))
       .filter(node => node.type === 'dependency')
@@ -578,7 +574,7 @@ export default class BundleGraph {
         return node.value;
       });
 
-    const bundleHasReference = (bundle: Bundle) => {
+    let bundleHasReference = (bundle: Bundle) => {
       return (
         !this.bundleHasAsset(bundle, asset) &&
         dependencies.some(dependency =>
@@ -587,51 +583,40 @@ export default class BundleGraph {
       );
     };
 
-    let isReferenced = false;
-    this.traverseBundles((descendant, _, actions) => {
-      if (visitedBundles.has(descendant)) {
-        actions.skipChildren();
-        return;
-      }
+    let visitedBundles: Set<Bundle> = new Set();
+    // Check if any of this bundle's descendants, referencers, bundles referenced
+    // by referencers, or descedants of its referencers reference the asset.
+    return [bundle, ...this.getReferencingBundles(bundle)].some(referencer => {
+      let isReferenced = false;
+      this.traverseBundles((descendant, _, actions) => {
+        if (descendant.id === bundle.id) {
+          return;
+        }
 
-      visitedBundles.add(descendant);
-      if (
-        descendant.type !== bundle.type ||
-        descendant.env.context !== bundle.env.context
-      ) {
-        actions.skipChildren();
-        return;
-      }
+        if (visitedBundles.has(descendant)) {
+          actions.skipChildren();
+          return;
+        }
 
-      if (descendant !== bundle && bundleHasReference(descendant)) {
-        isReferenced = true;
-        actions.stop();
-        return;
-      }
+        visitedBundles.add(descendant);
 
-      let referencers = this.getReferencingBundles(descendant).filter(
-        referencer =>
-          referencer.type === bundle.type &&
-          referencer.env.context === bundle.env.context,
-      );
-      if (
-        referencers.some(
-          referencer =>
-            bundleHasReference(referencer) ||
-            this.isAssetReferencedByDependant(
-              referencer,
-              asset,
-              visitedBundles,
-            ),
-        )
-      ) {
-        isReferenced = true;
-        actions.stop();
-        return;
-      }
-    }, bundle);
+        if (
+          descendant.type !== bundle.type ||
+          descendant.env.context !== bundle.env.context
+        ) {
+          actions.skipChildren();
+          return;
+        }
 
-    return isReferenced;
+        if (bundleHasReference(descendant)) {
+          isReferenced = true;
+          actions.stop();
+          return;
+        }
+      }, referencer);
+
+      return isReferenced;
+    });
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {
