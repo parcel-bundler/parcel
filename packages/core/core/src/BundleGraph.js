@@ -1155,7 +1155,7 @@ export default class BundleGraph {
     this.traverseBundles((childBundle, _, traversal) => {
       if (childBundle.isInline) {
         bundles.push(childBundle);
-      } else {
+      } else if (childBundle.id !== bundle.id) {
         traversal.skipChildren();
       }
     }, bundle);
