@@ -13,6 +13,7 @@ import {
   PromiseQueue,
   relativeBundlePath,
   replaceInlineReferences,
+  md5FromString,
 } from '@parcel/utils';
 import path from 'path';
 
@@ -43,13 +44,24 @@ export default (new Packager({
       });
     }
 
+    // Generate a name for the global parcelRequire function that is unique to this project.
+    // This allows multiple parcel builds to coexist on the same page.
+    let parcelRequireName =
+      'parcelRequire' + md5FromString(options.projectRoot).slice(-4);
+
     // If scope hoisting is enabled, we use a different code path.
     if (bundle.env.scopeHoist) {
       let wrappedAssets = new Set<string>();
       let {ast, referencedAssets} = link({
         bundle,
         bundleGraph,
-        ast: await concat({bundle, bundleGraph, options, wrappedAssets}),
+        ast: await concat({
+          bundle,
+          bundleGraph,
+          options,
+          wrappedAssets,
+          parcelRequireName,
+        }),
         options,
         wrappedAssets,
       });
@@ -62,6 +74,7 @@ export default (new Packager({
         bundle,
         ast,
         referencedAssets,
+        parcelRequireName,
         options,
       });
       return replaceReferences({
@@ -192,7 +205,7 @@ export default (new Packager({
           mainEntry ? bundleGraph.getAssetPublicId(mainEntry) : null,
         ) +
         ', ' +
-        'null' +
+        JSON.stringify(parcelRequireName) +
         ')' +
         '\n\n' +
         (await getSourceMapSuffix(getSourceMapReference, map)),
