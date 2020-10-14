@@ -135,10 +135,10 @@ export async function runPackage(
     report: reportWorker.bind(null, workerApi),
   });
 
-  let config = await runner.loadConfig(bundleGraph, bundle);
+  let configs = await runner.loadConfigs(bundleGraph, bundle);
   // TODO: add invalidations in `config?.files` once packaging is a request
 
-  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, config?.config);
+  let cacheKey = await runner.getCacheKey(bundle, bundleGraph, configs);
   let cacheKeys = {
     content: PackagerRunner.getContentKey(cacheKey),
     map: PackagerRunner.getMapKey(cacheKey),
@@ -147,6 +147,6 @@ export async function runPackage(
 
   return (
     (await runner.getBundleInfoFromCache(cacheKeys.info)) ??
-    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, config?.config)
+    runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
   );
 }
