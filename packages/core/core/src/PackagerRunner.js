@@ -175,7 +175,10 @@ export default class PackagerRunner {
 
     configs.set(bundle.id, await this.loadConfig(bundleGraph, bundle));
     for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
-      configs.set(inlineBundle.id, await this.loadConfig(bundleGraph, inlineBundle));
+      configs.set(
+        inlineBundle.id,
+        await this.loadConfig(bundleGraph, inlineBundle),
+      );
     }
 
     return configs;
@@ -446,7 +449,7 @@ export default class PackagerRunner {
   async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configs: Map<string, ?ConfigOutput>
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well

@@ -28,13 +28,17 @@ export default (new Packager({
   async loadConfig({options}) {
     // Generate a name for the global parcelRequire function that is unique to this project.
     // This allows multiple parcel builds to coexist on the same page.
-    let pkg = await loadConfig(options.inputFS, path.join(options.entryRoot, 'index'), ['package.json']);
+    let pkg = await loadConfig(
+      options.inputFS,
+      path.join(options.entryRoot, 'index'),
+      ['package.json'],
+    );
     let name = pkg?.config.name ?? '';
     return {
       config: {
-        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4)
+        parcelRequireName: 'parcelRequire' + md5FromString(name).slice(-4),
       },
-      files: pkg?.files ?? []
+      files: pkg?.files ?? [],
     };
   },
   async package({
