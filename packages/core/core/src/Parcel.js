@@ -124,12 +124,19 @@ export default class Parcel {
       dispose: disposeOptions,
       ref: optionsRef,
     } = await this.#farm.createSharedReference(resolvedOptions);
-    this.#disposable.add(disposeOptions);
     let {
       dispose: disposeConfig,
       ref: configRef,
     } = await this.#farm.createSharedReference(config);
-    this.#disposable.add(disposeConfig);
+
+    if (this.#initialOptions.workerFarm) {
+      // If we don't own the farm, dispose of only these references when
+      // Parcel ends.
+      this.#disposable.add(disposeOptions, disposeConfig);
+    } else {
+      // Otherwise, when shutting down, end the entire farm we created.
+      this.#disposable.add(() => this.#farm.end());
+    }
 
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
@@ -149,6 +156,11 @@ export default class Parcel {
         workerFarm: this.#farm,
       }),
     ]);
+
+    this.#disposable.add(
+      () => this.#assetGraphBuilder.writeToCache(),
+      () => this.#runtimesAssetGraphBuilder.writeToCache(),
+    );
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
@@ -182,10 +194,6 @@ export default class Parcel {
     }
 
     let result = await this.build({startTime});
-    await Promise.all([
-      this.#assetGraphBuilder.writeToCache(),
-      this.#runtimesAssetGraphBuilder.writeToCache(),
-    ]);
 
     if (result.type === 'buildFailure') {
       throw new BuildError(result.diagnostics);
@@ -194,13 +202,8 @@ export default class Parcel {
     return result;
   }
 
-  async end(): Promise<void> {
-    await this.#disposable.dispose();
-
-    if (!this.#initialOptions.workerFarm) {
-      // If there wasn't a workerFarm passed in, we created it. End the farm.
-      await this.#farm.end();
-    }
+  end(): Promise<void> {
+    return this.#disposable.dispose();
   }
 
   async startNextBuild() {
@@ -257,10 +260,6 @@ export default class Parcel {
         await nullthrows(this.#watcherSubscription).unsubscribe();
         this.#watcherSubscription = null;
         await this.#reporterRunner.report({type: 'watchEnd'});
-        await Promise.all([
-          this.#assetGraphBuilder.writeToCache(),
-          this.#runtimesAssetGraphBuilder.writeToCache(),
-        ]);
       }
     };
 
@@ -316,7 +315,6 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-
       await this.#assetGraphBuilder.validate();
       return event;
     } catch (e) {
