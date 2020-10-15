@@ -193,7 +193,7 @@ async function run(entries: Array<string>, command: any) {
     ...options,
   });
 
-  let disposable = new Disposable();
+  let disposable = new Disposable(() => parcel.end());
   let unsubscribe: () => Promise<mixed>;
   let isExiting;
   async function exit(exitCode: number = 0) {
@@ -213,7 +213,7 @@ async function run(entries: Array<string>, command: any) {
       process.stdin.setRawMode(false);
     }
 
-    disposable.dispose();
+    await disposable.dispose();
     process.exit(exitCode);
   }
 
