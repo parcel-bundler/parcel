@@ -35,6 +35,12 @@
     "url:*.{png,jpg,jpeg,webp}": ["@parcel/transformer-image", "..."],
     "url:*": ["@parcel/transformer-raw"]
   },
+  "pipelines": {
+    "js": {
+      "*.module.css": ["@parcel/transformer-css-modules"],
+      "*.json": ["@parcel/transformer-json"]
+    }
+  },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
     "browser": [

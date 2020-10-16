@@ -14,8 +14,8 @@ import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 export type AST = _AST;
 export type ConfigResult = _ConfigResult;
 /** Plugin-specific config result, <code>any</code> */
-export type ConfigResultWithFilePath = {|
-  contents: ConfigResult,
+export type ConfigResultWithFilePath<T> = {|
+  contents: T,
   filePath: FilePath,
 |};
 /** <code>process.env</code> */
@@ -149,7 +149,7 @@ export type TargetDescriptor = {|
 /**
  * This is used when creating an Environment (see that).
  */
-export type EnvironmentOpts = {|
+export type EnvironmentOptions = {|
   +context?: EnvironmentContext,
   +engines?: Engines,
   +includeNodeModules?:
@@ -292,9 +292,11 @@ export type InitialParcelOptions = {|
   +packageManager?: PackageManager,
   // +defaultEngines?: Engines,
   // +detailedReport?: number | boolean,
-  +detailedReport?: boolean | {|
-    assetsPerBundle?: number
-  |}
+  +detailedReport?:
+    | boolean
+    | {|
+        assetsPerBundle?: number,
+      |},
 
   // throwErrors
   // global?
@@ -415,7 +417,7 @@ export type DependencyOptions = {|
   +specifierType?: 'commonjs' | 'esm' | 'url' | 'custom',
 
   +loc?: SourceLocation,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +meta?: Meta,
   +target?: Target, // TODO: remove?
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
@@ -523,7 +525,8 @@ export interface BaseAsset {
   /** Used to load config files, (looks in every parent folder until a module root) \
    * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
    */
-  getConfig( // TODO: remove
+  getConfig(
+    // TODO: remove
     filePaths: Array<FilePath>,
     options: ?{|
       packageKey?: string,
@@ -548,7 +551,7 @@ export interface MutableAsset extends BaseAsset {
 
   addDependency(dep: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
-  addIncludedFile(filePath: FilePath): void; // TODO: rename - invalidateOnFileChange
+  invalidateOnFileChange(filePath: FilePath): void; // TODO: rename - invalidateOnFileChange
   invalidateOnEnvChange(env: string): void;
   invalidateOnOptionChange(option: string): void;
   invalidateOnStartup(): void; // Maybe only in config??
@@ -563,7 +566,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   /** Throws if the AST is dirty (meaning: this won't implicity stringify the AST). */
   getCode(): Promise<string>;
-  setEnvironment(opts: EnvironmentOpts): void; // TODO: replace with something else?!
+  setEnvironment(opts: EnvironmentOptions): void; // TODO: replace with something else?!
   setMap(?SourceMap): void;
   setStream(Readable): void;
 }
@@ -639,7 +642,7 @@ export type TransformerResult = {|
   +ast?: ?AST,
   +content?: ?Blob,
   +dependencies?: $ReadOnlyArray<DependencyOptions>,
-  +env?: EnvironmentOpts,
+  +env?: EnvironmentOptions,
   +filePath?: FilePath,
   +includedFiles?: $ReadOnlyArray<File>,
   +isInline?: boolean,
@@ -721,25 +724,65 @@ export type MultiThreadValidator = {|
  */
 export type Validator = DedicatedThreadValidator | MultiThreadValidator;
 
+export interface TransformerLoadConfigOptions<T> {
+  getConfigFrom(
+    searchPath: FilePath,
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<ConfigResultWithFilePath<T> | null>;
+  getConfig(
+    filePaths: Array<FilePath>,
+    options: ?{|
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+    |},
+  ): Promise<ConfigResultWithFilePath<T> | null>;
+  getPackage(): Promise<ConfigResultWithFilePath<PackageJSON> | null>;
+}
+
+export interface ConfigResult2<T> {
+  result: T;
+  cacheKey?: string; // Optional. If not passed, we hash result if possible. Otherwise throw error.
+  devDependencies?: Array<{|
+    name: PackageName,
+    resolveFrom: FilePath,
+    version?: Semver,
+  |}>;
+  invalidateOnFileCreate?: Array<Glob>;
+  invalidateOnFileChange?: Array<FilePath>;
+  shouldInvalidateOnStartup?: boolean;
+}
+
 /**
  * The methods for a transformer plugin.
  * @section transformer
  */
-export type Transformer = {|
+export type Transformer<ConfigType> = {|
+  getEnvironment?: ({|
+    env: Environment,
+  |}) => EnvironmentOptions,
   loadConfig?: ({|
-    config: Config,
+    // config: Config,
+    asset: Asset,
+    api: TransformerLoadConfigOptions<ConfigType>, /// ??? name?
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<void>,
-  preSerializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-  |}) => Async<void>,
-  postDeserializeConfig?: ({|
-    config: Config,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<void>,
+  |}) => Async<ConfigResult2<ConfigType>>,
+  // TODO: stop sending across IPC. Maybe bring back when caching configs.
+  // preSerializeConfig?: ({|
+  //   config: ConfigType,
+  //   options: PluginOptions,
+  // |}) => Async<void>,
+  // postDeserializeConfig?: ({|
+  //   config: ConfigType,
+  //   options: PluginOptions,
+  //   logger: PluginLogger,
+  // |}) => Async<void>,
   /** Whether an AST from a previous transformer can be reused (to prevent double-parsing) */
   canReuseAST?: ({|
     ast: AST,
@@ -748,20 +791,20 @@ export type Transformer = {|
   |}) => boolean,
   /** Parse the contents into an ast */
   parse?: ({|
-    asset: MutableAsset,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
+    asset: Asset,
+    config: ?ConfigType,
+    resolve: ResolveFn, // TODO: figure out how to invalidate
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<?AST>,
   /** Transform the asset and/or add new assets */
   transform({|
     asset: MutableAsset,
-    config: ?ConfigResult,
+    config: ?ConfigType,
     resolve: ResolveFn,
     options: PluginOptions,
     logger: PluginLogger,
-  |}): Async<Array<TransformerResult | MutableAsset>>,
+  |}): Async<Array<TransformerResult | MutableAsset>>, // TODO: return void?
   /** Stringify the AST */
   generate?: ({|
     asset: Asset,
@@ -769,13 +812,13 @@ export type Transformer = {|
     options: PluginOptions,
     logger: PluginLogger,
   |}) => Async<GenerateOutput>,
-  postProcess?: ({|
-    assets: Array<MutableAsset>,
-    config: ?ConfigResult,
-    resolve: ResolveFn,
-    options: PluginOptions,
-    logger: PluginLogger,
-  |}) => Async<Array<TransformerResult>>,
+  // postProcess?: ({|
+  //   assets: Array<MutableAsset>,
+  //   config: ?ConfigType,
+  //   resolve: ResolveFn,
+  //   options: PluginOptions,
+  //   logger: PluginLogger,
+  // |}) => Async<Array<TransformerResult>>,
 |};
 
 /**
@@ -838,7 +881,7 @@ export type BundlerBundleGraphTraversable =
  * isSplittable defaults to <code>entryAsset.isSplittable</code> or <code>false</code>
  * @section bundler
  */
-export type CreateBundleOpts =
+export type CreateBundleOptions =
   // If an entryAsset is provided, a bundle id, type, and environment will be
   // inferred from the entryAsset.
   | {|
@@ -954,7 +997,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
   createBundleReference(Bundle, Bundle): void;
-  createBundle(CreateBundleOpts): Bundle;
+  createBundle(CreateBundleOptions): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   createBundleGroup(Dependency, Target): BundleGroup;
   getDependencyAssets(Dependency): Array<Asset>;
@@ -1064,6 +1107,9 @@ export type ResolveResult = {|
   +canDefer?: boolean,
   /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
   +diagnostics?: Diagnostic | Array<Diagnostic>,
+
+  invalidateOnFileCreate?: Array<Glob>,
+  invalidateOnFileChange?: Array<FilePath>,
 |};
 
 export type ConfigOutput = {|

@@ -279,41 +279,41 @@ export default class Transformation {
       }
     }
 
-    if (!pipeline.postProcess) {
-      return finalAssets;
-    }
+    // if (!pipeline.postProcess) {
+    return finalAssets;
+    // }
 
-    let processedCacheEntry = await this.readFromCache(
-      this.getCacheKey(
-        finalAssets,
-        pipeline.configs,
-        await getInvalidationHash(
-          flatMap(finalAssets, asset => asset.getInvalidations()),
-          this.options,
-        ),
-      ),
-    );
+    // let processedCacheEntry = await this.readFromCache(
+    //   this.getCacheKey(
+    //     finalAssets,
+    //     pipeline.configs,
+    //     await getInvalidationHash(
+    //       flatMap(finalAssets, asset => asset.getInvalidations()),
+    //       this.options,
+    //     ),
+    //   ),
+    // );
 
-    invariant(pipeline.postProcess != null);
-    let processedFinalAssets: Array<UncommittedAsset> =
-      processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
+    // invariant(pipeline.postProcess != null);
+    // let processedFinalAssets: Array<UncommittedAsset> =
+    //   processedCacheEntry ?? (await pipeline.postProcess(finalAssets)) ?? [];
 
-    if (!processedCacheEntry) {
-      await this.writeToCache(
-        this.getCacheKey(
-          processedFinalAssets,
-          pipeline.configs,
-          await getInvalidationHash(
-            flatMap(processedFinalAssets, asset => asset.getInvalidations()),
-            this.options,
-          ),
-        ),
-        processedFinalAssets,
-        pipeline.configs,
-      );
-    }
+    // if (!processedCacheEntry) {
+    //   await this.writeToCache(
+    //     this.getCacheKey(
+    //       processedFinalAssets,
+    //       pipeline.configs,
+    //       await getInvalidationHash(
+    //         flatMap(processedFinalAssets, asset => asset.getInvalidations()),
+    //         this.options,
+    //       ),
+    //     ),
+    //     processedFinalAssets,
+    //     pipeline.configs,
+    //   );
+    // }
 
-    return processedFinalAssets;
+    // return processedFinalAssets;
   }
 
   async runPipeline(
@@ -692,31 +692,31 @@ async function runTransformer(
   };
 
   // For Flow
-  let postProcess = transformer.postProcess;
-  if (postProcess) {
-    pipeline.postProcess = async (
-      assets: Array<UncommittedAsset>,
-    ): Promise<Array<UncommittedAsset> | null> => {
-      let results = await postProcess.call(transformer, {
-        assets: assets.map(asset => new MutableAsset(asset)),
-        config,
-        options: pipeline.pluginOptions,
-        resolve,
-        logger,
-      });
+  // let postProcess = transformer.postProcess;
+  // if (postProcess) {
+  //   pipeline.postProcess = async (
+  //     assets: Array<UncommittedAsset>,
+  //   ): Promise<Array<UncommittedAsset> | null> => {
+  //     let results = await postProcess.call(transformer, {
+  //       assets: assets.map(asset => new MutableAsset(asset)),
+  //       config,
+  //       options: pipeline.pluginOptions,
+  //       resolve,
+  //       logger,
+  //     });
 
-      return Promise.all(
-        results.map(result =>
-          asset.createChildAsset(
-            result,
-            transformerName,
-            parcelConfig.filePath,
-            configKeyPath,
-          ),
-        ),
-      );
-    };
-  }
+  //     return Promise.all(
+  //       results.map(result =>
+  //         asset.createChildAsset(
+  //           result,
+  //           transformerName,
+  //           parcelConfig.filePath,
+  //           configKeyPath,
+  //         ),
+  //       ),
+  //     );
+  //   };
+  // }
 
   return results;
 }
