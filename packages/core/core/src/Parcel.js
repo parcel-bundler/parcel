@@ -54,8 +54,7 @@ export default class Parcel {
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
-  #isDisposed /*: boolean */ = false;
-  #disposable /*: Disposable */ = new Disposable();
+  #disposable /*: Disposable */;
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
@@ -72,16 +71,7 @@ export default class Parcel {
         +buildEvent: BuildEvent,
         +error?: void,
       |},
-  > */ = new ValueEmitter<
-    | {|
-        +error: Error,
-        +buildEvent?: void,
-      |}
-    | {|
-        +buildEvent: BuildEvent,
-        +error?: void,
-      |},
-  >();
+  > */;
   #watcherSubscription /*: ?AsyncSubscription*/;
   #watcherCount /*: number*/ = 0;
 
@@ -129,6 +119,7 @@ export default class Parcel {
       ref: configRef,
     } = await this.#farm.createSharedReference(config);
 
+    this.#disposable = new Disposable();
     if (this.#initialOptions.workerFarm) {
       // If we don't own the farm, dispose of only these references when
       // Parcel ends.
@@ -137,6 +128,9 @@ export default class Parcel {
       // Otherwise, when shutting down, end the entire farm we created.
       this.#disposable.add(() => this.#farm.end());
     }
+
+    this.#watchEvents = new ValueEmitter();
+    this.#disposable.add(() => this.#watchEvents.dispose());
 
     this.#assetGraphBuilder = new AssetGraphBuilder();
     this.#runtimesAssetGraphBuilder = new AssetGraphBuilder();
@@ -202,8 +196,9 @@ export default class Parcel {
     return result;
   }
 
-  end(): Promise<void> {
-    return this.#disposable.dispose();
+  async end(): Promise<void> {
+    await this.#disposable.dispose();
+    this.#initialized = false;
   }
 
   async startNextBuild() {
@@ -226,6 +221,10 @@ export default class Parcel {
   async watch(
     cb?: (err: ?Error, buildEvent?: BuildEvent) => mixed,
   ): Promise<AsyncSubscription> {
+    if (!this.#initialized) {
+      await this.init();
+    }
+
     let watchEventsDisposable;
     if (cb) {
       watchEventsDisposable = this.#watchEvents.addListener(
@@ -234,10 +233,6 @@ export default class Parcel {
     }
 
     if (this.#watcherCount === 0) {
-      if (!this.#initialized) {
-        await this.init();
-      }
-
       this.#watcherSubscription = await this._getWatcherSubscription();
       await this.#reporterRunner.report({type: 'watchStart'});
 

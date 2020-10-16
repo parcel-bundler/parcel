@@ -49,6 +49,18 @@ describe('Parcel', function() {
       endSpy.restore();
     });
 
+    it('runs and constructs another farm when running again after end()', async () => {
+      let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
+      let parcel = createParcel();
+      await parcel.run();
+      await parcel.end();
+
+      await parcel.run();
+      await parcel.end();
+      assert.equal(endSpy.callCount, 2);
+      endSpy.restore();
+    });
+
     it('does not end passed WorkerFarms', async () => {
       let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
 
