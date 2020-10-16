@@ -260,6 +260,8 @@ export default class Parcel {
         await nullthrows(this.#watcherSubscription).unsubscribe();
         this.#watcherSubscription = null;
         await this.#reporterRunner.report({type: 'watchEnd'});
+        this.#watchAbortController.abort();
+        await this.#watchQueue.run();
       }
     };
 
