@@ -2,7 +2,6 @@
 
 import type {
   BuildEvent,
-  BuildSuccessEvent,
   BundleGraph,
   FilePath,
   InitialParcelOptions,

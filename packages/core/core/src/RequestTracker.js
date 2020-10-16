@@ -26,7 +26,7 @@ type GlobNode = {|id: string, +type: 'glob', value: Glob|};
 type EnvNode = {|
   id: string,
   +type: 'env',
-  value: {|key: string, value: string|},
+  value: {|key: string, value: string | void|},
 |};
 
 type Request<TInput, TResult> = {|
@@ -93,7 +93,7 @@ const nodeFromRequest = (request: StoredRequest) => ({
   value: request,
 });
 
-const nodeFromEnv = (env: string, value: string) => ({
+const nodeFromEnv = (env: string, value: string | void) => ({
   id: 'env:' + env,
   type: 'env',
   value: {
@@ -272,7 +272,7 @@ export class RequestGraph extends Graph<
     this.unpredicatableNodeIds.add(requestNode.id);
   }
 
-  invalidateOnEnvChange(requestId: string, env: string, value: string) {
+  invalidateOnEnvChange(requestId: string, env: string, value: string | void) {
     let requestNode = this.getRequestNode(requestId);
     let envNode = nodeFromEnv(env, value);
     if (!this.hasNode(envNode.id)) {
@@ -507,11 +507,7 @@ export default class RequestTracker {
         this.graph.invalidateOnFileUpdate(requestId, filePath),
       invalidateOnStartup: () => this.graph.invalidateOnStartup(requestId),
       invalidateOnEnvChange: env =>
-        this.graph.invalidateOnEnvChange(
-          requestId,
-          env,
-          this.options.env[env] || '',
-        ),
+        this.graph.invalidateOnEnvChange(requestId, env, this.options.env[env]),
       getInvalidations: () => this.graph.getInvalidations(requestId),
       storeResult: result => {
         this.storeResult(requestId, result);
