@@ -18,14 +18,6 @@ describe('Parcel', function() {
 
   after(() => workerFarm.end());
 
-  it('can run multiple times in a row', async () => {
-    // let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
-    let parcel = createParcel();
-    await parcel.run();
-    await parcel.run();
-    await parcel.end();
-  });
-
   it('does not initialize when passed an ending farm', async () => {
     workerFarm.ending = true;
     let parcel = createParcel({workerFarm});
@@ -44,19 +36,17 @@ describe('Parcel', function() {
       let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
       let parcel = createParcel();
       await parcel.run();
-      await parcel.end();
       assert.equal(endSpy.callCount, 1);
       endSpy.restore();
     });
 
-    it('runs and constructs another farm when running again after end()', async () => {
+    it('runs and constructs another farm for subsequent builds', async () => {
       let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
       let parcel = createParcel();
-      await parcel.run();
-      await parcel.end();
 
       await parcel.run();
-      await parcel.end();
+      await parcel.run();
+
       assert.equal(endSpy.callCount, 2);
       endSpy.restore();
     });
@@ -75,13 +65,9 @@ describe('Parcel', function() {
     it('removes shared references it creates', async () => {
       let parcel = createParcel({workerFarm});
       await parcel.run();
-      assert(workerFarm.sharedReferences.size > 0);
-      assert(workerFarm.sharedReferencesByValue.size > 0);
 
-      await parcel.end();
       assert.equal(workerFarm.sharedReferences.size, 0);
       assert.equal(workerFarm.sharedReferencesByValue.size, 0);
-
       await workerFarm.end();
     });
   });

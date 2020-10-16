@@ -151,11 +151,6 @@ export default class Parcel {
       }),
     ]);
 
-    this.#disposable.add(
-      () => this.#assetGraphBuilder.writeToCache(),
-      () => this.#runtimesAssetGraphBuilder.writeToCache(),
-    );
-
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
       runtimesBuilder: this.#runtimesAssetGraphBuilder,
@@ -187,7 +182,8 @@ export default class Parcel {
       await this.init();
     }
 
-    let result = await this.build({startTime});
+    let result = await this._build({startTime});
+    await this._end();
 
     if (result.type === 'buildFailure') {
       throw new BuildError(result.diagnostics);
@@ -196,9 +192,14 @@ export default class Parcel {
     return result;
   }
 
-  async end(): Promise<void> {
-    await this.#disposable.dispose();
+  async _end(): Promise<void> {
     this.#initialized = false;
+
+    await Promise.all([
+      this.#disposable.dispose(),
+      this.#assetGraphBuilder.writeToCache(),
+      this.#runtimesAssetGraphBuilder.writeToCache(),
+    ]);
   }
 
   async startNextBuild() {
@@ -257,6 +258,7 @@ export default class Parcel {
         await this.#reporterRunner.report({type: 'watchEnd'});
         this.#watchAbortController.abort();
         await this.#watchQueue.run();
+        await this.end();
       }
     };
 
