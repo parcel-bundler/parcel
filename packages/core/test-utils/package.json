@@ -8,8 +8,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/utils.js",
-  "source": "src/utils.js",
+  "main": "src/utils.js",
   "engines": {
     "node": ">= 10.0.0"
   },
