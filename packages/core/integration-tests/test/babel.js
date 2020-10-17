@@ -1,16 +1,14 @@
 import assert from 'assert';
 import path from 'path';
-import {createWorkerFarm} from '@parcel/core';
-import {MemoryFS} from '@parcel/fs';
 import {
   bundle,
   bundler,
+  distDir,
   getNextBuild,
-  removeDistDirectory,
-  run,
   inputFS as fs,
   outputFS,
-  distDir,
+  removeDistDirectory,
+  run,
   sleep,
 } from '@parcel/test-utils';
 import Logger from '@parcel/logger';
@@ -456,15 +454,34 @@ describe('babel', function() {
       assert(!file.includes('class Foo'));
     });
 
-    it('should prefer the babel env name from options.env', async () => {
-      let prevNodeEnv = process.env.NODE_ENV;
-      let prevBabelEnv = process.env.BABEL_ENV;
-
-      process.env.NODE_ENV = 'development';
+    it('should invalidate when BABEL_ENV changes', async () => {
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          disableCache: false,
+        },
+      );
+      let file = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8',
+      );
+      assert(file.includes('class Foo'));
+
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {disableCache: false, env: {BABEL_ENV: 'production'}},
+      );
+      file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+      assert(!file.includes('class Foo'));
+    });
+
+    it('should invalidate when NODE_ENV changes from BABEL_ENV', async () => {
+      await bundle(
+        path.join(__dirname, '/integration/babel-env-name/index.js'),
+        {
+          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
+          disableCache: false,
           env: {NODE_ENV: 'production'},
         },
       );
@@ -473,46 +490,17 @@ describe('babel', function() {
         'utf8',
       );
       assert(!file.includes('class Foo'));
-      process.env.NODE_ENV = prevNodeEnv;
 
-      process.env.BABEL_ENV = 'development';
       await bundle(
         path.join(__dirname, '/integration/babel-env-name/index.js'),
         {
           targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          env: {BABEL_ENV: 'production'},
+          disableCache: false,
+          env: {BABEL_ENV: 'development'},
         },
       );
       file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-      assert(!file.includes('class Foo'));
-      process.env.BABEL_ENV = prevBabelEnv;
-    });
-
-    // TODO: Unskip when multiple WorkerFarm/MemoryFS can run concurrently in tests
-    it.skip('should use process.env.BABEL_ENV if available', async () => {
-      let prevBabelEnv = process.env.BABEL_ENV;
-      process.env.BABEL_ENV = 'production';
-
-      // Run this test with its own WorkerFarm as process.env was mutated and
-      // needs to be sent to a new set of workers.
-      let workerFarm = createWorkerFarm();
-      let outputFS = new MemoryFS(workerFarm);
-      await bundle(
-        path.join(__dirname, '/integration/babel-env-name/index.js'),
-        {
-          targets: {main: {distDir, engines: {browsers: ['ie 11']}}},
-          outputFS,
-          workerFarm,
-        },
-      );
-      let file = await outputFS.readFile(
-        path.join(distDir, 'index.js'),
-        'utf8',
-      );
-      assert(!file.includes('class Foo'));
-      await workerFarm.end();
-
-      process.env.BABEL_ENV = prevBabelEnv;
+      assert(file.includes('class Foo'));
     });
 
     it('should be "production" if Parcel is run in production mode', async () => {
