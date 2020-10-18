@@ -48,7 +48,8 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
     usedSymbolsDown: new Set(),
     usedSymbolsUp: new Set(),
     usedSymbolsDownDirty: true,
-    usedSymbolsUpDirty: true,
+    usedSymbolsUpDirtyDown: true,
+    usedSymbolsUpDirtyUp: true,
   };
 }
 

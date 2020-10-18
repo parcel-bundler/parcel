@@ -218,7 +218,11 @@ export type DependencyNode = {|
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
   usedSymbolsDownDirty: boolean,
-  usedSymbolsUpDirty: boolean,
+  /** for the "up" pass, the parent asset needs to be updated */
+  usedSymbolsUpDirtyUp: boolean,
+  /** for the "up" pass, the dependency resolution asset needs to be updated */
+  usedSymbolsUpDirtyDown: boolean,
+  /** deferred or unused */
   excluded: boolean,
 |};
 

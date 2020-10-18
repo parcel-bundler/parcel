@@ -7,6 +7,7 @@ import type {
   Symbol,
   SourceLocation,
 } from '@parcel/types';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type WorkerFarm, {Handle, SharedReference} from '@parcel/workers';
 import type {Event, Options as WatcherOptions} from '@parcel/watcher';
 import type {
@@ -343,7 +344,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
         if (!equalSet(depUsedSymbolsDownOld, depUsedSymbolsDown)) {
           dep.usedSymbolsDownDirty = true;
-          dep.usedSymbolsUpDirty = true;
+          dep.usedSymbolsUpDirtyDown = true;
         }
       }
     });
@@ -351,7 +352,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     // Because namespace reexports introduce ambiguity, go up the graph from the leaves to the
     // root and remove requested symbols that aren't actually exported
     this.propagateSymbolsUp((assetNode, incomingDeps, outgoingDeps) => {
-      if (!assetNode.value.symbols) return;
+      if (!assetNode.value.symbols) return [];
 
       let assetSymbols: $ReadOnlyMap<
         Symbol,
@@ -396,7 +397,10 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
       }
 
+      let errors = [];
+
       for (let incomingDep of incomingDeps) {
+        let incomingDepUsedSymbolsUpOld = incomingDep.usedSymbolsUp;
         incomingDep.usedSymbolsUp = new Set();
         let incomingDepSymbols = incomingDep.value.symbols;
         if (!incomingDepSymbols) continue;
@@ -417,30 +421,32 @@ export default class AssetGraphBuilder extends EventEmitter {
             invariant(resolution && resolution.type === 'asset_group');
 
             // TODO we could collect all errors and throw them all at once
-            throw new ThrowableDiagnostic({
-              diagnostic: {
-                message: `${escapeMarkdown(
-                  path.relative(
-                    this.options.projectRoot,
-                    resolution.value.filePath,
-                  ),
-                )} does not export '${s}'`,
-                origin: '@parcel/core',
-                filePath: loc?.filePath,
-                language: assetNode.value.type,
-                codeFrame: loc
-                  ? {
-                      codeHighlights: [
-                        {
-                          start: loc.start,
-                          end: loc.end,
-                        },
-                      ],
-                    }
-                  : undefined,
-              },
+            errors.push({
+              message: `${escapeMarkdown(
+                path.relative(
+                  this.options.projectRoot,
+                  resolution.value.filePath,
+                ),
+              )} does not export '${s}'`,
+              origin: '@parcel/core',
+              filePath: loc?.filePath,
+              language: assetNode.value.type,
+              codeFrame: loc
+                ? {
+                    codeHighlights: [
+                      {
+                        start: loc.start,
+                        end: loc.end,
+                      },
+                    ],
+                  }
+                : undefined,
             });
           }
+        }
+
+        if (!equalSet(incomingDepUsedSymbolsUpOld, incomingDep.usedSymbolsUp)) {
+          incomingDep.usedSymbolsUpDirtyUp = true;
         }
 
         incomingDep.excluded = false;
@@ -460,6 +466,7 @@ export default class AssetGraphBuilder extends EventEmitter {
           }
         }
       }
+      return errors;
     });
   }
 
@@ -526,28 +533,29 @@ export default class AssetGraphBuilder extends EventEmitter {
       node: AssetNode,
       incoming: $ReadOnlyArray<DependencyNode>,
       outgoing: $ReadOnlyArray<DependencyNode>,
-    ) => void,
+    ) => Array<Diagnostic>,
   ): void {
-    // Simple postorder DFS
-
     let root = this.assetGraph.getRootNode();
     if (!root) {
       throw new Error('A root node is required to traverse');
     }
 
+    let errors = new Map<AssetNode, Array<Diagnostic>>();
+
+    let dirtyDeps = new Set<DependencyNode>();
     let visited = new Set([root.id]);
+    // post-order dfs
     const walk = (node: AssetGraphNode) => {
       let outgoing = this.assetGraph.getNodesConnectedFrom(node);
-      let assetHasDirtyOutgoingDep = false;
       for (let child of outgoing) {
         if (!visited.has(child.id)) {
           visited.add(child.id);
           walk(child);
           if (node.type === 'asset') {
             invariant(child.type === 'dependency');
-            if (child.usedSymbolsUpDirty) {
-              assetHasDirtyOutgoingDep = true;
-              child.usedSymbolsUpDirty = false;
+            if (child.usedSymbolsUpDirtyUp) {
+              node.usedSymbolsUpDirty = true;
+              child.usedSymbolsUpDirtyUp = false;
             }
           }
         }
@@ -561,20 +569,15 @@ export default class AssetGraphBuilder extends EventEmitter {
             invariant(n && n.type === 'dependency');
             return n;
           });
-        let assetHasDirtyIncomingDep = false;
         for (let dep of incoming) {
-          if (dep.usedSymbolsUpDirty) {
-            dep.usedSymbolsUpDirty = false;
-            assetHasDirtyIncomingDep = true;
+          if (dep.usedSymbolsUpDirtyDown) {
+            dep.usedSymbolsUpDirtyDown = false;
+            node.usedSymbolsUpDirty = true;
           }
         }
-        if (
-          assetHasDirtyOutgoingDep ||
-          node.usedSymbolsUpDirty ||
-          assetHasDirtyIncomingDep
-        ) {
+        if (node.usedSymbolsUpDirty) {
           node.usedSymbolsUpDirty = false;
-          visit(
+          let e = visit(
             node,
             incoming,
             outgoing.map(dep => {
@@ -582,10 +585,72 @@ export default class AssetGraphBuilder extends EventEmitter {
               return dep;
             }),
           );
+          if (e.length > 0) {
+            errors.set(node, e);
+          } else {
+            errors.delete(node);
+          }
+        }
+      } else if (node.type === 'dependency') {
+        if (node.usedSymbolsUpDirtyUp) {
+          dirtyDeps.add(node);
+        } else {
+          dirtyDeps.delete(node);
         }
       }
     };
     walk(root);
+
+    // traverse circular dependencies if neccessary (anchestors of `dirtyDeps`)
+    visited = new Set();
+    let queue = [...dirtyDeps];
+    while (queue.length > 0) {
+      let node = queue.shift();
+
+      visited.add(node);
+      if (node.type === 'asset') {
+        let incoming = this.assetGraph
+          .getIncomingDependencies(node.value)
+          .map(d => {
+            let n = this.assetGraph.getNode(d.id);
+            invariant(n && n.type === 'dependency');
+            return n;
+          });
+        let outgoing = this.assetGraph.getNodesConnectedFrom(node).map(dep => {
+          invariant(dep.type === 'dependency');
+          return dep;
+        });
+        for (let dep of outgoing) {
+          if (dep.usedSymbolsUpDirtyUp) {
+            node.usedSymbolsUpDirty = true;
+            dep.usedSymbolsUpDirtyUp = false;
+          }
+        }
+        if (node.usedSymbolsUpDirty) {
+          let e = visit(node, incoming, outgoing);
+          if (e.length > 0) {
+            errors.set(node, e);
+          } else {
+            errors.delete(node);
+          }
+        }
+        for (let i of incoming) {
+          if (i.usedSymbolsUpDirtyUp) {
+            queue.push(i);
+          }
+        }
+      } else {
+        queue.push(...this.assetGraph.getNodesConnectedTo(node));
+      }
+    }
+
+    // Just throw the first error. Since errors can bubble (e.g. reexporting a reexported symbol also fails),
+    // determining which failing export is the root cause is nontrivial (because of circular dependencies).
+    if (errors.size > 0) {
+      throw new ThrowableDiagnostic({
+        diagnostic: [...errors.values()][0],
+      });
+    }
   }
 
   // TODO: turn validation into a request

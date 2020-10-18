@@ -75,10 +75,10 @@ export default async function dumpGraphToGraphViz(
           if (weakSymbols.length) {
             label += '\nweakSymbols: ' + weakSymbols.join(',');
           }
-          if (node.usedSymbolsUp.size) {
+          if (node.usedSymbolsUp.size > 0) {
             label += '\nusedSymbolsUp: ' + [...node.usedSymbolsUp].join(',');
           }
-          if (node.usedSymbolsDown.size) {
+          if (node.usedSymbolsDown.size > 0) {
             label +=
               '\nusedSymbolsDown: ' + [...node.usedSymbolsDown].join(',');
           }

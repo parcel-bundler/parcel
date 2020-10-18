@@ -1047,22 +1047,93 @@ describe('scope hoisting', function() {
 
     it('should correctly handle circular dependencies', async function() {
       let b = await bundle(
-        path.join(__dirname, '/integration/scope-hoisting/es6/circular/a.js'),
+        path.join(__dirname, '/integration/scope-hoisting/es6/circular/a.mjs'),
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'b.js')),
-        new Set(['b']),
+        b.getUsedSymbolsAsset(findAsset(b, 'b.mjs')),
+        new Set(['foo']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'c.mjs')),
+        new Set(['run']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'b.mjs', './c.mjs')),
+        new Set(['run']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'c.mjs', './b.mjs')),
+        new Set(['foo']),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'c:foo');
+    });
+
+    it('should correctly handle circular dependencies (2)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/scope-hoisting/es6/circular2/a.mjs'),
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'c.js')),
-        new Set(['c']),
+        b.getUsedSymbolsAsset(findAsset(b, 'b.mjs')),
+        new Set(['run', 'foo']),
       );
 
-      // TODO concat order is wrong?
-      // let output = await run(b);
-      // assert.deepEqual(output, 'c:b');
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'c.mjs')),
+        new Set([]),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'b.mjs', './c.mjs')),
+        new Set(['foo']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'c.mjs', './b.mjs')),
+        new Set(['foo']),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 'b:foo:foo');
+    });
+
+    it('should correctly handle circular dependencies (3)', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/scope-hoisting/es6/circular3/a.mjs'),
+      );
+
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'b.mjs')),
+        new Set([]),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'c.mjs')),
+        new Set(['a']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(findAsset(b, 'd.mjs')),
+        new Set([]),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'a.mjs', './b.mjs')),
+        new Set(['h']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'b.mjs', './c.mjs')),
+        new Set(['a', 'd', 'g']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'c.mjs', './d.mjs')),
+        new Set(['c', 'f']),
+      );
+      assert.deepStrictEqual(
+        b.getUsedSymbolsDependency(findDependency(b, 'd.mjs', './b.mjs')),
+        new Set(['b', 'e']),
+      );
+
+      let output = await run(b);
+      assert.strictEqual(output, 123);
     });
 
     it('does not tree-shake assignments to unknown objects', async () => {
@@ -3484,10 +3555,9 @@ describe('scope hoisting', function() {
 
   it('can static import and dynamic import in the same bundle when another bundle requires async', async () => {
     let b = await bundle(
-      [
-        'same-bundle-scope-hoisting.js',
-        'get-dep-scope-hoisting.js',
-      ].map(entry => path.join(__dirname, '/integration/sync-async/', entry)),
+      ['same-bundle-scope-hoisting.js', 'get-dep-scope-hoisting.js'].map(
+        entry => path.join(__dirname, '/integration/sync-async/', entry),
+      ),
     );
 
     assertBundles(b, [

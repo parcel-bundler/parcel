@@ -647,7 +647,6 @@ export type TransformerResult = {|
   +pipeline?: ?string,
   +sideEffects?: boolean,
   +symbols?: $ReadOnlyMap<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
-  +symbolsConfident?: boolean,
   +type: string,
   +uniqueKey?: ?string,
 |};
