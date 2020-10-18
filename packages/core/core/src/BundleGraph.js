@@ -1222,4 +1222,48 @@ export default class BundleGraph {
     invariant(node && node.type === 'dependency');
     return new Set(node.usedSymbolsUp);
   }
+
+  merge(other: BundleGraph) {
+    for (let [, node] of other._graph.nodes) {
+      let existingNode = this._graph.getNode(node.id);
+      if (existingNode != null) {
+        // Merge symbols, recompute dep.exluded based on that
+        if (existingNode.type === 'asset') {
+          invariant(node.type === 'asset');
+          existingNode.usedSymbols = new Set([
+            ...existingNode.usedSymbols,
+            ...node.usedSymbols,
+          ]);
+        } else if (existingNode.type === 'dependency') {
+          invariant(node.type === 'dependency');
+          existingNode.usedSymbolsDown = new Set([
+            ...existingNode.usedSymbolsDown,
+            ...node.usedSymbolsDown,
+          ]);
+          existingNode.usedSymbolsUp = new Set([
+            ...existingNode.usedSymbolsUp,
+            ...node.usedSymbolsUp,
+          ]);
+
+          existingNode.excluded = false;
+          if (
+            existingNode.value.symbols != null &&
+            existingNode.usedSymbolsUp.size === 0
+          ) {
+            let [asset] = this._graph.getNodesConnectedFrom(existingNode);
+            invariant(asset.type === 'asset');
+            if (asset.value.sideEffects === false) {
+              existingNode.excluded = true;
+            }
+          }
+        }
+      } else {
+        this._graph.addNode(node);
+      }
+    }
+
+    for (let edge of other._graph.getAllEdges()) {
+      this._graph.addEdge(edge.from, edge.to, edge.type);
+    }
+  }
 }

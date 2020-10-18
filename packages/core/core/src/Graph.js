@@ -166,16 +166,6 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     return [...nodes].map(to => nullthrows(this.nodes.get(to)));
   }
 
-  merge(graph: Graph<TNode>): void {
-    for (let [, node] of graph.nodes) {
-      this.addNode(node);
-    }
-
-    for (let edge of graph.getAllEdges()) {
-      this.addEdge(edge.from, edge.to, edge.type);
-    }
-  }
-
   // Removes node and any edges coming from or to that node
   removeNode(node: TNode) {
     assertHasNode(this, node);

@@ -91,19 +91,18 @@ async function run(example) {
   }
 }
 
-let fixture = {
-  files: {
-    '0.mjs': '',
-  },
-  entries: ['0.mjs'],
-};
+// let fixture = {
+//   files: {
+//     '0.mjs': '',
+//   },
+//   entries: ['0.mjs'],
+// };
 
 (async () => {
   try {
     parcel.start();
 
-    await run(fixture);
-    return;
+    // await run(fixture);
 
     let i = 0;
     for (let example of generateExample()) {

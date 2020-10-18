@@ -2,11 +2,15 @@
 
 import assert from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {
   assertBundles,
   bundle,
   outputFS as fs,
   distDir,
+  run,
+  findAsset,
+  findDependency,
   overlayFS,
 } from '@parcel/test-utils';
 
@@ -71,5 +75,41 @@ parcel-transformer-b`,
       await overlayFS.readFile(b.getBundles()[0].filePath, 'utf8'),
       'xyz',
     );
+  });
+
+  it('merges symbol information when applying runtime assets', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/runtime-symbol-merging/entry.js'),
+      {scopeHoist: true},
+    );
+
+    assert.deepStrictEqual(
+      b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'index.js'))),
+      new Set([]),
+    );
+    assert.deepStrictEqual(
+      b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'a.js'))),
+      new Set(['a']),
+    );
+    assert.deepStrictEqual(
+      b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'b.js'))),
+      new Set(['b']),
+    );
+    assert.deepStrictEqual(
+      b.getUsedSymbolsDependency(findDependency(b, 'index.js', './a.js')),
+      new Set(['a']),
+    );
+    assert.deepStrictEqual(
+      b.getUsedSymbolsDependency(findDependency(b, 'index.js', './b.js')),
+      new Set(['b']),
+    );
+
+    let calls = [];
+    await run(b, {
+      call(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepStrictEqual(calls, [789, 123]);
   });
 });

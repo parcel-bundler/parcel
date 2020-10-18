@@ -1,6 +1,5 @@
 // @flow strict-local
 const invariant = require('assert');
-const path = require('path');
 const nullthrows = require('nullthrows');
 const t = require('@babel/types');
 const template = require('@babel/template');
