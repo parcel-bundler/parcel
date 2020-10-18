@@ -153,7 +153,10 @@ export function generateExports(
 
         // If there is an existing binding with the exported name (e.g. an import),
         // rename it so we can use the name for the export instead.
-        if (programPath.scope.hasBinding(exportAs) && exportAs !== symbol) {
+        if (
+          programPath.scope.hasBinding(exportAs, true) &&
+          exportAs !== symbol
+        ) {
           rename(
             programPath.scope,
             exportAs,
@@ -229,6 +232,7 @@ export function generateExports(
       // If all exports in the binding are named exports, export the entire declaration.
       // Also rename all of the identifiers to their exported name.
       if (
+        exportedSymbols.every(s => !path.scope.hasGlobal(s)) &&
         areArraysStrictlyEqual(ids, exportedSymbolsBindings) &&
         !path.isImportDeclaration()
       ) {
@@ -316,15 +320,19 @@ export function generateExports(
           for (let sym of exportedSymbols) {
             let id = nullthrows(exportedIdentifiers.get(sym));
             id = replacements.get(id) || id;
-            rename(path.scope, id, sym);
-            replacements.set(id, sym);
 
-            exported.add(sym);
+            let symLocal = path.scope.hasGlobal(sym)
+              ? path.scope.generateUid(sym)
+              : sym;
+            rename(path.scope, id, symLocal);
+            replacements.set(id, symLocal);
+
+            exported.add(symLocal);
             let [spec] = decl.unshiftContainer('specifiers', [
-              t.exportSpecifier(t.identifier(sym), t.identifier(sym)),
+              t.exportSpecifier(t.identifier(symLocal), t.identifier(sym)),
             ]);
             path.scope
-              .getBinding(sym)
+              .getBinding(symLocal)
               ?.reference(spec.get<NodePath<Identifier>>('local'));
           }
         }

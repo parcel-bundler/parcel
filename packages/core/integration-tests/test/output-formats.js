@@ -1,7 +1,7 @@
 import assert from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {bundle as _bundle, outputFS, run} from '@parcel/test-utils';
+import {bundle as _bundle, outputFS, run, runBundle} from '@parcel/test-utils';
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -1063,6 +1063,38 @@ describe('output formats', function() {
         ],
       });
     });
+  });
+
+  it("doesn't overwrite used global variables", async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/formats/conflict-global/index.js'),
+    );
+
+    let cjs = b
+      .getBundles()
+      .find(b => b.type === 'js' && b.env.outputFormat === 'commonjs');
+
+    let calls = [];
+    assert.deepEqual(
+      await runBundle(b, cjs, {
+        foo(v) {
+          calls.push(v);
+        },
+      }),
+      {Map: 2},
+    );
+    assert.deepEqual(calls, [[['a', 10]]]);
+
+    let esmContents = await outputFS.readFile(
+      b
+        .getBundles()
+        .find(b => b.type === 'js' && b.env.outputFormat === 'esmodule')
+        .filePath,
+      'utf8',
+    );
+    assert(esmContents.includes('const _Map'));
+    assert(esmContents.includes('_Map as Map'));
+    assert(esmContents.includes('new Map'));
   });
 
   describe('global', function() {
