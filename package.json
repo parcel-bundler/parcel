@@ -32,7 +32,7 @@
     "release": "lerna publish -y from-package --dist-tag=next --no-git-tag-version --no-push"
   },
   "devDependencies": {
-    "@babel/core": "^7.8.7",
+    "@babel/core": "^7.12.0",
     "cross-env": "^7.0.0",
     "doctoc": "^1.4.0",
     "eslint": "^6.0.0",

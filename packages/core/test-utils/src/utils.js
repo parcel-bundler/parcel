@@ -7,6 +7,7 @@ import type {
   InitialParcelOptions,
   NamedBundle,
 } from '@parcel/types';
+import type WorkerFarm from '@parcel/workers';
 
 import invariant from 'assert';
 import Parcel, {createWorkerFarm} from '@parcel/core';
@@ -25,7 +26,7 @@ import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
 
-const workerFarm = createWorkerFarm();
+export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
 export let outputFS: MemoryFS = new MemoryFS(workerFarm);
 export let overlayFS: OverlayFS = new OverlayFS(outputFS, inputFS);
