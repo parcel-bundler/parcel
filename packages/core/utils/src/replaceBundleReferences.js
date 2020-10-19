@@ -179,15 +179,65 @@ function performReplacement(
   contents: string,
   map?: ?SourceMap,
 ): {|+contents: string, +map: ?SourceMap|} {
-  let finalContents = contents;
-  for (let {from, to} of replacements.values()) {
-    // Perform replacement
-    finalContents = finalContents.split(from).join(to);
+  let {result, offsets} = regexReplaceWithLocations(
+    contents,
+    new Map([...replacements.values()].map(val => [val.from, val.to])),
+  );
+
+  if (map) {
+    for (let offset of offsets) {
+      map.offsetColumns(offset.line, offset.column, offset.offset);
+    }
   }
 
   return {
-    contents: finalContents,
-    // TODO: Update sourcemap with adjusted contents
+    contents: result,
     map,
   };
+}
+
+export function regexReplaceWithLocations(
+  input: string,
+  replacementMap: Map<string, string>,
+): {|
+  result: string,
+  offsets: Array<{|column: number, line: number, offset: number|}>,
+|} {
+  // turn keys into a length sorted array, this ensures longer keys get priority over shorter keys
+  // this is to prevent bugs in case 2 keys start with the same characters
+  let keysArray = Array.from(replacementMap.keys()).sort((a, b) => {
+    return b.length - a.length;
+  });
+
+  let line = 0;
+  let offset = 0;
+  let columnStartIndex = 0;
+  let offsets = [];
+  let regex = new RegExp(['\n', ...keysArray].join('|'), 'g');
+  let result = input.replace(regex, (match, index) => {
+    if (match === '\n') {
+      line++;
+      columnStartIndex = index + offset + 1;
+      return '\n';
+    }
+
+    let replacement = replacementMap.get(match);
+    if (replacement != null) {
+      let lengthDifference = replacement.length - match.length;
+      if (lengthDifference !== 0) {
+        offsets.push({
+          line,
+          column: index + offset - columnStartIndex,
+          offset: lengthDifference,
+        });
+
+        offset += lengthDifference;
+      }
+      return replacement;
+    }
+
+    return match;
+  });
+
+  return {result, offsets};
 }
