@@ -1297,6 +1297,7 @@ export type ReporterEvent =
   | BuildProgressEvent
   | BuildSuccessEvent
   | BuildFailureEvent
+  | TraceEvent
   | WatchStartEvent
   | WatchEndEvent
   | ValidationEvent;
@@ -1322,4 +1323,26 @@ export interface IDisposable {
 
 export interface AsyncSubscription {
   unsubscribe(): Promise<mixed>;
+}
+
+export type TraceEvent =
+  | {|
+      +type: 'trace',
+      +start: number,
+      +name: string,
+      +tid: number,
+      +pid: number,
+    |}
+  | {|
+      +type: 'trace',
+      +end: number,
+      +name: string,
+      +tid: number,
+      +pid: number,
+    |};
+
+export type Measurement = {|end: () => void|};
+
+export interface Tracer {
+  createMeasurement(name: string): Measurement;
 }
