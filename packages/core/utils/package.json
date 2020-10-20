@@ -25,7 +25,7 @@
     "@parcel/diagnostic": "^2.0.0-frontbucket.16",
     "@parcel/logger": "^2.0.0-frontbucket.18",
     "@parcel/markdown-ansi": "^2.0.0-frontbucket.12",
-    "@parcel/source-map": "2.0.0-alpha.4.15",
+    "@parcel/source-map": "2.0.0-alpha.4.16",
     "ansi-html": "^0.0.7",
     "chalk": "^2.4.2",
     "clone": "^2.1.1",

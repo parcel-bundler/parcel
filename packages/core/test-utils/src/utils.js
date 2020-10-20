@@ -118,7 +118,7 @@ export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Promise<BundleGraph<NamedBundle>> {
-  return nullthrows(await bundler(entries, opts).run());
+  return (await bundler(entries, opts).run()).bundleGraph;
 }
 
 export function getNextBuild(b: Parcel): Promise<BuildEvent> {
