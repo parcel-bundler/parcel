@@ -1,12 +1,12 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle, run, overlayFS, ncp} from '@parcel/test-utils';
+import {bundler, run, overlayFS, ncp} from '@parcel/test-utils';
 
 function runBundle() {
-  return bundle(path.join(__dirname, '/input/src/index.js'), {
+  return bundler(path.join(__dirname, '/input/src/index.js'), {
     inputFS: overlayFS,
     disableCache: false,
-  });
+  }).run();
 }
 
 async function testCache(update, integration) {
@@ -38,19 +38,19 @@ async function testCache(update, integration) {
 describe('cache', function() {
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
         path.join(__dirname, '/input/src/nested/test.js'),
         'export default 4',
       );
     });
 
-    assert.equal(await run(b), 6);
+    assert.equal(await run(b.bundleGraph), 6);
   });
 
   it('should support adding a dependency', async function() {
     let b = await testCache(async b => {
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
         path.join(__dirname, '/input/src/nested/foo.js'),
         'export default 6',
@@ -61,7 +61,7 @@ describe('cache', function() {
       );
     });
 
-    assert.equal(await run(b), 8);
+    assert.equal(await run(b.bundleGraph), 8);
   });
 
   it('should error when deleting a file', async function() {
@@ -114,10 +114,10 @@ describe('cache', function() {
   describe('parcel config', function() {
     it('should support adding a .parcelrc', async function() {
       let b = await testCache(async b => {
-        assert.equal(await run(b), 4);
+        assert.equal(await run(b.bundleGraph), 4);
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(!contents.includes('TRANSFORMED CODE'));
@@ -134,7 +134,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
@@ -155,7 +155,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('TRANSFORMED CODE'));
@@ -170,12 +170,12 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('TRANSFORMED CODE'));
 
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
     });
 
     it('should support updating an extended .parcelrc', async function() {
@@ -200,7 +200,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('TRANSFORMED CODE'));
@@ -215,12 +215,12 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('TRANSFORMED CODE'));
 
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
     });
 
     it('should error when deleting an extended parcelrc', async function() {
@@ -247,7 +247,7 @@ describe('cache', function() {
             },
             async update(b) {
               let contents = await overlayFS.readFile(
-                b.getBundles()[0].filePath,
+                b.bundleGraph.getBundles()[0].filePath,
                 'utf8',
               );
               assert(contents.includes('TRANSFORMED CODE'));
@@ -277,7 +277,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('TRANSFORMED CODE'));
@@ -287,12 +287,12 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('TRANSFORMED CODE'));
 
-      assert.equal(await run(b), 4);
+      assert.equal(await run(b.bundleGraph), 4);
     });
   });
 
@@ -311,7 +311,7 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assert.equal(await run(b), 'hi');
+          assert.equal(await run(b.bundleGraph), 'hi');
 
           await overlayFS.writeFile(
             path.join(__dirname, '/input/src/test.txt'),
@@ -320,7 +320,92 @@ describe('cache', function() {
         },
       });
 
-      assert.equal(await run(b), 'updated');
+      assert.equal(await run(b.bundleGraph), 'updated');
+    });
+
+    it('should not invalidate when a set environment variable does not change', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=hi',
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), 'hi');
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=hi',
+          );
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), 'hi');
+      assert.equal(b.changedAssets.size, 0);
+    });
+
+    it('should not invalidate when an environment variable remains unset', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), undefined);
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), undefined);
+      assert.equal(b.changedAssets.size, 0);
+    });
+
+    it('should invalidate when an environment variable becomes set', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), undefined);
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=hi',
+          );
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), 'hi');
+    });
+
+    it('should invalidate when an environment variable becomes unset', async () => {
+      let b = await testCache({
+        async setup() {
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            'module.exports = process.env.TEST',
+          );
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/.env'),
+            'TEST=hi',
+          );
+        },
+        async update(b) {
+          assert.equal(await run(b.bundleGraph), 'hi');
+          await overlayFS.writeFile(path.join(__dirname, '/input/.env'), '');
+        },
+      });
+
+      assert.equal(await run(b.bundleGraph), undefined);
     });
 
     it('should invalidate when environment variables change', async function() {
@@ -337,7 +422,7 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assert.equal(await run(b), 'hi');
+          assert.equal(await run(b.bundleGraph), 'hi');
 
           await overlayFS.writeFile(
             path.join(__dirname, '/input/.env'),
@@ -346,7 +431,7 @@ describe('cache', function() {
         },
       });
 
-      assert.equal(await run(b), 'updated');
+      assert.equal(await run(b.bundleGraph), 'updated');
     });
   });
 
@@ -410,7 +495,7 @@ describe('cache', function() {
     it('should support updating files added by runtimes', async function() {
       let b = await testCache(async b => {
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(contents.includes('INITIAL CODE'));
@@ -421,7 +506,7 @@ describe('cache', function() {
       }, 'runtime-update');
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('UPDATED CODE'));
