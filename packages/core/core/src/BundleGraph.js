@@ -1173,10 +1173,11 @@ export default class BundleGraph {
       hash.update(this.getContentHash(inlineBundle));
     }
 
-    this.traverseBundles((childBundle, _, traversal) => {
-      hash.update(childBundle.id);
-      traversal.skipChildren();
-    }, bundle);
+    for (let childBundle of this.getChildBundles(bundle)) {
+      if (!childBundle.isInline) {
+        hash.update(childBundle.id);
+      }
+    }
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');
