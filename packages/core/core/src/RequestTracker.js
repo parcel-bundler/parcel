@@ -419,9 +419,15 @@ export default class RequestTracker {
     );
   }
 
-  getRequestResult<T>(id: string): T {
+  async getRequestResult<T>(id: string): T {
     let node = nullthrows(this.graph.getNode(id));
     invariant(node.type === 'request');
+    if (node.value.resultCacheKey) {
+      let cachedResult: T = await this.options.cache.get(
+        node.value.resultCacheKey,
+      );
+      return cachedResult;
+    }
     // $FlowFixMe
     let result: T = (node.value.result: any);
     return result;
@@ -466,13 +472,14 @@ export default class RequestTracker {
 
   async runRequest<TInput, TResult>(
     request: Request<TInput, TResult>,
+    force?: boolean,
   ): Async<TResult> {
     let id = request.id;
 
     let prevResult = this.graph.hasNode(id)
-      ? this.getRequestResult<TResult>(id)
+      ? await this.getRequestResult<TResult>(id)
       : undefined;
-    if (this.hasValidResult(id)) {
+    if (!force && this.hasValidResult(id)) {
       return prevResult;
     }
 
@@ -537,6 +544,42 @@ export default class RequestTracker {
     };
 
     return {api, subRequests};
+  }
+
+  async writeToCache() {
+    let {hot, publicUrl, distDir, minify, scopeHoist, entries} = this.options;
+    let cacheKey = md5FromObject({
+      parcelVersion: PARCEL_VERSION,
+      options: {hot, publicUrl, distDir, minify, scopeHoist},
+      entries,
+    });
+
+    let requestGraphKey = md5FromString(`${cacheKey}:requestGraph`);
+    let snapshotKey = md5FromString(`${cacheKey}:snapshot`);
+
+    if (this.options.disableCache) {
+      return;
+    }
+
+    // TODO: collect promises and use Promise.all
+    for (let [, node] of this.graph.nodes) {
+      let resultCacheKey = node.value.result?.getCacheKey?.(requestGraphKey);
+      if (resultCacheKey) {
+        await this.options.cache.set(resultCacheKey, node.value.result);
+        delete node.value.result;
+        node.value.resultCacheKey = resultCacheKey;
+      }
+    }
+
+    await this.options.cache.set(requestGraphKey, this.graph);
+
+    let opts = getWatcherOptions(this.options);
+    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
+    await this.options.inputFS.writeSnapshot(
+      this.options.projectRoot,
+      snapshotPath,
+      opts,
+    );
   }
 
   static async init({

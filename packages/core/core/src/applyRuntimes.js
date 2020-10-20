@@ -196,5 +196,5 @@ async function reconcileNewRuntimes(
   });
 
   // rebuild the graph
-  return (await requestTracker.runRequest(request)).assetGraph;
+  return (await requestTracker.runRequest(request, true)).assetGraph;
 }

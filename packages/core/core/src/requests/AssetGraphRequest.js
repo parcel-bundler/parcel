@@ -14,7 +14,7 @@ import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {TargetResolveResult} from './TargetRequest';
 
-import {PromiseQueue} from '@parcel/utils';
+import {PromiseQueue, md5FromString} from '@parcel/utils';
 import AssetGraph from '../AssetGraph';
 import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
@@ -54,8 +54,14 @@ export default function createAssetGraphRequest(
     run: async input => {
       let builder = new AssetGraphBuilder(input);
       let {assetGraph, changedAssets} = await builder.build();
-      input.api.storeResult({assetGraph, changedAssets: []});
-      return {assetGraph, changedAssets};
+      input.api.storeResult(
+        new AssetGraphResult({assetGraph, uniqueKey: input.input.name}),
+      );
+      return new AssetGraphResult({
+        assetGraph,
+        changedAssets,
+        uniqueKey: input.name,
+      });
     },
     input,
   };
@@ -67,6 +73,18 @@ const typesWithRequests = new Set([
   'dependency',
   'asset_group',
 ]);
+
+export class AssetGraphResult {
+  constructor({assetGraph, changedAssets, uniqueKey}) {
+    this.assetGraph = assetGraph;
+    this.changedAssets = changedAssets || [];
+    this.uniqueKey = uniqueKey;
+  }
+
+  getCacheKey(requestGraphKey) {
+    return md5FromString(`AssetGraph:${this.uniqueKey}:${requestGraphKey}`);
+  }
+}
 
 export class AssetGraphBuilder {
   assetGraph: AssetGraph;
@@ -137,7 +155,12 @@ export class AssetGraphBuilder {
     await this.queue.run();
 
     if (errors.length) {
-      this.api.storeResult({assetGraph: this.assetGraph, changedAssets: []});
+      this.api.storeResult(
+        new AssetGraphResult({
+          assetGraph: this.assetGraph,
+          uniqueKey: this.name,
+        }),
+      );
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 

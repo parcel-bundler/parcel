@@ -153,7 +153,7 @@ export default class Parcel {
     }
 
     let result = await this.build({startTime});
-    // TODO: persist request graph
+    await this.#requestTracker.writeToCache();
 
     if (!this.#initialOptions.workerFarm) {
       // If there wasn't a workerFarm passed in, we created it. End the farm.
@@ -221,7 +221,7 @@ export default class Parcel {
         await nullthrows(this.#watcherSubscription).unsubscribe();
         this.#watcherSubscription = null;
         await this.#reporterRunner.report({type: 'watchEnd'});
-        // TODO: persist request graph
+        await this.#requestTracker.writeToCache();
       }
     };
 
@@ -283,7 +283,6 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-
       // TODO: validate
       return event;
     } catch (e) {
