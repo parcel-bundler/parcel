@@ -2804,4 +2804,15 @@ describe('scope hoisting', function() {
 
     await subscription.unsubscribe();
   });
+
+  it('can extract shared bundles where one root is a descendant of another', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-subroot/index.js'),
+    );
+
+    assert.deepEqual(await run(b), [
+      [3, 4],
+      [3, 4],
+    ]);
+  });
 });
