@@ -46,10 +46,10 @@ describe('loadSourceMap', () => {
     let contents = fs.readFileSync(filename, 'utf-8');
 
     let foundMap = await loadSourceMapUrl(fs, filename, contents);
-    assert.equal(foundMap.url, 'referenced-min.js.map');
+    assert.equal(foundMap.url, 'file://referenced-min.js.map');
     assert.equal(
       foundMap.filename,
-      path.join(path.dirname(filename), foundMap.url),
+      path.join(__dirname, 'input/sourcemap/referenced-min.js.map'),
     );
     assert.deepEqual(foundMap.map, {
       version: 3,
@@ -91,9 +91,7 @@ describe('loadSourceMap', () => {
     assert(!!map);
 
     let parsedMap = map.getMap();
-    assert.deepEqual(parsedMap.sources, [
-      path.normalize('input/sourcemap/referenced.js'),
-    ]);
+    assert.deepEqual(parsedMap.sources, ['./input/sourcemap/referenced.js']);
     assert.deepEqual(parsedMap.names, ['hello', 'l', 'o', 'console', 'log']);
     assert.deepEqual(parsedMap.mappings, [
       {
@@ -189,9 +187,7 @@ describe('loadSourceMap', () => {
     assert(!!map);
 
     let parsedMap = map.getMap();
-    assert.deepEqual(parsedMap.sources, [
-      path.normalize('input/sourcemap/referenced.js'),
-    ]);
+    assert.deepEqual(parsedMap.sources, ['./input/sourcemap/referenced.js']);
   });
 
   it('Should remap sources when using sourceRoot', async () => {
@@ -206,6 +202,6 @@ describe('loadSourceMap', () => {
     assert(!!map);
 
     let parsedMap = map.getMap();
-    assert.deepEqual(parsedMap.sources, [path.normalize('input/source.js')]);
+    assert.deepEqual(parsedMap.sources, ['./input/source.js']);
   });
 });

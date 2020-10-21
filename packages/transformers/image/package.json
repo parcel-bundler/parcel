@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/transformer-image",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/ImageTransformer.js",
+  "source": "src/ImageTransformer.js",
+  "engines": {
+    "node": ">= 10.0.0",
+    "parcel": "^2.0.0-beta.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-beta.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.24.1"
+  }
+}

@@ -78,12 +78,12 @@ export default (new Transformer({
       css = result.css;
       for (let included of result.stats.includedFiles) {
         if (included !== asset.filePath) {
-          asset.addIncludedFile({filePath: included});
+          asset.addIncludedFile(included);
         }
       }
 
       if (result.map != null) {
-        let map = new SourceMap();
+        let map = new SourceMap(options.projectRoot);
         map.addRawMappings(JSON.parse(result.map));
         asset.setMap(map);
       }

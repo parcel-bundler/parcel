@@ -1,3 +1,3 @@
 import Foo from "lib";
 
-output = Foo;
+export default Foo;

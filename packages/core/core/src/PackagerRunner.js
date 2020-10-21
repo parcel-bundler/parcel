@@ -8,6 +8,7 @@ import type {
   BundleGraph as BundleGraphType,
   NamedBundle as NamedBundleType,
   Async,
+  ConfigOutput,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm, {SharedReference} from '@parcel/workers';
@@ -54,6 +55,7 @@ export type BundleInfo = {|
   +hash: string,
   +hashReferences: Array<string>,
   +time?: number,
+  +cacheKeys: CacheKeyMap,
 |};
 
 type CacheKeyMap = {|
@@ -78,7 +80,6 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraphReference: SharedReference,
     configRef: SharedReference,
-    cacheKeys: CacheKeyMap,
     optionsRef: SharedReference,
   |}) => Promise<BundleInfo>;
 
@@ -104,7 +105,12 @@ export default class PackagerRunner {
     let farm = nullthrows(this.farm);
     let {ref, dispose} = await farm.createSharedReference(bundleGraph);
 
-    let bundleInfoMap = {};
+    let bundleInfoMap: {|
+      [string]: {|
+        ...BundleInfo,
+        cacheKeys: CacheKeyMap,
+      |},
+    |} = {};
     let writeEarlyPromises = {};
     let hashRefToNameHash = new Map();
     // skip inline bundles, they will be processed via the parent bundle
@@ -150,30 +156,56 @@ export default class PackagerRunner {
   |}> {
     let start = Date.now();
 
-    let cacheKey = await this.getCacheKey(bundle, bundleGraph);
-    let cacheKeys = {
-      content: getContentKey(cacheKey),
-      map: getMapKey(cacheKey),
-      info: getInfoKey(cacheKey),
-    };
-    let {type, size, hash, hashReferences} =
-      (await this.getBundleInfoFromCache(cacheKeys.info)) ??
-      (await this.getBundleInfoFromWorker({
+    return {
+      ...(await this.getBundleInfoFromWorker({
         bundle,
         bundleGraphReference,
-        cacheKeys,
         optionsRef: nullthrows(this.optionsRef),
         configRef: nullthrows(this.configRef),
-      }));
-
-    return {
-      type,
-      size,
+      })),
       time: Date.now() - start,
-      hash,
-      hashReferences,
-      cacheKeys,
     };
+  }
+
+  async loadConfigs(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
+  ): Promise<Map<string, ?ConfigOutput>> {
+    let configs = new Map();
+
+    configs.set(bundle.id, await this.loadConfig(bundleGraph, bundle));
+    for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
+      configs.set(
+        inlineBundle.id,
+        await this.loadConfig(bundleGraph, inlineBundle),
+      );
+    }
+
+    return configs;
+  }
+
+  async loadConfig(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
+  ): Promise<?ConfigOutput> {
+    let config: ?ConfigOutput;
+
+    let {plugin} = await this.config.getPackager(nullthrows(bundle.filePath));
+    if (plugin.loadConfig != null) {
+      try {
+        config = await nullthrows(plugin.loadConfig)({
+          bundle: NamedBundle.get(bundle, bundleGraph, this.options),
+          options: this.pluginOptions,
+          logger: new PluginLogger({origin: this.config.getBundlerName()}),
+        });
+      } catch (e) {
+        throw new ThrowableDiagnostic({
+          diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
+        });
+      }
+    }
+
+    return config;
   }
 
   getBundleInfoFromCache(infoKey: string): Async<?BundleInfo> {
@@ -188,8 +220,13 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     cacheKeys: CacheKeyMap,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<BundleInfo> {
-    let {type, contents, map} = await this.getBundleResult(bundle, bundleGraph);
+    let {type, contents, map} = await this.getBundleResult(
+      bundle,
+      bundleGraph,
+      configs,
+    );
 
     return this.writeToCache(cacheKeys, type, contents, map);
   }
@@ -197,6 +234,7 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<{|
     type: string,
     contents: Blob,
@@ -204,7 +242,7 @@ export default class PackagerRunner {
   |}> {
     await initSourcemaps;
 
-    let packaged = await this.package(bundle, bundleGraph);
+    let packaged = await this.package(bundle, bundleGraph, configs);
     let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
       bundle,
@@ -224,11 +262,8 @@ export default class PackagerRunner {
   }
 
   getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
-    if (map && this.options.sourceMaps) {
-      if (
-        bundle.isInline ||
-        (bundle.target.sourceMap && bundle.target.sourceMap.inline)
-      ) {
+    if (map && this.options.sourceMaps && !bundle.isInline) {
+      if (bundle.target.sourceMap && bundle.target.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
         return path.basename(bundle.filePath) + '.map';
@@ -241,6 +276,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
@@ -249,9 +285,10 @@ export default class PackagerRunner {
       bundle,
     });
 
-    let packager = await this.config.getPackager(bundle.filePath);
+    let {name, plugin} = await this.config.getPackager(bundle.filePath);
     try {
-      return await packager.plugin.package({
+      return await plugin.package({
+        config: configs.get(bundle.id)?.config,
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
@@ -262,7 +299,7 @@ export default class PackagerRunner {
           return this.getSourceMapReference(bundle, map);
         },
         options: this.pluginOptions,
-        logger: new PluginLogger({origin: packager.name}),
+        logger: new PluginLogger({origin: name}),
         getInlineBundleContents: async (
           bundle: BundleType,
           bundleGraph: BundleGraphType<NamedBundleType>,
@@ -277,6 +314,7 @@ export default class PackagerRunner {
             bundleToInternalBundle(bundle),
             // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
+            configs,
           );
 
           return {contents: res.contents};
@@ -284,7 +322,7 @@ export default class PackagerRunner {
       });
     } catch (e) {
       throw new ThrowableDiagnostic({
-        diagnostic: errorToDiagnostic(e, packager.name),
+        diagnostic: errorToDiagnostic(e, name),
       });
     }
   }
@@ -390,9 +428,7 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
-    let isInlineMap =
-      bundle.isInline ||
-      (bundle.target.sourceMap && bundle.target.sourceMap.inline);
+    let isInlineMap = bundle.target.sourceMap && bundle.target.sourceMap.inline;
 
     let stringified = await map.stringify({
       file: path.basename(mapFilename),
@@ -413,6 +449,7 @@ export default class PackagerRunner {
   async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
@@ -420,6 +457,11 @@ export default class PackagerRunner {
     let optimizers = (
       await this.config.getOptimizers(filePath)
     ).map(({name, version}) => [name, version]);
+
+    let configResults = {};
+    for (let [id, config] of configs) {
+      configResults[id] = config?.config;
+    }
 
     // TODO: add third party configs to the cache key
     let {sourceMaps} = this.options;
@@ -429,6 +471,7 @@ export default class PackagerRunner {
       optimizers,
       opts: {sourceMaps},
       hash: bundleGraph.getHash(bundle),
+      configResults,
     });
   }
 
@@ -438,8 +481,8 @@ export default class PackagerRunner {
     contents: Readable,
     map: ?Readable,
   |}> {
-    let contentKey = getContentKey(cacheKey);
-    let mapKey = getMapKey(cacheKey);
+    let contentKey = PackagerRunner.getContentKey(cacheKey);
+    let mapKey = PackagerRunner.getMapKey(cacheKey);
 
     let contentExists = await this.options.cache.blobExists(contentKey);
     if (!contentExists) {
@@ -561,9 +604,27 @@ export default class PackagerRunner {
     if (map != null) {
       await this.options.cache.setStream(cacheKeys.map, blobToStream(map));
     }
-    let info = {type, size, hash: hash.digest('hex'), hashReferences};
+    let info = {
+      type,
+      size,
+      hash: hash.digest('hex'),
+      hashReferences,
+      cacheKeys,
+    };
     await this.options.cache.set(cacheKeys.info, info);
     return info;
+  }
+
+  static getContentKey(cacheKey: string): string {
+    return md5FromString(`${cacheKey}:content`);
+  }
+
+  static getMapKey(cacheKey: string): string {
+    return md5FromString(`${cacheKey}:map`);
+  }
+
+  static getInfoKey(cacheKey: string): string {
+    return md5FromString(`${cacheKey}:info`);
   }
 }
 
@@ -616,18 +677,6 @@ function replaceStream(hashRefToNameHash) {
       cb(null, boundaryStr);
     },
   });
-}
-
-function getContentKey(cacheKey: string) {
-  return md5FromString(`${cacheKey}:content`);
-}
-
-function getMapKey(cacheKey: string) {
-  return md5FromString(`${cacheKey}:map`);
-}
-
-function getInfoKey(cacheKey: string) {
-  return md5FromString(`${cacheKey}:info`);
 }
 
 function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {

@@ -339,9 +339,116 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('should prefetch bundles when declared as an import attribute statically', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-static-prefetch/index.js'),
+    );
+
+    let output = await run(b);
+    let headChildren = await output.default;
+
+    assert(headChildren.length === 3);
+
+    assert(headChildren[0].tag === 'script');
+    assert(headChildren[0].src.match(/async\..*\.js/));
+
+    assert(headChildren[1].tag === 'link');
+    assert(headChildren[1].rel === 'prefetch');
+    assert(headChildren[1].as === 'style');
+    assert(headChildren[1].href.match(/prefetched\..*\.css/));
+
+    assert(headChildren[2].tag === 'link');
+    assert(headChildren[2].rel === 'prefetch');
+    assert(headChildren[2].as === 'script');
+    assert(headChildren[2].href.match(/prefetched\..*\.js/));
+  });
+
+  it('should preload bundles when declared as an import attribute statically', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-static-preload/index.js'),
+    );
+
+    let output = await run(b);
+    let headChildren = await output.default;
+
+    assert(headChildren.length === 3);
+
+    assert(headChildren[0].tag === 'script');
+    assert(headChildren[0].src.match(/async\..*\.js/));
+
+    assert(headChildren[1].tag === 'link');
+    assert(headChildren[1].rel === 'preload');
+    assert(headChildren[1].as === 'style');
+    assert(headChildren[1].href.match(/preloaded\..*\.css/));
+
+    assert(headChildren[2].tag === 'link');
+    assert(headChildren[2].rel === 'preload');
+    assert(headChildren[2].as === 'script');
+    assert(headChildren[2].href.match(/preloaded\..*\.js/));
+  });
+
+  // TODO: Implement when we can evaluate bundles against esmodule targets
+  it(
+    'targetting esmodule, should modulepreload bundles when declared as an import attribute statically',
+  );
+
+  it('should remove import attributes', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-import-attributes/index.js'),
+    );
+
+    let mainBundle = b.getBundles().find(b => b.isEntry);
+    let mainBundleContent = await outputFS.readFile(
+      mainBundle.filePath,
+      'utf8',
+    );
+    assert(mainBundleContent.includes("require('./async')"));
+    assert(mainBundleContent.includes(`require('./async2')`));
+  });
+
   it('should split bundles when a dynamic import is used with a node environment', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-node/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should split bundles when a dynamic import is used with an electron-main environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-electron-main/index.js'),
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'JSRuntime.js'],
+      },
+      {
+        assets: ['local.js'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should split bundles when a dynamic import is used with an electron-renderer environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-electron-renderer/index.js'),
     );
 
     assertBundles(b, [
@@ -1238,10 +1345,10 @@ describe('javascript', function() {
     );
 
     let jsBundle = b.getBundles()[0];
-    let contents = await outputFS.readFile(jsBundle.filePath);
+    let contents = await outputFS.readFile(jsBundle.filePath, 'utf8');
 
     assert(!contents.includes('process.env'));
-    assert.equal(await run(b), 42);
+    assert.equal(await run(b), 'test');
   });
 
   it('should not insert environment variables in node environment', async function() {
@@ -1250,7 +1357,7 @@ describe('javascript', function() {
     );
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.ok(output.toString().includes('process.env'));
     assert.equal(output(), 'test:test');
   });
 
@@ -1265,7 +1372,7 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.ok(output.toString().includes('process.env'));
     assert.equal(output(), 'test:test');
   });
 
@@ -1280,16 +1387,59 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.ok(output.toString().includes('process.env'));
     assert.equal(output(), 'test:test');
   });
 
-  it('should insert environment variables in browser environment', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/env/index.js'));
+  it('should inline NODE_ENV environment variable in browser environment even if disabled', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-nodeenv/index.js'),
+      {
+        env: {
+          FOO: 'abc',
+        },
+      },
+    );
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') === -1);
-    assert.equal(output(), 'test:test');
+    assert.ok(!output.toString().includes('process.env'));
+    assert.equal(output(), 'test:undefined');
+  });
+
+  it('should not insert environment variables in browser environment if disabled', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-disabled/index.js'),
+      {
+        env: {FOOBAR: 'abc'},
+      },
+    );
+
+    let output = await run(b);
+    assert.ok(!output.toString().includes('process.env'));
+    assert.equal(output(), 'undefined:undefined');
+  });
+
+  it('should only insert environment variables in browser environment matching the glob', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-disabled-glob/index.js'),
+      {
+        env: {A_1: 'abc', B_1: 'def', B_2: 'ghi'},
+      },
+    );
+
+    let output = await run(b);
+    assert.ok(!output.toString().includes('process.env'));
+    assert.equal(output(), 'undefined:def:ghi');
+  });
+
+  it('should be able to inline environment variables in browser environment', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
+      env: {NODE_ENV: 'abc'},
+    });
+
+    let output = await run(b);
+    assert.ok(!output.toString().includes('process.env'));
+    assert.equal(output(), 'abc:abc');
   });
 
   it("should insert the user's NODE_ENV as process.env.NODE_ENV if passed", async function() {
@@ -1300,7 +1450,7 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') === -1);
+    assert.ok(!output.toString().includes('process.env'));
     assert.equal(output(), 'production:production');
   });
 
@@ -2234,18 +2384,21 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/bundle-text/index.js'),
     );
 
+    let cssBundleContent = (await run(b)).default;
+
     assert(
-      (await run(b)).default.startsWith(
+      cssBundleContent.startsWith(
         `body {
   background-color: #000000;
 }
 
 .svg-img {
   background-image: url("data:image/svg+xml,%3Csvg%3E%0A%0A%3C%2Fsvg%3E%0A");
-}
-/*# sourceMappingURL=data:application/json;charset=utf-8;base64,`,
+}`,
       ),
     );
+
+    assert(!cssBundleContent.includes('sourceMappingURL'));
   });
 
   it('should inline text content as url-encoded text and mime type with `data-url:*` imports', async () => {

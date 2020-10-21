@@ -1,14 +1,25 @@
 // @flow
 
-import type {RawParcelConfig, InitialParcelOptions} from '@parcel/types';
+import type {InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
 import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import {prettyDiagnostic, openInBrowser} from '@parcel/utils';
+import {Disposable} from '@parcel/events';
 import {INTERNAL_ORIGINAL_CONSOLE} from '@parcel/logger';
+import chalk from 'chalk';
+import program from 'commander';
+import path from 'path';
+import getPort from 'get-port';
+import {version} from '../package.json';
 
 require('v8-compile-cache');
+
+// Exit codes in response to signals are traditionally
+// 128 + signal value
+// https://tldp.org/LDP/abs/html/exitcodes.html
+const SIGINT_EXIT_CODE = 130;
 
 async function logUncaughtError(e: mixed) {
   if (e instanceof ThrowableDiagnostic) {
@@ -33,12 +44,6 @@ process.on('unhandledRejection', async (reason: mixed) => {
   process.exit();
 });
 
-const chalk = require('chalk');
-const program = require('commander');
-const path = require('path');
-const getPort = require('get-port');
-const version = require('../package.json').version;
-
 // Capture the NODE_ENV this process was launched with, so that it can be
 // used in Parcel (such as in process.env inlining).
 const initialNodeEnv = process.env.NODE_ENV;
@@ -56,6 +61,8 @@ program.version(version);
 
 const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
+  '--config <path>':
+    'specify which config to use. can be a path or a package name',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-content-hash': 'disable content hashing',
@@ -91,6 +98,7 @@ var hmrOptions = {
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
   '--no-autoinstall': 'disable autoinstall',
+  '--hmr-port <port>': 'hot module replacement port',
 };
 
 function applyOptions(cmd, options) {
@@ -172,33 +180,93 @@ async function run(entries: Array<string>, command: any) {
   }
   let Parcel = require('@parcel/core').default;
   let options = await normalizeOptions(command);
-  let packageManager = new NodePackageManager(new NodeFS());
-  let defaultConfig: RawParcelConfig = await packageManager.require(
-    '@parcel/config-default',
-    __filename,
-    {autoinstall: options.autoinstall},
-  );
+  let fs = new NodeFS();
+  let packageManager = new NodePackageManager(fs);
   let parcel = new Parcel({
     entries,
     packageManager,
-    defaultConfig: {
-      ...defaultConfig,
-      filePath: (
-        await packageManager.resolve('@parcel/config-default', __filename, {
-          autoinstall: options.autoinstall,
-        })
-      ).resolved,
-    },
+    // $FlowFixMe - flow doesn't know about the `paths` option (added in Node v8.9.0)
+    defaultConfig: require.resolve('@parcel/config-default', {
+      paths: [fs.cwd(), __dirname],
+    }),
     patchConsole: true,
     ...options,
   });
 
-  if (command.name() === 'watch' || command.name() === 'serve') {
-    let {unsubscribe} = await parcel.watch(err => {
+  let disposable = new Disposable();
+  let unsubscribe: () => Promise<mixed>;
+  let isExiting;
+  async function exit(exitCode: number = 0) {
+    if (isExiting) {
+      return;
+    }
+
+    isExiting = true;
+    if (unsubscribe != null) {
+      await unsubscribe();
+    } else if (parcel.isProfiling) {
+      await parcel.stopProfiling();
+    }
+
+    disposable.dispose();
+    process.exit(exitCode);
+  }
+
+  const isWatching = command.name() === 'watch' || command.name() === 'serve';
+  if (process.stdin.isTTY) {
+    // $FlowFixMe
+    process.stdin.setRawMode(true);
+    require('readline').emitKeypressEvents(process.stdin);
+
+    let stream = process.stdin.on('keypress', async (char, key) => {
+      if (!key.ctrl) {
+        return;
+      }
+
+      switch (key.name) {
+        case 'c':
+          // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
+          // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
+          //
+          // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
+          // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
+          //
+          // We don't use the SIGINT event for this because when run inside yarn, the parent
+          // yarn process ends before Parcel and it appears that Parcel has ended while it may still
+          // be cleaning up. Handling events from stdin prevents this impression.
+
+          // Enqueue a busy message to be shown if Parcel doesn't shut down
+          // within the timeout.
+          setTimeout(
+            () =>
+              INTERNAL_ORIGINAL_CONSOLE.log(
+                chalk.bold.yellowBright('Parcel is shutting down...'),
+              ),
+            500,
+          );
+          // When watching, a 0 success code is acceptable when Parcel is interrupted with ctrl-c.
+          // When building, fail with a code as if we received a SIGINT.
+          await exit(isWatching ? 0 : SIGINT_EXIT_CODE);
+          break;
+        case 'e':
+          await (parcel.isProfiling
+            ? parcel.stopProfiling()
+            : parcel.startProfiling());
+          break;
+      }
+    });
+
+    disposable.add(() => {
+      stream.destroy();
+    });
+  }
+
+  if (isWatching) {
+    ({unsubscribe} = await parcel.watch(err => {
       if (err) {
         throw err;
       }
-    });
+    }));
 
     if (command.open && options.serve) {
       await openInBrowser(
@@ -207,17 +275,6 @@ async function run(entries: Array<string>, command: any) {
         command.open,
       );
     }
-
-    let isExiting;
-    const exit = async () => {
-      if (isExiting) {
-        return;
-      }
-
-      isExiting = true;
-      await unsubscribe();
-      process.exit();
-    };
 
     if (command.watchForStdin) {
       process.stdin.on('end', async () => {
@@ -228,28 +285,8 @@ async function run(entries: Array<string>, command: any) {
       process.stdin.resume();
     }
 
-    // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
-    // This is mostly for tools that wrap Parcel as a child process like yarn and npm.
-    //
-    // Setting raw mode prevents SIGINT from being sent in response to ctrl-c:
-    // https://nodejs.org/api/tty.html#tty_readstream_setrawmode_mode
-    //
-    // We don't use the SIGINT event for this because when run inside yarn, the parent
-    // yarn process ends before Parcel and it appears that Parcel has ended while it may still
-    // be cleaning up. Handling events from stdin prevents this impression.
-    if (process.stdin.isTTY) {
-      // $FlowFixMe
-      process.stdin.setRawMode(true);
-      require('readline').emitKeypressEvents(process.stdin);
-
-      process.stdin.on('keypress', async (char, key) => {
-        if (key.ctrl && key.name === 'c') {
-          await exit();
-        }
-      });
-    }
-
-    // In non-tty cases, respond to SIGINT by cleaning up.
+    // In non-tty cases, respond to SIGINT by cleaning up. Since we're watching,
+    // a 0 success code is acceptable.
     process.on('SIGINT', exit);
     process.on('SIGTERM', exit);
   } else {
@@ -261,8 +298,10 @@ async function run(entries: Array<string>, command: any) {
       if (!(e instanceof BuildError)) {
         await logUncaughtError(e);
       }
-      process.exit(1);
+      await exit(1);
     }
+
+    await exit();
   }
 }
 
@@ -309,7 +348,8 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = null;
   if (command.name() !== 'build' && command.hmr !== false) {
-    hmr = {port, host};
+    let hmrport = command.hmrPort ? Number(command.hmrPort) : port;
+    hmr = {port: hmrport, host};
   }
 
   let mode = command.name() === 'build' ? 'production' : 'development';

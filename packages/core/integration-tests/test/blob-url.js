@@ -2,14 +2,7 @@
 
 import assert from 'assert';
 import path from 'path';
-import {bundle, distDir, outputFS, inputFS, run} from '@parcel/test-utils';
-
-const configPath = path.join(__dirname, '/integration/blob-url/.parcelrc');
-
-const config = {
-  ...JSON.parse(inputFS.readFileSync(configPath, 'utf8')),
-  filePath: configPath,
-};
+import {bundle, distDir, outputFS, run} from '@parcel/test-utils';
 
 class Blob {
   data;
@@ -29,9 +22,6 @@ describe('blob urls', () => {
   it('should inline compiled content as a blob url with `blob-url:*` imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/blob-url/index.js'),
-      {
-        config,
-      },
     );
 
     class Worker {
@@ -54,7 +44,6 @@ describe('blob urls', () => {
       path.join(distDir, 'index.js'),
       'utf8',
     );
-    // console.log(bundleContent);
     assert(bundleContent.includes('new Worker(require("blob-url:./worker"))'));
     assert(
       bundleContent.includes(
@@ -72,7 +61,6 @@ describe('blob urls', () => {
     let b = await bundle(
       path.join(__dirname, '/integration/blob-url/index.js'),
       {
-        config,
         minify: true,
       },
     );

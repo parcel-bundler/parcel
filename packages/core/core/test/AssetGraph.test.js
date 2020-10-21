@@ -196,13 +196,13 @@ describe('AssetGraph', () => {
       target: DEFAULT_TARGETS[0],
       env: DEFAULT_ENV,
     });
-    let req = {filePath: '/index.js', env: DEFAULT_ENV};
+    let req = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
 
     graph.resolveDependency(dep, req, '3');
     assert(graph.nodes.has(nodeFromAssetGroup(req).id));
     assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req).id));
 
-    let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV};
+    let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req2, '4');
     assert(!graph.nodes.has(nodeFromAssetGroup(req).id));
     assert(graph.nodes.has(nodeFromAssetGroup(req2).id));
@@ -239,7 +239,7 @@ describe('AssetGraph', () => {
       sourcePath: '',
     });
     let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
+    let req = {filePath, env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req, '3');
     let sourcePath = filePath;
     let assets = [
@@ -261,7 +261,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -281,7 +280,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '3',
@@ -292,7 +290,6 @@ describe('AssetGraph', () => {
         dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        includedFiles: new Map(),
       }),
     ];
 
@@ -327,7 +324,6 @@ describe('AssetGraph', () => {
           ],
         ]),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
       createAsset({
         id: '2',
@@ -338,7 +334,6 @@ describe('AssetGraph', () => {
         stats,
         dependencies: new Map(),
         env: DEFAULT_ENV,
-        includedFiles: new Map(),
       }),
     ];
 
@@ -379,7 +374,7 @@ describe('AssetGraph', () => {
       target: DEFAULT_TARGETS[0],
     });
     let filePath = '/index.js';
-    let req = {filePath, env: DEFAULT_ENV};
+    let req = {filePath, env: DEFAULT_ENV, query: {}};
     graph.resolveDependency(dep, req, '123');
     let sourcePath = filePath;
     let dep1 = createDependency({
@@ -442,7 +437,7 @@ describe('AssetGraph', () => {
   it('should support marking and unmarking parents with hasDeferred', () => {
     let graph = new AssetGraph();
 
-    let assetGroup = {filePath: '/index.js', env: DEFAULT_ENV};
+    let assetGroup = {filePath: '/index.js', env: DEFAULT_ENV, query: {}};
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     graph.initialize({assetGroups: [assetGroup]});
     let dependency = createDependency({
@@ -460,7 +455,6 @@ describe('AssetGraph', () => {
       stats,
       dependencies: new Map([['utils', dependency]]),
       env: DEFAULT_ENV,
-      includedFiles: new Map(),
     });
     let assetNode = nodeFromAsset(asset);
     graph.resolveAssetGroup(assetGroup, [asset], '1');

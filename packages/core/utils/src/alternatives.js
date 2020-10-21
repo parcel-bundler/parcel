@@ -1,0 +1,124 @@
+// @flow
+import path from 'path';
+import type {FileSystem} from '@parcel/fs';
+import {fuzzySearch} from './schema';
+import {relativePath} from './path';
+import {resolveConfig} from './config';
+
+export async function findAlternativeNodeModules(
+  fs: FileSystem,
+  moduleName: string,
+  dir: string,
+): Promise<Array<string>> {
+  let potentialModules: Array<string> = [];
+  let root = path.parse(dir).root;
+  let isOrganisationModule = moduleName.startsWith('@');
+
+  while (dir !== root) {
+    // Skip node_modules directories
+    if (path.basename(dir) === 'node_modules') {
+      dir = path.dirname(dir);
+    }
+
+    try {
+      let modulesDir = path.join(dir, 'node_modules');
+      let stats = await fs.stat(modulesDir);
+      if (stats.isDirectory()) {
+        let dirContent = await fs.readdir(modulesDir);
+
+        // Filter out the modules that interest us
+        let modules = dirContent.filter(i =>
+          isOrganisationModule ? i.startsWith('@') : !i.startsWith('@'),
+        );
+
+        // If it's an organisation module, loop through all the modules of that organisation
+        if (isOrganisationModule) {
+          await Promise.all(
+            modules.map(async item => {
+              let orgDirPath = path.join(modulesDir, item);
+              let orgDirContent = await fs.readdir(orgDirPath);
+
+              // Add all org packages
+              potentialModules.push(...orgDirContent.map(i => `${item}/${i}`));
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    // Move up a directory
+    dir = path.dirname(dir);
+  }
+
+  return fuzzySearch(potentialModules, moduleName).slice(0, 2);
+}
+
+async function findAllFilesUp({
+  fs,
+  dir,
+  root,
+  basedir,
+  maxlength,
+  collected,
+}: {|
+  fs: FileSystem,
+  dir: string,
+  root: string,
+  basedir: string,
+  maxlength: number,
+  collected: Array<string>,
+|}): Promise<mixed> {
+  let dirContent = await fs.readdir(dir);
+  return Promise.all(
+    dirContent.map(async item => {
+      let fullPath = path.join(dir, item);
+      let relativeFilePath = relativePath(basedir, fullPath);
+      if (relativeFilePath.length < maxlength) {
+        let stats = await fs.stat(fullPath);
+        let isDir = stats.isDirectory();
+        if (isDir || stats.isFile()) {
+          collected.push(relativeFilePath);
+        }
+
+        // If it's a directory, run over each item within said directory...
+        if (isDir) {
+          return findAllFilesUp({
+            fs,
+            dir: fullPath,
+            root,
+            basedir,
+            maxlength,
+            collected,
+          });
+        }
+      }
+    }),
+  );
+}
+
+export async function findAlternativeFiles(
+  fs: FileSystem,
+  fileSpecifier: string,
+  dir: string,
+): Promise<Array<string>> {
+  let potentialFiles: Array<string> = [];
+  // Find our root, we won't recommend files above the package root as that's bad practise
+  let pkg = await resolveConfig(fs, path.join(dir, 'index'), ['package.json']);
+  if (!pkg) {
+    return potentialFiles;
+  }
+
+  let pkgRoot = path.dirname(pkg);
+  await findAllFilesUp({
+    fs,
+    dir: pkgRoot,
+    root: pkgRoot,
+    basedir: dir,
+    maxlength: fileSpecifier.length + 10,
+    collected: potentialFiles,
+  });
+
+  return fuzzySearch(potentialFiles, fileSpecifier).slice(0, 2);
+}

@@ -14,7 +14,6 @@ import type {
   DependencyOptions,
   Environment as IEnvironment,
   EnvironmentOpts,
-  File,
   FilePath,
   Meta,
   MutableAsset as IMutableAsset,
@@ -22,6 +21,7 @@ import type {
   Stats,
   MutableSymbols as IMutableSymbols,
   Symbols as ISymbols,
+  QueryParameters,
 } from '@parcel/types';
 import type {Asset as AssetValue, ParcelOptions} from '../types';
 
@@ -108,6 +108,10 @@ class BaseAsset {
     return this.#asset.value.filePath;
   }
 
+  get query(): QueryParameters {
+    return this.#asset.value.query;
+  }
+
   get meta(): Meta {
     return this.#asset.value.meta;
   }
@@ -156,10 +160,6 @@ class BaseAsset {
     |},
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
-  }
-
-  getIncludedFiles(): $ReadOnlyArray<File> {
-    return this.#asset.getIncludedFiles();
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
@@ -275,8 +275,12 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addIncludedFile(file: File): void {
-    this.#asset.addIncludedFile(file);
+  addIncludedFile(filePath: FilePath): void {
+    this.#asset.addIncludedFile(filePath);
+  }
+
+  invalidateOnEnvChange(env: string): void {
+    this.#asset.invalidateOnEnvChange(env);
   }
 
   isASTDirty(): boolean {

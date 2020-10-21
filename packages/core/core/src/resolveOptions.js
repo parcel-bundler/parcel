@@ -94,6 +94,7 @@ export default async function resolveOptions(
     patchConsole:
       initialOptions.patchConsole ?? process.env.NODE_ENV !== 'test',
     env: {
+      ...process.env,
       ...initialOptions.env,
       ...(await loadDotEnv(
         initialOptions.env ?? {},
