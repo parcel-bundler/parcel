@@ -1,6 +1,6 @@
 {
   "name": "@parcel/eslint-example",
-  "version": "2.0.0-frontbucket.38",
+  "version": "2.0.0-frontbucket.39",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-frontbucket.15",
-    "@parcel/core": "^2.0.0-frontbucket.37",
-    "@parcel/validator-eslint": "^2.0.0-frontbucket.33"
+    "@parcel/core": "^2.0.0-frontbucket.38",
+    "@parcel/validator-eslint": "^2.0.0-frontbucket.34"
   }
 }

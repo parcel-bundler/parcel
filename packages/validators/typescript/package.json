@@ -1,6 +1,6 @@
 {
   "name": "@parcel/validator-typescript",
-  "version": "2.0.0-frontbucket.33",
+  "version": "2.0.0-frontbucket.34",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -23,6 +23,6 @@
     "@parcel/plugin": "^2.0.0-frontbucket.31",
     "@parcel/ts-utils": "^2.0.0-frontbucket.16",
     "@parcel/types": "^2.0.0-frontbucket.31",
-    "@parcel/utils": "^2.0.0-frontbucket.27"
+    "@parcel/utils": "^2.0.0-frontbucket.28"
   }
 }

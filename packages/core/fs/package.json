@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "2.0.0-frontbucket.28",
+  "version": "2.0.0-frontbucket.29",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {
@@ -21,9 +21,9 @@
   },
   "dependencies": {
     "@parcel/fs-write-stream-atomic": "2.0.0-frontbucket.0",
-    "@parcel/utils": "^2.0.0-frontbucket.27",
+    "@parcel/utils": "^2.0.0-frontbucket.28",
     "@parcel/watcher": "2.0.0-alpha.8",
-    "@parcel/workers": "^2.0.0-frontbucket.27",
+    "@parcel/workers": "^2.0.0-frontbucket.28",
     "graceful-fs": "^4.2.4",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
