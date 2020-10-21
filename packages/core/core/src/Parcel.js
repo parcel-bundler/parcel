@@ -306,50 +306,6 @@ export default class Parcel {
     }
   }
 
-  // ? What are these for again?
-  // // $FlowFixMe
-  // async [INTERNAL_TRANSFORM]({
-  //   filePath,
-  //   env,
-  //   code,
-  // }: {|
-  //   filePath: FilePath,
-  //   env: EnvironmentOpts,
-  //   code?: string,
-  // |}): Promise<AssetRequestResult> {
-  //   let [result] = await Promise.all([
-  //     this.#assetGraphBuilder.runTransform({
-  //       filePath,
-  //       code,
-  //       env: createEnvironment(env),
-  //     }),
-  //     this.#reporterRunner.config.getReporters(),
-  //   ]);
-
-  //   return result;
-  // }
-
-  // // $FlowFixMe
-  // async [INTERNAL_RESOLVE]({
-  //   moduleSpecifier,
-  //   sourcePath,
-  //   env,
-  // }: {|
-  //   moduleSpecifier: ModuleSpecifier,
-  //   sourcePath: FilePath,
-  //   env: EnvironmentOpts,
-  // |}): Promise<FilePath> {
-  //   let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
-  //     createDependency({
-  //       moduleSpecifier,
-  //       sourcePath,
-  //       env: createEnvironment(env),
-  //     }),
-  //   );
-
-  //   return resolved.filePath;
-  // }
-
   _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
