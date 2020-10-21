@@ -1100,6 +1100,7 @@ asset graph. They mostly call out to different compilers and preprocessors.
 
 - `@parcel/transformer-babel`
 - `@parcel/transformer-coffeescript`
+- `@parcel/transformer-glsl`
 - `@parcel/transformer-graphql`
 - `@parcel/transformer-json`
 - `@parcel/transformer-json5`

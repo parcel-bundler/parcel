@@ -1,38 +1,39 @@
 // @flow strict-local
 
-declare module "@babel/parser" {
-  import type { File, Expression } from "@babel/types";
+declare module '@babel/parser' {
+  import type {File, Expression} from '@babel/types';
 
   declare export type ParserPlugin =
-    | "estree"
-    | "flow"
-    | "flowComments"
-    | "jsx"
-    | "typescript"
-    | "v8intrinsic"
-    | "asyncGenerators"
-    | "bigInt"
-    | "classProperties"
-    | "classPrivateProperties"
-    | "classPrivateMethods"
-    | "decorators"
-    | "doExpressions"
-    | "dynamicImport"
-    | "exportDefaultFrom"
-    | "exportNamespaceFrom"
-    | "functionBind"
-    | "functionSent"
-    | "importMeta"
-    | "logicalAssignment"
-    | "nullishCoalescingOperator"
-    | "numericSeparator"
-    | "objectRestSpread"
-    | "optionalCatchBinding"
-    | "optionalChaining"
-    | "partialApplication"
-    | "pipelineOperator"
-    | "throwExpressions"
-    | "topLevelAwait";
+    | 'estree'
+    | 'flow'
+    | 'flowComments'
+    | 'jsx'
+    | 'typescript'
+    | 'v8intrinsic'
+    | 'asyncGenerators'
+    | 'bigInt'
+    | 'classProperties'
+    | 'classPrivateProperties'
+    | 'classPrivateMethods'
+    | 'decorators'
+    | 'doExpressions'
+    | 'dynamicImport'
+    | 'exportDefaultFrom'
+    | 'exportNamespaceFrom'
+    | 'functionBind'
+    | 'functionSent'
+    | 'importMeta'
+    | 'logicalAssignment'
+    | 'nullishCoalescingOperator'
+    | 'numericSeparator'
+    | 'objectRestSpread'
+    | 'optionalCatchBinding'
+    | 'optionalChaining'
+    | 'partialApplication'
+    | 'pipelineOperator'
+    | 'throwExpressions'
+    | 'topLevelAwait'
+    | ['moduleAttributes', {|version: string|}];
 
   declare export type Options = {|
     allowImportExportEverywhere?: boolean,

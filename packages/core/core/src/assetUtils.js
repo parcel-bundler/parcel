@@ -2,7 +2,6 @@
 
 import type {
   ASTGenerator,
-  File,
   FilePath,
   GenerateOutput,
   Meta,
@@ -13,10 +12,17 @@ import type {
   Transformer,
   QueryParameters,
 } from '@parcel/types';
-import type {Asset, Dependency, Environment} from './types';
+import type {
+  Asset,
+  RequestInvalidation,
+  Dependency,
+  Environment,
+  ParcelOptions,
+} from './types';
 import type {ConfigOutput} from '@parcel/utils';
 
 import {Readable} from 'stream';
+import crypto from 'crypto';
 import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
@@ -24,7 +30,12 @@ import UncommittedAsset from './UncommittedAsset';
 import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
-import {blobToStream, loadConfig, md5FromString} from '@parcel/utils';
+import {
+  blobToStream,
+  loadConfig,
+  md5FromString,
+  md5FromFilePath,
+} from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
 
 type AssetOptions = {|
@@ -40,7 +51,6 @@ type AssetOptions = {|
   astKey?: ?string,
   astGenerator?: ?ASTGenerator,
   dependencies?: Map<string, Dependency>,
-  includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
   isInline?: boolean,
   isSplittable?: ?boolean,
@@ -85,7 +95,6 @@ export function createAsset(options: AssetOptions): Asset {
     astKey: options.astKey,
     astGenerator: options.astGenerator,
     dependencies: options.dependencies || new Map(),
-    includedFiles: options.includedFiles || new Map(),
     isSource: options.isSource,
     outputHash: options.outputHash,
     pipeline: options.pipeline,
@@ -193,4 +202,42 @@ export async function getConfig(
   }
 
   return conf;
+}
+
+export function getInvalidationId(invalidation: RequestInvalidation): string {
+  switch (invalidation.type) {
+    case 'file':
+      return 'file:' + invalidation.filePath;
+    case 'env':
+      return 'env:' + invalidation.key;
+    default:
+      throw new Error('Unknown invalidation type: ' + invalidation.type);
+  }
+}
+
+export async function getInvalidationHash(
+  invalidations: Array<RequestInvalidation>,
+  options: ParcelOptions,
+): Promise<string> {
+  let sortedInvalidations = invalidations
+    .slice()
+    .sort((a, b) => (getInvalidationId(a) < getInvalidationId(b) ? -1 : 1));
+
+  let hash = crypto.createHash('md5');
+  for (let invalidation of sortedInvalidations) {
+    switch (invalidation.type) {
+      case 'file':
+        hash.update(
+          await md5FromFilePath(options.inputFS, invalidation.filePath),
+        );
+        break;
+      case 'env':
+        hash.update(
+          invalidation.key + ':' + (options.env[invalidation.key] || ''),
+        );
+        break;
+    }
+  }
+
+  return hash.digest('hex');
 }
