@@ -627,6 +627,7 @@ async function loadRequestGraph(options): Async<RequestGraph> {
       opts,
     );
     requestGraph.invalidateUnpredictableNodes();
+    requestGraph.invalidateEnvNodes(options.env);
     requestGraph.respondToFSEvents(events);
 
     return requestGraph;
