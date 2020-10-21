@@ -300,7 +300,10 @@ const VISITOR: Visitor<MutableAsset> = {
       path.replaceWith(t.identifier('null'));
     }
 
-    if (t.matchesPattern(path.node, 'module.bundle')) {
+    if (
+      t.matchesPattern(path.node, 'module.bundle.root') ||
+      t.matchesPattern(path.node, 'module.bundle')
+    ) {
       path.replaceWith(t.identifier('parcelRequire'));
     }
   },

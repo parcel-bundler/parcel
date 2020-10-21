@@ -101,7 +101,9 @@ function isPure(binding) {
       init.isIdentifier() ||
       init.isThisExpression() ||
       (isVariableDeclarator(node) &&
-        isIdentifier(node.id, {name: '$parcel$global'}))
+        isIdentifier(node.id, {name: '$parcel$global'})) ||
+      (isVariableDeclarator(node) &&
+        isIdentifier(node.id, {name: 'parcelRequire'}))
     );
   }
 

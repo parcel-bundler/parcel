@@ -61,11 +61,13 @@ export async function concat({
   bundleGraph,
   options,
   wrappedAssets,
+  parcelRequireName,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
+  parcelRequireName: string,
 |}): Promise<BabelNodeFile> {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
@@ -92,8 +94,22 @@ export async function concat({
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
   let result = [...HELPERS];
+
+  // Add a declaration for parcelRequire that points to the unique global name.
+  if (bundle.env.outputFormat === 'global') {
+    result.push(
+      ...parse(
+        `var parcelRequire = $parcel$global.${parcelRequireName};`,
+        PRELUDE_PATH,
+      ),
+    );
+  }
+
   if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...PRELUDE);
+    result.push(
+      ...parse(`var parcelRequireName = "${parcelRequireName}";`, PRELUDE_PATH),
+      ...PRELUDE,
+    );
   }
 
   // Note: for each asset, the order of `$parcel$require` calls and the corresponding
