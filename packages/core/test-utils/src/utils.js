@@ -118,7 +118,7 @@ export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Promise<BundleGraph<NamedBundle>> {
-  return nullthrows(await bundler(entries, opts).run());
+  return (await bundler(entries, opts).run()).bundleGraph;
 }
 
 export function getNextBuild(b: Parcel): Promise<BuildEvent> {
@@ -207,9 +207,13 @@ export async function runBundles(
       case 'global':
         if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
-        } else if (ctx.parcelRequire) {
-          // $FlowFixMe
-          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
+        } else {
+          for (let key in ctx) {
+            if (key.startsWith('parcelRequire')) {
+              // $FlowFixMe
+              return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
+            }
+          }
         }
         return;
       case 'commonjs':
