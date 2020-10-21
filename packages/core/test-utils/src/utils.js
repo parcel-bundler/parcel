@@ -207,9 +207,13 @@ export async function runBundles(
       case 'global':
         if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
-        } else if (ctx.parcelRequire) {
-          // $FlowFixMe
-          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
+        } else {
+          for (let key in ctx) {
+            if (key.startsWith('parcelRequire')) {
+              // $FlowFixMe
+              return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
+            }
+          }
         }
         return;
       case 'commonjs':
