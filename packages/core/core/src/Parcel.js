@@ -7,10 +7,10 @@ import type {
   InitialParcelOptions,
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
+// eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-// eslint-disable-next-line no-unused-vars
 
 import invariant from 'assert';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';

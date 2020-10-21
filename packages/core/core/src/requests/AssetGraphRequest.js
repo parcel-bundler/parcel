@@ -13,6 +13,7 @@ import type {
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
 import type {TargetResolveResult} from './TargetRequest';
+import type {PathRequestInput} from './PathRequest';
 
 import {PromiseQueue, md5FromString} from '@parcel/utils';
 import AssetGraph from '../AssetGraph';
@@ -38,10 +39,7 @@ type RunInput = {|
 type AssetGraphRequest = {|
   id: string,
   +type: 'asset_graph_request',
-  run: RunInput => Async<{|
-    assetGraph: AssetGraph,
-    changedAssets: Map<string, Asset>,
-  |}>,
+  run: RunInput => Async<AssetGraphResult>,
   input: AssetGraphRequestInput,
 |};
 
@@ -60,7 +58,7 @@ export default function createAssetGraphRequest(
       return new AssetGraphResult({
         assetGraph,
         changedAssets,
-        uniqueKey: input.name,
+        uniqueKey: input.input.name,
       });
     },
     input,
@@ -75,13 +73,25 @@ const typesWithRequests = new Set([
 ]);
 
 export class AssetGraphResult {
-  constructor({assetGraph, changedAssets, uniqueKey}) {
+  assetGraph: AssetGraph;
+  changedAssets: Map<string, Asset>;
+  uniqueKey: string;
+
+  constructor({
+    assetGraph,
+    changedAssets,
+    uniqueKey,
+  }: {|
+    assetGraph: AssetGraph,
+    changedAssets?: Map<string, Asset>,
+    uniqueKey: string,
+  |}) {
     this.assetGraph = assetGraph;
-    this.changedAssets = changedAssets || [];
+    this.changedAssets = changedAssets || new Map();
     this.uniqueKey = uniqueKey;
   }
 
-  getCacheKey(requestGraphKey) {
+  getCacheKey(requestGraphKey: string): string {
     return md5FromString(`AssetGraph:${this.uniqueKey}:${requestGraphKey}`);
   }
 }
@@ -222,7 +232,9 @@ export class AssetGraphBuilder {
 
   async runPathRequest(input: Dependency) {
     let request = createPathRequest({...input, name: this.name});
-    let result = await this.api.runRequest<Dependency, ?AssetGroup>(request);
+    let result = await this.api.runRequest<PathRequestInput, ?AssetGroup>(
+      request,
+    );
     this.assetGraph.resolveDependency(input, result, request.id);
   }
 

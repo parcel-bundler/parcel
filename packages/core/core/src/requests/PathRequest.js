@@ -27,8 +27,13 @@ export type PathRequest = {|
   input: Dependency,
 |};
 
+export type PathRequestInput = {|
+  ...Dependency,
+  name: string,
+|};
+
 type RunOpts = {|
-  input: Dependency,
+  input: PathRequestInput,
   ...StaticRunOpts,
 |};
 
@@ -36,11 +41,11 @@ const type = 'path_request';
 const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 export default function createPathRequest(
-  input: Dependency,
+  input: PathRequestInput,
 ): {|
   id: string,
-  input: Dependency,
-  run: ({|input: Dependency, ...StaticRunOpts|}) => Async<?AssetGroup>,
+  input: PathRequestInput,
+  run: ({|input: PathRequestInput, ...StaticRunOpts|}) => Async<?AssetGroup>,
   +type: string,
 |} {
   return {
@@ -63,7 +68,8 @@ async function run({input, api, options}: RunOpts) {
       options.autoinstall,
     ),
   });
-  let assetGroup = await resolverRunner.resolve(input);
+  let {name, ...dependency} = input; // eslint-disable-line no-unused-vars
+  let assetGroup = await resolverRunner.resolve(dependency);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
