@@ -430,7 +430,7 @@ export default class NodeResolver {
         let moduleDir = path.join(dir, 'node_modules', moduleName);
         let stats = await this.fs.stat(moduleDir);
         if (stats.isDirectory()) {
-          const realModuleDir = this.fs.realpathSync(moduleDir);
+          const realModuleDir = await this.fs.realpath(moduleDir);
 
           return {
             moduleName: moduleName,
