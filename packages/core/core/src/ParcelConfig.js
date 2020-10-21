@@ -209,7 +209,11 @@ export default class ParcelConfig {
         return [];
       }
 
-      throw new Error(`No transformers found for "${filePath}".`);
+      throw new Error(
+        `No transformers found for ${filePath}` +
+          (pipeline != null ? ` with pipeline: '${pipeline}'` : '') +
+          '.',
+      );
     }
 
     return transformers;
