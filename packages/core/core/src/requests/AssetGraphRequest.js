@@ -33,13 +33,19 @@ type AssetGraphRequestInput = {|
 
 type RunInput = {|
   input: AssetGraphRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<{|
+    assetGraph: AssetGraph,
+    changedAssets: Map<string, Asset>,
+  |}>,
 |};
 
 type AssetGraphRequest = {|
   id: string,
   +type: 'asset_graph_request',
-  run: RunInput => Async<AssetGraphResult>,
+  run: RunInput => Async<{|
+    assetGraph: AssetGraph,
+    changedAssets: Map<string, Asset>,
+  |}>,
   input: AssetGraphRequestInput,
 |};
 
@@ -49,17 +55,9 @@ export default function createAssetGraphRequest(
   return {
     type: 'asset_graph_request',
     id: input.name,
-    run: async input => {
+    run: input => {
       let builder = new AssetGraphBuilder(input);
-      let {assetGraph, changedAssets} = await builder.build();
-      input.api.storeResult(
-        new AssetGraphResult({assetGraph, uniqueKey: input.input.name}),
-      );
-      return new AssetGraphResult({
-        assetGraph,
-        changedAssets,
-        uniqueKey: input.input.name,
-      });
+      return builder.build();
     },
     input,
   };
@@ -71,30 +69,6 @@ const typesWithRequests = new Set([
   'dependency',
   'asset_group',
 ]);
-
-export class AssetGraphResult {
-  assetGraph: AssetGraph;
-  changedAssets: Map<string, Asset>;
-  uniqueKey: string;
-
-  constructor({
-    assetGraph,
-    changedAssets,
-    uniqueKey,
-  }: {|
-    assetGraph: AssetGraph,
-    changedAssets?: Map<string, Asset>,
-    uniqueKey: string,
-  |}) {
-    this.assetGraph = assetGraph;
-    this.changedAssets = changedAssets || new Map();
-    this.uniqueKey = uniqueKey;
-  }
-
-  getCacheKey(requestGraphKey: string): string {
-    return md5FromString(`AssetGraph:${this.uniqueKey}:${requestGraphKey}`);
-  }
-}
 
 export class AssetGraphBuilder {
   assetGraph: AssetGraph;
@@ -164,13 +138,15 @@ export class AssetGraphBuilder {
     visit(root);
     await this.queue.run();
 
+    this.api.storeResult(
+      {
+        assetGraph: this.assetGraph,
+        changedAssets: new Map(),
+      },
+      md5FromString(`AssetGraph:${this.name}`),
+    );
+
     if (errors.length) {
-      this.api.storeResult(
-        new AssetGraphResult({
-          assetGraph: this.assetGraph,
-          uniqueKey: this.name,
-        }),
-      );
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 

@@ -18,13 +18,11 @@ import PluginOptions from '../public/PluginOptions';
 import ParcelConfig from '../ParcelConfig';
 import createParcelConfigRequest from './ParcelConfigRequest';
 
-export type PathRequestResult = AssetGroup | null | void;
-
 export type PathRequest = {|
   id: string,
   +type: 'path_request',
-  run: RunOpts => Promise<PathRequestResult>,
-  input: Dependency,
+  run: RunOpts => Async<?AssetGroup>,
+  input: PathRequestInput,
 |};
 
 export type PathRequestInput = {|
@@ -34,7 +32,7 @@ export type PathRequestInput = {|
 
 type RunOpts = {|
   input: PathRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<?AssetGroup>,
 |};
 
 const type = 'path_request';
@@ -42,12 +40,7 @@ const QUERY_PARAMS_REGEX = /^([^\t\r\n\v\f?]*)(\?.*)?/;
 
 export default function createPathRequest(
   input: PathRequestInput,
-): {|
-  id: string,
-  input: PathRequestInput,
-  run: ({|input: PathRequestInput, ...StaticRunOpts|}) => Async<?AssetGroup>,
-  +type: string,
-|} {
+): PathRequest {
   return {
     id: input.id + ':' + input.name,
     type,

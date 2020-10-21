@@ -9,7 +9,7 @@ import path from 'path';
 
 type RunOpts = {|
   input: FilePath,
-  ...StaticRunOpts,
+  ...StaticRunOpts<EntryResult>,
 |};
 
 export type EntryRequest = {|

@@ -44,7 +44,7 @@ export type TargetResolveResult = {|
 
 type RunOpts = {|
   input: Entry,
-  ...StaticRunOpts,
+  ...StaticRunOpts<TargetResolveResult>,
 |};
 
 const DEFAULT_DEVELOPMENT_ENGINES = {

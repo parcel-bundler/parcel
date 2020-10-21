@@ -35,7 +35,7 @@ type Request<TInput, TResult> = {|
   id: string,
   +type: string,
   input: TInput,
-  run: ({|input: TInput, ...StaticRunOpts|}) => Async<TResult>,
+  run: ({|input: TInput, ...StaticRunOpts<TResult>|}) => Async<TResult>,
 |};
 
 type StoredRequest = {|
@@ -43,6 +43,7 @@ type StoredRequest = {|
   +type: string,
   input: mixed,
   result?: mixed,
+  resultCacheKey?: ?string,
 |};
 
 type RequestNode = {|
@@ -65,18 +66,18 @@ export type RunAPI = {|
   invalidateOnStartup: () => void,
   invalidateOnEnvChange: string => void,
   getInvalidations(): Array<RequestInvalidation>,
-  storeResult: (result: mixed) => void,
+  storeResult: (result: mixed, cacheKey?: string) => void,
   canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
   ) => Async<TResult>,
 |};
 
-export type StaticRunOpts = {|
+export type StaticRunOpts<TResult> = {|
   farm: WorkerFarm,
   options: ParcelOptions,
   api: RunAPI,
-  prevResult: any,
+  prevResult: ?TResult,
 |};
 
 const nodeFromFilePath = (filePath: string) => ({
@@ -404,10 +405,11 @@ export default class RequestTracker {
     this.graph.removeById(id);
   }
 
-  storeResult(id: string, result: mixed) {
+  storeResult(id: string, result: mixed, cacheKey: ?string) {
     let node = this.graph.getNode(id);
     if (node && node.type === 'request') {
       node.value.result = result;
+      node.value.resultCacheKey = cacheKey;
     }
   }
 
@@ -419,18 +421,22 @@ export default class RequestTracker {
     );
   }
 
-  async getRequestResult<T>(id: string): T {
+  async getRequestResult<T>(id: string): Async<?T> {
     let node = nullthrows(this.graph.getNode(id));
     invariant(node.type === 'request');
-    if (node.value.resultCacheKey) {
-      let cachedResult: T = await this.options.cache.get(
-        node.value.resultCacheKey,
-      );
+    if (node.value.result != undefined) {
+      // $FlowFixMe
+      let result: T = (node.value.result: any);
+      return result;
+    } else if (node.value.resultCacheKey != null) {
+      let cachedResult: T = (nullthrows(
+        await this.options.cache.get(node.value.resultCacheKey),
+        // $FlowFixMe
+      ): any);
+      node.value.result = cachedResult;
+      delete node.value.resultCacheKey;
       return cachedResult;
     }
-    // $FlowFixMe
-    let result: T = (node.value.result: any);
-    return result;
   }
 
   completeRequest(id: string) {
@@ -476,11 +482,10 @@ export default class RequestTracker {
   ): Async<TResult> {
     let id = request.id;
 
-    let prevResult = this.graph.hasNode(id)
-      ? await this.getRequestResult<TResult>(id)
-      : undefined;
-    if (!force && this.hasValidResult(id)) {
-      return prevResult;
+    let hasValidResult = this.hasValidResult(id);
+    if (!force && hasValidResult) {
+      // $FlowFixMe
+      return this.getRequestResult<TResult>(id);
     }
 
     let {api, subRequests} = this.createAPI(id);
@@ -491,7 +496,7 @@ export default class RequestTracker {
         api,
         farm: this.farm,
         options: this.options,
-        prevResult,
+        prevResult: await this.getRequestResult<TResult>(id),
       });
 
       assertSignalNotAborted(this.signal);
@@ -524,8 +529,8 @@ export default class RequestTracker {
       invalidateOnEnvChange: env =>
         this.graph.invalidateOnEnvChange(requestId, env, this.options.env[env]),
       getInvalidations: () => this.graph.getInvalidations(requestId),
-      storeResult: result => {
-        this.storeResult(requestId, result);
+      storeResult: (result, cacheKey) => {
+        this.storeResult(requestId, result, cacheKey);
       },
       canSkipSubrequest: id => {
         if (this.hasValidResult(id)) {
@@ -563,11 +568,14 @@ export default class RequestTracker {
 
     // TODO: collect promises and use Promise.all
     for (let [, node] of this.graph.nodes) {
-      let resultCacheKey = node.value.result?.getCacheKey?.(requestGraphKey);
-      if (resultCacheKey) {
+      if (node.type !== 'request') {
+        continue;
+      }
+
+      let resultCacheKey = node.value.resultCacheKey;
+      if (resultCacheKey != null) {
         await this.options.cache.set(resultCacheKey, node.value.result);
         delete node.value.result;
-        node.value.resultCacheKey = resultCacheKey;
       }
     }
 

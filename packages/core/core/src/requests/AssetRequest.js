@@ -12,7 +12,7 @@ import createParcelConfigRequest from './ParcelConfigRequest';
 
 type RunInput = {|
   input: AssetRequestInput,
-  ...StaticRunOpts,
+  ...StaticRunOpts<AssetRequestResult>,
 |};
 
 export type AssetRequest = {|
