@@ -56,7 +56,7 @@ if (typeof process.env.PARCEL_BUILD_ENV === 'string') {
 
 program.version(version);
 
-// --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
+// --no-cache, --cache-dir, --no-source-maps, --autoinstall, --global?, --public-url, --log-level
 // --no-content-hash, --experimental-scope-hoisting, --detailed-report
 
 const commonOptions = {
@@ -97,7 +97,7 @@ var hmrOptions = {
   '--https': 'serves files over HTTPS',
   '--cert <path>': 'path to certificate to use with HTTPS',
   '--key <path>': 'path to private key to use with HTTPS',
-  '--no-autoinstall': 'disable autoinstall',
+  '--autoinstall': 'enable autoinstall, no effect in production modes',
   '--hmr-port <port>': 'hot module replacement port',
 };
 
@@ -366,7 +366,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     contentHash: hmr ? false : command.contentHash,
     serve,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall ?? true,
+    autoinstall: command.autoinstall ?? false,
     logLevel: command.logLevel,
     profile: command.profile,
     detailedReport: command.detailedReport,
