@@ -430,6 +430,36 @@ describe('scope hoisting', function() {
       assert.equal(output, 8);
     });
 
+    it('supports live bindings in namespaces of reexporting assets', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/live-bindings-reexports-namespace/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [1, 2]);
+    });
+
+    it('supports live bindings across bundles', async function() {
+      let b = await bundle(
+        ['a.html', 'b.html'].map(f =>
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/live-bindings-cross-bundle',
+            f,
+          ),
+        ),
+      );
+
+      let output = await runBundle(
+        b,
+        b.getBundles().find(b => b.type === 'html'),
+      );
+      assert.strictEqual(output, 'aaa');
+    });
+
     it('supports dynamic import syntax for code splitting', async function() {
       let b = await bundle(
         path.join(
