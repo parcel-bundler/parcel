@@ -566,7 +566,7 @@ export default class RequestTracker {
       return;
     }
 
-    // TODO: collect promises and use Promise.all
+    let promises = [];
     for (let [, node] of this.graph.nodes) {
       if (node.type !== 'request') {
         continue;
@@ -574,20 +574,26 @@ export default class RequestTracker {
 
       let resultCacheKey = node.value.resultCacheKey;
       if (resultCacheKey != null) {
-        await this.options.cache.set(resultCacheKey, node.value.result);
+        promises.push(
+          this.options.cache.set(resultCacheKey, node.value.result),
+        );
         delete node.value.result;
       }
     }
 
-    await this.options.cache.set(requestGraphKey, this.graph);
+    promises.push(this.options.cache.set(requestGraphKey, this.graph));
 
     let opts = getWatcherOptions(this.options);
     let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
-    await this.options.inputFS.writeSnapshot(
-      this.options.projectRoot,
-      snapshotPath,
-      opts,
+    promises.push(
+      this.options.inputFS.writeSnapshot(
+        this.options.projectRoot,
+        snapshotPath,
+        opts,
+      ),
     );
+
+    await Promise.all(promises);
   }
 
   static async init({
