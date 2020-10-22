@@ -70,7 +70,12 @@ export type RunAPI = {|
   canSkipSubrequest(string): boolean,
   runRequest: <TInput, TResult>(
     subRequest: Request<TInput, TResult>,
+    opts?: RunRequestOpts,
   ) => Async<TResult>,
+|};
+
+type RunRequestOpts = {|
+  force: boolean,
 |};
 
 export type StaticRunOpts<TResult> = {|
@@ -478,12 +483,12 @@ export default class RequestTracker {
 
   async runRequest<TInput, TResult>(
     request: Request<TInput, TResult>,
-    force?: boolean,
+    opts?: ?RunRequestOpts,
   ): Async<TResult> {
     let id = request.id;
 
     let hasValidResult = this.hasValidResult(id);
-    if (!force && hasValidResult) {
+    if (!opts?.force && hasValidResult) {
       // $FlowFixMe
       return this.getRequestResult<TResult>(id);
     }
@@ -542,9 +547,10 @@ export default class RequestTracker {
       },
       runRequest: <TInput, TResult>(
         subRequest: Request<TInput, TResult>,
+        opts?: RunRequestOpts,
       ): Async<TResult> => {
         subRequests.add(subRequest.id);
-        return this.runRequest<TInput, TResult>(subRequest);
+        return this.runRequest<TInput, TResult>(subRequest, opts);
       },
     };
 
