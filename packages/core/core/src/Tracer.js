@@ -16,7 +16,7 @@ try {
 const performance: Performance = _performance;
 const pid = process.pid;
 
-export class Tracer implements ITracer {
+export default class Tracer implements ITracer {
   _report /*: ReportFn */;
 
   constructor(report: ReportFn) {
@@ -24,20 +24,15 @@ export class Tracer implements ITracer {
   }
 
   createMeasurement(name: string): Measurement {
-    this._report({
-      name,
-      pid,
-      start: performance.now(),
-      tid,
-      type: 'trace',
-    });
+    const start = performance.now();
     return {
       end: () => {
         this._report({
-          end: performance.now(),
           name,
           pid,
           tid,
+          duration: performance.now() - start,
+          ts: start,
           type: 'trace',
         });
       },

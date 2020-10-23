@@ -39,6 +39,7 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
+import Tracer from './Tracer';
 
 registerCoreWithSerializer();
 
@@ -56,6 +57,7 @@ export default class Parcel {
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
+  #tracer /*: Tracer */ = null;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -111,6 +113,15 @@ export default class Parcel {
         patchConsole: resolvedOptions.patchConsole,
       });
 
+    this.#reporterRunner = new ReporterRunner({
+      config: this.#config,
+      options: resolvedOptions,
+      workerFarm: this.#farm,
+    });
+    this.#tracer = new Tracer(report);
+
+    let init = this.#tracer.createMeasurement('initializing_parcel');
+
     // ? Should we have a dispose function on the Parcel class or should we create these references
     //  - in run and watch and dispose at the end of run and in the unsubsribe function of watch
     let {ref: optionsRef} = await this.#farm.createSharedReference(
@@ -142,12 +153,7 @@ export default class Parcel {
       runtimesBuilder: this.#runtimesAssetGraphBuilder,
       config: this.#config,
       workerFarm: this.#farm,
-    });
-
-    this.#reporterRunner = new ReporterRunner({
-      config: this.#config,
-      options: resolvedOptions,
-      workerFarm: this.#farm,
+      tracer: this.#tracer,
     });
 
     this.#packagerRunner = new PackagerRunner({
@@ -160,6 +166,7 @@ export default class Parcel {
     });
 
     this.#initialized = true;
+    init.end();
   }
 
   async run(): Promise<BuildSuccessEvent> {

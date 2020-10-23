@@ -1325,21 +1325,16 @@ export interface AsyncSubscription {
   unsubscribe(): Promise<mixed>;
 }
 
-export type TraceEvent =
-  | {|
-      +type: 'trace',
-      +start: number,
-      +name: string,
-      +tid: number,
-      +pid: number,
-    |}
-  | {|
-      +type: 'trace',
-      +end: number,
-      +name: string,
-      +tid: number,
-      +pid: number,
-    |};
+// Loosely modeled on Chrome's Trace Event format:
+// https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
+export type TraceEvent = {|
+  +type: 'trace',
+  +ts: number,
+  +duration: number,
+  +name: string,
+  +tid: number,
+  +pid: number,
+|};
 
 export type Measurement = {|end: () => void|};
 
