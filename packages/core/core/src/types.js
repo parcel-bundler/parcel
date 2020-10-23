@@ -214,6 +214,7 @@ export type DependencyNode = {|
   complete?: boolean,
   correspondingRequest?: string,
   deferred: boolean,
+  /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
   usedSymbolsDown: Set<Symbol>,
   usedSymbolsUp: Set<Symbol>,
@@ -222,7 +223,7 @@ export type DependencyNode = {|
   usedSymbolsUpDirtyUp: boolean,
   /** for the "up" pass, the dependency resolution asset needs to be updated */
   usedSymbolsUpDirtyDown: boolean,
-  /** deferred or unused */
+  /** dependency was excluded (= no used symbols (globally) & side-effect free) */
   excluded: boolean,
 |};
 
@@ -253,6 +254,7 @@ export type AssetGroupNode = {|
   +type: 'asset_group',
   value: AssetGroup,
   correspondingRequest?: string,
+  /** this node was deferred (= no used symbols (in immediate parents) & side-effect free) */
   deferred?: boolean,
   hasDeferred?: boolean,
   usedSymbolsDownDirty: boolean,

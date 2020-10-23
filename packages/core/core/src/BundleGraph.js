@@ -1261,17 +1261,7 @@ export default class BundleGraph {
             ...node.usedSymbolsUp,
           ]);
 
-          existingNode.excluded = false;
-          if (
-            existingNode.value.symbols != null &&
-            existingNode.usedSymbolsUp.size === 0
-          ) {
-            let [asset] = this._graph.getNodesConnectedFrom(existingNode);
-            invariant(asset.type === 'asset');
-            if (asset.value.sideEffects === false) {
-              existingNode.excluded = true;
-            }
-          }
+          existingNode.excluded = existingNode.excluded && node.excluded;
         }
       } else {
         this._graph.addNode(node);

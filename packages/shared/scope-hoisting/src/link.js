@@ -34,7 +34,6 @@ import template from '@babel/template';
 import * as t from '@babel/types';
 import {
   isAssignmentExpression,
-  isBooleanLiteral,
   isCallExpression,
   isExpressionStatement,
   isIdentifier,
@@ -540,7 +539,7 @@ export function link({
       for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
         'properties',
       )) {
-        if (isBooleanLiteral(prop.node.value)) continue;
+        invariant(isIdentifier(prop.node.key));
         registerIdOrObject(program, prop.get('value'));
       }
     }

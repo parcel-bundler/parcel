@@ -11,6 +11,7 @@ import type {
 } from '@parcel/types';
 
 import invariant from 'assert';
+import util from 'util';
 import Parcel, {createWorkerFarm} from '@parcel/core';
 import assert from 'assert';
 import vm from 'vm';
@@ -159,11 +160,10 @@ export function assertDependencyWasDeferred(
   assetFileName: string,
   moduleSpecifier: string,
 ): void {
+  let dep = findDependency(bundleGraph, assetFileName, moduleSpecifier);
   invariant(
-    bundleGraph.isDependencySkipped(
-      findDependency(bundleGraph, assetFileName, moduleSpecifier),
-    ),
-    `The dependency wasn't deferred`,
+    bundleGraph.isDependencySkipped(dep),
+    util.inspect(dep) + " wasn't deferred",
   );
 }
 
