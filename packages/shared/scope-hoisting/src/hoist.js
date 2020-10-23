@@ -34,6 +34,7 @@ import {
 import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
+import {basename} from 'path';
 import invariant from 'assert';
 import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
@@ -55,11 +56,7 @@ const ESMODULE_TEMPLATE = template.statement<null, Statement>(
   `exports.__esModule = true;`,
 );
 
-const EXPORT_ASSIGN_TEMPLATE = template.statement<
-  {|EXPORTS: Identifier, NAME: Identifier, LOCAL: Expression|},
-  Statement,
->('EXPORTS.NAME = LOCAL;');
-const REEXPORT_TEMPLATE = template.statement<
+const LIVE_EXPORT_TEMPLATE = template.statement<
   {|EXPORTS: Identifier, NAME: StringLiteral, LOCAL: Expression|},
   Statement,
 >('$parcel$reexport(EXPORTS, NAME, function(){return LOCAL;});');
@@ -170,6 +167,20 @@ const VISITOR: Visitor<MutableAsset> = {
               )
             ) {
               asset.meta.resolveExportsBailedOut = true;
+              // The namespace object is used in the asset itself
+              asset.addDependency({
+                moduleSpecifier: `./${basename(asset.filePath)}`,
+                symbols: new Map([
+                  [
+                    '*',
+                    {
+                      local: '@exports',
+                      isWeak: false,
+                      loc: convertBabelLoc(path.node.loc),
+                    },
+                  ],
+                ]),
+              });
             }
           }
         },
@@ -195,6 +206,20 @@ const VISITOR: Visitor<MutableAsset> = {
               )
             ) {
               asset.meta.resolveExportsBailedOut = true;
+              // The namespace object is used in the asset itself
+              asset.addDependency({
+                moduleSpecifier: `./${basename(asset.filePath)}`,
+                symbols: new Map([
+                  [
+                    '*',
+                    {
+                      local: '@exports',
+                      isWeak: false,
+                      loc: convertBabelLoc(path.node.loc),
+                    },
+                  ],
+                ]),
+              });
             }
           }
         },
@@ -649,9 +674,9 @@ const VISITOR: Visitor<MutableAsset> = {
 
     // Add assignment to exports object for namespace imports and commonjs.
     path.insertAfter(
-      EXPORT_ASSIGN_TEMPLATE({
+      LIVE_EXPORT_TEMPLATE({
         EXPORTS: getExportsIdentifier(asset, path.scope),
-        NAME: t.identifier('default'),
+        NAME: t.stringLiteral('default'),
         LOCAL: t.clone(identifier),
       }),
     );
@@ -729,7 +754,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
         id.loc = specifier.loc;
         path.insertAfter(
-          REEXPORT_TEMPLATE({
+          LIVE_EXPORT_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
             NAME: t.stringLiteral(exported.name),
             LOCAL: id,
@@ -823,16 +848,11 @@ function addExport(asset: MutableAsset, path, local, exported) {
     identifier = t.identifier(local.name);
   }
 
-  let assignNode = EXPORT_ASSIGN_TEMPLATE({
+  let assignNode = LIVE_EXPORT_TEMPLATE({
     EXPORTS: getExportsIdentifier(asset, scope),
-    NAME: t.identifier(exported.name),
+    NAME: t.stringLiteral(exported.name),
     LOCAL: identifier,
   });
-
-  let binding = scope.getBinding(local.name);
-  let constantViolations = binding
-    ? binding.constantViolations.concat(binding.path.getStatementParent())
-    : [path];
 
   if (!asset.symbols.hasExportSymbol(exported.name)) {
     asset.symbols.set(
@@ -844,9 +864,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
 
   rename(scope, local.name, identifier.name);
 
-  for (let p of constantViolations) {
-    p.insertAfter(t.cloneDeep(assignNode));
-  }
+  path.insertAfter(t.cloneDeep(assignNode));
 }
 
 function hasImport(asset: MutableAsset, id) {

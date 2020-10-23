@@ -993,7 +993,7 @@ export interface BundleGraph<TBundle: Bundle> {
   getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
   getReferencedBundles(bundle: Bundle): Array<TBundle>;
-  /** Get the dependencies that require the asset */
+  /** Get the dependencies that the asset requires */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
   getIncomingDependencies(asset: Asset): Array<Dependency>;

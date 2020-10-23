@@ -151,7 +151,7 @@ export async function concat({
         }
       }
 
-      if (shouldSkipAsset(bundleGraph, asset)) {
+      if (shouldSkipAsset(bundleGraph, bundle, asset)) {
         // The order of imports of excluded assets has to be retained
         statements = flat(
           [...context.children]
@@ -219,10 +219,15 @@ function parse(code, sourceFilename) {
   return ast.program.body;
 }
 
-function shouldSkipAsset(bundleGraph: BundleGraph<NamedBundle>, asset: Asset) {
+function shouldSkipAsset(
+  bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
+  asset: Asset,
+) {
   return (
     asset.sideEffects === false &&
-    bundleGraph.getUsedSymbolsAsset(asset).size == 0
+    bundleGraph.getUsedSymbolsAsset(asset).size == 0 &&
+    !bundleGraph.isAssetReferencedByDependant(bundle, asset)
   );
 }
 

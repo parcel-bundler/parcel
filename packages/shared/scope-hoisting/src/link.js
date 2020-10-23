@@ -10,17 +10,13 @@ import type {
 } from '@parcel/types';
 import type {ExternalModule, ExternalBundle} from './types';
 import type {
-  CallExpression,
   Expression,
   File,
   FunctionDeclaration,
   Identifier,
   LVal,
-  MemberExpression,
   Node,
-  ObjectExpression,
   ObjectProperty,
-  Program,
   Statement,
   StringLiteral,
   VariableDeclaration,
@@ -50,8 +46,8 @@ import {
   assertString,
   getName,
   getIdentifier,
-  getExportNamespaceExpression,
   dereferenceIdentifier,
+  pathRemove,
   getThrowableDiagnosticForNode,
   verifyScopeState,
 } from './utils';
@@ -105,6 +101,8 @@ export function link({
 
   let importedFiles = new Map<string, ExternalModule | ExternalBundle>();
   let referencedAssets = new Set();
+
+  // return {ast, referencedAssets};
 
   // If building a library, the target is actually another bundler rather
   // than the final output that could be loaded in a browser. So, loader
@@ -491,60 +489,6 @@ export function link({
     }
   }
 
-  function registerIdOrObject(
-    program: NodePath<Program>,
-    path: NodePath<
-      ObjectExpression | Identifier | MemberExpression | CallExpression,
-    >,
-  ) {
-    if (path.isIdentifier()) {
-      // TODO Somehow deferred/excluded assets are referenced, causing this function to
-      // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
-      // But a asset that isn't here should never be referenced in the first place.
-
-      // $FlowFixMe is *is* an Identifier
-      maybeReplaceIdentifier(path);
-      // $FlowFixMe is *is* an Identifier
-      program.scope.getBinding(path.node.name)?.reference(path);
-    } else if (path.isMemberExpression()) {
-      // $FlowFixMe is *is* a MemberExpression
-      let object = path.get<NodePath<Expression>>('object');
-      let objectNode = object.node;
-      if (
-        isCallExpression(objectNode) &&
-        isIdentifier(objectNode.callee) &&
-        objectNode.arguments.length === 0
-      ) {
-        // $id$init() call
-        object = object.get<NodePath<Identifier>>('callee');
-      } else {
-        invariant(isIdentifier(object));
-      }
-      // $FlowFixMe is *is* a MemberExpression
-      invariant(isIdentifier(path.node.property));
-      // $FlowFixMe is *is* an Identifer
-      registerIdOrObject(program, object);
-      registerIdOrObject(program, path.get<NodePath<Identifier>>('property'));
-    } else if (
-      path.isCallExpression() &&
-      // $FlowFixMe is *is* a CallExpression
-      t.isIdentifier(path.node.callee, {name: '$parcel$defineInteropFlag'})
-    ) {
-      registerIdOrObject(
-        program,
-        path.get<NodePath<CallExpression | ObjectExpression>>('arguments.0'),
-      );
-    } else {
-      invariant(path.isObjectExpression(), path.node.type);
-      for (let prop of path.get<Array<NodePath<ObjectProperty>>>(
-        'properties',
-      )) {
-        invariant(isIdentifier(prop.node.key));
-        registerIdOrObject(program, prop.get('value'));
-      }
-    }
-  }
-
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -657,6 +601,39 @@ export function link({
             convertBabelLoc(path.node.loc),
           );
         }
+      } else if (callee.name === '$parcel$reexport') {
+        let [obj, symbol] = args;
+        invariant(isIdentifier(obj));
+        invariant(isStringLiteral(symbol));
+        let objName = obj.name;
+        let symbolName = symbol.value;
+
+        if (objName === 'exports') {
+          // Assignment inside a wrapped asset or exports object used locally
+          return;
+        }
+
+        let asset = nullthrows(exportsMap.get(objName));
+        let incomingDeps = bundleGraph.getIncomingDependencies(asset);
+        let unused = incomingDeps.every(d => {
+          let symbols = bundleGraph.getUsedSymbolsDependency(d);
+          if (bundleGraph.getDependencyResolution(d) != asset && !d.isAsync) {
+            // FIXME sometimes not the case for shared bundles
+            // Example:
+            // - if a.js an async import of b.js
+            // - b.js imports c.js, c.js
+            // Main bundle: a.js
+            // async bundle: b.js
+            // shared bundle (sibling of async): c.js
+            //
+            // Then getIncomingDependencies(c.js) also contains "a.js -> b.js"
+            return true;
+          }
+          return !symbols.has(symbolName) && !symbols.has('*');
+        });
+        if (unused) {
+          pathRemove(path);
+        }
       }
     },
     VariableDeclarator: {
@@ -751,6 +728,7 @@ export function link({
 
         let {parent, parentPath} = path;
         // If inside an expression, update the actual export binding as well
+        // (This is needed so that required CJS namespace objects can be mutatated.)
         if (isAssignmentExpression(parent, {left: path.node})) {
           if (isIdentifier(parent.right)) {
             maybeReplaceIdentifier(
@@ -816,39 +794,22 @@ export function link({
             ([...referencedAssets]: Array<Asset>)
               .filter(a => !wrappedAssets.has(a.id))
               .map(a => {
-                let obj = getExportNamespaceExpression(
-                  path,
-                  bundleGraph,
-                  a,
-                  bundle,
-                  assets,
-                );
-
-                if (
-                  isObjectExpression(obj) &&
-                  path.scope
-                    .getBinding(assertString(a.meta.exportsIdentifier))
-                    ?.path.getData('hasESModuleFlag')
-                ) {
-                  obj = t.callExpression(
-                    t.identifier('$parcel$defineInteropFlag'),
-                    [obj],
-                  );
-                }
-
                 return FAKE_INIT_TEMPLATE({
                   INIT: getIdentifier(a, 'init'),
-                  EXPORTS: obj,
+                  EXPORTS: t.identifier(assertString(a.meta.exportsIdentifier)),
                 });
               }),
           );
           for (let decl of decls) {
             path.scope.registerDeclaration(decl);
-            let returnId = decl.get<
-              NodePath<Identifier | ObjectExpression | CallExpression>,
-            >('body.body.0.argument');
+            let returnId = decl.get<NodePath<Identifier>>(
+              'body.body.0.argument',
+            );
 
-            registerIdOrObject(path, returnId);
+            // TODO Sometimes deferred/excluded assets are referenced, causing this function to
+            // become `function $id$init() { return {}; }` (because of the ReferencedIdentifier visitor).
+            // But a asset that isn't here should never be referenced in the first place.
+            path.scope.getBinding(returnId.node.name)?.reference(returnId);
           }
         }
 

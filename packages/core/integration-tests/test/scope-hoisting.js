@@ -2222,6 +2222,18 @@ describe('scope hoisting', function() {
           b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'esm.js'))),
           new Set(['message1']),
         );
+        // We can't statically analyze commonjs.js, so message1 appears to be used
+        assert.deepStrictEqual(
+          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'commonjs.js'))),
+          // the exports object is used freely
+          new Set(['*', 'message1']),
+        );
+        assert.deepStrictEqual(
+          b.getUsedSymbolsDependency(
+            findDependency(b, 'index.js', './commonjs.js'),
+          ),
+          new Set(['message1']),
+        );
 
         let calls = [];
         let output = await run(b, {
@@ -2245,6 +2257,13 @@ describe('scope hoisting', function() {
         assert(!findAsset(b, 'esm.js'));
         assert.deepStrictEqual(
           b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'commonjs.js'))),
+          // the exports object is used freely
+          new Set(['*', 'message2']),
+        );
+        assert.deepStrictEqual(
+          b.getUsedSymbolsDependency(
+            findDependency(b, 'index.js', './commonjs.js'),
+          ),
           new Set(['message2']),
         );
 
@@ -2652,6 +2671,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/commonjs/define-exports/a.js',
         ),
+      );
+
+      assert.deepStrictEqual(
+        b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'a.js'))),
+        new Set(['*']),
       );
 
       let output = await run(b);
