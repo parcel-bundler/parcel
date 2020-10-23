@@ -617,18 +617,6 @@ export function link({
         let incomingDeps = bundleGraph.getIncomingDependencies(asset);
         let unused = incomingDeps.every(d => {
           let symbols = bundleGraph.getUsedSymbolsDependency(d);
-          if (bundleGraph.getDependencyResolution(d) != asset && !d.isAsync) {
-            // FIXME sometimes not the case for shared bundles
-            // Example:
-            // - if a.js an async import of b.js
-            // - b.js imports c.js, c.js
-            // Main bundle: a.js
-            // async bundle: b.js
-            // shared bundle (sibling of async): c.js
-            //
-            // Then getIncomingDependencies(c.js) also contains "a.js -> b.js"
-            return true;
-          }
           return !symbols.has(symbolName) && !symbols.has('*');
         });
         if (unused) {

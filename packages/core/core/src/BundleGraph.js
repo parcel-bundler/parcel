@@ -26,7 +26,7 @@ import nullthrows from 'nullthrows';
 import {flatMap, objectSortedEntriesDeep, unique} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
-import Graph, {mapVisitor, type GraphOpts} from './Graph';
+import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
 
 type BundleGraphEdgeTypes =
   // A lack of an edge type indicates to follow the edge while traversing
@@ -932,12 +932,18 @@ export default class BundleGraph {
       return [];
     }
 
-    return this._graph
-      .findAncestors(node, node => node.type === 'dependency')
-      .map(node => {
-        invariant(node.type === 'dependency');
-        return node.value;
-      });
+    // Dependencies can be a a parent node via an untyped edge (like in the AssetGraph but without AssetGroups)
+    // or they can be parent nodes via a 'references' edge
+    return (
+      this._graph
+        // $FlowFixMe
+        .getNodesConnectedTo(node, ALL_EDGE_TYPES)
+        .filter(n => n.type === 'dependency')
+        .map(n => {
+          invariant(n.type === 'dependency');
+          return n.value;
+        })
+    );
   }
 
   bundleHasAsset(bundle: Bundle, asset: Asset): boolean {
