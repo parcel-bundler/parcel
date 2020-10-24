@@ -1065,7 +1065,9 @@ export default class BundleGraph {
         symbol !== 'default'
       ) {
         let resolved = this.getDependencyResolution(dep);
-        if (!resolved) continue;
+        if (!resolved) {
+          continue;
+        }
         let result = this.resolveSymbol(resolved, symbol, boundary);
 
         // We found the symbol
@@ -1105,7 +1107,7 @@ export default class BundleGraph {
 
     // We didn't find the exact symbol...
     if (potentialResults.length == 1) {
-      // ..., but if it does exist, it's has to be behind this one reexport.
+      // ..., but if it does exist, it has to be behind this one reexport.
       return potentialResults[0];
     } else {
       // ... and there is no single reexport, but `bailout` tells us if it might still be exported.

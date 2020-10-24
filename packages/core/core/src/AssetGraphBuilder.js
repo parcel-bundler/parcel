@@ -374,6 +374,13 @@ export default class AssetGraphBuilder extends EventEmitter {
         let outgoingDepSymbols = outgoingDep.value.symbols;
         if (!outgoingDepSymbols) continue;
 
+        // excluded, assume everything that is requested exists
+        if (this.assetGraph.getNodesConnectedFrom(outgoingDep).length === 0) {
+          outgoingDep.usedSymbolsDown.forEach(s =>
+            outgoingDep.usedSymbolsUp.add(s),
+          );
+        }
+
         if (outgoingDepSymbols.get('*')?.local === '*') {
           outgoingDep.usedSymbolsUp.forEach(s => reexportedSymbols.add(s));
         }

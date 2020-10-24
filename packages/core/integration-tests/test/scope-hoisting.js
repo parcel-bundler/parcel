@@ -193,6 +193,31 @@ describe('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('supports re-exporting all exports from an external module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-all-external/a.js',
+        ),
+      );
+
+      assertBundles(b, [
+        {
+          type: 'js',
+          assets: ['a.js', 'b.js'],
+        },
+      ]);
+
+      assert.deepStrictEqual(
+        new Set(b.getUsedSymbols(findDependency(b, 'b.js', 'lodash'))),
+        new Set(['add']),
+      );
+
+      // resolveSymbol is broken
+      // let output = await run(b);
+      // assert.equal(output, 3);
+    });
+
     it('supports re-exporting all exports from multiple modules', async function() {
       let b = await bundle(
         path.join(
