@@ -226,7 +226,7 @@ function shouldSkipAsset(
 ) {
   return (
     asset.sideEffects === false &&
-    bundleGraph.getUsedSymbolsAsset(asset).size == 0 &&
+    bundleGraph.getUsedSymbols(asset).size == 0 &&
     !bundleGraph.isAssetReferencedByDependant(bundle, asset)
   );
 }

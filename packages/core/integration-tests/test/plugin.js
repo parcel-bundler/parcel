@@ -2,7 +2,6 @@
 
 import assert from 'assert';
 import path from 'path';
-import nullthrows from 'nullthrows';
 import {
   assertBundles,
   bundle,
@@ -84,23 +83,23 @@ parcel-transformer-b`,
     );
 
     assert.deepStrictEqual(
-      b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'index.js'))),
+      b.getUsedSymbols(findAsset(b, 'index.js')),
       new Set([]),
     );
     assert.deepStrictEqual(
-      b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'a.js'))),
+      b.getUsedSymbols(findAsset(b, 'a.js')),
       new Set(['a']),
     );
     assert.deepStrictEqual(
-      b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'b.js'))),
+      b.getUsedSymbols(findAsset(b, 'b.js')),
       new Set(['b']),
     );
     assert.deepStrictEqual(
-      b.getUsedSymbolsDependency(findDependency(b, 'index.js', './a.js')),
+      b.getUsedSymbols(findDependency(b, 'index.js', './a.js')),
       new Set(['a']),
     );
     assert.deepStrictEqual(
-      b.getUsedSymbolsDependency(findDependency(b, 'index.js', './b.js')),
+      b.getUsedSymbols(findDependency(b, 'index.js', './b.js')),
       new Set(['b']),
     );
 

@@ -616,7 +616,7 @@ export function link({
         let asset = nullthrows(exportsMap.get(objName));
         let incomingDeps = bundleGraph.getIncomingDependencies(asset);
         let unused = incomingDeps.every(d => {
-          let symbols = bundleGraph.getUsedSymbolsDependency(d);
+          let symbols = bundleGraph.getUsedSymbols(d);
           return !symbols.has(symbolName) && !symbols.has('*');
         });
         if (unused) {

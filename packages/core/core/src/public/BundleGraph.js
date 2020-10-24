@@ -14,6 +14,7 @@ import type {
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
@@ -290,12 +291,14 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
-  getUsedSymbolsAsset(asset: IAsset): $ReadOnlySet<Symbol> {
-    return this.#graph.getUsedSymbolsAsset(assetToAssetValue(asset));
-  }
-  getUsedSymbolsDependency(dep: IDependency): $ReadOnlySet<Symbol> {
-    return this.#graph.getUsedSymbolsDependency(
-      dependencyToInternalDependency(dep),
-    );
+  getUsedSymbols(v: IAsset | IDependency): $ReadOnlySet<Symbol> {
+    if (v instanceof Asset) {
+      return this.#graph.getUsedSymbolsAsset(assetToAssetValue(v));
+    } else {
+      invariant(v instanceof Dependency);
+      return this.#graph.getUsedSymbolsDependency(
+        dependencyToInternalDependency(v),
+      );
+    }
   }
 }

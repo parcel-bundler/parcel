@@ -62,6 +62,20 @@ type SerializedBundleGraph = {|
   publicIdByAssetId: Map<string, string>,
 |};
 
+function makeReadOnlySet<T>(set: Set<T>): $ReadOnlySet<T> {
+  return new Proxy(set, {
+    get(target, property) {
+      if (property === 'delete' || property === 'add' || property === 'clear') {
+        return undefined;
+      } else {
+        // $FlowFixMe
+        let value = target[property];
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+    },
+  });
+}
+
 export default class BundleGraph {
   _assetPublicIds: Set<string>;
   _publicIdByAssetId: Map<string, string>;
@@ -1242,12 +1256,13 @@ export default class BundleGraph {
   getUsedSymbolsAsset(asset: Asset): $ReadOnlySet<Symbol> {
     let node = this._graph.getNode(asset.id);
     invariant(node && node.type === 'asset');
-    return new Set(node.usedSymbols);
+    return makeReadOnlySet(node.usedSymbols);
   }
+
   getUsedSymbolsDependency(dep: Dependency): $ReadOnlySet<Symbol> {
     let node = this._graph.getNode(dep.id);
     invariant(node && node.type === 'dependency');
-    return new Set(node.usedSymbolsUp);
+    return makeReadOnlySet(node.usedSymbolsUp);
   }
 
   merge(other: BundleGraph) {

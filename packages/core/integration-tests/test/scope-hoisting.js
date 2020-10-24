@@ -564,7 +564,7 @@ describe('scope hoisting', function() {
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'c.js'))),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'c.js')))),
         new Set(['name', 'version']),
       );
 
@@ -581,7 +581,7 @@ describe('scope hoisting', function() {
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'c.js'))),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'c.js')))),
         new Set(['name', 'version']),
       );
 
@@ -746,8 +746,8 @@ describe('scope hoisting', function() {
         ),
       );
 
-      assert.deepEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'a.js', './b.js')),
+      assert.deepStrictEqual(
+        new Set(b.getUsedSymbols(findDependency(b, 'a.js', './b.js'))),
         new Set(['default', 'x']),
       );
 
@@ -822,11 +822,11 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 5 * 123);
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'e.js')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'e.js')))),
         new Set(['default']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'e2.js')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'e2.js')))),
         new Set(['default']),
       );
     });
@@ -1144,19 +1144,19 @@ describe('scope hoisting', function() {
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'b.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'b.mjs')))),
         new Set(['foo']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'c.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'c.mjs')))),
         new Set(['run']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'b.mjs', './c.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'b.mjs', './c.mjs'))),
         new Set(['run']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'c.mjs', './b.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'c.mjs', './b.mjs'))),
         new Set(['foo']),
       );
 
@@ -1170,20 +1170,20 @@ describe('scope hoisting', function() {
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'b.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'b.mjs')))),
         new Set(['run', 'foo']),
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'c.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'c.mjs')))),
         new Set([]),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'b.mjs', './c.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'b.mjs', './c.mjs'))),
         new Set(['foo']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'c.mjs', './b.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'c.mjs', './b.mjs'))),
         new Set(['foo']),
       );
 
@@ -1197,31 +1197,31 @@ describe('scope hoisting', function() {
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'b.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'b.mjs')))),
         new Set([]),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'c.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'c.mjs')))),
         new Set(['a']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(findAsset(b, 'd.mjs')),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'd.mjs')))),
         new Set([]),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'a.mjs', './b.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'a.mjs', './b.mjs'))),
         new Set(['h']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'b.mjs', './c.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'b.mjs', './c.mjs'))),
         new Set(['a', 'd', 'g']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'c.mjs', './d.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'c.mjs', './d.mjs'))),
         new Set(['c', 'f']),
       );
       assert.deepStrictEqual(
-        b.getUsedSymbolsDependency(findDependency(b, 'd.mjs', './b.mjs')),
+        new Set(b.getUsedSymbols(findDependency(b, 'd.mjs', './b.mjs'))),
         new Set(['b', 'e']),
       );
 
@@ -1307,8 +1307,10 @@ describe('scope hoisting', function() {
           assert.deepEqual(output, [123, 789]);
 
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(
-              findAsset(bundleEvent.bundleGraph, 'c.js'),
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findAsset(bundleEvent.bundleGraph, 'c.js'),
+              ),
             ),
             new Set(['c']),
           );
@@ -1356,7 +1358,7 @@ describe('scope hoisting', function() {
 
           let assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetC)),
             new Set(['a']),
           );
           assert(!findAsset(bundleEvent.bundleGraph, 'd2.js'));
@@ -1380,12 +1382,12 @@ describe('scope hoisting', function() {
 
           assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetC)),
             new Set(['a', 'b']),
           );
           let assetD = nullthrows(findAsset(bundleEvent.bundleGraph, 'd2.js'));
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetD),
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetD)),
             new Set(['*']),
           );
 
@@ -1401,7 +1403,7 @@ describe('scope hoisting', function() {
 
           assetC = nullthrows(findAsset(bundleEvent.bundleGraph, 'd1.js'));
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(assetC),
+            new Set(bundleEvent.bundleGraph.getUsedSymbols(assetC)),
             new Set(['a']),
           );
           assert(!findAsset(bundleEvent.bundleGraph, 'd2.js'));
@@ -1436,17 +1438,21 @@ describe('scope hoisting', function() {
           assert.deepEqual(output, {akGridSize: 8});
 
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(
-              findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+              ),
             ),
             new Set(['gridSize']),
           );
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsDependency(
-              findDependency(
-                bundleEvent.bundleGraph,
-                'theme.js',
-                './themeColors',
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findDependency(
+                  bundleEvent.bundleGraph,
+                  'theme.js',
+                  './themeColors',
+                ),
               ),
             ),
             new Set(),
@@ -1467,17 +1473,21 @@ describe('scope hoisting', function() {
           ]);
 
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(
-              findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+              ),
             ),
             new Set(['borderRadius', 'gridSize']),
           );
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsDependency(
-              findDependency(
-                bundleEvent.bundleGraph,
-                'theme.js',
-                './themeColors',
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findDependency(
+                  bundleEvent.bundleGraph,
+                  'theme.js',
+                  './themeColors',
+                ),
               ),
             ),
             new Set('*'),
@@ -1494,17 +1504,21 @@ describe('scope hoisting', function() {
           assert.deepEqual(output, {akGridSize: 8});
 
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsAsset(
-              findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findAsset(bundleEvent.bundleGraph, 'themeConstants.js'),
+              ),
             ),
             new Set(['gridSize']),
           );
           assert.deepStrictEqual(
-            bundleEvent.bundleGraph.getUsedSymbolsDependency(
-              findDependency(
-                bundleEvent.bundleGraph,
-                'theme.js',
-                './themeColors',
+            new Set(
+              bundleEvent.bundleGraph.getUsedSymbols(
+                findDependency(
+                  bundleEvent.bundleGraph,
+                  'theme.js',
+                  './themeColors',
+                ),
               ),
             ),
             new Set(),
@@ -2112,7 +2126,7 @@ describe('scope hoisting', function() {
         );
 
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
           new Set(['bar']),
         );
 
@@ -2136,7 +2150,7 @@ describe('scope hoisting', function() {
         );
 
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
           new Set(['bar']),
         );
 
@@ -2178,11 +2192,11 @@ describe('scope hoisting', function() {
         );
 
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'index.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
           new Set([]),
         );
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
           new Set(['default']),
         );
 
@@ -2206,11 +2220,11 @@ describe('scope hoisting', function() {
         );
 
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'index.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
           new Set([]),
         );
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
           new Set(['bar']),
         );
 
@@ -2234,11 +2248,11 @@ describe('scope hoisting', function() {
         );
 
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'index.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'index.js')))),
           new Set([]),
         );
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'other.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'other.js')))),
           new Set(['default', 'bar']),
         );
 
@@ -2283,18 +2297,18 @@ describe('scope hoisting', function() {
         );
 
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'esm.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'esm.js')))),
           new Set(['message1']),
         );
         // We can't statically analyze commonjs.js, so message1 appears to be used
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'commonjs.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'commonjs.js')))),
           // the exports object is used freely
           new Set(['*', 'message1']),
         );
         assert.deepStrictEqual(
-          b.getUsedSymbolsDependency(
-            findDependency(b, 'index.js', './commonjs.js'),
+          new Set(
+            b.getUsedSymbols(findDependency(b, 'index.js', './commonjs.js')),
           ),
           new Set(['message1']),
         );
@@ -2320,13 +2334,13 @@ describe('scope hoisting', function() {
 
         assert(!findAsset(b, 'esm.js'));
         assert.deepStrictEqual(
-          b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'commonjs.js'))),
+          new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'commonjs.js')))),
           // the exports object is used freely
           new Set(['*', 'message2']),
         );
-        assert.deepStrictEqual(
-          b.getUsedSymbolsDependency(
-            findDependency(b, 'index.js', './commonjs.js'),
+        assert.deepEqual(
+          new Set(
+            b.getUsedSymbols(findDependency(b, 'index.js', './commonjs.js')),
           ),
           new Set(['message2']),
         );
@@ -2738,7 +2752,7 @@ describe('scope hoisting', function() {
       );
 
       assert.deepStrictEqual(
-        b.getUsedSymbolsAsset(nullthrows(findAsset(b, 'a.js'))),
+        new Set(b.getUsedSymbols(nullthrows(findAsset(b, 'a.js')))),
         new Set(['*']),
       );
 
@@ -3460,7 +3474,10 @@ describe('scope hoisting', function() {
     ]);
 
     let asset = nullthrows(findAsset(b, 'other.js'));
-    assert.deepStrictEqual(b.getUsedSymbolsAsset(asset), new Set(['default']));
+    assert.deepStrictEqual(
+      new Set(b.getUsedSymbols(asset)),
+      new Set(['default']),
+    );
 
     let value = [];
     await run(b, {
