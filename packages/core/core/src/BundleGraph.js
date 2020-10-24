@@ -1131,10 +1131,8 @@ export default class BundleGraph {
     return hashHex;
   }
 
-  getHash(bundle: Bundle): string {
-    let hash = crypto.createHash('md5');
-    hash.update(bundle.id);
-
+  getInlineBundles(bundle: Bundle): Array<Bundle> {
+    let bundles = [];
     let seen = new Set();
     let addReferencedBundles = bundle => {
       if (seen.has(bundle.id)) {
@@ -1146,7 +1144,7 @@ export default class BundleGraph {
       let referencedBundles = this.getReferencedBundles(bundle);
       for (let referenced of referencedBundles) {
         if (referenced.isInline) {
-          hash.update(this.getContentHash(referenced));
+          bundles.push(referenced);
           addReferencedBundles(referenced);
         }
       }
@@ -1154,14 +1152,32 @@ export default class BundleGraph {
 
     addReferencedBundles(bundle);
 
-    this.traverseBundles((childBundle, ctx, traversal) => {
-      if (childBundle.id === bundle.id || childBundle.isInline) {
-        hash.update(this.getContentHash(childBundle));
-      } else {
-        hash.update(childBundle.id);
+    this.traverseBundles((childBundle, _, traversal) => {
+      if (childBundle.isInline) {
+        bundles.push(childBundle);
+      } else if (childBundle.id !== bundle.id) {
         traversal.skipChildren();
       }
     }, bundle);
+
+    return bundles;
+  }
+
+  getHash(bundle: Bundle): string {
+    let hash = crypto.createHash('md5');
+    hash.update(bundle.id);
+    hash.update(this.getContentHash(bundle));
+
+    let inlineBundles = this.getInlineBundles(bundle);
+    for (let inlineBundle of inlineBundles) {
+      hash.update(this.getContentHash(inlineBundle));
+    }
+
+    for (let childBundle of this.getChildBundles(bundle)) {
+      if (!childBundle.isInline) {
+        hash.update(childBundle.id);
+      }
+    }
 
     hash.update(JSON.stringify(objectSortedEntriesDeep(bundle.env)));
     return hash.digest('hex');

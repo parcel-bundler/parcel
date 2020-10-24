@@ -68,13 +68,17 @@ export function generateBundleImports(
 
   for (let asset of assets) {
     // `var ${id};` was inserted already, add RHS
-    nullthrows(path.scope.getBinding(getName(asset, 'init')))
+    let res: NodePath<CallExpression>[] = nullthrows(
+      path.scope.getBinding(getName(asset, 'init')),
+    )
       .path.get('init')
       .replaceWith(
         IMPORT_TEMPLATE({
           ASSET_ID: t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
         }),
       );
+
+    path.scope.getBinding('parcelRequire')?.reference(res[0].get('callee'));
   }
 }
 
@@ -138,6 +142,13 @@ export function generateExports(
 
   let decls = path.pushContainer('body', statements);
   for (let decl of decls) {
+    let callee = decl.get('expression.callee');
+    if (callee.isMemberExpression()) {
+      callee = callee.get('object');
+    }
+
+    path.scope.getBinding(callee.node.name)?.reference(callee);
+
     let arg = decl.get<NodePath<Node>>('expression.arguments.1');
     if (!arg.isIdentifier()) {
       // anonymous init function expression
