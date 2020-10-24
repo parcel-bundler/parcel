@@ -155,7 +155,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.onNodeRemoved && this.onNodeRemoved(node);
     // This needs to mark all connected nodes that doesn't become orphaned
     // due to replaceNodesConnectedTo to make sure that the symbols of
-    // nodes from which at least one parent was removed are update.
+    // nodes from which at least one parent was removed are updated.
     if (this.isOrphanedNode(node) && node.type === 'dependency') {
       let children = this.getNodesConnectedFrom(node);
       for (let n of children) {
@@ -330,24 +330,20 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       );
       invariant(assets.length === 1);
       let firstAsset = assets[0];
-      if (firstAsset.type === 'entry_file') {
-        defer = false;
-      } else {
-        invariant(firstAsset.type === 'asset');
-        let resolvedAsset = firstAsset.value;
-        let deps = this.getIncomingDependencies(resolvedAsset);
-        defer = deps.every(
-          d =>
-            d.symbols &&
-            !(d.env.isLibrary && d.isEntry) &&
-            !d.symbols.has('*') &&
-            ![...d.symbols.keys()].some(symbol => {
-              if (!resolvedAsset.symbols) return true;
-              let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
-              return assetSymbol != null && symbols.has(assetSymbol);
-            }),
-        );
-      }
+      invariant(firstAsset.type === 'asset');
+      let resolvedAsset = firstAsset.value;
+      let deps = this.getIncomingDependencies(resolvedAsset);
+      defer = deps.every(
+        d =>
+          d.symbols &&
+          !(d.env.isLibrary && d.isEntry) &&
+          !d.symbols.has('*') &&
+          ![...d.symbols.keys()].some(symbol => {
+            if (!resolvedAsset.symbols) return true;
+            let assetSymbol = resolvedAsset.symbols?.get(symbol)?.local;
+            return assetSymbol != null && symbols.has(assetSymbol);
+          }),
+      );
     }
     return defer;
   }
