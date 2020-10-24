@@ -3,7 +3,7 @@ function $parcel$interopDefault(a) {
 }
 
 function $parcel$defineInteropFlag(a) {
-  return Object.defineProperty(a, '__esModule', {value: true});
+  Object.defineProperty(a, '__esModule', {value: true});
 }
 
 function $parcel$export(e, n, v) {

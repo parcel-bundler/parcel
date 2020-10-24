@@ -872,7 +872,7 @@ export type SymbolResolution = {|
   +exportSymbol: Symbol | string,
   /** The identifier under which the symbol can be referenced. */
   +symbol: void | null | false | Symbol,
-  // the location of the specifier that lead to this result
+  /** The location of the specifier that lead to this result. */
   +loc: ?SourceLocation,
 |};
 
@@ -1008,7 +1008,7 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
-  /** If a dependency was excluded during bundling. */
+  /** If a dependency was excluded since it's unused based on symbol data. */
   isDependencySkipped(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;

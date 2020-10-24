@@ -56,7 +56,7 @@ const ESMODULE_TEMPLATE = template.statement<null, Statement>(
   `exports.__esModule = true;`,
 );
 
-const LIVE_EXPORT_TEMPLATE = template.statement<
+const EXPORT_TEMPLATE = template.statement<
   {|EXPORTS: Identifier, NAME: StringLiteral, LOCAL: Expression|},
   Statement,
 >('$parcel$export(EXPORTS, NAME, function(){return LOCAL;});');
@@ -674,7 +674,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
     // Add assignment to exports object for namespace imports and commonjs.
     path.insertAfter(
-      LIVE_EXPORT_TEMPLATE({
+      EXPORT_TEMPLATE({
         EXPORTS: getExportsIdentifier(asset, path.scope),
         NAME: t.stringLiteral('default'),
         LOCAL: t.clone(identifier),
@@ -754,7 +754,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
         id.loc = specifier.loc;
         path.insertAfter(
-          LIVE_EXPORT_TEMPLATE({
+          EXPORT_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
             NAME: t.stringLiteral(exported.name),
             LOCAL: id,
@@ -848,7 +848,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
     identifier = t.identifier(local.name);
   }
 
-  let assignNode = LIVE_EXPORT_TEMPLATE({
+  let assignNode = EXPORT_TEMPLATE({
     EXPORTS: getExportsIdentifier(asset, scope),
     NAME: t.stringLiteral(exported.name),
     LOCAL: identifier,

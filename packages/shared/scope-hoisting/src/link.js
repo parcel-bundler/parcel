@@ -72,7 +72,7 @@ const REQUIRE_RESOLVE_CALL_TEMPLATE = template.expression<
   Expression,
 >('require.resolve(ID)');
 const FAKE_INIT_TEMPLATE = template.statement<
-  {|INIT: Identifier, EXPORTS: Expression|},
+  {|INIT: Identifier, EXPORTS: Identifier|},
   FunctionDeclaration,
 >(`function INIT(){
   return EXPORTS;
@@ -716,7 +716,7 @@ export function link({
 
         let {parent, parentPath} = path;
         // If inside an expression, update the actual export binding as well
-        // (This is needed so that required CJS namespace objects can be mutatated.)
+        // (This is needed so that `require()`d CJS namespace objects can be mutatated.)
         if (isAssignmentExpression(parent, {left: path.node})) {
           if (isIdentifier(parent.right)) {
             maybeReplaceIdentifier(

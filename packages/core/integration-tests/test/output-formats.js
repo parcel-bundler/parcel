@@ -454,7 +454,7 @@ describe('output formats', function() {
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(!dist.includes('function')); // no iife
-      assert(dist.includes('export { syntheticExport$foo as foo }'));
+      assert(dist.includes('export const foo = 2'));
       assert(/export const bar = .+ \+ 3/.test(dist));
     });
 
@@ -513,7 +513,7 @@ describe('output formats', function() {
       );
 
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
-      assert(dist.includes('export { syntheticExport$foo as foo }'));
+      assert(dist.includes('export var foo'));
       assert(!dist.includes('export default'));
     });
 
@@ -631,7 +631,9 @@ describe('output formats', function() {
       assert(async.includes('export const foo'));
     });
 
-    it('should support dynamic imports with chained reexports', async function() {
+    // This is currently not possible, it would have to do something like this:
+    // export { $id$init().foo as foo };
+    it.skip('should support dynamic imports with chained reexports', async function() {
       let b = await bundle(
         path.join(
           __dirname,

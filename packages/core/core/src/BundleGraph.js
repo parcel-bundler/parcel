@@ -1016,8 +1016,12 @@ export default class BundleGraph {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) {
           // External module
-          found = true;
-          break;
+          return {
+            asset,
+            exportSymbol: symbol,
+            symbol: identifier,
+            loc: asset.symbols?.get(symbol)?.loc,
+          };
         }
 
         if (assetOutside) {
@@ -1147,12 +1151,9 @@ export default class BundleGraph {
 
     let symbols = [];
 
-    for (let [symbol, {local, loc}] of asset.symbols) {
+    for (let symbol of asset.symbols.keys()) {
       symbols.push({
-        asset,
-        symbol: local,
-        exportSymbol: symbol,
-        loc,
+        ...this.resolveSymbol(asset, symbol, boundary),
         exportAs: symbol,
       });
     }
