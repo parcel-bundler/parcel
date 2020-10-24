@@ -96,11 +96,11 @@ parcel-transformer-b`,
       new Set(['b']),
     );
     assert.deepStrictEqual(
-      b.getUsedSymbols(findDependency(b, 'index.js', './a.js')),
+      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './a.js'))),
       new Set(['a']),
     );
     assert.deepStrictEqual(
-      b.getUsedSymbols(findDependency(b, 'index.js', './b.js')),
+      new Set(b.getUsedSymbols(findDependency(b, 'index.js', './b.js'))),
       new Set(['b']),
     );
 
