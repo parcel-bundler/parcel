@@ -1555,6 +1555,19 @@ describe('scope hoisting', function() {
         assert.deepEqual(output, 'Message 1');
       });
 
+      it('supports deferring an unused ES6 re-export (wildcard, empty, unused)', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/side-effects-re-exports-all-empty/a.js',
+          ),
+        );
+
+        assertDependencyWasDeferred(b, 'index.js', './empty.js');
+
+        assert.deepEqual(await run(b), 123);
+      });
+
       it('supports deferring an unused ES6 re-exports (reexport named used)', async function() {
         let b = await bundle(
           path.join(

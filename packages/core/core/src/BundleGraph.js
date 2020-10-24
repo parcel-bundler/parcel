@@ -1040,7 +1040,12 @@ export default class BundleGraph {
 
       // If this module exports wildcards, resolve the original module.
       // Default exports are excluded from wildcard exports.
-      if (depSymbols.get('*')?.local === '*' && symbol !== 'default') {
+      // Wildcard reexports are never listed in the reexporting asset's symbols.
+      if (
+        identifier == null &&
+        depSymbols.get('*')?.local === '*' &&
+        symbol !== 'default'
+      ) {
         let resolved = this.getDependencyResolution(dep);
         if (!resolved) continue;
         let result = this.resolveSymbol(resolved, symbol, boundary);
