@@ -363,9 +363,11 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
       );
-      let message = `${path.normalize(
-        'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
-      )} does not export 'default'`;
+      let message = escapeMarkdown(
+        `${path.normalize(
+          'integration/scope-hoisting/es6/re-export-exclude-default/b.js',
+        )} does not export 'default'`,
+      );
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,
@@ -2398,9 +2400,11 @@ describe('scope hoisting', function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/unused-import-specifier/a.js',
       );
-      let message = `${path.normalize(
-        'integration/scope-hoisting/es6/unused-import-specifier/b.js',
-      )} does not export 'unused'`;
+      let message = escapeMarkdown(
+        `${path.normalize(
+          'integration/scope-hoisting/es6/unused-import-specifier/b.js',
+        )} does not export 'unused'`,
+      );
       await assert.rejects(() => bundle(path.join(__dirname, source)), {
         name: 'BuildError',
         message,

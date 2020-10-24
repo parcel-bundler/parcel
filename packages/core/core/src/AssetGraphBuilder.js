@@ -427,7 +427,6 @@ export default class AssetGraphBuilder extends EventEmitter {
             );
             invariant(resolution && resolution.type === 'asset_group');
 
-            // TODO we could collect all errors and throw them all at once
             errors.push({
               message: `${escapeMarkdown(
                 path.relative(
