@@ -726,6 +726,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['b', true]);
     });
 
+    it("unused and missing pseudo re-exports doen't fail the build", async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-pseudo/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
+    });
+
     it('supports requiring a re-exported and renamed ES6 import', async function() {
       let b = await bundle(
         path.join(

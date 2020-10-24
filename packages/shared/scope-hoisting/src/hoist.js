@@ -628,6 +628,14 @@ const VISITOR: Visitor<MutableAsset> = {
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
+      let binding = nullthrows(path.scope.getBinding(specifier.local.name));
+      // mark this as a weak import:
+      // import {x} from './c'; export {x};
+      let isWeak =
+        binding.referencePaths.length === 1 &&
+        isExportSpecifier(binding.referencePaths[0].parent, {
+          local: binding.referencePaths[0].node,
+        });
       let id = getIdentifier(asset, 'import', specifier.local.name);
 
       if (dep) {
@@ -646,7 +654,12 @@ const VISITOR: Visitor<MutableAsset> = {
         if (existing) {
           id.name = existing;
         }
-        dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
+        dep.symbols.set(
+          imported,
+          id.name,
+          convertBabelLoc(specifier.loc),
+          isWeak,
+        );
       }
       rename(path.scope, specifier.local.name, id.name);
     }
