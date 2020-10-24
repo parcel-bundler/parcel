@@ -59,7 +59,7 @@ const ESMODULE_TEMPLATE = template.statement<null, Statement>(
 const LIVE_EXPORT_TEMPLATE = template.statement<
   {|EXPORTS: Identifier, NAME: StringLiteral, LOCAL: Expression|},
   Statement,
->('$parcel$reexport(EXPORTS, NAME, function(){return LOCAL;});');
+>('$parcel$export(EXPORTS, NAME, function(){return LOCAL;});');
 const EXPORT_ALL_TEMPLATE = template.statement<
   {|OLD_NAME: Identifier, ID: StringLiteral, SOURCE: StringLiteral|},
   Statement,

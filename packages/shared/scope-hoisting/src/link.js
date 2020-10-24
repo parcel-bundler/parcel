@@ -601,7 +601,7 @@ export function link({
             convertBabelLoc(path.node.loc),
           );
         }
-      } else if (callee.name === '$parcel$reexport') {
+      } else if (callee.name === '$parcel$export') {
         let [obj, symbol] = args;
         invariant(isIdentifier(obj));
         invariant(isStringLiteral(symbol));
@@ -609,7 +609,7 @@ export function link({
         let symbolName = symbol.value;
 
         if (objName === 'exports') {
-          // Assignment inside a wrapped asset or exports object used locally
+          // Assignment inside a wrapped asset
           return;
         }
 
