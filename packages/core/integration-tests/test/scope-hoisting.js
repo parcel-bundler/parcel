@@ -933,6 +933,57 @@ describe('scope hoisting', function() {
       assert(!contents.includes('method'));
     });
 
+    it('removes unused exports across bundles', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle/a.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('bar'));
+    });
+
+    it('removes unused exports with re-exports across bundles', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export/a.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('bar'));
+    });
+
+    it('removes unused exports with wildcard re-exports across bundles', async () => {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export-wildcard/a.js',
+        ),
+      );
+
+      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+
+      let contents = await outputFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('bar'));
+    });
+
     it('keeps member expression with computed properties that are variables', async function() {
       let b = await bundle(
         path.join(
