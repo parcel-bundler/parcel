@@ -2803,7 +2803,7 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), 43);
   });
 
-  it('correctly updates dependency when a specified is added', async function() {
+  it('correctly updates dependencies when a specifier is added', async function() {
     let testDir = path.join(
       __dirname,
       '/integration/scope-hoisting/es6/cache-add-specifier',
