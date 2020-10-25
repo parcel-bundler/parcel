@@ -209,7 +209,7 @@ export function regexReplaceWithLocations(
     return b.length - a.length;
   });
 
-  let line = 0;
+  let line = 1;
   let offset = 0;
   let columnStartIndex = 0;
   let offsets = [];
