@@ -26,7 +26,7 @@
     "cross-env": "^7.0.0",
     "get-port": "^5.0.0",
     "graphql": "^15.0.0",
-    "http-proxy-middleware": "^0.19.1",
+    "http-proxy-middleware": "^1.0.0",
     "jsdom": "^15.2.1",
     "json5": "^1.0.1",
     "kotlin": "^1.3.11",
