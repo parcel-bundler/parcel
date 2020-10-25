@@ -6,10 +6,10 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 import {
   bundle,
-  outputFS as fs,
   distDir,
-  run,
+  outputFS as fs,
   overlayFS,
+  run,
 } from '@parcel/test-utils';
 
 describe('plugin', function() {
@@ -65,6 +65,42 @@ parcel-transformer-b`,
 
     assert(!b.isDependencyDeferred(nullthrows(depB)));
     assert(b.isDependencyDeferred(nullthrows(depC)));
+  });
+
+  it('should allow resolvers to return changes for dependency.meta', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+      {disableCache: false, contentHash: false, inputFS: overlayFS},
+    );
+
+    let calls = [];
+    await run(b, {
+      sideEffect(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepEqual(calls, [1234]);
+
+    await overlayFS.writeFile(
+      path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+      (await overlayFS.readFile(
+        path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+        'utf8',
+      )) + '\n// abc',
+    );
+
+    b = await bundle(
+      path.join(__dirname, '/integration/resolver-dependency-meta/a.js'),
+      {disableCache: false, contentHash: false, inputFS: overlayFS},
+    );
+
+    calls = [];
+    await run(b, {
+      sideEffect(v) {
+        calls.push(v);
+      },
+    });
+    assert.deepEqual(calls, [1234]);
   });
 
   it('invalidate the cache based on loadConfig in a packager', async function() {

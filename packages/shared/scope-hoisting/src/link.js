@@ -424,9 +424,20 @@ export function link({
       let program = path.scope.getProgramParent().path;
       if (!program.scope.hasOwnBinding(initIdentifier.name)) {
         // add binding so we can track the scope
-        let [decl] = program.unshiftContainer('body', [
-          t.variableDeclaration('var', [t.variableDeclarator(initIdentifier)]),
+        // If parcelRequire exists in scope, be sure to insert after that so the global outputFormat
+        // can add the rhs later and reference it properly.
+        let declNode = t.variableDeclaration('var', [
+          t.variableDeclarator(initIdentifier),
         ]);
+        let parcelRequire = program.scope.getBinding('parcelRequire');
+        let decl;
+        if (parcelRequire) {
+          [decl] = parcelRequire.path
+            .getStatementParent()
+            .insertAfter(declNode);
+        } else {
+          [decl] = program.unshiftContainer('body', [declNode]);
+        }
         program.scope.registerDeclaration(decl);
       }
 
