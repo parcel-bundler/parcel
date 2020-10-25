@@ -227,7 +227,7 @@ export function regexReplaceWithLocations(
       if (lengthDifference !== 0) {
         offsets.push({
           line,
-          column: index + offset - columnStartIndex,
+          column: index + offset - columnStartIndex + match.length,
           offset: lengthDifference,
         });
 
