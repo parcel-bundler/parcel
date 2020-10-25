@@ -19,12 +19,12 @@ describe('regexReplaceWithLocations', () => {
 
     assert.deepEqual(result.offsets, [
       {
-        line: 0,
+        line: 1,
         column: 4,
         offset: -2,
       },
       {
-        line: 0,
+        line: 1,
         column: 25,
         offset: -4,
       },
@@ -48,17 +48,17 @@ describe('regexReplaceWithLocations', () => {
 
     assert.deepEqual(result.offsets, [
       {
-        line: 0,
+        line: 1,
         column: 4,
         offset: -2,
       },
       {
-        line: 0,
+        line: 1,
         column: 25,
         offset: -4,
       },
       {
-        line: 1,
+        line: 2,
         column: 4,
         offset: 3,
       },
