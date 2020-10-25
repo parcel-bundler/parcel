@@ -155,6 +155,8 @@ export default (new Transformer({
     return [
       {
         type: 'ts',
+        // Stay on the types pipeline, even if the type changes
+        pipeline: asset.pipeline,
         content: code,
         map: sourceMap,
         includedFiles,
