@@ -25,7 +25,7 @@
     "@parcel/utils": "^2.0.0-frontbucket.28",
     "connect": "^3.7.0",
     "ejs": "^2.6.1",
-    "http-proxy-middleware": "^0.19.1",
+    "http-proxy-middleware": "^1.0.0",
     "nullthrows": "^1.1.1",
     "serve-handler": "^6.0.0",
     "ws": "^6.2.0"

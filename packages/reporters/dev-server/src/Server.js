@@ -27,7 +27,7 @@ import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
 import serveHandler from 'serve-handler';
-import httpProxyMiddleware from 'http-proxy-middleware';
+import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL} from 'url';
 
 function setHeaders(res: Response) {
@@ -337,7 +337,7 @@ export default class Server extends EventEmitter {
       }
       for (const [context, options] of Object.entries(cfg)) {
         // each key is interpreted as context, and value as middleware options
-        app.use(httpProxyMiddleware(context, options));
+        app.use(createProxyMiddleware(context, options));
       }
     }
 
