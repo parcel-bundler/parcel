@@ -156,7 +156,10 @@ export class Child {
       this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
     } else if (method === 'deleteSharedReference') {
-      this.sharedReferences.delete(args[0]);
+      let ref = args[0];
+      let value = this.sharedReferences.get(ref);
+      this.sharedReferencesByValue.delete(value);
+      this.sharedReferences.delete(ref);
       result = responseFromContent(null);
     } else {
       try {
