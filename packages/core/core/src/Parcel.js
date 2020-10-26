@@ -2,13 +2,12 @@
 
 import type {
   AsyncSubscription,
-  BundleGraph as IBundleGraph,
   BuildEvent,
+  BuildSuccessEvent,
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
   ModuleSpecifier,
-  NamedBundle as INamedBundle,
 } from '@parcel/types';
 import type {AssetRequestResult, ParcelOptions} from './types';
 import type {FarmOptions} from '@parcel/workers';
@@ -163,7 +162,7 @@ export default class Parcel {
     this.#initialized = true;
   }
 
-  async run(): Promise<IBundleGraph<INamedBundle>> {
+  async run(): Promise<BuildSuccessEvent> {
     let startTime = Date.now();
     if (!this.#initialized) {
       await this.init();
@@ -184,7 +183,7 @@ export default class Parcel {
       throw new BuildError(result.diagnostics);
     }
 
-    return result.bundleGraph;
+    return result;
   }
 
   async startNextBuild() {

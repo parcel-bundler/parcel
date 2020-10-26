@@ -1,0 +1,7 @@
+{
+  "extends": "@parcel/config-default",
+  "resolvers": ["parcel-resolver-meta", "..."],
+  "runtimes": {
+    "browser": ["parcel-runtime-meta", "..."]
+  }
+}
