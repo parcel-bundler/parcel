@@ -23,6 +23,15 @@ export default class Tracer implements ITracer {
     this._report = report;
   }
 
+  async wrap(name: string, fn: () => mixed): Promise<void> {
+    let measurement = this.createMeasurement(name);
+    try {
+      await fn();
+    } finally {
+      measurement.end();
+    }
+  }
+
   createMeasurement(name: string): Measurement {
     const start = performance.now();
     return {

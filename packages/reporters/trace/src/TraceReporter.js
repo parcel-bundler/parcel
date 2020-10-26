@@ -2,6 +2,7 @@
 
 import {Reporter} from '@parcel/plugin';
 import fs from 'fs';
+import {Tracer} from 'chrome-trace-event';
 
 const tracer = new Tracer();
 tracer.pipe(fs.createWriteStream('parcel-trace.json'));
@@ -12,7 +13,6 @@ export default (new Reporter({
       case 'trace': {
         tracer.completeEvent({
           name: event.name,
-          cat: ['foo'],
           ts: millisecondsToMicroseconds(event.ts),
           dur: millisecondsToMicroseconds(event.duration),
           tid: event.tid,

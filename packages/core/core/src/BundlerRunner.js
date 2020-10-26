@@ -61,7 +61,6 @@ export default class BundlerRunner {
     graph: AssetGraph,
     {signal}: {|signal: ?AbortSignal|},
   ): Promise<InternalBundleGraph> {
-    let bundleMeasurement = this.tracer.createMeasurement('bundle');
     report({
       type: 'buildProgress',
       phase: 'bundling',
@@ -151,16 +150,18 @@ export default class BundlerRunner {
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
-    let namerMeasurement = this.tracer.createMeasurement('nameBundles');
-    await this.nameBundles(internalBundleGraph);
-    namerMeasurement.end();
+    await this.tracer.wrap('nameBundles', async () => {
+      await this.nameBundles(internalBundleGraph);
+    });
 
-    await applyRuntimes({
-      bundleGraph: internalBundleGraph,
-      runtimesBuilder: this.runtimesBuilder,
-      config: this.config,
-      options: this.options,
-      pluginOptions: this.pluginOptions,
+    await this.tracer.wrap('applyRuntimes', async () => {
+      await applyRuntimes({
+        bundleGraph: internalBundleGraph,
+        runtimesBuilder: this.runtimesBuilder,
+        config: this.config,
+        options: this.options,
+        pluginOptions: this.pluginOptions,
+      });
     });
     assertSignalNotAborted(signal);
     // $FlowFixMe
@@ -171,7 +172,6 @@ export default class BundlerRunner {
     }
     assertSignalNotAborted(signal);
 
-    bundleMeasurement.end();
     return internalBundleGraph;
   }
 
