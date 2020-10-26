@@ -15,7 +15,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-typescript-validation',
 );
 
-describe.skip('ts-validator', function() {
+describe('ts-validator', function() {
   let subscription;
   afterEach(async () => {
     if (subscription) {

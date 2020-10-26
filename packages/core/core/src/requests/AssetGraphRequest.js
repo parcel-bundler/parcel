@@ -36,6 +36,7 @@ type RunInput = {|
   ...StaticRunOpts<{|
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
+    assetRequests: Array<AssetGroup>,
   |}>,
 |};
 
@@ -45,6 +46,7 @@ type AssetGraphRequest = {|
   run: RunInput => Async<{|
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
+    assetRequests: Array<AssetGroup>,
   |}>,
   input: AssetGraphRequestInput,
 |};
@@ -78,6 +80,7 @@ export class AssetGraphBuilder {
   optionsRef: SharedReference;
   api: RunAPI;
   name: string;
+  assetRequests: Array<AssetGroup> = [];
 
   constructor({input, prevResult, api}: RunInput) {
     let {entries, assetGroups, optionsRef, name} = input;
@@ -90,7 +93,6 @@ export class AssetGraphBuilder {
     this.optionsRef = optionsRef;
     this.api = api;
     this.name = name;
-    this.assetRequests = [];
 
     this.queue = new PromiseQueue();
   }
@@ -98,6 +100,7 @@ export class AssetGraphBuilder {
   async build(): Promise<{|
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>,
+    assetRequests: Array<AssetGroup>,
   |}> {
     let errors = [];
 
@@ -142,6 +145,7 @@ export class AssetGraphBuilder {
       {
         assetGraph: this.assetGraph,
         changedAssets: new Map(),
+        assetRequests: [],
       },
       md5FromString(`AssetGraph:${this.name}`),
     );
@@ -152,9 +156,11 @@ export class AssetGraphBuilder {
 
     dumpToGraphViz(this.assetGraph, 'AssetGraph');
 
-    let changedAssets = this.changedAssets;
-    this.changedAssets = new Map();
-    return {assetGraph: this.assetGraph, changedAssets: changedAssets};
+    return {
+      assetGraph: this.assetGraph,
+      changedAssets: this.changedAssets,
+      assetRequests: this.assetRequests,
+    };
   }
 
   shouldSkipRequest(node: AssetGraphNode): boolean {

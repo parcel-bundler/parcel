@@ -35,6 +35,7 @@ import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import RequestTracker, {getWatcherOptions} from './RequestTracker';
 import createAssetGraphRequest from './requests/AssetGraphRequest';
+import createValidationRequest from './requests/ValidationRequest';
 
 registerCoreWithSerializer();
 
@@ -257,9 +258,11 @@ export default class Parcel {
         entries: nullthrows(this.#resolvedOptions).entries,
         optionsRef: this.#optionsRef,
       }); // ? should we create this on every build?
-      let {assetGraph, changedAssets} = await this.#requestTracker.runRequest(
-        request,
-      );
+      let {
+        assetGraph,
+        changedAssets,
+        assetRequests,
+      } = await this.#requestTracker.runRequest(request);
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
@@ -283,7 +286,10 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
-      // TODO: validate
+      await this.#requestTracker.runRequest(
+        createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
+        {force: assetRequests.length > 0},
+      );
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
