@@ -22,11 +22,6 @@ import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
 
-type AssetGraphOpts = {|
-  ...GraphOpts<AssetGraphNode>,
-  onNodeRemoved?: (node: AssetGraphNode) => mixed,
-|};
-
 type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
@@ -112,10 +107,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       ...super.serialize(),
       hash: this.hash,
     };
-  }
-
-  initOptions({onNodeRemoved}: AssetGraphOpts = {}) {
-    this.onNodeRemoved = onNodeRemoved;
   }
 
   setRootConnections({entries, assetGroups}: InitOpts) {

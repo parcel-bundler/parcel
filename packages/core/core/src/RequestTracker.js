@@ -410,6 +410,7 @@ export default class RequestTracker {
     this.graph.removeById(id);
   }
 
+  // If a cache key is provided, the result will be removed from the node and stored in a separate cache entry
   storeResult(id: string, result: mixed, cacheKey: ?string) {
     let node = this.graph.getNode(id);
     if (node && node.type === 'request') {
