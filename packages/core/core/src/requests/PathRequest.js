@@ -183,6 +183,13 @@ export class ResolverRunner {
         });
 
         if (result) {
+          if (result.meta) {
+            dependency.meta = {
+              ...dependency.meta,
+              ...result.meta,
+            };
+          }
+
           if (result.isExcluded) {
             return null;
           }

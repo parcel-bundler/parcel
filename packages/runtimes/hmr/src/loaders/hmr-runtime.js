@@ -61,8 +61,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var handled = false;
       assets.forEach(asset => {
         var didAccept =
-          asset.type === 'css' ||
-          hmrAcceptCheck(global.parcelRequire, asset.id);
+          asset.type === 'css' || hmrAcceptCheck(module.bundle.root, asset.id);
         if (didAccept) {
           handled = true;
         }
@@ -72,7 +71,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         console.clear();
 
         assets.forEach(function(asset) {
-          hmrApply(global.parcelRequire, asset);
+          hmrApply(module.bundle.root, asset);
         });
 
         for (var i = 0; i < assetsToAccept.length; i++) {
@@ -270,7 +269,7 @@ function hmrAcceptCheck(bundle, id) {
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function(v) {
+  return getParents(module.bundle.root, id).some(function(v) {
     return hmrAcceptCheck(v[0], v[1]);
   });
 }
@@ -295,7 +294,7 @@ function hmrAcceptRun(bundle, id) {
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     cached.hot._acceptCallbacks.forEach(function(cb) {
       var assetsToAlsoAccept = cb(function() {
-        return getParents(global.parcelRequire, id);
+        return getParents(module.bundle.root, id);
       });
       if (assetsToAlsoAccept && assetsToAccept.length) {
         assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);

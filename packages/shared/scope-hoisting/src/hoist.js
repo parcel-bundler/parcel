@@ -59,6 +59,10 @@ const EXPORT_ASSIGN_TEMPLATE = template.statement<
   {|EXPORTS: Identifier, NAME: Identifier, LOCAL: Expression|},
   Statement,
 >('EXPORTS.NAME = LOCAL;');
+const REEXPORT_TEMPLATE = template.statement<
+  {|EXPORTS: Identifier, NAME: StringLiteral, LOCAL: Expression|},
+  Statement,
+>('$parcel$reexport(EXPORTS, NAME, function(){return LOCAL;});');
 const EXPORT_ALL_TEMPLATE = template.statement<
   {|OLD_NAME: Identifier, ID: StringLiteral, SOURCE: StringLiteral|},
   Statement,
@@ -271,7 +275,10 @@ const VISITOR: Visitor<MutableAsset> = {
       path.replaceWith(t.identifier('null'));
     }
 
-    if (t.matchesPattern(path.node, 'module.bundle')) {
+    if (
+      t.matchesPattern(path.node, 'module.bundle.root') ||
+      t.matchesPattern(path.node, 'module.bundle')
+    ) {
       path.replaceWith(t.identifier('parcelRequire'));
     }
   },
@@ -642,9 +649,9 @@ const VISITOR: Visitor<MutableAsset> = {
 
         id.loc = specifier.loc;
         path.insertAfter(
-          EXPORT_ASSIGN_TEMPLATE({
+          REEXPORT_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
-            NAME: exported,
+            NAME: t.stringLiteral(exported.name),
             LOCAL: id,
           }),
         );
