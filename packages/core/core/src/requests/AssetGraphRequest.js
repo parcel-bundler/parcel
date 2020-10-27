@@ -15,8 +15,9 @@ import type {EntryResult} from './EntryRequest';
 import type {TargetResolveResult} from './TargetRequest';
 import type {PathRequestInput} from './PathRequest';
 
-import {PromiseQueue, md5FromString} from '@parcel/utils';
+import {PromiseQueue, md5FromObject} from '@parcel/utils';
 import AssetGraph from '../AssetGraph';
+import {PARCEL_VERSION} from '../constants';
 import createEntryRequest from './EntryRequest';
 import createTargetRequest from './TargetRequest';
 import createAssetRequest from './AssetRequest';
@@ -81,8 +82,9 @@ export class AssetGraphBuilder {
   api: RunAPI;
   name: string;
   assetRequests: Array<AssetGroup> = [];
+  cacheKey: string;
 
-  constructor({input, prevResult, api}: RunInput) {
+  constructor({input, prevResult, api, options}: RunInput) {
     let {entries, assetGroups, optionsRef, name} = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
     assetGraph.setRootConnections({
@@ -93,6 +95,14 @@ export class AssetGraphBuilder {
     this.optionsRef = optionsRef;
     this.api = api;
     this.name = name;
+
+    let {hot, publicUrl, distDir, minify, scopeHoist} = options;
+    this.cacheKey = md5FromObject({
+      parcelVersion: PARCEL_VERSION,
+      name,
+      options: {hot, publicUrl, distDir, minify, scopeHoist},
+      entries,
+    });
 
     this.queue = new PromiseQueue();
   }
@@ -147,7 +157,7 @@ export class AssetGraphBuilder {
         changedAssets: new Map(),
         assetRequests: [],
       },
-      md5FromString(`AssetGraph:${this.name}`),
+      this.cacheKey,
     );
 
     if (errors.length) {
