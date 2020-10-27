@@ -1021,10 +1021,12 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
-  /** Whether this dependency can be deferred by Parcel itself (true by default) */
+  /** Whether this dependency can be deferred by Parcel itself (true by default). */
   +canDefer?: boolean,
-  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed. */
   +diagnostics?: Diagnostic | Array<Diagnostic>,
+  /** Is spread (shallowly merged) onto the request's dependency.meta */
+  +meta?: JSONObject,
 |};
 
 export type ConfigOutput = {|
