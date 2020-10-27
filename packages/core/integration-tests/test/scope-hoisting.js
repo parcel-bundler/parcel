@@ -329,6 +329,18 @@ describe('scope hoisting', function() {
       });
     });
 
+    it('has the correct order with namespace re-exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-namespace-order/index.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.equal(output, Symbol.for('abc'));
+    });
+
     it('excludes default when re-exporting a module', async function() {
       let source = path.normalize(
         'integration/scope-hoisting/es6/re-export-exclude-default/a.js',
@@ -425,6 +437,36 @@ describe('scope hoisting', function() {
       assert.equal(output, 8);
     });
 
+    it('supports live bindings in namespaces of reexporting assets', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/live-bindings-reexports-namespace/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [1, 2]);
+    });
+
+    it('supports live bindings across bundles', async function() {
+      let b = await bundle(
+        ['a.html', 'b.html'].map(f =>
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/live-bindings-cross-bundle',
+            f,
+          ),
+        ),
+      );
+
+      let output = await runBundle(
+        b,
+        b.getBundles().find(b => b.type === 'html'),
+      );
+      assert.strictEqual(output, 'aaa');
+    });
+
     it('supports dynamic import syntax for code splitting', async function() {
       let b = await bundle(
         path.join(
@@ -482,6 +524,21 @@ describe('scope hoisting', function() {
 
       let output = await run(b, {Test});
       assert.strictEqual(output, Test);
+    });
+
+    it('should remove export named declaration without specifiers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/export-named-empty/a.js',
+        ),
+      );
+
+      let content = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(!/export\s*{\s*}\s*;/.test(content));
+
+      let output = await run(b);
+      assert.strictEqual(output, 2);
     });
 
     it('throws a meaningful error on undefined exports', async function() {
@@ -2408,7 +2465,7 @@ describe('scope hoisting', function() {
       .getBundles()
       .sort((a, b) => b.stats.size - a.stats.size)[0];
     let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-    assert(contents.includes(`parcelRequire =`));
+    assert(contents.includes(`$parcel$global[parcelRequireName] = `));
   });
 
   it('does not include prelude if child bundles are isolated', async function() {
@@ -2418,7 +2475,7 @@ describe('scope hoisting', function() {
 
     let mainBundle = b.getBundles().find(b => b.name === 'index.js');
     let contents = await outputFS.readFile(mainBundle.filePath, 'utf8');
-    assert(!contents.includes(`parcelRequire =`));
+    assert(!contents.includes(`$parcel$global[parcelRequireName] = `));
   });
 
   it('should include prelude in shared worker bundles', async function() {
@@ -2431,7 +2488,7 @@ describe('scope hoisting', function() {
       .sort((a, b) => b.stats.size - a.stats.size)
       .find(b => b.name !== 'index.js');
     let contents = await outputFS.readFile(sharedBundle.filePath, 'utf8');
-    assert(contents.includes(`parcelRequire =`));
+    assert(contents.includes(`$parcel$global[parcelRequireName] = `));
 
     let workerBundle = b.getBundles().find(b => b.name.startsWith('worker-b'));
     contents = await outputFS.readFile(workerBundle.filePath, 'utf8');
@@ -2746,7 +2803,7 @@ describe('scope hoisting', function() {
     assert.deepEqual(await run(b), 43);
   });
 
-  it('correctly updates dependency when a specified is added', async function() {
+  it('correctly updates dependencies when a specifier is added', async function() {
     let testDir = path.join(
       __dirname,
       '/integration/scope-hoisting/es6/cache-add-specifier',
