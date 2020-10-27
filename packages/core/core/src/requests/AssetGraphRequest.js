@@ -213,7 +213,7 @@ export class AssetGraphBuilder {
   }
 
   async runPathRequest(input: Dependency) {
-    let request = createPathRequest({...input, name: this.name});
+    let request = createPathRequest({dependency: input, name: this.name});
     let result = await this.api.runRequest<PathRequestInput, ?AssetGroup>(
       request,
     );

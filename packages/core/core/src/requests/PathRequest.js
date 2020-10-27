@@ -26,7 +26,7 @@ export type PathRequest = {|
 |};
 
 export type PathRequestInput = {|
-  ...Dependency,
+  dependency: Dependency,
   name: string,
 |};
 
@@ -42,7 +42,7 @@ export default function createPathRequest(
   input: PathRequestInput,
 ): PathRequest {
   return {
-    id: input.id + ':' + input.name,
+    id: input.dependency.id + ':' + input.name,
     type,
     run,
     input,
@@ -61,8 +61,7 @@ async function run({input, api, options}: RunOpts) {
       options.autoinstall,
     ),
   });
-  let {name, ...dependency} = input; // eslint-disable-line no-unused-vars
-  let assetGroup = await resolverRunner.resolve(dependency);
+  let assetGroup = await resolverRunner.resolve(input.dependency);
 
   if (assetGroup != null) {
     api.invalidateOnFileDelete(assetGroup.filePath);
