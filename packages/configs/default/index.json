@@ -81,6 +81,7 @@
     "@parcel/reporter-dev-server",
     "@parcel/reporter-bundle-analyzer",
     "@parcel/reporter-react-loadable",
-    "@parcel/reporter-bundle-buddy"
+    "@parcel/reporter-bundle-buddy",
+    "@parcel/reporter-trace"
   ]
 }

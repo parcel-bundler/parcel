@@ -11,6 +11,7 @@ import type ParcelConfig from './ParcelConfig';
 import type WorkerFarm from '@parcel/workers';
 import type AssetGraphBuilder from './AssetGraphBuilder';
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type Tracer from './Tracer';
 
 import assert from 'assert';
 import path from 'path';
@@ -34,6 +35,7 @@ type Opts = {|
   options: ParcelOptions,
   config: ParcelConfig,
   runtimesBuilder: AssetGraphBuilder,
+  tracer: Tracer,
   workerFarm: WorkerFarm,
 |};
 
@@ -43,6 +45,7 @@ export default class BundlerRunner {
   pluginOptions: PluginOptions;
   farm: WorkerFarm;
   runtimesBuilder: AssetGraphBuilder;
+  tracer: Tracer;
   isBundling: boolean = false;
 
   constructor(opts: Opts) {
@@ -51,6 +54,7 @@ export default class BundlerRunner {
     this.pluginOptions = new PluginOptions(this.options);
     this.runtimesBuilder = opts.runtimesBuilder;
     this.farm = opts.workerFarm;
+    this.tracer = opts.tracer;
   }
 
   async bundle(
@@ -104,6 +108,9 @@ export default class BundlerRunner {
       this.options,
     );
 
+    let bundlerBundleMeasurement = this.tracer.createMeasurement(
+      'bundler.bundle',
+    );
     try {
       await bundler.bundle({
         bundleGraph: mutableBundleGraph,
@@ -115,11 +122,16 @@ export default class BundlerRunner {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
       });
+    } finally {
+      bundlerBundleMeasurement.end();
     }
     assertSignalNotAborted(signal);
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
+    let bundlerOptimizeMeasurement = this.tracer.createMeasurement(
+      'bundler.optimize',
+    );
     try {
       await bundler.optimize({
         bundleGraph: mutableBundleGraph,
@@ -131,19 +143,25 @@ export default class BundlerRunner {
       throw new ThrowableDiagnostic({
         diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
       });
+    } finally {
+      bundlerOptimizeMeasurement.end();
     }
     assertSignalNotAborted(signal);
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
-    await this.nameBundles(internalBundleGraph);
+    await this.tracer.wrap('nameBundles', async () => {
+      await this.nameBundles(internalBundleGraph);
+    });
 
-    await applyRuntimes({
-      bundleGraph: internalBundleGraph,
-      runtimesBuilder: this.runtimesBuilder,
-      config: this.config,
-      options: this.options,
-      pluginOptions: this.pluginOptions,
+    await this.tracer.wrap('applyRuntimes', async () => {
+      await applyRuntimes({
+        bundleGraph: internalBundleGraph,
+        runtimesBuilder: this.runtimesBuilder,
+        config: this.config,
+        options: this.options,
+        pluginOptions: this.pluginOptions,
+      });
     });
     assertSignalNotAborted(signal);
     // $FlowFixMe

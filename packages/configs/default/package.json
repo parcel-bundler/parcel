@@ -37,6 +37,7 @@
     "@parcel/reporter-dev-server": "^2.0.0-frontbucket.36",
     "@parcel/reporter-manifest": "^2.0.0-frontbucket.35",
     "@parcel/reporter-react-loadable": "^0.0.2-frontbucket.7",
+    "@parcel/reporter-trace": "2.0.0-beta.1",
     "@parcel/resolver-default": "^2.0.0-frontbucket.37",
     "@parcel/runtime-browser-hmr": "^2.0.0-frontbucket.35",
     "@parcel/runtime-js": "^2.0.0-frontbucket.36",

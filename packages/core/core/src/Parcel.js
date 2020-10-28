@@ -39,6 +39,7 @@ import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
+import Tracer from './Tracer';
 
 registerCoreWithSerializer();
 
@@ -56,6 +57,7 @@ export default class Parcel {
   #initialOptions /*: InitialParcelOptions*/;
   #reporterRunner /*: ReporterRunner*/;
   #resolvedOptions /*: ?ParcelOptions*/ = null;
+  #tracer /*: Tracer */;
   #watchAbortController /*: AbortController*/;
   #watchQueue /*: PromiseQueue<?BuildEvent>*/ = new PromiseQueue<?BuildEvent>({
     maxConcurrent: 1,
@@ -111,6 +113,15 @@ export default class Parcel {
         patchConsole: resolvedOptions.patchConsole,
       });
 
+    this.#reporterRunner = new ReporterRunner({
+      config: this.#config,
+      options: resolvedOptions,
+      workerFarm: this.#farm,
+    });
+    this.#tracer = new Tracer(report);
+
+    let init = this.#tracer.createMeasurement('init');
+
     // ? Should we have a dispose function on the Parcel class or should we create these references
     //  - in run and watch and dispose at the end of run and in the unsubsribe function of watch
     let {ref: optionsRef} = await this.#farm.createSharedReference(
@@ -142,12 +153,7 @@ export default class Parcel {
       runtimesBuilder: this.#runtimesAssetGraphBuilder,
       config: this.#config,
       workerFarm: this.#farm,
-    });
-
-    this.#reporterRunner = new ReporterRunner({
-      config: this.#config,
-      options: resolvedOptions,
-      workerFarm: this.#farm,
+      tracer: this.#tracer,
     });
 
     this.#packagerRunner = new PackagerRunner({
@@ -160,6 +166,7 @@ export default class Parcel {
     });
 
     this.#initialized = true;
+    init.end();
   }
 
   async run(): Promise<BuildSuccessEvent> {
@@ -218,8 +225,12 @@ export default class Parcel {
         await this.init();
       }
 
+      let watchMeasurement = this.#tracer.createMeasurement(
+        'getWatchSubscription',
+      );
       this.#watcherSubscription = await this._getWatcherSubscription();
       await this.#reporterRunner.report({type: 'watchStart'});
+      watchMeasurement.end();
 
       // Kick off a first build, but don't await its results. Its results will
       // be provided to the callback.
@@ -273,17 +284,27 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
+      let buildMeasurement = this.#tracer.createMeasurement(
+        'assetGraphBuilder.build',
+      );
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build(
         signal,
       );
+      buildMeasurement.end();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
+      let bundleMeasurement = this.#tracer.createMeasurement(
+        'bundlerRunner.bundle',
+      );
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
+      bundleMeasurement.end();
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(bundleGraph);
+      await this.#tracer.wrap('packagerRunner.writeBundles', async () => {
+        await this.#packagerRunner.writeBundles(bundleGraph);
+      });
       assertSignalNotAborted(signal);
 
       let event = {
@@ -300,7 +321,9 @@ export default class Parcel {
 
       await this.#reporterRunner.report(event);
 
-      await this.#assetGraphBuilder.validate();
+      await this.#tracer.wrap('validate', async () => {
+        await this.#assetGraphBuilder.validate();
+      });
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
