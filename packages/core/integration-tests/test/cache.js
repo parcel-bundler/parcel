@@ -1,5 +1,9 @@
 // @flow
-import type {BundleGraph, NamedBundle} from '@parcel/types';
+import type {
+  BundleGraph,
+  NamedBundle,
+  InitialParcelOptions,
+} from '@parcel/types';
 import assert from 'assert';
 import path from 'path';
 import {
@@ -23,10 +27,12 @@ function runBundle(entries = 'src/index.js', opts) {
   });
 }
 
-type UpdateFn = (BundleGraph<NamedBundle>) => void | Promise<void>;
+type UpdateFn = (
+  BundleGraph<NamedBundle>,
+) => ?InitialParcelOptions | Promise<?InitialParcelOptions>;
 type TestConfig = {|
+  ...InitialParcelOptions,
   entries?: Array<string>,
-  scopeHoist?: boolean,
   setup?: () => void | Promise<void>,
   update: UpdateFn,
 |};
@@ -43,24 +49,23 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
   await overlayFS.rimraf(path.join(__dirname, '/input/dist'));
 
   let entries;
-  let scopeHoist;
+  let options: ?InitialParcelOptions;
   if (typeof update === 'object') {
-    if (update.setup) {
-      await update.setup();
-    }
+    let setup;
+    ({entries, setup, update, ...options} = update);
 
-    entries = update.entries;
-    scopeHoist = update.scopeHoist;
-    update = update.update;
+    if (setup) {
+      await setup();
+    }
   }
 
-  let b = await runBundle(entries, {scopeHoist});
+  let b = await runBundle(entries, options);
 
   // update
-  await update(b);
+  let newOptions = await update(b);
 
   // Run cached build
-  b = await runBundle(entries, {scopeHoist});
+  b = await runBundle(entries, Object.assign({}, options, newOptions));
 
   return b;
 }
@@ -1273,6 +1278,418 @@ describe('cache', function() {
 
         process.env.NODE_ENV = env;
       });
+    });
+  });
+
+  describe('options', function() {
+    it('should update when publicUrl changes', async function() {
+      let b = await testCache({
+        entries: ['src/index.html'],
+        scopeHoist: true,
+        publicUrl: 'http://example.com/',
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            contents.includes('<script src="http://example.com'),
+            'should include example.com',
+          );
+
+          return {
+            publicUrl: 'http://mygreatwebsite.com/',
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes('<script src="http://mygreatwebsite.com'),
+        'should include example.com',
+      );
+    });
+
+    it('should update when minify changes', async function() {
+      let b = await testCache({
+        scopeHoist: true,
+        minify: false,
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(contents.includes('Test'), 'should include Test');
+
+          return {
+            minify: true,
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('Test'), 'should not include Test');
+    });
+
+    it('should update when scopeHoist changes', async function() {
+      let b = await testCache({
+        scopeHoist: false,
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            contents.includes('parcelRequire'),
+            'should include parcelRequire',
+          );
+
+          return {
+            scopeHoist: true,
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(!contents.includes('parcelRequire'), 'should not include Test');
+    });
+
+    it('should update when sourceMaps changes', async function() {
+      let b = await testCache({
+        sourceMaps: false,
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('sourceMappingURL=index.js.map'),
+            'should not include sourceMappingURL',
+          );
+
+          return {
+            sourceMaps: true,
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes('sourceMappingURL=index.js.map'),
+        'should include sourceMappingURL',
+      );
+    });
+
+    it('should update when distDir changes', async function() {
+      let b = await testCache({
+        scopeHoist: true,
+        update(b) {
+          assert(
+            /dist[/\\]index.js$/.test(b.getBundles()[0].filePath),
+            'should end with dist/index.js',
+          );
+
+          return {
+            distDir: 'dist/test',
+          };
+        },
+      });
+
+      assert(
+        /dist[/\\]test[/\\]index.js$/.test(b.getBundles()[0].filePath),
+        'should end with dist/test/index.js',
+      );
+    });
+
+    it('should update when targets changes', async function() {
+      let b = await testCache({
+        scopeHoist: true,
+        targets: ['legacy'],
+        async setup() {
+          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+          await overlayFS.writeFile(
+            pkgFile,
+            JSON.stringify({
+              ...pkg,
+              targets: {
+                modern: {
+                  engines: {
+                    browsers: 'last 1 Chrome version',
+                  },
+                },
+                legacy: {
+                  engines: {
+                    browsers: 'IE 11',
+                  },
+                },
+              },
+            }),
+          );
+        },
+        async update(b) {
+          assertBundles(b, [
+            {
+              name: 'index.js',
+              assets: ['index.js', 'test.js'],
+            },
+          ]);
+
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !/class \$[a-f0-9]+\$var\$Test/.test(contents),
+            'should not include class',
+          );
+
+          return {
+            targets: ['modern'],
+          };
+        },
+      });
+
+      assertBundles(b, [
+        {
+          name: 'index.js',
+          assets: ['index.js', 'test.js'],
+        },
+      ]);
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        /class \$[a-f0-9]+\$var\$Test/.test(contents),
+        'should include class',
+      );
+    });
+
+    it('should update when defaultEngines changes', async function() {
+      let b = await testCache({
+        scopeHoist: true,
+        defaultEngines: {
+          browsers: 'last 1 Chrome version',
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            /class \$[a-f0-9]+\$var\$Test/.test(contents),
+            'should include class',
+          );
+
+          return {
+            defaultEngines: {
+              browsers: 'IE 11',
+            },
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        !/class \$[a-f0-9]+\$var\$Test/.test(contents),
+        'should not include class',
+      );
+    });
+
+    it('should update when contentHash changes', async function() {
+      let b = await testCache({
+        entries: ['src/index.html'],
+        scopeHoist: true,
+        contentHash: true,
+        update(b) {
+          let bundle = b.getBundles()[1];
+          assert(!bundle.name.includes(bundle.id.slice(-8)));
+
+          return {
+            contentHash: false,
+          };
+        },
+      });
+
+      let bundle = b.getBundles()[1];
+      assert(bundle.name.includes(bundle.id.slice(-8)));
+    });
+
+    it('should update when hot options change', async function() {
+      let b = await testCache({
+        hot: {
+          host: 'localhost',
+          port: 4321,
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            contents.includes('HMR_HOST = "localhost"'),
+            'should include HMR_HOST = "localhost"',
+          );
+          assert(
+            contents.includes('HMR_PORT = 4321'),
+            'should include HMR_PORT = 4321',
+          );
+
+          return {
+            hot: {
+              host: 'example.com',
+              port: 5678,
+            },
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes('HMR_HOST = "example.com"'),
+        'should include HMR_HOST = "example.com"',
+      );
+      assert(
+        contents.includes('HMR_PORT = 5678'),
+        'should include HMR_PORT = 5678',
+      );
+    });
+
+    it('should invalidate react refresh hot options change', async function() {
+      let b = await testCache({
+        async setup() {
+          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
+          await overlayFS.writeFile(
+            pkgFile,
+            JSON.stringify({
+              ...pkg,
+              dependencies: {
+                react: '*',
+              },
+            }),
+          );
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/src/index.js'),
+            `import React from 'react';
+            
+            export function Component() {
+              return <h1>Hello world</h1>;
+            }`,
+          );
+        },
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('getRefreshBoundarySignature'),
+            'should not include getRefreshBoundarySignature',
+          );
+
+          return {
+            hot: {
+              host: 'example.com',
+              port: 5678,
+            },
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(
+        contents.includes('getRefreshBoundarySignature'),
+        'should include getRefreshBoundarySignature',
+      );
+    });
+
+    it('should update when the config option changes', async function() {
+      let b = await testCache({
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('TRANSFORMED CODE'));
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/some-config'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+
+          return {
+            config: path.join(__dirname, '/input/some-config'),
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('TRANSFORMED CODE'));
+    });
+
+    it('should update when the defaultConfig option changes', async function() {
+      let b = await testCache({
+        async update(b) {
+          let contents = await overlayFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('TRANSFORMED CODE'));
+
+          await overlayFS.writeFile(
+            path.join(__dirname, '/input/some-config'),
+            JSON.stringify({
+              extends: '@parcel/config-default',
+              transformers: {
+                '*.js': ['parcel-transformer-mock'],
+              },
+            }),
+          );
+
+          return {
+            defaultConfig: path.join(__dirname, '/input/some-config'),
+          };
+        },
+      });
+
+      let contents = await overlayFS.readFile(
+        b.getBundles()[0].filePath,
+        'utf8',
+      );
+      assert(contents.includes('TRANSFORMED CODE'));
     });
   });
 

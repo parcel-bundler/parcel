@@ -37,7 +37,7 @@ export default (new Transformer({
     try {
       let lessConfig: LessConfig = config ? {...config.config} : {};
 
-      if (options.sourceMaps) {
+      if (asset.env.sourceMap) {
         lessConfig.sourceMap = {};
       }
 

@@ -26,7 +26,7 @@ export default (new Optimizer({
     let originalMap = map ? await map.stringify({}) : null;
     let config = {
       ...userConfig?.config,
-      sourceMap: options.sourceMaps
+      sourceMap: bundle.env.sourceMap
         ? {
             filename: path.relative(options.projectRoot, bundle.filePath),
             asObject: true,

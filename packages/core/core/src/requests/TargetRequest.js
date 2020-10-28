@@ -40,6 +40,7 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
+import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
@@ -83,7 +84,10 @@ export default function createTargetRequest(input: Entry): TargetRequest {
 }
 
 async function run({input, api, options}: RunOpts) {
-  let targetResolver = new TargetResolver(api, options);
+  let targetResolver = new TargetResolver(
+    api,
+    optionsProxy(options, api.invalidateOnOptionChange),
+  );
   let targets = await targetResolver.resolve(input.packagePath);
 
   let {config} = nullthrows(
@@ -193,8 +197,8 @@ export class TargetResolver {
               minify: this.options.minify && descriptor.minify !== false,
               scopeHoist:
                 this.options.scopeHoist && descriptor.scopeHoist !== false,
+              sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
             }),
-            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           };
         });
       }
@@ -232,7 +236,6 @@ export class TargetResolver {
             name: 'default',
             distDir: this.options.serve.distDir,
             publicUrl: this.options.publicUrl ?? '/',
-            sourceMap: this.options.sourceMaps ? {} : undefined,
             env: createEnvironment({
               context: 'browser',
               engines: {
@@ -240,6 +243,7 @@ export class TargetResolver {
               },
               minify: this.options.minify,
               scopeHoist: this.options.scopeHoist,
+              sourceMap: this.options.sourceMaps ? {} : undefined,
             }),
           },
         ];
@@ -444,8 +448,8 @@ export class TargetResolver {
             minify: this.options.minify && descriptor.minify !== false,
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -529,8 +533,8 @@ export class TargetResolver {
             minify: this.options.minify && descriptor.minify !== false,
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -548,8 +552,8 @@ export class TargetResolver {
           context,
           minify: this.options.minify,
           scopeHoist: this.options.scopeHoist,
+          sourceMap: this.options.sourceMaps ? {} : undefined,
         }),
-        sourceMap: this.options.sourceMaps ? {} : undefined,
       });
     }
 

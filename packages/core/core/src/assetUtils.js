@@ -37,6 +37,7 @@ import {
   md5FromFilePath,
 } from '@parcel/utils';
 import {getEnvironmentHash} from './Environment';
+import {hashFromOption} from './utils';
 
 type AssetOptions = {|
   id?: string,
@@ -210,6 +211,8 @@ export function getInvalidationId(invalidation: RequestInvalidation): string {
       return 'file:' + invalidation.filePath;
     case 'env':
       return 'env:' + invalidation.key;
+    case 'option':
+      return 'option:' + invalidation.key;
     default:
       throw new Error('Unknown invalidation type: ' + invalidation.type);
   }
@@ -236,6 +239,13 @@ export async function getInvalidationHash(
           invalidation.key + ':' + (options.env[invalidation.key] || ''),
         );
         break;
+      case 'option':
+        hash.update(
+          invalidation.key + ':' + hashFromOption(options[invalidation.key]),
+        );
+        break;
+      default:
+        throw new Error('Unknown invalidation type: ' + invalidation.type);
     }
   }
 
