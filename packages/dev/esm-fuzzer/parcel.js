@@ -41,6 +41,7 @@ module.exports = async function({
         outputFormat,
         distDir: DIST_DIR,
         includeNodeModules,
+        isLibrary: true,
         engines: {
           browsers: 'Chrome 80',
         },

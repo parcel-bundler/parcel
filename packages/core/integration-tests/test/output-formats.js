@@ -56,7 +56,22 @@ describe('output formats', function() {
       assert.equal((await run(b)).default, 2);
     });
 
-    it('should support commonjs output from esmodule input', async function() {
+    it('should support commonjs output from esmodule input (re-export namespace as)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm-commonjs/re-export-namespace-as.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('exports.ns'));
+      let output = await run(b);
+      assert.equal(output.ns.default, 4);
+      assert.equal(output.ns.bar, 5);
+    });
+
+    it('should support commonjs output from esmodule input (same binding multiple exports)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -518,6 +533,18 @@ describe('output formats', function() {
       let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
       assert(dist.includes('export { a, c }'));
       assert(!dist.includes('export default'));
+    });
+
+    it('should support esmodule output (re-export namespace as)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/formats/esm/re-export-namespace-as.js',
+        ),
+      );
+
+      let dist = await outputFS.readFile(b.getBundles()[0].filePath, 'utf8');
+      assert(dist.includes('export var ns'));
     });
 
     it('should support esmodule output (renaming re-export)', async function() {

@@ -61,6 +61,7 @@ type State = {|
     [number]: Module,
   |},
   entries: Array<number>,
+  noSideEffects: Array<number>
 |};
 
 type Fixture = {|
@@ -183,7 +184,7 @@ const ACTIONS /*: Array<[number, (State) => State]> */ = [
     },
   ],
   [
-    0.3,
+    0.25,
     function addNamedExport(oldState) {
       let n = getRandomModuleIndex(oldState);
       let as = getNewExportName();
@@ -211,7 +212,7 @@ const ACTIONS /*: Array<[number, (State) => State]> */ = [
     },
   ],
   [
-    0.2,
+    0.3,
     function moveLocalExportToNewDependency(state) {
       let nOld = getRandomModuleIndex(state);
       let modOld = state.modules[nOld];
@@ -267,21 +268,34 @@ const ACTIONS /*: Array<[number, (State) => State]> */ = [
       });
     },
   ],
+  // [
+  //   0.1,
+  //   function addEntry(state) {
+  //     let n = getNewModuleIndex(state);
+  //     return {
+  //       ...state,
+  //       modules: {
+  //         ...state.modules,
+  //         [n]: {
+  //           imported: [],
+  //           exported: [],
+  //           type: 'mjs',
+  //         },
+  //       },
+  //       entries: [...state.entries, n],
+  //     };
+  //   },
+  // ],
   [
-    0.1,
-    function addEntry(state) {
-      let n = getNewModuleIndex(state);
+    0.05,
+    function makeSideEffectFree(state) {
+      let n = getRandomModuleIndex(state);
+      if (state.entries.includes(n)) {
+        return state;
+      }
       return {
         ...state,
-        modules: {
-          ...state.modules,
-          [n]: {
-            imported: [],
-            exported: [],
-            type: 'mjs',
-          },
-        },
-        entries: [...state.entries, n],
+        noSideEffects: [...state.noSideEffects, n],
       };
     },
   ],
@@ -323,70 +337,82 @@ function linearizeState(state /*: State */) /* : Fixture */ {
   let modules /*: Array<[string, Module]> */ = Object.entries(state.modules);
   return {
     files: Object.fromEntries(
-      modules.map(([n, {type, imported, exported}]) => {
-        let importStatements = [];
-        let otherStatements = [];
-        let exportStatements = [];
+      modules
+        .map(([n, {type, imported, exported}]) => {
+          let importStatements = [];
+          let otherStatements = [];
+          let exportStatements = [];
 
-        for (let s of imported) {
-          if (s.symbol === '*') {
-            importStatements.push(
-              TEMPLATES[type].IMPORT_NAMESPACE({
-                local: t.identifier(s.as),
-                source: t.stringLiteral(
-                  './' + numberToFilename(s.from, state.modules[s.from].type),
-                ),
-              }),
-            );
-          } else {
-            importStatements.push(
-              TEMPLATES[type].IMPORT_NAMED({
-                name: t.identifier(s.symbol),
-                local: t.identifier(s.as),
-                source: t.stringLiteral(
-                  './' + numberToFilename(s.from, state.modules[s.from].type),
-                ),
-              }),
-            );
-          }
-        }
-        for (let s of exported) {
-          if (s.from == null) {
-            if (s.symbol === s.as) {
-              exportStatements.push(
-                TEMPLATES[type].EXPORT_CONST({
-                  name: t.identifier(s.symbol),
-                  value: t.stringLiteral(nanoid(5)),
+          for (let s of imported) {
+            if (s.symbol === '*') {
+              importStatements.push(
+                TEMPLATES[type].IMPORT_NAMESPACE({
+                  local: t.identifier(s.as),
+                  source: t.stringLiteral(
+                    './' + numberToFilename(s.from, state.modules[s.from].type),
+                  ),
                 }),
               );
             } else {
-              otherStatements.push(
-                TEMPLATES[type].CONST({
+              importStatements.push(
+                TEMPLATES[type].IMPORT_NAMED({
                   name: t.identifier(s.symbol),
-                  value: t.stringLiteral(nanoid(5)),
-                }),
-              );
-              exportStatements.push(
-                TEMPLATES[type].EXPORT_NAMED({
-                  local: t.identifier(s.symbol),
-                  name: t.identifier(s.as),
+                  local: t.identifier(s.as),
+                  source: t.stringLiteral(
+                    './' + numberToFilename(s.from, state.modules[s.from].type),
+                  ),
                 }),
               );
             }
-          } else {
-            let from = nullthrows(s.from);
-            if (s.symbol === '*') {
-              if (s.as === '*') {
+          }
+          for (let s of exported) {
+            if (s.from == null) {
+              if (s.symbol === s.as) {
                 exportStatements.push(
-                  TEMPLATES[type].REEXPORT_NAMESPACE({
-                    source: t.stringLiteral(
-                      './' + numberToFilename(from, state.modules[from].type),
-                    ),
+                  TEMPLATES[type].EXPORT_CONST({
+                    name: t.identifier(s.symbol),
+                    value: t.stringLiteral(nanoid(5)),
                   }),
                 );
               } else {
+                otherStatements.push(
+                  TEMPLATES[type].CONST({
+                    name: t.identifier(s.symbol),
+                    value: t.stringLiteral(nanoid(5)),
+                  }),
+                );
                 exportStatements.push(
-                  TEMPLATES[type].REEXPORT_NAMESPACE_AS({
+                  TEMPLATES[type].EXPORT_NAMED({
+                    local: t.identifier(s.symbol),
+                    name: t.identifier(s.as),
+                  }),
+                );
+              }
+            } else {
+              let from = nullthrows(s.from);
+              if (s.symbol === '*') {
+                if (s.as === '*') {
+                  exportStatements.push(
+                    TEMPLATES[type].REEXPORT_NAMESPACE({
+                      source: t.stringLiteral(
+                        './' + numberToFilename(from, state.modules[from].type),
+                      ),
+                    }),
+                  );
+                } else {
+                  exportStatements.push(
+                    TEMPLATES[type].REEXPORT_NAMESPACE_AS({
+                      name: t.identifier(s.as),
+                      source: t.stringLiteral(
+                        './' + numberToFilename(from, state.modules[from].type),
+                      ),
+                    }),
+                  );
+                }
+              } else {
+                exportStatements.push(
+                  TEMPLATES[type].REEXPORT_NAMED({
+                    local: t.identifier(s.symbol),
                     name: t.identifier(s.as),
                     source: t.stringLiteral(
                       './' + numberToFilename(from, state.modules[from].type),
@@ -394,31 +420,37 @@ function linearizeState(state /*: State */) /* : Fixture */ {
                   }),
                 );
               }
-            } else {
-              exportStatements.push(
-                TEMPLATES[type].REEXPORT_NAMED({
-                  local: t.identifier(s.symbol),
-                  name: t.identifier(s.as),
-                  source: t.stringLiteral(
-                    './' + numberToFilename(from, state.modules[from].type),
-                  ),
-                }),
-              );
             }
           }
-        }
 
-        return [
-          `${n}.${type}`,
-          generate(
-            t.program([
-              ...importStatements,
-              ...otherStatements,
-              ...exportStatements,
-            ]),
-          ).code,
-        ];
-      }),
+          return [
+            `${n}.${type}`,
+            generate(
+              t.program([
+                ...importStatements,
+                ...otherStatements,
+                ...exportStatements,
+              ]),
+            ).code,
+          ];
+        })
+        .concat([
+          [
+            'package.json',
+            JSON.stringify(
+              {
+                sideEffects: modules
+                  .map(([n, {type}]) => {
+                    if (state.noSideEffects.includes(Number(n))) return;
+                    else return `${n}.${type}`;
+                  })
+                  .filter(Boolean),
+              },
+              null,
+              2,
+            ),
+          ],
+        ]),
     ),
     entries: state.entries.map(n => numberToFilename(n, state.modules[n].type)),
   };
@@ -434,6 +466,7 @@ function* generateExamples() /*: Iterable<Fixture> */ {
       },
     },
     entries: [0],
+    noSideEffects: [],
   };
 
   yield linearizeState(state);
@@ -505,6 +538,7 @@ module.exports = generateExamples;
 //       },
 //     },
 //     entries: [0],
+//     noSideEffects: [3]
 //   });
 //   console.log(result);
 //   // try {
