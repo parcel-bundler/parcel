@@ -12,5 +12,7 @@
     "*.js": "@parcel/packager-js"
   },
   "resolvers": ["@parcel/resolver-default"],
-  "reporters": ["@parcel/reporter-cli"]
+  "reporters": [
+    // "@parcel/reporter-cli"
+  ]
 }

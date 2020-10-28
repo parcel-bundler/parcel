@@ -428,7 +428,17 @@ export function generateExports(
       for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
         bundleGraph.getExportedSymbols(entry, bundle),
       )) {
-        if (symbol != null && symbol !== false) {
+        if (symbol === false) {
+          // skipped
+        } else if (symbol === null) {
+          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
+          let relativePath = relative(options.projectRoot, asset.filePath);
+          throw getThrowableDiagnosticForNode(
+            `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+            entry.filePath,
+            loc,
+          );
+        } else if (symbol != null && symbol !== false) {
           let hasReplacement = replacements.get(symbol);
           symbol = hasReplacement ?? symbol;
 
@@ -488,22 +498,6 @@ export function generateExports(
             ]);
             maybeReplaceIdentifier(decl.get('expression.right'));
           }
-        } else if (symbol === null) {
-          // TODO `meta.exportsIdentifier[exportSymbol]` should be exported
-          let relativePath = relative(options.projectRoot, asset.filePath);
-          throw getThrowableDiagnosticForNode(
-            `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
-            entry.filePath,
-            loc,
-          );
-        } else {
-          // Reexport that couldn't be resolved
-          let relativePath = relative(options.projectRoot, asset.filePath);
-          throw getThrowableDiagnosticForNode(
-            `${relativePath} does not export '${exportSymbol}'`,
-            entry.filePath,
-            loc,
-          );
         }
       }
     }

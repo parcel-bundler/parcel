@@ -143,7 +143,19 @@ export function generateExports(
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
       bundleGraph.getExportedSymbols(entry, bundle),
     )) {
-      if (symbol != null && symbol !== false) {
+      if (symbol === false) {
+        // skipped
+      } else if (symbol === null) {
+        // TODO `asset.meta.exportsIdentifier[exportSymbol]` should be exported
+        let relativePath = relative(options.projectRoot, asset.filePath);
+        throw getThrowableDiagnosticForNode(
+          `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
+          entry.filePath,
+          loc,
+        );
+        // exportedIdentifiersBailout.set(exportAs, [asset, exportSymbol]);
+      } else {
+        invariant(symbol != null);
         symbol = replacements.get(symbol) || symbol;
 
         // Map CommonJS module.exports assignments to default ESM exports for interop
@@ -165,22 +177,6 @@ export function generateExports(
         }
 
         exportedIdentifiers.set(exportAs, symbol);
-      } else if (symbol === null) {
-        // `asset.meta.exportsIdentifier[exportSymbol]` should be exported
-        let relativePath = relative(options.projectRoot, asset.filePath);
-        throw getThrowableDiagnosticForNode(
-          `${relativePath} couldn't be statically analyzed when importing '${exportSymbol}'`,
-          entry.filePath,
-          loc,
-        );
-        // exportedIdentifiersBailout.set(exportAs, [asset, exportSymbol]);
-      } else {
-        let relativePath = relative(options.projectRoot, asset.filePath);
-        throw getThrowableDiagnosticForNode(
-          `${relativePath} does not export '${exportSymbol}'`,
-          entry.filePath,
-          loc,
-        );
       }
     }
   }
