@@ -258,6 +258,9 @@ async function run(entries: Array<string>, command: any) {
             ? parcel.stopProfiling()
             : parcel.startProfiling());
           break;
+        case 'y':
+          await parcel.takeHeapSnapshot();
+          break;
       }
     });
 
