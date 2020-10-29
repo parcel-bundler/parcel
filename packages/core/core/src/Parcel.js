@@ -322,6 +322,7 @@ export default class Parcel {
     return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       (err, events) => {
+        console.log('EVENTS', events);
         if (err) {
           this.#watchEvents.emit({error: err});
           return;
