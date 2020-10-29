@@ -1,6 +1,7 @@
 {
   "name": "@parcel/workers",
   "version": "2.0.0-beta.1",
+  "types": "index.d.ts",
   "description": "Blazing fast, zero configuration web application bundler",
   "license": "MIT",
   "publishConfig": {

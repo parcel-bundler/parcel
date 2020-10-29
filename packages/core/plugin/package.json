@@ -1,6 +1,7 @@
 {
   "name": "@parcel/plugin",
   "version": "2.0.0-beta.1",
+  "types": "index.d.ts",
   "license": "MIT",
   "publishConfig": {
     "access": "public"

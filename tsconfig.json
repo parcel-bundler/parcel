@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@parcel/core": ["packages/core/core"],
+      "@parcel/workers": ["packages/core/workers"],
+      "@parcel/diagnostic": ["packages/core/diagnostic"],
+      "@parcel/package-manager": ["packages/core/package-manager"],
+      "@parcel/fs": ["packages/core/fs"],
+      "@parcel/logger": ["packages/core/logger"],
+      "@parcel/plugin": ["packages/core/plugin"]
+    }
+  },
+  "include": ["packages/core/*/index.d.ts"]
+}

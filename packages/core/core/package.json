@@ -1,6 +1,7 @@
 {
   "name": "@parcel/core",
   "version": "2.0.0-beta.1",
+  "types": "index.d.ts",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -31,6 +32,7 @@
     "@parcel/types": "2.0.0-beta.1",
     "@parcel/utils": "2.0.0-beta.1",
     "@parcel/workers": "2.0.0-beta.1",
+    "@types/node": "*",
     "abortcontroller-polyfill": "^1.1.9",
     "base-x": "^3.0.8",
     "browserslist": "^4.6.6",
