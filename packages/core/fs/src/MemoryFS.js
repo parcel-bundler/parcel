@@ -638,7 +638,9 @@ class Watcher {
       );
     }
 
-    this.fn(null, events);
+    if (events.length > 0) {
+      this.fn(null, events);
+    }
   }
 }
 
