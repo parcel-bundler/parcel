@@ -27,7 +27,7 @@ import fs from 'fs';
 import ejs from 'ejs';
 import connect from 'connect';
 import serveHandler from 'serve-handler';
-import httpProxyMiddleware from 'http-proxy-middleware';
+import {createProxyMiddleware} from 'http-proxy-middleware';
 import {URL} from 'url';
 
 function setHeaders(res: Response) {
@@ -308,6 +308,7 @@ export default class Server extends EventEmitter {
     const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
       '.proxyrc.js',
       '.proxyrc',
+      '.proxyrc.json',
     ]);
 
     if (!pkg || !pkg.config || !pkg.files) {
@@ -326,7 +327,7 @@ export default class Server extends EventEmitter {
         return this;
       }
       cfg(app);
-    } else if (filename === '.proxyrc') {
+    } else if (filename === '.proxyrc' || filename === '.proxyrc.json') {
       if (typeof cfg !== 'object') {
         this.options.logger.warn({
           message:
@@ -336,7 +337,7 @@ export default class Server extends EventEmitter {
       }
       for (const [context, options] of Object.entries(cfg)) {
         // each key is interpreted as context, and value as middleware options
-        app.use(httpProxyMiddleware(context, options));
+        app.use(createProxyMiddleware(context, options));
       }
     }
 

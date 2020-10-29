@@ -249,8 +249,8 @@ export type BuildMode = 'development' | 'production' | string;
 export type InitialParcelOptions = {|
   +entries?: FilePath | Array<FilePath>,
   +entryRoot?: FilePath,
-  +config?: ResolvedParcelConfigFile,
-  +defaultConfig?: ResolvedParcelConfigFile,
+  +config?: ModuleSpecifier,
+  +defaultConfig?: ModuleSpecifier,
   +env?: EnvMap,
   +targets?: ?(Array<string> | {+[string]: TargetDescriptor, ...}),
 
@@ -478,7 +478,6 @@ export interface BaseAsset {
   getMap(): Promise<?SourceMap>;
   /** A buffer representation of the sourcemap (if existent). */
   getMapBuffer(): Promise<?Buffer>;
-  getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   /** Used to load config files, (looks in every parent folder until a module root) \
    * for the specified filenames. <code>packageKey</code> can be used to also check <code>pkg#[packageKey]</code>.
@@ -505,8 +504,9 @@ export interface MutableAsset extends BaseAsset {
   type: string;
 
   addDependency(dep: DependencyOptions): string;
-  addIncludedFile(file: File): void;
+  addIncludedFile(filePath: FilePath): void;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
+  invalidateOnEnvChange(env: string): void;
 
   +symbols: MutableSymbols;
 
@@ -1015,10 +1015,12 @@ export type ResolveResult = {|
   +sideEffects?: boolean,
   /** A resolver might want to resolve to a dummy, in this case <code>filePath</code> is rather "resolve from". */
   +code?: string,
-  /** Whether this dependency can be deferred by Parcel itself (true by default) */
+  /** Whether this dependency can be deferred by Parcel itself (true by default). */
   +canDefer?: boolean,
-  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
+  /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed. */
   +diagnostics?: Diagnostic | Array<Diagnostic>,
+  /** Is spread (shallowly merged) onto the request's dependency.meta */
+  +meta?: JSONObject,
 |};
 
 export type ConfigOutput = {|
@@ -1091,11 +1093,17 @@ export type Runtime = {|
  * @section packager
  */
 export type Packager = {|
+  loadConfig?: ({|
+    bundle: NamedBundle,
+    options: PluginOptions,
+    logger: PluginLogger,
+  |}) => Async<?ConfigOutput>,
   package({|
     bundle: NamedBundle,
     bundleGraph: BundleGraph<NamedBundle>,
     options: PluginOptions,
     logger: PluginLogger,
+    config: ?ConfigResult,
     getInlineBundleContents: (
       Bundle,
       BundleGraph<NamedBundle>,

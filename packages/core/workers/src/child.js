@@ -150,13 +150,32 @@ export class Child {
       } catch (e) {
         result = errorResponseFromError(e);
       }
+    } else if (method === 'takeHeapSnapshot') {
+      try {
+        let v8 = require('v8');
+        result = responseFromContent(
+          // $FlowFixMe
+          v8.writeHeapSnapshot(
+            'heap-' +
+              args[0] +
+              '-' +
+              (this.childId ? 'worker' + this.childId : 'main') +
+              '.heapsnapshot',
+          ),
+        );
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
     } else if (method === 'createSharedReference') {
       let [ref, value] = args;
       this.sharedReferences.set(ref, value);
       this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
     } else if (method === 'deleteSharedReference') {
-      this.sharedReferences.delete(args[0]);
+      let ref = args[0];
+      let value = this.sharedReferences.get(ref);
+      this.sharedReferencesByValue.delete(value);
+      this.sharedReferences.delete(ref);
       result = responseFromContent(null);
     } else {
       try {
