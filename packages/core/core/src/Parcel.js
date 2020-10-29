@@ -329,6 +329,7 @@ export default class Parcel {
         }
 
         let isInvalid = this.#requestTracker.respondToFSEvents(events);
+        console.log('IS INVALID', isInvalid);
         if (isInvalid && this.#watchQueue.getNumWaiting() === 0) {
           if (this.#watchAbortController) {
             this.#watchAbortController.abort();
