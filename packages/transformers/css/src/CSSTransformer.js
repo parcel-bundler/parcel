@@ -19,7 +19,7 @@ function canHaveDependencies(filePath: FilePath, code: string) {
 
 export default (new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
+    return ast.type === 'postcss' && semver.satisfies(ast.version, '^8.0.0');
   },
 
   async parse({asset}) {
@@ -40,7 +40,7 @@ export default (new Transformer({
 
     return {
       type: 'postcss',
-      version: '7.0.0',
+      version: '8.0.0',
       program: postcss.parse(code, {
         from: asset.filePath,
       }),
@@ -207,7 +207,7 @@ export default (new Transformer({
 
     let map;
     if (result.map != null) {
-      map = new SourceMap();
+      map = new SourceMap(options.projectRoot);
       map.addRawMappings(result.map.toJSON());
     }
 

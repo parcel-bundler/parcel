@@ -59,6 +59,7 @@ async function run({input, api, options}: RunOpts) {
     config: new ParcelConfig(
       config,
       options.packageManager,
+      options.inputFS,
       options.autoinstall,
     ),
   });
@@ -177,6 +178,13 @@ export class ResolverRunner {
         });
 
         if (result) {
+          if (result.meta) {
+            dependency.meta = {
+              ...dependency.meta,
+              ...result.meta,
+            };
+          }
+
           if (result.isExcluded) {
             return null;
           }

@@ -169,7 +169,6 @@ function dereferenceIdentifier(node, scope) {
     if (i >= 0) {
       binding.dereference();
       binding.referencePaths.splice(i, 1);
-      return;
     }
 
     let j = binding.constantViolations.findIndex(v =>
@@ -180,7 +179,6 @@ function dereferenceIdentifier(node, scope) {
       if (binding.constantViolations.length == 0) {
         binding.constant = true;
       }
-      return;
     }
   }
 }
@@ -287,10 +285,12 @@ export function getThrowableDiagnosticForNode(
   }
   if (loc) {
     diagnostic.codeFrame = {
-      codeHighlights: {
-        start: loc.start,
-        end: loc.end,
-      },
+      codeHighlights: [
+        {
+          start: loc.start,
+          end: loc.end,
+        },
+      ],
     };
   }
   return new ThrowableDiagnostic({

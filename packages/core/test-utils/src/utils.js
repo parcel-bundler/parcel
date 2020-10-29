@@ -10,7 +10,6 @@ import type {
 
 import invariant from 'assert';
 import Parcel, {createWorkerFarm} from '@parcel/core';
-import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
@@ -49,12 +48,6 @@ export async function ncp(source: FilePath, destination: FilePath) {
 //   // Spin down the worker farm to stop it from preventing the main process from exiting
 //   await workerFarm.end();
 // when https://github.com/nodejs/node/pull/28788 is resolved.
-
-export const defaultConfig = {
-  ...defaultConfigContents,
-  filePath: (require.resolve('@parcel/config-default'): string),
-  reporters: ([]: Array<any>),
-};
 
 const chalk = new _chalk.constructor({enabled: true});
 const warning = chalk.keyword('orange');
@@ -106,12 +99,12 @@ export function bundler(
     entries,
     disableCache: true,
     logLevel: 'none',
-    defaultConfig,
+    defaultConfig: path.join(__dirname, '.parcelrc-no-reporters'),
     inputFS,
     outputFS,
     workerFarm,
     distDir,
-    packageManager: new NodePackageManager(inputFS),
+    packageManager: new NodePackageManager(opts?.inputFS || inputFS),
     defaultEngines: {
       browsers: ['last 1 Chrome version'],
       node: '8',
@@ -125,7 +118,7 @@ export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
 ): Promise<BundleGraph<NamedBundle>> {
-  return nullthrows(await bundler(entries, opts).run());
+  return (await bundler(entries, opts).run()).bundleGraph;
 }
 
 export function getNextBuild(b: Parcel): Promise<BuildEvent> {
@@ -214,9 +207,13 @@ export async function runBundles(
       case 'global':
         if (env.scopeHoist) {
           return typeof ctx.output !== 'undefined' ? ctx.output : undefined;
-        } else if (ctx.parcelRequire) {
-          // $FlowFixMe
-          return ctx.parcelRequire(bundleGraph.getAssetPublicId(entryAsset));
+        } else {
+          for (let key in ctx) {
+            if (key.startsWith('parcelRequire')) {
+              // $FlowFixMe
+              return ctx[key](bundleGraph.getAssetPublicId(entryAsset));
+            }
+          }
         }
         return;
       case 'commonjs':
@@ -285,10 +282,6 @@ export function assertBundles(
     name?: string | RegExp,
     type?: string,
     assets: Array<string>,
-    includedFiles?: {
-      [key: string]: Array<string>,
-      ...,
-    },
   |}>,
 ) {
   let actualBundles = [];
@@ -296,15 +289,10 @@ export function assertBundles(
 
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
-    const includedFiles = {};
 
     bundle.traverseAssets(asset => {
       const name = path.basename(asset.filePath);
       assets.push(name);
-      includedFiles[name] = asset
-        .getIncludedFiles()
-        .map(({filePath}) => path.basename(filePath))
-        .sort(byAlphabet);
     });
 
     assets.sort(byAlphabet);
@@ -312,7 +300,6 @@ export function assertBundles(
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
       assets,
-      includedFiles,
     });
   });
 
@@ -368,19 +355,6 @@ export function assertBundles(
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
     }
-
-    if (bundle.includedFiles) {
-      for (let asset of actualBundle.assets) {
-        const files = bundle.includedFiles[asset];
-        if (!files) {
-          continue;
-        }
-        assert.deepEqual(
-          actualBundle.includedFiles[asset],
-          files.sort(byAlphabet),
-        );
-      }
-    }
   }
 }
 
@@ -391,45 +365,51 @@ export function normaliseNewlines(text: string): string {
 function prepareBrowserContext(
   filePath: FilePath,
   globals: mixed,
-): {|ctx: vm$Context, promises: Array<Promise<mixed>>|} {
+): {|
+  ctx: vm$Context,
+  promises: Array<Promise<mixed>>,
+|} {
   // for testing dynamic imports
   const fakeElement = {
     remove() {},
   };
 
+  const head = {
+    children: [],
+    appendChild(el) {
+      head.children.push(el);
+
+      if (el.tag === 'script') {
+        let {deferred, promise} = makeDeferredWithPromise();
+        promises.push(promise);
+        setTimeout(function() {
+          vm.runInContext(
+            overlayFS.readFileSync(
+              path.join(path.dirname(filePath), url.parse(el.src).pathname),
+              'utf8',
+            ),
+            ctx,
+          );
+
+          el.onload();
+          deferred.resolve();
+        }, 0);
+      } else if (typeof el.onload === 'function') {
+        el.onload();
+      }
+    },
+  };
+
   let promises = [];
 
   const fakeDocument = {
+    head,
     createElement(tag) {
       return {tag};
     },
 
     getElementsByTagName() {
-      return [
-        {
-          appendChild(el) {
-            let {deferred, promise} = makeDeferredWithPromise();
-            promises.push(promise);
-            setTimeout(function() {
-              if (el.tag === 'script') {
-                vm.runInContext(
-                  overlayFS.readFileSync(
-                    path.join(
-                      path.dirname(filePath),
-                      url.parse(el.src).pathname,
-                    ),
-                    'utf8',
-                  ),
-                  ctx,
-                );
-              }
-
-              el.onload();
-              deferred.resolve();
-            }, 0);
-          },
-        },
-      ];
+      return [head];
     },
 
     createEvent() {
@@ -538,6 +518,7 @@ function prepareNodeContext(filePath, globals) {
     }
 
     if (res === specifier) {
+      // $FlowFixMe
       return require(specifier);
     }
 

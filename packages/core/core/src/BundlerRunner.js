@@ -81,7 +81,10 @@ export default class BundlerRunner {
     }
 
     let cacheKey;
-    if (!this.options.disableCache) {
+    if (
+      !this.options.disableCache &&
+      !this.runtimesBuilder.requestTracker.hasInvalidRequests()
+    ) {
       cacheKey = await this.getCacheKey(graph, configResult);
       let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
         cacheKey,
@@ -192,6 +195,7 @@ export default class BundlerRunner {
       version: string,
       plugin: Namer,
       resolveFrom: FilePath,
+      keyPath: string,
     |}>,
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph,
