@@ -15,7 +15,7 @@ const config = path.join(
   './integration/custom-configs/.parcelrc-typescript-validation',
 );
 
-describe('ts-validator', function() {
+describe.only('ts-validator', function() {
   let subscription;
   afterEach(async () => {
     if (subscription) {
@@ -117,7 +117,7 @@ describe('ts-validator', function() {
     );
   });
 
-  it('should report correct errors when multiple .ts files change at the same time - no errors', async function() {
+  it.only('should report correct errors when multiple .ts files change at the same time - no errors', async function() {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change');
@@ -161,7 +161,7 @@ describe('ts-validator', function() {
     assert.equal(output.output, 123456);
   });
 
-  it('should report correct errors when multiple .ts files change at the same time - with errors', async function() {
+  it.only('should report correct errors when multiple .ts files change at the same time - with errors', async function() {
     // We to try to avoid conflicts between tests using the same in-memory file system, we're creating a separate folder.
     // During the first test pass, this is unnecessary, but because fileSystems won't be re-created when running in 'watch' mode, this is safer.
     const inputDir = path.join(__dirname, '/ts-validator-multi-change-errors');

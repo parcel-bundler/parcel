@@ -244,6 +244,7 @@ export default class Parcel {
     signal?: AbortSignal,
     startTime?: number,
   |}): Promise<BuildEvent> {
+    console.log('BUILDING');
     this.#requestTracker.setSignal(signal);
     let options = nullthrows(this.#resolvedOptions);
     try {
@@ -286,6 +287,7 @@ export default class Parcel {
       };
 
       await this.#reporterRunner.report(event);
+      console.log('RUNNING VALIDATIONS', assetRequests);
       await this.#requestTracker.runRequest(
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
