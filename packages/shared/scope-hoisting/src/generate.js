@@ -9,6 +9,7 @@ import type {
 import type {
   ArrayExpression,
   ExpressionStatement,
+  Identifier,
   File,
   Statement,
 } from '@babel/types';
@@ -24,6 +25,7 @@ const REGISTER_TEMPLATE = template.statement<
   {|
     REFERENCED_IDS: ArrayExpression,
     STATEMENTS: Array<Statement>,
+    PARCEL_REQUIRE: Identifier,
   |},
   ExpressionStatement,
 >(`(function() {
@@ -34,7 +36,7 @@ const REGISTER_TEMPLATE = template.statement<
   }
   var $parcel$referencedAssets = REFERENCED_IDS;
   for (var $parcel$i = 0; $parcel$i < $parcel$referencedAssets.length; $parcel$i++) {
-    parcelRequire.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
+    PARCEL_REQUIRE.registerBundle($parcel$referencedAssets[$parcel$i], $parcel$bundleWrapper);
   }
 })()`);
 const WRAPPER_TEMPLATE = template.statement<
@@ -47,6 +49,7 @@ export function generate({
   bundle,
   ast,
   referencedAssets,
+  parcelRequireName,
   options,
 }: {|
   bundleGraph: BundleGraph<NamedBundle>,
@@ -54,6 +57,7 @@ export function generate({
   ast: File,
   options: PluginOptions,
   referencedAssets: Set<Asset>,
+  parcelRequireName: string,
 |}): {|contents: string, map: ?SourceMap|} {
   let interpreter;
   let mainEntry = bundle.getMainEntry();
@@ -80,6 +84,7 @@ export function generate({
                   t.stringLiteral(bundleGraph.getAssetPublicId(asset)),
                 ),
             ),
+            PARCEL_REQUIRE: t.identifier(parcelRequireName),
           }),
         ]
       : [WRAPPER_TEMPLATE({STATEMENTS: statements})];

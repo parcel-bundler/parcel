@@ -208,6 +208,11 @@ async function run(entries: Array<string>, command: any) {
       await parcel.stopProfiling();
     }
 
+    if (process.stdin.isTTY && process.stdin.isRaw) {
+      // $FlowFixMe
+      process.stdin.setRawMode(false);
+    }
+
     disposable.dispose();
     process.exit(exitCode);
   }
@@ -252,6 +257,9 @@ async function run(entries: Array<string>, command: any) {
           await (parcel.isProfiling
             ? parcel.stopProfiling()
             : parcel.startProfiling());
+          break;
+        case 'y':
+          await parcel.takeHeapSnapshot();
           break;
       }
     });

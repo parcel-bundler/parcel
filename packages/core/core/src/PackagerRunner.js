@@ -9,7 +9,6 @@ import type {
   NamedBundle as NamedBundleType,
   Async,
   ConfigOutput,
-  ConfigResult,
 } from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type WorkerFarm, {SharedReference} from '@parcel/workers';
@@ -178,6 +177,23 @@ export default class PackagerRunner {
     };
   }
 
+  async loadConfigs(
+    bundleGraph: InternalBundleGraph,
+    bundle: InternalBundle,
+  ): Promise<Map<string, ?ConfigOutput>> {
+    let configs = new Map();
+
+    configs.set(bundle.id, await this.loadConfig(bundleGraph, bundle));
+    for (let inlineBundle of bundleGraph.getInlineBundles(bundle)) {
+      configs.set(
+        inlineBundle.id,
+        await this.loadConfig(bundleGraph, inlineBundle),
+      );
+    }
+
+    return configs;
+  }
+
   async loadConfig(
     bundleGraph: InternalBundleGraph,
     bundle: InternalBundle,
@@ -214,12 +230,12 @@ export default class PackagerRunner {
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
     cacheKeys: CacheKeyMap,
-    config: ConfigResult,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<BundleInfo> {
     let {type, contents, map} = await this.getBundleResult(
       bundle,
       bundleGraph,
-      config,
+      configs,
     );
 
     return this.writeToCache(cacheKeys, type, contents, map);
@@ -228,7 +244,7 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    config: ConfigResult,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<{|
     type: string,
     contents: Blob,
@@ -236,7 +252,7 @@ export default class PackagerRunner {
   |}> {
     await initSourcemaps;
 
-    let packaged = await this.package(bundle, bundleGraph, config);
+    let packaged = await this.package(bundle, bundleGraph, configs);
     let type = packaged.type ?? bundle.type;
     let res = await this.optimize(
       bundle,
@@ -270,7 +286,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    config: ConfigResult,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<BundleResult> {
     let bundle = NamedBundle.get(internalBundle, bundleGraph, this.options);
     this.report({
@@ -282,7 +298,7 @@ export default class PackagerRunner {
     let {name, plugin} = await this.config.getPackager(bundle.filePath);
     try {
       return await plugin.package({
-        config,
+        config: configs.get(bundle.id)?.config,
         bundle,
         bundleGraph: new BundleGraph<NamedBundleType>(
           bundleGraph,
@@ -308,6 +324,7 @@ export default class PackagerRunner {
             bundleToInternalBundle(bundle),
             // $FlowFixMe
             bundleGraphToInternalBundleGraph(bundleGraph),
+            configs,
           );
 
           return {contents: res.contents};
@@ -442,7 +459,7 @@ export default class PackagerRunner {
   async getCacheKey(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph,
-    configResult: ?ConfigResult,
+    configs: Map<string, ?ConfigOutput>,
   ): Promise<string> {
     let filePath = nullthrows(bundle.filePath);
     // TODO: include packagers and optimizers used in inline bundles as well
@@ -450,6 +467,11 @@ export default class PackagerRunner {
     let optimizers = (
       await this.config.getOptimizers(filePath)
     ).map(({name, version}) => [name, version]);
+
+    let configResults = {};
+    for (let [id, config] of configs) {
+      configResults[id] = config?.config;
+    }
 
     // TODO: add third party configs to the cache key
     let {publicUrl} = bundle.target;
@@ -459,7 +481,7 @@ export default class PackagerRunner {
       optimizers,
       target: {publicUrl},
       hash: bundleGraph.getHash(bundle),
-      configResult,
+      configResults,
     });
   }
 
