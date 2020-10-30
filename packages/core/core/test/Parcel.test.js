@@ -32,32 +32,34 @@ describe('Parcel', function() {
   });
 
   describe('parcel.end()', () => {
-    it('ends any WorkerFarm it creates', async () => {
-      let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
-      let parcel = createParcel();
-      await parcel.run();
-      assert.equal(endSpy.callCount, 1);
+    let endSpy;
+    beforeEach(() => {
+      endSpy = sinon.spy(WorkerFarm.prototype, 'end');
+    });
+
+    afterEach(() => {
       endSpy.restore();
     });
 
+    it('ends any WorkerFarm it creates', async () => {
+      let parcel = createParcel();
+      await parcel.run();
+      assert.equal(endSpy.callCount, 1);
+    });
+
     it('runs and constructs another farm for subsequent builds', async () => {
-      let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
       let parcel = createParcel();
 
       await parcel.run();
       await parcel.run();
 
       assert.equal(endSpy.callCount, 2);
-      endSpy.restore();
     });
 
     it('does not end passed WorkerFarms', async () => {
-      let endSpy = sinon.spy(WorkerFarm.prototype, 'end');
-
       let parcel = createParcel({workerFarm});
       await parcel.run();
       assert.equal(endSpy.callCount, 0);
-      endSpy.restore();
 
       await workerFarm.end();
     });
