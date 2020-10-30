@@ -49,7 +49,7 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
   // If the entry specifier is a glob, add a glob node so
   // we invalidate when a new file matches.
   if (isGlob(input)) {
-    api.invalidateOnFileCreate(input);
+    api.invalidateOnFileCreate({glob: input});
   }
 
   // Invalidate whenever an entry is deleted.

@@ -262,7 +262,7 @@ export class TargetResolver {
 
     // Invalidate whenever a package.json file is added.
     // TODO: we really only need to invalidate if added *above* rootDir...
-    this.api.invalidateOnFileCreate(`**/package.json`);
+    this.api.invalidateOnFileCreate({glob: `**/package.json`});
 
     let pkg;
     let pkgContents;
@@ -314,7 +314,7 @@ export class TargetResolver {
           ['browserslist', '.browserslistrc'],
         );
 
-        this.api.invalidateOnFileCreate('**/{browserslist,.browserslistrc}');
+        this.api.invalidateOnFileCreate({glob: '**/{browserslist,.browserslistrc}'});
 
         if (browserslistConfig != null) {
           let contents = await this.fs.readFile(browserslistConfig, 'utf8');

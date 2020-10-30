@@ -32,7 +32,7 @@ const BROWSER_ENV = {
   },
 };
 
-describe('resolver', function() {
+describe.only('resolver', function() {
   let resolver;
 
   beforeEach(async function() {
@@ -147,6 +147,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: require.resolve('browserify-zlib'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          require.resolve('browserify-zlib/package.json'),
+        ]
       });
     });
 
@@ -160,6 +165,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(__dirname, '..', 'package.json')
+        ]
       });
     });
 
@@ -185,6 +195,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'foo', 'package.json')
+        ]
       });
     });
 
@@ -198,6 +213,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-main', 'main.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-main', 'package.json')
+        ]
       });
     });
 
@@ -216,6 +236,11 @@ describe('resolver', function() {
           'module.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-module', 'package.json')
+        ]
       });
     });
 
@@ -234,6 +259,11 @@ describe('resolver', function() {
           'browser.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser', 'package.json')
+        ]
       });
     });
 
@@ -252,6 +282,11 @@ describe('resolver', function() {
           'main.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser', 'package.json')
+        ]
       });
     });
 
@@ -270,10 +305,17 @@ describe('resolver', function() {
           'index.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [
+          
+        ],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-fallback', 'package.json')
+        ]
       });
     });
 
-    it('should resolve a node_module package.main pointing to a directory', async function() {
+    it.only('should resolve a node_module package.main pointing to a directory', async function() {
       let resolved = await resolver.resolve({
         env: BROWSER_ENV,
         filename: 'package-main-directory',
@@ -289,6 +331,16 @@ describe('resolver', function() {
           'index.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [
+          {
+            filePath: path.join(rootDir, 'node_modules', 'package-main-directory', 'nested'),
+            extensions: new Set(['.js', '.json'])
+          }
+        ],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-main-directory', 'package.json')
+        ]
       });
     });
 
@@ -302,6 +354,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'nested', 'baz.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'foo', 'package.json')
+        ]
       });
     });
 
@@ -315,6 +372,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/index.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json')
+        ]
       });
     });
 
@@ -328,6 +390,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.resolve(rootDir, 'node_modules/@scope/pkg/foo/bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', '@scope', 'pkg', 'package.json')
+        ]
       });
     });
   });
@@ -348,6 +415,11 @@ describe('resolver', function() {
           'browser.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
+        ]
       });
     });
 
@@ -366,6 +438,11 @@ describe('resolver', function() {
           'bar.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
+        ]
       });
     });
 
@@ -389,6 +466,11 @@ describe('resolver', function() {
           'bar.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
+        ]
       });
     });
 
@@ -407,6 +489,11 @@ describe('resolver', function() {
           'foo.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
+        ]
       });
     });
 
@@ -430,6 +517,11 @@ describe('resolver', function() {
           'subfolder1/subfolder2/subfile.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser-alias', 'package.json')
+        ]
       });
     });
 
@@ -443,6 +535,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
+        ]
       });
     });
 
@@ -461,6 +558,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'package-alias', 'bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
+        ]
       });
     });
 
@@ -485,6 +587,11 @@ describe('resolver', function() {
           'test.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias-glob', 'package.json')
+        ]
       });
     });
 
@@ -498,6 +605,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'foo', 'package.json')
+        ]
       });
     });
 
@@ -511,6 +623,12 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'index.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
+          path.join(rootDir, 'node_modules', 'foo', 'package.json')
+        ]
       });
     });
 
@@ -524,6 +642,12 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'foo', 'bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json'),
+          path.join(rootDir, 'node_modules', 'foo', 'package.json')
+        ]
       });
     });
 
@@ -537,6 +661,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -550,6 +678,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
+        ]
       });
     });
 
@@ -563,6 +696,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -576,6 +713,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -589,6 +730,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -602,6 +747,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'index.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -615,6 +764,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'bar.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -628,6 +781,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -641,6 +798,10 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+        ]
       });
     });
 
@@ -654,6 +815,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'nested', 'test.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias', 'package.json')
+        ]
       });
     });
 
@@ -667,6 +833,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-browser-exclude', 'package.json')
+        ]
       });
     });
 
@@ -680,6 +851,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(__dirname, '..', 'src', '_empty.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'package-alias-exclude', 'package.json')
+        ]
       });
     });
   });
@@ -695,6 +871,11 @@ describe('resolver', function() {
       assert.deepEqual(resolved, {
         filePath: path.join(rootDir, 'node_modules', 'source', 'source.js'),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'source', 'package.json')
+        ]
       });
     });
 
@@ -713,6 +894,11 @@ describe('resolver', function() {
           'dist.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'source-not-symlinked', 'package.json')
+        ]
       });
     });
 
@@ -731,6 +917,11 @@ describe('resolver', function() {
           'source.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'source-alias', 'package.json')
+        ]
       });
     });
 
@@ -750,6 +941,11 @@ describe('resolver', function() {
           'test.js',
         ),
         sideEffects: undefined,
+        invalidateOnFileCreate: [],
+        invalidateOnFileChange: [
+          path.join(rootDir, 'package.json'),
+          path.join(rootDir, 'node_modules', 'source-alias-glob', 'package.json')
+        ]
       });
     });
   });

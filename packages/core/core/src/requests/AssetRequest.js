@@ -106,7 +106,7 @@ async function run({input, api, options, farm}: RunInput) {
         }
 
         if (watchGlob != null) {
-          api.invalidateOnFileCreate(watchGlob);
+          api.invalidateOnFileCreate({glob: watchGlob});
         }
 
         if (shouldInvalidateOnStartup) {

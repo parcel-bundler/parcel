@@ -1,7 +1,7 @@
 // @flow strict-local
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {Async, QueryParameters} from '@parcel/types';
-import type {StaticRunOpts} from '../RequestTracker';
+import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {AssetGroup, Dependency, ParcelOptions} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
@@ -62,6 +62,7 @@ async function run({input, api, options}: RunOpts) {
       options.inputFS,
       options.autoinstall,
     ),
+    api,
   });
   let assetGroup = await resolverRunner.resolve(input);
 
@@ -75,17 +76,20 @@ async function run({input, api, options}: RunOpts) {
 type ResolverRunnerOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
+  api: RunAPI,
 |};
 
 export class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
   pluginOptions: PluginOptions;
+  api: RunAPI;
 
-  constructor({config, options}: ResolverRunnerOpts) {
+  constructor({config, options, api}: ResolverRunnerOpts) {
     this.config = config;
     this.options = options;
     this.pluginOptions = new PluginOptions(this.options);
+    this.api = api;
   }
 
   async getThrowableDiagnostic(
@@ -178,6 +182,19 @@ export class ResolverRunner {
         });
 
         if (result) {
+          if (result.invalidateOnFileCreate) {
+            for (let file of result.invalidateOnFileCreate) {
+              this.api.invalidateOnFileCreate(file);
+            }
+          }
+
+          if (result.invalidateOnFileChange) {
+            for (let filePath of result.invalidateOnFileChange) {
+              this.api.invalidateOnFileUpdate(filePath);
+              this.api.invalidateOnFileDelete(filePath);
+            }
+          }
+
           if (result.isExcluded) {
             return null;
           }

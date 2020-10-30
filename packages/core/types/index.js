@@ -1005,6 +1005,30 @@ export type BundleResult = {|
   +type?: string,
 |};
 
+export type GlobInvalidation = {|
+  glob: Glob
+|};
+
+export type FileInvalidation = {|
+  filePath: FilePath
+|};
+
+export type ExtensionlessFileInvalidation = {|
+  filePath: FilePath,
+  extensions: Set<string>
+|};
+
+export type FileAboveInvalidation = {|
+  fileName: string,
+  aboveFilePath: FilePath
+|};
+
+export type FileCreateInvalidation = 
+  | FileInvalidation
+  | GlobInvalidation
+  | ExtensionlessFileInvalidation
+  | FileAboveInvalidation;
+
 /**
  * @section resolver
  */
@@ -1019,6 +1043,8 @@ export type ResolveResult = {|
   +canDefer?: boolean,
   /** A resolver might return diagnostics to also run subsequent resolvers while still providing a reason why it failed*/
   +diagnostics?: Diagnostic | Array<Diagnostic>,
+  +invalidateOnFileCreate?: Array<FileCreateInvalidation>;
+  +invalidateOnFileChange?: Array<FilePath>;
 |};
 
 export type ConfigOutput = {|

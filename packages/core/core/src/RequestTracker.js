@@ -1,14 +1,15 @@
 // @flow strict-local
 
 import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import type {Async, File, FilePath, Glob, EnvMap} from '@parcel/types';
+import type {Async, ExtensionlessFileInvalidation, File, FilePath, FileCreateInvalidation, Glob, EnvMap} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import type WorkerFarm from '@parcel/workers';
 import type {NodeId, ParcelOptions, RequestInvalidation} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {isGlobMatch} from '@parcel/utils';
+import {isGlobMatch, isDirectoryInside} from '@parcel/utils';
+import path from 'path';
 import Graph, {type GraphOpts} from './Graph';
 import {assertSignalNotAborted, hashFromOption} from './utils';
 
@@ -24,6 +25,16 @@ type SerializedRequestGraph = {|
 
 type FileNode = {|id: string, +type: 'file', value: File|};
 type GlobNode = {|id: string, +type: 'glob', value: Glob|};
+type ExtensionlessFileNode = {|
+  id: string,
+  +type: 'extensionless_file',
+  value: ExtensionlessFileInvalidation
+|};
+type FileNameNode = {|
+  id: string,
+  +type: 'file_name',
+  value: string
+|};
 type EnvNode = {|
   id: string,
   +type: 'env',
@@ -59,6 +70,8 @@ type RequestGraphNode =
   | RequestNode
   | FileNode
   | GlobNode
+  | ExtensionlessFileNode
+  | FileNameNode
   | EnvNode
   | OptionNode;
 
@@ -66,10 +79,12 @@ type RequestGraphEdgeType =
   | 'subrequest'
   | 'invalidated_by_update'
   | 'invalidated_by_delete'
-  | 'invalidated_by_create';
+  | 'invalidated_by_create'
+  | 'invalidated_by_create_above'
+  | 'dirname';
 
 export type RunAPI = {|
-  invalidateOnFileCreate: Glob => void,
+  invalidateOnFileCreate: (FileCreateInvalidation) => void,
   invalidateOnFileDelete: FilePath => void,
   invalidateOnFileUpdate: FilePath => void,
   invalidateOnStartup: () => void,
@@ -98,6 +113,19 @@ const nodeFromGlob = (glob: Glob) => ({
   id: glob,
   type: 'glob',
   value: glob,
+});
+
+const extensionlessFileNodeId = (filePath: FilePath) => 'extensionless_file:' + filePath;
+const nodeFromExtensionlessFilePath = (filePath: FilePath, extensions: Set<string>) => ({
+  id: extensionlessFileNodeId(filePath),
+  type: 'extensionless_file',
+  value: {filePath, extensions},
+});
+
+const nodeFromFileName = (fileName: string) => ({
+  id: 'file_name:' + fileName,
+  type: 'file_name',
+  value: fileName,
 });
 
 const nodeFromRequest = (request: StoredRequest) => ({
@@ -303,15 +331,57 @@ export class RequestGraph extends Graph<
     }
   }
 
-  invalidateOnFileCreate(requestId: string, glob: Glob) {
+  invalidateOnFileCreate(requestId: string, input: FileCreateInvalidation) {
     let requestNode = this.getRequestNode(requestId);
-    let globNode = nodeFromGlob(glob);
-    if (!this.hasNode(globNode.id)) {
-      this.addNode(globNode);
+    let node;
+    if (input.glob != null) {
+      node = nodeFromGlob(input.glob);
+    } else if (input.extensions) {
+      node = nodeFromExtensionlessFilePath(input.filePath, input.extensions);
+      if (this.hasNode(node.id)) {
+        node = this.getNode(node.id);
+        console.log(input, node)
+        invariant(node?.type === 'extensionless_file');
+        node.value.extensions = new Set([...node.value.extensions, ...input.extensions]);
+      }
+    } else if (input.fileName != null && input.aboveFilePath != null) {
+      let aboveFilePath = input.aboveFilePath;
+      let parts = input.fileName.split('/').reverse();
+      let last;
+      for (let part of parts) {
+        let fileNameNode = nodeFromFileName(part);
+        if (!this.hasNode(fileNameNode.id)) {
+          this.addNode(fileNameNode);
+        }
+
+        console.log(fileNameNode)
+
+        if (last != null && !this.hasEdge(last.id, fileNameNode.id, 'dirname')) {
+          this.addEdge(last.id, fileNameNode.id, 'dirname');
+        }
+
+        last = fileNameNode;
+      }
+      
+      node = nodeFromFilePath(aboveFilePath);
+      console.log(node)
+      if (!this.hasNode(node.id)) {
+        this.addNode(node);
+      }
+
+      if (last != null && !this.hasEdge(last.id, node.id, 'invalidated_by_create_above')) {
+        this.addEdge(node.id, last.id, 'invalidated_by_create_above');
+      }
+    } else {
+      throw new Error('Invalid invalidation');
     }
 
-    if (!this.hasEdge(requestNode.id, globNode.id, 'invalidated_by_create')) {
-      this.addEdge(requestNode.id, globNode.id, 'invalidated_by_create');
+    if (!this.hasNode(node.id)) {
+      this.addNode(node);
+    }
+
+    if (!this.hasEdge(requestNode.id, node.id, 'invalidated_by_create')) {
+      this.addEdge(requestNode.id, node.id, 'invalidated_by_create');
     }
   }
 
@@ -374,9 +444,33 @@ export class RequestGraph extends Graph<
       .filter(Boolean);
   }
 
+  invalidateFileNameNode(node: FileNameNode, filePath: FilePath) {
+    let dirname = path.dirname(filePath);
+    let above = this.getNodesConnectedTo(node, 'invalidated_by_create_above');
+    for (let aboveNode of above) {
+      invariant(aboveNode.type === 'file');
+      if (isDirectoryInside(aboveNode.value.filePath, dirname)) {
+        let connectedNodes = this.getNodesConnectedTo(
+          aboveNode,
+          'invalidated_by_create',
+        );
+        for (let connectedNode of connectedNodes) {
+          this.invalidateNode(connectedNode);
+        }
+      }
+    }
+
+    let basename = path.basename(dirname);
+    let parent = this.getNode('file_name: ' + basename);
+    if (parent != null && this.hasEdge(parent.id, node.id, 'dirname')) {
+      invariant(parent.type === 'file_name');
+      this.invalidateFileNameNode(parent, dirname);
+    }
+  }
+
   respondToFSEvents(events: Array<Event>): boolean {
-    for (let {path, type} of events) {
-      let node = this.getNode(path);
+    for (let {path: filePath, type} of events) {
+      let node = this.getNode(filePath);
 
       // sometimes mac os reports update events as create events
       // if it was a create event, but the file already exists in the graph,
@@ -389,11 +483,34 @@ export class RequestGraph extends Graph<
           this.invalidateNode(connectedNode);
         }
       } else if (type === 'create') {
+        let extension = path.extname(filePath);
+        let extensionlessFilePath = filePath.slice(0, -extension.length);
+        let extensionlessFileNode = this.getNode(extensionlessFileNodeId(extensionlessFilePath));
+
+        if (
+          extensionlessFileNode?.type === 'extensionless_file' && 
+          extensionlessFileNode.value.extensions.has(extension)
+        ) {
+          let connectedNodes = this.getNodesConnectedTo(
+            extensionlessFileNode,
+            'invalidated_by_create',
+          );
+          for (let connectedNode of connectedNodes) {
+            this.invalidateNode(connectedNode);
+          }
+        }
+        
+        let basename = path.basename(filePath);
+        let fileNameNode = this.getNode('file_name:' + basename);
+        if (fileNameNode?.type === 'file_name') {
+          this.invalidateFileNameNode(fileNameNode, filePath);
+        }
+
         for (let id of this.globNodeIds) {
           let globNode = this.getNode(id);
           invariant(globNode && globNode.type === 'glob');
 
-          if (isGlobMatch(path, globNode.value)) {
+          if (isGlobMatch(filePath, globNode.value)) {
             let connectedNodes = this.getNodesConnectedTo(
               globNode,
               'invalidated_by_create',
@@ -559,8 +676,8 @@ export default class RequestTracker {
   createAPI(requestId: string): {|api: RunAPI, subRequests: Set<NodeId>|} {
     let subRequests = new Set();
     let api = {
-      invalidateOnFileCreate: glob =>
-        this.graph.invalidateOnFileCreate(requestId, glob),
+      invalidateOnFileCreate: (input) =>
+        this.graph.invalidateOnFileCreate(requestId, input),
       invalidateOnFileDelete: filePath =>
         this.graph.invalidateOnFileDelete(requestId, filePath),
       invalidateOnFileUpdate: filePath =>

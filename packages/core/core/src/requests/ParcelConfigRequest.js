@@ -80,7 +80,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
       }
 
       if (usedDefault) {
-        api.invalidateOnFileCreate('**/.parcelrc');
+        api.invalidateOnFileCreate({glob: '**/.parcelrc'});
       }
 
       let cachePath = md5FromObject(config);
