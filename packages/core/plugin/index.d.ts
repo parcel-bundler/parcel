@@ -24,6 +24,7 @@ import {
   EnvironmentOptions,
   MutableAsset,
   MutableBundleGraph,
+  Target,
 } from '@parcel/core';
 import { Logger } from '@parcel/logger';
 import { FileSystem } from '@parcel/fs';
@@ -62,6 +63,11 @@ declare module '@parcel/core' {
     loc?: SourceLocation;
     env?: EnvironmentOptions;
     meta?: Meta;
+    target?: Target;
+    symbols?: ReadonlyMap<
+      string,
+      { local: string; loc?: SourceLocation; }
+    >;
   }>;
   /**
    * A modifiable asset for use with transformers
@@ -79,6 +85,7 @@ declare module '@parcel/core' {
         readonly moduleSpecifier?: string;
       },
     ): string;
+    invalidateOnEnvChange(env: string): void;
     readonly symbols: MutableSymbols;
     isASTDirty(): boolean;
     /** Returns null if AST missing */
@@ -334,6 +341,9 @@ export type ResolveResult = Readonly<{
   isExcluded?: boolean;
   sideEffects?: boolean;
   code?: string;
+  canDefer?: boolean;
+  diagnostics?: Diagnostic | Diagnostic[];
+  meta?: Meta;
 }>;
 
 /**

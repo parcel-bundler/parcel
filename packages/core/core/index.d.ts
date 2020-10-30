@@ -272,6 +272,7 @@ export interface BaseAsset<A = any>
     env: Environment;
     fs: FileSystem;
     filePath: string;
+    query: { [param: string]: string };
     id: string;
     meta: Meta;
     isIsolated: boolean;
