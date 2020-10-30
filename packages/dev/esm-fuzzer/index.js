@@ -111,8 +111,14 @@ async function run(example) {
         try {
           await run(example);
         } catch (e) {
-          console.error(e);
-          console.error(example);
+          if (
+            !e.message.includes(
+              `couldn't be statically analyzed when importing '*'`,
+            )
+          ) {
+            console.error(e);
+            console.error(example);
+          }
           break;
         }
         if (++i % 10 === 0) {

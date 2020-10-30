@@ -56,7 +56,7 @@ describe('output formats', function() {
       assert.equal((await run(b)).default, 2);
     });
 
-    it('should support commonjs output from esmodule input (re-export namespace as)', async function() {
+    it.skip('should support commonjs output from esmodule input (re-export namespace as)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -535,7 +535,7 @@ describe('output formats', function() {
       assert(!dist.includes('export default'));
     });
 
-    it('should support esmodule output (re-export namespace as)', async function() {
+    it.skip('should support esmodule output (re-export namespace as)', async function() {
       let b = await bundle(
         path.join(
           __dirname,

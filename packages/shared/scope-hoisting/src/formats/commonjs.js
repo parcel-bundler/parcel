@@ -428,10 +428,6 @@ export function generateExports(
       for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
         bundleGraph.getExportedSymbols(entry, bundle),
       )) {
-        if (symbol === null && exportSymbol === '*') {
-          symbol = assertString(asset.meta.exportsIdentifier);
-        }
-
         if (symbol === false) {
           // skipped
         } else if (symbol === null) {
