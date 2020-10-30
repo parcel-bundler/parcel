@@ -219,29 +219,6 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should compile node_modules when symlinked with a source field in package.json', async function() {
-    const inputDir = path.join(__dirname, '/input');
-    await fs.rimraf(inputDir);
-    await fs.mkdirp(path.join(inputDir, 'node_modules'));
-    await fs.ncp(
-      path.join(path.join(__dirname, '/integration/babel-node-modules-source')),
-      inputDir,
-    );
-
-    // Create the symlink here to prevent cross platform and git issues
-    symlinkSync(
-      path.join(inputDir, 'packages/foo'),
-      path.join(inputDir, 'node_modules/foo'),
-      'dir',
-    );
-
-    await bundle(inputDir + '/index.js', {outputFS: fs});
-
-    let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('function Foo'));
-    assert(file.includes('function Bar'));
-  });
-
   it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
     await bundle(
       path.join(
@@ -520,9 +497,40 @@ describe('babel', function() {
   });
 
   describe('tests needing the real filesystem', () => {
-    beforeEach(async () => {
+    afterEach(async () => {
+      try {
+        await fs.rimraf(inputDir);
+        await fs.rimraf(distDir);
+      } catch (e) {
+        if (e.code === 'ENOENT') {
+          throw e;
+        }
+      }
+    });
+
+    it('should compile node_modules when symlinked with a source field in package.json', async function() {
+      const inputDir = path.join(__dirname, '/input');
       await fs.rimraf(inputDir);
-      await fs.rimraf(distDir);
+      await fs.mkdirp(path.join(inputDir, 'node_modules'));
+      await fs.ncp(
+        path.join(
+          path.join(__dirname, '/integration/babel-node-modules-source'),
+        ),
+        inputDir,
+      );
+
+      // Create the symlink here to prevent cross platform and git issues
+      symlinkSync(
+        path.join(inputDir, 'packages/foo'),
+        path.join(inputDir, 'node_modules/foo'),
+        'dir',
+      );
+
+      await bundle(inputDir + '/index.js', {outputFS: fs});
+
+      let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      assert(file.includes('function Foo'));
+      assert(file.includes('function Bar'));
     });
 
     it('should rebuild when .babelrc changes', async function() {
