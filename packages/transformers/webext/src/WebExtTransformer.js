@@ -2,14 +2,14 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import json5 from 'json5';
-import {join, extname, basename} from 'path';
+import {join, extname, basename, dirname} from 'path';
 import {parse} from 'json-source-map';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
   encodeJSONKeyComponent,
   getJSONSourceLocation
 } from '@parcel/diagnostic';
+import {glob} from '@parcel/utils';
 import type {DiagnosticCodeHighlight} from '@parcel/diagnostic'
 import WebExtSchema from './schema';
 
@@ -32,8 +32,7 @@ const DEP_LOCS = [
   ['storage', 'managed_schema'],
   ['theme', 'images', 'theme_frame'],
   ['theme', 'images', 'additional_backgrounds'],
-  ['user_scripts', 'api_script'],
-  ['web_accessible_resources']
+  ['user_scripts', 'api_script']
 ];
 
 async function collectDependencies(
@@ -83,8 +82,10 @@ async function collectDependencies(
             moduleSpecifier: assets[j],
             loc: {
               filePath,
-              ...getJSONSourceLocation(ptrs[`/content_scripts/${i}/${k}/${j}`], 'value')
-
+              ...getJSONSourceLocation(
+                ptrs[`/content_scripts/${i}/${k}/${j}`],
+                'value'
+              )
             }
           })
         }
@@ -93,7 +94,10 @@ async function collectDependencies(
   }
   if (program.dictionaries) {
     for (const dict in program.dictionaries) {
-      const sourceLoc = getJSONSourceLocation(ptrs[`/dictionaries/${dict}`], 'value');
+      const sourceLoc = getJSONSourceLocation(
+        ptrs[`/dictionaries/${dict}`],
+        'value'
+      );
       const loc = {
         filePath,
         ...sourceLoc
@@ -121,6 +125,24 @@ async function collectDependencies(
         moduleSpecifier: basename(dictFile, '.dic') + '.aff',
         loc
       });
+    }
+  }
+  if (program.web_accessible_resources) {
+    for (let i = 0; i < program.web_accessible_resources.length; ++i) {
+      // TODO: this doesn't support Parcel resolution
+      const globQuery = join(
+        dirname(filePath),
+        program.web_accessible_resources[i]
+      );
+      for (const fp of await glob(globQuery, fs, {})) {
+        asset.addDependency({
+          moduleSpecifier: fp,
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`])
+          }
+        });
+      }
     }
   }
   for (const loc of DEP_LOCS) {
@@ -153,33 +175,35 @@ async function collectDependencies(
 
 export default (new Transformer({
   async parse({asset}) {
-    const manifest = json5.parse(await asset.getCode());
-    if (BASE_KEYS.some(key => !manifest.hasOwnProperty(key))) {
+    const code = await asset.getCode();
+    const map = parse(code);
+    if (BASE_KEYS.some(key => !map.data.hasOwnProperty(key))) {
       // This is probably just another file that happens to be named manifest.json
       return null;
     }
     validateSchema.diagnostic(
       WebExtSchema,
-      manifest,
-      asset.filePath,
-      await asset.getCode(),
+      {
+        data: map.data,
+        source: code,
+        filePath: asset.filePath,
+        prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-webext')}`
+      },
       '@parcel/transformer-webext',
-      `/${encodeJSONKeyComponent('@parcel/transformer-webext')}`,
       'Invalid Web Extension manifest'
     );
     return {
-      type: 'json5',
-      version: '2.1.0',
-      program: manifest
+      type: 'json-source-map',
+      version: '0.6.1',
+      program: map
     }
   },
   async transform({asset}) {
     const ast = await asset.getAST();
     if (!ast) return [asset];
-    // Seems wasteful, but allows for JSON5 syntax
-    const {data, pointers} = parse(JSON.stringify(ast.program));
+    const {data, pointers} = ast.program;
     await collectDependencies(asset, ast.program, pointers);
-    asset.meta.hasDependencies = false;
+    asset.meta.handled = true;
     return [asset];
   },
 }): Transformer);

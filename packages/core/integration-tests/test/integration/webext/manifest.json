@@ -1,0 +1,8 @@
+{
+  "manifest_version": 2,
+  "name": "Parcel WebExt",
+  "version": "1.2.3",
+  "background": {
+    "scripts": ["src/background.js"]
+  }
+}

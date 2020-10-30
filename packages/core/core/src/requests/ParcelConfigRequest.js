@@ -461,11 +461,8 @@ export function validateConfigFile(
 
   validateSchema.diagnostic(
     ParcelConfigSchema,
-    config,
-    relativePath,
-    JSON.stringify(config, null, '\t'),
+    {data: config, filePath: relativePath},
     '@parcel/core',
-    '',
     'Invalid Parcel Config',
   );
 }

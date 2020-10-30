@@ -11,7 +11,7 @@ export default (new Transformer({
   async parse({asset}) {
     // This indicates a previous transformer (e.g. WebExt) has applied special
     // handling to this already
-    if (asset.meta.hasDependencies === false) {
+    if (asset.meta.handled) {
       return null;
     }
     return {
