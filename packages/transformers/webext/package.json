@@ -1,0 +1,25 @@
+{
+  "name": "@parcel/transformer-webext",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "lib/WebExtTransformer.js",
+  "source": "src/WebExtTransformer.js",
+  "engines": {
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0-beta.1",
+    "json5": "^2.1.0"
+  }
+}
