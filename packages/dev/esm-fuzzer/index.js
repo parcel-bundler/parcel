@@ -104,17 +104,23 @@ async function run(example) {
 
     // await run(fixture);
 
-    let i = 0;
-    for (let example of generateExample()) {
-      try {
-        await run(example);
-      } catch (e) {
-        console.error(e);
-        console.error(example);
-        break;
-      }
-      if (++i % 10 === 0) {
-        console.log(i);
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      let i = 0;
+      for (let example of generateExample()) {
+        try {
+          await run(example);
+        } catch (e) {
+          console.error(e);
+          console.error(example);
+          break;
+        }
+        if (++i % 10 === 0) {
+          console.log(i);
+        }
+        if (i > 120) {
+          break;
+        }
       }
     }
   } catch (e) {
