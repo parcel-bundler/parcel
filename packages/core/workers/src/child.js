@@ -18,7 +18,10 @@ import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import bus from './bus';
 import Profiler from './Profiler';
-import Handle from './Handle';
+import _Handle from './Handle';
+
+// The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
+const Handle = _Handle;
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
