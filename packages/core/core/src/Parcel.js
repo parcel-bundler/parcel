@@ -426,6 +426,11 @@ export default class Parcel {
     this.isProfiling = false;
     return this.#farm.endProfile();
   }
+
+  takeHeapSnapshot(): Promise<void> {
+    logger.info({origin: '@parcel/core', message: 'Taking heap snapshot...'});
+    return this.#farm.takeHeapSnapshot();
+  }
 }
 
 export class BuildError extends ThrowableDiagnostic {
