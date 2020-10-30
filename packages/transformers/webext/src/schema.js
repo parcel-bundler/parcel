@@ -244,7 +244,7 @@ export default {
       additionalProperties: { type: 'string' }
     }: SchemaEntity),
     optional_permissions: arrStr,
-    options_page: { type: 'string' },
+    // options_page is deprecated
     options_ui: {
       type: 'object',
       properties: {
@@ -361,7 +361,13 @@ export default {
           type: 'object',
           properties: {
             additional_backgrounds_alignment: arrStr,
-            additional_backgrounds_tiling: arrStr
+            additional_backgrounds_tiling: {
+              type: 'array',
+              items: {
+                type: 'string',
+                enum: ['no-repeat', 'repeat', 'repeat-x', 'repeat-y']
+              }
+            }
           }
         }
       },

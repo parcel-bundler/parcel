@@ -20,6 +20,6 @@
   },
   "dependencies": {
     "@parcel/plugin": "2.0.0-beta.1",
-    "json5": "^2.1.0"
+    "json-source-map": "^0.6.1"
   }
 }
