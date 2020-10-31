@@ -568,7 +568,7 @@ function parseDescriptor(
       data: descriptor,
       source: pkgContents,
       filePath: pkgPath,
-      prependKey: `/targets/${targetName}`
+      prependKey: `/targets/${targetName}`,
     },
     '@parcel/core',
     `Invalid target descriptor for target "${targetName}"`,

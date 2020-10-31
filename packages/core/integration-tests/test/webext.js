@@ -1,4 +1,3 @@
-import assert from 'assert';
 import path from 'path';
 import {bundle, assertBundles} from '@parcel/test-utils';
 
@@ -10,29 +9,29 @@ describe('webext', function() {
     assertBundles(b, [
       {
         name: 'tmp.aff',
-        assets: ['tmp.aff']
+        assets: ['tmp.aff'],
       },
       {
         name: 'tmp.dic',
-        assets: ['tmp.dic']
+        assets: ['tmp.dic'],
       },
       {
         name: 'messages.json',
-        assets: ['messages.json']
+        assets: ['messages.json'],
       },
       {
         name: 'manifest.json',
-        assets: ['manifest.json']
+        assets: ['manifest.json'],
       },
       // next three are implemented to have the same name, but theoretically
-      { assets: ['a.txt'] },
-      { assets: ['b.txt'] },
-      { assets: ['foo.png'] },
-      { assets: ['popup.html'] },
-      { assets: ['devtools.html'] },
-      { assets: ['content.js'] },
-      { assets: ['content.css'] },
-      { assets: ['background.js'] }
+      {assets: ['a.txt']},
+      {assets: ['b.txt']},
+      {assets: ['foo.png']},
+      {assets: ['popup.html']},
+      {assets: ['devtools.html']},
+      {assets: ['content.js']},
+      {assets: ['content.css']},
+      {assets: ['background.js']},
     ]);
   });
   // TODO: Test error-checking

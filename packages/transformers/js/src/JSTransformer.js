@@ -72,7 +72,7 @@ export default (new Transformer({
           // FIXME
           source: await options.inputFS.readFile(result.filePath, 'utf8'),
           filePath: result.filePath,
-          prependKey:`/${encodeJSONKeyComponent('@parcel/transformer-js')}`
+          prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-js')}`,
         },
         // FIXME
         '@parcel/transformer-js',

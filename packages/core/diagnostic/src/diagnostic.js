@@ -218,16 +218,17 @@ export type DiagnosticJSONPosition = {|
  * <code>type</code> signifies whether the key of the value in a JSON object should be highlighted.
  */
 export function generateJSONCodeHighlights(
-  data: string | {|
-    data: mixed,
-    pointers: {|[key: string]: DiagnosticJSONPosition |} 
-  |},
+  data:
+    | string
+    | {|
+        data: mixed,
+        pointers: {|[key: string]: DiagnosticJSONPosition|},
+      |},
   ids: Array<{|key: string, type?: ?'key' | 'value', message?: string|}>,
 ): Array<DiagnosticCodeHighlight> {
   // json-source-map doesn't support a tabWidth option (yet)
-  let map = typeof data == 'string'
-    ? jsonMap.parse(data.replace(/\t/g, ' '))
-    : data;
+  let map =
+    typeof data == 'string' ? jsonMap.parse(data.replace(/\t/g, ' ')) : data;
   return ids.map(({key, type, message}) => {
     let pos = nullthrows(map.pointers[key]);
     return {

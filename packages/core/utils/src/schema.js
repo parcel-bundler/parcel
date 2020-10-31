@@ -385,12 +385,12 @@ validateSchema.diagnostic = function(
           data?: mixed,
         |}
       | {|
-        source: string,
-        map: {|
-        data: mixed,
-        pointers: {| [key: string]: DiagnosticJSONPosition |}
-      |}
-    |},
+          source: string,
+          map: {|
+            data: mixed,
+            pointers: {|[key: string]: DiagnosticJSONPosition|},
+          |},
+        |},
     filePath?: ?string,
     prependKey?: ?string,
   |},

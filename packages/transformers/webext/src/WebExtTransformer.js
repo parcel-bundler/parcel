@@ -2,15 +2,12 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {join, extname, basename, dirname, relative} from 'path';
+import {join, extname, dirname, relative} from 'path';
 import {parse} from 'json-source-map';
 import {validateSchema} from '@parcel/utils';
-import ThrowableDiagnostic, {
-  encodeJSONKeyComponent,
-  getJSONSourceLocation
-} from '@parcel/diagnostic';
+import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
-import type {DiagnosticCodeHighlight} from '@parcel/diagnostic'
+import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 import WebExtSchema from './schema';
 
 const BASE_KEYS = ['manifest_version', 'name', 'version'];
@@ -32,13 +29,13 @@ const DEP_LOCS = [
   ['storage', 'managed_schema'],
   ['theme', 'images', 'theme_frame'],
   ['theme', 'images', 'additional_backgrounds'],
-  ['user_scripts', 'api_script']
+  ['user_scripts', 'api_script'],
 ];
 
 async function collectDependencies(
   asset: MutableAsset,
   program: any,
-  ptrs: {[key: string]: any, ...}
+  ptrs: {[key: string]: any, ...},
 ) {
   // isEntry used whenever strictly necessary to preserve filename
   // also for globs because it's wasteful to write out every file name
@@ -49,27 +46,33 @@ async function collectDependencies(
     let err = !(await fs.exists(locales))
       ? 'key'
       : !(await fs.exists(join(locales, program.default_locale)))
-        ? 'value'
-        : null;
+      ? 'value'
+      : null;
     if (err) {
       throw new ThrowableDiagnostic({
-        diagnostic: [{
-          message: 'Localization directory' +
-            (err == 'value' ? (' for ' + program.default_locale) : '') +
-            ' does not exist',
-          origin: '@parcel/transformer-webext',
-          filePath,
-          codeFrame: {
-            codeHighlights: [((
-              getJSONSourceLocation(ptrs['/default_locale'], err): any
-            ): DiagnosticCodeHighlight)]
-          }
-        }]
+        diagnostic: [
+          {
+            message:
+              'Localization directory' +
+              (err == 'value' ? ' for ' + program.default_locale : '') +
+              ' does not exist',
+            origin: '@parcel/transformer-webext',
+            filePath,
+            codeFrame: {
+              codeHighlights: [
+                ((getJSONSourceLocation(
+                  ptrs['/default_locale'],
+                  err,
+                ): any): DiagnosticCodeHighlight),
+              ],
+            },
+          },
+        ],
       });
     }
-    for (const locale of (await fs.readdir(locales))) {
+    for (const locale of await fs.readdir(locales)) {
       asset.addURLDependency(join('raw:_locales', locale, 'messages.json'), {
-        isEntry: true
+        isEntry: true,
       });
     }
   }
@@ -84,10 +87,10 @@ async function collectDependencies(
               filePath,
               ...getJSONSourceLocation(
                 ptrs[`/content_scripts/${i}/${k}/${j}`],
-                'value'
-              )
-            }
-          })
+                'value',
+              ),
+            },
+          });
         }
       }
     }
@@ -96,34 +99,34 @@ async function collectDependencies(
     for (const dict in program.dictionaries) {
       const sourceLoc = getJSONSourceLocation(
         ptrs[`/dictionaries/${dict}`],
-        'value'
+        'value',
       );
       const loc = {
         filePath,
-        ...sourceLoc
+        ...sourceLoc,
       };
       const dictFile = program.dictionaries[dict];
       if (extname(dictFile) != '.dic') {
         throw new ThrowableDiagnostic({
-          diagnostic: [{
-            message: 'Dictionaries must be .dic files',
-            origin: '@parcel/transformer-webext',
-            filePath,
-            codeFrame: {
-              codeHighlights: [((
-                sourceLoc: any
-              ): DiagnosticCodeHighlight)]
-            }
-          }]
-        })
+          diagnostic: [
+            {
+              message: 'Dictionaries must be .dic files',
+              origin: '@parcel/transformer-webext',
+              filePath,
+              codeFrame: {
+                codeHighlights: [((sourceLoc: any): DiagnosticCodeHighlight)],
+              },
+            },
+          ],
+        });
       }
       program.dictionaries[dict] = asset.addURLDependency(dictFile, {
         isEntry: true,
-        loc
+        loc,
       });
       asset.addURLDependency(dictFile.slice(0, -4) + '.aff', {
         isEntry: true,
-        loc
+        loc,
       });
     }
   }
@@ -132,15 +135,15 @@ async function collectDependencies(
       // TODO: this doesn't support Parcel resolution
       const globQuery = join(
         dirname(filePath),
-        program.web_accessible_resources[i]
+        program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
         asset.addURLDependency(relative(dirname(filePath), fp), {
           isEntry: true,
           loc: {
             filePath,
-            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`])
-          }
+            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
+          },
         });
       }
     }
@@ -153,19 +156,21 @@ async function collectDependencies(
       if (!obj) break;
     }
     if (!obj) continue;
-    const parent = obj, lloc = loc[loc.length - 1];
+    const parent = obj,
+      lloc = loc[loc.length - 1];
     obj = obj[lloc];
     if (!obj) continue;
-    if (typeof obj == 'string') parent[lloc] = asset.addURLDependency(
-      // TODO: not this, for sure
-      (extname(obj) == '.json' ? 'raw:' : '') + obj,
-      {
-        loc: {
-          filePath,
-          ...getJSONSourceLocation(ptrs[locStr], 'value')
-        }
-      }
-    );
+    if (typeof obj == 'string')
+      parent[lloc] = asset.addURLDependency(
+        // TODO: not this, for sure
+        (extname(obj) == '.json' ? 'raw:' : '') + obj,
+        {
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(ptrs[locStr], 'value'),
+          },
+        },
+      );
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(
@@ -173,9 +178,9 @@ async function collectDependencies(
           {
             loc: {
               filePath,
-              ...getJSONSourceLocation(ptrs[locStr + '/' + k], 'value')
-            }
-          }
+              ...getJSONSourceLocation(ptrs[locStr + '/' + k], 'value'),
+            },
+          },
         );
       }
     }
@@ -195,16 +200,16 @@ export default (new Transformer({
       {
         data: map.data,
         source: code,
-        filePath: asset.filePath
+        filePath: asset.filePath,
       },
       '@parcel/transformer-webext',
-      'Invalid Web Extension manifest'
+      'Invalid Web Extension manifest',
     );
     return {
       type: 'json-source-map',
       version: '0.6.1',
-      program: map
-    }
+      program: map,
+    };
   },
   async transform({asset}) {
     const ast = await asset.getAST();
