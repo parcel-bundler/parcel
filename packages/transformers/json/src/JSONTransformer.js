@@ -5,33 +5,25 @@ import json5 from 'json5';
 import semver from 'semver';
 
 export default (new Transformer({
-  canReuseAST({ast}) {
-    return ast.type == 'json5' && semver.satisfies(ast.version, '^2.1.0');
-  },
-  async parse({asset}) {
+  async transform({asset}) {
     // This indicates a previous transformer (e.g. WebExt) has applied special
     // handling to this already
     if (asset.meta.handled) {
-      return null;
+      return [asset];
     }
-    return {
-      type: 'json5',
-      version: '2.1.0',
-      program: json5.parse(await asset.getCode())
+    const pure = JSON.stringify(json5.parse(await asset.getCode()));
+    if (asset.pipeline == 'raw') {
+      // Output as a raw JSON asset (useful for other transformers)
+      asset.setCode(pure);
+    } else {
+      asset.type = 'js';
+      // Use JSON.parse("...") for faster script parsing, see
+      // https://v8.dev/blog/cost-of-javascript-2019#json.
+      // Apply `JSON.stringify` twice to make it a valid string literal.
+      asset.setCode(
+        `module.exports = JSON.parse(${JSON.stringify(pure)});`,
+      );
     }
-  },
-  async transform({asset}) {
-    const ast = await asset.getAST();
-    if (!ast) return [asset];
-    asset.type = 'js';
-    // Use JSON.parse("...") for faster script parsing, see
-    // https://v8.dev/blog/cost-of-javascript-2019#json.
-    // Apply `JSON.stringify` twice to make it a valid string literal.
-    asset.setCode(
-      `module.exports = JSON.parse(${JSON.stringify(
-        JSON.stringify(ast.program),
-      )});`,
-    );
     return [asset];
   },
 }): Transformer);

@@ -2,7 +2,7 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {join, extname, basename, dirname} from 'path';
+import {join, extname, basename, dirname, relative} from 'path';
 import {parse} from 'json-source-map';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {
@@ -40,10 +40,12 @@ async function collectDependencies(
   program: any,
   ptrs: {[key: string]: any, ...}
 ) {
+  // isEntry used whenever strictly necessary to preserve filename
+  // also for globs because it's wasteful to write out every file name
   const fs = asset.fs;
   const filePath = asset.filePath;
   if (program.default_locale) {
-    const locales = join(filePath, '_locales');
+    const locales = join(dirname(filePath), '_locales');
     let err = !(await fs.exists(locales))
       ? 'key'
       : !(await fs.exists(join(locales, program.default_locale)))
@@ -53,7 +55,7 @@ async function collectDependencies(
       throw new ThrowableDiagnostic({
         diagnostic: [{
           message: 'Localization directory' +
-            (err == 'value' ? (' for' + program.default_locale) : '') +
+            (err == 'value' ? (' for ' + program.default_locale) : '') +
             ' does not exist',
           origin: '@parcel/transformer-webext',
           filePath,
@@ -65,9 +67,8 @@ async function collectDependencies(
         }]
       });
     }
-    for (const k in (await fs.readdir(locales))) {
-      asset.addDependency({
-        moduleSpecifier: join(locales, k, 'messages.json'),
+    for (const locale of (await fs.readdir(locales))) {
+      asset.addURLDependency(join('raw:_locales', locale, 'messages.json'), {
         isEntry: true
       });
     }
@@ -78,8 +79,7 @@ async function collectDependencies(
       for (const k of ['css', 'js']) {
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
-          asset.addDependency({
-            moduleSpecifier: assets[j],
+          assets[j] = asset.addURLDependency(assets[j], {
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -117,12 +117,12 @@ async function collectDependencies(
           }]
         })
       }
-      asset.addDependency({
-        moduleSpecifier: dictFile,
+      program.dictionaries[dict] = asset.addURLDependency(dictFile, {
+        isEntry: true,
         loc
       });
-      asset.addDependency({
-        moduleSpecifier: basename(dictFile, '.dic') + '.aff',
+      asset.addURLDependency(dictFile.slice(0, -4) + '.aff', {
+        isEntry: true,
         loc
       });
     }
@@ -135,8 +135,8 @@ async function collectDependencies(
         program.web_accessible_resources[i]
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addDependency({
-          moduleSpecifier: fp,
+        asset.addURLDependency(relative(dirname(filePath), fp), {
+          isEntry: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`])
@@ -147,27 +147,36 @@ async function collectDependencies(
   }
   for (const loc of DEP_LOCS) {
     const locStr = '/' + loc.join('/');
-    let obj = program;
-    for (let i = 0; i < loc.length; ++i) {
+    let obj: any = program;
+    for (let i = 0; i < loc.length - 1; ++i) {
       obj = obj[loc[i]];
-      if (!obj) return;
+      if (!obj) break;
     }
-    if (typeof obj == 'string') asset.addDependency({
-      moduleSpecifier: obj,
-      loc: {
-        filePath,
-        ...getJSONSourceLocation(ptrs[locStr], 'value')
+    if (!obj) continue;
+    const parent = obj, lloc = loc[loc.length - 1];
+    obj = obj[lloc];
+    if (!obj) continue;
+    if (typeof obj == 'string') parent[lloc] = asset.addURLDependency(
+      // TODO: not this, for sure
+      (extname(obj) == '.json' ? 'raw:' : '') + obj,
+      {
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(ptrs[locStr], 'value')
+        }
       }
-    });
+    );
     else {
       for (const k of Object.keys(obj)) {
-        asset.addDependency({
-          moduleSpecifier: obj[k],
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(ptrs[locStr + '/' + k], 'value')
+        obj[k] = asset.addURLDependency(
+          (extname(obj[k]) == '.json' ? 'raw:' : '') + obj[k],
+          {
+            loc: {
+              filePath,
+              ...getJSONSourceLocation(ptrs[locStr + '/' + k], 'value')
+            }
           }
-        });
+        );
       }
     }
   }
@@ -186,8 +195,7 @@ export default (new Transformer({
       {
         data: map.data,
         source: code,
-        filePath: asset.filePath,
-        prependKey: `/${encodeJSONKeyComponent('@parcel/transformer-webext')}`
+        filePath: asset.filePath
       },
       '@parcel/transformer-webext',
       'Invalid Web Extension manifest'
@@ -202,8 +210,9 @@ export default (new Transformer({
     const ast = await asset.getAST();
     if (!ast) return [asset];
     const {data, pointers} = ast.program;
-    await collectDependencies(asset, ast.program, pointers);
+    await collectDependencies(asset, data, pointers);
     asset.meta.handled = true;
+    asset.setCode(JSON.stringify(data));
     return [asset];
   },
 }): Transformer);

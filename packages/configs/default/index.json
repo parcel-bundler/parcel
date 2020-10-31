@@ -11,6 +11,7 @@
       "@parcel/transformer-react-refresh-wrap"
     ],
     "manifest.json": ["@parcel/transformer-webext", "@parcel/transformer-json"],
+    "raw:*.{json,json5}": ["@parcel/transformer-json"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
@@ -61,6 +62,7 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
+    "*.json": "@parcel/packager-json",
     "*.jsonld": "@parcel/packager-raw-url",
     "*": "@parcel/packager-raw"
   },
