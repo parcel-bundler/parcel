@@ -18,7 +18,10 @@ import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
 import bus from './bus';
 import Profiler from './Profiler';
-import Handle from './Handle';
+import _Handle from './Handle';
+
+// The import of './Handle' should really be imported eagerly (with @babel/plugin-transform-modules-commonjs's lazy mode).
+const Handle = _Handle;
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -147,6 +150,22 @@ export class Child {
       try {
         let res = this.profiler ? await this.profiler.stopProfiling() : null;
         result = responseFromContent(res);
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'takeHeapSnapshot') {
+      try {
+        let v8 = require('v8');
+        result = responseFromContent(
+          // $FlowFixMe
+          v8.writeHeapSnapshot(
+            'heap-' +
+              args[0] +
+              '-' +
+              (this.childId ? 'worker' + this.childId : 'main') +
+              '.heapsnapshot',
+          ),
+        );
       } catch (e) {
         result = errorResponseFromError(e);
       }
