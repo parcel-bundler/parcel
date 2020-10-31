@@ -47,7 +47,7 @@ function register(inputOpts?: InitialParcelOptions): IDisposable {
     },
   };
 
-  syncPromise(parcel.init());
+  syncPromise(parcel._init());
 
   let isProcessing = false;
 

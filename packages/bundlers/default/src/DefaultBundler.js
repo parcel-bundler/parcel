@@ -542,7 +542,7 @@ async function loadBundlerConfig(options: PluginOptions) {
       data: config,
       source: JSON.stringify(config),
       filePath: result.files[0].filePath,
-      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`
+      prependKey: `/${encodeJSONKeyComponent('@parcel/bundler-default')}`,
     },
     '@parcel/bundler-default',
     'Invalid config for @parcel/bundler-default',
