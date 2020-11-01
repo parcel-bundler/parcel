@@ -1,6 +1,5 @@
 // @flow strict-local
 import type {SchemaEntity} from '@parcel/utils';
-import {extname} from 'path';
 
 const validateVersion = (ver: string): ?string => {
   const parts = ver.split('.', 5);
