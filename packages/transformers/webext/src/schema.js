@@ -2,38 +2,31 @@
 import type {SchemaEntity} from '@parcel/utils';
 import {extname} from 'path';
 
-// Non-comprehensive, but should cover the vast majority of users
-// SVGs not supported in WebKit/Blink
-const IMG_EXT = new Set(['jpg', 'jpeg', 'png', 'svg', 'webp', 'gif']);
-
 const validateVersion = (ver: string): ?string => {
   const parts = ver.split('.', 5);
   if (parts.length == 5) return 'Extension versions to have at most three dots';
   // greater than to allow for NaN to fail
-  if (parts.every(part => +part[0] > 0 && +part < 65536)) return;
+  if (
+    parts.every(
+      part => part.length != 0 && Number(part[0]) >= 0 && Number(part) < 65536,
+    )
+  )
+    return;
   return 'Extension versions must be dot-separated integers between 0 and 65535';
 };
-
-const validateImage = (name: string): ?string => {
-  const ext = extname(name).slice(1);
-  if (!IMG_EXT.has(ext))
-    return `Extensions do not support ${ext} images and icons`;
-};
-
 const icons: SchemaEntity = {
   type: 'object',
   properties: {},
-  additionalProperties: {
-    type: 'string',
-    __validate: validateImage,
-  },
+  additionalProperties: {type: 'string'},
 };
 
 const actionProps = {
   // FF only
   browser_style: {type: 'boolean'},
   // You can also have a raw string, but not in Edge, apparently...
-  default_icon: icons,
+  default_icon: {
+    oneOf: [icons, {type: 'string'}],
+  },
   default_popup: {type: 'string'},
   default_title: {type: 'string'},
 };
@@ -284,10 +277,8 @@ export default {
     sidebar_action: {
       type: 'object',
       properties: {
-        browser_style: {type: 'boolean'},
-        default_icon: {
-          oneOf: [{type: 'string'}, icons],
-        },
+        browser_style: actionProps.browser_style,
+        default_icon: actionProps.default_icon,
         default_panel: {type: 'string'},
         default_title: {type: 'string'},
         open_at_install: {type: 'boolean'},

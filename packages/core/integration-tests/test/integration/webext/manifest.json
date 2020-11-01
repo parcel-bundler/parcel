@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Parcel WebExt",
-  "version": "1.2.3",
+  "version": "0.1.2.65535",
   "default_locale": "en_US",
   "icons": {
     "100": "src/assets/foo.png"
