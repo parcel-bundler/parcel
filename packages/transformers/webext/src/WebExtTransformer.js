@@ -15,21 +15,21 @@ const BASE_KEYS = ['manifest_version', 'name', 'version'];
 const DEP_LOCS = [
   ['icons'],
   ['browser_action', 'default_icon'],
-  ['browser_action', 'default_popup'],
+  ['browser_action', 'default_popup', true],
   ['browser_action', 'theme_actions', 'light'],
   ['browser_action', 'theme_actions', 'dark'],
   ['page_action', 'default_icon'],
-  ['page_action', 'default_popup'],
-  ['background', 'scripts'],
+  ['page_action', 'default_popup', true],
+  ['background', 'scripts', true],
   ['chrome_url_overrides'],
-  ['devtools_page'],
-  ['options_ui', 'page'],
+  ['devtools_page', true],
+  ['options_ui', 'page', true],
   ['sidebar_action', 'default_icon'],
-  ['sidebar_action', 'default_panel'],
+  ['sidebar_action', 'default_panel', true],
   ['storage', 'managed_schema'],
   ['theme', 'images', 'theme_frame'],
   ['theme', 'images', 'additional_backgrounds'],
-  ['user_scripts', 'api_script'],
+  ['user_scripts', 'api_script', true],
 ];
 
 async function collectDependencies(
@@ -83,6 +83,7 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
+            isEntry: k == 'js',
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -149,6 +150,8 @@ async function collectDependencies(
     }
   }
   for (const loc of DEP_LOCS) {
+    const isEntry =
+      typeof loc[loc.length - 1] == 'boolean' && ((loc.pop(): any): boolean);
     const locStr = '/' + loc.join('/');
     let obj: any = program;
     for (let i = 0; i < loc.length - 1; ++i) {
@@ -165,6 +168,7 @@ async function collectDependencies(
         // TODO: not this, for sure
         (extname(obj) == '.json' ? 'raw:' : '') + obj,
         {
+          isEntry,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[locStr], 'value'),
@@ -176,6 +180,7 @@ async function collectDependencies(
         obj[k] = asset.addURLDependency(
           (extname(obj[k]) == '.json' ? 'raw:' : '') + obj[k],
           {
+            isEntry,
             loc: {
               filePath,
               ...getJSONSourceLocation(ptrs[locStr + '/' + k], 'value'),

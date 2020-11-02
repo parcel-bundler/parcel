@@ -4,7 +4,6 @@ import type {SchemaEntity} from '@parcel/utils';
 const validateVersion = (ver: string): ?string => {
   const parts = ver.split('.', 5);
   if (parts.length == 5) return 'Extension versions to have at most three dots';
-  // greater than to allow for NaN to fail
   if (
     parts.every(
       part => part.length != 0 && Number(part[0]) >= 0 && Number(part) < 65536,
