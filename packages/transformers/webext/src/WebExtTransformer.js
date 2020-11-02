@@ -149,9 +149,12 @@ async function collectDependencies(
       }
     }
   }
-  for (const loc of DEP_LOCS) {
-    const isEntry =
-      typeof loc[loc.length - 1] == 'boolean' && ((loc.pop(): any): boolean);
+  for (let loc of DEP_LOCS) {
+    let isEntry: boolean = false;
+    if (typeof loc[loc.length - 1] == 'boolean') {
+      isEntry = ((loc[loc.length - 1]: any): boolean);
+      loc = loc.slice(0, -1);
+    }
     const locStr = '/' + loc.join('/');
     let obj: any = program;
     for (let i = 0; i < loc.length - 1; ++i) {
