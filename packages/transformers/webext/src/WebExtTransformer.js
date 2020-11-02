@@ -201,7 +201,7 @@ function cspPatchHMR(policy: ?string) {
     const csp = parseCSP(policy);
     policy = '';
     if (!csp['script-src']) {
-      csp['script-src'] = ["'self'", "'unsafe-eval'", "blob: filesystem:"];
+      csp['script-src'] = ["'self'", "'unsafe-eval'", 'blob: filesystem:'];
     }
     if (!csp['object-src']) {
       csp['object-src'] = ["'self' blob: filesystem:"];
@@ -214,8 +214,10 @@ function cspPatchHMR(policy: ?string) {
     }
     return policy;
   } else {
-    return "script-src 'self' 'unsafe-eval' blob: filesystem:;" +
+    return (
+      "script-src 'self' 'unsafe-eval' blob: filesystem:;" +
       "object-src 'self' blob: filesystem:;"
+    );
   }
 }
 
