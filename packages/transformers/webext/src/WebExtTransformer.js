@@ -4,6 +4,7 @@ import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
 import {join, extname, dirname, relative} from 'path';
 import {parse} from 'json-source-map';
+import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
@@ -195,6 +196,29 @@ async function collectDependencies(
   }
 }
 
+function cspPatchHMR(policy: ?string) {
+  if (policy) {
+    const csp = parseCSP(policy);
+    policy = '';
+    if (!csp['script-src']) {
+      csp['script-src'] = ["'self'", "'unsafe-eval'", "blob: filesystem:"];
+    }
+    if (!csp['object-src']) {
+      csp['object-src'] = ["'self' blob: filesystem:"];
+    }
+    if (!csp['script-src'].includes("'unsafe-eval'")) {
+      csp['script-src'].push("'unsafe-eval'");
+    }
+    for (const k in csp) {
+      policy += k + ' ' + csp[k].join(' ') + ';';
+    }
+    return policy;
+  } else {
+    return "script-src 'self' 'unsafe-eval' blob: filesystem:;" +
+      "object-src 'self' blob: filesystem:;"
+  }
+}
+
 export default (new Transformer({
   async parse({asset}) {
     const code = await asset.getCode();
@@ -219,11 +243,15 @@ export default (new Transformer({
       program: map,
     };
   },
-  async transform({asset}) {
+  async transform({asset, options}) {
     const ast = await asset.getAST();
     if (!ast) return [asset];
     const {data, pointers} = ast.program;
     await collectDependencies(asset, data, pointers);
+    if (options.hot) {
+      // To enable HMR, we must override the CSP to allow 'unsafe-eval'
+      data.content_security_policy = cspPatchHMR(data.content_security_policy);
+    }
     asset.meta.handled = true;
     asset.setCode(JSON.stringify(data));
     return [asset];

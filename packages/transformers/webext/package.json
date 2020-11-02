@@ -19,9 +19,10 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
+    "@parcel/diagnostic": "^2.0.0-beta.1",
     "@parcel/plugin": "2.0.0-beta.1",
     "@parcel/utils": "^2.0.0-beta.1",
-    "@parcel/diagnostic": "^2.0.0-beta.1",
+    "content-security-policy-parser": "^0.3.0",
     "json-source-map": "^0.6.1"
   }
 }
