@@ -32,7 +32,7 @@ import {
   isVariableDeclaration,
 } from '@babel/types';
 import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue, relativeUrl, flat} from '@parcel/utils';
+import {PromiseQueue, relativeUrl, flat, relativePath} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -209,7 +209,7 @@ async function processAsset(
     t.addComment(
       statements[0],
       'leading',
-      ` ASSET: ${path.relative(options.projectRoot, asset.filePath)}`,
+      ` ASSET: ${relativePath(options.projectRoot, asset.filePath, false)}`,
       true,
     );
   }
