@@ -351,6 +351,10 @@ export default class WorkerFarm extends EventEmitter {
   async end(): Promise<void> {
     this.ending = true;
 
+    await Promise.all(
+      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
+    );
+
     for (let handle of this.handles.values()) {
       handle.dispose();
     }
@@ -358,9 +362,6 @@ export default class WorkerFarm extends EventEmitter {
     this.sharedReferences = new Map();
     this.sharedReferencesByValue = new Map();
 
-    await Promise.all(
-      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
-    );
     this.ending = false;
   }
 
