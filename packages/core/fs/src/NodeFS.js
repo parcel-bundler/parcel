@@ -9,7 +9,7 @@ import type {
   AsyncSubscription,
 } from '@parcel/watcher';
 
-import fs from 'fs';
+import fs from 'graceful-fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';

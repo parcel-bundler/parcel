@@ -93,7 +93,7 @@ export async function load({
     if (
       contents.plugins == null ||
       typeof contents.plugins !== 'object' ||
-      Object.keys(contents.plugins) === 0
+      Object.keys(contents.plugins).length === 0
     ) {
       throw new Error('PostCSS config must have plugins');
     }

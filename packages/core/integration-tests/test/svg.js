@@ -5,18 +5,7 @@ import {
   distDir,
   outputFS,
 } from '@parcel/test-utils';
-import defaultConfigContents from '@parcel/config-default';
 import path from 'path';
-
-const config = {
-  ...defaultConfigContents,
-  transformers: {
-    ...defaultConfigContents.transformers,
-    '*.svg': ['@parcel/transformer-svgo', '@parcel/transformer-svg-react'],
-  },
-  reporters: [],
-  filePath: require.resolve('@parcel/config-default'),
-};
 
 describe('svg', function() {
   afterEach(async () => {
@@ -25,7 +14,10 @@ describe('svg', function() {
 
   it('should support transforming SVGs to react components', async function() {
     await bundle(path.join(__dirname, '/integration/svg/index.js'), {
-      defaultConfig: config,
+      defaultConfig: path.join(
+        __dirname,
+        'integration/custom-configs/.parcelrc-svg',
+      ),
     });
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf-8');

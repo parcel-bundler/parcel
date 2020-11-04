@@ -121,7 +121,7 @@ describe('sourcemaps', function() {
     }
     let map = mapUrlData.map;
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let input = await inputFS.readFile(
       path.join(path.dirname(filename), map.sourceRoot, map.sources[0]),
@@ -167,7 +167,7 @@ describe('sourcemaps', function() {
     }
     let map = mapUrlData.map;
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     assert.strictEqual(map.sourceRoot, '/__parcel_source_root/');
     let input = await inputFS.readFile(
@@ -223,7 +223,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
     let sourcePath = './index.js';
@@ -281,7 +281,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
@@ -370,7 +370,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.',
     );
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
     let mapData = sourceMap.getMap();
     assert.equal(mapData.sources.length, 3);
@@ -455,7 +455,7 @@ describe('sourcemaps', function() {
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
     // assert.equal(map.sourceRoot, '/__parcel_source_root/');
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
@@ -494,7 +494,7 @@ describe('sourcemaps', function() {
     assert.equal(map.file, 'index.js.map');
     assert(raw.includes('//# sourceMappingURL=index.js.map'));
 
-    let sourceMap = new SourceMap();
+    let sourceMap = new SourceMap('/');
     sourceMap.addRawMappings(map);
 
     let mapData = sourceMap.getMap();
@@ -546,7 +546,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let input = await inputFS.readFile(
@@ -601,7 +601,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -683,7 +683,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it('should create a valid sourcemap for a SASS asset', async function() {
+  it('should create a valid sourcemap for a Sass asset', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
@@ -703,7 +703,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -738,7 +738,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it('should create a valid sourcemap when for a CSS asset importing SASS', async function() {
+  it('should create a valid sourcemap when for a CSS asset importing Sass', async function() {
     async function test(minify) {
       let inputFilePath = path.join(
         __dirname,
@@ -758,7 +758,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -840,7 +840,7 @@ describe('sourcemaps', function() {
       assert.equal(map.file, 'style.css.map');
       assert(raw.includes('/*# sourceMappingURL=style.css.map */'));
 
-      let sourceMap = new SourceMap();
+      let sourceMap = new SourceMap('/');
       sourceMap.addRawMappings(map);
 
       let mapData = sourceMap.getMap();
@@ -944,6 +944,25 @@ describe('sourcemaps', function() {
       await outputFS.readdir(path.dirname(b.getBundles()[0].filePath)),
       ['index.js'],
     );
+  });
+
+  it('Should just skip invalid inlined sourcemaps', async function() {
+    let sourceFilename = path.join(
+      __dirname,
+      '/integration/sourcemap-invalid-existing/index.js',
+    );
+    let b = await bundle(sourceFilename);
+
+    let filename = b.getBundles()[0].filePath;
+    let raw = await outputFS.readFile(filename, 'utf8');
+    let sourcemapData = await loadSourceMapUrl(outputFS, filename, raw);
+    if (!sourcemapData) {
+      throw new Error('Could not load map');
+    }
+
+    let map = sourcemapData.map;
+    assert.equal(map.sourceRoot, '../test/');
+    assert.equal(map.sources.length, 2);
   });
 
   it('should load existing sourcemaps of libraries', async function() {

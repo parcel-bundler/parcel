@@ -4,7 +4,6 @@ import type {
   AST,
   Blob,
   ConfigResult,
-  File,
   FilePath,
   PackageJSON,
 } from '@parcel/types';
@@ -110,7 +109,7 @@ export default class CommittedAsset {
         let mapBuffer = await this.getMapBuffer();
         if (mapBuffer) {
           // Get sourcemap from flatbuffer
-          let map = new SourceMap();
+          let map = new SourceMap(this.options.projectRoot);
           map.addBufferMappings(mapBuffer);
           return map;
         }
@@ -135,10 +134,6 @@ export default class CommittedAsset {
     }
 
     return this.ast;
-  }
-
-  getIncludedFiles(): Array<File> {
-    return Array.from(this.value.includedFiles.values());
   }
 
   getDependencies(): Array<Dependency> {

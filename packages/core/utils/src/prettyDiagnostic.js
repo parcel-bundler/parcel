@@ -45,10 +45,7 @@ export default async function prettyDiagnostic(
   };
 
   if (codeFrame !== undefined) {
-    let highlights = Array.isArray(codeFrame.codeHighlights)
-      ? codeFrame.codeHighlights
-      : [codeFrame.codeHighlights];
-
+    let highlights = codeFrame.codeHighlights;
     let code =
       codeFrame.code ??
       (options &&
