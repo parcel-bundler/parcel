@@ -457,6 +457,8 @@ function linearizeState(state /*: State */) /* : Fixture */ {
 }
 
 function* generateExamples() /*: Iterable<Fixture> */ {
+  getNewExportNameNext = 'a';
+
   let state /*: State */ = {
     modules: {
       [0]: {
