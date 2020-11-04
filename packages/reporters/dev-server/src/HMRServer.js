@@ -4,8 +4,10 @@ import type {BuildSuccessEvent, PluginOptions} from '@parcel/types';
 import type {Diagnostic} from '@parcel/diagnostic';
 import type {AnsiDiagnosticResult} from '@parcel/utils';
 import type {ServerError, HMRServerOptions} from './types.js.flow';
+import type SourceMap from '@parcel/source-map';
 
 import WebSocket from 'ws';
+import invariant from 'assert';
 import {
   ansiHtml,
   md5FromObject,
@@ -130,10 +132,27 @@ export default class HMRServer {
           depsByBundle[bundle.id] = deps;
         }
 
+        let output = await asset.getCode();
+
+        if (this.options.sourceMaps) {
+          let sourcemap: ?SourceMap = await asset.getMap();
+          if (sourcemap) {
+            let sourcemapStringified = await sourcemap.stringify({
+              format: 'inline',
+              sourceRoot: '/__parcel_source_root/',
+              // TODO
+              // rootDir & fs needed for inlineSources, see PackageRunner#generateSourceMap
+            });
+            invariant(typeof sourcemapStringified === 'string');
+
+            output += `\n//# sourceMappingURL=${sourcemapStringified}\n`;
+          }
+        }
+
         return {
           id: event.bundleGraph.getAssetPublicId(asset),
           type: asset.type,
-          output: await asset.getCode(),
+          output,
           envHash: md5FromObject(asset.env),
           depsByBundle,
         };
