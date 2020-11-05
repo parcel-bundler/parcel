@@ -903,23 +903,46 @@ export type BundleGroup = {|
  * @section bundler
  */
 export interface MutableBundleGraph extends BundleGraph<Bundle> {
-  /** Add asset and all child nodes to the bundle. */
+  /**
+   * Recursively add an asset and its dependencies to a bundle. Stops at
+   * bundle group boundaries.
+   */
   addAssetGraphToBundle(Asset, Bundle): void;
+  /**
+   * Adds an asset as an entry to a bundle. Entry assets are executed immediately
+   * when the bundle is loaded.
+   */
   addEntryToBundle(Asset, Bundle): void;
+  /** Adds the Bundle to the BundleGroup, loading it along with others in the group */
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   createAssetReference(Dependency, Asset): void;
   createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOpts): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
   createBundleGroup(Dependency, Target): BundleGroup;
+  /** @returns all Asset-s attached to the Dependency */
   getDependencyAssets(Dependency): Array<Asset>;
+  /** Get Bundles that load this bundle asynchronously. */
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  /** @returns the total size of an asset along with its subgraph */
   getTotalSize(Asset): number;
-  /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
+  /**
+   * Recursively remove an asset and its dependencies to a bundle. Stops at
+   * bundle group boundaries.
+   */
   removeAssetGraphFromBundle(Asset, Bundle): void;
+  /**
+   * Removes a BundleGroup from the graph. If any of the group's Bundle-s no
+   * longer exist in the graph, those are removed as well.
+   */
   removeBundleGroup(bundleGroup: BundleGroup): void;
-  /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
+  /**
+   * Marks an async dependency as internally resolvable from this <code>bundle</code>. While
+   * other bundles may load an external bundle with the asset's resolution, this
+   * bundle will not.
+   */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
+  /** Traverses all assets and dependencies in the graph depth-first */
   traverse<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>,
   ): ?TContext;
@@ -933,13 +956,25 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
  * @section bundler
  */
 export interface BundleGraph<TBundle: Bundle> {
+  /**
+   * Get an asset by its id
+   * @param id The asset's id
+   */
   getAssetById(id: string): Asset;
+  /**
+   * Get an asset's public id
+   * @param asset The asset
+   */
   getAssetPublicId(asset: Asset): string;
+  /** Get all the Bundle-s in the BundleGraph */
   getBundles(): Array<TBundle>;
+  /** Get all the BundleGroup-s containing the Bundle */
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  /** Get all the Bundle-s in a BundleGroup */
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
   getChildBundles(bundle: Bundle): Array<TBundle>;
+  /** Get all bundles that asynchronously load this Bundle */
   getParentBundles(bundle: Bundle): Array<TBundle>;
   /** See BundleGroup */
   getSiblingBundles(bundle: Bundle): Array<TBundle>;
@@ -960,17 +995,33 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'bundle_group', value: BundleGroup|}
     | {|type: 'asset', value: Asset|}
   );
+  /**
+   * @returns whether the dependency is deferred or not. Dependencies are deferred
+   *         if
+   */
   isDependencyDeferred(dependency: Dependency): boolean;
-  /** Find out which asset the dependency resolved to. */
+  /**
+   * Get the resolved an asset for a dependency. This may or may not exist in
+   * the current bundle.
+   *
+   * @param dep The dependency to resolve
+   * @param bundle The bundle to resolve the dependency within
+   * @returns The asset the dependency resolves to
+   */
   getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
   getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
+  /** Get all bundles which contain the Asset */
   findBundlesWithAsset(Asset): Array<TBundle>;
+  /** Get all bundles which contain the Dependency */
   findBundlesWithDependency(Dependency): Array<TBundle>;
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
+  /** Get the first Bundle in the Bundle's ancestry which contains the Asset*/
   findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
   isAssetReferenced(asset: Asset): boolean;
+  /** @returns whether the Asset is needed by any of the Bundle's siblings or descendants */
   isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
+  /** @returns whether the Bundle has an immediate parent of the given type */
   hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   /**
    * Resolve the export `symbol` of `asset` to the source,
@@ -989,6 +1040,7 @@ export interface BundleGraph<TBundle: Bundle> {
   ): SymbolResolution;
   /** Gets the symbols that are (transivitely) exported by the asset */
   getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
+  /** Traverses all of the bundles in the graph in depth-first order */
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,

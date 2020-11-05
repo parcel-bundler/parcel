@@ -267,6 +267,7 @@ export default class BundleGraph<TBundle: IBundle>
     );
   }
 
+  /** @returns the bundles in the graph that contain the asset */
   findBundlesWithAsset(asset: IAsset): Array<TBundle> {
     return this.#graph
       .findBundlesWithAsset(assetToAssetValue(asset))
@@ -275,6 +276,7 @@ export default class BundleGraph<TBundle: IBundle>
       );
   }
 
+  /** @returns the bundles in the graph that contain the dependency */
   findBundlesWithDependency(dependency: IDependency): Array<TBundle> {
     return this.#graph
       .findBundlesWithDependency(dependencyToInternalDependency(dependency))
