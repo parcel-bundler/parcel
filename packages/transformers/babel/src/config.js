@@ -48,6 +48,7 @@ export async function load(
     config.searchPath,
     {range: BABEL_RANGE, autoinstall: options.autoinstall},
   );
+
   let partialConfig = babelCore.loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
@@ -55,9 +56,7 @@ export async function load(
     babelrcRoots,
     envName:
       options.env.BABEL_ENV ??
-      process.env.BABEL_ENV ??
       options.env.NODE_ENV ??
-      process.env.NODE_ENV ??
       (options.mode === 'production' || options.mode === 'development'
         ? options.mode
         : null) ??
