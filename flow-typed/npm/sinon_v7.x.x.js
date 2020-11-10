@@ -108,6 +108,7 @@ declare module 'sinon' {
     (...args: Array<any>): any;
     withArgs(...args: Array<any>): SinonSpy;
     invokeCallback(...args: Array<any>): void;
+    calledOnceWithExactly(...args: Array<any>): boolean;
   }
 
   declare interface SinonSpyStatic {
