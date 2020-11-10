@@ -52,6 +52,16 @@ type AssetGraphRequest = {|
   input: AssetGraphRequestInput,
 |};
 
+/**
+ * - If a new graph, nodes represeting Parcel's entries (e.g. `parcel entry.js`) are added to the `AssetGraph` as entry specifier nodes. These nodes initially do not have corresponding requests in the `RequestGraph`, so requests are created for them.
+ * - For all nodes in the `AssetGraph`, recursively queue corresponding requests in the `RequestGraph` if the node does not have a corresponding request or the corresponding request is "invalid" (which occurs when files or other circumstances change).
+ * - Entry specifiers in the `AssetGraph` create entry requests in the `RequestGraph`.
+ * - Entry requests are run and create entry file nodes in the `AssetGraph`, which then are used to create entry target requests in the `RequestGraph`.
+ * - Entry target requests produce dependency nodes in the `AssetGraph`, which then are used to create path requests in the `RequestGraph`.
+ * - Path requests produce Asset Group nodes in the `AssetGraph`, which then are used to create asset requests in the `RequestGraph`.
+ * - Asset requesets produce asset nodes as well as connected dependency nodes (e.g. a dependency node on 'foo' is created and connected to an asset which has `require('foo')`) in the `AssetGraph`. Dependency nodes will then create more path requests.
+ * - The above rules are then followed recursively until requests no longer need to be resolved.
+ */
 export default function createAssetGraphRequest(
   input: AssetGraphRequestInput,
 ): AssetGraphRequest {

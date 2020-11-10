@@ -1,0 +1,398 @@
+// ---
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest
+    }
+
+    subgraph AssetGraph {
+        root -> EntrySpecifier
+    }
+}
+
+// ---
+
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest [style=dotted]
+        EntryRequest [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        root -> EntrySpecifier
+        EntrySpecifier [style=filled, color=green]
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest
+        EntryRequest
+    }
+
+    subgraph AssetGraph {
+        root -> EntrySpecifier
+        EntrySpecifier [style=filled]
+        EntrySpecifier -> EntryFile
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        TargetRequest [style=dotted]
+
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled, color=green]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency
+
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        PathRequest [style=dotted]
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency [style=filled, color=green]
+
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency [style=filled]
+        AssetGroup
+
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency
+        Dependency -> AssetGroup
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetRequest [style=dotted]
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest
+        AssetGraphRequest -> AssetRequest [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency [style=filled]
+        AssetGroup [style=filled, color=green]
+
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency
+        Dependency -> AssetGroup
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest
+        AssetGraphRequest -> AssetRequest
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup [style=filled]
+        Asset1 [label=Asset]
+        Asset2 [label=Asset]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup
+        AssetGroup -> Asset1
+        AssetGroup -> Asset2
+        Asset2 -> Dependency2
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest
+        AssetGraphRequest -> AssetRequest
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup [style=filled]
+        Asset1 [label=Asset, style=filled, color=green]
+        Asset2 [label=Asset, style=filled, color=green]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup
+        AssetGroup -> Asset1
+        AssetGroup -> Asset2
+        Asset2 -> Dependency2
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        PathRequest1 [label=PathRequest]
+        PathRequest2 [label=PathRequest, style=dotted]
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest1
+        AssetGraphRequest -> AssetRequest
+        AssetGraphRequest -> PathRequest2 [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup [style=filled]
+        Asset1 [label=Asset, style=filled]
+        Asset2 [label=Asset, style=filled]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency, style=filled, color=green]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup
+        AssetGroup -> Asset1
+        AssetGroup -> Asset2
+        Asset2 -> Dependency2
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        PathRequest1 [label=PathRequest]
+        PathRequest2 [label=PathRequest]
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest1
+        AssetGraphRequest -> AssetRequest
+        AssetGraphRequest -> PathRequest2
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup1 [label=AssetGroup, style=filled]
+        AssetGroup2 [label=AssetGroup]
+        Asset1 [label=Asset, style=filled]
+        Asset2 [label=Asset, style=filled]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency, style=filled]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup1
+        AssetGroup1 -> Asset1
+        AssetGroup1 -> Asset2
+        Asset2 -> Dependency2
+        Dependency2 -> AssetGroup2
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetRequest1 [label=AssetRequest]
+        AssetRequest2 [label=AssetRequest, style=dotted]
+        PathRequest1 [label=PathRequest]
+        PathRequest2 [label=PathRequest]
+
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest1
+        AssetGraphRequest -> AssetRequest1
+        AssetGraphRequest -> AssetRequest2 [style=dotted]
+        AssetGraphRequest -> PathRequest2
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup1 [label=AssetGroup, style=filled]
+        AssetGroup2 [label=AssetGroup, style=filled, color=green]
+        Asset1 [label=Asset, style=filled]
+        Asset2 [label=Asset, style=filled]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency, style=filled]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup1
+        AssetGroup1 -> Asset1
+        AssetGroup1 -> Asset2
+        Asset2 -> Dependency2
+        Dependency2 -> AssetGroup2
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetRequest1 [label=AssetRequest]
+        AssetRequest2 [label=AssetRequest]
+        PathRequest1 [label=PathRequest]
+        PathRequest2 [label=PathRequest]
+
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest1
+        AssetGraphRequest -> AssetRequest1
+        AssetGraphRequest -> AssetRequest2
+        AssetGraphRequest -> PathRequest2
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup1 [label=AssetGroup, style=filled]
+        AssetGroup2 [label=AssetGroup, style=filled]
+        Asset1 [label=Asset, style=filled]
+        Asset2 [label=Asset, style=filled]
+        Asset3 [label=Asset]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency, style=filled]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup1
+        AssetGroup1 -> Asset1
+        AssetGroup1 -> Asset2
+        Asset2 -> Dependency2
+        Dependency2 -> AssetGroup2
+        AssetGroup2 -> Asset3
+    }
+}
+
+//
+
+digraph  {
+    subgraph RequestGraph {
+        AssetRequest1 [label=AssetRequest]
+        AssetRequest2 [label=AssetRequest]
+        PathRequest1 [label=PathRequest]
+        PathRequest2 [label=PathRequest]
+
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest1
+        AssetGraphRequest -> AssetRequest1
+        AssetGraphRequest -> AssetRequest2
+        AssetGraphRequest -> PathRequest2
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup1 [label=AssetGroup, style=filled]
+        AssetGroup2 [label=AssetGroup, style=filled]
+        Asset1 [label=Asset, style=filled]
+        Asset2 [label=Asset, style=filled]
+        Asset3 [label=Asset, style=filled]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency, style=filled]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup1
+        AssetGroup1 -> Asset1
+        AssetGroup1 -> Asset2
+        Asset2 -> Dependency2
+        Dependency2 -> AssetGroup2
+        AssetGroup2 -> Asset3
+    }
+}
+
