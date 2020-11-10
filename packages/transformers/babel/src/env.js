@@ -2,7 +2,7 @@
 
 import type {Config} from '@parcel/types';
 import presetEnv from '@babel/preset-env';
-import type {BabelTargets} from '@babel/preset-env';
+import type {BabelTargets, PresetEnvPlugins} from '@babel/preset-env';
 
 import getBabelTargets from './getBabelTargets';
 import {enginesToBabelTargets} from './utils';
@@ -62,7 +62,7 @@ export default async function getEnvOptions(
   };
 }
 
-function getNeededPlugins(targets: BabelTargets): Array<mixed> {
+function getNeededPlugins(targets: BabelTargets): Array<PresetEnvPlugins> {
   return presetEnv(
     {assertVersion: () => true},
     {targets: targets},
