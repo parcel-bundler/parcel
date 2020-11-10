@@ -1,9 +1,8 @@
 // @flow strict-local
 
 import type {Config} from '@parcel/types';
-import type {BabelTargets} from './types';
-
 import presetEnv from '@babel/preset-env';
+import type {BabelTargets} from '@babel/preset-env';
 
 import getBabelTargets from './getBabelTargets';
 import {enginesToBabelTargets} from './utils';
