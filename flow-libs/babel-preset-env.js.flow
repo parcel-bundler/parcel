@@ -1,0 +1,17 @@
+// @flow strict-local
+
+declare module '@babel/preset-env' {
+  declare type assertVersionCb = () => boolean;
+
+  declare type BabelTargets = {
+    browsers?: string | Array<string>,
+    esmodules?: boolean,
+    [string]: string,
+    ...
+  };
+
+  declare export default (
+    {assertVersion: assertVersionCb, ...},
+    {targets: BabelTargets, ...},
+  ) => {plugins: Array<any>, ...};
+}
