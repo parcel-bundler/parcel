@@ -3,15 +3,17 @@
 declare module '@babel/preset-env' {
   declare type assertVersionCb = () => boolean;
 
-  declare export type BabelTargets = {
+  declare export type Targets = {
     browsers?: string | Array<string>,
     esmodules?: boolean,
     [string]: string,
     ...
   };
 
+  declare export type PresetEnvPlugins = [PresetEnvPlugin, PresetOpts];
+
   declare export default (
     {assertVersion: assertVersionCb, ...},
-    {targets: BabelTargets, ...},
-  ) => {plugins: Array<any>, ...};
+    {targets: Targets, ...},
+  ) => {plugins: Array<PresetEnvPlugins>, ...};
 }
