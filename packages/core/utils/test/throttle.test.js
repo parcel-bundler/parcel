@@ -1,5 +1,3 @@
-// @flow strict-local
-
 import assert from 'assert';
 // $FlowFixMe
 import sinon from 'sinon';

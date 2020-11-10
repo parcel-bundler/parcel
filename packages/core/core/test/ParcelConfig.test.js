@@ -1,4 +1,6 @@
-// @flow
+// @flow strict-local
+
+// flowlint untyped-import:off
 import ParcelConfig from '../src/ParcelConfig';
 import assert from 'assert';
 import path from 'path';
@@ -189,7 +191,6 @@ describe('ParcelConfig', () => {
         inputFS,
         false,
       );
-
       let parcelVersion = require('../package.json').version;
       let pkgJSON = path.join(
         __dirname,
