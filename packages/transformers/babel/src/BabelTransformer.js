@@ -24,6 +24,10 @@ export default (new Transformer({
   },
 
   async transform({asset, config, options}) {
+    // TODO: Provide invalidateOnEnvChange on config?
+    asset.invalidateOnEnvChange('BABEL_ENV');
+    asset.invalidateOnEnvChange('NODE_ENV');
+
     // TODO: come up with a better name
     try {
       if (config?.config) {
