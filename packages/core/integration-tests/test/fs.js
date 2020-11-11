@@ -1,5 +1,7 @@
 // @flow
+
 import assert from 'assert';
+import invariant from 'assert';
 import path from 'path';
 import {
   assertBundles,
@@ -57,9 +59,8 @@ describe('fs', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-buffer/index.js'),
       );
-      //$FlowFixMe
       let output = await run(b);
-      assert(output instanceof Object);
+      invariant(typeof output === 'object' && output != null);
       assert(output.constructor.name.includes('Buffer'));
       assert.equal(output.length, 5);
     });
@@ -116,8 +117,8 @@ describe('fs', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-import/index.js'),
       );
-      //$FlowFixMe[incompatible-call]
       let output = await run(b);
+      invariant(typeof output === 'object' && output != null);
       assert.equal(output.default, 'hello');
     });
 
@@ -125,8 +126,8 @@ describe('fs', function() {
       let b = await bundle(
         path.join(__dirname, '/integration/fs-import-path-join/index.js'),
       );
-      //$FlowFixMe[incompatible-call]
       let output = await run(b);
+      invariant(typeof output === 'object' && output != null);
       assert.equal(output.default, 'hello');
     });
 
@@ -142,7 +143,7 @@ describe('fs', function() {
           assets: ['_empty.js', 'ignore-fs.js', 'index.js'],
         },
       ]);
-      //$FlowFixMe[incompatible-call]
+      // $FlowFixMe[incompatible-call]
       let output = await run(b);
 
       assert.equal(typeof output.test, 'function');
