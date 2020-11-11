@@ -10,10 +10,10 @@ declare module '@babel/preset-env' {
     ...
   };
 
-  declare export type PresetEnvPlugins = [PresetEnvPlugin, PresetOpts];
+  declare export type PresetEnvPlugin = [mixed, mixed];
 
   declare export default (
     {assertVersion: assertVersionCb, ...},
     {targets: Targets, ...},
-  ) => {plugins: Array<PresetEnvPlugins>, ...};
+  ) => {plugins: Array<PresetEnvPlugin>, ...};
 }
