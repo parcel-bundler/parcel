@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {
   BuildEvent,
@@ -15,6 +15,7 @@ import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import url from 'url';
+// flowlint-next-line untyped-import:off
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
@@ -269,7 +270,7 @@ export function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
-): Promise<any> {
+): Promise<mixed> {
   let bundle = nullthrows(
     bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
   );
@@ -334,7 +335,7 @@ export function assertBundles(
   for (let bundle of expectedBundles) {
     let actualBundle = actualBundles[i++];
     let name = bundle.name;
-    if (name) {
+    if (name != null) {
       if (typeof name === 'string') {
         assert.equal(actualBundle.name, name);
       } else if (name instanceof RegExp) {
@@ -348,7 +349,7 @@ export function assertBundles(
       }
     }
 
-    if (bundle.type) {
+    if (bundle.type != null) {
       assert.equal(actualBundle.type, bundle.type);
     }
 

@@ -1,9 +1,0 @@
-// @flow strict-local
-
-declare module '@parcel/test-utils' {
-  import type {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
-
-  declare export type outputFS = MemoryFS;
-
-  declare export default {};
-}
