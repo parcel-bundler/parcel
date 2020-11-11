@@ -1,19 +1,17 @@
 // @flow strict-local
 
 declare module '@babel/preset-env' {
-  declare type assertVersionCb = () => boolean;
-
-  declare export type BabelTargets = {
+  declare export type Targets = {
     browsers?: string | Array<string>,
     esmodules?: boolean,
     [string]: string,
     ...
   };
 
-  declare export type PresetEnvPlugins = Array<mixed>;
+  declare export type PresetEnvPlugin = [mixed, mixed];
 
   declare export default (
-    {assertVersion: assertVersionCb, ...},
-    {targets: BabelTargets, ...},
-  ) => {plugins: Array<PresetEnvPlugins>, ...};
+    {assertVersion: () => boolean, ...},
+    {targets: Targets, ...},
+  ) => {plugins: Array<PresetEnvPlugin>, ...};
 }
