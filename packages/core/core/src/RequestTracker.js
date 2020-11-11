@@ -440,7 +440,6 @@ export default class RequestTracker {
         // $FlowFixMe
       ): any);
       node.value.result = cachedResult;
-      delete node.value.resultCacheKey;
       return cachedResult;
     }
   }

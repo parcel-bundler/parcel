@@ -16,7 +16,7 @@ import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 
-const instances = new Map();
+const instances: Map<number, MemoryFS> = new Map();
 let id = 0;
 
 type HandleFunction = (...args: Array<any>) => any;
