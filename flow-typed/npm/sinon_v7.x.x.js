@@ -101,6 +101,7 @@ declare module 'sinon' {
     calledBefore(call: SinonSpyCall): boolean;
     calledAfter(call: SinonSpyCall): boolean;
     calledWithNew(call: SinonSpyCall): boolean;
+    lastArg(): SinonSpyCall;
   }
 
   declare interface SinonSpy extends SinonSpyCallApi, SinonFake {
