@@ -1,42 +1,37 @@
 // @flow strict-local
 
+import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {Diagnostic} from '@parcel/diagnostic';
 import type {
   AsyncSubscription,
   BuildEvent,
   BuildSuccessEvent,
   InitialParcelOptions,
 } from '@parcel/types';
-import type {ParcelOptions} from './types';
 // eslint-disable-next-line no-unused-vars
 import type {FarmOptions, SharedReference} from '@parcel/workers';
-import type {Diagnostic} from '@parcel/diagnostic';
-import type {AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import type {ParcelOptions} from './types';
 
+import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
+import {createCacheDir} from '@parcel/cache';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {ValueEmitter, Disposable} from '@parcel/events';
+import logger from '@parcel/logger';
+import {PromiseQueue} from '@parcel/utils';
+import WorkerFarm from '@parcel/workers';
+import ParcelConfig from './ParcelConfig';
 import {assetFromValue} from './public/Asset';
 import {NamedBundle} from './public/Bundle';
 import BundleGraph from './public/BundleGraph';
-import BundlerRunner from './BundlerRunner';
-import WorkerFarm from '@parcel/workers';
-import nullthrows from 'nullthrows';
-import {assertSignalNotAborted, BuildAbortError} from './utils';
-import PackagerRunner from './PackagerRunner';
-import {loadParcelConfig} from './requests/ParcelConfigRequest';
-import ReporterRunner, {report} from './ReporterRunner';
-import dumpGraphToGraphViz from './dumpGraphToGraphViz';
+import ReporterRunner from './ReporterRunner';
 import resolveOptions from './resolveOptions';
-import {ValueEmitter} from '@parcel/events';
-import {registerCoreWithSerializer} from './utils';
-import {createCacheDir} from '@parcel/cache';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import {PromiseQueue} from '@parcel/utils';
-import ParcelConfig from './ParcelConfig';
-import logger from '@parcel/logger';
-import RequestTracker, {getWatcherOptions} from './RequestTracker';
-import createAssetGraphRequest from './requests/AssetGraphRequest';
+import createParcelBuildRequest from './requests/ParcelBuildRequest';
+import {loadParcelConfig} from './requests/ParcelConfigRequest';
 import createValidationRequest from './requests/ValidationRequest';
-import {Disposable} from '@parcel/events';
+import RequestTracker, {getWatcherOptions} from './RequestTracker';
+import {BuildAbortError, registerCoreWithSerializer} from './utils';
 
 registerCoreWithSerializer();
 
@@ -45,8 +40,6 @@ export const INTERNAL_RESOLVE: symbol = Symbol('internal_resolve');
 
 export default class Parcel {
   #requestTracker /*: RequestTracker*/;
-  #bundlerRunner /*: BundlerRunner*/;
-  #packagerRunner /*: PackagerRunner*/;
   #config /*: ParcelConfig*/;
   #farm /*: WorkerFarm*/;
   #initialized /*: boolean*/ = false;
@@ -135,27 +128,10 @@ export default class Parcel {
       options: resolvedOptions,
     });
 
-    this.#bundlerRunner = new BundlerRunner({
-      options: resolvedOptions,
-      optionsRef: optionsRef,
-      requestTracker: this.#requestTracker,
-      config: this.#config,
-      workerFarm: this.#farm,
-    });
-
     this.#reporterRunner = new ReporterRunner({
       config: this.#config,
       options: resolvedOptions,
       workerFarm: this.#farm,
-    });
-
-    this.#packagerRunner = new PackagerRunner({
-      config: this.#config,
-      farm: this.#farm,
-      options: resolvedOptions,
-      optionsRef,
-      configRef,
-      report,
     });
 
     this.#initialized = true;
@@ -273,25 +249,13 @@ export default class Parcel {
       this.#reporterRunner.report({
         type: 'buildStart',
       });
-      let request = createAssetGraphRequest({
-        name: 'Main',
-        entries: nullthrows(this.#resolvedOptions).entries,
-        optionsRef: this.#optionsRef,
-      }); // ? should we create this on every build?
       let {
-        assetGraph,
         changedAssets,
         assetRequests,
-      } = await this.#requestTracker.runRequest(request);
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
-
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
-      // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
-      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
-
-      await this.#packagerRunner.writeBundles(bundleGraph);
-      assertSignalNotAborted(signal);
+        bundleGraph,
+      } = this.#requestTracker.runRequest(
+        createParcelBuildRequest({optionsRef: this.#optionsRef}),
+      );
 
       let event = {
         type: 'buildSuccess',
@@ -304,12 +268,12 @@ export default class Parcel {
         bundleGraph: new BundleGraph(bundleGraph, NamedBundle.get, options),
         buildTime: Date.now() - startTime,
       };
-
       await this.#reporterRunner.report(event);
       await this.#requestTracker.runRequest(
         createValidationRequest({optionsRef: this.#optionsRef, assetRequests}),
         {force: assetRequests.length > 0},
       );
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
