@@ -8,6 +8,6 @@ declare module 'browserslist' {
   declare module.exports: {|
     (browsers: string | Array<string>): Array<string>,
     parseConfig(configResult: ConfigResult): Promise<?BrowserslistConfig>,
-    loadConfig(opts: any): any,
+    loadConfig({[path: FilePath]: FilePath, ...}): string,
   |};
 }
