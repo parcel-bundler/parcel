@@ -1,0 +1,21 @@
+// @flow strict-local
+
+declare module 'browserslist' {
+  import type {ConfigResult} from '@parcel/types';
+
+  declare type BrowserslistConfig = {|[string]: string | Array<string>|};
+  // declare export type Brwos = {
+  //   parseConfig: parseConfig,
+  //   loadConfig: loadConfig,
+  //   ...
+  // }
+  // declare export default (
+  //   parseConfig,
+  //   loadConfig,
+  // ) => Array<string>;
+  declare export class BrowsersList extends Array<string> {
+    constructor(browsers: string | Array<string>): Array<string>;
+    static parseConfig(configResult: ConfigResult): Promise<?BrowserslistConfig>;
+    static loadConfig({|opts: any|}): any;
+  }
+}
