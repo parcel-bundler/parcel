@@ -9,7 +9,7 @@ import type {
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
-import {BrowsersList} from 'browserslist';
+import browserslist from 'browserslist';
 import semver from 'semver';
 
 export const BROWSER_ENVS: Set<string> = new Set<string>([
@@ -153,9 +153,9 @@ export default class Environment implements IEnvironment {
         browsers = [...browsers, ...getExcludedBrowsers(ESMODULE_BROWSERS)];
       }
 
-      let matchedBrowsers = new BrowsersList(browsers);
+      let matchedBrowsers = browserslist(browsers);
       let minBrowsers = getExcludedBrowsers(minVersions);
-      let withoutMinBrowsers = new BrowsersList([...browsers, ...minBrowsers]);
+      let withoutMinBrowsers = browserslist([...browsers, ...minBrowsers]);
       return matchedBrowsers.length === withoutMinBrowsers.length;
     } else if (this.isNode() && this.engines.node != null && minVersions.node) {
       return !semver.intersects(`< ${minVersions.node}`, this.engines.node);

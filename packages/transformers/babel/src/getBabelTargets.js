@@ -3,7 +3,7 @@
 import type {Config} from '@parcel/types';
 import type {BabelTargets} from './types';
 
-import {BrowsersList} from 'browserslist';
+import browserslist from 'browserslist';
 import semver from 'semver';
 
 const BROWSER_CONTEXT = new Set(['browser', 'web-worker', 'service-worker']);
@@ -71,7 +71,7 @@ export default async function getBabelTargets(
     }
 
     if (browsers) {
-      targets.browsers = new BrowsersList(browsers).sort();
+      targets.browsers = browserslist(browsers).sort();
     }
   }
 
@@ -92,6 +92,6 @@ async function loadBrowserslist(config): Promise<?BrowserslistConfig> {
   );
 
   if (browserslistConfig) {
-    return BrowsersList.parseConfig(browserslistConfig.contents);
+    return browserslist.parseConfig(browserslistConfig.contents);
   }
 }
