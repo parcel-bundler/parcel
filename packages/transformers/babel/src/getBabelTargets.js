@@ -1,7 +1,7 @@
 // @flow
 
 import type {Config} from '@parcel/types';
-import type {BabelTargets} from './types';
+import type {Targets as BabelTargets} from '@babel/preset-env';
 
 import browserslist from 'browserslist';
 import semver from 'semver';
