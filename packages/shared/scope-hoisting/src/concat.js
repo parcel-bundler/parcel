@@ -32,7 +32,7 @@ import {
   isVariableDeclaration,
 } from '@babel/types';
 import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue, relativeUrl, flat} from '@parcel/utils';
+import {PromiseQueue, relativeUrl, flat, relativePath} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -62,11 +62,13 @@ export async function concat({
   bundleGraph,
   options,
   wrappedAssets,
+  parcelRequireName,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
+  parcelRequireName: string,
 |}): Promise<BabelNodeFile> {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
@@ -93,13 +95,27 @@ export async function concat({
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
   let result = [...HELPERS];
+
+  // Add a declaration for parcelRequire that points to the unique global name.
+  if (bundle.env.outputFormat === 'global') {
+    result.push(
+      ...parse(
+        `var parcelRequire = $parcel$global.${parcelRequireName};`,
+        PRELUDE_PATH,
+      ),
+    );
+  }
+
   if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...PRELUDE);
+    result.push(
+      ...parse(`var parcelRequireName = "${parcelRequireName}";`, PRELUDE_PATH),
+      ...PRELUDE,
+    );
   }
 
   let usedExports = getUsedExports(bundle, bundleGraph);
 
-  // Node: for each asset, the order of `$parcel$require` calls and the corresponding
+  // Note: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
@@ -190,7 +206,12 @@ async function processAsset(
   }
 
   if (statements[0]) {
-    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
+    t.addComment(
+      statements[0],
+      'leading',
+      ` ASSET: ${relativePath(options.projectRoot, asset.filePath, false)}`,
+      true,
+    );
   }
 
   return [asset.id, statements];

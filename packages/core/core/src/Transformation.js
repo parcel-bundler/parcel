@@ -21,11 +21,15 @@ import type {
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {md5FromObject, normalizeSeparators} from '@parcel/utils';
+import {
+  escapeMarkdown,
+  md5FromObject,
+  normalizeSeparators,
+} from '@parcel/utils';
 import logger, {PluginLogger} from '@parcel/logger';
 import {init as initSourcemaps} from '@parcel/source-map';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
-import {SOURCEMAP_EXTENSIONS, relativePath, flatMap} from '@parcel/utils';
+import {SOURCEMAP_EXTENSIONS, flatMap} from '@parcel/utils';
 
 import ConfigLoader from './ConfigLoader';
 import {createDependency} from './Dependency';
@@ -123,18 +127,17 @@ export default class Transformation {
       try {
         await asset.loadExistingSourcemap();
       } catch (err) {
-        logger.warn([
+        logger.verbose([
           {
             origin: '@parcel/core',
-            message: `Could not load existing source map for ${relativePath(
-              this.options.projectRoot,
-              asset.value.filePath,
+            message: `Could not load existing source map for ${escapeMarkdown(
+              path.relative(this.options.projectRoot, asset.value.filePath),
             )}`,
             filePath: asset.value.filePath,
           },
           {
             origin: '@parcel/core',
-            message: err.message,
+            message: escapeMarkdown(err.message),
             filePath: asset.value.filePath,
           },
         ]);
