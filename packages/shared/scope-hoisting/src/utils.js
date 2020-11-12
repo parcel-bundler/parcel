@@ -31,17 +31,17 @@ export function getName(
   type: string,
   ...rest: Array<string>
 ): string {
-  return (
+  return t.toIdentifier(
     '$' +
-    t.toIdentifier(asset.id) +
-    '$' +
-    type +
-    (rest.length
-      ? '$' +
-        rest
-          .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-          .join('$')
-      : '')
+      asset.id +
+      '$' +
+      type +
+      (rest.length
+        ? '$' +
+          rest
+            .map(name => (name === 'default' ? name : t.toIdentifier(name)))
+            .join('$')
+        : ''),
   );
 }
 
