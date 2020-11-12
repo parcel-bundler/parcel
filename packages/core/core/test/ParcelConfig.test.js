@@ -1,6 +1,5 @@
 // @flow strict-local
 
-// flowlint untyped-import:off
 import ParcelConfig from '../src/ParcelConfig';
 import assert from 'assert';
 import path from 'path';

@@ -1,6 +1,5 @@
 // @flow strict-local
 
-// flowlint untyped-import:off
 import {MemoryFS, NodeFS, OverlayFS} from '@parcel/fs';
 import assert from 'assert';
 import invariant from 'assert';
