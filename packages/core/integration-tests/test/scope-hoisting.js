@@ -131,7 +131,7 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
-    it('supports importing from a reexporting asset in an anchestor', async function() {
+    it('supports importing from a reexporting asset in an anchestor (1)', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -141,6 +141,30 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['index', 'async']);
+    });
+
+    it('supports importing from a reexporting asset in an anchestor (2)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/ancestor-reexport2/a.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [123, 123]);
+    });
+
+    it('supports importing from a reexporting asset in an anchestor (3)', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/ancestor-reexport2/b.js',
+        ),
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [123, 123]);
     });
 
     it('supports importing a namespace of exported values', async function() {

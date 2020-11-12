@@ -1091,16 +1091,31 @@ export default class BundleGraph {
           };
         }
         if (result.symbol === null) {
-          // We didn't find it in this dependency, but it might still be there: bailout.
-          // Continue searching though, with the assumption that there are no conficting reexports
-          // and there might be a another (re)export (where we might statically find the symbol).
-          potentialResults.push({
-            asset: result.asset,
-            symbol: result.symbol,
-            exportSymbol: result.exportSymbol,
-            loc: resolved.symbols?.get(symbol)?.loc,
-          });
           found = true;
+          if (boundary && !this.bundleHasAsset(boundary, result.asset)) {
+            // If the returned asset is outside (and it's the first asset that is outside), return it.
+            if (!assetOutside) {
+              return {
+                asset: result.asset,
+                symbol: result.symbol,
+                exportSymbol: result.exportSymbol,
+                loc: resolved.symbols?.get(symbol)?.loc,
+              };
+            } else {
+              // Otherwise the original asset will be returned at the end.
+              break;
+            }
+          } else {
+            // We didn't find it in this dependency, but it might still be there: bailout.
+            // Continue searching though, with the assumption that there are no conficting reexports
+            // and there might be a another (re)export (where we might statically find the symbol).
+            potentialResults.push({
+              asset: result.asset,
+              symbol: result.symbol,
+              exportSymbol: result.exportSymbol,
+              loc: resolved.symbols?.get(symbol)?.loc,
+            });
+          }
         }
       }
     }
