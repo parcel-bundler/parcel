@@ -70,7 +70,7 @@ export default async function getBabelTargets(
       browsers = browsers[env] || browsers.defaults;
     }
 
-    if (browsers !== null && browsers !== undefined) {
+    if (browsers != null) {
       targets.browsers = browserslist(browsers).sort();
     }
   }

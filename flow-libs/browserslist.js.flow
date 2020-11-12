@@ -2,7 +2,7 @@
 
 declare module 'browserslist' {
   declare type BrowserslistConfig = {|[string]: string | Array<string>|};
-  declare type Options = {
+  declare type Options = {|
     path?: string,
     env?: string,
     stats?: string,
@@ -10,11 +10,10 @@ declare module 'browserslist' {
     ignoreUnknownVersions?: boolean,
     dangerousExtend?: boolean,
     mobileToDesktop?: boolean,
-    ...
-  };
+  |};
 
   declare module.exports: {|
-    (query: string | Array<string>, opts?: Options): Array<string>,
+    (query?: string | Array<string>, opts?: Options): Array<string>,
     parseConfig(configResult: string): BrowserslistConfig,
     loadConfig(opts: {[path: string]: string, ...}): string,
   |};
