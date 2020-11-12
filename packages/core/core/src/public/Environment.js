@@ -86,6 +86,7 @@ export default class Environment implements IEnvironment {
     return this;
   }
 
+  // flowlint unsafe-getters-setters: off
   get context(): EnvironmentContext {
     return this.#environment.context;
   }

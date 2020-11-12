@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {Config} from '@parcel/types';
 import type {BabelTargets} from './types';
@@ -66,6 +66,7 @@ export default async function getBabelTargets(
       browsers != null &&
       !Array.isArray(browsers)
     ) {
+      // flowlint sketchy-null-string: off
       let env = process.env.NODE_ENV || 'development';
       browsers = browsers[env] || browsers.defaults;
     }
