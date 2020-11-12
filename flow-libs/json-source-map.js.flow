@@ -22,20 +22,20 @@ declare module 'json-source-map' {
   declare export default {|
     parse: (
       json: string,
-      _?: any,
+      _?: mixed,
       opts?: {|bigint: boolean|},
     ) => {|
-      data: {...},
-      pointers: {[key: string]: Mapping, ...},
+      data: mixed,
+      pointers: {|[key: string]: Mapping|},
     |},
 
     stringify: (
       data: any,
-      _?: any,
+      _?: mixed,
       space?: string | number | {|space: number, es6: boolean|},
     ) => {|
       json: string,
-      pointers: {[key: string]: Mapping, ...},
+      pointers: {|[key: string]: Mapping|},
     |},
   |};
 }
