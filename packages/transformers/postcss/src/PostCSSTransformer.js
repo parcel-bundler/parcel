@@ -64,6 +64,7 @@ export default (new Transformer({
       {autoinstall: options.autoinstall, range: '^8.0.0'},
     );
 
+    let cssModules;
     let plugins = [...config.hydrated.plugins];
     if (config.hydrated.modules) {
       let postcssModules = await options.packageManager.require(
@@ -74,7 +75,7 @@ export default (new Transformer({
 
       plugins.push(
         postcssModules({
-          getJSON: (filename, json) => (asset.meta.cssModules = json),
+          getJSON: (filename, json) => (cssModules = json),
           Loader: createLoader(asset, resolve),
           generateScopedName: (name, filename, css) =>
             `_${name}_${md5FromString(filename + css).substr(0, 5)}`,
@@ -135,7 +136,7 @@ export default (new Transformer({
     }
 
     let assets = [asset];
-    if (asset.meta.cssModules) {
+    if (cssModules) {
       let code = JSON.stringify(asset.meta.cssModules, null, 2);
       let deps = asset.getDependencies().filter(dep => !dep.isURL);
       if (deps.length > 0) {
@@ -148,12 +149,23 @@ export default (new Transformer({
         code = `module.exports = ${code};`;
       }
 
-      assets.push({
-        type: 'js',
-        filePath: asset.filePath + '.js',
-        content: code,
+      // assets.push({
+      //   type: 'js',
+      //   filePath: asset.filePath + '.js',
+      //   content: code,
+      // });
+      // asset.addDependency({
+      //   type: 'js',
+      //   code
+      // });
+      asset.setCode(code);
+      asset.type = 'js';
+      asset.addDependency({
+        type: 'css',
+        code,
       });
     }
+
     return assets;
   },
 

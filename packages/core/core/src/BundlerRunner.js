@@ -165,6 +165,7 @@ export default class BundlerRunner {
     let {version} = await this.config.getBundler();
 
     return md5FromObject({
+      // Missing namer name/version, runtime name/version (transformers used by runtime graph???), pluginOptions??
       parcelVersion: PARCEL_VERSION,
       name,
       version,

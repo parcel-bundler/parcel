@@ -9,6 +9,7 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import type {PluginLogger} from '@parcel/logger';
 
 import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
+import Dependency from '@parcel/core/lib/public/Dependency';
 
 /** Plugin-specific AST, <code>any</code> */
 export type AST = _AST;
@@ -980,10 +981,17 @@ export interface NamedBundle extends Bundle {
  * A collection of sibling bundles (which are stored in the BundleGraph) that should be loaded together (in order).
  * @section bundler
  */
-export type BundleGroup = {|
-  target: Target,
-  entryAssetId: string,
-  bundleIds: Array<string>,
+// export type BundleGroup = {|
+//   target: Target,
+//   entryAssetId: string,
+//   bundleIds: Array<string>,
+// |};
+
+export type ReferenceOptions = {|
+  fromDependency: Dependency,
+  ofBundle?: Bundle, // if not specified, in all bundles
+  toAsset: Asset
+  inBundle: Bundle,
 |};
 
 /**
@@ -994,26 +1002,21 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   /** Add asset and all child nodes to the bundle. */
   addAssetGraphToBundle(Asset, Bundle): void;
   addEntryToBundle(Asset, Bundle): void;
-  addBundleToBundleGroup(Bundle, BundleGroup): void;
-  createAssetReference(Dependency, Asset): void;
-  createBundleReference(Bundle, Bundle): void;
+  // addBundleToBundleGroup(Bundle, BundleGroup): void;
+  // createAssetReference(Dependency, Asset): void;
+  // createBundleReference(Bundle, Bundle): void;
   createBundle(CreateBundleOptions): Bundle;
   /** Turns an edge (Dependency -> Asset-s) into (Dependency -> BundleGroup -> Asset-s) */
-  createBundleGroup(Dependency, Target): BundleGroup;
-  getDependencyAssets(Dependency): Array<Asset>;
-  getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
-  getTotalSize(Asset): number;
+  // createBundleGroup(Dependency, Target): BundleGroup;
+  createReference(ReferenceOptions): void;
+  getDependencyAssets(Dependency): Array<Asset>; // remove if we get rid of asset groups
+  // getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
+  getSizeOfAssetGraph(Asset): number;
   /** Remove all "contains" edges from the bundle to the nodes in the asset's subgraph. */
   removeAssetGraphFromBundle(Asset, Bundle): void;
-  removeBundleGroup(bundleGroup: BundleGroup): void;
+  // removeBundleGroup(bundleGroup: BundleGroup): void;
   /** Turns a dependency to a different bundle into a dependency to an asset inside <code>bundle</code>. */
-  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void;
-  traverse<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
-  traverseContents<TContext>(
-    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
-  ): ?TContext;
+  internalizeAsyncDependency(bundle: Bundle, dependency: Dependency): void; // maybe remove. what if asset is removed from bundle later?
 }
 
 /**
@@ -1024,15 +1027,22 @@ export interface BundleGraph<TBundle: Bundle> {
   getAssetById(id: string): Asset;
   getAssetPublicId(asset: Asset): string;
   getBundles(): Array<TBundle>;
-  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
+
+  // given a bundle, give me the async bundle that references this bundle
+  // ??? NAME ???
+  getReferencingEntryOrAsyncBundles(bundle: Bundle): Array<TBundle>;
+  // get the referenced bundles of that bundle (see below)
+
+  // getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  // getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<TBundle>;
   /** Child bundles are Bundles that might be loaded by an asset in the bundle */
-  getChildBundles(bundle: Bundle): Array<TBundle>;
-  getParentBundles(bundle: Bundle): Array<TBundle>;
+  // getChildBundles(bundle: Bundle): Array<TBundle>;
+  // getParentBundles(bundle: Bundle): Array<TBundle>;
   /** See BundleGroup */
-  getSiblingBundles(bundle: Bundle): Array<TBundle>;
+  // getSiblingBundles(bundle: Bundle): Array<TBundle>;
   /** Bundles that are referenced (by filename) */
-  getReferencedBundles(bundle: Bundle): Array<TBundle>;
+  getReferencedBundles(bundle: Bundle, type?: 'sync' | 'async'): Array<TBundle>;
+  getReferencingBundles(bundle: Bundle, type?: 'sync' | 'async'): Array<TBundle>;
   /** Get the dependencies that require the asset */
   getDependencies(asset: Asset): Array<Dependency>;
   /** Get the dependencies that require the asset */
@@ -1041,25 +1051,30 @@ export interface BundleGraph<TBundle: Bundle> {
    * Returns undefined if the specified dependency was excluded or wasn't async \
    * and otherwise the BundleGroup or Asset that the dependency resolves to.
    */
-  resolveAsyncDependency(
-    dependency: Dependency,
-    bundle: ?Bundle,
-  ): ?(
-    | {|type: 'bundle_group', value: BundleGroup|}
-    | {|type: 'asset', value: Asset|}
-  );
-  isDependencyDeferred(dependency: Dependency): boolean;
+  // resolveAsyncDependency(
+  //   dependency: Dependency,
+  //   bundle: ?Bundle,
+  // ): ?(
+  //   // | {|type: 'bundle_group', value: BundleGroup|}
+  //   // | {|type: 'bundle', value: TBundle|}
+  //   // | {|type: 'asset', value: Asset|}
+  //   // {|bundles: Array<TBundle>, asset: Asset|}
+  // );
+  // isDependencyDeferred(dependency: Dependency): boolean;
+  isDependencyExcluded(dependency: Dependency): boolean;
   /** Find out which asset the dependency resolved to. */
-  getDependencyResolution(dependency: Dependency, bundle: ?Bundle): ?Asset;
-  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle;
-  findBundlesWithAsset(Asset): Array<TBundle>;
-  findBundlesWithDependency(Dependency): Array<TBundle>;
+  getResolvedAsset(dependency: Dependency, bundle: ?Bundle): ?Asset;
+  /** Find out which bundles the dependency resolved to. */
+  getResolvedBundles(dependency: Dependency, bundle: Bundle): ?Array<Bundle>;
+  getReferencedBundle(dependency: Dependency, bundle: Bundle): ?TBundle; // ?????
+  getBundlesWithAsset(Asset): Array<TBundle>;
+  getBundlesWithDependency(Dependency): Array<TBundle>;
   /** Whether the asset is already included in a compatible (regarding EnvironmentContext) parent bundle. */
   isAssetReachableFromBundle(asset: Asset, bundle: Bundle): boolean;
-  findReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
-  isAssetReferenced(asset: Asset): boolean;
-  isAssetReferencedByDependant(bundle: Bundle, asset: Asset): boolean;
-  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
+  getReachableBundleWithAsset(bundle: Bundle, asset: Asset): ?TBundle;
+  // isAssetReferenced(asset: Asset): boolean;
+  isAssetReferenced(bundle: Bundle, asset: Asset): boolean;
+  // hasParentBundleOfType(bundle: Bundle, type: string): boolean; // remove - use getReferencingBundles
   /**
    * Resolve the export `symbol` of `asset` to the source,
    * stopping at the first asset after leaving `bundle`.
@@ -1070,13 +1085,16 @@ export interface BundleGraph<TBundle: Bundle> {
    * corresponding variable lives (resolves re-exports). Stop resolving transitively once \
    * <code>boundary</code> was left (<code>bundle.hasAsset(asset) === false</code>), then <code>result.symbol</code> is undefined.
    */
-  resolveSymbol(
+  getSymbolResolution(
     asset: Asset,
     symbol: Symbol,
     boundary: ?Bundle,
   ): SymbolResolution;
   /** Gets the symbols that are (transivitely) exported by the asset */
   getExportedSymbols(asset: Asset): Array<ExportSymbolResolution>;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>,
+  ): ?TContext;
   traverseBundles<TContext>(
     visit: GraphVisitor<TBundle, TContext>,
     startBundle: ?Bundle,
@@ -1123,20 +1141,21 @@ export type ConfigOutput = {|
  * bundle and optimize run in series and are functionally identitical.
  * @section bundler
  */
-export type Bundler = {|
+export type Bundler<T> = {|
   loadConfig?: ({|
     options: PluginOptions,
     logger: PluginLogger,
-  |}) => Async<ConfigOutput>,
+  |}) => Async<ConfigResult2<T>>,
   bundle({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    // changedAssets??
+    config: T,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
   optimize({|
     bundleGraph: MutableBundleGraph,
-    config: ?ConfigResult,
+    config: T,
     options: PluginOptions,
     logger: PluginLogger,
   |}): Async<void>,
