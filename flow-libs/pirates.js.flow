@@ -1,6 +1,7 @@
 // @flow
 
 // Derived from : https://github.com/ariporad/pirates/blob/master/index.d.ts
+// Which is licensed MIT.
 
 interface Options {
   matcher?: Matcher;
@@ -12,6 +13,5 @@ declare module 'pirates' {
   declare export type Hook = (code: string, filename: string) => string;
   declare export type Matcher = (code: string) => boolean;
   declare export type RevertFunction = () => void;
-
   declare export function addHook(hook: Hook, opts?: Options): RevertFunction;
 }
