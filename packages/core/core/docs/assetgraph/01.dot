@@ -1,0 +1,11 @@
+digraph {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest [style=dotted]
+        EntryRequest [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        root -> EntrySpecifier
+        EntrySpecifier [style=filled, color=green]
+    }
+}

@@ -1,0 +1,16 @@
+digraph {
+    subgraph RequestGraph {
+        TargetRequest [style=dotted]
+
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest [style=dotted]
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled, color=green]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+    }
+}
