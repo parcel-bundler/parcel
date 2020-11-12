@@ -1,5 +1,5 @@
-// flow-typed signature: 81a0b737757fea4a808755db2c005acf
-// flow-typed version: 8b3ac10de0/sinon_v7.x.x/flow_>=v0.80.x
+// flow-typed signature: 5301c95f8054502fce08a22d7a6bb240
+// flow-typed version: b0fbed4b6a/sinon_v7.x.x/flow_>=v0.80.x
 
 declare module 'sinon' {
   declare interface SinonFakeCallApi {
@@ -101,7 +101,7 @@ declare module 'sinon' {
     calledBefore(call: SinonSpyCall): boolean;
     calledAfter(call: SinonSpyCall): boolean;
     calledWithNew(call: SinonSpyCall): boolean;
-    lastArg(): SinonSpyCall;
+    lastArg: SinonSpyCall;
   }
 
   declare interface SinonSpy extends SinonSpyCallApi, SinonFake {
