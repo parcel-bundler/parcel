@@ -15,6 +15,6 @@ declare module 'browserslist' {
   declare module.exports: {|
     (query?: string | Array<string>, opts?: Options): Array<string>,
     parseConfig(configResult: string): BrowserslistConfig,
-    loadConfig(opts: {[path: string]: string, ...}): string,
+    loadConfig(opts: {|[path: string]: string|}): string,
   |};
 }
