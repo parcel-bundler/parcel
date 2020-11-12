@@ -2,6 +2,7 @@
 import type {FilePath} from '@parcel/types';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import jsonMap from 'json-source-map';
 import type {Mapping} from 'json-source-map';
 
@@ -212,7 +213,7 @@ export function generateJSONCodeHighlights(
   // json-source-map doesn't support a tabWidth option (yet)
   let map = jsonMap.parse(code.replace(/\t/g, ' '));
   return ids.map(({key, type, message}) => {
-    let pos = map.pointers[key];
+    let pos = nullthrows(map.pointers[key]);
     return {
       ...getJSONSourceLocation(pos, type),
       message,
