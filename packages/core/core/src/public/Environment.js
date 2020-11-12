@@ -1,4 +1,5 @@
 // @flow strict-local
+// flowlint unsafe-getters-setters: off
 import type {
   Environment as IEnvironment,
   EnvironmentContext,
@@ -86,7 +87,6 @@ export default class Environment implements IEnvironment {
     return this;
   }
 
-  // flowlint unsafe-getters-setters: off
   get context(): EnvironmentContext {
     return this.#environment.context;
   }

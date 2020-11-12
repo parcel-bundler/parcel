@@ -66,12 +66,11 @@ export default async function getBabelTargets(
       browsers != null &&
       !Array.isArray(browsers)
     ) {
-      // flowlint sketchy-null-string: off
-      let env = process.env.NODE_ENV || 'development';
+      let env = process.env.NODE_ENV ?? 'development';
       browsers = browsers[env] || browsers.defaults;
     }
 
-    if (browsers) {
+    if (browsers !== null && browsers !== undefined) {
       targets.browsers = browserslist(browsers).sort();
     }
   }
