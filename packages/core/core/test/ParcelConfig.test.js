@@ -120,7 +120,7 @@ describe('ParcelConfig', () => {
     });
   });
 
-  describe('resolvePlugin', () => {
+  describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
       let configFilePath = path.join(
         __dirname,
@@ -148,13 +148,13 @@ describe('ParcelConfig', () => {
       );
 
       sinon.stub(logger, 'warn');
-      let {resolved, pkg} = await config.resolvePlugin({
+      let {plugin, version} = await config.loadPlugin({
         packageName: 'parcel-transformer-no-engines',
         resolveFrom: configFilePath,
         keyPath: '/transformers/*.js/0',
       });
-      assert(resolved);
-      assert(pkg);
+      assert(plugin);
+      assert(version);
       assert(logger.warn.calledOnce);
       assert.deepEqual(logger.warn.getCall(0).args[0], {
         origin: '@parcel/core',
@@ -200,11 +200,10 @@ describe('ParcelConfig', () => {
         'package.json',
       );
       let code = inputFS.readFileSync(pkgJSON, 'utf8');
-
       // $FlowFixMe
       await assert.rejects(
         () =>
-          config.resolvePlugin({
+          config.loadPlugin({
             packageName: 'parcel-transformer-bad-engines',
             resolveFrom: configFilePath,
             keyPath: '/transformers/*.js/0',

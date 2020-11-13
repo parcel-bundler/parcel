@@ -31,15 +31,14 @@ export async function loadPlugin<T>(
       message: `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`,
     });
   }
-
   if (
     parcelVersionRange &&
     !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
   ) {
     let pkgFile = nullthrows(
-      await resolveConfig(this.fs, resolved, ['package.json']),
+      await resolveConfig(fs, resolved, ['package.json']),
     );
-    let pkgContents = await this.fs.readFile(pkgFile, 'utf8');
+    let pkgContents = await fs.readFile(pkgFile, 'utf8');
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`,
