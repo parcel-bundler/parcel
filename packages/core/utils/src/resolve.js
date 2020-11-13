@@ -13,7 +13,6 @@ import type {FileSystem} from '@parcel/fs';
 import promisify from './promisify';
 import _resolve from 'resolve';
 import {resolveConfig, resolveConfigSync} from '../';
-// $FlowFixMe this is untyped
 import Module from 'module';
 
 // Lazily promisify
