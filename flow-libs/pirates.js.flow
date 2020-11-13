@@ -2,12 +2,11 @@
 
 // Derived from : https://github.com/ariporad/pirates/blob/master/index.d.ts
 // Which is licensed MIT.
-
-interface Options {
-  matcher?: Matcher;
-  exts?: Array<string>;
-  ignoreNodeModules?: boolean;
-}
+type Options = {|
+  matcher?: Matcher,
+  exts?: Array<string>,
+  ignoreNodeModules?: boolean,
+|};
 
 declare module 'pirates' {
   declare export type Hook = (code: string, filename: string) => string;
