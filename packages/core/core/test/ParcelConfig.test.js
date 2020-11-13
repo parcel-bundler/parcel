@@ -154,6 +154,7 @@ describe('ParcelConfig', () => {
         keyPath: '/transformers/*.js/0',
       });
       assert(plugin);
+      assert.equal(typeof plugin.transform, 'function');
       assert(version);
       assert(logger.warn.calledOnce);
       assert.deepEqual(logger.warn.getCall(0).args[0], {

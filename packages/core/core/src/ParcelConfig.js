@@ -26,7 +26,7 @@ import type {
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import path from 'path';
-import {loadPlugin} from './loadParcelPlugin';
+import loadPlugin from './loadParcelPlugin';
 import {findAlternativeNodeModules} from '@parcel/utils';
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,

@@ -14,7 +14,7 @@ import ThrowableDiagnostic, {
 import {resolveConfig} from '@parcel/utils';
 import {version as PARCEL_VERSION} from '../package.json';
 
-export async function loadPlugin<T>(
+export default async function loadPlugin<T>(
   fs: FileSystem,
   packageManager: PackageManager,
   pluginName: PackageName,

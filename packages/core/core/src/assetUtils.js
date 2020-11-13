@@ -27,7 +27,7 @@ import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
 import UncommittedAsset from './UncommittedAsset';
-import {loadPlugin} from './loadParcelPlugin';
+import loadPlugin from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {
