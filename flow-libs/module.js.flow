@@ -1,0 +1,25 @@
+//@flow strict-local
+
+declare module 'module' {
+  declare type FilePath = string;
+
+  //TODO: rename parent parameter
+  declare export default class Module {
+    static _cache: {[key: FilePath]: Module};
+    static _extensions: {};
+    static _resolveFilename: any;
+    static findPnpApi: any;
+
+    constructor(filePath: FilePath, parent: any): Module;
+
+    //require(name: ModuleSpecifier): {};
+    load(filePath: FilePath): void;
+    require: (name: string) => Module;
+    exports: {};
+  }
+
+  // declare export default function (filePath) {
+
+  //   _cache: {filePath: FilePath},
+  // };
+}
