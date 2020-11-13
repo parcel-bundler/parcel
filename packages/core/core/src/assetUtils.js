@@ -27,7 +27,7 @@ import {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
 import UncommittedAsset from './UncommittedAsset';
-import loadPlugin from './loadParcelPlugin';
+import {loadPlugin} from './loadParcelPlugin';
 import {Asset as PublicAsset} from './public/Asset';
 import PluginOptions from './public/PluginOptions';
 import {
@@ -130,8 +130,10 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
   }
 
   let pluginName = nullthrows(asset.value.plugin);
-
-  // call packageManager.resolve(pluginName, asset.value.configPath)
+  let {resolved, pkg} = await asset.options.packageManager.resolve(
+    pluginName,
+    nullthrows(asset.value.configPath),
+  );
   let {plugin} = await loadPlugin<Transformer>(
     asset.options.inputFS,
     asset.options.packageManager,
@@ -139,6 +141,8 @@ async function _generateFromAST(asset: CommittedAsset | UncommittedAsset) {
     nullthrows(asset.value.configPath),
     nullthrows(asset.value.configKeyPath),
     asset.options.autoinstall,
+    resolved,
+    nullthrows(pkg),
   );
   if (!plugin.generate) {
     throw new Error(`${pluginName} does not have a generate method`);
