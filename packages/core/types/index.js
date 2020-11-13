@@ -924,7 +924,7 @@ export interface MutableBundleGraph extends BundleGraph<Bundle> {
   getDependencyAssets(Dependency): Array<Asset>;
   /** Get Bundles that load this bundle asynchronously. */
   getParentBundlesOfBundleGroup(BundleGroup): Array<Bundle>;
-  /** @returns the total size of an asset along with its subgraph */
+  /** @returns the size of an asset and all assets in its subgraph */
   getTotalSize(Asset): number;
   /**
    * Recursively remove an asset and its dependencies to a bundle. Stops at
@@ -996,12 +996,13 @@ export interface BundleGraph<TBundle: Bundle> {
     | {|type: 'asset', value: Asset|}
   );
   /**
-   * @returns whether the dependency is deferred or not. Dependencies are deferred
-   *         if
+   * A dependency caused by a re-export can be deferred (skipped) if there is no
+   * incoming dependency that uses the re-exported value.
+   * @returns Whether the dependency was deferred.
    */
   isDependencyDeferred(dependency: Dependency): boolean;
   /**
-   * Get the resolved an asset for a dependency. This may or may not exist in
+   * Get the resolved asset for a dependency. This may or may not exist in
    * the current bundle.
    *
    * @param dep The dependency to resolve
