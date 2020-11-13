@@ -190,6 +190,7 @@ describe('ParcelConfig', () => {
         inputFS,
         false,
       );
+      // $FlowFixMe
       let parcelVersion = require('../package.json').version;
       let pkgJSON = path.join(
         __dirname,
