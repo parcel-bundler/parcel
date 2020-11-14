@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {
   Environment as IEnvironment,
   EnvironmentContext,
