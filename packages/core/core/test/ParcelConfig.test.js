@@ -120,6 +120,60 @@ describe('ParcelConfig', () => {
     });
   });
 
+  describe('resolvePlugin', () => {
+    it('should error with a codeframe if a plugin is not resolved', async () => {
+      let configFilePath = path.join(
+        __dirname,
+        'fixtures',
+        'config-plugin-not-found',
+        '.parcelrc',
+      );
+      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
+      let {config} = await parseAndProcessConfig(
+        configFilePath,
+        code,
+        DEFAULT_OPTIONS,
+      );
+      let parcelConfig = new ParcelConfig(
+        config,
+        DEFAULT_OPTIONS.packageManager,
+        DEFAULT_OPTIONS.inputFS,
+        DEFAULT_OPTIONS.autoinstall,
+      );
+
+      // $FlowFixMe
+      await assert.rejects(
+        () =>
+          parcelConfig.resolvePlugin({
+            packageName: '@parcel/transformer-jj',
+            resolveFrom: configFilePath,
+            keyPath: '/transformers/*.js/0',
+          }),
+        {
+          name: 'Error',
+          diagnostics: [
+            {
+              message: 'Cannot find parcel plugin "@parcel/transformer-jj"',
+              origin: '@parcel/core',
+              filePath: configFilePath,
+              language: 'json5',
+              codeFrame: {
+                code,
+                codeHighlights: [
+                  {
+                    start: {line: 4, column: 14},
+                    end: {line: 4, column: 37},
+                    message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      );
+    });
+  });
+
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
       let configFilePath = path.join(
@@ -231,50 +285,6 @@ describe('ParcelConfig', () => {
           ],
         },
       );
-    });
-
-    it('should error with a codeframe if a plugin is not resolved', async () => {
-      let configFilePath = path.join(
-        __dirname,
-        'fixtures',
-        'config-plugin-not-found',
-        '.parcelrc',
-      );
-      let code = await DEFAULT_OPTIONS.inputFS.readFile(configFilePath, 'utf8');
-      let {config} = await parseAndProcessConfig(
-        configFilePath,
-        code,
-        DEFAULT_OPTIONS,
-      );
-      let parcelConfig = new ParcelConfig(
-        config,
-        DEFAULT_OPTIONS.packageManager,
-        DEFAULT_OPTIONS.inputFS,
-        DEFAULT_OPTIONS.autoinstall,
-      );
-
-      // $FlowFixMe
-      await assert.rejects(() => parcelConfig.getTransformers('test.js'), {
-        name: 'Error',
-        diagnostics: [
-          {
-            message: 'Cannot find parcel plugin "@parcel/transformer-jj"',
-            origin: '@parcel/core',
-            filePath: configFilePath,
-            language: 'json5',
-            codeFrame: {
-              code,
-              codeHighlights: [
-                {
-                  start: {line: 4, column: 14},
-                  end: {line: 4, column: 37},
-                  message: `Cannot find module "@parcel/transformer-jj", did you mean "@parcel/transformer-js"?`,
-                },
-              ],
-            },
-          },
-        ],
-      });
     });
   });
 });
