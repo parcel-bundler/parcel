@@ -1,5 +1,5 @@
-// flow-typed signature: 5301c95f8054502fce08a22d7a6bb240
-// flow-typed version: b0fbed4b6a/sinon_v7.x.x/flow_>=v0.80.x
+// flow-typed signature: b8dbe7970939676d2e1e0478e2bb77e5
+// flow-typed version: c87d478d4c/sinon_v7.x.x/flow_>=v0.80.x
 
 declare module 'sinon' {
   declare interface SinonFakeCallApi {
