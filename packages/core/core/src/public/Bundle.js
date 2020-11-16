@@ -1,5 +1,4 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type {
