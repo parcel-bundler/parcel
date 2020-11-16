@@ -1820,6 +1820,11 @@
     call-me-maybe "^1.0.1"
     glob-to-regexp "^0.3.0"
 
+"@msgpack/msgpack@^2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@msgpack/msgpack/-/msgpack-2.3.0.tgz#a9043b920837b2dd63482e7bf6b8345813e9816b"
+  integrity sha512-xxRejzNpiVQ2lzxMG/yo2ocfZSk+cKo2THq54AimaubMucg66DpQm9Yj7ESMr/l2EqDkmF2Dx4r0F/cbsitAaw==
+
 "@nodelib/fs.scandir@2.1.3":
   version "2.1.3"
   resolved "https://registry.yarnpkg.com/@nodelib/fs.scandir/-/fs.scandir-2.1.3.tgz#3a582bdb53804c6ba6d146579c46e52130cf4a3b"
@@ -13481,6 +13486,11 @@ teeny-request@^3.11.3:
     https-proxy-agent "^2.2.1"
     node-fetch "^2.2.0"
     uuid "^3.3.2"
+
+teleport-javascript@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/teleport-javascript/-/teleport-javascript-1.0.0.tgz#c9397fad598d662027e4d3a5fa7e7da1c8361547"
+  integrity sha512-j1llvWVFyEn/6XIFDfX5LAU43DXe0GCt3NfXDwJ8XpRRMkS+i50SAkonAONBy+vxwPFBd50MFU8a2uj8R/ccLg==
 
 temp-dir@^1.0.0:
   version "1.0.0"

@@ -6,6 +6,9 @@ import type {
   $Response as ExpressResponse,
 } from 'express';
 import type {Socket} from 'net';
+// This is a private type and will be removed when compiled.
+// eslint-disable-next-line monorepo/no-internal-import
+import type Graph from '@parcel/core/src/Graph';
 
 import {Reporter} from '@parcel/plugin';
 import invariant from 'assert';
@@ -14,17 +17,25 @@ import express from 'express';
 import getPort from 'get-port';
 import nullthrows from 'nullthrows';
 import {Disposable} from '@parcel/events';
+import * as msgpack from '@msgpack/msgpack';
 
+type InstanceId = string;
 type ExpressApplication = $Application<ExpressRequest, ExpressResponse>;
 
-const servers: Map<string, Disposable> = new Map();
+const graphs: Map<InstanceId, Graph<*, *>> = new Map();
+
+export function debug(instanceId: InstanceId, graph: Graph<*, *>) {
+  graphs.set(instanceId, graph);
+}
+
+const servers: Map<InstanceId, Disposable> = new Map();
 
 export default (new Reporter({
   async report({event, logger, options}) {
     switch (event.type) {
       case 'watchStart': {
         invariant(!servers.has(options.instanceId));
-        let app = express();
+        let app = createApp(options.instanceId);
         let port: number = await getPort();
         let listenPromise = listen(app, port);
 
@@ -103,3 +114,39 @@ function close({
     });
   });
 }
+
+function createApp(instanceId: InstanceId): ExpressApplication {
+  let app = express();
+  app.get('/api/graph', (req, res) => {
+    res.set('Content-Type', 'application/x-msgpack');
+    res.status(200).send(
+      Buffer.from(
+        msgpack.encode(nullthrows(graphs.get(instanceId)).serialize(), {
+          extensionCodec,
+        }),
+      ),
+    );
+  });
+  return app;
+}
+
+// Derived from
+// https://github.com/msgpack/msgpack-javascript#extension-types
+const extensionCodec = new msgpack.ExtensionCodec();
+extensionCodec.register({
+  type: 0,
+  encode(value) {
+    return value instanceof Set
+      ? msgpack.encode([...value], {extensionCodec})
+      : null;
+  },
+});
+
+extensionCodec.register({
+  type: 1,
+  encode(value) {
+    return value instanceof Map
+      ? msgpack.encode([...value], {extensionCodec})
+      : null;
+  },
+});

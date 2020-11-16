@@ -40,6 +40,7 @@ import {PromiseQueue} from '@parcel/utils';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import {Disposable} from '@parcel/events';
+import {debug} from '@parcel/reporter-graph-explorer';
 
 registerCoreWithSerializer();
 
@@ -300,6 +301,8 @@ export default class Parcel {
 
       await this.#packagerRunner.writeBundles(bundleGraph);
       assertSignalNotAborted(signal);
+
+      debug(options.instanceId, bundleGraph._graph);
 
       let event = {
         type: 'buildSuccess',
