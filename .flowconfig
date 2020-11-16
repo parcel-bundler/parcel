@@ -37,7 +37,6 @@ sketchy-null-number
 sketchy-null-string
 sketchy-null-mixed
 unclear-type
-unsafe-getters-setters
 untyped-import
 untyped-type-import
 
