@@ -35,6 +35,7 @@ import {
   md5FromObject,
   md5FromString,
   PromiseQueue,
+  flatMap,
 } from '@parcel/utils';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import AssetGraph from './AssetGraph';
@@ -195,7 +196,21 @@ export default class AssetGraphBuilder extends EventEmitter {
       throw errors[0]; // TODO: eventually support multiple errors since requests could reject in parallel
     }
 
-    this.propagateSymbols();
+    // Skip symbol propagation if no target is using scope hoisting
+    // (mainly for faster development builds)
+    let entryDependencies = flatMap(
+      flatMap(this.assetGraph.getNodesConnectedFrom(root), entrySpecifier =>
+        this.assetGraph.getNodesConnectedFrom(entrySpecifier),
+      ),
+      entryFile =>
+        this.assetGraph.getNodesConnectedFrom(entryFile).map(dep => {
+          invariant(dep.type === 'dependency');
+          return dep;
+        }),
+    );
+    if (entryDependencies.some(d => d.value.env.scopeHoist)) {
+      this.propagateSymbols();
+    }
     dumpToGraphViz(this.assetGraph, this.name);
     // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
     dumpToGraphViz(this.requestGraph, 'RequestGraph');
