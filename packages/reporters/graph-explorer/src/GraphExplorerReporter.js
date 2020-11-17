@@ -17,7 +17,9 @@ import express from 'express';
 import getPort from 'get-port';
 import nullthrows from 'nullthrows';
 import {Disposable} from '@parcel/events';
+// flowlint-next-line untyped-import:off
 import * as msgpack from '@msgpack/msgpack';
+import path from 'path';
 
 type InstanceId = string;
 type ExpressApplication = $Application<ExpressRequest, ExpressResponse>;
@@ -117,6 +119,8 @@ function close({
 
 function createApp(instanceId: InstanceId): ExpressApplication {
   let app = express();
+  app.use('/', express.static(path.join(__dirname, '../frontend')));
+
   app.get('/api/graph', (req, res) => {
     res.set('Content-Type', 'application/x-msgpack');
     res.status(200).send(

@@ -68,7 +68,6 @@
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",
     "@parcel/reporter-bundle-analyzer",
-    "@parcel/reporter-bundle-buddy",
-    "@parcel/reporter-graph-explorer"
+    "@parcel/reporter-bundle-buddy"
   ]
 }

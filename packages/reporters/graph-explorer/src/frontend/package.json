@@ -1,0 +1,12 @@
+{
+  "source": "index.html",
+  "main": "../../frontend/index.html",
+  "scripts": {
+    "dev": "parcel watch index.html"
+  },
+  "dependencies": {
+    "react": "^17.0.1",
+    "react-digraph": "^7.0.0-alpha.5",
+    "react-dom": "^17.0.1"
+  }
+}
