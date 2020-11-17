@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "serve": "parcel serve src/index.html --https --open",
+    "serve": "parcel serve src/index.html --open",
     "build": "parcel build src/index.html"
   },
   "devDependencies": {
