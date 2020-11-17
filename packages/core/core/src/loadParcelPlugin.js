@@ -22,7 +22,7 @@ export default async function loadPlugin<T>(
   keyPath: string,
   autoinstall: boolean,
   resolved: FilePath,
-  pkg: PackageJSON,
+  pkg: ?PackageJSON,
 ): Promise<{|plugin: T, version: Semver|}> {
   let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
   if (!parcelVersionRange) {
