@@ -1,5 +1,4 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 
 import type SourceMap from '@parcel/source-map';
 import type {Readable} from 'stream';
