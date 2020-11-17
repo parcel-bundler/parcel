@@ -236,7 +236,7 @@ export default class NodeResolver {
             : // $FlowFixMe injected at runtime
               require('pnpapi');
 
-        let res = pnp.resolveToUnqualified(
+        let res = nullthrows(pnp).resolveToUnqualified(
           moduleName +
             // retain slash in `require('assert/')` to force loading builtin from npm
             (filename[moduleName.length] === '/' ? '/' : ''),

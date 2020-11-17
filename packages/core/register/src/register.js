@@ -6,7 +6,6 @@ import {NodePackageManager} from '@parcel/package-manager';
 import {NodeFS} from '@parcel/fs';
 // flowlint-next-line untyped-import:off
 import defaultConfigContents from '@parcel/config-default';
-// $FlowFixMe Flow can't resolve this
 import Module from 'module';
 import path from 'path';
 // flowlint-next-line untyped-import:off
