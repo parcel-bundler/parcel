@@ -3,23 +3,28 @@
 declare module 'module' {
   declare type FilePath = string;
 
-  //TODO: rename parent parameter
   declare export default class Module {
-    static _cache: {[key: FilePath]: Module};
-    static _extensions: {};
-    static _resolveFilename: any;
-    static findPnpApi: any;
+    static _cache: {|[key: FilePath]: Module|};
+    static _extensions: {
+      [extension: string]: (module: Module, fileName: string) => void,
+    };
+    static _resolveFilename: (
+      request: string,
+      parent?: Module,
+      ...args: Array<mixed>
+    ) => string;
+    static findPnpApi: (lookupSource: string) => PnpApi | null;
+    id: string;
+    path: FilePath;
+    exports: {|[export: string]: mixed|};
+    filename: string;
+    loaded: boolean;
+    children: Array<Module>;
+    builtinModules: Array<string>;
 
-    constructor(filePath: FilePath, parent: any): Module;
+    constructor(id: FilePath, parent: Module): Module;
 
-    //require(name: ModuleSpecifier): {};
-    load(filePath: FilePath): void;
-    require: (name: string) => Module;
-    exports: {};
+    load(fileName: string): void;
+    require: (request: string) => Module;
   }
-
-  // declare export default function (filePath) {
-
-  //   _cache: {filePath: FilePath},
-  // };
 }
