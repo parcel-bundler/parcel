@@ -2119,6 +2119,18 @@ describe('javascript', function() {
     assert.deepEqual(output, [undefined, 1234]);
   });
 
+  it('support building with multiple target and varying scopeHoist setting', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/js-multi-target-scope-hoist/index.js'),
+      {scopeHoist: true},
+    );
+
+    for (let bundle of b.getBundles()) {
+      let output = await runBundle(b, bundle);
+      assert.deepEqual(output, 123);
+    }
+  });
+
   it.skip('should not dedupe imports with different contents', async function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-different-contents/index.js`),
