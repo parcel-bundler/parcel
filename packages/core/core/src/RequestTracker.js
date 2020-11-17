@@ -552,6 +552,7 @@ export default class RequestTracker {
         subRequests.add(subRequest.id);
         return this.runRequest<TInput, TResult>(subRequest, opts);
       },
+      assertNotAborted: () => assertSignalNotAborted(this.signal),
     };
 
     return {api, subRequests};

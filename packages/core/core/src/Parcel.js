@@ -104,17 +104,15 @@ export default class Parcel {
       dispose: disposeOptions,
       ref: optionsRef,
     } = await this.#farm.createSharedReference(resolvedOptions);
-    let {
-      dispose: disposeConfig,
-      ref: configRef,
-    } = await this.#farm.createSharedReference(config);
     this.#optionsRef = optionsRef;
 
     this.#disposable = new Disposable();
     if (this.#initialOptions.workerFarm) {
       // If we don't own the farm, dispose of only these references when
       // Parcel ends.
-      this.#disposable.add(disposeOptions, disposeConfig);
+      this.#disposable.add(disposeOptions);
+      // TODO: figure out if config is being disposed of correctly
+      //this.#disposable.add(disposeOptions, disposeConfig);
     } else {
       // Otherwise, when shutting down, end the entire farm we created.
       this.#disposable.add(() => this.#farm.end());
@@ -253,7 +251,7 @@ export default class Parcel {
         changedAssets,
         assetRequests,
         bundleGraph,
-      } = this.#requestTracker.runRequest(
+      } = await this.#requestTracker.runRequest(
         createParcelBuildRequest({optionsRef: this.#optionsRef}),
       );
 

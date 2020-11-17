@@ -69,7 +69,6 @@ export async function runTransform(
   let {optionsRef, configCachePath, ...rest} = opts;
   let options = loadOptions(optionsRef, workerApi);
   let config = await loadConfig(configCachePath, options);
-
   return new Transformation({
     workerApi,
     report: reportWorker.bind(null, workerApi),
@@ -101,12 +100,12 @@ export async function runPackage(
   {
     bundle,
     bundleGraphReference,
-    configRef,
+    configCachePath,
     optionsRef,
   }: {|
     bundle: Bundle,
     bundleGraphReference: SharedReference,
-    configRef: SharedReference,
+    configCachePath: string,
     cacheKeys: {|
       content: string,
       map: string,
@@ -118,16 +117,7 @@ export async function runPackage(
   let bundleGraph = workerApi.getSharedReference(bundleGraphReference);
   invariant(bundleGraph instanceof BundleGraph);
   let options = loadOptions(optionsRef, workerApi);
-  let processedConfig = ((workerApi.getSharedReference(
-    configRef,
-    // $FlowFixMe
-  ): any): ProcessedParcelConfig);
-  let parcelConfig = new ParcelConfig(
-    processedConfig,
-    options.packageManager,
-    options.inputFS,
-    options.autoinstall,
-  );
+  let parcelConfig = await loadConfig(configCachePath, options);
 
   let runner = new PackagerRunner({
     config: parcelConfig,

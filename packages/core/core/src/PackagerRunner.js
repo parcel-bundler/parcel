@@ -42,7 +42,7 @@ import {PARCEL_VERSION, HASH_REF_PREFIX, HASH_REF_REGEX} from './constants';
 
 type Opts = {|
   config: ParcelConfig,
-  configRef?: SharedReference,
+  configCachePath?: string,
   farm?: WorkerFarm,
   options: ParcelOptions,
   optionsRef?: SharedReference,
@@ -68,7 +68,7 @@ const BOUNDARY_LENGTH = HASH_REF_PREFIX.length + 32 - 1;
 
 export default class PackagerRunner {
   config: ParcelConfig;
-  configRef: ?SharedReference;
+  configCachePath: ?string;
   options: ParcelOptions;
   optionsRef: ?SharedReference;
   farm: ?WorkerFarm;
@@ -79,13 +79,20 @@ export default class PackagerRunner {
   getBundleInfoFromWorker: ({|
     bundle: InternalBundle,
     bundleGraphReference: SharedReference,
-    configRef: SharedReference,
+    configCachePath: string,
     optionsRef: SharedReference,
   |}) => Promise<BundleInfo>;
 
-  constructor({config, configRef, farm, options, optionsRef, report}: Opts) {
+  constructor({
+    config,
+    configCachePath,
+    farm,
+    options,
+    optionsRef,
+    report,
+  }: Opts) {
     this.config = config;
-    this.configRef = configRef;
+    this.configCachePath = configCachePath;
     this.options = options;
     this.optionsRef = optionsRef;
     this.pluginOptions = new PluginOptions(this.options);
@@ -161,7 +168,7 @@ export default class PackagerRunner {
         bundle,
         bundleGraphReference,
         optionsRef: nullthrows(this.optionsRef),
-        configRef: nullthrows(this.configRef),
+        configCachePath: nullthrows(this.configCachePath),
       })),
       time: Date.now() - start,
     };

@@ -7,7 +7,6 @@ import type {
   ConfigOutput,
 } from '@parcel/types';
 import type WorkerFarm, {SharedReference} from '@parcel/workers';
-import type ParcelConfig from '../ParcelConfig';
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 
 import assert from 'assert';
@@ -26,17 +25,29 @@ import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
 import PluginOptions from '../public/PluginOptions';
 import applyRuntimes from '../applyRuntimes';
 import {PARCEL_VERSION} from '../constants';
+import ParcelConfig from '../ParcelConfig';
+import createParcelConfigRequest from './ParcelConfigRequest';
 
 export default function createBundleGraphRequest(input) {
   return {
-    id: 'TODO',
+    id: input.assetGraph.getHash(),
     type: 'bundle_graph_request',
-    run: ({input, api, farm, options}) => {
+    run: async ({input, api, farm, options}) => {
+      let {config} = nullthrows(
+        await api.runRequest<null, ConfigAndCachePath>(
+          createParcelConfigRequest(),
+        ),
+      );
       return new BundlerRunner({
         options,
         optionsRef: input.optionsRef,
         api,
-        config: null,
+        config: new ParcelConfig(
+          config,
+          options.packageManager,
+          options.inputFS,
+          options.autoinstall,
+        ),
         workerFarm: farm,
       }).bundle(input.assetGraph);
     },
@@ -86,18 +97,18 @@ class BundlerRunner {
       }
     }
 
-    let cacheKey;
-    if (!this.options.disableCache && !this.api.hasInvalidRequests()) {
-      cacheKey = await this.getCacheKey(graph, configResult);
-      let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
-        cacheKey,
-      );
-      this.api.throwIfAborted();
+    // let cacheKey;
+    // if (!this.options.disableCache && !this.api.hasInvalidRequests()) {
+    //   cacheKey = await this.getCacheKey(graph, configResult);
+    //   let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
+    //     cacheKey,
+    //   );
+    //   this.api.assertNotAborted();
 
-      if (cachedBundleGraph) {
-        return cachedBundleGraph;
-      }
-    }
+    //   if (cachedBundleGraph) {
+    //     return cachedBundleGraph;
+    //   }
+    // }
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
     // $FlowFixMe
@@ -119,7 +130,7 @@ class BundlerRunner {
         diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
       });
     }
-    this.api.throwIfAborted();
+    this.api.assertNotAborted();
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_bundle');
@@ -135,7 +146,7 @@ class BundlerRunner {
         diagnostic: errorToDiagnostic(e, this.config.getBundlerName()),
       });
     }
-    this.api.throwIfAborted();
+    this.api.assertNotAborted();
 
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_optimize');
@@ -149,14 +160,14 @@ class BundlerRunner {
       optionsRef: this.optionsRef,
       pluginOptions: this.pluginOptions,
     });
-    this.api.throwIfAborted();
+    this.api.assertNotAborted();
     // $FlowFixMe
     await dumpGraphToGraphViz(internalBundleGraph._graph, 'after_runtimes');
 
-    if (cacheKey != null) {
-      await this.options.cache.set(cacheKey, internalBundleGraph);
-    }
-    this.api.throwIfAborted();
+    // if (cacheKey != null) {
+    //   await this.options.cache.set(cacheKey, internalBundleGraph);
+    // }
+    this.api.assertNotAborted();
 
     return internalBundleGraph;
   }
