@@ -905,6 +905,24 @@ describe('scope hoisting', function() {
       assert.deepEqual(await run(b), 4);
     });
 
+    it('supports resolving a static member access on a namespace', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/import-namespace-static-member/a.js',
+        ),
+      );
+
+      let calls = [];
+      let output = await run(b, {
+        sideEffect: v => {
+          calls.push(v);
+        },
+      });
+      assert.deepEqual(output, 'foo');
+      assert.deepEqual(calls, ['c1']);
+    });
+
     it('supports importing a namespace from a wrapped module', async function() {
       let b = await bundle(
         path.join(
@@ -920,7 +938,7 @@ describe('scope hoisting', function() {
       assert(!contents.includes('$parcel$exportWildcard'));
 
       let output = await run(b);
-      assert.deepEqual(await output, 1);
+      assert.deepEqual(output, 1);
     });
 
     it('supports importing a namespace from a transpiled CommonJS module', async function() {
@@ -932,7 +950,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(await output, {
+      assert.deepEqual(output, {
         bar: 3,
         foo: 1,
       });
