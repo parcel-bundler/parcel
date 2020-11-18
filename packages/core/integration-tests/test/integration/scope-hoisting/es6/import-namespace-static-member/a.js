@@ -1,3 +1,3 @@
-import * as test from './library';
+import * as test from './library/index.js';
 
-output = test.foo;
+output = test.foo + test['foobar'];

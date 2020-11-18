@@ -913,14 +913,21 @@ describe('scope hoisting', function() {
         ),
       );
 
+      assert.deepStrictEqual(
+        new Set(
+          b.getUsedSymbols(findDependency(b, 'a.js', './library/index.js')),
+        ),
+        new Set(['foo', 'foobar']),
+      );
+
       let calls = [];
       let output = await run(b, {
         sideEffect: v => {
           calls.push(v);
         },
       });
-      assert.deepEqual(output, 'foo');
-      assert.deepEqual(calls, ['c1']);
+      assert.deepEqual(output, 'foofoobar');
+      assert.deepEqual(calls, ['c1', 'c3']);
     });
 
     it('supports importing a namespace from a wrapped module', async function() {
