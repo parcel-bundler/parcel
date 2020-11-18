@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import assert from 'assert';
 import path from 'path';
 import {
@@ -9,9 +9,13 @@ import {
   overlayFS,
   sleep,
 } from '@parcel/test-utils';
+// flowlint-next-line untyped-import:off
 import WebSocket from 'ws';
+// flowlint-next-line untyped-import:off
 import json5 from 'json5';
+// flowlint-next-line untyped-import:off
 import getPort from 'get-port';
+// flowlint-next-line untyped-import:off
 import JSDOM from 'jsdom';
 
 const config = path.join(
@@ -23,7 +27,7 @@ async function closeSocket(ws: typeof WebSocket) {
   ws.close();
   await new Promise(resolve => (ws.onclose = resolve));
 }
-
+// flowlint-next-line unclear-type:off
 async function openSocket(uri: string, opts: any) {
   let ws = new WebSocket(uri, opts);
 
