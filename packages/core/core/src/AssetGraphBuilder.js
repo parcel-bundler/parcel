@@ -306,7 +306,6 @@ export default class AssetGraphBuilder extends EventEmitter {
           //    index.js:     `import {bar} from "./lib"; ...`
           //    lib/index.js: `export * from "./foo.js"; export * from "./bar.js";`
           //    lib/foo.js:   `import { data } from "./bar.js"; export const foo = data + " esm2";`
-          // TODO is this really valid?
           assetNode.usedSymbols.size > 0 ||
           namespaceReexportedSymbols.size > 0
         ) {

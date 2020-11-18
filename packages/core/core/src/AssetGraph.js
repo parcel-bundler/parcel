@@ -392,13 +392,15 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       assetObjects.filter(a => a.isDirect).map(a => a.assetNode),
     );
     for (let {assetNode, dependentAssets} of assetObjects) {
+      // replaceNodesConnectedTo has merged the value into the existing node, retrieve
+      // the actual current node.
+      assetNode = nullthrows(this.getNode(assetNode.id));
+      invariant(assetNode.type === 'asset');
       this.resolveAsset(assetNode, dependentAssets);
     }
   }
 
   resolveAsset(assetNode: AssetNode, dependentAssets: Array<Asset>) {
-    // $FlowFixMe FIXME cleanup, this is because of the magic of addNode (called by replaceNodesConnectedTo)
-    assetNode = this.getNode(assetNode.id);
     let depNodes = [];
     let depNodesWithAssets = [];
     for (let dep of assetNode.value.dependencies.values()) {
