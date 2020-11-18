@@ -204,7 +204,7 @@ export default class ParcelConfig {
       return packageCache.plugin;
     }
 
-    let {resolved, pkg} = await this.resolvePlugin(node);
+    let {resolved, pkg} = await await this.resolvePlugin(node);
 
     let plugin = await loadPlugin<T>(
       this.fs,
@@ -328,6 +328,13 @@ export default class ParcelConfig {
     );
   }
 
+  _getBundlerNode(): ParcelPluginNode {
+    if (!this.bundler) {
+      throw new Error('No bundler specified in .parcelrc config');
+    }
+    return this.bundler;
+  }
+
   getBundlerName(): string {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
@@ -350,6 +357,10 @@ export default class ParcelConfig {
     }
 
     return this.loadPlugins<Namer>(this.namers);
+  }
+
+  _getRuntimesNodes(context: EnvironmentContext): PureParcelConfigPipeline {
+    return this.runtimes[context];
   }
 
   getRuntimes(
@@ -420,6 +431,67 @@ export default class ParcelConfig {
 
   getReporters(): Promise<Array<LoadedPlugin<Reporter>>> {
     return this.loadPlugins<Reporter>(this.reporters);
+  }
+
+  async resolveBundler(): Promise<{|
+    name: string,
+    resolved: FilePath,
+    resolveFrom: FilePath,
+    version: Semver,
+  |}> {
+    let p = this._getBundlerNode();
+    let {resolved, pkg} = await await this.resolvePlugin(p);
+    return {
+      name: p.packageName,
+      resolved: resolved,
+      resolveFrom: p.resolveFrom,
+      version: pkg.version,
+    };
+  }
+
+  async resolvePackager(
+    filePath: FilePath,
+  ): Promise<{|
+    name: string,
+    resolved: FilePath,
+    resolveFrom: FilePath,
+    version: Semver,
+  |}> {
+    let p = this._getPackagerNode(filePath);
+    let {resolved, pkg} = await await this.resolvePlugin(p);
+    return {
+      name: p.packageName,
+      resolved: resolved,
+      resolveFrom: p.resolveFrom,
+      version: pkg.version,
+    };
+  }
+
+  resolveRuntimes(
+    context: EnvironmentContext,
+  ): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return this.resolvePlugins(this._getRuntimesNodes(context));
+  }
+
+  resolveOptimizers(
+    filePath: FilePath,
+    pipeline?: ?string,
+  ): Promise<
+    Array<{|
+      name: string,
+      resolved: FilePath,
+      resolveFrom: FilePath,
+      version: Semver,
+    |}>,
+  > {
+    return this.resolvePlugins(this._getOptimizerNodes(filePath, pipeline));
   }
 
   resolveTransformers(
