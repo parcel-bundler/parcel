@@ -204,9 +204,9 @@ export default class ParcelConfig {
       return packageCache.plugin;
     }
 
-    let {resolved, pkg} = await await this.resolvePlugin(node);
+    let {resolved, pkg} = await this.resolvePlugin(node);
 
-    let plugin = loadPlugin<T>(
+    let plugin = await loadPlugin<T>(
       this.fs,
       this.packageManager,
       node.packageName,
@@ -220,7 +220,7 @@ export default class ParcelConfig {
       ...packageCache,
       resolved,
       plugin,
-      version: (await plugin).version,
+      version: plugin.version,
     });
 
     return plugin;

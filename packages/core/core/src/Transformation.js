@@ -762,6 +762,7 @@ function getImpactfulConfigInfo(configs: ConfigMap) {
     for (let [moduleName, version] of devDeps) {
       devDepsObject[moduleName] = version;
     }
+
     impactfulConfigInfo[configType] = {
       devDeps: devDepsObject,
       resultHash,
