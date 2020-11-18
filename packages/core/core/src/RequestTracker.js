@@ -31,6 +31,10 @@ type EnvNode = {|
   value: {|key: string, value: string | void|},
 |};
 
+/**
+ * A request for a resource, such as transformed content, and eventually things
+ * like packages, the bundle graph, etc.
+ */
 type Request<TInput, TResult> = {|
   id: string,
   +type: string,
@@ -112,6 +116,11 @@ const nodeFromEnv = (env: string, value: string | void) => ({
   },
 });
 
+/**
+ * A graph that represents requests, their resolved state, connected resources,
+ * and how they are invalidated. Also models the relationships between requests
+ * themselves, such as for requesting configuration associated with a requested asset.
+ */
 export class RequestGraph extends Graph<
   RequestGraphNode,
   RequestGraphEdgeType,
@@ -367,6 +376,10 @@ export class RequestGraph extends Graph<
   }
 }
 
+/**
+ * An api over the RequestGraph for requesting resources, which may be acted
+ * on or returned from cache.
+ */
 export default class RequestTracker {
   graph: RequestGraph;
   farm: WorkerFarm;

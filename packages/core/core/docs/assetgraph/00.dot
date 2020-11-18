@@ -1,0 +1,9 @@
+digraph {
+    subgraph RequestGraph {
+        AssetGraphRequest
+    }
+
+    subgraph AssetGraph {
+        root -> EntrySpecifier
+    }
+}

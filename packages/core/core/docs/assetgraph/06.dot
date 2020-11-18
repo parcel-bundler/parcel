@@ -1,0 +1,21 @@
+digraph {
+    subgraph RequestGraph {
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency [style=filled]
+        AssetGroup
+
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency
+        Dependency -> AssetGroup
+    }
+}
+

@@ -1,0 +1,33 @@
+digraph {
+    subgraph RequestGraph {
+        PathRequest1 [label=PathRequest]
+        PathRequest2 [label=PathRequest]
+        AssetGraphRequest -> EntryRequest
+        AssetGraphRequest -> TargetRequest
+        AssetGraphRequest -> PathRequest1
+        AssetGraphRequest -> AssetRequest
+        AssetGraphRequest -> PathRequest2
+    }
+
+    subgraph AssetGraph {
+        EntrySpecifier [style=filled]
+        EntryFile [style=filled]
+        Dependency1 [style=filled]
+        AssetGroup1 [label=AssetGroup, style=filled]
+        AssetGroup2 [label=AssetGroup]
+        Asset1 [label=Asset, style=filled]
+        Asset2 [label=Asset, style=filled]
+        Dependency1 [label=Dependency]
+        Dependency2 [label=Dependency, style=filled]
+
+        root -> EntrySpecifier
+        EntrySpecifier -> EntryFile
+        EntryFile -> Dependency1
+        Dependency1 -> AssetGroup1
+        AssetGroup1 -> Asset1
+        AssetGroup1 -> Asset2
+        Asset2 -> Dependency2
+        Dependency2 -> AssetGroup2
+    }
+}
+

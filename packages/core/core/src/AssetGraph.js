@@ -79,6 +79,9 @@ export function nodeFromEntryFile(entry: Entry): EntryFileNode {
   };
 }
 
+/**
+ * Models assets and their dependencies.
+ */
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
   hash: ?string;
