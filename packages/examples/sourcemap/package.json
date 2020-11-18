@@ -1,0 +1,25 @@
+{
+  "name": "@parcel/sourcemap-example",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "parcel build src/index.js --no-cache"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "2.0.0-beta.1",
+    "@parcel/config-default": "2.0.0-beta.1",
+    "@parcel/reporter-sourcemap-visualiser": "2.0.0-beta.1",
+    "parcel": "2.0.0-beta.1"
+  },
+  "browser": "dist/index.js",
+  "targets": {
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
+  }
+}
