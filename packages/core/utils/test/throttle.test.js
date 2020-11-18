@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import assert from 'assert';
-// $FlowFixMe
 import sinon from 'sinon';
 import throttle from '../src/throttle';
 

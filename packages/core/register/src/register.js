@@ -8,7 +8,6 @@ import {NodeFS} from '@parcel/fs';
 import defaultConfigContents from '@parcel/config-default';
 import Module from 'module';
 import path from 'path';
-// flowlint-next-line untyped-import:off
 import {addHook} from 'pirates';
 import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from '@parcel/core';
 
