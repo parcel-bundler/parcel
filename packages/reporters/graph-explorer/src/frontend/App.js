@@ -1,10 +1,14 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {decode} from './utils';
 import {GraphView} from 'react-digraph';
 import path from 'path';
+import JSONTree from 'react-json-tree';
+
+const NODE_TEXT_LINE_HEIGHT = 18;
 
 export default function App() {
   const [graph, setGraph] = useState(null);
+  const [selectedNode, setSelectedNode] = useState(null);
   useEffect(() => {
     let abortController = new AbortController();
     (async () => {
@@ -23,7 +27,7 @@ export default function App() {
       }
 
       const parcelGraph = await decode(buffer);
-      setGraph(convertGraph(parcelGraph));
+      setGraph(parcelGraph);
     })();
 
     return () => {
@@ -31,40 +35,112 @@ export default function App() {
     };
   }, []);
 
-  if (graph == null) {
+  const convertedGraph = useMemo(
+    () => (graph != null ? convertGraph(graph) : null),
+    [graph],
+  );
+  const selectedGraphViewNode = useMemo(
+    () => (selectedNode != null ? {title: selectedNode.id} : null),
+    [selectedNode],
+  );
+
+  const onRenderNodeText = useCallback(
+    (node, id, isSelected) => (
+      <NodeText node={node} id={id} isSelected={isSelected} />
+    ),
+    [],
+  );
+
+  if (convertedGraph == null) {
     return <div>Loading...</div>;
   }
 
-  console.log(graph);
+  return (
+    <div style={{height: '100%', width: '100%'}}>
+      <div className="tools">
+        <SearchView
+          onSubmit={nodeId => {
+            setSelectedNode(graph.nodes.get(nodeId));
+          }}
+        />
+        {selectedNode != null ? (
+          <DetailView selectedNode={selectedNode} />
+        ) : null}
+      </div>
+      <GraphView
+        nodeKey="title"
+        layoutEngineType="VerticalTree"
+        readOnly={true}
+        renderNodeText={onRenderNodeText}
+        nodeTypes={{
+          root: anyNode,
+          entry_specifier: entrySpecifierNode,
+          dependency: dependencyNode,
+          asset: assetNode,
+          bundle_group: bundleGroupNode,
+          bundle: bundleNode,
+        }}
+        edgeTypes={{
+          empty: anyEdge,
+          bundle: anyEdge,
+          references: anyEdge,
+          contains: anyEdge,
+        }}
+        nodeSubtypes={{}}
+        onSelectNode={node => {
+          setSelectedNode(node != null ? graph.nodes.get(node.title) : null);
+        }}
+        selected={selectedGraphViewNode}
+        nodes={convertedGraph.nodes}
+        edges={convertedGraph.edges}
+      />
+    </div>
+  );
+}
+
+function SearchView({onSubmit}) {
+  const [searchValue, setSearchValue] = useState(null);
 
   return (
-    <GraphView
-      nodeKey="title"
-      layoutEngineType="VerticalTree"
-      readOnly={true}
-      renderNodeText={(node, id, isSelected) => (
-        <NodeText node={node} id={id} isSelected={isSelected} />
-      )}
-      nodeTypes={{
-        root: anyNode,
-        entry_specifier: entrySpecifierNode,
-        dependency: dependencyNode,
-        asset: assetNode,
-        bundle_group: bundleGroupNode,
-        bundle: bundleNode,
+    <form
+      onSubmit={e => {
+        e.preventDefault();
+        onSubmit(searchValue);
       }}
-      edgeTypes={{
-        empty: anyEdge,
-        bundle: anyEdge,
-        references: anyEdge,
-        contains: anyEdge,
-      }}
-      nodeSubtypes={{}}
-      // onSelectNode={() => {}}
-      selected={{}}
-      nodes={graph.nodes}
-      edges={graph.edges}
-    />
+    >
+      <input
+        className="search-view"
+        name="search"
+        onChange={e => setSearchValue(e.target.value)}
+        placeholder="Search by node id"
+        type="search"
+      />
+    </form>
+  );
+}
+
+function DetailView({selectedNode}) {
+  return (
+    <div className="detail-view">
+      <h2>Node Detail</h2>
+      <dl>
+        <div>
+          <dt>id</dt>
+          <dd>{selectedNode.id}</dd>
+        </div>
+        <div>
+          <dt>type</dt>
+          <dd>{selectedNode.type}</dd>
+        </div>
+      </dl>
+      <div className="json-tree">
+        <JSONTree
+          theme="google"
+          data={selectedNode.value}
+          labelRenderer={([key]) => (key === 'root' ? 'value' : key)}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -79,7 +155,7 @@ function NodeText({node, id, isSelected}) {
         fontWeight="bold"
         textAnchor="middle"
         className="node-text"
-        dy={18}
+        dy={NODE_TEXT_LINE_HEIGHT}
       >
         {node.title.slice(0, 8)}
       </text>
@@ -90,7 +166,7 @@ function NodeText({node, id, isSelected}) {
             fontFamily="monospace"
             className="node-text"
             key={field}
-            dy={18 * (i + 2)}
+            dy={NODE_TEXT_LINE_HEIGHT * (i + 2)}
           >
             {field}
           </text>

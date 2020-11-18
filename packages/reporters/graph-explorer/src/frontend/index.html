@@ -3,13 +3,87 @@
   <head>
     <title>Parcel Graph Explorer</title>
     <style>
+      /* From https://css-tricks.com/box-sizing/ */
+      html {
+        box-sizing: border-box;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
       body {
         margin: 0;
+        /* Derived from https://css-tricks.com/snippets/css/system-font-stack/ */
+        font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
       }
 
       #react-root {
         height: 100vh;
         width: 100vw;
+      }
+
+      .tools {
+        left: 16px;
+        top: 16px;
+        position: absolute;
+        max-height: calc(100vh - 96px);
+        overflow: auto;
+        width: 320px;
+        z-index: 1;
+      }
+
+      .search-view {
+        background-color: white;
+        border-radius: 4px;
+        border: 1px solid lightgray;
+        font-size: 18px;
+        height: 40px;
+        padding: 12px;
+        width: 100%;
+      }
+
+      .detail-view {
+        background-color: white;
+        border-radius: 4px;
+        border: 1px solid lightgray;
+        font-size: 12px;
+        margin-top: 8px;
+        overflow: auto;
+        padding: 16px;
+        width: 100%;
+      }
+
+      .detail-view h2 {
+        font-size: 18px;
+        margin-top: 0;
+      }
+
+      .json-tree {
+        font-family: monospace;
+        margin-left: -12px;
+      }
+
+      .detail-view dl div {
+        display: flex;
+        font-family: monospace;
+      }
+
+      .detail-view dt {
+        display: inline;
+        font-weight: bold;
+        margin-right: 4px;
+      }
+
+      .detail-view dt:after {
+        content: ':';
+      }
+
+      .detail-view dd {
+        display: inline;
+        margin: 0;
       }
     </style>
   </head>
