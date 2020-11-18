@@ -14,6 +14,7 @@ import {
   NodePackageManager,
   MockPackageInstaller,
 } from '@parcel/package-manager';
+import postcss from 'postcss';
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {
@@ -42,6 +43,46 @@ describe('postcss', () => {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${cssClass}`));
+  });
+
+  it('should tree shake unused css modules classes', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-modules-shake/index.js'),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['global.css', 'style.module.css'],
+      },
+    ]);
+
+    let js = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'js').filePath,
+      'utf8',
+    );
+    assert(!js.includes('unused'));
+
+    let output = await run(b);
+    assert(/_b-2_[0-9a-z]/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedClasses = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedClasses.add(rule.selector);
+    });
+    assert.deepStrictEqual(
+      includedClasses,
+      new Set(['body', `.${output}`, '.page']),
+    );
   });
 
   it('should support transforming with postcss twice with the same result', async () => {
