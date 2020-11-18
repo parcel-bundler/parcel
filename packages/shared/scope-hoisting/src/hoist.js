@@ -34,6 +34,7 @@ import {
 import traverse from '@babel/traverse';
 import template from '@babel/template';
 import nullthrows from 'nullthrows';
+import {basename} from 'path';
 import invariant from 'assert';
 import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
@@ -55,14 +56,10 @@ const ESMODULE_TEMPLATE = template.statement<null, Statement>(
   `exports.__esModule = true;`,
 );
 
-const EXPORT_ASSIGN_TEMPLATE = template.statement<
-  {|EXPORTS: Identifier, NAME: Identifier, LOCAL: Expression|},
-  Statement,
->('EXPORTS.NAME = LOCAL;');
-const REEXPORT_TEMPLATE = template.statement<
+const EXPORT_TEMPLATE = template.statement<
   {|EXPORTS: Identifier, NAME: StringLiteral, LOCAL: Expression|},
   Statement,
->('$parcel$reexport(EXPORTS, NAME, function(){return LOCAL;});');
+>('$parcel$export(EXPORTS, NAME, function(){return LOCAL;});');
 const EXPORT_ALL_TEMPLATE = template.statement<
   {|OLD_NAME: Identifier, ID: StringLiteral, SOURCE: StringLiteral|},
   Statement,
@@ -92,6 +89,7 @@ export function hoist(asset: MutableAsset, ast: AST) {
 const VISITOR: Visitor<MutableAsset> = {
   Program: {
     enter(path, asset: MutableAsset) {
+      asset.symbols.ensure();
       asset.meta.id = asset.id;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
 
@@ -100,6 +98,12 @@ const VISITOR: Visitor<MutableAsset> = {
 
       let shouldWrap = false;
       path.traverse({
+        ImportDeclaration() {
+          asset.meta.isES6Module = true;
+        },
+        ExportDeclaration() {
+          asset.meta.isES6Module = true;
+        },
         CallExpression(path) {
           // If we see an `eval` call, wrap the module in a function.
           // Otherwise, local variables accessed inside the eval won't work.
@@ -151,17 +155,33 @@ const VISITOR: Visitor<MutableAsset> = {
           // We must disable resolving $..$exports.foo if `exports`
           // is referenced as a free identifier rather
           // than a statically resolvable member expression.
-          if (
-            node.name === 'exports' &&
-            !isAssignmentExpression(parent, {left: node}) &&
-            (!isMemberExpression(parent) ||
-              !(isIdentifier(parent.property) && !parent.computed) ||
-              isStringLiteral(parent.property)) &&
-            !path.scope.hasBinding('exports') &&
-            !path.scope.getData('shouldWrap')
-          ) {
+          if (node.name === 'exports' && !path.scope.hasBinding('exports')) {
             asset.meta.isCommonJS = true;
-            asset.meta.resolveExportsBailedOut = true;
+            if (
+              !(
+                isAssignmentExpression(parent, {left: node}) ||
+                (isMemberExpression(parent) &&
+                  ((isIdentifier(parent.property) && !parent.computed) ||
+                    isStringLiteral(parent.property))) ||
+                path.scope.getData('shouldWrap')
+              )
+            ) {
+              asset.meta.resolveExportsBailedOut = true;
+              // The namespace object is used in the asset itself
+              asset.addDependency({
+                moduleSpecifier: `./${basename(asset.filePath)}`,
+                symbols: new Map([
+                  [
+                    '*',
+                    {
+                      local: '@exports',
+                      isWeak: false,
+                      loc: convertBabelLoc(path.node.loc),
+                    },
+                  ],
+                ]),
+              });
+            }
           }
         },
 
@@ -173,17 +193,43 @@ const VISITOR: Visitor<MutableAsset> = {
           // than a statically resolvable member expression.
           if (
             t.matchesPattern(node, 'module.exports') &&
-            !isAssignmentExpression(parent, {left: node}) &&
-            (!isMemberExpression(parent) ||
-              !(isIdentifier(parent.property) && !parent.computed) ||
-              isStringLiteral(parent.property)) &&
-            !path.scope.hasBinding('module') &&
-            !path.scope.getData('shouldWrap')
+            !path.scope.hasBinding('module')
           ) {
-            asset.meta.resolveExportsBailedOut = true;
+            asset.meta.isCommonJS = true;
+            if (
+              !(
+                isAssignmentExpression(parent, {left: node}) ||
+                (isMemberExpression(parent) &&
+                  ((isIdentifier(parent.property) && !parent.computed) ||
+                    isStringLiteral(parent.property))) ||
+                path.scope.getData('shouldWrap')
+              )
+            ) {
+              asset.meta.resolveExportsBailedOut = true;
+              // The namespace object is used in the asset itself
+              asset.addDependency({
+                moduleSpecifier: `./${basename(asset.filePath)}`,
+                symbols: new Map([
+                  [
+                    '*',
+                    {
+                      local: '@exports',
+                      isWeak: false,
+                      loc: convertBabelLoc(path.node.loc),
+                    },
+                  ],
+                ]),
+              });
+            }
           }
         },
       });
+
+      if (!asset.meta.isCommonJS && !asset.meta.isES6Module) {
+        // Assume CommonJS (still needs exports object)
+        asset.meta.isCommonJS = true;
+        asset.symbols.set('*', getName(asset, 'exports'));
+      }
 
       path.scope.setData('shouldWrap', shouldWrap);
       path.scope.setData('cjsExportsReassigned', false);
@@ -192,6 +238,7 @@ const VISITOR: Visitor<MutableAsset> = {
     exit(path, asset: MutableAsset) {
       let scope = path.scope;
 
+      let exportsIdentifier = getIdentifier(asset, 'exports');
       if (scope.getData('shouldWrap')) {
         if (asset.meta.isES6Module) {
           path.unshiftContainer('body', [ESMODULE_TEMPLATE()]);
@@ -200,13 +247,13 @@ const VISITOR: Visitor<MutableAsset> = {
         path.replaceWith(
           t.program([
             WRAPPER_TEMPLATE({
-              NAME: getIdentifier(asset, 'exports'),
+              NAME: exportsIdentifier,
               BODY: path.node.body,
             }),
           ]),
         );
 
-        asset.symbols.clear();
+        asset.symbols.set('*', exportsIdentifier.name);
         asset.meta.isCommonJS = true;
         asset.meta.isES6Module = false;
       } else {
@@ -216,13 +263,11 @@ const VISITOR: Visitor<MutableAsset> = {
 
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
-          if (!name.startsWith('$' + t.toIdentifier(asset.id))) {
+          if (!name.startsWith(t.toIdentifier('$' + asset.id))) {
             let newName = getName(asset, 'var', name);
             rename(scope, name, newName);
           }
         }
-
-        let exportsIdentifier = getIdentifier(asset, 'exports');
 
         // Add variable that represents module.exports if it is referenced and not declared.
         if (
@@ -230,6 +275,16 @@ const VISITOR: Visitor<MutableAsset> = {
           !scope.hasBinding(exportsIdentifier.name)
         ) {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
+        }
+
+        if (asset.meta.isCommonJS) {
+          if (asset.meta.resolveExportsBailedOut) {
+            for (let s of asset.symbols.exportSymbols()) {
+              asset.symbols.delete(s);
+            }
+          }
+
+          asset.symbols.set('*', exportsIdentifier.name);
         }
       }
 
@@ -253,7 +308,6 @@ const VISITOR: Visitor<MutableAsset> = {
     if (t.matchesPattern(path.node, 'module.exports')) {
       let exportsId = getExportsIdentifier(asset, path.scope);
       path.replaceWith(exportsId);
-      asset.meta.isCommonJS = true;
       asset.symbols.set('*', exportsId.name, convertBabelLoc(path.node.loc));
 
       if (!path.scope.hasBinding(exportsId.name)) {
@@ -398,11 +452,15 @@ const VISITOR: Visitor<MutableAsset> = {
       // Otherwise, assign to the existing export binding.
       let scope = path.scope.getProgramParent();
       if (!scope.hasBinding(identifier.name)) {
-        asset.symbols.set(
-          name,
-          identifier.name,
-          convertBabelLoc(path.node.loc),
-        );
+        // These have a special meaning, we'll have to fallback from the '*' symbol.
+        // '*' will always be registered into the symbols at the end.
+        if (name !== 'default' && name !== '*') {
+          asset.symbols.set(
+            name,
+            identifier.name,
+            convertBabelLoc(path.node.loc),
+          );
+        }
 
         // If in the program scope, create a variable declaration and initialize with the exported value.
         // Otherwise, declare the variable in the program scope, and assign to it here.
@@ -469,7 +527,10 @@ const VISITOR: Visitor<MutableAsset> = {
         return;
       }
 
-      asset.meta.isCommonJS = true;
+      if (!dep.isAsync) {
+        // the dependencies visitor replaces import() with require()
+        asset.meta.isCommonJS = true;
+      }
 
       // If this require call does not occur in the top-level, e.g. in a function
       // or inside an if statement, or if it might potentially happen conditionally,
@@ -487,12 +548,55 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
+      // TODO this would enable treeshaking import().then(({x}) => ...) calls
+      // function isUnusedValue(path) {
+      //   let {parent} = path;
+      //   return (
+      //     isExpressionStatement(parent) ||
+      //     (isSequenceExpression(parent) &&
+      //       ((Array.isArray(path.container) &&
+      //         path.key !== path.container.length - 1) ||
+      //         isUnusedValue(path.parentPath)))
+      //   );
+      // }
+      // if (!isUnusedValue(path) && dep.isAsync) {
+      //   // match `import(xxx).then(({ default: b }) => ...);`
+      //   let {parent} = path;
+      //   if (
+      //     isMemberExpression(parent, {object: path.node}) &&
+      //     isIdentifier(parent.property, {name: 'then'}) &&
+      //     isCallExpression(path.parentPath.parent, {
+      //       callee: parent,
+      //     }) &&
+      //     path.parentPath.parent.arguments.length === 1 &&
+      //     isFunction(path.parentPath.parent.arguments[0]) &&
+      //     // $FlowFixMe
+      //     path.parentPath.parent.arguments[0].params.length === 1 &&
+      //     isObjectPattern(path.parentPath.parent.arguments[0].params[0]) &&
+      //     path.parentPath.parent.arguments[0].params[0].properties.every(
+      //       p => isObjectProperty(p) && isIdentifier(p.key),
+      //     )
+      //   ) {
+      //     for (let imported of path.parentPath.parent.arguments[0].params[0].properties.map(
+      //       // $FlowFixMe
+      //       ({key}) => key.name,
+      //     )) {
+      //       dep.symbols.set(
+      //         imported,
+      //         getName(asset, 'import', imported),
+      //         convertBabelLoc(path.node.loc),
+      //       );
+      //     }
+      //   } else {
       dep.meta.isCommonJS = true;
+      dep.symbols.ensure();
       dep.symbols.set(
         '*',
         getName(asset, 'require', source),
         convertBabelLoc(path.node.loc),
       );
+      //   }
+      // }
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -519,11 +623,27 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
 
+    if (dep) dep.symbols.ensure();
+
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
-      let id = getIdentifier(asset, 'import', specifier.local.name);
+      let binding = nullthrows(path.scope.getBinding(specifier.local.name));
 
+      // Ignore unused specifiers in node-modules, especially for when TS was poorly transpiled.
+      if (!binding.referenced && !asset.isSource) {
+        continue;
+      }
+
+      // mark this as a weak import:
+      // import {x} from './c'; export {x};
+      let isWeak =
+        binding.referencePaths.length === 1 &&
+        isExportSpecifier(binding.referencePaths[0].parent, {
+          local: binding.referencePaths[0].node,
+        });
+
+      let id = getIdentifier(asset, 'import', specifier.local.name);
       if (dep) {
         let imported: string;
         if (isImportDefaultSpecifier(specifier)) {
@@ -539,9 +659,13 @@ const VISITOR: Visitor<MutableAsset> = {
         let existing = dep.symbols.get(imported)?.local;
         if (existing) {
           id.name = existing;
-        } else {
-          dep.symbols.set(imported, id.name, convertBabelLoc(specifier.loc));
         }
+        dep.symbols.set(
+          imported,
+          id.name,
+          convertBabelLoc(specifier.loc),
+          isWeak,
+        );
       }
       rename(path.scope, specifier.local.name, id.name);
     }
@@ -569,9 +693,9 @@ const VISITOR: Visitor<MutableAsset> = {
 
     // Add assignment to exports object for namespace imports and commonjs.
     path.insertAfter(
-      EXPORT_ASSIGN_TEMPLATE({
+      EXPORT_TEMPLATE({
         EXPORTS: getExportsIdentifier(asset, path.scope),
-        NAME: t.identifier('default'),
+        NAME: t.stringLiteral('default'),
         LOCAL: t.clone(identifier),
       }),
     );
@@ -607,6 +731,12 @@ const VISITOR: Visitor<MutableAsset> = {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
+      let dep = asset
+        .getDependencies()
+        .find(dep => dep.moduleSpecifier === source.value);
+
+      if (dep) dep.symbols.ensure();
+
       for (let specifier of nullthrows(specifiers)) {
         let exported = specifier.exported;
         let imported;
@@ -622,23 +752,17 @@ const VISITOR: Visitor<MutableAsset> = {
         }
 
         let id = getIdentifier(asset, 'import', exported.name);
-
-        let dep = asset
-          .getDependencies()
-          .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
           let existing = dep.symbols.get(imported)?.local;
           if (existing) {
             id.name = existing;
-          } else {
-            // this will merge with the existing dependency
-            let loc = convertBabelLoc(specifier.loc);
-            asset.addDependency({
-              moduleSpecifier: dep.moduleSpecifier,
-              symbols: new Map([[imported, {local: id.name, loc}]]),
-              isWeak: true,
-            });
           }
+          dep.symbols.set(
+            imported,
+            id.name,
+            convertBabelLoc(specifier.loc),
+            true,
+          );
         }
 
         asset.symbols.set(
@@ -649,7 +773,7 @@ const VISITOR: Visitor<MutableAsset> = {
 
         id.loc = specifier.loc;
         path.insertAfter(
-          REEXPORT_TEMPLATE({
+          EXPORT_TEMPLATE({
             EXPORTS: getExportsIdentifier(asset, path.scope),
             NAME: t.stringLiteral(exported.name),
             LOCAL: id,
@@ -684,7 +808,8 @@ const VISITOR: Visitor<MutableAsset> = {
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
-      dep.symbols.set('*', '*', convertBabelLoc(path.node.loc));
+      dep.symbols.ensure();
+      dep.symbols.set('*', '*', convertBabelLoc(path.node.loc), true);
     }
 
     let replacement = EXPORT_ALL_TEMPLATE({
@@ -742,16 +867,11 @@ function addExport(asset: MutableAsset, path, local, exported) {
     identifier = t.identifier(local.name);
   }
 
-  let assignNode = EXPORT_ASSIGN_TEMPLATE({
+  let assignNode = EXPORT_TEMPLATE({
     EXPORTS: getExportsIdentifier(asset, scope),
-    NAME: t.identifier(exported.name),
+    NAME: t.stringLiteral(exported.name),
     LOCAL: identifier,
   });
-
-  let binding = scope.getBinding(local.name);
-  let constantViolations = binding
-    ? binding.constantViolations.concat(binding.path.getStatementParent())
-    : [path];
 
   if (!asset.symbols.hasExportSymbol(exported.name)) {
     asset.symbols.set(
@@ -763,9 +883,7 @@ function addExport(asset: MutableAsset, path, local, exported) {
 
   rename(scope, local.name, identifier.name);
 
-  for (let p of constantViolations) {
-    p.insertAfter(t.cloneDeep(assignNode));
-  }
+  path.insertAfter(t.cloneDeep(assignNode));
 }
 
 function hasImport(asset: MutableAsset, id) {
