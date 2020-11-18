@@ -1,19 +1,14 @@
 //@flow strict-local
 
+// Derived from the README and source of json-source-map located at
+// https://github.com/epoberezkin/json-source-map and
+// https://github.com/nodejs/node/blob/cbfa2d11d4e42ea7f6a847a6930fd1022773252e/lib/internal/modules/cjs/loader.js/
+// Which is licensed MIT
+
 declare module 'module' {
   declare type FilePath = string;
 
   declare export default class Module {
-    static _cache: {|[key: FilePath]: Module|};
-    static _extensions: {
-      [extension: string]: (module: Module, fileName: string) => void,
-    };
-    static _resolveFilename: (
-      request: string,
-      parent?: Module,
-      ...args: Array<mixed>
-    ) => string;
-    static findPnpApi: (lookupSource: string) => PnpApi | null;
     id: string;
     path: FilePath;
     exports: {|[export: string]: mixed|};
@@ -21,10 +16,50 @@ declare module 'module' {
     loaded: boolean;
     children: Array<Module>;
     builtinModules: Array<string>;
+    globalPaths: Array<FilePath>;
+    load(fileName: string): void;
+    require: (request: string) => {|[export: string]: mixed|};
+    createRequire(fileName: string): (id: string) => mixed;
+    syncBuiltinESMExports(): void;
+
+    static _cache: {|[key: FilePath]: Module|};
+
+    static _pathCache: {|[cacheKey: string]: FilePath|};
+
+    static _findPath(
+      request: FilePath,
+      paths: Array<FilePath>,
+      isMain: boolean,
+    ): FilePath | false;
+
+    static _extensions: {|
+      [extension: string]: (module: Module, fileName: string) => void,
+    |};
+
+    static _nodeModulePaths(from: FilePath): Array<FilePath>;
+
+    static _resolveLookupPaths(
+      request: FilePath,
+      parent: Module,
+    ): Array<FilePath> | null;
+
+    static _load(
+      request: FilePath,
+      parent: Module,
+      isMain: boolean,
+    ): {|[export: string]: mixed|};
+
+    static _resolveFilename: (
+      request: string,
+      parent?: Module,
+      isMain?: boolean,
+      options?: {|paths?: Array<FilePath>|},
+    ) => string | false;
+
+    static _initPaths(): void;
+
+    static findPnpApi(lookupSource: string): PnpApi | null;
 
     constructor(id: FilePath, parent: Module): Module;
-
-    load(fileName: string): void;
-    require: (request: string) => Module;
   }
 }
