@@ -3,33 +3,43 @@
 import type {AST, MutableAsset} from '@parcel/types';
 import type {Visitor, NodePath} from '@babel/traverse';
 import type {
-  ExportNamedDeclaration,
-  ImportDeclaration,
-  VariableDeclaration,
-  Identifier,
-  Expression,
-  LVal,
-  StringLiteral,
-  Statement,
   CallExpression,
+  ExportNamedDeclaration,
+  Expression,
+  Identifier,
+  ImportDeclaration,
+  LVal,
+  ObjectProperty,
+  RestElement,
+  Statement,
+  StringLiteral,
+  VariableDeclaration,
 } from '@babel/types';
 
 import * as t from '@babel/types';
 import {
   isAssignmentExpression,
+  isAwaitExpression,
+  isCallExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isExpression,
+  isExpressionStatement,
+  isFunction,
   isFunctionDeclaration,
   isIdentifier,
   isImportDefaultSpecifier,
   isImportNamespaceSpecifier,
   isImportSpecifier,
   isMemberExpression,
+  isObjectPattern,
+  isObjectProperty,
+  isSequenceExpression,
   isStringLiteral,
   isUnaryExpression,
+  isVariableDeclarator,
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import template from '@babel/template';
@@ -548,55 +558,67 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
-      // TODO this would enable treeshaking import().then(({x}) => ...) calls
-      // function isUnusedValue(path) {
-      //   let {parent} = path;
-      //   return (
-      //     isExpressionStatement(parent) ||
-      //     (isSequenceExpression(parent) &&
-      //       ((Array.isArray(path.container) &&
-      //         path.key !== path.container.length - 1) ||
-      //         isUnusedValue(path.parentPath)))
-      //   );
-      // }
-      // if (!isUnusedValue(path) && dep.isAsync) {
-      //   // match `import(xxx).then(({ default: b }) => ...);`
-      //   let {parent} = path;
-      //   if (
-      //     isMemberExpression(parent, {object: path.node}) &&
-      //     isIdentifier(parent.property, {name: 'then'}) &&
-      //     isCallExpression(path.parentPath.parent, {
-      //       callee: parent,
-      //     }) &&
-      //     path.parentPath.parent.arguments.length === 1 &&
-      //     isFunction(path.parentPath.parent.arguments[0]) &&
-      //     // $FlowFixMe
-      //     path.parentPath.parent.arguments[0].params.length === 1 &&
-      //     isObjectPattern(path.parentPath.parent.arguments[0].params[0]) &&
-      //     path.parentPath.parent.arguments[0].params[0].properties.every(
-      //       p => isObjectProperty(p) && isIdentifier(p.key),
-      //     )
-      //   ) {
-      //     for (let imported of path.parentPath.parent.arguments[0].params[0].properties.map(
-      //       // $FlowFixMe
-      //       ({key}) => key.name,
-      //     )) {
-      //       dep.symbols.set(
-      //         imported,
-      //         getName(asset, 'import', imported),
-      //         convertBabelLoc(path.node.loc),
-      //       );
-      //     }
-      //   } else {
-      dep.meta.isCommonJS = true;
-      dep.symbols.ensure();
-      dep.symbols.set(
-        '*',
-        getName(asset, 'require', source),
-        convertBabelLoc(path.node.loc),
-      );
-      //   }
-      // }
+      if (!isUnusedValue(path) && dep.isAsync) {
+        let {parent} = path;
+        let {parent: grandparent} = path.parentPath;
+
+        let properties: ?Array<RestElement | ObjectProperty>;
+        if (
+          // import(xxx).then(({ default: b }) => ...);
+          isMemberExpression(parent, {object: path.node}) &&
+          isIdentifier(parent.property, {name: 'then'}) &&
+          isCallExpression(grandparent, {
+            callee: parent,
+          }) &&
+          grandparent.arguments.length === 1 &&
+          isFunction(grandparent.arguments[0]) &&
+          // $FlowFixMe
+          grandparent.arguments[0].params.length === 1 &&
+          isObjectPattern(grandparent.arguments[0].params[0])
+        ) {
+          properties = grandparent.arguments[0].params[0].properties;
+        } else if (isAwaitExpression(parent, {argument: path.node})) {
+          if (
+            // let { x: y } = await import("./b.js");
+            isVariableDeclarator(grandparent, {init: parent}) &&
+            isObjectPattern(grandparent.id)
+          ) {
+            properties = grandparent.id.properties;
+          } else if (
+            // ({ x: y } = await import("./b.js"));
+            isAssignmentExpression(grandparent, {right: parent}) &&
+            isObjectPattern(grandparent.left)
+          ) {
+            properties = grandparent.left.properties;
+          }
+        }
+
+        if (
+          properties != null &&
+          properties.every(p => isObjectProperty(p) && isIdentifier(p.key))
+        ) {
+          // The return value was destructured and statically analyzable
+          dep.symbols.ensure();
+          for (let imported of properties) {
+            invariant(isObjectProperty(imported));
+            invariant(isIdentifier(imported.key));
+            dep.symbols.set(
+              imported.key.name,
+              getName(asset, 'import', imported.key.name),
+              convertBabelLoc(imported.loc),
+            );
+          }
+        } else {
+          // Fallback: everything
+          dep.meta.isCommonJS = true;
+          dep.symbols.ensure();
+          dep.symbols.set(
+            '*',
+            getName(asset, 'require', source),
+            convertBabelLoc(path.node.loc),
+          );
+        }
+      }
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -998,4 +1020,15 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
   } else {
     return getExportsIdentifier(asset, scope);
   }
+}
+
+function isUnusedValue(path) {
+  let {parent} = path;
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      ((Array.isArray(path.container) &&
+        path.key !== path.container.length - 1) ||
+        isUnusedValue(path.parentPath)))
+  );
 }

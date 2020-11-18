@@ -140,9 +140,16 @@ export function generateExports(
   // let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
+    let usedSymbols = bundleGraph.getUsedSymbols(entry);
+    let hasNamespace = usedSymbols.has('*');
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
       bundleGraph.getExportedSymbols(entry, bundle),
     )) {
+      if (asset === entry && !hasNamespace && !usedSymbols.has(exportAs)) {
+        // unused
+        continue;
+      }
+
       if (symbol === false) {
         // skipped
       } else if (symbol === null) {
