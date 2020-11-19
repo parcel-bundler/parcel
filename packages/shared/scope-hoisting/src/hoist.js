@@ -26,7 +26,6 @@ import {
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isExpression,
-  isExpressionStatement,
   isFunction,
   isFunctionDeclaration,
   isIdentifier,
@@ -36,7 +35,6 @@ import {
   isMemberExpression,
   isObjectPattern,
   isObjectProperty,
-  isSequenceExpression,
   isStringLiteral,
   isUnaryExpression,
   isVariableDeclarator,
@@ -53,7 +51,6 @@ import {
   getIdentifier,
   getExportIdentifier,
   dereferenceIdentifier,
-  isUnusedValue,
 } from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
@@ -558,10 +555,10 @@ const VISITOR: Visitor<MutableAsset> = {
       }
 
       // Try to statically analyze a dynamic import() call
-      let {parent} = path;
-      let {parent: grandparent} = path.parentPath;
       let properties: ?Array<RestElement | ObjectProperty>;
-      if (!isUnusedValue(path) && dep.isAsync) {
+      if (dep.isAsync) {
+        let {parent} = path;
+        let {parent: grandparent} = path.parentPath;
         if (
           // import(xxx).then(({ default: b }) => ...);
           isMemberExpression(parent, {object: path.node}) &&

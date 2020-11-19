@@ -47,7 +47,6 @@ import {
   getName,
   getIdentifier,
   dereferenceIdentifier,
-  isUnusedValue,
   pathRemove,
   getThrowableDiagnosticForNode,
   verifyScopeState,
@@ -840,4 +839,15 @@ function maybeAddEsModuleFlag(scope, mod) {
       binding.path.setData('hasESModuleFlag', true);
     }
   }
+}
+
+function isUnusedValue(path: NodePath<Node>): boolean {
+  let {parent} = path;
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      ((Array.isArray(path.container) &&
+        path.key !== path.container.length - 1) ||
+        isUnusedValue(path.parentPath)))
+  );
 }

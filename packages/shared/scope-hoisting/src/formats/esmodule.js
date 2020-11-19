@@ -31,7 +31,7 @@ import {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
-import {flat, relativeBundlePath} from '@parcel/utils';
+import {relativeBundlePath} from '@parcel/utils';
 import rename from '../renamer';
 import {
   getName,
