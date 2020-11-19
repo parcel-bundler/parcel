@@ -518,7 +518,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
   CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
-    let isRequire = isIdentifier(callee, {name: 'require'});
     let [arg] = args;
     if (
       args.length !== 1 ||
@@ -528,7 +527,7 @@ const VISITOR: Visitor<MutableAsset> = {
       return;
     }
 
-    if (isRequire) {
+    if (isIdentifier(callee, {name: 'require'})) {
       let source = arg.value;
       // Ignore require calls that were ignored earlier.
       let dep = asset
@@ -546,9 +545,8 @@ const VISITOR: Visitor<MutableAsset> = {
       // If this require call does not occur in the top-level, e.g. in a function
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
-      let parent = path.getStatementParent().parentPath;
       if (
-        !parent.isProgram() ||
+        !path.getStatementParent().parentPath.isProgram() ||
         path.findParent(
           p =>
             p.isConditionalExpression() ||
@@ -559,11 +557,11 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
+      // Try to statically analyze a dynamic import() call
+      let {parent} = path;
+      let {parent: grandparent} = path.parentPath;
+      let properties: ?Array<RestElement | ObjectProperty>;
       if (!isUnusedValue(path) && dep.isAsync) {
-        let {parent} = path;
-        let {parent: grandparent} = path.parentPath;
-
-        let properties: ?Array<RestElement | ObjectProperty>;
         if (
           // import(xxx).then(({ default: b }) => ...);
           isMemberExpression(parent, {object: path.node}) &&
@@ -593,32 +591,31 @@ const VISITOR: Visitor<MutableAsset> = {
             properties = grandparent.left.properties;
           }
         }
+      }
 
-        if (
-          properties != null &&
-          properties.every(p => isObjectProperty(p) && isIdentifier(p.key))
-        ) {
-          // The return value was destructured and statically analyzable
-          dep.symbols.ensure();
-          for (let imported of properties) {
-            invariant(isObjectProperty(imported));
-            invariant(isIdentifier(imported.key));
-            dep.symbols.set(
-              imported.key.name,
-              getName(asset, 'import', imported.key.name),
-              convertBabelLoc(imported.loc),
-            );
-          }
-        } else {
-          // Fallback: everything
-          dep.meta.isCommonJS = true;
-          dep.symbols.ensure();
+      dep.symbols.ensure();
+      if (
+        properties != null &&
+        properties.every(p => isObjectProperty(p) && isIdentifier(p.key))
+      ) {
+        // The import() return value was destructured and statically analyzable
+        for (let imported of properties) {
+          invariant(isObjectProperty(imported));
+          invariant(isIdentifier(imported.key));
           dep.symbols.set(
-            '*',
-            getName(asset, 'require', source),
-            convertBabelLoc(path.node.loc),
+            imported.key.name,
+            getName(asset, 'import', imported.key.name),
+            convertBabelLoc(imported.loc),
           );
         }
+      } else {
+        // non-async and async fallback: everything
+        dep.meta.isCommonJS = true;
+        dep.symbols.set(
+          '*',
+          getName(asset, 'require', source),
+          convertBabelLoc(path.node.loc),
+        );
       }
 
       // Generate a variable name based on the current asset id and the module name to require.
@@ -629,9 +626,7 @@ const VISITOR: Visitor<MutableAsset> = {
       });
       replacement.loc = path.node.loc;
       path.replaceWith(replacement);
-    }
-
-    if (t.matchesPattern(callee, 'require.resolve')) {
+    } else if (t.matchesPattern(callee, 'require.resolve')) {
       let replacement = REQUIRE_RESOLVE_CALL_TEMPLATE({
         ID: t.stringLiteral(asset.id),
         SOURCE: arg,
