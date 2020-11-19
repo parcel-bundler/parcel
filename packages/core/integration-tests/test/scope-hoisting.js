@@ -1046,55 +1046,78 @@ describe('scope hoisting', function() {
       assert(!contents.includes('method'));
     });
 
-    it('removes unused exports across bundles', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle/a.js',
-        ),
-      );
+    ['global', 'esmodule'].forEach(outputFormat => {
+      let targets = {
+        default: {
+          outputFormat,
+          distDir,
+        },
+      };
 
-      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+      describe('cross bundle tree shaking: ' + outputFormat, () => {
+        it('removes unused exports across bundles', async () => {
+          let b = await bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/tree-shaking-cross-bundle/a.js',
+            ),
+            {targets},
+          );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(!contents.includes('bar'));
-    });
+          if (outputFormat != 'esmodule') {
+            // TODO execute ESM at some point
+            assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+          }
 
-    it('removes unused exports with re-exports across bundles', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export/a.js',
-        ),
-      );
+          let contents = await outputFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('bar'));
+        });
 
-      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+        it('removes unused exports with re-exports across bundles', async () => {
+          let b = await bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export/a.js',
+            ),
+            {targets},
+          );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(!contents.includes('bar'));
-    });
+          if (outputFormat != 'esmodule') {
+            // TODO execute ESM at some point
+            assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+          }
 
-    it('removes unused exports with wildcard re-exports across bundles', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export-wildcard/a.js',
-        ),
-      );
+          let contents = await outputFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('bar'));
+        });
 
-      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+        it('removes unused exports with wildcard re-exports across bundles', async () => {
+          let b = await bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export-wildcard/a.js',
+            ),
+            {targets},
+          );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(!contents.includes('bar'));
+          if (outputFormat != 'esmodule') {
+            // TODO execute ESM at some point
+            assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+          }
+
+          let contents = await outputFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('bar'));
+        });
+      });
     });
 
     it('keeps member expression with computed properties that are variables', async function() {
