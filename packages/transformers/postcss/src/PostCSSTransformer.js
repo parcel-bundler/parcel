@@ -156,13 +156,10 @@ export default (new Transformer({
           .join('\n');
       }
 
-      // FIXME ???
-      // if (asset.env.scopeHoist) {
       asset.symbols.ensure();
       for (let [k, v] of cssModulesList) {
         asset.symbols.set(k, v);
       }
-      // }
 
       assets.push({
         type: 'js',
