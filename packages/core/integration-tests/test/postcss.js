@@ -17,9 +17,9 @@ import {
 import postcss from 'postcss';
 
 describe('postcss', () => {
-  it('should support transforming css modules with postcss', async () => {
+  it('should support transforming css modules with postcss (require)', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-modules/index.js'),
+      path.join(__dirname, '/integration/postcss-modules-cjs/index.js'),
     );
 
     assertBundles(b, [
@@ -45,9 +45,47 @@ describe('postcss', () => {
     assert(css.includes(`.${cssClass}`));
   });
 
-  it('should tree shake unused css modules classes', async () => {
+  it('should support transforming css modules with postcss (import default)', async () => {
     let b = await bundle(
-      path.join(__dirname, '/integration/postcss-modules-shake/index.js'),
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-default/index.js',
+      ),
+      {mode: 'production'},
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'style.module.css'],
+      },
+      {
+        name: 'index.css',
+        assets: ['style.module.css'],
+      },
+    ]);
+
+    let output = await run(b);
+    assert(/_b-2_[0-9a-z]/.test(output));
+
+    let css = await outputFS.readFile(
+      b.getBundles().find(b => b.type === 'css').filePath,
+      'utf8',
+    );
+    let includedRules = new Set();
+    postcss.parse(css).walkRules(rule => {
+      includedRules.add(rule.selector);
+    });
+    assert(includedRules.has('.page'));
+    assert(includedRules.has(`.${output}`));
+  });
+
+  it('should tree shake unused css modules classes with a namespace import', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/postcss-modules-import-namespace/index.js',
+      ),
       {mode: 'production'},
     );
 
@@ -75,12 +113,12 @@ describe('postcss', () => {
       b.getBundles().find(b => b.type === 'css').filePath,
       'utf8',
     );
-    let includedClasses = new Set();
+    let includedRules = new Set();
     postcss.parse(css).walkRules(rule => {
-      includedClasses.add(rule.selector);
+      includedRules.add(rule.selector);
     });
     assert.deepStrictEqual(
-      includedClasses,
+      includedRules,
       new Set(['body', `.${output}`, '.page']),
     );
   });

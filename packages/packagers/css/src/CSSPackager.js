@@ -65,14 +65,16 @@ export default (new Packager({
             let localSymbols = new Set(
               [...asset.symbols].map(([, {local}]) => `.${local}`),
             );
-            let usedLocalSymbols = usedSymbols.has('*')
-              ? null
-              : new Set(
-                  [...usedSymbols].map(
-                    exportSymbol =>
-                      `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
-                  ),
-                );
+            let usedLocalSymbols =
+              // we have to still support the more common default imports
+              usedSymbols.has('*') || usedSymbols.has('default')
+                ? null
+                : new Set(
+                    [...usedSymbols].map(
+                      exportSymbol =>
+                        `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+                    ),
+                  );
 
             if (usedLocalSymbols) {
               ast.walkRules(rule => {

@@ -160,6 +160,7 @@ export default (new Transformer({
       for (let [k, v] of cssModulesList) {
         asset.symbols.set(k, v);
       }
+      asset.symbols.set('default', 'default');
 
       assets.push({
         type: 'js',
