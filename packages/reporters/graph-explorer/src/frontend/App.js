@@ -9,6 +9,9 @@ const NODE_TEXT_LINE_HEIGHT = 18;
 export default function App() {
   const [graph, setGraph] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [focusedNodeIds, setFocusedNodeIds] = useState(new Set());
+  const [isFocusingNodes, setIsFocusingNodes] = useState(true);
+
   useEffect(() => {
     let abortController = new AbortController();
     (async () => {
@@ -36,20 +39,43 @@ export default function App() {
   }, []);
 
   const convertedGraph = useMemo(
-    () => (graph != null ? convertGraph(graph) : null),
-    [graph],
-  );
-  const selectedGraphViewNode = useMemo(
-    () => (selectedNode != null ? {title: selectedNode.id} : null),
-    [selectedNode],
+    () =>
+      graph != null
+        ? convertGraph(graph, isFocusingNodes, focusedNodeIds)
+        : null,
+    [graph, isFocusingNodes, focusedNodeIds],
   );
 
-  const onRenderNodeText = useCallback(
-    (node, id, isSelected) => (
-      <NodeText node={node} id={id} isSelected={isSelected} />
-    ),
-    [],
+  const edgeTypes = useMemo(() => {
+    const types = new Set();
+    if (graph == null) {
+      return types;
+    }
+
+    for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {
+      for (let [type] of edgeMap) {
+        types.add(type);
+      }
+    }
+    return types;
+  }, [graph]);
+
+  const [focusedEdgeTypes, setFocusedEdgeTypes] = useState(new Set(edgeTypes));
+
+  const selectedGraphViewNode =
+    selectedNode != null ? {title: selectedNode.id} : null;
+
+  const onRenderNodeText = (node, id, isSelected) => (
+    <NodeText node={node} id={id} isSelected={isSelected} />
   );
+
+  const handleFocus = node => {
+    setFocusedNodeIds(new Set([...focusedNodeIds, node.id]));
+  };
+
+  const handleFocusNodes = isFocusing => {
+    setIsFocusingNodes(isFocusing);
+  };
 
   if (convertedGraph == null) {
     return <div>Loading...</div>;
@@ -63,8 +89,16 @@ export default function App() {
             setSelectedNode(graph.nodes.get(nodeId));
           }}
         />
+        <FocusView
+          edgeTypes={edgeTypes}
+          focusedEdgeTypes={focusedEdgeTypes}
+          // onFocusEdgeType={handleFocusEdgeType}
+          focusedNodeIds={focusedNodeIds}
+          isFocusingNodes={isFocusingNodes}
+          onFocusNodes={handleFocusNodes}
+        />
         {selectedNode != null ? (
-          <DetailView selectedNode={selectedNode} />
+          <DetailView selectedNode={selectedNode} onFocus={handleFocus} />
         ) : null}
       </div>
       <GraphView
@@ -75,6 +109,7 @@ export default function App() {
         nodeTypes={{
           root: anyNode,
           entry_specifier: entrySpecifierNode,
+          entry_file: entrySpecifierNode,
           dependency: dependencyNode,
           asset: assetNode,
           bundle_group: bundleGroupNode,
@@ -119,10 +154,64 @@ function SearchView({onSubmit}) {
   );
 }
 
-function DetailView({selectedNode}) {
+function FocusView({edgeTypes, focusedNodeIds, isFocusingNodes, onFocusNodes}) {
+  return (
+    <div className="focus-view">
+      <div style={{marginBottom: 16}}>
+        <label style={{fontWeight: 'bold'}}>
+          <input
+            type="checkbox"
+            checked={isFocusingNodes}
+            onChange={e => {
+              onFocusNodes(e.target.checked);
+            }}
+          />
+          <span className="label-text">Focus Nodes</span>
+        </label>
+
+        {focusedNodeIds.size > 0 ? (
+          <ul>
+            {[...focusedNodeIds].map(id => (
+              <li key={id}>
+                <label>
+                  <input type="checkbox" />
+                  <span className="label-text" title={id}>
+                    {id.slice(0, 36)}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+      <div>
+        <label style={{fontWeight: 'bold'}}>
+          <span className="label-text">Edge types</span>
+          <ul>
+            {[...edgeTypes].map(type => (
+              <li key={type}>
+                <label>
+                  <input type="checkbox" />
+                  <span className="label-text" title={type}>
+                    {type === null ? 'null (untyped)' : type}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function DetailView({selectedNode, onFocus}) {
   return (
     <div className="detail-view">
-      <h2>Node Detail</h2>
+      <div style={{display: 'flex'}}>
+        <h2 style={{flex: '1', marginBottom: 0}}>Node Detail</h2>
+        <button onClick={() => onFocus(selectedNode)}>Focus</button>
+      </div>
       <dl>
         <div>
           <dt>id</dt>
@@ -234,14 +323,26 @@ const anyEdge = {
   ),
 };
 
-function convertGraph(graph) {
-  let edges = [];
-  for (let [source, edgeMap] of graph.edges.outboundEdges) {
-    for (let [type, targets] of edgeMap) {
-      for (let target of targets) {
+function convertGraph(graph, isFocusingNodes, focusedNodes) {
+  const shownNodes = new Set();
+
+  const edges = [];
+  for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {
+    for (let [type, targetIds] of edgeMap) {
+      for (let targetId of targetIds) {
+        if (
+          isFocusingNodes &&
+          !(focusedNodes.has(sourceId) || focusedNodes.has(targetId))
+        ) {
+          continue;
+        }
+
+        shownNodes.add(graph.nodes.get(sourceId));
+        shownNodes.add(graph.nodes.get(targetId));
+
         edges.push({
-          source,
-          target,
+          source: sourceId,
+          target: targetId,
           type: type ?? undefined,
         });
       }
@@ -249,7 +350,7 @@ function convertGraph(graph) {
   }
 
   return {
-    nodes: [...graph.nodes.values()].map(({id, type, value}) => ({
+    nodes: [...shownNodes].map(({id, type, value}) => ({
       title: id,
       type,
       value,
