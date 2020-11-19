@@ -1120,6 +1120,132 @@ describe('scope hoisting', function() {
       });
     });
 
+    describe('tree shaking dynamic imports', function() {
+      it('supports tree shaking statically analyzable dynamic import: await assignment', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-assignment.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'await-assignment.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: await declaration', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'await-declaration.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: then', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(b.getUsedSymbols(findDependency(b, 'then.js', './async.js'))),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: then (esmodule)', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then.js',
+          ),
+          {
+            targets: {
+              default: {
+                outputFormat: 'esmodule',
+                distDir,
+              },
+            },
+          },
+        );
+
+        // let output = await run(b);
+        // assert.deepEqual(output, 'foo');
+
+        assert.deepStrictEqual(
+          new Set(b.getUsedSymbols(findDependency(b, 'then.js', './async.js'))),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+    });
+
     it('keeps member expression with computed properties that are variables', async function() {
       let b = await bundle(
         path.join(

@@ -31,7 +31,7 @@ import {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
-import {relativeBundlePath} from '@parcel/utils';
+import {flat, relativeBundlePath} from '@parcel/utils';
 import rename from '../renamer';
 import {
   getName,
@@ -140,13 +140,22 @@ export function generateExports(
   // let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
-    let usedSymbols = bundleGraph.getUsedSymbols(entry);
-    let hasNamespace = usedSymbols.has('*');
+    // Get all used symbols for this bundle (= entry + subgraph)
+    let usedSymbols = new Set<Symbol>();
+    for (let d of bundleGraph.getIncomingDependencies(entry)) {
+      let used = bundleGraph.getUsedSymbols(d);
+      if (d.symbols.isCleared || used.has('*')) {
+        usedSymbols = null;
+        break;
+      }
+      used.forEach(s => nullthrows(usedSymbols).add(s));
+    }
+
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
       bundleGraph.getExportedSymbols(entry, bundle),
     )) {
-      if (asset === entry && !hasNamespace && !usedSymbols.has(exportAs)) {
-        // unused
+      if (usedSymbols && !usedSymbols.has(exportAs)) {
+        // an unused symbol
         continue;
       }
 
