@@ -47,6 +47,7 @@ import {
   getName,
   getIdentifier,
   dereferenceIdentifier,
+  isUnusedValue,
   pathRemove,
   getThrowableDiagnosticForNode,
   verifyScopeState,
@@ -349,17 +350,6 @@ export function link({
 
   function getScopeBefore(path) {
     return path.isScope() ? path.parentPath.scope : path.scope;
-  }
-
-  function isUnusedValue(path) {
-    let {parent} = path;
-    return (
-      isExpressionStatement(parent) ||
-      (isSequenceExpression(parent) &&
-        ((Array.isArray(path.container) &&
-          path.key !== path.container.length - 1) ||
-          isUnusedValue(path.parentPath)))
-    );
   }
 
   function addExternalModule(path, dep) {

@@ -53,6 +53,7 @@ import {
   getIdentifier,
   getExportIdentifier,
   dereferenceIdentifier,
+  isUnusedValue,
 } from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
@@ -1020,15 +1021,4 @@ function getCJSExportsIdentifier(asset: MutableAsset, scope) {
   } else {
     return getExportsIdentifier(asset, scope);
   }
-}
-
-function isUnusedValue(path) {
-  let {parent} = path;
-  return (
-    isExpressionStatement(parent) ||
-    (isSequenceExpression(parent) &&
-      ((Array.isArray(path.container) &&
-        path.key !== path.container.length - 1) ||
-        isUnusedValue(path.parentPath)))
-  );
 }

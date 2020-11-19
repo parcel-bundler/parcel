@@ -21,7 +21,12 @@ import type {Diagnostic} from '@parcel/diagnostic';
 import {simple as walkSimple} from '@parcel/babylon-walk';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 import * as t from '@babel/types';
-import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
+import {
+  isExpressionStatement,
+  isSequenceExpression,
+  isVariableDeclarator,
+  isVariableDeclaration,
+} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -138,6 +143,17 @@ export function hasAsyncDescendant(
   }, bundle);
 
   return _hasAsyncDescendant;
+}
+
+export function isUnusedValue(path: NodePath<Node>): boolean {
+  let {parent} = path;
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      ((Array.isArray(path.container) &&
+        path.key !== path.container.length - 1) ||
+        isUnusedValue(path.parentPath)))
+  );
 }
 
 export function assertString(v: mixed): string {
