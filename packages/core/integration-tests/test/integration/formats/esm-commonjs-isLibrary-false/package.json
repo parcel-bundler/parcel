@@ -1,0 +1,10 @@
+{
+  "targets": {
+    "default": {
+      "outputFormat": "commonjs"
+    }
+  },
+  "sideEffects": [
+    "skipped.js"
+  ]
+}

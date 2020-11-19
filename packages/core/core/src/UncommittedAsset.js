@@ -348,10 +348,8 @@ export default class UncommittedAsset {
           time: 0,
           size: this.value.stats.size,
         },
-        symbols: !result.symbols
-          ? // TODO clone?
-            this.value.symbols
-          : new Map([...(this.value.symbols || []), ...(result.symbols || [])]),
+        // $FlowFixMe
+        symbols: result.symbols,
         sideEffects: result.sideEffects ?? this.value.sideEffects,
         uniqueKey: result.uniqueKey,
         astGenerator: result.ast
