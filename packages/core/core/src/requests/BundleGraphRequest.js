@@ -38,7 +38,7 @@ export default function createBundleGraphRequest(input) {
           createParcelConfigRequest(),
         ),
       );
-      return new BundlerRunner({
+      let runner = new BundlerRunner({
         options,
         optionsRef: input.optionsRef,
         api,
@@ -49,7 +49,10 @@ export default function createBundleGraphRequest(input) {
           options.autoinstall,
         ),
         workerFarm: farm,
-      }).bundle(input.assetGraph);
+      });
+      let bundleGraph = await runner.bundle(input.assetGraph);
+      api.storeResult(bundleGraph, runner.cacheKey);
+      return bundleGraph;
     },
     input,
   };
@@ -97,18 +100,7 @@ class BundlerRunner {
       }
     }
 
-    // let cacheKey;
-    // if (!this.options.disableCache && !this.api.hasInvalidRequests()) {
-    //   cacheKey = await this.getCacheKey(graph, configResult);
-    //   let cachedBundleGraph = await this.options.cache.get<InternalBundleGraph>(
-    //     cacheKey,
-    //   );
-    //   this.api.assertNotAborted();
-
-    //   if (cachedBundleGraph) {
-    //     return cachedBundleGraph;
-    //   }
-    // }
+    this.cacheKey = await this.getCacheKey(graph, configResult);
 
     let internalBundleGraph = InternalBundleGraph.fromAssetGraph(graph);
     // $FlowFixMe

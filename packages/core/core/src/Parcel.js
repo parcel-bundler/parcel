@@ -253,6 +253,7 @@ export default class Parcel {
         bundleGraph,
       } = await this.#requestTracker.runRequest(
         createParcelBuildRequest({optionsRef: this.#optionsRef}),
+        {force: true},
       );
 
       let event = {
