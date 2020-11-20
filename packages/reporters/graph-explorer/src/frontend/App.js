@@ -57,10 +57,10 @@ function LoadedApp({graph}) {
         types.add(type);
       }
     }
-    return [...types];
+    return types;
   }, [graph]);
 
-  const [focusedEdgeTypes, setFocusedEdgeTypes] = useState(edgeTypes);
+  const [focusedEdgeTypes, setFocusedEdgeTypes] = useState(new Set(edgeTypes));
   const convertedGraph = useMemo(
     () =>
       graph != null
@@ -77,13 +77,20 @@ function LoadedApp({graph}) {
   const selectedGraphViewNode =
     selectedNode != null ? {title: selectedNode.id} : null;
 
-  const handleFocus = node => {
-    setFocusedNodeIds(new Set([...focusedNodeIds, node.id]));
+  const handleFocusChange = (node, shouldFocus) => {
+    setFocusedNodeIds(
+      () =>
+        new Set(
+          shouldFocus
+            ? [...focusedNodeIds, node.id]
+            : [...focusedNodeIds].filter(n => n !== node.id),
+        ),
+    );
   };
 
   return (
     <div style={{height: '100%', width: '100%'}}>
-      <div className="tools">
+      <div className="tools tools--left">
         <SearchView
           onSubmit={nodeId => {
             setSelectedNode(graph.nodes.get(nodeId));
@@ -94,21 +101,33 @@ function LoadedApp({graph}) {
           focusedEdgeTypes={focusedEdgeTypes}
           onEdgeFocusChange={(type, shouldFocus) => {
             setFocusedEdgeTypes(
-              shouldFocus
-                ? [...focusedEdgeTypes, type]
-                : focusedEdgeTypes.filter(t => t !== type),
+              () =>
+                new Set(
+                  shouldFocus
+                    ? [...focusedEdgeTypes, type]
+                    : [...focusedEdgeTypes].filter(t => t !== type),
+                ),
             );
           }}
           focusedNodeIds={focusedNodeIds}
           isFocusingNodes={isFocusingNodes}
+          onNodeIdClick={id => {
+            setSelectedNode(graph.nodes.get(id));
+          }}
           onFocusNodes={isFocusing => {
             setIsFocusingNodes(isFocusing);
           }}
         />
-        {selectedNode != null ? (
-          <DetailView selectedNode={selectedNode} onFocus={handleFocus} />
-        ) : null}
       </div>
+      {selectedNode != null ? (
+        <div className="tools tools-right">
+          <DetailView
+            selectedNode={selectedNode}
+            onFocusChange={handleFocusChange}
+            isFocused={focusedNodeIds.has(selectedNode.id)}
+          />
+        </div>
+      ) : null}
       <GraphView
         nodeKey="title"
         layoutEngineType="VerticalTree"
@@ -125,12 +144,7 @@ function LoadedApp({graph}) {
           bundle_group: bundleGroupNode,
           bundle: bundleNode,
         }}
-        edgeTypes={{
-          empty: anyEdge,
-          bundle: anyEdge,
-          references: anyEdge,
-          contains: anyEdge,
-        }}
+        edgeTypes={{}}
         nodeSubtypes={{}}
         onSelectNode={node => {
           setSelectedNode(node != null ? graph.nodes.get(node.title) : null);
@@ -171,42 +185,50 @@ function FocusView({
   isFocusingNodes,
   onFocusNodes,
   onEdgeFocusChange,
+  onNodeIdClick,
 }) {
   return (
     <div className="focus-view">
       <div style={{marginBottom: 16}}>
-        <label style={{fontWeight: 'bold'}}>
+        <label style={{fontWeight: 'bold', position: 'relative'}}>
           <input
             type="checkbox"
             checked={isFocusingNodes}
             onChange={e => {
               onFocusNodes(e.target.checked);
             }}
+            style={{
+              position: 'absolute',
+              left: -20,
+              top: -3,
+            }}
           />
           <span className="label-text">Focus Nodes</span>
         </label>
 
         {focusedNodeIds.size > 0 ? (
-          <ul>
+          <ul className="focused-nodes">
             {[...focusedNodeIds].map(id => (
               <li key={id}>
-                <label>
-                  <input type="checkbox" />
-                  <span className="label-text" title={id}>
-                    {id.slice(0, 36)}
-                  </span>
-                </label>
+                <a
+                  href="#"
+                  onClick={() => {
+                    onNodeIdClick(id);
+                  }}
+                >
+                  {id}
+                </a>
               </li>
             ))}
           </ul>
         ) : null}
       </div>
-      <div>
+      <div className="focused-edges">
         <label style={{fontWeight: 'bold'}}>
           <span className="label-text">Edge types</span>
           <ul>
             {[...edgeTypes].map(type => {
-              const isFocused = focusedEdgeTypes.includes(type);
+              const isFocused = focusedEdgeTypes.has(type);
               return (
                 <li key={type}>
                   <label>
@@ -231,12 +253,14 @@ function FocusView({
   );
 }
 
-function DetailView({selectedNode, onFocus}) {
+function DetailView({selectedNode, onFocusChange, isFocused}) {
   return (
     <div className="detail-view">
       <div style={{display: 'flex'}}>
         <h2 style={{flex: '1', marginBottom: 0}}>Node Detail</h2>
-        <button onClick={() => onFocus(selectedNode)}>Focus</button>
+        <button onClick={() => onFocusChange(selectedNode, !isFocused)}>
+          {isFocused ? 'Remove from focus' : 'Add to focus'}
+        </button>
       </div>
       <dl>
         <div>
@@ -339,18 +363,8 @@ const bundleGroupNode = makeNode({
 });
 const bundleNode = makeNode({type: 'bundle', size: 125, color: '#d2d3d2'});
 
-const anyEdge = {
-  shapeId: '#anyEdge',
-  shape: (
-    // Adapted from https://github.com/uber/react-digraph#usage
-    <symbol viewBox="0 0 50 50" id="anyEdge" key="0">
-      <circle cx="25" cy="25" r="8" fill="currentColor" />
-    </symbol>
-  ),
-};
-
 function convertGraph({
-  focusedEdgeTypes: focusedEdgeTypesArray,
+  focusedEdgeTypes,
   focusedNodeIds,
   graph,
   isFocusingNodes,
@@ -358,7 +372,6 @@ function convertGraph({
   const shownNodes = new Set(
     [...focusedNodeIds].map(id => graph.nodes.get(id)),
   );
-  const focusedEdgeTypes = new Set(focusedEdgeTypesArray);
 
   const edges = [];
   for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {

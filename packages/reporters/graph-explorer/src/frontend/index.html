@@ -20,19 +20,32 @@
         font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
       }
 
+      a,
+      a:visited {
+        color: black;
+      }
+
       #react-root {
         height: 100vh;
         width: 100vw;
       }
 
       .tools {
-        left: 16px;
-        top: 16px;
         position: absolute;
         max-height: calc(100vh - 96px);
         overflow: auto;
-        width: 320px;
+        top: 16px;
         z-index: 1;
+      }
+
+      .tools--left {
+        left: 16px;
+        width: 320px;
+      }
+
+      .tools-right {
+        right: 16px;
+        width: 360px;
       }
 
       .focus-view {
@@ -40,9 +53,14 @@
         border-radius: 4px;
         border: 1px solid lightgray;
         margin-top: 8px;
-        padding: 16px;
+        padding: 16px 22px;
         font-size: 12px;
         width: 100%;
+      }
+
+      .focused-nodes {
+        font-family: monospace;
+        overflow-wrap: anywhere;
       }
 
       .focus-view ul {
@@ -50,13 +68,18 @@
         padding-left: 16px;
       }
 
-      .focus-view li {
+      .focused-edges ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .focused-edges ul {
         list-style: none;
       }
 
-      .label-text {
+      .focused-edges label input[type='checkbox'] {
         position: relative;
-        bottom: 2px;
+        top: 2px;
       }
 
       .search-view {
@@ -76,7 +99,7 @@
         font-size: 12px;
         margin-top: 8px;
         overflow: auto;
-        padding: 16px;
+        padding: 20px;
         width: 100%;
       }
 
@@ -108,6 +131,27 @@
       .detail-view dd {
         display: inline;
         margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .view-wrapper .arrow.arrow {
+        fill: #333;
+      }
+
+      .view-wrapper .edge.edge {
+        stroke: #333;
+      }
+
+      .view-wrapper .edge.references {
+        stroke: red;
+      }
+
+      .view-wrapper .edge.bundle {
+        stroke: #1e90ff;
+      }
+
+      .view-wrapper .edge.contains {
+        stroke: #bbb;
       }
     </style>
   </head>
