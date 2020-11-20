@@ -38,7 +38,12 @@ import {basename} from 'path';
 import invariant from 'assert';
 import {convertBabelLoc} from '@parcel/babel-ast-utils';
 import rename from './renamer';
-import {getName, getIdentifier, getExportIdentifier} from './utils';
+import {
+  getName,
+  getIdentifier,
+  getExportIdentifier,
+  dereferenceIdentifier,
+} from './utils';
 
 const WRAPPER_TEMPLATE = template.statement<
   {|NAME: LVal, BODY: Array<Statement>|},
@@ -88,7 +93,7 @@ export function hoist(asset: MutableAsset, ast: AST) {
 
 const VISITOR: Visitor<MutableAsset> = {
   Program: {
-    enter(path, asset: MutableAsset) {
+    enter(path, asset) {
       asset.symbols.ensure();
       asset.meta.id = asset.id;
       asset.meta.exportsIdentifier = getName(asset, 'exports');
@@ -235,7 +240,7 @@ const VISITOR: Visitor<MutableAsset> = {
       path.scope.setData('cjsExportsReassigned', false);
     },
 
-    exit(path, asset: MutableAsset) {
+    exit(path, asset) {
       let scope = path.scope;
 
       let exportsIdentifier = getIdentifier(asset, 'exports');
@@ -300,7 +305,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  MemberExpression(path, asset: MutableAsset) {
+  MemberExpression(path, asset) {
     if (path.scope.hasBinding('module') || path.scope.getData('shouldWrap')) {
       return;
     }
@@ -315,21 +320,16 @@ const VISITOR: Visitor<MutableAsset> = {
           .getProgramParent()
           .push({id: exportsId, init: t.objectExpression([])});
       }
-    }
-
-    if (t.matchesPattern(path.node, 'module.id')) {
+    } else if (t.matchesPattern(path.node, 'module.id')) {
       path.replaceWith(t.stringLiteral(asset.id));
-    }
-
-    if (t.matchesPattern(path.node, 'module.hot')) {
+    } else if (t.matchesPattern(path.node, 'module.hot')) {
       path.replaceWith(t.identifier('null'));
-    }
-
-    if (t.matchesPattern(path.node, 'module.require') && !asset.env.isNode()) {
+    } else if (
+      t.matchesPattern(path.node, 'module.require') &&
+      !asset.env.isNode()
+    ) {
       path.replaceWith(t.identifier('null'));
-    }
-
-    if (
+    } else if (
       t.matchesPattern(path.node, 'module.bundle.root') ||
       t.matchesPattern(path.node, 'module.bundle')
     ) {
@@ -337,7 +337,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ReferencedIdentifier(path, asset: MutableAsset) {
+  ReferencedIdentifier(path, asset) {
     if (
       path.node.name === 'exports' &&
       !path.scope.hasBinding('exports') &&
@@ -352,7 +352,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ThisExpression(path, asset: MutableAsset) {
+  ThisExpression(path, asset) {
     if (!path.scope.getData('shouldWrap')) {
       let retainThis = false;
       let scope = path.scope;
@@ -379,7 +379,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  AssignmentExpression(path, asset: MutableAsset) {
+  AssignmentExpression(path, asset) {
     if (path.scope.getData('shouldWrap')) {
       return;
     }
@@ -505,7 +505,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  CallExpression(path, asset: MutableAsset) {
+  CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
     let isRequire = isIdentifier(callee, {name: 'require'});
     let [arg] = args;
@@ -618,7 +618,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ImportDeclaration(path, asset: MutableAsset) {
+  ImportDeclaration(path, asset) {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
@@ -635,37 +635,87 @@ const VISITOR: Visitor<MutableAsset> = {
         continue;
       }
 
-      // mark this as a weak import:
-      // import {x} from './c'; export {x};
-      let isWeak =
-        binding.referencePaths.length === 1 &&
-        isExportSpecifier(binding.referencePaths[0].parent, {
-          local: binding.referencePaths[0].node,
-        });
-
       let id = getIdentifier(asset, 'import', specifier.local.name);
       if (dep) {
-        let imported: string;
-        if (isImportDefaultSpecifier(specifier)) {
-          imported = 'default';
-        } else if (isImportSpecifier(specifier)) {
-          imported = specifier.imported.name;
-        } else if (isImportNamespaceSpecifier(specifier)) {
-          imported = '*';
-        } else {
-          throw new Error('Unknown import construct');
-        }
+        // Try to resolve static member accesses to the namespace object
+        // and transform them as though they were named imports.
+        if (isImportNamespaceSpecifier(specifier)) {
+          let bailedOut = false;
+          // Clone array because we are modifying it in the loop
+          for (let p of [
+            ...nullthrows(path.scope.getBinding(specifier.local.name))
+              .referencePaths,
+          ]) {
+            let {parent, node} = p;
 
-        let existing = dep.symbols.get(imported)?.local;
-        if (existing) {
-          id.name = existing;
+            if (
+              isIdentifier(node) &&
+              isMemberExpression(parent, {object: node}) &&
+              (isIdentifier(parent.property) ||
+                (parent.computed && isStringLiteral(parent.property)))
+            ) {
+              let imported: string =
+                // $FlowFixMe
+                parent.property.name ?? parent.property.value;
+              let id = getIdentifier(
+                asset,
+                'import',
+                specifier.local.name,
+                imported,
+              );
+              let existing = dep.symbols.get(imported)?.local;
+              if (existing) {
+                id.name = existing;
+              }
+              dep.symbols.set(
+                imported,
+                id.name,
+                convertBabelLoc(specifier.loc),
+              );
+              dereferenceIdentifier(node, p.scope);
+              p.parentPath.replaceWith(id);
+            } else {
+              // We can't replace this occurence and do need the namespace binding...
+              bailedOut = true;
+            }
+          }
+
+          if (bailedOut) {
+            let existing = dep.symbols.get('*')?.local;
+            if (existing) {
+              id.name = existing;
+            }
+            dep.symbols.set('*', id.name, convertBabelLoc(specifier.loc));
+          }
+        } else {
+          // mark this as a weak import:
+          // import {x} from './c'; export {x};
+          let isWeak =
+            binding.referencePaths.length === 1 &&
+            isExportSpecifier(binding.referencePaths[0].parent, {
+              local: binding.referencePaths[0].node,
+            });
+
+          let imported: string;
+          if (isImportDefaultSpecifier(specifier)) {
+            imported = 'default';
+          } else if (isImportSpecifier(specifier)) {
+            imported = specifier.imported.name;
+          } else {
+            throw new Error('Unknown import construct');
+          }
+
+          let existing = dep.symbols.get(imported)?.local;
+          if (existing) {
+            id.name = existing;
+          }
+          dep.symbols.set(
+            imported,
+            id.name,
+            convertBabelLoc(specifier.loc),
+            isWeak,
+          );
         }
-        dep.symbols.set(
-          imported,
-          id.name,
-          convertBabelLoc(specifier.loc),
-          isWeak,
-        );
       }
       rename(path.scope, specifier.local.name, id.name);
     }
@@ -674,7 +724,7 @@ const VISITOR: Visitor<MutableAsset> = {
     path.remove();
   },
 
-  ExportDefaultDeclaration(path, asset: MutableAsset) {
+  ExportDefaultDeclaration(path, asset) {
     let {declaration, loc} = path.node;
     let identifier = getExportIdentifier(asset, 'default');
     let name: ?string;
@@ -727,7 +777,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ExportNamedDeclaration(path, asset: MutableAsset) {
+  ExportNamedDeclaration(path, asset) {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
@@ -803,7 +853,7 @@ const VISITOR: Visitor<MutableAsset> = {
     }
   },
 
-  ExportAllDeclaration(path, asset: MutableAsset) {
+  ExportAllDeclaration(path, asset) {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
@@ -900,7 +950,7 @@ function hasExport(asset: MutableAsset, id) {
   return asset.symbols.hasLocalSymbol(id);
 }
 
-function safeRename(path, asset: MutableAsset, from, to) {
+function safeRename(path, asset, from, to) {
   if (from === to) {
     return;
   }
