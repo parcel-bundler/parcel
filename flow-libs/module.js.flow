@@ -6,26 +6,9 @@
 // Which is licensed MIT
 
 declare module 'module' {
-  declare type FilePath = string;
+  import type {URL} from 'url';
 
-  // Derived from https://github.com/facebook/flow/blob/61913b9f0dcd564fd4c74fefbe896b33ef447cab/lib/node.js
-  declare class Url {
-    constructor(input: string, base?: string | URL): void;
-    hash: string;
-    host: string;
-    hostname: string;
-    href: string;
-    origin: string;
-    password: string;
-    pathname: string;
-    port: string;
-    protocol: string;
-    search: string;
-    +searchParams: URLSearchParams;
-    username: string;
-    toString(): string;
-    toJSON(): string;
-  }
+  declare type FilePath = string;
 
   declare export default class Module {
     constructor(id: FilePath, parent?: Module): void;
@@ -44,7 +27,7 @@ declare module 'module' {
     static runMain(): void;
     static wrap(code: string): string;
     static createRequire(
-      path: string | Url,
+      path: string | URL,
     ): (request: string) => {|[export: string]: mixed|};
     static builtinModules: string[];
     static _cache: {|[key: FilePath]: Module|};
