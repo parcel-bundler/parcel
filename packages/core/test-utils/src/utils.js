@@ -1,20 +1,24 @@
-// @flow
+// @flow strict-local
 
 import type {
+  Asset,
   BuildEvent,
   BundleGraph,
+  Dependency,
   FilePath,
   InitialParcelOptions,
   NamedBundle,
 } from '@parcel/types';
 
 import invariant from 'assert';
+import util from 'util';
 import Parcel, {createWorkerFarm} from '@parcel/core';
 import assert from 'assert';
 import vm from 'vm';
 import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import url from 'url';
+// flowlint-next-line untyped-import:off
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 import postHtmlParse from 'posthtml-parser';
@@ -114,6 +118,56 @@ export function bundler(
   });
 }
 
+export function findAsset(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+): ?Asset {
+  return bundleGraph.traverseBundles((bundle, context, actions) => {
+    let asset = bundle.traverseAssets((asset, context, actions) => {
+      if (path.basename(asset.filePath) === assetFileName) {
+        actions.stop();
+        return asset;
+      }
+    });
+    if (asset) {
+      actions.stop();
+      return asset;
+    }
+  });
+}
+
+export function findDependency(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): Dependency {
+  let asset = nullthrows(
+    findAsset(bundleGraph, assetFileName),
+    `Couldn't find asset ${assetFileName}`,
+  );
+
+  let dependency = bundleGraph
+    .getDependencies(asset)
+    .find(d => d.moduleSpecifier === moduleSpecifier);
+  invariant(
+    dependency != null,
+    `Couldn't find dependency ${assetFileName} -> ${moduleSpecifier}`,
+  );
+  return dependency;
+}
+
+export function assertDependencyWasDeferred(
+  bundleGraph: BundleGraph<NamedBundle>,
+  assetFileName: string,
+  moduleSpecifier: string,
+): void {
+  let dep = findDependency(bundleGraph, assetFileName, moduleSpecifier);
+  invariant(
+    bundleGraph.isDependencySkipped(dep),
+    util.inspect(dep) + " wasn't deferred",
+  );
+}
+
 export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts?: InitialParcelOptions,
@@ -191,10 +245,9 @@ export async function runBundles(
 
   vm.createContext(ctx);
   for (let b of bundles) {
-    vm.runInContext(
-      await overlayFS.readFile(nullthrows(b.filePath), 'utf8'),
-      ctx,
-    );
+    new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
+      filename: b.name,
+    }).runInContext(ctx);
   }
 
   if (promises) {
@@ -269,7 +322,7 @@ export function run(
   bundleGraph: BundleGraph<NamedBundle>,
   globals: mixed,
   opts: RunOpts = {},
-): Promise<any> {
+): Promise<mixed> {
   let bundle = nullthrows(
     bundleGraph.getBundles().find(b => b.type === 'js' || b.type === 'html'),
   );
@@ -334,7 +387,7 @@ export function assertBundles(
   for (let bundle of expectedBundles) {
     let actualBundle = actualBundles[i++];
     let name = bundle.name;
-    if (name) {
+    if (name != null) {
       if (typeof name === 'string') {
         assert.equal(actualBundle.name, name);
       } else if (name instanceof RegExp) {
@@ -348,7 +401,7 @@ export function assertBundles(
       }
     }
 
-    if (bundle.type) {
+    if (bundle.type != null) {
       assert.equal(actualBundle.type, bundle.type);
     }
 

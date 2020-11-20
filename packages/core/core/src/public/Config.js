@@ -1,5 +1,4 @@
 // @flow strict-local
-// flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
   ConfigResult,
