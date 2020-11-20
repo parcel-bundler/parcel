@@ -8,9 +8,6 @@ const NODE_TEXT_LINE_HEIGHT = 18;
 
 export default function App() {
   const [graph, setGraph] = useState(null);
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [focusedNodeIds, setFocusedNodeIds] = useState(new Set());
-  const [isFocusingNodes, setIsFocusingNodes] = useState(true);
 
   useEffect(() => {
     let abortController = new AbortController();
@@ -29,8 +26,7 @@ export default function App() {
         return;
       }
 
-      const parcelGraph = await decode(buffer);
-      setGraph(parcelGraph);
+      setGraph(await decode(buffer));
     })();
 
     return () => {
@@ -38,18 +34,22 @@ export default function App() {
     };
   }, []);
 
-  const convertedGraph = useMemo(
-    () =>
-      graph != null
-        ? convertGraph(graph, isFocusingNodes, focusedNodeIds)
-        : null,
-    [graph, isFocusingNodes, focusedNodeIds],
-  );
+  if (graph == null) {
+    return <div>Loading...</div>;
+  }
+
+  return <LoadedApp graph={graph} />;
+}
+
+function LoadedApp({graph}) {
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [focusedNodeIds, setFocusedNodeIds] = useState(new Set());
+  const [isFocusingNodes, setIsFocusingNodes] = useState(true);
 
   const edgeTypes = useMemo(() => {
     const types = new Set();
     if (graph == null) {
-      return types;
+      return [...types];
     }
 
     for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {
@@ -57,29 +57,29 @@ export default function App() {
         types.add(type);
       }
     }
-    return types;
+    return [...types];
   }, [graph]);
 
-  const [focusedEdgeTypes, setFocusedEdgeTypes] = useState(new Set(edgeTypes));
+  const [focusedEdgeTypes, setFocusedEdgeTypes] = useState(edgeTypes);
+  const convertedGraph = useMemo(
+    () =>
+      graph != null
+        ? convertGraph({
+            graph,
+            isFocusingNodes,
+            focusedNodeIds,
+            focusedEdgeTypes,
+          })
+        : null,
+    [graph, isFocusingNodes, focusedNodeIds, focusedEdgeTypes],
+  );
 
   const selectedGraphViewNode =
     selectedNode != null ? {title: selectedNode.id} : null;
 
-  const onRenderNodeText = (node, id, isSelected) => (
-    <NodeText node={node} id={id} isSelected={isSelected} />
-  );
-
   const handleFocus = node => {
     setFocusedNodeIds(new Set([...focusedNodeIds, node.id]));
   };
-
-  const handleFocusNodes = isFocusing => {
-    setIsFocusingNodes(isFocusing);
-  };
-
-  if (convertedGraph == null) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div style={{height: '100%', width: '100%'}}>
@@ -92,10 +92,18 @@ export default function App() {
         <FocusView
           edgeTypes={edgeTypes}
           focusedEdgeTypes={focusedEdgeTypes}
-          // onFocusEdgeType={handleFocusEdgeType}
+          onEdgeFocusChange={(type, shouldFocus) => {
+            setFocusedEdgeTypes(
+              shouldFocus
+                ? [...focusedEdgeTypes, type]
+                : focusedEdgeTypes.filter(t => t !== type),
+            );
+          }}
           focusedNodeIds={focusedNodeIds}
           isFocusingNodes={isFocusingNodes}
-          onFocusNodes={handleFocusNodes}
+          onFocusNodes={isFocusing => {
+            setIsFocusingNodes(isFocusing);
+          }}
         />
         {selectedNode != null ? (
           <DetailView selectedNode={selectedNode} onFocus={handleFocus} />
@@ -105,7 +113,9 @@ export default function App() {
         nodeKey="title"
         layoutEngineType="VerticalTree"
         readOnly={true}
-        renderNodeText={onRenderNodeText}
+        renderNodeText={(node, id, isSelected) => (
+          <NodeText node={node} id={id} isSelected={isSelected} />
+        )}
         nodeTypes={{
           root: anyNode,
           entry_specifier: entrySpecifierNode,
@@ -154,7 +164,14 @@ function SearchView({onSubmit}) {
   );
 }
 
-function FocusView({edgeTypes, focusedNodeIds, isFocusingNodes, onFocusNodes}) {
+function FocusView({
+  edgeTypes,
+  focusedEdgeTypes,
+  focusedNodeIds,
+  isFocusingNodes,
+  onFocusNodes,
+  onEdgeFocusChange,
+}) {
   return (
     <div className="focus-view">
       <div style={{marginBottom: 16}}>
@@ -188,16 +205,25 @@ function FocusView({edgeTypes, focusedNodeIds, isFocusingNodes, onFocusNodes}) {
         <label style={{fontWeight: 'bold'}}>
           <span className="label-text">Edge types</span>
           <ul>
-            {[...edgeTypes].map(type => (
-              <li key={type}>
-                <label>
-                  <input type="checkbox" />
-                  <span className="label-text" title={type}>
-                    {type === null ? 'null (untyped)' : type}
-                  </span>
-                </label>
-              </li>
-            ))}
+            {[...edgeTypes].map(type => {
+              const isFocused = focusedEdgeTypes.includes(type);
+              return (
+                <li key={type}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={isFocused}
+                      onChange={() => {
+                        onEdgeFocusChange(type, !isFocused);
+                      }}
+                    />
+                    <span className="label-text" title={type}>
+                      {type === null ? 'null (untyped)' : type}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
           </ul>
         </label>
       </div>
@@ -323,16 +349,28 @@ const anyEdge = {
   ),
 };
 
-function convertGraph(graph, isFocusingNodes, focusedNodes) {
-  const shownNodes = new Set();
+function convertGraph({
+  focusedEdgeTypes: focusedEdgeTypesArray,
+  focusedNodeIds,
+  graph,
+  isFocusingNodes,
+}) {
+  const shownNodes = new Set(
+    [...focusedNodeIds].map(id => graph.nodes.get(id)),
+  );
+  const focusedEdgeTypes = new Set(focusedEdgeTypesArray);
 
   const edges = [];
   for (let [sourceId, edgeMap] of graph.edges.outboundEdges) {
     for (let [type, targetIds] of edgeMap) {
       for (let targetId of targetIds) {
+        if (!focusedEdgeTypes.has(type)) {
+          continue;
+        }
+
         if (
           isFocusingNodes &&
-          !(focusedNodes.has(sourceId) || focusedNodes.has(targetId))
+          !(focusedNodeIds.has(sourceId) || focusedNodeIds.has(targetId))
         ) {
           continue;
         }
