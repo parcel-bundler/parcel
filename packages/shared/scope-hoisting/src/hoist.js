@@ -651,8 +651,8 @@ const VISITOR: Visitor<MutableAsset> = {
             if (
               isIdentifier(node) &&
               isMemberExpression(parent, {object: node}) &&
-              (isIdentifier(parent.property) ||
-                (parent.computed && isStringLiteral(parent.property)))
+              ((!parent.computed && isIdentifier(parent.property)) ||
+                isStringLiteral(parent.property))
             ) {
               let imported: string =
                 // $FlowFixMe
