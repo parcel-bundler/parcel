@@ -2,6 +2,7 @@
   "source": "index.html",
   "main": "../../frontend/index.html",
   "scripts": {
+    "build": "parcel build --no-minify --no-scope-hoist index.html",
     "dev": "parcel watch index.html"
   },
   "dependencies": {

@@ -1,2 +1,5 @@
-* Color edges based on types (probably requires changes to react-digraph)
+* Show focused state visually in graph
+* Node content inside visualization is truncated. Make it clear that it is.
 * Show more information on hover
+* Explore other colors for nodes
+* Arrowheads don't match arrow path color
