@@ -1,4 +1,4 @@
-// @flow
+// @flow strict enable
 import ansiHTML from 'ansi-html';
 import {escapeHTML} from './escape-html';
 
