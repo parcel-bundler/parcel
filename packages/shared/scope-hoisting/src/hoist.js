@@ -1,7 +1,7 @@
 // @flow
 
-import type {AST, MutableAsset} from '@parcel/types';
-import type {Visitor, NodePath} from '@babel/traverse';
+import type {AST, MutableAsset, SourceLocation} from '@parcel/types';
+import type {NodePath, Visitor} from '@babel/traverse';
 import type {
   CallExpression,
   ExportNamedDeclaration,
@@ -9,6 +9,7 @@ import type {
   Identifier,
   ImportDeclaration,
   LVal,
+  Node,
   ObjectProperty,
   RestElement,
   Statement,
@@ -555,12 +556,14 @@ const VISITOR: Visitor<MutableAsset> = {
       }
 
       // Try to statically analyze a dynamic import() call
-      let properties: ?Array<RestElement | ObjectProperty>;
+      let memberAccesses: ?Array<{|name: string, loc: ?SourceLocation|}>;
       if (dep.isAsync) {
+        let properties: ?Array<RestElement | ObjectProperty>;
+        let binding;
+
         let {parent} = path;
         let {parent: grandparent} = path.parentPath;
         if (
-          // import(xxx).then(({ default: b }) => ...);
           isMemberExpression(parent, {object: path.node}) &&
           isIdentifier(parent.property, {name: 'then'}) &&
           isCallExpression(grandparent, {
@@ -569,17 +572,29 @@ const VISITOR: Visitor<MutableAsset> = {
           grandparent.arguments.length === 1 &&
           isFunction(grandparent.arguments[0]) &&
           // $FlowFixMe
-          grandparent.arguments[0].params.length === 1 &&
-          isObjectPattern(grandparent.arguments[0].params[0])
+          grandparent.arguments[0].params.length === 1
         ) {
-          properties = grandparent.arguments[0].params[0].properties;
+          let param: Node = grandparent.arguments[0].params[0];
+          if (isObjectPattern(param)) {
+            // import(xxx).then(({ default: b }) => ...);
+            properties = param.properties;
+          } else if (isIdentifier(param)) {
+            // import(xxx).then((ns) => ...);
+            binding = path.parentPath.parentPath
+              .get<NodePath<Node>>('arguments.0.body')
+              .scope.getBinding(param.name);
+          }
         } else if (isAwaitExpression(parent, {argument: path.node})) {
-          if (
-            // let { x: y } = await import("./b.js");
-            isVariableDeclarator(grandparent, {init: parent}) &&
-            isObjectPattern(grandparent.id)
-          ) {
-            properties = grandparent.id.properties;
+          if (isVariableDeclarator(grandparent, {init: parent})) {
+            if (isObjectPattern(grandparent.id)) {
+              // let { x: y } = await import("./b.js");
+              properties = grandparent.id.properties;
+            } else if (isIdentifier(grandparent.id)) {
+              // let ns = await import("./b.js");
+              binding = path.parentPath.parentPath.scope.getBinding(
+                grandparent.id.name,
+              );
+            }
           } else if (
             // ({ x: y } = await import("./b.js"));
             isAssignmentExpression(grandparent, {right: parent}) &&
@@ -588,22 +603,45 @@ const VISITOR: Visitor<MutableAsset> = {
             properties = grandparent.left.properties;
           }
         }
+
+        if (
+          properties != null &&
+          properties.every(p => isObjectProperty(p) && isIdentifier(p.key))
+        ) {
+          // take symbols listed when destructuring
+          memberAccesses = properties.map(p => {
+            invariant(isObjectProperty(p));
+            invariant(isIdentifier(p.key));
+            return {name: p.key.name, loc: convertBabelLoc(p.loc)};
+          });
+        } else if (
+          !path.scope.getData('shouldWrap') && // eval is evil
+          binding != null &&
+          binding.constant &&
+          binding.referencePaths.every(
+            ({parent, node}) =>
+              isMemberExpression(parent, {object: node}) &&
+              ((!parent.computed && isIdentifier(parent.property)) ||
+                isStringLiteral(parent.property)),
+          )
+        ) {
+          // properties of member expressions if all of them are static
+          memberAccesses = binding.referencePaths.map(({parent}) => {
+            invariant(isMemberExpression(parent));
+            return {
+              // $FlowFixMe[prop-missing]
+              name: parent.property.name ?? parent.property.value,
+              loc: convertBabelLoc(parent.loc),
+            };
+          });
+        }
       }
 
       dep.symbols.ensure();
-      if (
-        properties != null &&
-        properties.every(p => isObjectProperty(p) && isIdentifier(p.key))
-      ) {
-        // The import() return value was destructured and statically analyzable
-        for (let imported of properties) {
-          invariant(isObjectProperty(imported));
-          invariant(isIdentifier(imported.key));
-          dep.symbols.set(
-            imported.key.name,
-            getName(asset, 'import', imported.key.name),
-            convertBabelLoc(imported.loc),
-          );
+      if (memberAccesses != null) {
+        // The import() return value was statically analyzable
+        for (let {name, loc} of memberAccesses) {
+          dep.symbols.set(name, getName(asset, 'import', name), loc);
         }
       } else {
         // non-async and async fallback: everything

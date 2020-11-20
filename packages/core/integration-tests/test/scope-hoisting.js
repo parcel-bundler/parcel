@@ -1120,8 +1120,8 @@ describe('scope hoisting', function() {
       });
     });
 
-    describe('tree shaking dynamic imports', function() {
-      it('supports tree shaking statically analyzable dynamic import: await assignment', async function() {
+    describe.only('tree shaking dynamic imports', function() {
+      it('supports tree shaking statically analyzable dynamic import: destructued await assignment', async function() {
         let b = await bundle(
           path.join(
             __dirname,
@@ -1152,7 +1152,7 @@ describe('scope hoisting', function() {
         assert(!contents.includes('stuff'));
       });
 
-      it('supports tree shaking statically analyzable dynamic import: await declaration', async function() {
+      it('supports tree shaking statically analyzable dynamic import: destructured await declaration', async function() {
         let b = await bundle(
           path.join(
             __dirname,
@@ -1183,7 +1183,94 @@ describe('scope hoisting', function() {
         assert(!contents.includes('stuff'));
       });
 
-      it('supports tree shaking statically analyzable dynamic import: then', async function() {
+      it('supports tree shaking statically analyzable dynamic import: namespace await declaration', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration-namespace.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'await-declaration-namespace.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace await declaration bailout', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration-namespace-bailout.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, {
+          bar: 'bar',
+          foo: 'foo',
+          other: 'other',
+          stuff: 'stuff',
+          thing: 'thing',
+        });
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(
+                b,
+                'await-declaration-namespace-bailout.js',
+                './async.js',
+              ),
+            ),
+          ),
+          new Set(['*']),
+        );
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace await declaration eval bailout', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration-namespace-bailout-eval.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, 'thing');
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(
+                b,
+                'await-declaration-namespace-bailout-eval.js',
+                './async.js',
+              ),
+            ),
+          ),
+          new Set(['*']),
+        );
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: destructured then', async function() {
         let b = await bundle(
           path.join(
             __dirname,
@@ -1210,7 +1297,65 @@ describe('scope hoisting', function() {
         assert(!contents.includes('stuff'));
       });
 
-      it('supports tree shaking statically analyzable dynamic import: then (esmodule)', async function() {
+      it('supports tree shaking statically analyzable dynamic import: namespace then', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then-namespace.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'then-namespace.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace then bailout', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then-namespace-bailout.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, {
+          bar: 'bar',
+          foo: 'foo',
+          other: 'other',
+          stuff: 'stuff',
+          thing: 'thing',
+        });
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'then-namespace-bailout.js', './async.js'),
+            ),
+          ),
+          new Set(['*']),
+        );
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: esmodule output', async function() {
         let b = await bundle(
           path.join(
             __dirname,
@@ -1245,7 +1390,7 @@ describe('scope hoisting', function() {
         assert(!contents.includes('stuff'));
       });
 
-      it('throws an error for missing exports for dynamic import: await assignment', async function() {
+      it('throws an error for missing exports for dynamic import: destructured await assignment', async function() {
         let source = 'await-assignment-error.js';
         let message = escapeMarkdown(`async.js does not export 'missing'`);
         await assert.rejects(
@@ -1286,7 +1431,7 @@ describe('scope hoisting', function() {
         );
       });
 
-      it('throws an error for missing exports for dynamic import: await declaration', async function() {
+      it('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
         let source = 'await-declaration-error.js';
         let message = escapeMarkdown(`async.js does not export 'missing'`);
         await assert.rejects(
@@ -1327,7 +1472,48 @@ describe('scope hoisting', function() {
         );
       });
 
-      it('throws an error for missing exports for dynamic import: then', async function() {
+      it('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
+        let source = 'await-declaration-namespace-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 10,
+                        line: 3,
+                      },
+                      end: {
+                        column: 19,
+                        line: 3,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
+
+      it('throws an error for missing exports for dynamic import: destructured then', async function() {
         let source = 'then-error.js';
         let message = escapeMarkdown(`async.js does not export 'missing'`);
         await assert.rejects(
@@ -1357,6 +1543,47 @@ describe('scope hoisting', function() {
                       },
                       end: {
                         column: 44,
+                        line: 1,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
+
+      it('throws an error for missing exports for dynamic import: namespace then', async function() {
+        let source = 'then-namespace-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 45,
+                        line: 1,
+                      },
+                      end: {
+                        column: 54,
                         line: 1,
                       },
                     },
