@@ -1,97 +1,91 @@
-// @flow
-
 import {Transformer} from '@parcel/plugin';
 import commandExists from 'command-exists';
 import path from 'path';
-import spawn from 'cross-spawn';
-import elm from 'node-elm-compiler';
-import {inject as injectElmHMR} from 'elm-hot';
 import {minify} from 'terser';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
-export default (new Transformer({
+export default new Transformer({
   async transform({asset, options}) {
+    const elm = await setupElmCompiler(asset, options);
+
     const config = {
       cwd: path.dirname(asset.filePath),
-      debug: !(
-        options.env.PARCEL_ELM_NO_DEBUG || options.mode === 'production'
-      ),
+      debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
       optimize: asset.env.minify,
     };
+    asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
+    ResolveDependenciesFromAsset(elm, asset);
 
-    (await elm.findAllDependencies(asset.filePath)).forEach(filePath =>
-      asset.addIncludedFile({filePath}),
-    );
-
-    let code = await compileToString(asset, options, config);
-    if (options.hot) code = injectElmHMR(code);
+    let code = await compileToString(elm, asset, config);
+    if (options.hot) {
+      code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
+    }
     if (config.optimize) code = await minifyElmOutput(code);
 
-    asset.type = '.js';
+    asset.type = 'js';
     asset.setCode(code);
     return [asset];
   },
-}): Transformer);
+});
 
-async function compileToString(asset, options, config) {
-  const installPackage = name => {
-    if (!options.autoinstall) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: `Denpendency '${name}' is not installed and autoinstall is turned off. Either install dependency manually or enable autoinstall`,
-          origin: '@parcel/package-manager',
-        },
-      });
-    }
-
-    return options.packageManager.resolve(name, asset.filePath, {
-      autoinstall: true,
-    });
-  };
-  await ensureElmIsInstalled(installPackage);
+async function setupElmCompiler(asset, options) {
+  ensureElmIsInstalled();
   await ensureElmJson(asset);
-
-  const compileOptions = {
-    cwd: config.cwd,
-    debug: config.debug,
-    optimize: config.optimize,
-  };
-  return elm.compileToString(asset.filePath, compileOptions);
+  return options.packageManager.require('node-elm-compiler', asset.filePath, {
+    autoinstall: options.autoinstall,
+    saveDev: true,
+  });
 }
 
-async function ensureElmIsInstalled(installPackage) {
+function ensureElmIsInstalled() {
   if (!commandExists.sync('elm')) {
-    await installPackage('elm/package.json');
-    if (!commandExists.sync('elm')) {
-      throw new ThrowableDiagnostic({
-        diagnostic: {
-          message: `Can't find 'elm' after autoinstall.`,
-          origin: '@parcel/elm-transformer',
-        },
-      });
-    }
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: "Can't find 'elm' binary.",
+        hints: [
+          "You can add it as an dependency for your project by running 'npm add -D elm' or 'npm add -D elm'.",
+          'If you want to install it globally then follow instructions on https://elm-lang.org/',
+        ],
+        origin: '@parcel/elm-transformer',
+      },
+    });
   }
 }
 
 async function ensureElmJson(asset) {
-  const elmJson = await asset.getConfig(['elm.json'], {parse: false});
-  if (!elmJson) {
-    createElmJson();
-    // Watch the new elm.json for changes
-    await asset.getConfig(['elm.json'], {parse: false});
+  if (!(await asset.getConfig(['elm.json'], {parse: false}))) {
+    throw new ThrowableDiagnostic({
+      diagnostic: {
+        message: "The 'elm.json' file is missing.",
+        hints: [
+          "Initialize your elm project by running 'elm init'",
+          "If you installed elm as project dependency then run 'yarn elm init' or 'npx elm init'",
+        ],
+      },
+    });
   }
 }
 
-function createElmJson() {
-  let elmProc = spawn('elm', ['init']);
-  return new Promise((resolve, reject) => {
-    elmProc.on('error', reject);
-    elmProc.on('close', function(code) {
-      if (code !== 0) reject(new Error('elm init failed.'));
-      else resolve();
-    });
-    elmProc.stdin.write('y\n');
+async function ResolveDependenciesFromAsset(elm, asset) {
+  for (const filePath of await elm.findAllDependencies(asset.filePath)) {
+    asset.addIncludedFile(filePath);
+  }
+}
+
+function compileToString(elm, asset, config) {
+  return elm.compileToString(asset.filePath, {
+    cwd: config.cwd,
+    debug: config.debug,
+    optimize: config.optimize,
   });
+}
+
+async function injectHotModuleReloadRuntime(code, filePath, options) {
+  const elmHMR = await options.packageManager.require('elm-hot', filePath, {
+    autoinstall: options.autoinstall,
+    saveDev: true,
+  });
+  return elmHMR.inject(code);
 }
 
 async function minifyElmOutput(source) {
