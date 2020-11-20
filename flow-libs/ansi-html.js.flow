@@ -1,4 +1,4 @@
-//@flow
+// @flow
 
 declare module 'ansi-html' {
   declare module.exports: (input: string) => string;
