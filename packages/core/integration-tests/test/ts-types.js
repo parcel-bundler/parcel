@@ -194,4 +194,22 @@ describe('typescript types', function() {
 
     assert(/import\s*{\s*B\s*}\s*from\s*"b";/.test(dist));
   });
+
+  it('should generate a typescript declaration file even when composite is true', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/ts-types/composite/index.ts'),
+    );
+
+    let dist = (
+      await outputFS.readFile(
+        path.join(__dirname, '/integration/ts-types/composite/dist/index.d.ts'),
+        'utf8',
+      )
+    ).replace(/\r\n/g, '\n');
+    let expected = await inputFS.readFile(
+      path.join(__dirname, '/integration/ts-types/composite/expected.d.ts'),
+      'utf8',
+    );
+    assert.equal(dist, expected);
+  });
 });

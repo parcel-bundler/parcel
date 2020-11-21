@@ -1,9 +1,8 @@
-// @flow
+// @flow strict-local
 
 import type {Config} from '@parcel/types';
-import type {BabelTargets} from './types';
-
 import presetEnv from '@babel/preset-env';
+import type {Targets as BabelTargets, PresetEnvPlugin} from '@babel/preset-env';
 
 import getBabelTargets from './getBabelTargets';
 import {enginesToBabelTargets} from './utils';
@@ -63,7 +62,7 @@ export default async function getEnvOptions(
   };
 }
 
-function getNeededPlugins(targets: BabelTargets): Array<mixed> {
+function getNeededPlugins(targets: BabelTargets): Array<PresetEnvPlugin> {
   return presetEnv(
     {assertVersion: () => true},
     {targets: targets},

@@ -755,6 +755,8 @@ function normalizeAssets(
         map: await internalAsset.getMap(),
         meta: result.meta,
         pipeline: internalAsset.value.pipeline,
+        // $FlowFixMe
+        symbols: internalAsset.value.symbols,
         type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
       };

@@ -113,6 +113,7 @@ export function getEnvironmentHash(env: Environment): string {
     includeNodeModules: env.includeNodeModules,
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
+    scopeHoist: env.scopeHoist,
     sourceMap: env.sourceMap,
   });
 }
