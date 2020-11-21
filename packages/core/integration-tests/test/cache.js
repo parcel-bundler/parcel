@@ -1,8 +1,7 @@
 // @flow
 import type {
-  BundleGraph,
-  NamedBundle,
   InitialParcelOptions,
+  BuildSuccessEvent,
 } from '@parcel/types';
 import assert from 'assert';
 import path from 'path';
@@ -27,9 +26,9 @@ function runBundle(entries = 'src/index.js', opts) {
   }).run();
 }
 
-type UpdateFn = (
-  BundleGraph<NamedBundle>,
-) => ?InitialParcelOptions | Promise<?InitialParcelOptions>;
+type UpdateFn = BuildSuccessEvent =>
+  | ?InitialParcelOptions
+  | Promise<?InitialParcelOptions>;
 type TestConfig = {|
   ...InitialParcelOptions,
   entries?: Array<string>,
@@ -479,7 +478,7 @@ describe('cache', function() {
       let b = await testCache({
         entries: ['src/entries/*.js'],
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'a.js',
               assets: ['a.js'],
@@ -497,7 +496,7 @@ describe('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'a.js',
           assets: ['a.js'],
@@ -517,7 +516,7 @@ describe('cache', function() {
       let b = await testCache({
         entries: ['src/entries/*.js'],
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'a.js',
               assets: ['a.js'],
@@ -534,7 +533,7 @@ describe('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'a.js',
           assets: ['a.js'],
@@ -581,7 +580,7 @@ describe('cache', function() {
       );
 
       let b = await runBundle();
-      assert.equal(await run(b), 'hi');
+      assert.equal(await run(b.bundleGraph), 'hi');
     });
   });
 
@@ -591,7 +590,7 @@ describe('cache', function() {
         scopeHoist: true,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -616,7 +615,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -646,7 +645,7 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
               assets: ['index.js', 'test.js'],
@@ -675,7 +674,7 @@ describe('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
           assets: ['index.js', 'test.js'],
@@ -782,7 +781,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -806,7 +805,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -841,7 +840,7 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
               assets: ['index.js', 'test.js'],
@@ -869,7 +868,7 @@ describe('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
           assets: ['index.js', 'test.js'],
@@ -899,7 +898,7 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
               assets: ['index.js', 'test.js'],
@@ -911,7 +910,7 @@ describe('cache', function() {
           ]);
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -920,7 +919,7 @@ describe('cache', function() {
           );
 
           contents = await overlayFS.readFile(
-            b.getBundles()[1].filePath,
+            b.bundleGraph.getBundles()[1].filePath,
             'utf8',
           );
           assert(
@@ -939,7 +938,7 @@ describe('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
           assets: ['index.js', 'test.js'],
@@ -947,7 +946,7 @@ describe('cache', function() {
       ]);
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -980,7 +979,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1006,7 +1005,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1036,7 +1035,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1060,7 +1059,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1080,7 +1079,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1103,7 +1102,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1132,7 +1131,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1144,7 +1143,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1159,7 +1158,7 @@ describe('cache', function() {
           scopeHoist: true,
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1174,7 +1173,7 @@ describe('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1188,7 +1187,7 @@ describe('cache', function() {
           scopeHoist: true,
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1203,7 +1202,7 @@ describe('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1223,7 +1222,7 @@ describe('cache', function() {
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1238,7 +1237,7 @@ describe('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1258,7 +1257,7 @@ describe('cache', function() {
           },
           async update(b) {
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1270,7 +1269,7 @@ describe('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1297,7 +1296,7 @@ describe('cache', function() {
           async update(b) {
             // "production" is the default environment for browserslist
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1310,7 +1309,7 @@ describe('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1340,7 +1339,7 @@ describe('cache', function() {
           async update(b) {
             // "production" is the default environment for browserslist
             let contents = await overlayFS.readFile(
-              b.getBundles()[0].filePath,
+              b.bundleGraph.getBundles()[0].filePath,
               'utf8',
             );
             assert(
@@ -1353,7 +1352,7 @@ describe('cache', function() {
         });
 
         let contents = await overlayFS.readFile(
-          b.getBundles()[0].filePath,
+          b.bundleGraph.getBundles()[0].filePath,
           'utf8',
         );
         assert(
@@ -1374,7 +1373,7 @@ describe('cache', function() {
         publicUrl: 'http://example.com/',
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1389,7 +1388,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1404,7 +1403,7 @@ describe('cache', function() {
         minify: false,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(contents.includes('Test'), 'should include Test');
@@ -1416,7 +1415,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('Test'), 'should not include Test');
@@ -1427,7 +1426,7 @@ describe('cache', function() {
         scopeHoist: false,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1442,7 +1441,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(!contents.includes('parcelRequire'), 'should not include Test');
@@ -1453,7 +1452,7 @@ describe('cache', function() {
         sourceMaps: false,
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1468,7 +1467,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1482,7 +1481,7 @@ describe('cache', function() {
         scopeHoist: true,
         update(b) {
           assert(
-            /dist[/\\]index.js$/.test(b.getBundles()[0].filePath),
+            /dist[/\\]index.js$/.test(b.bundleGraph.getBundles()[0].filePath),
             'should end with dist/index.js',
           );
 
@@ -1493,7 +1492,9 @@ describe('cache', function() {
       });
 
       assert(
-        /dist[/\\]test[/\\]index.js$/.test(b.getBundles()[0].filePath),
+        /dist[/\\]test[/\\]index.js$/.test(
+          b.bundleGraph.getBundles()[0].filePath,
+        ),
         'should end with dist/test/index.js',
       );
     });
@@ -1525,7 +1526,7 @@ describe('cache', function() {
           );
         },
         async update(b) {
-          assertBundles(b, [
+          assertBundles(b.bundleGraph, [
             {
               name: 'index.js',
               assets: ['index.js', 'test.js'],
@@ -1533,7 +1534,7 @@ describe('cache', function() {
           ]);
 
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1547,7 +1548,7 @@ describe('cache', function() {
         },
       });
 
-      assertBundles(b, [
+      assertBundles(b.bundleGraph, [
         {
           name: 'index.js',
           assets: ['index.js', 'test.js'],
@@ -1555,7 +1556,7 @@ describe('cache', function() {
       ]);
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1572,7 +1573,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1589,7 +1590,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1604,7 +1605,7 @@ describe('cache', function() {
         scopeHoist: true,
         contentHash: true,
         update(b) {
-          let bundle = b.getBundles()[1];
+          let bundle = b.bundleGraph.getBundles()[1];
           assert(!bundle.name.includes(bundle.id.slice(-8)));
 
           return {
@@ -1613,7 +1614,7 @@ describe('cache', function() {
         },
       });
 
-      let bundle = b.getBundles()[1];
+      let bundle = b.bundleGraph.getBundles()[1];
       assert(bundle.name.includes(bundle.id.slice(-8)));
     });
 
@@ -1625,7 +1626,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1647,7 +1648,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1686,7 +1687,7 @@ describe('cache', function() {
         },
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(
@@ -1704,7 +1705,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(
@@ -1717,7 +1718,7 @@ describe('cache', function() {
       let b = await testCache({
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(!contents.includes('TRANSFORMED CODE'));
@@ -1739,7 +1740,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
@@ -1749,7 +1750,7 @@ describe('cache', function() {
       let b = await testCache({
         async update(b) {
           let contents = await overlayFS.readFile(
-            b.getBundles()[0].filePath,
+            b.bundleGraph.getBundles()[0].filePath,
             'utf8',
           );
           assert(!contents.includes('TRANSFORMED CODE'));
@@ -1771,7 +1772,7 @@ describe('cache', function() {
       });
 
       let contents = await overlayFS.readFile(
-        b.getBundles()[0].filePath,
+        b.bundleGraph.getBundles()[0].filePath,
         'utf8',
       );
       assert(contents.includes('TRANSFORMED CODE'));
