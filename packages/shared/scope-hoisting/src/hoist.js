@@ -1,35 +1,44 @@
 // @flow
 
-import type {AST, MutableAsset} from '@parcel/types';
-import type {Visitor, NodePath} from '@babel/traverse';
+import type {AST, MutableAsset, SourceLocation} from '@parcel/types';
+import type {NodePath, Visitor} from '@babel/traverse';
 import type {
-  ExportNamedDeclaration,
-  ImportDeclaration,
-  VariableDeclaration,
-  Identifier,
-  Expression,
-  LVal,
-  StringLiteral,
-  Statement,
   CallExpression,
+  ExportNamedDeclaration,
+  Expression,
+  Identifier,
+  ImportDeclaration,
+  LVal,
+  Node,
+  ObjectProperty,
+  RestElement,
+  Statement,
+  StringLiteral,
+  VariableDeclaration,
 } from '@babel/types';
 
 import * as t from '@babel/types';
 import {
   isAssignmentExpression,
+  isAwaitExpression,
+  isCallExpression,
   isClassDeclaration,
   isExportDefaultSpecifier,
   isExportNamespaceSpecifier,
   isExportSpecifier,
   isExpression,
+  isFunction,
   isFunctionDeclaration,
   isIdentifier,
   isImportDefaultSpecifier,
   isImportNamespaceSpecifier,
   isImportSpecifier,
   isMemberExpression,
+  isObjectPattern,
+  isObjectProperty,
   isStringLiteral,
   isUnaryExpression,
+  isVariableDeclarator,
 } from '@babel/types';
 import traverse from '@babel/traverse';
 import template from '@babel/template';
@@ -507,7 +516,6 @@ const VISITOR: Visitor<MutableAsset> = {
 
   CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
-    let isRequire = isIdentifier(callee, {name: 'require'});
     let [arg] = args;
     if (
       args.length !== 1 ||
@@ -517,7 +525,7 @@ const VISITOR: Visitor<MutableAsset> = {
       return;
     }
 
-    if (isRequire) {
+    if (isIdentifier(callee, {name: 'require'})) {
       let source = arg.value;
       // Ignore require calls that were ignored earlier.
       let dep = asset
@@ -535,9 +543,8 @@ const VISITOR: Visitor<MutableAsset> = {
       // If this require call does not occur in the top-level, e.g. in a function
       // or inside an if statement, or if it might potentially happen conditionally,
       // the module must be wrapped in a function so that the module execution order is correct.
-      let parent = path.getStatementParent().parentPath;
       if (
-        !parent.isProgram() ||
+        !path.getStatementParent().parentPath.isProgram() ||
         path.findParent(
           p =>
             p.isConditionalExpression() ||
@@ -548,55 +555,107 @@ const VISITOR: Visitor<MutableAsset> = {
         dep.meta.shouldWrap = true;
       }
 
-      // TODO this would enable treeshaking import().then(({x}) => ...) calls
-      // function isUnusedValue(path) {
-      //   let {parent} = path;
-      //   return (
-      //     isExpressionStatement(parent) ||
-      //     (isSequenceExpression(parent) &&
-      //       ((Array.isArray(path.container) &&
-      //         path.key !== path.container.length - 1) ||
-      //         isUnusedValue(path.parentPath)))
-      //   );
-      // }
-      // if (!isUnusedValue(path) && dep.isAsync) {
-      //   // match `import(xxx).then(({ default: b }) => ...);`
-      //   let {parent} = path;
-      //   if (
-      //     isMemberExpression(parent, {object: path.node}) &&
-      //     isIdentifier(parent.property, {name: 'then'}) &&
-      //     isCallExpression(path.parentPath.parent, {
-      //       callee: parent,
-      //     }) &&
-      //     path.parentPath.parent.arguments.length === 1 &&
-      //     isFunction(path.parentPath.parent.arguments[0]) &&
-      //     // $FlowFixMe
-      //     path.parentPath.parent.arguments[0].params.length === 1 &&
-      //     isObjectPattern(path.parentPath.parent.arguments[0].params[0]) &&
-      //     path.parentPath.parent.arguments[0].params[0].properties.every(
-      //       p => isObjectProperty(p) && isIdentifier(p.key),
-      //     )
-      //   ) {
-      //     for (let imported of path.parentPath.parent.arguments[0].params[0].properties.map(
-      //       // $FlowFixMe
-      //       ({key}) => key.name,
-      //     )) {
-      //       dep.symbols.set(
-      //         imported,
-      //         getName(asset, 'import', imported),
-      //         convertBabelLoc(path.node.loc),
-      //       );
-      //     }
-      //   } else {
-      dep.meta.isCommonJS = true;
+      // Try to statically analyze a dynamic import() call
+      let memberAccesses: ?Array<{|name: string, loc: ?SourceLocation|}>;
+      if (dep.isAsync) {
+        let properties: ?Array<RestElement | ObjectProperty>;
+        let binding;
+
+        let {parent} = path;
+        let {parent: grandparent} = path.parentPath;
+        if (
+          isMemberExpression(parent, {object: path.node}) &&
+          isIdentifier(parent.property, {name: 'then'}) &&
+          isCallExpression(grandparent, {
+            callee: parent,
+          }) &&
+          grandparent.arguments.length === 1 &&
+          isFunction(grandparent.arguments[0]) &&
+          // $FlowFixMe
+          grandparent.arguments[0].params.length === 1
+        ) {
+          let param: Node = grandparent.arguments[0].params[0];
+          if (isObjectPattern(param)) {
+            // import(xxx).then(({ default: b }) => ...);
+            properties = param.properties;
+          } else if (isIdentifier(param)) {
+            // import(xxx).then((ns) => ...);
+            binding = path.parentPath.parentPath
+              .get<NodePath<Node>>('arguments.0.body')
+              .scope.getBinding(param.name);
+          }
+        } else if (isAwaitExpression(parent, {argument: path.node})) {
+          if (isVariableDeclarator(grandparent, {init: parent})) {
+            if (isObjectPattern(grandparent.id)) {
+              // let { x: y } = await import("./b.js");
+              properties = grandparent.id.properties;
+            } else if (isIdentifier(grandparent.id)) {
+              // let ns = await import("./b.js");
+              binding = path.parentPath.parentPath.scope.getBinding(
+                grandparent.id.name,
+              );
+            }
+          } else if (
+            // ({ x: y } = await import("./b.js"));
+            isAssignmentExpression(grandparent, {right: parent}) &&
+            isObjectPattern(grandparent.left)
+          ) {
+            properties = grandparent.left.properties;
+          }
+        }
+
+        if (
+          properties != null &&
+          properties.every(p => isObjectProperty(p) && isIdentifier(p.key))
+        ) {
+          // take symbols listed when destructuring
+          memberAccesses = properties.map(p => {
+            invariant(isObjectProperty(p));
+            invariant(isIdentifier(p.key));
+            return {name: p.key.name, loc: convertBabelLoc(p.loc)};
+          });
+        } else if (
+          !path.scope.getData('shouldWrap') && // eval is evil
+          binding != null &&
+          binding.constant &&
+          binding.referencePaths.every(
+            ({parent, node}) =>
+              isMemberExpression(parent, {object: node}) &&
+              ((!parent.computed && isIdentifier(parent.property)) ||
+                isStringLiteral(parent.property)),
+          )
+        ) {
+          // properties of member expressions if all of them are static
+          memberAccesses = binding.referencePaths.map(({parent}) => {
+            invariant(isMemberExpression(parent));
+            return {
+              // $FlowFixMe[prop-missing]
+              name: parent.property.name ?? parent.property.value,
+              loc: convertBabelLoc(parent.loc),
+            };
+          });
+        }
+      }
+
       dep.symbols.ensure();
-      dep.symbols.set(
-        '*',
-        getName(asset, 'require', source),
-        convertBabelLoc(path.node.loc),
-      );
-      //   }
-      // }
+      if (memberAccesses != null) {
+        // The import() return value was statically analyzable
+        for (let {name, loc} of memberAccesses) {
+          dep.symbols.set(
+            name,
+            getName(asset, 'importAsync', dep.id, name),
+            loc,
+          );
+        }
+      } else {
+        // non-async and async fallback: everything
+        dep.meta.isCommonJS = true;
+        dep.symbols.set(
+          '*',
+          getName(asset, 'require', source),
+          convertBabelLoc(path.node.loc),
+        );
+      }
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -606,9 +665,7 @@ const VISITOR: Visitor<MutableAsset> = {
       });
       replacement.loc = path.node.loc;
       path.replaceWith(replacement);
-    }
-
-    if (t.matchesPattern(callee, 'require.resolve')) {
+    } else if (t.matchesPattern(callee, 'require.resolve')) {
       let replacement = REQUIRE_RESOLVE_CALL_TEMPLATE({
         ID: t.stringLiteral(asset.id),
         SOURCE: arg,

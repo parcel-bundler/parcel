@@ -1046,55 +1046,554 @@ describe('scope hoisting', function() {
       assert(!contents.includes('method'));
     });
 
-    it('removes unused exports across bundles', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle/a.js',
-        ),
-      );
+    ['global', 'esmodule'].forEach(outputFormat => {
+      let targets = {
+        default: {
+          outputFormat,
+          distDir,
+        },
+      };
 
-      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+      describe('cross bundle tree shaking: ' + outputFormat, () => {
+        it('removes unused exports across bundles', async () => {
+          let b = await bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/tree-shaking-cross-bundle/a.js',
+            ),
+            {targets},
+          );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(!contents.includes('bar'));
+          if (outputFormat != 'esmodule') {
+            // TODO execute ESM at some point
+            assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+          }
+
+          let contents = await outputFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('bar'));
+        });
+
+        it('removes unused exports with re-exports across bundles', async () => {
+          let b = await bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export/a.js',
+            ),
+            {targets},
+          );
+
+          if (outputFormat != 'esmodule') {
+            // TODO execute ESM at some point
+            assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+          }
+
+          let contents = await outputFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('bar'));
+        });
+
+        it('removes unused exports with wildcard re-exports across bundles', async () => {
+          let b = await bundle(
+            path.join(
+              __dirname,
+              '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export-wildcard/a.js',
+            ),
+            {targets},
+          );
+
+          if (outputFormat != 'esmodule') {
+            // TODO execute ESM at some point
+            assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+          }
+
+          let contents = await outputFS.readFile(
+            b.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(!contents.includes('bar'));
+        });
+      });
     });
 
-    it('removes unused exports with re-exports across bundles', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export/a.js',
-        ),
-      );
+    describe('tree shaking dynamic imports', function() {
+      it('supports tree shaking statically analyzable dynamic import: destructued await assignment', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-assignment.js',
+          ),
+        );
 
-      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(!contents.includes('bar'));
-    });
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'await-assignment.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
 
-    it('removes unused exports with wildcard re-exports across bundles', async () => {
-      let b = await bundle(
-        path.join(
-          __dirname,
-          '/integration/scope-hoisting/es6/tree-shaking-cross-bundle-re-export-wildcard/a.js',
-        ),
-      );
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
 
-      assert.deepEqual(await run(b), ['b1:foo', 'b2:foo']);
+      it('supports tree shaking statically analyzable dynamic import: destructured await declaration', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration.js',
+          ),
+        );
 
-      let contents = await outputFS.readFile(
-        b.getBundles()[0].filePath,
-        'utf8',
-      );
-      assert(!contents.includes('bar'));
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'await-declaration.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace await declaration', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration-namespace.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'await-declaration-namespace.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace await declaration bailout', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration-namespace-bailout.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, {
+          bar: 'bar',
+          foo: 'foo',
+          other: 'other',
+          stuff: 'stuff',
+          thing: 'thing',
+        });
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(
+                b,
+                'await-declaration-namespace-bailout.js',
+                './async.js',
+              ),
+            ),
+          ),
+          new Set(['*']),
+        );
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace await declaration eval bailout', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/await-declaration-namespace-bailout-eval.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, 'thing');
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(
+                b,
+                'await-declaration-namespace-bailout-eval.js',
+                './async.js',
+              ),
+            ),
+          ),
+          new Set(['*']),
+        );
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: destructured then', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(b.getUsedSymbols(findDependency(b, 'then.js', './async.js'))),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace then', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then-namespace.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, ['foo', 'thing']);
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'then-namespace.js', './async.js'),
+            ),
+          ),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: namespace then bailout', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then-namespace-bailout.js',
+          ),
+        );
+
+        let output = await run(b);
+        assert.deepEqual(output, {
+          bar: 'bar',
+          foo: 'foo',
+          other: 'other',
+          stuff: 'stuff',
+          thing: 'thing',
+        });
+
+        assert.deepStrictEqual(
+          new Set(
+            b.getUsedSymbols(
+              findDependency(b, 'then-namespace-bailout.js', './async.js'),
+            ),
+          ),
+          new Set(['*']),
+        );
+      });
+
+      it('supports tree shaking statically analyzable dynamic import: esmodule output', async function() {
+        let b = await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/tree-shaking-dynamic-import/then.js',
+          ),
+          {
+            targets: {
+              default: {
+                outputFormat: 'esmodule',
+                distDir,
+              },
+            },
+          },
+        );
+
+        // let output = await run(b);
+        // assert.deepEqual(output, 'foo');
+
+        assert.deepStrictEqual(
+          new Set(b.getUsedSymbols(findDependency(b, 'then.js', './async.js'))),
+          new Set(['foo', 'thing']),
+        );
+        assert(b.isDependencySkipped(findDependency(b, 'async.js', './a1.js')));
+
+        let contents = await outputFS.readFile(
+          b
+            .getBundles()
+            .find(b => b.getMainEntry().filePath.endsWith('async.js')).filePath,
+          'utf8',
+        );
+        assert(!contents.includes('bar'));
+        assert(!contents.includes('stuff'));
+      });
+
+      it('throws an error for missing exports for dynamic import: destructured await assignment', async function() {
+        let source = 'await-assignment-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 5,
+                        line: 3,
+                      },
+                      end: {
+                        column: 11,
+                        line: 3,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
+
+      it('throws an error for missing exports for dynamic import: destructured await declaration', async function() {
+        let source = 'await-declaration-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 8,
+                        line: 2,
+                      },
+                      end: {
+                        column: 14,
+                        line: 2,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
+
+      it('throws an error for missing exports for dynamic import: namespace await declaration', async function() {
+        let source = 'await-declaration-namespace-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 10,
+                        line: 3,
+                      },
+                      end: {
+                        column: 19,
+                        line: 3,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
+
+      it('throws an error for missing exports for dynamic import: destructured then', async function() {
+        let source = 'then-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 38,
+                        line: 1,
+                      },
+                      end: {
+                        column: 44,
+                        line: 1,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
+
+      it('throws an error for missing exports for dynamic import: namespace then', async function() {
+        let source = 'then-namespace-error.js';
+        let message = escapeMarkdown(`async.js does not export 'missing'`);
+        await assert.rejects(
+          () =>
+            bundle(
+              path.join(
+                __dirname,
+                'integration/scope-hoisting/es6/tree-shaking-dynamic-import',
+                source,
+              ),
+            ),
+          {
+            name: 'BuildError',
+            message,
+            diagnostics: [
+              {
+                message,
+                origin: '@parcel/core',
+                filePath: source,
+                language: 'js',
+                codeFrame: {
+                  codeHighlights: [
+                    {
+                      start: {
+                        column: 45,
+                        line: 1,
+                      },
+                      end: {
+                        column: 54,
+                        line: 1,
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        );
+      });
     });
 
     it('keeps member expression with computed properties that are variables', async function() {
@@ -2066,8 +2565,8 @@ describe('scope hoisting', function() {
             '/integration/scope-hoisting/es6/side-effects-false-wrap-excluded/a.js',
           ),
         );
-        let output = await run(b);
 
+        let output = await run(b);
         assert.deepEqual(output, 4);
       });
 
