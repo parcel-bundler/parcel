@@ -59,17 +59,14 @@ async function collectDependencies(
             codeFrame: {
               codeHighlights: [
                 {
-                  ...getJSONSourceLocation(
-                    ptrs['/default_locale'],
-                    err,
-                  ),
+                  ...getJSONSourceLocation(ptrs['/default_locale'], err),
                   message: `Localization directory${
                     err == 'value' ? ' for ' + program.default_locale : ''
                   } does not exist: ${relative(
                     dirname(filePath),
                     join(locales, program.default_locale),
-                  )}`
-                }
+                  )}`,
+                },
               ],
             },
           },
@@ -121,10 +118,12 @@ async function collectDependencies(
               origin: '@parcel/transformer-webext',
               filePath,
               codeFrame: {
-                codeHighlights: [{
-                  ...sourceLoc,
-                  message: 'Dictionaries must be .dic files'
-                }],
+                codeHighlights: [
+                  {
+                    ...sourceLoc,
+                    message: 'Dictionaries must be .dic files',
+                  },
+                ],
               },
             },
           ],

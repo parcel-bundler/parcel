@@ -90,7 +90,7 @@ export default ({
         scripts: arrStr,
         page: {type: 'string'},
         persistent: {type: 'boolean'},
-      }
+      },
     },
     chrome_settings_overrides: {
       type: 'object',
