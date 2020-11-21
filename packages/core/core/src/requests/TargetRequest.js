@@ -26,7 +26,6 @@ import createParcelConfigRequest from './ParcelConfigRequest';
 import ParcelConfig from '../ParcelConfig';
 // $FlowFixMe
 import browserslist from 'browserslist';
-// $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';

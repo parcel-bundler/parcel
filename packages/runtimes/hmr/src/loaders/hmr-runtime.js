@@ -40,7 +40,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = getHostname();
   var port = getPort();
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var protocol = HMR_SECURE ? 'wss' : 'ws';
   var ws = new WebSocket(
     protocol + '://' + hostname + (port ? ':' + port : '') + '/',
   );

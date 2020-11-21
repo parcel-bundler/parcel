@@ -24,9 +24,10 @@ describe('json reporter', () => {
         logLevel: 'info',
       });
 
-      let parsedCalls = consoleStub
-        .getCalls()
-        .map(call => JSON.parse(call.lastArg));
+      let parsedCalls = consoleStub.getCalls().map(call => {
+        invariant(typeof call.lastArg === 'string');
+        return JSON.parse(call.lastArg);
+      });
       for (let [iStr, parsed] of Object.entries(parsedCalls)) {
         parsed = (parsed: any);
         invariant(typeof iStr === 'string');

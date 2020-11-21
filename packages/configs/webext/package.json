@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/config-webext",
+  "version": "2.0.0-beta.1",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "index.json",
+  "scripts": {
+    "test-ci": "mocha"
+  },
+  "dependencies": {
+    "@parcel/config-default": "2.0.0-beta.1",
+    "@parcel/transformer-webext": "2.0.0-beta.1"
+  }
+}

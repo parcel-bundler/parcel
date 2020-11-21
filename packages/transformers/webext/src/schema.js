@@ -38,7 +38,7 @@ const arrStr = {
 
 // This has *some* Chrome bias, but let's be real here...
 // It's mainly intended to be highly cross-browser compatible
-export default {
+export default ({
   type: 'object',
   properties: {
     manifest_version: {
@@ -90,9 +90,7 @@ export default {
         scripts: arrStr,
         page: {type: 'string'},
         persistent: {type: 'boolean'},
-      },
-      // Edge only, but doesn't hurt
-      required: ['persistent'],
+      }
     },
     chrome_settings_overrides: {
       type: 'object',
@@ -388,4 +386,4 @@ export default {
     version_name: {type: 'string'},
     web_accessible_resources: arrStr,
   },
-};
+}: SchemaEntity);

@@ -3,7 +3,7 @@
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
 import {join, extname, dirname, relative} from 'path';
-import {parse} from 'json-source-map';
+import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
@@ -16,21 +16,21 @@ const BASE_KEYS = ['manifest_version', 'name', 'version'];
 const DEP_LOCS = [
   ['icons'],
   ['browser_action', 'default_icon'],
-  ['browser_action', 'default_popup', true],
+  ['browser_action', 'default_popup'],
   ['browser_action', 'theme_actions', 'light'],
   ['browser_action', 'theme_actions', 'dark'],
   ['page_action', 'default_icon'],
-  ['page_action', 'default_popup', true],
-  ['background', 'scripts', true],
+  ['page_action', 'default_popup'],
+  ['background', 'scripts'],
   ['chrome_url_overrides'],
-  ['devtools_page', true],
-  ['options_ui', 'page', true],
+  ['devtools_page'],
+  ['options_ui', 'page'],
   ['sidebar_action', 'default_icon'],
-  ['sidebar_action', 'default_panel', true],
+  ['sidebar_action', 'default_panel'],
   ['storage', 'managed_schema'],
   ['theme', 'images', 'theme_frame'],
   ['theme', 'images', 'additional_backgrounds'],
-  ['user_scripts', 'api_script', true],
+  ['user_scripts', 'api_script'],
 ];
 
 async function collectDependencies(
@@ -53,18 +53,23 @@ async function collectDependencies(
       throw new ThrowableDiagnostic({
         diagnostic: [
           {
-            message:
-              'Localization directory' +
-              (err == 'value' ? ' for ' + program.default_locale : '') +
-              ' does not exist',
+            message: 'Invalid Web Extension manifest',
             origin: '@parcel/transformer-webext',
             filePath,
             codeFrame: {
               codeHighlights: [
-                ((getJSONSourceLocation(
-                  ptrs['/default_locale'],
-                  err,
-                ): any): DiagnosticCodeHighlight),
+                {
+                  ...getJSONSourceLocation(
+                    ptrs['/default_locale'],
+                    err,
+                  ),
+                  message: `Localization directory${
+                    err == 'value' ? ' for ' + program.default_locale : ''
+                  } does not exist: ${relative(
+                    dirname(filePath),
+                    join(locales, program.default_locale),
+                  )}`
+                }
               ],
             },
           },
@@ -72,7 +77,7 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      asset.addURLDependency(join('raw:_locales', locale, 'messages.json'), {
+      asset.addURLDependency(join('url:_locales', locale, 'messages.json'), {
         isEntry: true,
       });
     }
@@ -84,7 +89,7 @@ async function collectDependencies(
         const assets = sc[k] || [];
         for (let j = 0; j < assets.length; ++j) {
           assets[j] = asset.addURLDependency(assets[j], {
-            isEntry: k == 'js',
+            isEntry: true,
             loc: {
               filePath,
               ...getJSONSourceLocation(
@@ -112,11 +117,14 @@ async function collectDependencies(
         throw new ThrowableDiagnostic({
           diagnostic: [
             {
-              message: 'Dictionaries must be .dic files',
+              message: 'Invalid Web Extension manifest',
               origin: '@parcel/transformer-webext',
               filePath,
               codeFrame: {
-                codeHighlights: [((sourceLoc: any): DiagnosticCodeHighlight)],
+                codeHighlights: [{
+                  ...sourceLoc,
+                  message: 'Dictionaries must be .dic files'
+                }],
               },
             },
           ],
@@ -150,44 +158,36 @@ async function collectDependencies(
       }
     }
   }
-  for (let loc of DEP_LOCS) {
-    let isEntry: boolean = false;
-    if (typeof loc[loc.length - 1] == 'boolean') {
-      isEntry = ((loc[loc.length - 1]: any): boolean);
-      loc = loc.slice(0, -1);
-    }
-    const locStr = '/' + loc.join('/');
-    let obj: any = program;
+  for (const loc of DEP_LOCS) {
+    const location = '/' + loc.join('/');
+    if (!ptrs[location]) continue;
+    let parent: any = program;
     for (let i = 0; i < loc.length - 1; ++i) {
-      obj = obj[loc[i]];
-      if (!obj) break;
+      parent = parent[loc[i]];
     }
-    if (!obj) continue;
-    const parent = obj,
-      lloc = loc[loc.length - 1];
-    obj = obj[lloc];
-    if (!obj) continue;
+    const lastLoc = loc[loc.length - 1];
+    const obj = parent[lastLoc];
     if (typeof obj == 'string')
-      parent[lloc] = asset.addURLDependency(
+      parent[lastLoc] = asset.addURLDependency(
         // TODO: not this, for sure
-        (extname(obj) == '.json' ? 'raw:' : '') + obj,
+        (extname(obj) == '.json' ? 'url:' : '') + obj,
         {
-          isEntry,
+          isEntry: true,
           loc: {
             filePath,
-            ...getJSONSourceLocation(ptrs[locStr], 'value'),
+            ...getJSONSourceLocation(ptrs[location], 'value'),
           },
         },
       );
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(
-          (extname(obj[k]) == '.json' ? 'raw:' : '') + obj[k],
+          (extname(obj[k]) == '.json' ? 'url:' : '') + obj[k],
           {
-            isEntry,
+            isEntry: true,
             loc: {
               filePath,
-              ...getJSONSourceLocation(ptrs[locStr + '/' + k], 'value'),
+              ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
             },
           },
         );
@@ -201,10 +201,7 @@ function cspPatchHMR(policy: ?string) {
     const csp = parseCSP(policy);
     policy = '';
     if (!csp['script-src']) {
-      csp['script-src'] = ["'self'", "'unsafe-eval'", 'blob: filesystem:'];
-    }
-    if (!csp['object-src']) {
-      csp['object-src'] = ["'self' blob: filesystem:"];
+      csp['script-src'] = ["'self' 'unsafe-eval' blob: filesystem:"];
     }
     if (!csp['script-src'].includes("'unsafe-eval'")) {
       csp['script-src'].push("'unsafe-eval'");
@@ -222,34 +219,25 @@ function cspPatchHMR(policy: ?string) {
 }
 
 export default (new Transformer({
-  async parse({asset}) {
+  async transform({asset, options}) {
     const code = await asset.getCode();
-    const map = parse(code);
-    if (BASE_KEYS.some(key => !map.data.hasOwnProperty(key))) {
+    const parsed = jsm.parse(code);
+    const data: any = parsed.data;
+    if (BASE_KEYS.some(key => !data.hasOwnProperty(key))) {
       // This is probably just another file that happens to be named manifest.json
-      return null;
+      return [asset];
     }
     validateSchema.diagnostic(
       WebExtSchema,
       {
-        data: map.data,
+        data: data,
         source: code,
         filePath: asset.filePath,
       },
       '@parcel/transformer-webext',
       'Invalid Web Extension manifest',
     );
-    return {
-      type: 'json-source-map',
-      version: '0.6.1',
-      program: map,
-    };
-  },
-  async transform({asset, options}) {
-    const ast = await asset.getAST();
-    if (!ast) return [asset];
-    const {data, pointers} = ast.program;
-    await collectDependencies(asset, data, pointers);
+    await collectDependencies(asset, data, parsed.pointers);
     if (options.hot) {
       // To enable HMR, we must override the CSP to allow 'unsafe-eval'
       data.content_security_policy = cspPatchHMR(data.content_security_policy);

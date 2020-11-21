@@ -31,17 +31,17 @@ export function getName(
   type: string,
   ...rest: Array<string>
 ): string {
-  return (
+  return t.toIdentifier(
     '$' +
-    t.toIdentifier(asset.id) +
-    '$' +
-    type +
-    (rest.length
-      ? '$' +
-        rest
-          .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-          .join('$')
-      : '')
+      asset.id +
+      '$' +
+      type +
+      (rest.length
+        ? '$' +
+          rest
+            .map(name => (name === 'default' ? name : t.toIdentifier(name)))
+            .join('$')
+        : ''),
   );
 }
 
@@ -162,7 +162,7 @@ export function pathRemove(path: NodePath<Node>) {
   path.remove();
 }
 
-function dereferenceIdentifier(node, scope) {
+export function dereferenceIdentifier(node: Identifier, scope: Scope) {
   let binding = scope.getBinding(node.name);
   if (binding) {
     let i = binding.referencePaths.findIndex(v => v.node === node);
