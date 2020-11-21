@@ -140,9 +140,25 @@ export function generateExports(
   // let exportedIdentifiersBailout = new Map<Symbol, [Asset, Symbol]>();
   let entry = bundle.getMainEntry();
   if (entry) {
+    // Get all used symbols for this bundle (= entry + subgraph)
+    let usedSymbols = new Set<Symbol>();
+    for (let d of bundleGraph.getIncomingDependencies(entry)) {
+      let used = bundleGraph.getUsedSymbols(d);
+      if (d.symbols.isCleared || used.has('*')) {
+        usedSymbols = null;
+        break;
+      }
+      used.forEach(s => nullthrows(usedSymbols).add(s));
+    }
+
     for (let {exportAs, exportSymbol, symbol, asset, loc} of nullthrows(
       bundleGraph.getExportedSymbols(entry, bundle),
     )) {
+      if (usedSymbols && !usedSymbols.has(exportAs)) {
+        // an unused symbol
+        continue;
+      }
+
       if (symbol === false) {
         // skipped
       } else if (symbol === null) {

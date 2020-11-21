@@ -351,17 +351,6 @@ export function link({
     return path.isScope() ? path.parentPath.scope : path.scope;
   }
 
-  function isUnusedValue(path) {
-    let {parent} = path;
-    return (
-      isExpressionStatement(parent) ||
-      (isSequenceExpression(parent) &&
-        ((Array.isArray(path.container) &&
-          path.key !== path.container.length - 1) ||
-          isUnusedValue(path.parentPath)))
-    );
-  }
-
   function addExternalModule(path, dep) {
     // Find an existing import for this specifier, or create a new one.
     let importedFile = importedFiles.get(dep.moduleSpecifier);
@@ -850,4 +839,15 @@ function maybeAddEsModuleFlag(scope, mod) {
       binding.path.setData('hasESModuleFlag', true);
     }
   }
+}
+
+function isUnusedValue(path: NodePath<Node>): boolean {
+  let {parent} = path;
+  return (
+    isExpressionStatement(parent) ||
+    (isSequenceExpression(parent) &&
+      ((Array.isArray(path.container) &&
+        path.key !== path.container.length - 1) ||
+        isUnusedValue(path.parentPath)))
+  );
 }
