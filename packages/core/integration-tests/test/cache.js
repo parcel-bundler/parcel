@@ -1,8 +1,5 @@
 // @flow
-import type {
-  InitialParcelOptions,
-  BuildSuccessEvent,
-} from '@parcel/types';
+import type {InitialParcelOptions, BuildSuccessEvent} from '@parcel/types';
 import assert from 'assert';
 import path from 'path';
 import {
