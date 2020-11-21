@@ -1120,7 +1120,7 @@ describe('scope hoisting', function() {
       });
     });
 
-    describe.only('tree shaking dynamic imports', function() {
+    describe('tree shaking dynamic imports', function() {
       it('supports tree shaking statically analyzable dynamic import: destructued await assignment', async function() {
         let b = await bundle(
           path.join(
