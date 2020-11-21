@@ -74,7 +74,7 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      asset.addURLDependency(join('url:_locales', locale, 'messages.json'), {
+      asset.addURLDependency(join('raw:_locales', locale, 'messages.json'), {
         isEntry: true,
       });
     }
@@ -169,7 +169,7 @@ async function collectDependencies(
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(
         // TODO: not this, for sure
-        (extname(obj) == '.json' ? 'url:' : '') + obj,
+        (extname(obj) == '.json' ? 'raw:' : '') + obj,
         {
           isEntry: true,
           loc: {
@@ -181,7 +181,7 @@ async function collectDependencies(
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(
-          (extname(obj[k]) == '.json' ? 'url:' : '') + obj[k],
+          (extname(obj[k]) == '.json' ? 'raw:' : '') + obj[k],
           {
             isEntry: true,
             loc: {

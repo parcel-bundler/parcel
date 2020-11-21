@@ -2,7 +2,7 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-import type {DiagnosticJSONPosition} from '@parcel/diagnostic';
+import type {Mapping} from 'json-source-map';
 import nullthrows from 'nullthrows';
 // flowlint-next-line untyped-import:off
 import levenshtein from 'fastest-levenshtein';
@@ -388,7 +388,7 @@ validateSchema.diagnostic = function(
           source: string,
           map: {|
             data: mixed,
-            pointers: {|[key: string]: DiagnosticJSONPosition|},
+            pointers: {|[key: string]: Mapping|},
           |},
         |},
     filePath?: ?string,

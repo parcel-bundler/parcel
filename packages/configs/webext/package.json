@@ -14,9 +14,6 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "index.json",
-  "scripts": {
-    "test-ci": "mocha"
-  },
   "dependencies": {
     "@parcel/config-default": "2.0.0-beta.1",
     "@parcel/transformer-webext": "2.0.0-beta.1"
