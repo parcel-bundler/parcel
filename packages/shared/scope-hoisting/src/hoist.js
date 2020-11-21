@@ -641,7 +641,11 @@ const VISITOR: Visitor<MutableAsset> = {
       if (memberAccesses != null) {
         // The import() return value was statically analyzable
         for (let {name, loc} of memberAccesses) {
-          dep.symbols.set(name, getName(asset, 'import', name), loc);
+          dep.symbols.set(
+            name,
+            getName(asset, 'importAsync', dep.id, name),
+            loc,
+          );
         }
       } else {
         // non-async and async fallback: everything
