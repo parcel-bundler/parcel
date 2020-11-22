@@ -24,10 +24,5 @@
     "@parcel/plugin": "^2.0.0-beta.1",
     "command-exists": "^1.2.8",
     "terser": "^5.2.1"
-  },
-  "peerDependencies": {
-    "elm": "^0.19.1-3 || 0.19.0-no-deps",
-    "elm-hot": "^1.1.4",
-    "node-elm-compiler": "^5.0.4"
   }
 }

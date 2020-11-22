@@ -6,7 +6,16 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default new Transformer({
   async transform({asset, options}) {
-    const elm = await setupElmCompiler(asset, options);
+    const elmBinary = await elmBinaryPath(asset, options);
+    await ensureElmJson(asset);
+    const elm = await options.packageManager.require(
+      'node-elm-compiler',
+      asset.filePath,
+      {
+        autoinstall: options.autoinstall,
+        saveDev: true,
+      },
+    );
 
     const config = {
       cwd: path.dirname(asset.filePath),
@@ -14,9 +23,11 @@ export default new Transformer({
       optimize: asset.env.minify,
     };
     asset.invalidateOnEnvChange('PARCEL_ELM_NO_DEBUG');
-    ResolveDependenciesFromAsset(elm, asset);
+    for (const filePath of await elm.findAllDependencies(asset.filePath)) {
+      asset.addIncludedFile(filePath);
+    }
 
-    let code = await compileToString(elm, asset, config);
+    let code = await compileToString(elm, elmBinary, asset, config);
     if (options.hot) {
       code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
     }
@@ -28,27 +39,38 @@ export default new Transformer({
   },
 });
 
-async function setupElmCompiler(asset, options) {
-  ensureElmIsInstalled();
-  await ensureElmJson(asset);
-  return options.packageManager.require('node-elm-compiler', asset.filePath, {
-    autoinstall: options.autoinstall,
-    saveDev: true,
-  });
-}
+async function elmBinaryPath(asset, options) {
+  let elmBinary = await resolveLocalElmBinary(asset, options);
 
-function ensureElmIsInstalled() {
-  if (!commandExists.sync('elm')) {
+  if (elmBinary == null && !commandExists.sync('elm')) {
     throw new ThrowableDiagnostic({
       diagnostic: {
         message: "Can't find 'elm' binary.",
         hints: [
-          "You can add it as an dependency for your project by running 'npm add -D elm' or 'npm add -D elm'.",
+          "You can add it as an dependency for your project by running 'yarn add -D elm' or 'npm add -D elm'",
           'If you want to install it globally then follow instructions on https://elm-lang.org/',
         ],
         origin: '@parcel/elm-transformer',
       },
     });
+  }
+
+  return elmBinary;
+}
+
+async function resolveLocalElmBinary(asset, options) {
+  try {
+    let result = await options.packageManager.resolve(
+      'elm/package.json',
+      asset.filePath,
+      {autoinstall: false},
+    );
+
+    return result.pkg != null
+      ? path.join(path.dirname(result.resolved), result.pkg.bin.elm)
+      : null;
+  } catch (_) {
+    return null;
   }
 }
 
@@ -66,17 +88,12 @@ async function ensureElmJson(asset) {
   }
 }
 
-async function ResolveDependenciesFromAsset(elm, asset) {
-  for (const filePath of await elm.findAllDependencies(asset.filePath)) {
-    asset.addIncludedFile(filePath);
-  }
-}
-
-function compileToString(elm, asset, config) {
+function compileToString(elm, elmBinary, asset, config) {
   return elm.compileToString(asset.filePath, {
     cwd: config.cwd,
     debug: config.debug,
     optimize: config.optimize,
+    pathToElm: elmBinary,
   });
 }
 
