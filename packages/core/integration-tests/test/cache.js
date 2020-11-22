@@ -10,7 +10,6 @@ import {
   inputFS,
   ncp,
   workerFarm,
-  symlinkPrivilegeWarning,
 } from '@parcel/test-utils';
 import fs from 'fs';
 
@@ -864,89 +863,86 @@ describe('cache', function() {
       });
 
       it('should invalidate on startup when there are symlinked plugins', async function() {
-        try {
-          let b = await testBabelCache({
-            // Babel's config loader only works with the node filesystem
-            inputFS,
-            outputFS: inputFS,
-            async setup() {
-              await inputFS.mkdirp(inputDir);
-              await inputFS.ncp(
-                path.join(__dirname, '/integration/cache'),
-                inputDir,
-              );
-              await inputFS.mkdirp(
-                path.join(inputDir, 'packages/babel-plugin-dummy'),
-              );
-              await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
-              fs.symlinkSync(
-                path.join(inputDir, 'packages/babel-plugin-dummy'),
-                path.join(inputDir, 'node_modules/babel-plugin-dummy'),
-              );
-              await inputFS.writeFile(
-                path.join(inputDir, 'packages/babel-plugin-dummy/package.json'),
-                JSON.stringify({
-                  name: 'babel-plugin-dummy',
-                  version: '1.0.0',
-                }),
-              );
-              await inputFS.copyFile(
-                path.join(
-                  __dirname,
-                  '/integration/babelrc-custom/babel-plugin-dummy.js',
-                ),
-                path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
-              );
-              await inputFS.writeFile(
-                path.join(inputDir, '.babelrc'),
-                JSON.stringify({
-                  plugins: ['babel-plugin-dummy'],
-                }),
-              );
-              await inputFS.writeFile(
-                path.join(inputDir, 'src/index.js'),
-                'console.log("REPLACE_ME")',
-              );
-            },
-            async update(b) {
-              let contents = await overlayFS.readFile(
-                b.bundleGraph.getBundles()[0].filePath,
-                'utf8',
-              );
-              assert(
-                contents.includes('hello there'),
-                'string should be replaced',
-              );
-
-              let plugin = path.join(
-                inputDir,
-                'packages/babel-plugin-dummy/index.js',
-              );
-              let source = await inputFS.readFile(plugin, 'utf8');
-              await inputFS.writeFile(
-                plugin,
-                source.replace('hello there', 'replaced'),
-              );
-
-              await workerFarm.callAllWorkers('invalidateRequireCache', [
-                path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
-              ]);
-            },
-          });
-
-          let contents = await overlayFS.readFile(
-            b.bundleGraph.getBundles()[0].filePath,
-            'utf8',
-          );
-          assert(contents.includes('replaced'), 'string should be replaced');
-        } catch (e) {
-          if (e.code == 'EPERM') {
-            symlinkPrivilegeWarning();
-            this.skip();
-          } else {
-            throw e;
-          }
+        // Symlinks don't work consistently on windows. Skip this test.
+        if (process.platform === 'win32') {
+          this.skip();
+          return;
         }
+
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.mkdirp(
+              path.join(inputDir, 'packages/babel-plugin-dummy'),
+            );
+            await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+            fs.symlinkSync(
+              path.join(inputDir, 'packages/babel-plugin-dummy'),
+              path.join(inputDir, 'node_modules/babel-plugin-dummy'),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, 'packages/babel-plugin-dummy/package.json'),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '1.0.0',
+              }),
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                plugins: ['babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(
+              inputDir,
+              'packages/babel-plugin-dummy/index.js',
+            );
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
       });
     });
   });
