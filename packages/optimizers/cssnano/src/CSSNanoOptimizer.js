@@ -42,7 +42,7 @@ export default (new Optimizer({
     }
 
     let contents = result.css;
-    if (options.sourceMaps) {
+    if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {
         contents += '\n' + '/*# sourceMappingURL=' + reference + ' */\n';

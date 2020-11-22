@@ -15,6 +15,7 @@ describe('Environment', () => {
       isLibrary: false,
       minify: false,
       scopeHoist: false,
+      sourceMap: undefined,
     });
   });
 
@@ -29,6 +30,7 @@ describe('Environment', () => {
       isLibrary: false,
       minify: false,
       scopeHoist: false,
+      sourceMap: undefined,
     });
   });
 
@@ -45,6 +47,7 @@ describe('Environment', () => {
         isLibrary: false,
         minify: false,
         scopeHoist: false,
+        sourceMap: undefined,
       },
     );
   });
@@ -60,6 +63,7 @@ describe('Environment', () => {
       isLibrary: false,
       minify: false,
       scopeHoist: false,
+      sourceMap: undefined,
     });
   });
 
@@ -74,6 +78,7 @@ describe('Environment', () => {
       isLibrary: false,
       minify: false,
       scopeHoist: false,
+      sourceMap: undefined,
     });
   });
 });
