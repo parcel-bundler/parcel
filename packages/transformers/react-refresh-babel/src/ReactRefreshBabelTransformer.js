@@ -3,23 +3,26 @@
 import {Transformer} from '@parcel/plugin';
 import invariant from 'assert';
 
-async function shouldExclude(asset, options) {
+async function shouldExclude(config, options) {
   if (
-    !asset.isSource ||
+    !config.isSource ||
     !options.hot ||
-    !asset.env.isBrowser() ||
+    !config.env.isBrowser() ||
     options.mode !== 'development'
   ) {
     return true;
   } else {
-    let pkg = await asset.getPackage();
+    let pkg = await config.getPackage();
     return !(pkg && pkg.dependencies && pkg.dependencies['react']);
   }
 }
 
 export default (new Transformer({
-  async transform({asset, options}) {
-    if (!(await shouldExclude(asset, options))) {
+  async loadConfig({config, options}) {
+    config.setResult(await shouldExclude(config, options));
+  },
+  async transform({asset, config, options}) {
+    if (!config) {
       let reactRefreshBabelPlugin = (
         await options.packageManager.resolve('react-refresh/babel', __filename)
       ).resolved;

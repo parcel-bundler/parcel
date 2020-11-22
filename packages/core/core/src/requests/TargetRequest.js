@@ -5,13 +5,12 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   Async,
   Engines,
-  File,
   FilePath,
   PackageJSON,
   PackageTargetDescriptor,
   TargetDescriptor,
 } from '@parcel/types';
-import type {StaticRunOpts} from '../RequestTracker';
+import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {Entry, ParcelOptions, Target} from '../types';
 import type {ConfigAndCachePath} from './ParcelConfigRequest';
 
@@ -20,13 +19,17 @@ import ThrowableDiagnostic, {
   getJSONSourceLocation,
 } from '@parcel/diagnostic';
 import path from 'path';
-import {loadConfig, md5FromObject, validateSchema} from '@parcel/utils';
+import {
+  loadConfig,
+  resolveConfig,
+  md5FromObject,
+  validateSchema,
+} from '@parcel/utils';
 import {createEnvironment} from '../Environment';
 import createParcelConfigRequest from './ParcelConfigRequest';
 import ParcelConfig from '../ParcelConfig';
 // $FlowFixMe
 import browserslist from 'browserslist';
-// $FlowFixMe
 import jsonMap from 'json-source-map';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -36,11 +39,7 @@ import {
   ENGINES_SCHEMA,
 } from '../TargetDescriptor.schema';
 import {BROWSER_ENVS} from '../public/Environment';
-
-export type TargetResolveResult = {|
-  targets: Array<Target>,
-  files: Array<File>,
-|};
+import {optionsProxy} from '../utils';
 
 type RunOpts = {|
   input: Entry,
@@ -68,7 +67,7 @@ const COMMON_TARGETS = ['main', 'module', 'browser', 'types'];
 export type TargetRequest = {|
   id: string,
   +type: 'target_request',
-  run: RunOpts => Async<TargetResolveResult>,
+  run: RunOpts => Async<Array<Target>>,
   input: Entry,
 |};
 
@@ -84,8 +83,11 @@ export default function createTargetRequest(input: Entry): TargetRequest {
 }
 
 async function run({input, api, options}: RunOpts) {
-  let targetResolver = new TargetResolver(options);
-  let result = await targetResolver.resolve(input.packagePath);
+  let targetResolver = new TargetResolver(
+    api,
+    optionsProxy(options, api.invalidateOnOptionChange),
+  );
+  let targets = await targetResolver.resolve(input.packagePath);
 
   let {config} = nullthrows(
     await api.runRequest<null, ConfigAndCachePath>(createParcelConfigRequest()),
@@ -100,36 +102,31 @@ async function run({input, api, options}: RunOpts) {
 
   // Find named pipelines for each target.
   let pipelineNames = new Set(parcelConfig.getNamedPipelines());
-  for (let target of result.targets) {
+  for (let target of targets) {
     if (pipelineNames.has(target.name)) {
       target.pipeline = target.name;
     }
   }
 
-  // Connect files like package.json that affect the target
-  // resolution so we invalidate when they change.
-  for (let file of result.files) {
-    api.invalidateOnFileUpdate(file.filePath);
-  }
-
-  return result;
+  return targets;
 }
 
 export class TargetResolver {
   fs: FileSystem;
+  api: RunAPI;
   options: ParcelOptions;
 
-  constructor(options: ParcelOptions) {
+  constructor(api: RunAPI, options: ParcelOptions) {
+    this.api = api;
     this.fs = options.inputFS;
     this.options = options;
   }
 
-  async resolve(rootDir: FilePath): Promise<TargetResolveResult> {
+  async resolve(rootDir: FilePath): Promise<Array<Target>> {
     let optionTargets = this.options.targets;
 
     let packageTargets = await this.resolvePackageTargets(rootDir);
     let targets: Array<Target>;
-    let files: Array<File> = [];
     if (optionTargets) {
       if (Array.isArray(optionTargets)) {
         if (optionTargets.length === 0) {
@@ -144,7 +141,7 @@ export class TargetResolver {
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
         targets = optionTargets.map(target => {
-          let matchingTarget = packageTargets.targets.get(target);
+          let matchingTarget = packageTargets.get(target);
           if (!matchingTarget) {
             throw new ThrowableDiagnostic({
               diagnostic: {
@@ -155,7 +152,6 @@ export class TargetResolver {
           }
           return matchingTarget;
         });
-        files = packageTargets.files;
       } else {
         // Otherwise, it's an object map of target descriptors (similar to those
         // in package.json). Adapt them to native targets.
@@ -200,8 +196,8 @@ export class TargetResolver {
               minify: this.options.minify && descriptor.minify !== false,
               scopeHoist:
                 this.options.scopeHoist && descriptor.scopeHoist !== false,
+              sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
             }),
-            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           };
         });
       }
@@ -239,7 +235,6 @@ export class TargetResolver {
             name: 'default',
             distDir: this.options.serve.distDir,
             publicUrl: this.options.publicUrl ?? '/',
-            sourceMap: this.options.sourceMaps ? {} : undefined,
             env: createEnvironment({
               context: 'browser',
               engines: {
@@ -247,24 +242,26 @@ export class TargetResolver {
               },
               minify: this.options.minify,
               scopeHoist: this.options.scopeHoist,
+              sourceMap: this.options.sourceMaps ? {} : undefined,
             }),
           },
         ];
       } else {
-        targets = Array.from(packageTargets.targets.values());
-        files = packageTargets.files;
+        targets = Array.from(packageTargets.values());
       }
     }
 
-    return {targets, files};
+    return targets;
   }
 
-  async resolvePackageTargets(
-    rootDir: FilePath,
-  ): Promise<{|files: Array<File>, targets: Map<string, Target>|}> {
+  async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json',
     ]);
+
+    // Invalidate whenever a package.json file is added.
+    // TODO: we really only need to invalidate if added *above* rootDir...
+    this.api.invalidateOnFileCreate(`**/package.json`);
 
     let pkg;
     let pkgContents;
@@ -286,6 +283,9 @@ export class TargetResolver {
       pkgDir = path.dirname(pkgFilePath);
       pkgContents = await this.fs.readFile(pkgFilePath, 'utf8');
       pkgMap = jsonMap.parse(pkgContents.replace(/\t/g, ' '));
+
+      this.api.invalidateOnFileUpdate(pkgFilePath);
+      this.api.invalidateOnFileDelete(pkgFilePath);
     } else {
       pkg = {};
       pkgDir = this.fs.cwd();
@@ -301,12 +301,42 @@ export class TargetResolver {
         'Invalid engines in package.json',
       ) || {};
     if (pkgEngines.browsers == null) {
-      let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
-      if (browserslistBrowsers) {
+      if (pkg.browserslist != null) {
         pkgEngines = {
           ...pkgEngines,
-          browsers: browserslistBrowsers,
+          browsers: pkg.browserslist,
         };
+      } else {
+        let browserslistConfig = await resolveConfig(
+          this.fs,
+          path.join(rootDir, 'index'),
+          ['browserslist', '.browserslistrc'],
+        );
+
+        this.api.invalidateOnFileCreate('**/{browserslist,.browserslistrc}');
+
+        if (browserslistConfig != null) {
+          let contents = await this.fs.readFile(browserslistConfig, 'utf8');
+          let config = browserslist.parseConfig(contents);
+          let env =
+            this.options.env.BROWSERSLIST_ENV ??
+            this.options.env.NODE_ENV ??
+            'production';
+          let browserslistBrowsers = config[env] || config.defaults;
+
+          if (browserslistBrowsers) {
+            pkgEngines = {
+              ...pkgEngines,
+              browsers: browserslistBrowsers,
+            };
+          }
+
+          // Invalidate whenever browserslist config file or relevant environment variables change
+          this.api.invalidateOnFileUpdate(browserslistConfig);
+          this.api.invalidateOnFileDelete(browserslistConfig);
+          this.api.invalidateOnEnvChange('BROWSERSLIST_ENV');
+          this.api.invalidateOnEnvChange('NODE_ENV');
+        }
       }
     }
 
@@ -417,8 +447,8 @@ export class TargetResolver {
             minify: this.options.minify && descriptor.minify !== false,
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -502,8 +532,8 @@ export class TargetResolver {
             minify: this.options.minify && descriptor.minify !== false,
             scopeHoist:
               this.options.scopeHoist && descriptor.scopeHoist !== false,
+            sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           }),
-          sourceMap: normalizeSourceMap(this.options, descriptor.sourceMap),
           loc,
         });
       }
@@ -521,17 +551,14 @@ export class TargetResolver {
           context,
           minify: this.options.minify,
           scopeHoist: this.options.scopeHoist,
+          sourceMap: this.options.sourceMaps ? {} : undefined,
         }),
-        sourceMap: this.options.sourceMaps ? {} : undefined,
       });
     }
 
     assertNoDuplicateTargets(targets, pkgFilePath, pkgContents);
 
-    return {
-      targets,
-      files: conf ? conf.files : [],
-    };
+    return targets;
   }
 }
 

@@ -14,6 +14,7 @@ import type {
 import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import {assetFromValue, assetToAssetValue, Asset} from './Asset';
@@ -69,10 +70,8 @@ export default class BundleGraph<TBundle: IBundle>
     return this.#graph.getAssetPublicId(assetToAssetValue(asset));
   }
 
-  isDependencyDeferred(dep: IDependency): boolean {
-    return this.#graph.isDependencyDeferred(
-      dependencyToInternalDependency(dep),
-    );
+  isDependencySkipped(dep: IDependency): boolean {
+    return this.#graph.isDependencySkipped(dependencyToInternalDependency(dep));
   }
 
   getDependencyResolution(dep: IDependency, bundle: ?IBundle): ?IAsset {
@@ -242,15 +241,24 @@ export default class BundleGraph<TBundle: IBundle>
     };
   }
 
-  getExportedSymbols(asset: IAsset): Array<ExportSymbolResolution> {
-    let res = this.#graph.getExportedSymbols(assetToAssetValue(asset));
-    return res.map(e => ({
-      asset: assetFromValue(e.asset, this.#options),
-      exportSymbol: e.exportSymbol,
-      symbol: e.symbol,
-      loc: e.loc,
-      exportAs: e.exportAs,
-    }));
+  getExportedSymbols(
+    asset: IAsset,
+    boundary: ?IBundle,
+  ): ?Array<ExportSymbolResolution> {
+    let res = this.#graph.getExportedSymbols(
+      assetToAssetValue(asset),
+      boundary ? bundleToInternalBundle(boundary) : null,
+    );
+    return (
+      res &&
+      res.map(e => ({
+        asset: assetFromValue(e.asset, this.#options),
+        exportSymbol: e.exportSymbol,
+        symbol: e.symbol,
+        loc: e.loc,
+        exportAs: e.exportAs,
+      }))
+    );
   }
 
   traverseBundles<TContext>(
@@ -281,5 +289,16 @@ export default class BundleGraph<TBundle: IBundle>
       .map(bundle =>
         this.#createBundle.call(null, bundle, this.#graph, this.#options),
       );
+  }
+
+  getUsedSymbols(v: IAsset | IDependency): $ReadOnlySet<Symbol> {
+    if (v instanceof Asset) {
+      return this.#graph.getUsedSymbolsAsset(assetToAssetValue(v));
+    } else {
+      invariant(v instanceof Dependency);
+      return this.#graph.getUsedSymbolsDependency(
+        dependencyToInternalDependency(v),
+      );
+    }
   }
 }
