@@ -9,7 +9,9 @@ import {
   overlayFS,
   inputFS,
   ncp,
+  workerFarm,
 } from '@parcel/test-utils';
+import fs from 'fs';
 
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
@@ -17,9 +19,9 @@ function runBundle(entries = 'src/index.js', opts) {
   );
 
   return bundler(entries, {
-    ...opts,
     inputFS: overlayFS,
     disableCache: false,
+    ...opts,
   }).run();
 }
 
@@ -130,19 +132,813 @@ describe('cache', function() {
   });
 
   describe('babel', function() {
-    it('should support adding a .babelrc', function() {});
+    let json = config => JSON.stringify(config);
+    let cjs = config => `module.exports = ${JSON.stringify(config)}`;
+    // TODO: not sure how to invalidate the ESM cache in node...
+    // let mjs = (config) => `export default ${JSON.stringify(config)}`;
+    let configs = [
+      {name: '.babelrc', formatter: json, nesting: true},
+      {name: '.babelrc.json', formatter: json, nesting: true},
+      {name: '.babelrc.js', formatter: cjs, nesting: true},
+      {name: '.babelrc.cjs', formatter: cjs, nesting: true},
+      // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
+      {name: 'babel.config.json', formatter: json, nesting: false},
+      {name: 'babel.config.js', formatter: cjs, nesting: false},
+      {name: 'babel.config.cjs', formatter: cjs, nesting: false},
+      // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
+    ];
 
-    it('should support updating a .babelrc', function() {});
+    let testBabelCache = async (opts: TestConfig) => {
+      await workerFarm.callAllWorkers('invalidateRequireCache', [
+        require.resolve('@babel/core'),
+      ]);
 
-    it('should support updating an extended .babelrc', function() {});
+      return testCache({
+        ...opts,
+        async update(...args) {
+          await opts.update(...args);
 
-    it('should support adding a nested .babelrc', function() {});
+          // invalidate babel's caches since we're simulating a process restart
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            require.resolve('@babel/core'),
+          ]);
+        },
+      });
+    };
 
-    it('should support updating a nested .babelrc', function() {});
+    for (let {name, formatter, nesting} of configs) {
+      describe(name, function() {
+        beforeEach(async () => {
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            path.join(__dirname, `/input/${name}`),
+          ]);
+        });
 
-    it('should support deleting a nested .babelrc', function() {});
+        it(`should support adding a ${name}`, async function() {
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                path.join(__dirname, '/input'),
+              );
+            },
+            async update(b) {
+              assert.equal(await run(b.bundleGraph), 4);
 
-    it('should support deleting a custom .babelrc', function() {});
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                contents.includes('class Test'),
+                'class should not be transpiled',
+              );
+
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${name}`),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+            },
+          });
+
+          assert.equal(await run(b.bundleGraph), 4);
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('class Test'),
+            'class should be transpiled',
+          );
+        });
+
+        it(`should support updating a ${name}`, async function() {
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                path.join(__dirname, '/input'),
+              );
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${name}`),
+                formatter({
+                  presets: [
+                    ['@babel/preset-env', {targets: {esmodules: true}}],
+                  ],
+                }),
+              );
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                contents.includes('class Test'),
+                'class should not be transpiled',
+              );
+
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${name}`),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                path.join(__dirname, `/input/${name}`),
+              ]);
+            },
+          });
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('class Test'),
+            'class should be transpiled',
+          );
+        });
+
+        it(`should support deleting a ${name}`, async function() {
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                path.join(__dirname, '/input'),
+              );
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${name}`),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                !contents.includes('class Test'),
+                'class should be transpiled',
+              );
+
+              await inputFS.unlink(path.join(__dirname, `/input/${name}`));
+            },
+          });
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            contents.includes('class Test'),
+            'class should not be transpiled',
+          );
+        });
+
+        it(`should support updating an extended ${name}`, async function() {
+          let extendedName = '.babelrc-extended' + path.extname(name);
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                path.join(__dirname, '/input'),
+              );
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${extendedName}`),
+                formatter({
+                  presets: [
+                    ['@babel/preset-env', {targets: {esmodules: true}}],
+                  ],
+                }),
+              );
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${name}`),
+                formatter({
+                  extends: `./${extendedName}`,
+                }),
+              );
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                path.join(__dirname, `/input/${extendedName}`),
+              ]);
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                contents.includes('class Test'),
+                'class should not be transpiled',
+              );
+
+              await inputFS.writeFile(
+                path.join(__dirname, `/input/${extendedName}`),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                path.join(__dirname, `/input/${extendedName}`),
+              ]);
+            },
+          });
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('class Test'),
+            'class should be transpiled',
+          );
+        });
+
+        if (nesting) {
+          it(`should support adding a nested ${name}`, async function() {
+            let b = await testBabelCache({
+              // Babel's config loader only works with the node filesystem
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/cache'),
+                  path.join(__dirname, '/input'),
+                );
+              },
+              async update(b) {
+                assert.equal(await run(b.bundleGraph), 4);
+
+                let contents = await overlayFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(
+                  contents.includes('class Test'),
+                  'class should not be transpiled',
+                );
+                assert(
+                  contents.includes('class Result'),
+                  'class should not be transpiled',
+                );
+
+                await inputFS.writeFile(
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                  formatter({
+                    presets: ['@babel/preset-env'],
+                  }),
+                );
+              },
+            });
+
+            assert.equal(await run(b.bundleGraph), 4);
+
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              !contents.includes('class Test'),
+              'class should be transpiled',
+            );
+            assert(
+              contents.includes('class Result'),
+              'class should not be transpiled',
+            );
+          });
+
+          it(`should support updating a nested ${name}`, async function() {
+            let b = await testBabelCache({
+              // Babel's config loader only works with the node filesystem
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/cache'),
+                  path.join(__dirname, '/input'),
+                );
+                await inputFS.writeFile(
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                  formatter({
+                    presets: [
+                      ['@babel/preset-env', {targets: {esmodules: true}}],
+                    ],
+                  }),
+                );
+                await workerFarm.callAllWorkers('invalidateRequireCache', [
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                ]);
+              },
+              async update(b) {
+                let contents = await overlayFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(
+                  contents.includes('class Test'),
+                  'class should not be transpiled',
+                );
+                assert(
+                  contents.includes('class Result'),
+                  'class should not be transpiled',
+                );
+
+                await inputFS.writeFile(
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                  formatter({
+                    presets: ['@babel/preset-env'],
+                  }),
+                );
+
+                await workerFarm.callAllWorkers('invalidateRequireCache', [
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                ]);
+              },
+            });
+
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              !contents.includes('class Test'),
+              'class should be transpiled',
+            );
+            assert(
+              contents.includes('class Result'),
+              'class should not be transpiled',
+            );
+          });
+
+          it(`should support deleting a nested ${name}`, async function() {
+            let b = await testBabelCache({
+              // Babel's config loader only works with the node filesystem
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/cache'),
+                  path.join(__dirname, '/input'),
+                );
+                await inputFS.writeFile(
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                  formatter({
+                    presets: ['@babel/preset-env'],
+                  }),
+                );
+              },
+              async update(b) {
+                let contents = await overlayFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(
+                  !contents.includes('class Test'),
+                  'class should be transpiled',
+                );
+                assert(
+                  contents.includes('class Result'),
+                  'class should not be transpiled',
+                );
+
+                await inputFS.unlink(
+                  path.join(__dirname, `/input/src/nested/${name}`),
+                );
+              },
+            });
+
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('class Test'),
+              'class should not be transpiled',
+            );
+            assert(
+              contents.includes('class Result'),
+              'class should not be transpiled',
+            );
+          });
+        }
+      });
+    }
+
+    describe('.babelignore', function() {
+      it('should support adding a .babelignore', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              path.join(__dirname, '/input'),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelrc'),
+              JSON.stringify({
+                presets: ['@babel/preset-env'],
+              }),
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              !contents.includes('class Test'),
+              'class should be transpiled',
+            );
+            assert(
+              !contents.includes('class Result'),
+              'class should be transpiled',
+            );
+
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelignore'),
+              'src/nested',
+            );
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(
+          contents.includes('class Test'),
+          'class should not be transpiled',
+        );
+        assert(
+          !contents.includes('class Result'),
+          'class should be transpiled',
+        );
+      });
+
+      it('should support updating a .babelignore', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              path.join(__dirname, '/input'),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelrc'),
+              JSON.stringify({
+                presets: ['@babel/preset-env'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelignore'),
+              'src/nested',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('class Test'),
+              'class should not be transpiled',
+            );
+            assert(
+              !contents.includes('class Result'),
+              'class should be transpiled',
+            );
+
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelignore'),
+              'src',
+            );
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(
+          contents.includes('class Test'),
+          'class should not be transpiled',
+        );
+        assert(
+          contents.includes('class Result'),
+          'class should not be transpiled',
+        );
+      });
+
+      it('should support deleting a .babelignore', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              path.join(__dirname, '/input'),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelrc'),
+              JSON.stringify({
+                presets: ['@babel/preset-env'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelignore'),
+              'src/nested',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('class Test'),
+              'class should not be transpiled',
+            );
+            assert(
+              !contents.includes('class Result'),
+              'class should be transpiled',
+            );
+
+            await inputFS.unlink(path.join(__dirname, '/input/.babelignore'));
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(!contents.includes('class Test'), 'class should be transpiled');
+        assert(
+          !contents.includes('class Result'),
+          'class should be transpiled',
+        );
+      });
+    });
+
+    describe('plugins', function() {
+      it('should invalidate when plugins change versions', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              path.join(__dirname, '/input'),
+            );
+            await inputFS.mkdirp(
+              path.join(__dirname, '/input/node_modules/babel-plugin-dummy'),
+            );
+            await inputFS.writeFile(
+              path.join(
+                __dirname,
+                '/input/node_modules/babel-plugin-dummy/package.json',
+              ),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '1.0.0',
+              }),
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(
+                __dirname,
+                '/input/node_modules/babel-plugin-dummy/index.js',
+              ),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelrc'),
+              JSON.stringify({
+                plugins: ['babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(
+              __dirname,
+              '/input/node_modules/babel-plugin-dummy/index.js',
+            );
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await inputFS.writeFile(
+              path.join(
+                __dirname,
+                '/input/node_modules/babel-plugin-dummy/package.json',
+              ),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '2.0.0',
+              }),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(
+                __dirname,
+                '/input/node_modules/babel-plugin-dummy/index.js',
+              ),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
+      });
+
+      it('should invalidate on startup when there are relative plugins', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          // cleanWorkerFarm: true,
+          async setup() {
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              path.join(__dirname, '/input'),
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(__dirname, '/input/babel-plugin-dummy.js'),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelrc'),
+              JSON.stringify({
+                plugins: ['./babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(__dirname, '/input/babel-plugin-dummy.js');
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(__dirname, '/input/babel-plugin-dummy.js'),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
+      });
+
+      it('should invalidate on startup when there are symlinked plugins', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              path.join(__dirname, '/input'),
+            );
+            await inputFS.mkdirp(
+              path.join(__dirname, '/input/packages/babel-plugin-dummy'),
+            );
+            await inputFS.mkdirp(path.join(__dirname, '/input/node_modules'));
+            fs.symlinkSync(
+              path.join(__dirname, '/input/packages/babel-plugin-dummy'),
+              path.join(__dirname, '/input/node_modules/babel-plugin-dummy'),
+            );
+            await inputFS.writeFile(
+              path.join(
+                __dirname,
+                '/input/packages/babel-plugin-dummy/package.json',
+              ),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '1.0.0',
+              }),
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(
+                __dirname,
+                '/input/packages/babel-plugin-dummy/index.js',
+              ),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/.babelrc'),
+              JSON.stringify({
+                plugins: ['babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(__dirname, '/input/src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(
+              __dirname,
+              '/input/packages/babel-plugin-dummy/index.js',
+            );
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(
+                __dirname,
+                '/input/packages/babel-plugin-dummy/index.js',
+              ),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
+      });
+    });
   });
 
   describe('parcel config', function() {
