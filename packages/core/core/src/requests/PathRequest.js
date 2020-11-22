@@ -159,7 +159,7 @@ export class ResolverRunner {
       }
       filePath = decodeURIComponent(parsed.pathname);
       if (parsed.query != null) {
-        queryPart = decodeURIComponent(parsed.query);
+        queryPart = parsed.query;
       }
     } else {
       let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
