@@ -170,6 +170,8 @@ export default class BundlerRunner {
       version,
       hash: assetGraph.getHash(),
       config: configResult?.config,
+      // TODO: remove once bundling is a request and we track options as invalidations.
+      hot: this.options.hot,
     });
   }
 

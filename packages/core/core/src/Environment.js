@@ -16,6 +16,7 @@ export function createEnvironment({
   minify = false,
   isLibrary = false,
   scopeHoist = false,
+  sourceMap,
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -85,6 +86,7 @@ export function createEnvironment({
     isLibrary,
     minify,
     scopeHoist,
+    sourceMap,
   };
 }
 
@@ -112,5 +114,6 @@ export function getEnvironmentHash(env: Environment): string {
     outputFormat: env.outputFormat,
     isLibrary: env.isLibrary,
     scopeHoist: env.scopeHoist,
+    sourceMap: env.sourceMap,
   });
 }

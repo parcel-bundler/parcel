@@ -32,6 +32,7 @@ import path from 'path';
 import assert from 'assert';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
+import {optionsProxy} from '../utils';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -65,7 +66,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     type,
     async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
       let {config, extendedFiles, usedDefault} = await loadParcelConfig(
-        options,
+        optionsProxy(options, api.invalidateOnOptionChange),
       );
 
       api.invalidateOnFileUpdate(config.filePath);

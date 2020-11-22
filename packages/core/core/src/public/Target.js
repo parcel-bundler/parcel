@@ -2,7 +2,6 @@
 import type {
   FilePath,
   Target as ITarget,
-  TargetSourceMapOptions,
   Environment as IEnvironment,
   SourceLocation,
 } from '@parcel/types';
@@ -41,10 +40,6 @@ export default class Target implements ITarget {
 
   get env(): IEnvironment {
     return new Environment(this.#target.env);
-  }
-
-  get sourceMap(): ?TargetSourceMapOptions {
-    return this.#target.sourceMap;
   }
 
   get name(): string {

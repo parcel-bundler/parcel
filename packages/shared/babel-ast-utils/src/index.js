@@ -56,7 +56,7 @@ export async function generate({
   let generated;
   try {
     generated = babelGenerate(ast.program, {
-      sourceMaps: options.sourceMaps,
+      sourceMaps: !!asset.env.sourceMap,
       sourceFileName: sourceFileName,
     });
   } catch (e) {
