@@ -9,17 +9,21 @@ import {
   overlayFS,
   inputFS,
   ncp,
+  workerFarm,
 } from '@parcel/test-utils';
+import fs from 'fs';
+
+let inputDir: string;
 
 function runBundle(entries = 'src/index.js', opts) {
   entries = (Array.isArray(entries) ? entries : [entries]).map(entry =>
-    path.join(__dirname, 'input', entry),
+    path.join(inputDir, entry),
   );
 
   return bundler(entries, {
-    ...opts,
     inputFS: overlayFS,
     disableCache: false,
+    ...opts,
   }).run();
 }
 
@@ -34,15 +38,11 @@ type TestConfig = {|
 |};
 
 async function testCache(update: UpdateFn | TestConfig, integration) {
-  // Delete cache from previous test and perform initial build
-  await inputFS.rimraf(path.join(__dirname, '/input'));
   await overlayFS.rimraf(path.join(__dirname, '/input'));
   await ncp(
     path.join(__dirname, '/integration', integration ?? 'cache'),
-    path.join(__dirname, '/input'),
+    path.join(inputDir),
   );
-  await overlayFS.rimraf(path.join(__dirname, '/input/.parcel-cache'));
-  await overlayFS.rimraf(path.join(__dirname, '/input/dist'));
 
   let entries;
   let options: ?InitialParcelOptions;
@@ -67,11 +67,25 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
 }
 
 describe('cache', function() {
+  before(async () => {
+    await inputFS.rimraf(path.join(__dirname, 'input'));
+  });
+
+  beforeEach(() => {
+    inputDir = path.join(
+      __dirname,
+      '/input',
+      Math.random()
+        .toString(36)
+        .slice(2),
+    );
+  });
+
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/test.js'),
+        path.join(inputDir, 'src/nested/test.js'),
         'export default 4',
       );
     });
@@ -83,11 +97,11 @@ describe('cache', function() {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/foo.js'),
+        path.join(inputDir, 'src/nested/foo.js'),
         'export default 6',
       );
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/nested/test.js'),
+        path.join(inputDir, 'src/nested/test.js'),
         'export {default} from "./foo";',
       );
     });
@@ -100,9 +114,7 @@ describe('cache', function() {
     await assert.rejects(
       async () => {
         await testCache(async () => {
-          await overlayFS.unlink(
-            path.join(__dirname, '/input/src/nested/test.js'),
-          );
+          await overlayFS.unlink(path.join(inputDir, 'src/nested/test.js'));
         });
       },
       {message: "Failed to resolve './nested/test' from './src/index.js'"},
@@ -113,9 +125,7 @@ describe('cache', function() {
     // $FlowFixMe
     await assert.rejects(async () => {
       await testCache(async () => {
-        await overlayFS.unlink(
-          path.join(__dirname, '/input/src/nested/test.js'),
-        );
+        await overlayFS.unlink(path.join(inputDir, 'src/nested/test.js'));
       });
     });
 
@@ -130,19 +140,811 @@ describe('cache', function() {
   });
 
   describe('babel', function() {
-    it('should support adding a .babelrc', function() {});
+    let json = config => JSON.stringify(config);
+    let cjs = config => `module.exports = ${JSON.stringify(config)}`;
+    // TODO: not sure how to invalidate the ESM cache in node...
+    // let mjs = (config) => `export default ${JSON.stringify(config)}`;
+    let configs = [
+      {name: '.babelrc', formatter: json, nesting: true},
+      {name: '.babelrc.json', formatter: json, nesting: true},
+      {name: '.babelrc.js', formatter: cjs, nesting: true},
+      {name: '.babelrc.cjs', formatter: cjs, nesting: true},
+      // {name: '.babelrc.mjs', formatter: mjs, nesting: true},
+      {name: 'babel.config.json', formatter: json, nesting: false},
+      {name: 'babel.config.js', formatter: cjs, nesting: false},
+      {name: 'babel.config.cjs', formatter: cjs, nesting: false},
+      // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
+    ];
 
-    it('should support updating a .babelrc', function() {});
+    let testBabelCache = async (opts: TestConfig) => {
+      await workerFarm.callAllWorkers('invalidateRequireCache', [
+        require.resolve('@babel/core'),
+      ]);
 
-    it('should support updating an extended .babelrc', function() {});
+      return testCache({
+        ...opts,
+        async update(...args) {
+          await opts.update(...args);
 
-    it('should support adding a nested .babelrc', function() {});
+          // invalidate babel's caches since we're simulating a process restart
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            require.resolve('@babel/core'),
+          ]);
+        },
+      });
+    };
 
-    it('should support updating a nested .babelrc', function() {});
+    for (let {name, formatter, nesting} of configs) {
+      describe(name, function() {
+        beforeEach(async () => {
+          await workerFarm.callAllWorkers('invalidateRequireCache', [
+            path.join(inputDir, name),
+          ]);
+        });
 
-    it('should support deleting a nested .babelrc', function() {});
+        it(`should support adding a ${name}`, async function() {
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(inputDir);
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                inputDir,
+              );
+            },
+            async update(b) {
+              assert.equal(await run(b.bundleGraph), 4);
 
-    it('should support deleting a custom .babelrc', function() {});
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                contents.includes('class Test'),
+                'class should not be transpiled',
+              );
+
+              await inputFS.writeFile(
+                path.join(inputDir, name),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+            },
+          });
+
+          assert.equal(await run(b.bundleGraph), 4);
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('class Test'),
+            'class should be transpiled',
+          );
+        });
+
+        it(`should support updating a ${name}`, async function() {
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(inputDir);
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                inputDir,
+              );
+              await inputFS.writeFile(
+                path.join(inputDir, name),
+                formatter({
+                  presets: [
+                    ['@babel/preset-env', {targets: {esmodules: true}}],
+                  ],
+                }),
+              );
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                contents.includes('class Test'),
+                'class should not be transpiled',
+              );
+
+              await inputFS.writeFile(
+                path.join(inputDir, name),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                path.join(inputDir, name),
+              ]);
+            },
+          });
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('class Test'),
+            'class should be transpiled',
+          );
+        });
+
+        it(`should support deleting a ${name}`, async function() {
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(inputDir);
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                inputDir,
+              );
+              await inputFS.writeFile(
+                path.join(inputDir, name),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                !contents.includes('class Test'),
+                'class should be transpiled',
+              );
+
+              await inputFS.unlink(path.join(inputDir, name));
+            },
+          });
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            contents.includes('class Test'),
+            'class should not be transpiled',
+          );
+        });
+
+        it(`should support updating an extended ${name}`, async function() {
+          let extendedName = '.babelrc-extended' + path.extname(name);
+          let b = await testBabelCache({
+            // Babel's config loader only works with the node filesystem
+            inputFS,
+            outputFS: inputFS,
+            async setup() {
+              await inputFS.mkdirp(inputDir);
+              await inputFS.ncp(
+                path.join(__dirname, '/integration/cache'),
+                inputDir,
+              );
+              await inputFS.writeFile(
+                path.join(inputDir, extendedName),
+                formatter({
+                  presets: [
+                    ['@babel/preset-env', {targets: {esmodules: true}}],
+                  ],
+                }),
+              );
+              await inputFS.writeFile(
+                path.join(inputDir, name),
+                formatter({
+                  extends: `./${extendedName}`,
+                }),
+              );
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                path.join(inputDir, extendedName),
+              ]);
+            },
+            async update(b) {
+              let contents = await overlayFS.readFile(
+                b.bundleGraph.getBundles()[0].filePath,
+                'utf8',
+              );
+              assert(
+                contents.includes('class Test'),
+                'class should not be transpiled',
+              );
+
+              await inputFS.writeFile(
+                path.join(inputDir, extendedName),
+                formatter({
+                  presets: ['@babel/preset-env'],
+                }),
+              );
+
+              await workerFarm.callAllWorkers('invalidateRequireCache', [
+                path.join(inputDir, extendedName),
+              ]);
+            },
+          });
+
+          let contents = await overlayFS.readFile(
+            b.bundleGraph.getBundles()[0].filePath,
+            'utf8',
+          );
+          assert(
+            !contents.includes('class Test'),
+            'class should be transpiled',
+          );
+        });
+
+        if (nesting) {
+          it(`should support adding a nested ${name}`, async function() {
+            let b = await testBabelCache({
+              // Babel's config loader only works with the node filesystem
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.mkdirp(inputDir);
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/cache'),
+                  inputDir,
+                );
+              },
+              async update(b) {
+                assert.equal(await run(b.bundleGraph), 4);
+
+                let contents = await overlayFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(
+                  contents.includes('class Test'),
+                  'class should not be transpiled',
+                );
+                assert(
+                  contents.includes('class Result'),
+                  'class should not be transpiled',
+                );
+
+                await inputFS.writeFile(
+                  path.join(inputDir, `src/nested/${name}`),
+                  formatter({
+                    presets: ['@babel/preset-env'],
+                  }),
+                );
+              },
+            });
+
+            assert.equal(await run(b.bundleGraph), 4);
+
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              !contents.includes('class Test'),
+              'class should be transpiled',
+            );
+            assert(
+              contents.includes('class Result'),
+              'class should not be transpiled',
+            );
+          });
+
+          it(`should support updating a nested ${name}`, async function() {
+            let b = await testBabelCache({
+              // Babel's config loader only works with the node filesystem
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.mkdirp(inputDir);
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/cache'),
+                  inputDir,
+                );
+                await inputFS.writeFile(
+                  path.join(inputDir, `src/nested/${name}`),
+                  formatter({
+                    presets: [
+                      ['@babel/preset-env', {targets: {esmodules: true}}],
+                    ],
+                  }),
+                );
+                await workerFarm.callAllWorkers('invalidateRequireCache', [
+                  path.join(inputDir, `src/nested/${name}`),
+                ]);
+              },
+              async update(b) {
+                let contents = await overlayFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(
+                  contents.includes('class Test'),
+                  'class should not be transpiled',
+                );
+                assert(
+                  contents.includes('class Result'),
+                  'class should not be transpiled',
+                );
+
+                await inputFS.writeFile(
+                  path.join(inputDir, `src/nested/${name}`),
+                  formatter({
+                    presets: ['@babel/preset-env'],
+                  }),
+                );
+
+                await workerFarm.callAllWorkers('invalidateRequireCache', [
+                  path.join(inputDir, `src/nested/${name}`),
+                ]);
+              },
+            });
+
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              !contents.includes('class Test'),
+              'class should be transpiled',
+            );
+            assert(
+              contents.includes('class Result'),
+              'class should not be transpiled',
+            );
+          });
+
+          it(`should support deleting a nested ${name}`, async function() {
+            let b = await testBabelCache({
+              // Babel's config loader only works with the node filesystem
+              inputFS,
+              outputFS: inputFS,
+              async setup() {
+                await inputFS.mkdirp(inputDir);
+                await inputFS.ncp(
+                  path.join(__dirname, '/integration/cache'),
+                  inputDir,
+                );
+                await inputFS.writeFile(
+                  path.join(inputDir, `src/nested/${name}`),
+                  formatter({
+                    presets: ['@babel/preset-env'],
+                  }),
+                );
+              },
+              async update(b) {
+                let contents = await overlayFS.readFile(
+                  b.bundleGraph.getBundles()[0].filePath,
+                  'utf8',
+                );
+                assert(
+                  !contents.includes('class Test'),
+                  'class should be transpiled',
+                );
+                assert(
+                  contents.includes('class Result'),
+                  'class should not be transpiled',
+                );
+
+                await inputFS.unlink(path.join(inputDir, `src/nested/${name}`));
+              },
+            });
+
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('class Test'),
+              'class should not be transpiled',
+            );
+            assert(
+              contents.includes('class Result'),
+              'class should not be transpiled',
+            );
+          });
+        }
+      });
+    }
+
+    describe('.babelignore', function() {
+      it('should support adding a .babelignore', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                presets: ['@babel/preset-env'],
+              }),
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              !contents.includes('class Test'),
+              'class should be transpiled',
+            );
+            assert(
+              !contents.includes('class Result'),
+              'class should be transpiled',
+            );
+
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelignore'),
+              'src/nested',
+            );
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(
+          contents.includes('class Test'),
+          'class should not be transpiled',
+        );
+        assert(
+          !contents.includes('class Result'),
+          'class should be transpiled',
+        );
+      });
+
+      it('should support updating a .babelignore', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                presets: ['@babel/preset-env'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelignore'),
+              'src/nested',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('class Test'),
+              'class should not be transpiled',
+            );
+            assert(
+              !contents.includes('class Result'),
+              'class should be transpiled',
+            );
+
+            await inputFS.writeFile(path.join(inputDir, '.babelignore'), 'src');
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(
+          contents.includes('class Test'),
+          'class should not be transpiled',
+        );
+        assert(
+          contents.includes('class Result'),
+          'class should not be transpiled',
+        );
+      });
+
+      it('should support deleting a .babelignore', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                presets: ['@babel/preset-env'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelignore'),
+              'src/nested',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('class Test'),
+              'class should not be transpiled',
+            );
+            assert(
+              !contents.includes('class Result'),
+              'class should be transpiled',
+            );
+
+            await inputFS.unlink(path.join(inputDir, '.babelignore'));
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(!contents.includes('class Test'), 'class should be transpiled');
+        assert(
+          !contents.includes('class Result'),
+          'class should be transpiled',
+        );
+      });
+    });
+
+    describe('plugins', function() {
+      it('should invalidate when plugins change versions', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.mkdirp(
+              path.join(inputDir, 'node_modules/babel-plugin-dummy'),
+            );
+            await inputFS.writeFile(
+              path.join(
+                inputDir,
+                '/node_modules/babel-plugin-dummy/package.json',
+              ),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '1.0.0',
+              }),
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(inputDir, '/node_modules/babel-plugin-dummy/index.js'),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                plugins: ['babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(
+              inputDir,
+              'node_modules/babel-plugin-dummy/index.js',
+            );
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await inputFS.writeFile(
+              path.join(
+                inputDir,
+                'node_modules/babel-plugin-dummy/package.json',
+              ),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '2.0.0',
+              }),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(inputDir, 'node_modules/babel-plugin-dummy/index.js'),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
+      });
+
+      it('should invalidate on startup when there are relative plugins', async function() {
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(inputDir, 'babel-plugin-dummy.js'),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                plugins: ['./babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(inputDir, 'babel-plugin-dummy.js');
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(inputDir, 'babel-plugin-dummy.js'),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
+      });
+
+      it('should invalidate on startup when there are symlinked plugins', async function() {
+        // Symlinks don't work consistently on windows. Skip this test.
+        if (process.platform === 'win32') {
+          this.skip();
+          return;
+        }
+
+        let b = await testBabelCache({
+          // Babel's config loader only works with the node filesystem
+          inputFS,
+          outputFS: inputFS,
+          async setup() {
+            await inputFS.mkdirp(inputDir);
+            await inputFS.ncp(
+              path.join(__dirname, '/integration/cache'),
+              inputDir,
+            );
+            await inputFS.mkdirp(
+              path.join(inputDir, 'packages/babel-plugin-dummy'),
+            );
+            await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+            fs.symlinkSync(
+              path.join(inputDir, 'packages/babel-plugin-dummy'),
+              path.join(inputDir, 'node_modules/babel-plugin-dummy'),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, 'packages/babel-plugin-dummy/package.json'),
+              JSON.stringify({
+                name: 'babel-plugin-dummy',
+                version: '1.0.0',
+              }),
+            );
+            await inputFS.copyFile(
+              path.join(
+                __dirname,
+                '/integration/babelrc-custom/babel-plugin-dummy.js',
+              ),
+              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, '.babelrc'),
+              JSON.stringify({
+                plugins: ['babel-plugin-dummy'],
+              }),
+            );
+            await inputFS.writeFile(
+              path.join(inputDir, 'src/index.js'),
+              'console.log("REPLACE_ME")',
+            );
+          },
+          async update(b) {
+            let contents = await overlayFS.readFile(
+              b.bundleGraph.getBundles()[0].filePath,
+              'utf8',
+            );
+            assert(
+              contents.includes('hello there'),
+              'string should be replaced',
+            );
+
+            let plugin = path.join(
+              inputDir,
+              'packages/babel-plugin-dummy/index.js',
+            );
+            let source = await inputFS.readFile(plugin, 'utf8');
+            await inputFS.writeFile(
+              plugin,
+              source.replace('hello there', 'replaced'),
+            );
+
+            await workerFarm.callAllWorkers('invalidateRequireCache', [
+              path.join(inputDir, 'packages/babel-plugin-dummy/index.js'),
+            ]);
+          },
+        });
+
+        let contents = await overlayFS.readFile(
+          b.bundleGraph.getBundles()[0].filePath,
+          'utf8',
+        );
+        assert(contents.includes('replaced'), 'string should be replaced');
+      });
+    });
   });
 
   describe('parcel config', function() {
@@ -157,7 +959,7 @@ describe('cache', function() {
         assert(!contents.includes('TRANSFORMED CODE'));
 
         await overlayFS.writeFile(
-          path.join(__dirname, '/input/.parcelrc'),
+          path.join(inputDir, '.parcelrc'),
           JSON.stringify({
             extends: '@parcel/config-default',
             transformers: {
@@ -178,7 +980,7 @@ describe('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -195,7 +997,7 @@ describe('cache', function() {
           assert(contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
             }),
@@ -216,7 +1018,7 @@ describe('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc-extended'),
+            path.join(inputDir, '.parcelrc-extended'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -226,7 +1028,7 @@ describe('cache', function() {
           );
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: './.parcelrc-extended',
             }),
@@ -240,7 +1042,7 @@ describe('cache', function() {
           assert(contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc-extended'),
+            path.join(inputDir, '.parcelrc-extended'),
             JSON.stringify({
               extends: '@parcel/config-default',
             }),
@@ -264,7 +1066,7 @@ describe('cache', function() {
           await testCache({
             async setup() {
               await overlayFS.writeFile(
-                path.join(__dirname, '/input/.parcelrc-extended'),
+                path.join(inputDir, '.parcelrc-extended'),
                 JSON.stringify({
                   extends: '@parcel/config-default',
                   transformers: {
@@ -274,7 +1076,7 @@ describe('cache', function() {
               );
 
               await overlayFS.writeFile(
-                path.join(__dirname, '/input/.parcelrc'),
+                path.join(inputDir, '.parcelrc'),
                 JSON.stringify({
                   extends: './.parcelrc-extended',
                 }),
@@ -287,9 +1089,7 @@ describe('cache', function() {
               );
               assert(contents.includes('TRANSFORMED CODE'));
 
-              await overlayFS.unlink(
-                path.join(__dirname, '/input/.parcelrc-extended'),
-              );
+              await overlayFS.unlink(path.join(inputDir, '.parcelrc-extended'));
             },
           });
         },
@@ -301,7 +1101,7 @@ describe('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.parcelrc'),
+            path.join(inputDir, '.parcelrc'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -317,7 +1117,7 @@ describe('cache', function() {
           );
           assert(contents.includes('TRANSFORMED CODE'));
 
-          await overlayFS.unlink(path.join(__dirname, '/input/.parcelrc'));
+          await overlayFS.unlink(path.join(inputDir, '.parcelrc'));
         },
       });
 
@@ -335,13 +1135,10 @@ describe('cache', function() {
     it('should invalidate when included files changes', async function() {
       let b = await testCache({
         async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/test.txt'),
-            'hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, 'src/test.txt'), 'hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = require("fs").readFileSync(__dirname + "/test.txt", "utf8")',
           );
         },
@@ -349,7 +1146,7 @@ describe('cache', function() {
           assert.equal(await run(b.bundleGraph), 'hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/test.txt'),
+            path.join(inputDir, 'src/test.txt'),
             'updated',
           );
         },
@@ -361,23 +1158,17 @@ describe('cache', function() {
     it('should not invalidate when a set environment variable does not change', async () => {
       let b = await testCache({
         async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
-            'TEST=hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = process.env.TEST',
           );
         },
         async update(b) {
           assert.equal(await run(b.bundleGraph), 'hi');
 
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
-            'TEST=hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
         },
       });
 
@@ -389,7 +1180,7 @@ describe('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = process.env.TEST',
           );
         },
@@ -406,16 +1197,13 @@ describe('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = process.env.TEST',
           );
         },
         async update(b) {
           assert.equal(await run(b.bundleGraph), undefined);
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
-            'TEST=hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
         },
       });
 
@@ -426,17 +1214,14 @@ describe('cache', function() {
       let b = await testCache({
         async setup() {
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = process.env.TEST',
           );
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
-            'TEST=hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
         },
         async update(b) {
           assert.equal(await run(b.bundleGraph), 'hi');
-          await overlayFS.writeFile(path.join(__dirname, '/input/.env'), '');
+          await overlayFS.writeFile(path.join(inputDir, '.env'), '');
         },
       });
 
@@ -446,13 +1231,10 @@ describe('cache', function() {
     it('should invalidate when environment variables change', async function() {
       let b = await testCache({
         async setup() {
-          await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
-            'TEST=hi',
-          );
+          await overlayFS.writeFile(path.join(inputDir, '.env'), 'TEST=hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             'module.exports = process.env.TEST',
           );
         },
@@ -460,7 +1242,7 @@ describe('cache', function() {
           assert.equal(await run(b.bundleGraph), 'hi');
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/.env'),
+            path.join(inputDir, '.env'),
             'TEST=updated',
           );
         },
@@ -487,7 +1269,7 @@ describe('cache', function() {
           ]);
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/entries/c.js'),
+            path.join(inputDir, 'src/entries/c.js'),
             'export let c = "c";',
           );
         },
@@ -524,9 +1306,7 @@ describe('cache', function() {
             },
           ]);
 
-          await overlayFS.unlink(
-            path.join(__dirname, '/input/src/entries/b.js'),
-          );
+          await overlayFS.unlink(path.join(inputDir, 'src/entries/b.js'));
         },
       });
 
@@ -543,13 +1323,13 @@ describe('cache', function() {
       await assert.rejects(
         async () => {
           await testCache(async () => {
-            await overlayFS.unlink(path.join(__dirname, '/input/src/index.js'));
+            await overlayFS.unlink(path.join(inputDir, 'src/index.js'));
           });
         },
         {
           message: `Entry ${path.join(
-            __dirname,
-            'input/src/index.js',
+            inputDir,
+            'src/index.js',
           )} does not exist`,
         },
       );
@@ -560,19 +1340,19 @@ describe('cache', function() {
       await assert.rejects(
         async () => {
           await testCache(async () => {
-            await overlayFS.unlink(path.join(__dirname, '/input/src/index.js'));
+            await overlayFS.unlink(path.join(inputDir, 'src/index.js'));
           });
         },
         {
           message: `Entry ${path.join(
-            __dirname,
-            'input/src/index.js',
+            inputDir,
+            'src/index.js',
           )} does not exist`,
         },
       );
 
       await overlayFS.writeFile(
-        path.join(__dirname, '/input/src/index.js'),
+        path.join(inputDir, 'src/index.js'),
         'module.exports = "hi"',
       );
 
@@ -595,7 +1375,7 @@ describe('cache', function() {
             'should not include export default',
           );
 
-          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
             pkgFile,
@@ -622,7 +1402,7 @@ describe('cache', function() {
     });
 
     it('should support adding a second target', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -684,7 +1464,7 @@ describe('cache', function() {
     });
 
     it('should support changing target output location', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       await testCache({
         scopeHoist: true,
         async setup() {
@@ -712,14 +1492,10 @@ describe('cache', function() {
         },
         async update() {
           assert(
-            await overlayFS.exists(
-              path.join(__dirname, '/input/modern/index.js'),
-            ),
+            await overlayFS.exists(path.join(inputDir, 'modern/index.js')),
           );
           assert(
-            await overlayFS.exists(
-              path.join(__dirname, '/input/legacy/index.js'),
-            ),
+            await overlayFS.exists(path.join(inputDir, 'legacy/index.js')),
           );
 
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
@@ -747,19 +1523,15 @@ describe('cache', function() {
       });
 
       assert(
-        await overlayFS.exists(
-          path.join(__dirname, '/input/dist/modern/index.js'),
-        ),
+        await overlayFS.exists(path.join(inputDir, 'dist/modern/index.js')),
       );
       assert(
-        await overlayFS.exists(
-          path.join(__dirname, '/input/dist/legacy/index.js'),
-        ),
+        await overlayFS.exists(path.join(inputDir, 'dist/legacy/index.js')),
       );
     });
 
     it('should support updating target config options', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -812,7 +1584,7 @@ describe('cache', function() {
     });
 
     it('should support deleting a target', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -874,7 +1646,7 @@ describe('cache', function() {
     });
 
     it('should support deleting all targets', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -957,7 +1729,7 @@ describe('cache', function() {
     });
 
     it('should update when sourcemap options change', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1012,7 +1784,7 @@ describe('cache', function() {
     });
 
     it('should update when publicUrl changes', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         entries: ['src/index.html'],
         scopeHoist: true,
@@ -1066,7 +1838,7 @@ describe('cache', function() {
     });
 
     it('should update when a package.json is created', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let pkg;
       let b = await testCache({
         scopeHoist: true,
@@ -1109,7 +1881,7 @@ describe('cache', function() {
     });
 
     it('should update when a package.json is deleted', async function() {
-      let pkgFile = path.join(__dirname, '/input/package.json');
+      let pkgFile = path.join(inputDir, 'package.json');
       let b = await testCache({
         scopeHoist: true,
         async setup() {
@@ -1163,7 +1935,7 @@ describe('cache', function() {
               'should include class',
             );
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'IE >= 11',
             );
           },
@@ -1192,7 +1964,7 @@ describe('cache', function() {
               'should include class',
             );
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/.browserslistrc'),
+              path.join(inputDir, '.browserslistrc'),
               'IE >= 11',
             );
           },
@@ -1213,7 +1985,7 @@ describe('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'IE >= 11',
             );
           },
@@ -1227,7 +1999,7 @@ describe('cache', function() {
               'does not include class',
             );
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'last 1 Chrome version',
             );
           },
@@ -1248,7 +2020,7 @@ describe('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               'IE >= 11',
             );
           },
@@ -1261,7 +2033,7 @@ describe('cache', function() {
               !/class \$[a-f0-9]+\$var\$Test/.test(contents),
               'does not include class',
             );
-            await overlayFS.unlink(path.join(__dirname, '/input/browserslist'));
+            await overlayFS.unlink(path.join(inputDir, 'browserslist'));
           },
         });
 
@@ -1280,7 +2052,7 @@ describe('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               `
             [production]
             IE >= 11
@@ -1323,7 +2095,7 @@ describe('cache', function() {
           scopeHoist: true,
           async setup() {
             await overlayFS.writeFile(
-              path.join(__dirname, '/input/browserslist'),
+              path.join(inputDir, 'browserslist'),
               `
             [production]
             IE >= 11
@@ -1501,7 +2273,7 @@ describe('cache', function() {
         scopeHoist: true,
         targets: ['legacy'],
         async setup() {
-          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
             pkgFile,
@@ -1661,7 +2433,7 @@ describe('cache', function() {
     it('should invalidate react refresh hot options change', async function() {
       let b = await testCache({
         async setup() {
-          let pkgFile = path.join(__dirname, '/input/package.json');
+          let pkgFile = path.join(inputDir, 'package.json');
           let pkg = JSON.parse(await overlayFS.readFile(pkgFile));
           await overlayFS.writeFile(
             pkgFile,
@@ -1674,7 +2446,7 @@ describe('cache', function() {
           );
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/src/index.js'),
+            path.join(inputDir, 'src/index.js'),
             `import React from 'react';
             
             export function Component() {
@@ -1721,7 +2493,7 @@ describe('cache', function() {
           assert(!contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/some-config'),
+            path.join(inputDir, 'some-config'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -1731,7 +2503,7 @@ describe('cache', function() {
           );
 
           return {
-            config: path.join(__dirname, '/input/some-config'),
+            config: path.join(inputDir, 'some-config'),
           };
         },
       });
@@ -1753,7 +2525,7 @@ describe('cache', function() {
           assert(!contents.includes('TRANSFORMED CODE'));
 
           await overlayFS.writeFile(
-            path.join(__dirname, '/input/some-config'),
+            path.join(inputDir, 'some-config'),
             JSON.stringify({
               extends: '@parcel/config-default',
               transformers: {
@@ -1763,7 +2535,7 @@ describe('cache', function() {
           );
 
           return {
-            defaultConfig: path.join(__dirname, '/input/some-config'),
+            defaultConfig: path.join(inputDir, 'some-config'),
           };
         },
       });
@@ -1817,7 +2589,7 @@ describe('cache', function() {
         );
         assert(contents.includes('INITIAL CODE'));
         await overlayFS.writeFile(
-          path.join(__dirname, 'input/dynamic-runtime.js'),
+          path.join(inputDir, 'dynamic-runtime.js'),
           "module.exports = 'UPDATED CODE'",
         );
       }, 'runtime-update');
