@@ -10,6 +10,7 @@ import {
   inputFS,
   ncp,
   workerFarm,
+  sleep,
 } from '@parcel/test-utils';
 import fs from 'fs';
 
@@ -35,9 +36,20 @@ type TestConfig = {|
   update: UpdateFn,
 |};
 
+async function deleteInputDir() {
+  if (process.platform === 'win32') {
+    await sleep(100);
+  }
+
+  await inputFS.rimraf(path.join(__dirname, '/input'));
+
+  if (process.platform === 'win32') {
+    await sleep(100);
+  }
+}
+
 async function testCache(update: UpdateFn | TestConfig, integration) {
   // Delete cache from previous test and perform initial build
-  await inputFS.rimraf(path.join(__dirname, '/input'));
   await overlayFS.rimraf(path.join(__dirname, '/input'));
   await ncp(
     path.join(__dirname, '/integration', integration ?? 'cache'),
@@ -69,6 +81,8 @@ async function testCache(update: UpdateFn | TestConfig, integration) {
 }
 
 describe('cache', function() {
+  before(deleteInputDir);
+
   it('should support updating a JS file', async function() {
     let b = await testCache(async b => {
       assert.equal(await run(b.bundleGraph), 4);
@@ -147,6 +161,8 @@ describe('cache', function() {
       {name: 'babel.config.cjs', formatter: cjs, nesting: false},
       // {name: 'babel.config.mjs', formatter: mjs, nesting: false}
     ];
+
+    beforeEach(deleteInputDir);
 
     let testBabelCache = async (opts: TestConfig) => {
       await workerFarm.callAllWorkers('invalidateRequireCache', [
