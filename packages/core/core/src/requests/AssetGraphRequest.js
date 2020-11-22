@@ -9,10 +9,10 @@ import type {
   AssetRequestInput,
   Dependency,
   Entry,
+  Target,
 } from '../types';
 import type {StaticRunOpts, RunAPI} from '../RequestTracker';
 import type {EntryResult} from './EntryRequest';
-import type {TargetResolveResult} from './TargetRequest';
 import type {PathRequestInput} from './PathRequest';
 
 import {PromiseQueue, md5FromObject} from '@parcel/utils';
@@ -84,7 +84,7 @@ export class AssetGraphBuilder {
   assetRequests: Array<AssetGroup> = [];
   cacheKey: string;
 
-  constructor({input, prevResult, api, options}: RunInput) {
+  constructor({input, prevResult, api}: RunInput) {
     let {entries, assetGroups, optionsRef, name} = input;
     let assetGraph = prevResult?.assetGraph ?? new AssetGraph();
     assetGraph.setRootConnections({
@@ -96,11 +96,9 @@ export class AssetGraphBuilder {
     this.api = api;
     this.name = name;
 
-    let {hot, publicUrl, distDir, minify, scopeHoist} = options;
     this.cacheKey = md5FromObject({
       parcelVersion: PARCEL_VERSION,
       name,
-      options: {hot, publicUrl, distDir, minify, scopeHoist},
       entries,
     });
 
@@ -218,8 +216,8 @@ export class AssetGraphBuilder {
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let result = await this.api.runRequest<Entry, TargetResolveResult>(request);
-    this.assetGraph.resolveTargets(request.input, result.targets, request.id);
+    let targets = await this.api.runRequest<Entry, Array<Target>>(request);
+    this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
   async runPathRequest(input: Dependency) {

@@ -52,6 +52,13 @@ async function run({input, api, options}: RunOpts): Promise<EntryResult> {
     api.invalidateOnFileCreate(input);
   }
 
+  // Invalidate whenever an entry is deleted.
+  // If the entry was a glob, we'll re-evaluate it, and otherwise
+  // a proper entry error will be thrown.
+  for (let entry of result.entries) {
+    api.invalidateOnFileDelete(entry.filePath);
+  }
+
   return result;
 }
 
@@ -68,7 +75,9 @@ class EntryResolver {
         absolute: true,
         onlyFiles: false,
       });
-      let results = await Promise.all(files.map(f => this.resolveEntry(f)));
+      let results = await Promise.all(
+        files.map(f => this.resolveEntry(path.normalize(f))),
+      );
       return results.reduce(
         (p, res) => ({
           entries: p.entries.concat(res.entries),

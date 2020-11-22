@@ -23,6 +23,6 @@
     "@parcel/plugin": "2.0.0-beta.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.2.2"
+    "@babel/core": "^7.12.2"
   }
 }
