@@ -100,13 +100,13 @@ export function generate({
   );
 
   let {code, rawMappings} = babelGenerate(ast, {
-    sourceMaps: options.sourceMaps,
+    sourceMaps: !!bundle.env.sourceMap,
     minified: bundle.env.minify,
     comments: true, // retain /*@__PURE__*/ comments for terser
   });
 
   let map = null;
-  if (options.sourceMaps && rawMappings != null) {
+  if (bundle.env.sourceMap && rawMappings != null) {
     map = new SourceMap(options.projectRoot);
     map.addIndexedMappings(rawMappings);
   }

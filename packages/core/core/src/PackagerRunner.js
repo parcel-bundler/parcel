@@ -120,7 +120,12 @@ export default class PackagerRunner {
         let info = await this.processBundle(bundle, bundleGraph, ref);
         bundleInfoMap[bundle.id] = info;
         if (!info.hashReferences.length) {
-          hashRefToNameHash.set(bundle.hashReference, info.hash.slice(-8));
+          hashRefToNameHash.set(
+            bundle.hashReference,
+            this.options.contentHash
+              ? info.hash.slice(-8)
+              : bundle.id.slice(-8),
+          );
           writeEarlyPromises[bundle.id] = this.writeToDist({
             bundle,
             info,
@@ -130,7 +135,12 @@ export default class PackagerRunner {
         }
       }),
     );
-    assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap);
+    assignComplexNameHashes(
+      hashRefToNameHash,
+      bundles,
+      bundleInfoMap,
+      this.options,
+    );
     await Promise.all(
       bundles.map(
         bundle =>
@@ -263,8 +273,8 @@ export default class PackagerRunner {
   }
 
   getSourceMapReference(bundle: NamedBundle, map: ?SourceMap): Async<?string> {
-    if (map && this.options.sourceMaps && !bundle.isInline) {
-      if (bundle.target.sourceMap && bundle.target.sourceMap.inline) {
+    if (map && bundle.env.sourceMap && !bundle.isInline) {
+      if (bundle.env.sourceMap && bundle.env.sourceMap.inline) {
         return this.generateSourceMap(bundleToInternalBundle(bundle), map);
       } else {
         return path.basename(bundle.filePath) + '.map';
@@ -406,10 +416,10 @@ export default class PackagerRunner {
 
     if (bundle.target) {
       if (
-        bundle.target.sourceMap &&
-        bundle.target.sourceMap.sourceRoot !== undefined
+        bundle.env.sourceMap &&
+        bundle.env.sourceMap.sourceRoot !== undefined
       ) {
-        sourceRoot = bundle.target.sourceMap.sourceRoot;
+        sourceRoot = bundle.env.sourceMap.sourceRoot;
       } else if (
         this.options.serve &&
         bundle.target.env.context === 'browser'
@@ -418,10 +428,10 @@ export default class PackagerRunner {
       }
 
       if (
-        bundle.target.sourceMap &&
-        bundle.target.sourceMap.inlineSources !== undefined
+        bundle.env.sourceMap &&
+        bundle.env.sourceMap.inlineSources !== undefined
       ) {
-        inlineSources = bundle.target.sourceMap.inlineSources;
+        inlineSources = bundle.env.sourceMap.inlineSources;
       } else if (bundle.target.env.context !== 'node') {
         // inlining should only happen in production for browser targets by default
         inlineSources = this.options.mode === 'production';
@@ -429,7 +439,7 @@ export default class PackagerRunner {
     }
 
     let mapFilename = filePath + '.map';
-    let isInlineMap = bundle.target.sourceMap && bundle.target.sourceMap.inline;
+    let isInlineMap = bundle.env.sourceMap && bundle.env.sourceMap.inline;
 
     let stringified = await map.stringify({
       file: path.basename(mapFilename),
@@ -465,12 +475,12 @@ export default class PackagerRunner {
     }
 
     // TODO: add third party configs to the cache key
-    let {sourceMaps} = this.options;
+    let {publicUrl} = bundle.target;
     return md5FromObject({
       parcelVersion: PARCEL_VERSION,
       packager,
       optimizers,
-      opts: {sourceMaps},
+      target: {publicUrl},
       hash: bundleGraph.getHash(bundle),
       configResults,
     });
@@ -521,8 +531,7 @@ export default class PackagerRunner {
       bundle.type = info.type;
     }
 
-    // Without content hashing, the hash reference is already the correct id
-    if (this.options.contentHash && filePath.includes(thisHashReference)) {
+    if (filePath.includes(thisHashReference)) {
       let thisNameHash = nullthrows(hashRefToNameHash.get(thisHashReference));
       filePath = filePath.replace(thisHashReference, thisNameHash);
       name = name.replace(thisHashReference, thisNameHash);
@@ -561,9 +570,8 @@ export default class PackagerRunner {
 
     let mapKey = cacheKeys.map;
     if (
-      (typeof bundle.target.sourceMap === 'object'
-        ? !bundle.target.sourceMap.inline
-        : bundle.target.sourceMap) &&
+      bundle.env.sourceMap &&
+      !bundle.env.sourceMap.inline &&
       (await this.options.cache.blobExists(mapKey))
     ) {
       let mapStream = this.options.cache.getStream(mapKey);
@@ -680,7 +688,12 @@ function replaceStream(hashRefToNameHash) {
   });
 }
 
-function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
+function assignComplexNameHashes(
+  hashRefToNameHash,
+  bundles,
+  bundleInfoMap,
+  options,
+) {
   for (let bundle of bundles) {
     if (hashRefToNameHash.get(bundle.hashReference) != null) {
       continue;
@@ -692,9 +705,13 @@ function assignComplexNameHashes(hashRefToNameHash, bundles, bundleInfoMap) {
 
     hashRefToNameHash.set(
       bundle.hashReference,
-      md5FromString(
-        includedBundles.map(bundleId => bundleInfoMap[bundleId].hash).join(':'),
-      ).slice(-8),
+      options.contentHash
+        ? md5FromString(
+            includedBundles
+              .map(bundleId => bundleInfoMap[bundleId].hash)
+              .join(':'),
+          ).slice(-8)
+        : bundle.id.slice(-8),
     );
   }
 }

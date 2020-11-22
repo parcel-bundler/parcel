@@ -6,7 +6,7 @@ function $parcel$defineInteropFlag(a) {
   Object.defineProperty(a, '__esModule', {value: true});
 }
 
-function $parcel$reexport(e, n, v) {
+function $parcel$export(e, n, v) {
   Object.defineProperty(e, n, {get: v, enumerable: true});
 }
 

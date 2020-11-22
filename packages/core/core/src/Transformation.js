@@ -42,10 +42,15 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset, getInvalidationHash} from './assetUtils';
+import {
+  createAsset,
+  getInvalidationId,
+  getInvalidationHash,
+} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
+import {optionsProxy} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -78,7 +83,7 @@ export default class Transformation {
   configLoader: ConfigLoader;
   configRequests: Array<ConfigRequestAndResult>;
   options: ParcelOptions;
-  impactfulOptions: $Shape<ParcelOptions>;
+  pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
   report: ReportFn;
@@ -100,9 +105,16 @@ export default class Transformation {
     this.workerApi = workerApi;
     this.invalidations = new Map();
 
-    // TODO: these options may not impact all transformations, let transformers decide if they care or not
-    let {hot} = this.options;
-    this.impactfulOptions = {hot};
+    this.pluginOptions = new PluginOptions(
+      optionsProxy(this.options, option => {
+        let invalidation: RequestInvalidation = {
+          type: 'option',
+          key: option,
+        };
+
+        this.invalidations.set(getInvalidationId(invalidation), invalidation);
+      }),
+    );
   }
 
   async loadConfig(configRequest: ConfigRequestDesc): Promise<Config> {
@@ -432,11 +444,9 @@ export default class Transformation {
     configs: ConfigMap,
   ): Promise<void> {
     await Promise.all(
-      // TODO: account for impactfulOptions maybe being different per pipeline
       assets.map(asset =>
         asset.commit(
           md5FromObject({
-            impactfulOptions: this.impactfulOptions,
             configs: getImpactfulConfigInfo(configs),
           }),
         ),
@@ -465,7 +475,6 @@ export default class Transformation {
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
-      impactfulOptions: this.impactfulOptions,
       invalidationHash,
     });
   }
@@ -524,7 +533,7 @@ export default class Transformation {
         options: this.options,
       }),
 
-      pluginOptions: new PluginOptions(this.options),
+      pluginOptions: this.pluginOptions,
       workerApi: this.workerApi,
     };
 
@@ -746,6 +755,8 @@ function normalizeAssets(
         map: await internalAsset.getMap(),
         meta: result.meta,
         pipeline: internalAsset.value.pipeline,
+        // $FlowFixMe
+        symbols: internalAsset.value.symbols,
         type: result.type,
         uniqueKey: internalAsset.value.uniqueKey,
       };
