@@ -1,10 +1,13 @@
+// @flow strict-local
+
 import {Transformer} from '@parcel/plugin';
 import commandExists from 'command-exists';
 import path from 'path';
 import {minify} from 'terser';
+import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
-export default new Transformer({
+export default (new Transformer({
   async transform({asset, options}) {
     const elmBinary = await elmBinaryPath(asset, options);
     await ensureElmJson(asset);
@@ -19,6 +22,7 @@ export default new Transformer({
 
     const config = {
       cwd: path.dirname(asset.filePath),
+      // $FlowFixMe[sketchy-null-string]
       debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
       optimize: asset.env.minify,
     };
@@ -37,7 +41,7 @@ export default new Transformer({
     asset.setCode(code);
     return [asset];
   },
-});
+}): Transformer);
 
 async function elmBinaryPath(asset, options) {
   let elmBinary = await resolveLocalElmBinary(asset, options);
@@ -66,9 +70,11 @@ async function resolveLocalElmBinary(asset, options) {
       {autoinstall: false},
     );
 
-    return result.pkg != null
-      ? path.join(path.dirname(result.resolved), result.pkg.bin.elm)
-      : null;
+    let bin = nullthrows(result.pkg).bin;
+    return path.join(
+      path.dirname(result.resolved),
+      typeof bin === 'string' ? bin : bin.elm,
+    );
   } catch (_) {
     return null;
   }
@@ -137,6 +143,6 @@ async function minifyElmOutput(source) {
     mangle: true,
   });
 
-  if (result.code) return result.code;
+  if (result.code != null) return result.code;
   throw result.error;
 }
