@@ -520,9 +520,7 @@ describe('TargetResolver', () => {
           env: {
             context: 'browser',
             engines: {
-              browsers: [
-                'last 1 version'
-              ],
+              browsers: ['last 1 version'],
             },
             includeNodeModules: false,
             outputFormat: 'commonjs',
