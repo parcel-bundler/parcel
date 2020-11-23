@@ -8,8 +8,9 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Transformer({
-  async loadConfig({config}) {
-    let elmConfig = await config.getConfig(['elm.json']);
+  async loadConfig({config, options}) {
+    const elmBinary = await elmBinaryPath(config.searchPath, options);
+    const elmConfig = await config.getConfig(['elm.json']);
     if (!elmConfig) {
       throw new ThrowableDiagnostic({
         diagnostic: {
@@ -21,11 +22,10 @@ export default (new Transformer({
         },
       });
     }
-    config.setResult(elmConfig.contents);
+    config.setResult({elmBinary, ...elmConfig.contents});
   },
 
-  async transform({asset, options}) {
-    const elmBinary = await elmBinaryPath(asset, options);
+  async transform({asset, config, options}) {
     const elm = await options.packageManager.require(
       'node-elm-compiler',
       asset.filePath,
@@ -35,7 +35,7 @@ export default (new Transformer({
       },
     );
 
-    const config = {
+    const compilerConfig = {
       cwd: path.dirname(asset.filePath),
       // $FlowFixMe[sketchy-null-string]
       debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
@@ -46,11 +46,16 @@ export default (new Transformer({
       asset.addIncludedFile(filePath);
     }
 
-    let code = await compileToString(elm, elmBinary, asset, config);
+    let code = await compileToString(
+      elm,
+      config?.elmBinary,
+      asset,
+      compilerConfig,
+    );
     if (options.hot) {
       code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
     }
-    if (config.optimize) code = await minifyElmOutput(code);
+    if (compilerConfig.optimize) code = await minifyElmOutput(code);
 
     asset.type = 'js';
     asset.setCode(code);
@@ -58,8 +63,8 @@ export default (new Transformer({
   },
 }): Transformer);
 
-async function elmBinaryPath(asset, options) {
-  let elmBinary = await resolveLocalElmBinary(asset, options);
+async function elmBinaryPath(searchPath, options) {
+  let elmBinary = await resolveLocalElmBinary(searchPath, options);
 
   if (elmBinary == null && !commandExists.sync('elm')) {
     throw new ThrowableDiagnostic({
@@ -77,11 +82,11 @@ async function elmBinaryPath(asset, options) {
   return elmBinary;
 }
 
-async function resolveLocalElmBinary(asset, options) {
+async function resolveLocalElmBinary(searchPath, options) {
   try {
     let result = await options.packageManager.resolve(
       'elm/package.json',
-      asset.filePath,
+      searchPath,
       {autoinstall: false},
     );
 
