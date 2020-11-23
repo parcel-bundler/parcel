@@ -723,7 +723,7 @@ describe('javascript', function() {
     );
     assert(
       workerBundleContents.includes(
-        'module.exports = "https://unpkg.com/parcel";',
+        'module.exports = "https://unpkg.com/parcel"',
       ),
     );
   });

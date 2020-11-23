@@ -417,14 +417,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         env: {
           context: 'node',
-          engines: {
-            browsers: [
-              'last 1 Chrome version',
-              'last 1 Safari version',
-              'last 1 Firefox version',
-              'last 1 Edge version',
-            ],
-          },
+          engines: {},
           includeNodeModules: false,
           isLibrary: true,
           outputFormat: 'commonjs',
@@ -458,14 +451,7 @@ describe('TargetResolver', () => {
         publicUrl: '/',
         env: {
           context: 'browser',
-          engines: {
-            browsers: [
-              'last 1 Chrome version',
-              'last 1 Safari version',
-              'last 1 Firefox version',
-              'last 1 Edge version',
-            ],
-          },
+          engines: {},
           includeNodeModules: true,
           isLibrary: false,
           outputFormat: 'global',
@@ -576,14 +562,7 @@ describe('TargetResolver', () => {
           publicUrl: '/',
           env: {
             context: 'browser',
-            engines: {
-              browsers: [
-                'last 1 Chrome version',
-                'last 1 Safari version',
-                'last 1 Firefox version',
-                'last 1 Edge version',
-              ],
-            },
+            engines: {},
             includeNodeModules: true,
             outputFormat: 'global',
             isLibrary: false,
