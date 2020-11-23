@@ -8,9 +8,24 @@ import nullthrows from 'nullthrows';
 import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Transformer({
+  async loadConfig({config}) {
+    let elmConfig = await config.getConfig(['elm.json']);
+    if (!elmConfig) {
+      throw new ThrowableDiagnostic({
+        diagnostic: {
+          message: "The 'elm.json' file is missing.",
+          hints: [
+            "Initialize your elm project by running 'elm init'",
+            "If you installed elm as project dependency then run 'yarn elm init' or 'npx elm init'",
+          ],
+        },
+      });
+    }
+    config.setResult(elmConfig.contents);
+  },
+
   async transform({asset, options}) {
     const elmBinary = await elmBinaryPath(asset, options);
-    await ensureElmJson(asset);
     const elm = await options.packageManager.require(
       'node-elm-compiler',
       asset.filePath,
@@ -77,20 +92,6 @@ async function resolveLocalElmBinary(asset, options) {
     );
   } catch (_) {
     return null;
-  }
-}
-
-async function ensureElmJson(asset) {
-  if (!(await asset.getConfig(['elm.json'], {parse: false}))) {
-    throw new ThrowableDiagnostic({
-      diagnostic: {
-        message: "The 'elm.json' file is missing.",
-        hints: [
-          "Initialize your elm project by running 'elm init'",
-          "If you installed elm as project dependency then run 'yarn elm init' or 'npx elm init'",
-        ],
-      },
-    });
   }
 }
 
