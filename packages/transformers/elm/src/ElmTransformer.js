@@ -9,9 +9,9 @@ import ThrowableDiagnostic from '@parcel/diagnostic';
 
 export default (new Transformer({
   async loadConfig({config, options}) {
-    const elmBinary = await elmBinaryPath(config.searchPath, options);
     const elmConfig = await config.getConfig(['elm.json']);
     if (!elmConfig) {
+      await elmBinaryPath(config.searchPath, options); // Check if elm is even installed
       throw new ThrowableDiagnostic({
         diagnostic: {
           message: "The 'elm.json' file is missing.",
@@ -22,10 +22,11 @@ export default (new Transformer({
         },
       });
     }
-    config.setResult({elmBinary, ...elmConfig.contents});
+    config.setResult(elmConfig.contents);
   },
 
-  async transform({asset, config, options}) {
+  async transform({asset, options}) {
+    const elmBinary = await elmBinaryPath(asset.filePath, options);
     const elm = await options.packageManager.require(
       'node-elm-compiler',
       asset.filePath,
@@ -46,12 +47,7 @@ export default (new Transformer({
       asset.addIncludedFile(filePath);
     }
 
-    let code = await compileToString(
-      elm,
-      config?.elmBinary,
-      asset,
-      compilerConfig,
-    );
+    let code = await compileToString(elm, elmBinary, asset, compilerConfig);
     if (options.hot) {
       code = await injectHotModuleReloadRuntime(code, asset.filePath, options);
     }
