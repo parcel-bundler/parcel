@@ -86,7 +86,7 @@ async function resolveLocalElmBinary(searchPath, options) {
       {autoinstall: false},
     );
 
-    let bin = nullthrows(result.pkg).bin;
+    let bin = nullthrows(result.pkg?.bin);
     return path.join(
       path.dirname(result.resolved),
       typeof bin === 'string' ? bin : bin.elm,
