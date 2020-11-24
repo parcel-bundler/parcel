@@ -100,10 +100,8 @@ async function resolveLocalElmBinary(searchPath, options) {
 
 function compileToString(elm, elmBinary, asset, config) {
   return elm.compileToString(asset.filePath, {
-    cwd: config.cwd,
-    debug: config.debug,
-    optimize: config.optimize,
     pathToElm: elmBinary,
+    ...config,
   });
 }
 
