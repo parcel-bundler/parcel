@@ -21,6 +21,7 @@ import {
   serialize,
 } from '@parcel/core';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {escapeMarkdown} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -31,7 +32,6 @@ import Trace from './Trace';
 import fs from 'fs';
 import logger from '@parcel/logger';
 
-let profileId = 1;
 let referenceId = 1;
 
 export opaque type SharedReference = number;
@@ -351,6 +351,10 @@ export default class WorkerFarm extends EventEmitter {
   async end(): Promise<void> {
     this.ending = true;
 
+    await Promise.all(
+      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
+    );
+
     for (let handle of this.handles.values()) {
       handle.dispose();
     }
@@ -358,9 +362,6 @@ export default class WorkerFarm extends EventEmitter {
     this.sharedReferences = new Map();
     this.sharedReferencesByValue = new Map();
 
-    await Promise.all(
-      Array.from(this.workers.values()).map(worker => this.stopWorker(worker)),
-    );
     this.ending = false;
   }
 
@@ -474,7 +475,7 @@ export default class WorkerFarm extends EventEmitter {
 
     var profiles = await Promise.all(promises);
     let trace = new Trace();
-    let filename = `profile-${profileId++}.trace`;
+    let filename = `profile-${getTimeId()}.trace`;
     let stream = trace.pipe(fs.createWriteStream(filename));
 
     for (let profile of profiles) {
@@ -488,8 +489,62 @@ export default class WorkerFarm extends EventEmitter {
 
     logger.info({
       origin: '@parcel/workers',
-      message: `Wrote profile to ${filename}`,
+      message: escapeMarkdown(`Wrote profile to ${filename}`),
     });
+  }
+
+  async callAllWorkers(method: string, args: Array<any>) {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method,
+            args,
+            resolve,
+            reject,
+            retries: 0,
+          });
+        }),
+      );
+    }
+
+    promises.push(this.localWorker[method](this.workerApi, ...args));
+    await Promise.all(promises);
+  }
+
+  async takeHeapSnapshot() {
+    let snapshotId = getTimeId();
+
+    try {
+      let snapshotPaths = await Promise.all(
+        [...this.workers.values()].map(
+          worker =>
+            new Promise((resolve, reject) => {
+              worker.call({
+                method: 'takeHeapSnapshot',
+                args: [snapshotId],
+                resolve,
+                reject,
+                retries: 0,
+              });
+            }),
+        ),
+      );
+
+      logger.info({
+        origin: '@parcel/workers',
+        message: escapeMarkdown(
+          'Wrote heap snapshots to the following paths:\n' +
+            snapshotPaths.join('\n'),
+        ),
+      });
+    } catch {
+      logger.error({
+        origin: '@parcel/workers',
+        message: 'Unable to take heap snapshots. Note: requires Node 11.13.0+',
+      });
+    }
   }
 
   static getNumWorkers(): number {
@@ -522,4 +577,17 @@ export default class WorkerFarm extends EventEmitter {
   static getConcurrentCallsPerWorker(): number {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
+}
+
+function getTimeId() {
+  let now = new Date();
+  return (
+    String(now.getFullYear()) +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0') +
+    '-' +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0') +
+    String(now.getSeconds()).padStart(2, '0')
+  );
 }

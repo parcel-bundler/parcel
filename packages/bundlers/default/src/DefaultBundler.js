@@ -49,7 +49,7 @@ export default (new Bundler({
 
     // Step 1: create bundles for each of the explicit code split points.
     bundleGraph.traverse({
-      enter: (node, context) => {
+      enter: (node, context, actions) => {
         if (node.type !== 'dependency') {
           return {
             ...context,
@@ -62,9 +62,13 @@ export default (new Bundler({
         }
 
         let dependency = node.value;
+        if (bundleGraph.isDependencySkipped(dependency)) {
+          actions.skipChildren();
+          return;
+        }
+
         let assets = bundleGraph.getDependencyAssets(dependency);
         let resolution = bundleGraph.getDependencyResolution(dependency);
-
         // Create a new bundle for entries, async deps, isolated assets, and inline assets.
         if (
           (dependency.isEntry && resolution) ||
@@ -374,12 +378,17 @@ export default (new Bundler({
     // the bundle and the bundle group providing that asset. If all connections
     // to that bundle group are removed, remove that bundle group.
     let asyncBundleGroups: Set<BundleGroup> = new Set();
-    bundleGraph.traverse(node => {
+    bundleGraph.traverse((node, _, actions) => {
       if (
         node.type !== 'dependency' ||
         node.value.isEntry ||
         !node.value.isAsync
       ) {
+        return;
+      }
+
+      if (bundleGraph.isDependencySkipped(node.value)) {
+        actions.skipChildren();
         return;
       }
 

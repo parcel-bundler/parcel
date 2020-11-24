@@ -1,9 +1,8 @@
-// @flow
+// @flow strict-local
 
 import type {Config} from '@parcel/types';
-import type {BabelTargets} from './types';
-
 import presetEnv from '@babel/preset-env';
+import type {Targets as BabelTargets, PresetEnvPlugin} from '@babel/preset-env';
 
 import getBabelTargets from './getBabelTargets';
 import {enginesToBabelTargets} from './utils';
@@ -30,6 +29,11 @@ export default async function getEnvOptions(
   >,
   targets: BabelTargets,
 |}> {
+  // Only compile if there are engines defined in the environment.
+  if (Object.keys(config.env.engines).length === 0) {
+    return null;
+  }
+
   // Load the target engines for the app and generate a @babel/preset-env config
   let appBabelTargets = enginesToBabelTargets(config.env);
 
@@ -63,7 +67,7 @@ export default async function getEnvOptions(
   };
 }
 
-function getNeededPlugins(targets: BabelTargets): Array<mixed> {
+function getNeededPlugins(targets: BabelTargets): Array<PresetEnvPlugin> {
   return presetEnv(
     {assertVersion: () => true},
     {targets: targets},

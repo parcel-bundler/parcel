@@ -16,6 +16,6 @@
     "read-pkg-up": "^4.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.7.0"
+    "@babel/core": "^7.12.0"
   }
 }

@@ -40,17 +40,31 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     this.#options = options;
   }
 
-  addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
+  addAssetGraphToBundle(
+    asset: IAsset,
+    bundle: IBundle,
+    shouldSkipDependency?: IDependency => boolean,
+  ) {
     this.#graph.addAssetGraphToBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+      shouldSkipDependency
+        ? d => shouldSkipDependency(new Dependency(d))
+        : undefined,
     );
   }
 
-  addEntryToBundle(asset: IAsset, bundle: IBundle) {
+  addEntryToBundle(
+    asset: IAsset,
+    bundle: IBundle,
+    shouldSkipDependency?: IDependency => boolean,
+  ) {
     this.#graph.addEntryToBundle(
       assetToAssetValue(asset),
       bundleToInternalBundle(bundle),
+      shouldSkipDependency
+        ? d => shouldSkipDependency(new Dependency(d))
+        : undefined,
     );
   }
 
@@ -150,9 +164,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
       id: bundleId,
       value: {
         id: bundleId,
-        hashReference: this.#options.contentHash
-          ? HASH_REF_PREFIX + bundleId
-          : bundleId.slice(0, 8),
+        hashReference: HASH_REF_PREFIX + bundleId,
         type: opts.type ?? nullthrows(entryAsset).type,
         env: opts.env
           ? environmentToInternalEnvironment(opts.env)

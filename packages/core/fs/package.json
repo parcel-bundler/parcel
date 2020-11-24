@@ -24,10 +24,11 @@
     "@parcel/utils": "2.0.0-beta.1",
     "@parcel/watcher": "2.0.0-alpha.8",
     "@parcel/workers": "2.0.0-beta.1",
+    "graceful-fs": "^4.2.4",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
-    "rimraf": "^2.6.2"
+    "rimraf": "^3.0.2"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

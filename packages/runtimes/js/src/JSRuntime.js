@@ -322,7 +322,7 @@ function getLoaderRuntime({
   }
 
   if (bundle.env.outputFormat === 'global') {
-    loaderCode += `.then(() => parcelRequire('${bundleGraph.getAssetPublicId(
+    loaderCode += `.then(() => module.bundle.root('${bundleGraph.getAssetPublicId(
       bundleGraph.getAssetById(bundleGroup.entryAssetId),
     )}')${
       // In global output with scope hoisting, functions return exports are

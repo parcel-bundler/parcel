@@ -5,7 +5,6 @@ import type {
   BundleGraph,
   PluginOptions,
   NamedBundle,
-  Symbol,
 } from '@parcel/types';
 import type {
   CallExpression,
@@ -32,7 +31,7 @@ import {
   isVariableDeclaration,
 } from '@babel/types';
 import {simple as walkSimple, traverse} from '@parcel/babylon-walk';
-import {PromiseQueue, relativeUrl, flat} from '@parcel/utils';
+import {PromiseQueue, relativeUrl, flat, relativePath} from '@parcel/utils';
 import invariant from 'assert';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
@@ -62,11 +61,13 @@ export async function concat({
   bundleGraph,
   options,
   wrappedAssets,
+  parcelRequireName,
 }: {|
   bundle: NamedBundle,
   bundleGraph: BundleGraph<NamedBundle>,
   options: PluginOptions,
   wrappedAssets: Set<string>,
+  parcelRequireName: string,
 |}): Promise<BabelNodeFile> {
   let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
@@ -93,11 +94,23 @@ export async function concat({
 
   let outputs = new Map<string, Array<Statement>>(await queue.run());
   let result = [...HELPERS];
-  if (needsPrelude(bundle, bundleGraph)) {
-    result.unshift(...PRELUDE);
+
+  // Add a declaration for parcelRequire that points to the unique global name.
+  if (bundle.env.outputFormat === 'global') {
+    result.push(
+      ...parse(
+        `var parcelRequire = $parcel$global.${parcelRequireName};`,
+        PRELUDE_PATH,
+      ),
+    );
   }
 
-  let usedExports = getUsedExports(bundle, bundleGraph);
+  if (needsPrelude(bundle, bundleGraph)) {
+    result.push(
+      ...parse(`var parcelRequireName = "${parcelRequireName}";`, PRELUDE_PATH),
+      ...PRELUDE,
+    );
+  }
 
   // Note: for each asset, the order of `$parcel$require` calls and the corresponding
   // `asset.getDependencies()` must be the same!
@@ -138,7 +151,7 @@ export async function concat({
         }
       }
 
-      if (shouldSkipAsset(bundleGraph, asset, usedExports)) {
+      if (shouldSkipAsset(bundleGraph, bundle, asset)) {
         // The order of imports of excluded assets has to be retained
         statements = flat(
           [...context.children]
@@ -190,7 +203,12 @@ async function processAsset(
   }
 
   if (statements[0]) {
-    t.addComment(statements[0], 'leading', ` ASSET: ${asset.filePath}`, true);
+    t.addComment(
+      statements[0],
+      'leading',
+      ` ASSET: ${relativePath(options.projectRoot, asset.filePath, false)}`,
+      true,
+    );
   }
 
   return [asset.id, statements];
@@ -206,95 +224,15 @@ function parse(code, sourceFilename) {
   return ast.program.body;
 }
 
-function getUsedExports(
-  bundle: NamedBundle,
-  bundleGraph: BundleGraph<NamedBundle>,
-): Map<string, Set<Symbol>> {
-  let usedExports: Map<string, Set<Symbol>> = new Map();
-
-  let entry = bundle.getMainEntry();
-  if (entry) {
-    for (let {asset, symbol, exportSymbol} of bundleGraph.getExportedSymbols(
-      entry,
-    )) {
-      if (symbol) {
-        markUsed(asset, exportSymbol);
-      }
-    }
-  }
-
-  bundle.traverseAssets(asset => {
-    for (let dep of bundleGraph.getDependencies(asset)) {
-      let resolvedAsset = bundleGraph.getDependencyResolution(dep, bundle);
-      if (!resolvedAsset) {
-        continue;
-      }
-
-      for (let [symbol, {local}] of dep.symbols) {
-        if (local === '*') {
-          continue;
-        }
-
-        if (symbol === '*') {
-          for (let {
-            asset,
-            symbol,
-            exportSymbol,
-          } of bundleGraph.getExportedSymbols(resolvedAsset)) {
-            if (symbol) {
-              markUsed(asset, exportSymbol);
-            }
-          }
-        }
-
-        markUsed(resolvedAsset, symbol);
-      }
-    }
-
-    // If the asset is referenced by another bundle, include all exports.
-    if (bundleGraph.isAssetReferencedByDependant(bundle, asset)) {
-      markUsed(asset, '*');
-      for (let {
-        asset: a,
-        symbol,
-        exportSymbol,
-      } of bundleGraph.getExportedSymbols(asset)) {
-        if (symbol) {
-          markUsed(a, exportSymbol);
-        }
-      }
-    }
-  });
-
-  function markUsed(asset, symbol) {
-    let resolved = bundleGraph.resolveSymbol(asset, symbol);
-
-    let used = usedExports.get(resolved.asset.id);
-    if (!used) {
-      used = new Set();
-      usedExports.set(resolved.asset.id, used);
-    }
-
-    used.add(resolved.exportSymbol);
-  }
-
-  return usedExports;
-}
-
 function shouldSkipAsset(
   bundleGraph: BundleGraph<NamedBundle>,
+  bundle: NamedBundle,
   asset: Asset,
-  usedExports: Map<string, Set<Symbol>>,
 ) {
   return (
     asset.sideEffects === false &&
-    !asset.meta.isCommonJS &&
-    (!usedExports.has(asset.id) ||
-      nullthrows(usedExports.get(asset.id)).size === 0) &&
-    !bundleGraph.getIncomingDependencies(asset).find(d =>
-      // Don't exclude assets that was imported as a wildcard
-      d.symbols.hasExportSymbol('*'),
-    )
+    bundleGraph.getUsedSymbols(asset).size == 0 &&
+    !bundleGraph.isAssetReferencedByDependant(bundle, asset)
   );
 }
 

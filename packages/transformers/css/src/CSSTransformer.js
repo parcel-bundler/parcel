@@ -56,6 +56,7 @@ export default (new Transformer({
         browsers: asset.env.engines.browsers,
       },
       minify: asset.env.minify,
+      sourceMap: asset.env.sourceMap,
     });
 
     // When this asset is an bundle entry, allow that bundle to be split to load shared assets separately.

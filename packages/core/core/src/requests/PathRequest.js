@@ -151,20 +151,25 @@ export class ResolverRunner {
       filePath = dependency.moduleSpecifier;
     }
 
+    let queryPart = null;
     if (dependency.isURL) {
       let parsed = URL.parse(filePath);
       if (typeof parsed.pathname !== 'string') {
         throw new Error(`Received URL without a pathname ${filePath}.`);
       }
       filePath = decodeURIComponent(parsed.pathname);
+      if (parsed.query != null) {
+        queryPart = parsed.query;
+      }
+    } else {
+      let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
+      if (matchesQuerystring && matchesQuerystring[2] != null) {
+        filePath = matchesQuerystring[1];
+        queryPart = matchesQuerystring[2].substr(1);
+      }
     }
-
-    let matchesQuerystring = filePath.match(QUERY_PARAMS_REGEX);
-    if (matchesQuerystring && matchesQuerystring.length > 2) {
-      filePath = matchesQuerystring[1];
-      query = matchesQuerystring[2]
-        ? querystring.parse(matchesQuerystring[2].substr(1))
-        : {};
+    if (queryPart != null) {
+      query = querystring.parse(queryPart);
     }
 
     let diagnostics: Array<Diagnostic> = [];
@@ -178,6 +183,13 @@ export class ResolverRunner {
         });
 
         if (result) {
+          if (result.meta) {
+            dependency.meta = {
+              ...dependency.meta,
+              ...result.meta,
+            };
+          }
+
           if (result.isExcluded) {
             return null;
           }
