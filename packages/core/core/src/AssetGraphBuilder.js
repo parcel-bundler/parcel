@@ -21,10 +21,10 @@ import type {
   Entry,
   ParcelOptions,
   ValidationOpts,
+  Target,
 } from './types';
 import type {ConfigAndCachePath} from './requests/ParcelConfigRequest';
 import type {EntryResult} from './requests/EntryRequest';
-import type {TargetResolveResult} from './requests/TargetRequest';
 
 import EventEmitter from 'events';
 import invariant from 'assert';
@@ -105,13 +105,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.workerFarm = workerFarm;
     this.assetRequests = [];
 
-    // TODO: changing these should not throw away the entire graph.
-    // We just need to re-run target resolution.
-    let {hot, publicUrl, distDir, minify, scopeHoist} = options;
     this.cacheKey = md5FromObject({
       parcelVersion: PARCEL_VERSION,
       name,
-      options: {hot, publicUrl, distDir, minify, scopeHoist},
       entries,
     });
 
@@ -138,6 +134,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     if (changes) {
       this.requestGraph.invalidateUnpredictableNodes();
       this.requestGraph.invalidateEnvNodes(options.env);
+      this.requestGraph.invalidateOptionNodes(options);
       this.requestTracker.respondToFSEvents(changes);
     } else {
       this.assetGraph.initialize({
@@ -757,11 +754,10 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async runTargetRequest(input: Entry) {
     let request = createTargetRequest(input);
-    let result = await this.requestTracker.runRequest<
-      Entry,
-      TargetResolveResult,
-    >(request);
-    this.assetGraph.resolveTargets(request.input, result.targets, request.id);
+    let targets = await this.requestTracker.runRequest<Entry, Array<Target>>(
+      request,
+    );
+    this.assetGraph.resolveTargets(request.input, targets, request.id);
   }
 
   async runPathRequest(input: Dependency) {

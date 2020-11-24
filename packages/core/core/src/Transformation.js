@@ -42,10 +42,15 @@ import {
   mutableAssetToUncommittedAsset,
 } from './public/Asset';
 import UncommittedAsset from './UncommittedAsset';
-import {createAsset, getInvalidationHash} from './assetUtils';
+import {
+  createAsset,
+  getInvalidationId,
+  getInvalidationHash,
+} from './assetUtils';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 import {PARCEL_VERSION} from './constants';
+import {optionsProxy} from './utils';
 
 type GenerateFunc = (input: UncommittedAsset) => Promise<GenerateOutput>;
 
@@ -78,7 +83,7 @@ export default class Transformation {
   configLoader: ConfigLoader;
   configRequests: Array<ConfigRequestAndResult>;
   options: ParcelOptions;
-  impactfulOptions: $Shape<ParcelOptions>;
+  pluginOptions: PluginOptions;
   workerApi: WorkerApi;
   parcelConfig: ParcelConfig;
   report: ReportFn;
@@ -100,9 +105,16 @@ export default class Transformation {
     this.workerApi = workerApi;
     this.invalidations = new Map();
 
-    // TODO: these options may not impact all transformations, let transformers decide if they care or not
-    let {hot} = this.options;
-    this.impactfulOptions = {hot};
+    this.pluginOptions = new PluginOptions(
+      optionsProxy(this.options, option => {
+        let invalidation: RequestInvalidation = {
+          type: 'option',
+          key: option,
+        };
+
+        this.invalidations.set(getInvalidationId(invalidation), invalidation);
+      }),
+    );
   }
 
   async loadConfig(configRequest: ConfigRequestDesc): Promise<Config> {
@@ -147,7 +159,7 @@ export default class Transformation {
     let pipeline = await this.loadPipeline(
       this.request.filePath,
       asset.value.isSource,
-      this.request,
+      asset.value.pipeline,
     );
     let results = await this.runPipelines(pipeline, asset);
     let assets = results.map(a => a.value);
@@ -247,7 +259,7 @@ export default class Transformation {
     );
     let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
-    let assets =
+    let assets: Array<UncommittedAsset> =
       initialCacheEntry || (await this.runPipeline(pipeline, initialAsset));
 
     if (!initialCacheEntry) {
@@ -269,7 +281,8 @@ export default class Transformation {
         nextPipeline = await this.loadNextPipeline({
           filePath: initialAsset.value.filePath,
           isSource: asset.value.isSource,
-          nextType: asset.value.type,
+          newType: asset.value.type,
+          newPipeline: asset.value.pipeline,
           currentPipeline: pipeline,
         });
       }
@@ -339,7 +352,8 @@ export default class Transformation {
           (await this.loadNextPipeline({
             filePath: initialAsset.value.filePath,
             isSource: asset.value.isSource,
-            nextType: asset.value.type,
+            newType: asset.value.type,
+            newPipeline: asset.value.pipeline,
             currentPipeline: pipeline,
           }))
         ) {
@@ -432,11 +446,9 @@ export default class Transformation {
     configs: ConfigMap,
   ): Promise<void> {
     await Promise.all(
-      // TODO: account for impactfulOptions maybe being different per pipeline
       assets.map(asset =>
         asset.commit(
           md5FromObject({
-            impactfulOptions: this.impactfulOptions,
             configs: getImpactfulConfigInfo(configs),
           }),
         ),
@@ -465,7 +477,6 @@ export default class Transformation {
       assets: assetsKeyInfo,
       configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
-      impactfulOptions: this.impactfulOptions,
       invalidationHash,
     });
   }
@@ -473,14 +484,14 @@ export default class Transformation {
   async loadPipeline(
     filePath: FilePath,
     isSource: boolean,
-    request?: AssetRequestInput,
+    pipeline: ?string,
   ): Promise<Pipeline> {
     let configRequest = {
       filePath,
       env: this.request.env,
       isSource,
-      pipeline: request?.pipeline,
-      isURL: request?.isURL,
+      pipeline: pipeline,
+      isURL: this.request.isURL,
       meta: {
         actionType: 'transformation',
       },
@@ -493,8 +504,8 @@ export default class Transformation {
 
     let transformers = await this.parcelConfig.getTransformers(
       filePath,
-      request?.pipeline,
-      request?.isURL,
+      pipeline,
+      this.request.isURL,
     );
 
     for (let {name, resolveFrom, keyPath} of transformers) {
@@ -509,7 +520,7 @@ export default class Transformation {
       configs.set(name, thirdPartyConfig);
     }
 
-    let pipeline = {
+    return {
       id: transformers.map(t => t.name).join(':'),
       transformers: transformers.map(transformer => ({
         name: transformer.name,
@@ -524,30 +535,30 @@ export default class Transformation {
         options: this.options,
       }),
 
-      pluginOptions: new PluginOptions(this.options),
+      pluginOptions: this.pluginOptions,
       workerApi: this.workerApi,
     };
-
-    return pipeline;
   }
 
   async loadNextPipeline({
     filePath,
     isSource,
-    nextType,
+    newType,
+    newPipeline,
     currentPipeline,
   }: {|
     filePath: string,
     isSource: boolean,
-    nextType: string,
+    newType: string,
+    newPipeline: ?string,
     currentPipeline: Pipeline,
   |}): Promise<?Pipeline> {
     let nextFilePath =
-      filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
+      filePath.slice(0, -path.extname(filePath).length) + '.' + newType;
     let nextPipeline = await this.loadPipeline(
       nextFilePath,
       isSource,
-      this.request,
+      newPipeline,
     );
 
     if (nextPipeline.id === currentPipeline.id) {

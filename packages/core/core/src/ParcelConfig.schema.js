@@ -110,9 +110,7 @@ export default {
     },
     bundler: {
       type: 'string',
-      __validate: (validatePluginName('bundler', 'bundler'): (
-        val: string,
-      ) => void),
+      __validate: (validatePluginName('bundler', 'bundler'): string => void),
     },
     resolvers: (pipelineSchema('resolver', 'resolvers'): SchemaEntity),
     transformers: (mapPipelineSchema(
