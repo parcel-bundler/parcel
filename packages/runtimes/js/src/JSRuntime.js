@@ -103,7 +103,7 @@ export default (new Runtime({
         // If this bundle already has the asset this dependency references,
         // return a simple runtime of `Promise.resolve(require("path/to/asset"))`.
         assets.push({
-          filePath: path.join(options.projectRoot, 'JSRuntime.js'),
+          resolveFromDir: options.projectRoot,
           // Using Promise['resolve'] to prevent Parcel from inferring this is an async dependency.
           // TODO: Find a better way of doing this.
           code: `module.exports = Promise['resolve'](require(${JSON.stringify(
@@ -134,7 +134,7 @@ export default (new Runtime({
       );
       if (referencedBundle?.isInline) {
         assets.push({
-          filePath: path.join(__dirname, `/bundles/${referencedBundle.id}.js`),
+          resolveFromDir: path.join(__dirname, 'bundles'),
           code: `module.exports = ${JSON.stringify(dependency.id)};`,
           dependency,
         });
@@ -148,7 +148,7 @@ export default (new Runtime({
         // If a URL dependency was not able to be resolved, add a runtime that
         // exports the original moduleSpecifier.
         assets.push({
-          filePath: __filename,
+          resolveFromDir: __dirname,
           code: `module.exports = ${JSON.stringify(
             dependency.moduleSpecifier,
           )}`,
@@ -171,7 +171,7 @@ export default (new Runtime({
 
       if (bundle.env.outputFormat === 'commonjs' && mainBundle.type === 'js') {
         assets.push({
-          filePath: __filename,
+          resolveFromDir: __dirname,
           dependency,
           code: `module.exports = require("./" + ${getRelativePathExpr(
             bundle,
@@ -191,7 +191,7 @@ export default (new Runtime({
       isNewContext(bundle, bundleGraph)
     ) {
       assets.push({
-        filePath: __filename,
+        resolveFromDir: __dirname,
         code: getRegisterCode(bundle, bundleGraph),
         isEntry: true,
       });
@@ -331,7 +331,7 @@ function getLoaderRuntime({
   }
 
   return {
-    filePath: __filename,
+    resolveFromDir: __dirname,
     code: `module.exports = ${loaderCode};`,
     dependency,
   };
@@ -427,14 +427,14 @@ function getURLRuntime(
   let relativePathExpr = getRelativePathExpr(from, to);
   if (dependency.meta.webworker === true) {
     return {
-      filePath: __filename,
+      resolveFromDir: __dirname,
       code: `module.exports = require('./get-worker-url')(${relativePathExpr});`,
       dependency,
     };
   }
 
   return {
-    filePath: __filename,
+    resolveFromDir: __dirname,
     code: `module.exports = require('./bundle-url').getBundleURL() + ${relativePathExpr}`,
     dependency,
   };

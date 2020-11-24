@@ -159,7 +159,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
-  +sourceMap?: ?TargetSourceMapOptions
+  +sourceMap?: ?TargetSourceMapOptions,
 |};
 
 /**
@@ -1125,7 +1125,7 @@ export type Namer = {|
  * @section runtime
  */
 export type RuntimeAsset = {|
-  +filePath: FilePath,
+  +resolveFromDir: FilePath,
   +code: string,
   +dependency?: Dependency,
   +isEntry?: boolean,

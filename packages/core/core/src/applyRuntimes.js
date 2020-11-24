@@ -11,6 +11,7 @@ import type AssetGraphBuilder from './AssetGraphBuilder';
 import type ParcelConfig from './ParcelConfig';
 import type PluginOptions from './public/PluginOptions';
 
+import path from 'path';
 import assert from 'assert';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -18,7 +19,7 @@ import AssetGraph, {nodeFromAssetGroup} from './AssetGraph';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import {NamedBundle} from './public/Bundle';
-import {setDifference} from '@parcel/utils';
+import {setDifference, md5FromString} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
@@ -62,10 +63,18 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+          for (let {
+            code,
+            dependency,
+            resolveFromDir,
+            isEntry,
+          } of runtimeAssets) {
             let assetGroup = {
               code,
-              filePath,
+              filePath: path.join(
+                resolveFromDir,
+                `runtime-${md5FromString(code)}.${bundle.type}`,
+              ),
               env: bundle.env,
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
