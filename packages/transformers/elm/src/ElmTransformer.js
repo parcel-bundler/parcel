@@ -2,6 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 import commandExists from 'command-exists';
+import spawn from 'cross-spawn';
 import path from 'path';
 import {minify} from 'terser';
 import nullthrows from 'nullthrows';
@@ -37,6 +38,7 @@ export default (new Transformer({
     );
 
     const compilerConfig = {
+      spawn,
       cwd: path.dirname(asset.filePath),
       // $FlowFixMe[sketchy-null-string]
       debug: !options.env.PARCEL_ELM_NO_DEBUG && options.mode !== 'production',
