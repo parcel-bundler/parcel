@@ -1,6 +1,7 @@
 // @flow
 
 import type {Root} from 'postcss';
+import type {Asset} from '@parcel/types';
 
 import path from 'path';
 import SourceMap from '@parcel/source-map';
@@ -40,76 +41,10 @@ export default (new Packager({
           media.push(dep.meta.media);
         }
 
-        queue.add(async () => {
+        queue.add(() => {
           if (!asset.symbols.isCleared && options.mode === 'production') {
             // a CSS Modules asset
-
-            // TODO
-            // 1. Transformation.js always generates and clears the AST
-            // 2. The PostCSS AST isn't serializeable as it contains functions...
-            let ast: ?Root = (await asset.getAST())?.program;
-            if (!ast) {
-              let [code, map] = await Promise.all([
-                asset.getCode(),
-                asset.getMap(),
-              ]);
-              ast = postcss.parse(code, {
-                from: asset.filePath,
-                map: {
-                  prev: await map?.stringify({format: 'string'}),
-                },
-              });
-            }
-
-            let usedSymbols = bundleGraph.getUsedSymbols(asset);
-            let localSymbols = new Set(
-              [...asset.symbols].map(([, {local}]) => `.${local}`),
-            );
-            let usedLocalSymbols =
-              // we have to still support the more common default imports
-              usedSymbols.has('*') || usedSymbols.has('default')
-                ? null
-                : new Set(
-                    [...usedSymbols].map(
-                      exportSymbol =>
-                        `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
-                    ),
-                  );
-
-            if (usedLocalSymbols) {
-              ast.walkRules(rule => {
-                if (
-                  localSymbols.has(rule.selector) &&
-                  !usedLocalSymbols.has(rule.selector)
-                ) {
-                  rule.remove();
-                }
-              });
-            }
-
-            let {content, map} = await postcss().process(ast, {
-              from: undefined,
-              to: options.projectRoot + '/index',
-              map: {
-                annotation: false,
-                inline: false,
-              },
-              // Pass postcss's own stringifier to it to silence its warning
-              // as we don't want to perform any transformations -- only generate
-              stringifier: postcss.stringify,
-            });
-
-            let sourceMap;
-            if (bundle.env.sourceMap && map != null) {
-              sourceMap = new SourceMap(options.projectRoot);
-              sourceMap.addRawMappings(map.toJSON());
-            }
-
-            if (media.length) {
-              content = `@media ${media.join(', ')} {\n${content}\n}\n`;
-            }
-
-            return [asset, content, sourceMap?.toBuffer()];
+            return processCSSModule(options, bundleGraph, bundle, asset, media);
           } else {
             return Promise.all([
               asset,
@@ -177,3 +112,63 @@ export default (new Packager({
     });
   },
 }): Packager);
+
+async function processCSSModule(
+  options,
+  bundleGraph,
+  bundle,
+  asset,
+  media,
+): Promise<[Asset, string, ?Buffer]> {
+  let ast: Root = postcss.fromJSON(nullthrows((await asset.getAST())?.program));
+
+  let usedSymbols = bundleGraph.getUsedSymbols(asset);
+  let localSymbols = new Set(
+    [...asset.symbols].map(([, {local}]) => `.${local}`),
+  );
+  let usedLocalSymbols =
+    // we have to still support the more common default imports
+    usedSymbols.has('*') || usedSymbols.has('default')
+      ? null
+      : new Set(
+          [...usedSymbols].map(
+            exportSymbol =>
+              `.${nullthrows(asset.symbols.get(exportSymbol)).local}`,
+          ),
+        );
+
+  if (usedLocalSymbols) {
+    ast.walkRules(rule => {
+      if (
+        localSymbols.has(rule.selector) &&
+        !usedLocalSymbols.has(rule.selector)
+      ) {
+        rule.remove();
+      }
+    });
+  }
+
+  let {content, map} = await postcss().process(ast, {
+    from: undefined,
+    to: options.projectRoot + '/index',
+    map: {
+      annotation: false,
+      inline: false,
+    },
+    // Pass postcss's own stringifier to it to silence its warning
+    // as we don't want to perform any transformations -- only generate
+    stringifier: postcss.stringify,
+  });
+
+  let sourceMap;
+  if (bundle.env.sourceMap && map != null) {
+    sourceMap = new SourceMap(options.projectRoot);
+    sourceMap.addRawMappings(map.toJSON());
+  }
+
+  if (media.length) {
+    content = `@media ${media.join(', ')} {\n${content}\n}\n`;
+  }
+
+  return [asset, content, sourceMap?.toBuffer()];
+}
