@@ -417,6 +417,7 @@ export type DependencyOptions = {|
   +loc?: SourceLocation,
   +env?: EnvironmentOpts,
   +meta?: Meta,
+  +pipeline?: string,
   +target?: Target,
   +symbols?: $ReadOnlyMap<
     Symbol,

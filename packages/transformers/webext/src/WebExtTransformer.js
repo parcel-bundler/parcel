@@ -2,7 +2,7 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {join, extname, dirname, relative} from 'path';
+import {sep, posix, join, extname, dirname, relative} from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
@@ -74,8 +74,8 @@ async function collectDependencies(
       });
     }
     for (const locale of await fs.readdir(locales)) {
-      asset.addURLDependency(join('raw:_locales', locale, 'messages.json'), {
-        isEntry: true,
+      asset.addURLDependency(posix.join('_locales', locale, 'messages.json'), {
+        pipeline: 'url'
       });
     }
   }
@@ -147,7 +147,7 @@ async function collectDependencies(
         program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(relative(dirname(filePath), fp), {
+        asset.addURLDependency(relative(dirname(filePath), fp).replace(new RegExp(sep, 'g'), '/'), {
           isEntry: true,
           loc: {
             filePath,
@@ -168,26 +168,28 @@ async function collectDependencies(
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
       parent[lastLoc] = asset.addURLDependency(
-        // TODO: not this, for sure
-        (extname(obj) == '.json' ? 'raw:' : '') + obj,
+        obj,
         {
           isEntry: true,
           loc: {
             filePath,
             ...getJSONSourceLocation(ptrs[location], 'value'),
           },
+          // TODO: not this, for sure
+          ...(extname(obj) == '.json' && { pipeline: 'url' })
         },
       );
     else {
       for (const k of Object.keys(obj)) {
         obj[k] = asset.addURLDependency(
-          (extname(obj[k]) == '.json' ? 'raw:' : '') + obj[k],
+          obj[k],
           {
             isEntry: true,
             loc: {
               filePath,
               ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
             },
+            ...(extname(obj[k]) == '.json' && { pipeline: 'url' })
           },
         );
       }
