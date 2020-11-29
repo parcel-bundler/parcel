@@ -1,7 +1,7 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import parse from 'posthtml-parser';
+import parse from '@parcel/posthtml-parser';
 import nullthrows from 'nullthrows';
 import render from 'posthtml-render';
 import semver from 'semver';

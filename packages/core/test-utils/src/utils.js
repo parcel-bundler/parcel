@@ -29,6 +29,7 @@ import {makeDeferredWithPromise, normalizeSeparators} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 import {NodePackageManager} from '@parcel/package-manager';
+import {transformSync} from '@babel/core';
 
 export const workerFarm = (createWorkerFarm(): WorkerFarm);
 export const inputFS: NodeFS = new NodeFS();
@@ -207,46 +208,83 @@ type RunOpts = {require?: boolean, ...};
 export async function runBundles(
   bundleGraph: BundleGraph<NamedBundle>,
   parent: NamedBundle,
-  bundles: Array<NamedBundle>,
+  bundles: Array<[string, NamedBundle]>,
   globals: mixed,
   opts: RunOpts = {},
 ): Promise<mixed> {
   let entryAsset = nullthrows(
     bundles
-      .map(b => b.getMainEntry() || b.getEntryAssets()[0])
+      .map(([, b]) => b.getMainEntry() || b.getEntryAssets()[0])
       .filter(Boolean)[0],
   );
   let env = entryAsset.env;
-  let target = entryAsset.env.context;
 
   let ctx, promises;
-  switch (target) {
-    case 'browser': {
-      let prepared = prepareBrowserContext(parent.filePath, globals);
-      ctx = prepared.ctx;
-      promises = prepared.promises;
-      break;
-    }
-    case 'node':
-    case 'electron-main':
-      ctx = prepareNodeContext(parent.filePath, globals);
-      break;
-    case 'electron-renderer': {
-      let browser = prepareBrowserContext(parent.filePath, globals);
-      ctx = {
-        ...browser.ctx,
-        ...prepareNodeContext(parent.filePath, globals),
-      };
-      promises = browser.promises;
-      break;
-    }
-    default:
-      throw new Error('Unknown target ' + target);
+  if (entryAsset.env.isBrowser()) {
+    let prepared = prepareBrowserContext(parent.filePath, globals);
+    ctx = prepared.ctx;
+    promises = prepared.promises;
   }
 
+  if (entryAsset.env.isNode()) {
+    let prepared = prepareNodeContext(parent.filePath, globals);
+    if (ctx) {
+      Object.assign(ctx, prepared);
+    } else {
+      ctx = prepared;
+    }
+  }
+
+  if (!ctx) {
+    throw new Error(
+      'Unknown context ' + [...entryAsset.env.context].join(', '),
+    );
+  }
+
+  let prepareCode = (code, b) => {
+    if (b.env.outputFormat === 'esmodule' || /\simport\(/.test(code)) {
+      return transformSync(code, {
+        babelrc: false,
+        configFile: false,
+        plugins: [
+          b.env.outputFormat === 'esmodule'
+            ? // $FlowFixMe
+              require('@babel/plugin-transform-modules-commonjs')
+            : null,
+          ({types: t}) => ({
+            visitor: {
+              Import(path) {
+                path.replaceWith(t.identifier('__import'));
+              },
+            },
+          }),
+        ].filter(Boolean),
+      }).code;
+    }
+    return code;
+  };
+
+  // $FlowFixMe
+  ctx.__import = specifier => {
+    let promise = Promise.resolve().then(() => {
+      let filePath = path.join(path.dirname(parent.filePath), specifier);
+      let b = nullthrows(
+        bundleGraph.getBundles().find(b => b.filePath === filePath),
+      );
+      return runBundle(bundleGraph, b, globals, opts);
+    });
+
+    if (promises) {
+      promises.push(promise);
+    }
+
+    return promise;
+  };
+
   vm.createContext(ctx);
-  for (let b of bundles) {
-    new vm.Script(await overlayFS.readFile(nullthrows(b.filePath), 'utf8'), {
+  for (let [code, b] of bundles) {
+    code = await prepareCode(code, b);
+    new vm.Script(code, {
       filename: b.name,
     }).runInContext(ctx);
   }
@@ -295,27 +333,38 @@ export async function runBundle(
       lowerCaseAttributeNames: true,
     });
 
+    let bundles = bundleGraph.getBundles();
     let scripts = [];
     postHtml().walk.call(ast, node => {
-      if (node.tag === 'script') {
+      if (
+        node.tag === 'script' &&
+        node.attrs &&
+        node.attrs.src &&
+        node.attrs.type !== 'module'
+      ) {
         let src = url.parse(nullthrows(node.attrs).src);
         if (src.hostname == null) {
-          scripts.push(path.join(distDir, nullthrows(src.pathname)));
+          let p = path.join(distDir, nullthrows(src.pathname));
+          let b = nullthrows(bundles.find(b => b.filePath === p));
+          scripts.push([overlayFS.readFileSync(b.filePath, 'utf8'), b]);
         }
+      } else if (node.tag === 'script' && node.content && !node.attrs?.src) {
+        let content = node.content.join('');
+        let inline = bundles.filter(b => b.isInline && b.type === 'js');
+        scripts.push([content, inline[0]]); // TODO: match by content??
       }
       return node;
     });
 
-    let bundles = bundleGraph.getBundles();
+    return runBundles(bundleGraph, bundle, scripts, globals, opts);
+  } else {
     return runBundles(
       bundleGraph,
       bundle,
-      scripts.map(p => nullthrows(bundles.find(b => b.filePath === p))),
+      [[overlayFS.readFileSync(bundle.filePath, 'utf8'), bundle]],
       globals,
       opts,
     );
-  } else {
-    return runBundles(bundleGraph, bundle, [bundle], globals, opts);
   }
 }
 

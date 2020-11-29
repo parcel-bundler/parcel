@@ -10,6 +10,7 @@ import collectDependencies from './visitors/dependencies';
 import processVisitor from './visitors/process';
 import fsVisitor from './visitors/fs';
 import insertGlobals from './visitors/globals';
+import {assignScriptGlobals} from './visitors/script-globals';
 import traverse from '@babel/traverse';
 import {ancestor as walkAncestor} from '@parcel/babylon-walk';
 import * as babelCore from '@babel/core';
@@ -134,8 +135,9 @@ export default (new Transformer({
 
     // Inline process/environment variables
     if (
-      (!asset.env.isNode() && (code == null || ENV_RE.test(code))) ||
-      (asset.env.isBrowser() && (code == null || BROWSER_RE.test(code)))
+      !asset.env.context.has('script') &&
+      ((!asset.env.isNode() && (code == null || ENV_RE.test(code))) ||
+        (asset.env.isBrowser() && (code == null || BROWSER_RE.test(code))))
     ) {
       walkAncestor(ast.program, processVisitor, {
         asset,
@@ -148,7 +150,7 @@ export default (new Transformer({
     }
 
     let isASTDirty;
-    if (!asset.env.isNode()) {
+    if (!asset.env.isNode() && !asset.env.context.has('script')) {
       // Inline fs calls, run before globals to also collect Buffer
       if (code == null || FS_RE.test(code)) {
         if (!ignoreFS) {
@@ -182,6 +184,18 @@ export default (new Transformer({
     // Collect dependencies
     if (code == null || canHaveDependencies(code)) {
       walkAncestor(ast.program, collectDependencies, {asset, ast, options});
+    }
+
+    // If this is a non-module script, and this asset has dependencies, then we need to
+    // create assignments for all top-level variables to the global scope. If there are
+    // no dependencies, we can skip this and scope hoisting completely and just pass through
+    // the original source code as no bundling is needed.
+    if (asset.env.context.has('script')) {
+      if (asset.getDependencies().length > 0) {
+        assignScriptGlobals(asset, ast, options);
+      } else {
+        return [asset];
+      }
     }
 
     // If there's a hashbang, remove it and store it on the asset meta.

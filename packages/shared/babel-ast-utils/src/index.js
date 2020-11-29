@@ -36,6 +36,8 @@ export async function parse({
         strictMode: false,
         sourceType: 'module',
         plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport'],
+        // $FlowFixMe
+        startLine: asset.meta.loc?.start.line,
       }),
     };
   } catch (e) {

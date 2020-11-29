@@ -24,6 +24,7 @@ import {
   resolveConfig,
   md5FromObject,
   validateSchema,
+  setIntersects,
 } from '@parcel/utils';
 import {createEnvironment} from '../Environment';
 import createParcelConfigRequest from './ParcelConfigRequest';
@@ -199,7 +200,7 @@ export class TargetResolver {
             },
           });
         }
-        if (!BROWSER_ENVS.has(targets[0].env.context)) {
+        if (!setIntersects(BROWSER_ENVS, targets[0].env.context)) {
           throw new ThrowableDiagnostic({
             diagnostic: {
               message: `Only browser targets are supported in serve mode`,

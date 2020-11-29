@@ -42,6 +42,11 @@ class Path {
     // $FlowFixMe
     this.parent[this.listkey].splice(this.key, 1);
   }
+  insertAfter(...n: Node[]) {
+    invariant(this.listkey && typeof this.key === 'number');
+    // $FlowFixMe
+    this.parent[this.listkey].splice(this.key + 1, 0, ...n);
+  }
 }
 
 export default function traverse<T>(

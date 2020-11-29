@@ -4,7 +4,6 @@ import type {
   AST,
   DependencyOptions,
   JSONObject,
-  Meta,
   MutableAsset,
   PluginOptions,
 } from '@parcel/types';
@@ -22,18 +21,22 @@ import {
   isFunction,
 } from '@babel/types';
 import {isURL, md5FromString, createDependencyLocation} from '@parcel/utils';
+import ThrowableDiagnostic from '@parcel/diagnostic';
 import {isInFalsyBranch, hasBinding, morph} from './utils';
+import {convertBabelLoc} from '@parcel/babel-ast-utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 export default ({
   ImportDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
+    checkModule(asset, node);
     addDependency(asset, node.source);
   },
 
   ExportNamedDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
+    checkModule(asset, node);
     if (node.source) {
       addDependency(asset, node.source);
     }
@@ -41,11 +44,13 @@ export default ({
 
   ExportAllDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
+    checkModule(asset, node);
     addDependency(asset, node.source);
   },
 
   ExportDefaultDeclaration(node, {asset}) {
     asset.meta.isES6Module = true;
+    checkModule(asset, node);
   },
 
   CallExpression: {
@@ -64,6 +69,7 @@ export default ({
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
         let isAsync = isRequireAsync(ancestors, node, asset, ast);
+        checkModule(asset, node);
         addDependency(asset, args[0], {isOptional, isAsync});
         return;
       }
@@ -79,6 +85,7 @@ export default ({
       if (isRequireResolve) {
         let isOptional =
           ancestors.some(a => types.isTryStatement(a)) || undefined;
+        checkModule(asset, node);
         addDependency(asset, args[0], {isOptional});
         return;
       }
@@ -112,7 +119,38 @@ export default ({
           args.splice(1, 1);
         }
 
-        addDependency(asset, args[0], {isAsync: true, meta});
+        let context = new Set(asset.env.context);
+        context.delete('script');
+        context.add('module');
+
+        // If no browser engines are defined, or all browsers support dynamic import natively,
+        // we can output native ESM if scope hoisting is enabled.
+        let outputFormat = asset.env.outputFormat;
+        if (
+          asset.env.context.has('script') &&
+          asset.env.scopeHoist &&
+          asset.env.isBrowser() &&
+          (!asset.env.engines.browsers || asset.env.supports('dynamic-import'))
+        ) {
+          outputFormat = 'esmodule';
+        }
+
+        let loc = convertBabelLoc(node.loc);
+        addDependency(asset, args[0], {
+          isAsync: true,
+          meta,
+          env: {
+            context,
+            outputFormat,
+            loc: loc
+              ? {
+                  filePath: asset.filePath,
+                  start: loc.start,
+                  end: loc.end,
+                }
+              : undefined,
+          },
+        });
 
         node.callee = types.identifier('require');
         asset.setAST(ast);
@@ -134,11 +172,45 @@ export default ({
         !isInFalsyBranch(ancestors);
 
       if (isRegisterServiceWorker) {
-        // Treat service workers as an entry point so filenames remain consistent across builds.
-        // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
+        let isModule = false;
+        if (types.isObjectExpression(args[1])) {
+          let propIndex = args[1].properties.findIndex(v =>
+            types.isIdentifier(v.key, {name: 'type'}),
+          );
+          let prop = propIndex >= 0 ? args[1].properties[propIndex] : null;
+          if (prop && types.isStringLiteral(prop.value)) {
+            isModule = prop.value.value === 'module';
+          }
+
+          // No browsers currently implement the type: module option.
+          // Delete it since we'll be transpiling modules.
+          if (isModule) {
+            // Remove the whole options argument if `type` is the only option.
+            // Otherwise, just remove the type option.
+            if (args[1].properties.length === 1) {
+              args.splice(1, 1);
+            } else {
+              args[1].properties.splice(propIndex, 1);
+            }
+          }
+        }
+
+        let loc = convertBabelLoc(node.loc);
         addURLDependency(asset, ast, args[0], {
+          // Treat service workers as an entry point so filenames remain consistent across builds.
+          // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
           isEntry: true,
-          env: {context: 'service-worker'},
+          env: {
+            context: ['service-worker', isModule ? 'module' : 'script'],
+            outputFormat: 'global',
+            loc: loc
+              ? {
+                  filePath: asset.filePath,
+                  start: loc.start,
+                  end: loc.end,
+                }
+              : undefined,
+          },
         });
         return;
       }
@@ -171,19 +243,49 @@ export default ({
 
       if (isWebWorker) {
         let isModule = false;
+        let outputFormat = 'global';
         if (types.isObjectExpression(args[1])) {
-          let prop = args[1].properties.find(v =>
+          let propIndex = args[1].properties.findIndex(v =>
             types.isIdentifier(v.key, {name: 'type'}),
           );
-          if (prop && types.isStringLiteral(prop.value))
+          let prop = propIndex >= 0 ? args[1].properties[propIndex] : null;
+          if (prop && types.isStringLiteral(prop.value)) {
             isModule = prop.value.value === 'module';
+          }
+
+          if (isModule) {
+            // If scope hoisting is enabled, we can output native ESM.
+            // If no browser engines are defined, pass through as ESM.
+            // If the engines defined don't support ESM, transpile to a classic script.
+            if (
+              asset.env.scopeHoist &&
+              (!asset.env.engines.browsers || asset.env.supports('worker-type'))
+            ) {
+              outputFormat = 'esmodule';
+            } else {
+              // Remove the whole options argument if `type` is the only option.
+              // Otherwise, just remove the type option.
+              if (args[1].properties.length === 1) {
+                args.splice(1, 1);
+              } else {
+                args[1].properties.splice(propIndex, 1);
+              }
+            }
+          }
         }
 
+        let loc = convertBabelLoc(node.loc);
         addURLDependency(asset, ast, args[0], {
           env: {
-            context: 'web-worker',
-            outputFormat:
-              isModule && asset.env.scopeHoist ? 'esmodule' : undefined,
+            context: ['web-worker', isModule ? 'module' : 'script'],
+            outputFormat,
+            loc: loc
+              ? {
+                  filePath: asset.filePath,
+                  start: loc.start,
+                  end: loc.end,
+                }
+              : undefined,
           },
           meta: {
             webworker: true,
@@ -309,21 +411,12 @@ function getFunctionParent(ancestors) {
   }
 }
 
-function addDependency(
-  asset,
-  node,
-  opts: ?{|isAsync?: boolean, isOptional?: boolean, meta?: ?Meta|},
-) {
+function addDependency(asset, node, opts: ?$Shape<DependencyOptions>) {
   let dependencyOptions: DependencyOptions = {
+    ...opts,
     moduleSpecifier: node.value,
     loc: node.loc && createDependencyLocation(node.loc.start, node.value, 0, 1),
-    isAsync: opts ? opts.isAsync : false,
-    isOptional: opts ? opts.isOptional : false,
   };
-
-  if (opts?.meta != null) {
-    dependencyOptions = {...dependencyOptions, meta: opts.meta};
-  }
 
   asset.addDependency(dependencyOptions);
 }
@@ -370,4 +463,66 @@ function objectExpressionNodeToJSONObject(
   }
 
   return object;
+}
+
+const messages = {
+  browser:
+    'Browser scripts cannot have imports or exports. Use a <script type="module"> instead.',
+  'web-worker':
+    'Web workers cannot have imports or exports. Use the `type: "module"` option instead.',
+  'service-worker':
+    'Service workers cannot have imports or exports. Use the `type: "module"` option instead.',
+};
+
+function checkModule(asset, node) {
+  if (asset.env.context.has('script')) {
+    let message;
+    for (let context of asset.env.context) {
+      if (context in messages) {
+        message = messages[(context: string)];
+        break;
+      }
+    }
+
+    if (!message) {
+      return;
+    }
+
+    let loc = convertBabelLoc(node.loc);
+    let diagnostic = [
+      {
+        message,
+        filePath: asset.filePath,
+        codeFrame: loc
+          ? {
+              codeHighlights: [
+                {
+                  start: loc.start,
+                  end: loc.end,
+                },
+              ],
+            }
+          : undefined,
+      },
+    ];
+
+    if (asset.env.loc) {
+      diagnostic.push({
+        message: 'The environment was originally created here:',
+        filePath: asset.env.loc.filePath,
+        codeFrame: {
+          codeHighlights: [
+            {
+              start: asset.env.loc.start,
+              end: asset.env.loc.end,
+            },
+          ],
+        },
+      });
+    }
+
+    throw new ThrowableDiagnostic({
+      diagnostic,
+    });
+  }
 }

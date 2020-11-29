@@ -138,10 +138,11 @@ export default async function dumpGraphToGraphViz(
 
 function getEnvDescription(env: Environment) {
   let description;
+  let context = [...env.context].join(', ');
   if (typeof env.engines.browsers === 'string') {
-    description = `${env.context}: ${env.engines.browsers}`;
+    description = `${context}: ${env.engines.browsers}`;
   } else if (Array.isArray(env.engines.browsers)) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
+    description = `${context}: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
   } else if (env.engines.electron) {

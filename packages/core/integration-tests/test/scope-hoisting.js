@@ -502,6 +502,11 @@ describe('scope hoisting', function() {
             f,
           ),
         ),
+        {
+          defaultEngines: {
+            browsers: '>= 0.25%',
+          },
+        },
       );
 
       let output = await runBundle(
@@ -824,6 +829,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/shared-bundle-reexport/*.html',
         ),
+        {
+          defaultEngines: {
+            browsers: '>= 0.25%',
+          },
+        },
       );
 
       assertBundles(b, [
@@ -836,8 +846,16 @@ describe('scope hoisting', function() {
           assets: ['index1.js'],
         },
         {
+          type: 'js',
+          assets: ['index1.js'],
+        },
+        {
           type: 'html',
           assets: ['index2.html'],
+        },
+        {
+          type: 'js',
+          assets: ['index2.js'],
         },
         {
           type: 'js',
@@ -853,7 +871,19 @@ describe('scope hoisting', function() {
         },
         {
           type: 'js',
+          assets: ['index3.js'],
+        },
+        {
+          type: 'js',
           assets: ['a.js'],
+        },
+        {
+          type: 'js',
+          assets: ['a.js'],
+        },
+        {
+          type: 'js',
+          assets: ['b.js'],
         },
         {
           type: 'js',
@@ -1681,6 +1711,11 @@ describe('scope hoisting', function() {
           __dirname,
           '/integration/scope-hoisting/es6/interop-async/index.html',
         ),
+        {
+          defaultEngines: {
+            browsers: '>= 0.25%',
+          },
+        },
       );
 
       let output = await run(b);
@@ -2033,6 +2068,9 @@ describe('scope hoisting', function() {
         let b = bundler(path.join(testDir, 'index.html'), {
           inputFS: overlayFS,
           outputFS: overlayFS,
+          defaultEngines: {
+            browsers: '>= 0.25%',
+          },
         });
 
         await overlayFS.mkdirp(testDir);
@@ -2148,12 +2186,21 @@ describe('scope hoisting', function() {
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-css/index.html',
           ),
+          {
+            defaultEngines: {
+              browsers: '>= 0.25%',
+            },
+          },
         );
 
         assertBundles(b, [
           {
             name: 'index.html',
             assets: ['index.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index.js', 'a.js', 'b1.js'],
           },
           {
             type: 'js',
@@ -2187,12 +2234,17 @@ describe('scope hoisting', function() {
             __dirname,
             '/integration/scope-hoisting/es6/side-effects-no-new-bundle/index.html',
           ),
+          {defaultEngines: {browsers: '>= 0.25%'}},
         );
 
         assertBundles(b, [
           {
             name: 'index.html',
             assets: ['index.html'],
+          },
+          {
+            type: 'js',
+            assets: ['index.js', 'a.js', 'b1.js'],
           },
           {
             type: 'js',
@@ -4133,12 +4185,21 @@ describe('scope hoisting', function() {
   it('should not throw with JS included from HTML', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js/index.html'),
+      {
+        defaultEngines: {
+          browsers: '>= 0.25%',
+        },
+      },
     );
 
     assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html'],
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'other.js'],
       },
       {
         type: 'js',
@@ -4162,6 +4223,11 @@ describe('scope hoisting', function() {
   it('should not throw with JS dynamic imports included from HTML', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-js-dynamic/index.html'),
+      {
+        defaultEngines: {
+          browsers: '>= 0.25%',
+        },
+      },
     );
 
     assertBundles(b, [
@@ -4184,6 +4250,20 @@ describe('scope hoisting', function() {
       },
       {
         type: 'js',
+        assets: [
+          'bundle-url.js',
+          'cacheLoader.js',
+          'import-polyfill.js',
+          'index.js',
+          'JSRuntime.js',
+        ],
+      },
+      {
+        type: 'js',
+        assets: ['local.js'],
+      },
+      {
+        type: 'js',
         assets: ['local.js'],
       },
     ]);
@@ -4196,6 +4276,11 @@ describe('scope hoisting', function() {
   it('should include the prelude in shared entry bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-shared/index.html'),
+      {
+        defaultEngines: {
+          browsers: '>= 0.25%',
+        },
+      },
     );
 
     assertBundles(b, [
@@ -4208,12 +4293,24 @@ describe('scope hoisting', function() {
         assets: ['index.js'],
       },
       {
+        type: 'js',
+        assets: ['index.js'],
+      },
+      {
         name: 'iframe.html',
         assets: ['iframe.html'],
       },
       {
         type: 'js',
         assets: ['iframe.js'],
+      },
+      {
+        type: 'js',
+        assets: ['iframe.js'],
+      },
+      {
+        type: 'js',
+        assets: ['lodash.js'],
       },
       {
         type: 'js',
@@ -4241,6 +4338,11 @@ describe('scope hoisting', function() {
   it('should include prelude in shared worker bundles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-shared/index.js'),
+      {
+        defaultEngines: {
+          browsers: '>= 0.25%',
+        },
+      },
     );
 
     let sharedBundle = b

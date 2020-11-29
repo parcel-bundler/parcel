@@ -4,7 +4,7 @@ import {Transformer} from '@parcel/plugin';
 
 import path from 'path';
 import posthtml from 'posthtml';
-import parse from 'posthtml-parser';
+import parse from '@parcel/posthtml-parser';
 import render from 'posthtml-render';
 import nullthrows from 'nullthrows';
 import semver from 'semver';

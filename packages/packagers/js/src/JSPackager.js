@@ -49,6 +49,21 @@ export default (new Packager({
     config,
     options,
   }) {
+    // If this is a non-module script, and there is only one asset with no dependencies,
+    // then we don't need to package at all and can pass through the original code un-wrapped.
+    if (bundle.env.context.has('script')) {
+      let entries = bundle.getEntryAssets();
+      if (
+        entries.length === 1 &&
+        bundleGraph.getDependencies(entries[0]).length === 0
+      ) {
+        return {
+          contents: await entries[0].getCode(),
+          map: await entries[0].getMap(),
+        };
+      }
+    }
+
     function replaceReferences({contents, map}) {
       return replaceInlineReferences({
         bundle,
@@ -254,9 +269,35 @@ function getPrefix(
     }
   }
 
+  let globalVars = '';
+  let topLevelVars = mainEntry?.meta.topLevelVars;
+  if (
+    topLevelVars != null &&
+    typeof topLevelVars === 'object' &&
+    !Array.isArray(topLevelVars)
+  ) {
+    let vars = {};
+    for (let key in topLevelVars) {
+      let type = topLevelVars[key];
+      invariant(typeof type === 'string');
+      if (vars[type]) {
+        vars[type] += `, ${key}`;
+      } else {
+        vars[type] = `${type} ${key}`;
+      }
+    }
+
+    for (let type in vars) {
+      globalVars += `${vars[type]};\n`;
+    }
+  }
+
   return (
     // If the entry asset included a hashbang, repeat it at the top of the bundle
-    (interpreter != null ? `#!${interpreter}\n` : '') + importScripts + PRELUDE
+    (interpreter != null ? `#!${interpreter}\n` : '') +
+    globalVars +
+    importScripts +
+    PRELUDE
   );
 }
 

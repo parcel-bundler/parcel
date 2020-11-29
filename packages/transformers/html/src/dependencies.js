@@ -1,6 +1,7 @@
 // @flow
 
-import type {AST, Environment, MutableAsset} from '@parcel/types';
+import type {AST, MutableAsset} from '@parcel/types';
+import type {PostHTMLNode} from 'posthtml';
 import PostHTML from 'posthtml';
 
 // A list of all attributes that may produce a dependency
@@ -81,18 +82,6 @@ const OPTIONS = {
       };
     }
   },
-  script(attrs, env: Environment) {
-    return {
-      // Keep in the same bundle group as the HTML.
-      isAsync: false,
-      isEntry: false,
-      isIsolated: true,
-      env: {
-        outputFormat:
-          attrs.type === 'module' && env.scopeHoist ? 'esmodule' : undefined,
-      },
-    };
-  },
 };
 
 function collectSrcSetDependencies(asset, srcset, opts) {
@@ -120,11 +109,14 @@ function getAttrDepHandler(attr) {
 
 export default function collectDependencies(asset: MutableAsset, ast: AST) {
   let isDirty = false;
+  let seen = new Set();
   PostHTML().walk.call(ast.program, node => {
     let {tag, attrs} = node;
-    if (!attrs) {
+    if (!attrs || seen.has(node)) {
       return node;
     }
+
+    seen.add(node);
 
     if (tag === 'meta') {
       if (
@@ -152,6 +144,70 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
       });
       isDirty = true;
       return node;
+    }
+
+    if (tag === 'script' && attrs.src) {
+      let context = new Set(asset.env.context);
+      context.delete('module');
+      context.delete('script');
+      context.add(attrs.type === 'module' ? 'module' : 'script');
+
+      let loc = node.loc
+        ? {
+            filePath: asset.filePath,
+            start: node.loc.start,
+            end: node.loc.end,
+          }
+        : undefined;
+
+      let outputFormat = 'global';
+      if (attrs.type === 'module' && asset.env.scopeHoist) {
+        outputFormat = 'esmodule';
+      } else {
+        delete attrs.type;
+      }
+
+      // If this is a <script type="module">, and not all of the browser targets support ESM natively,
+      // add a copy of the script tag with a nomodule attribute.
+      let copy: ?PostHTMLNode;
+      if (
+        outputFormat === 'esmodule' &&
+        asset.env.engines.browsers &&
+        !asset.env.supports('esmodules')
+      ) {
+        let attrs: {[string]: string, ...} = {...node.attrs};
+        copy = {...node, attrs};
+        delete attrs.type;
+        attrs.nomodule = '';
+        attrs.src = asset.addURLDependency(attrs.src, {
+          // Keep in the same bundle group as the HTML.
+          isAsync: false,
+          isEntry: false,
+          isIsolated: true,
+          env: {
+            context,
+            outputFormat: 'global',
+            loc,
+          },
+        });
+
+        seen.add(copy);
+      }
+
+      attrs.src = asset.addURLDependency(attrs.src, {
+        // Keep in the same bundle group as the HTML.
+        isAsync: false,
+        isEntry: false,
+        isIsolated: true,
+        env: {
+          context,
+          outputFormat,
+          loc,
+        },
+      });
+
+      asset.setAST(ast);
+      return copy ? [node, copy] : node;
     }
 
     for (let attr in attrs) {

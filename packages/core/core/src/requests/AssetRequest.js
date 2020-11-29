@@ -9,6 +9,7 @@ import type {TransformationResult} from '../Transformation';
 import {md5FromObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import createParcelConfigRequest from './ParcelConfigRequest';
+import {getAssetGroupId} from '../assetUtils';
 
 type RunInput = {|
   input: AssetRequestInput,
@@ -42,7 +43,7 @@ const type = 'asset_request';
 function getId(input: AssetRequestInput) {
   // eslint-disable-next-line no-unused-vars
   let {optionsRef, ...hashInput} = input;
-  return `${type}:${md5FromObject(hashInput)}`;
+  return `${type}:${getAssetGroupId(hashInput)}`;
 }
 
 async function run({input, api, options, farm}: RunInput) {

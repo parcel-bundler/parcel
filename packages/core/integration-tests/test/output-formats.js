@@ -832,7 +832,7 @@ describe('output formats', function() {
       );
 
       let workerBundle = nullthrows(
-        b.getBundles().find(b => b.env.context === 'web-worker'),
+        b.getBundles().find(b => b.env.context.has('web-worker')),
       );
       let workerBundleContents = await outputFS.readFile(
         workerBundle.filePath,

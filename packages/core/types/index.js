@@ -57,7 +57,7 @@ export type RawParcelConfig = {|
   transformers?: {[Glob]: RawParcelConfigPipeline, ...},
   bundler?: PackageName,
   namers?: RawParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: RawParcelConfigPipeline, ...},
+  runtimes?: RawParcelConfigPipeline,
   packagers?: {[Glob]: PackageName, ...},
   optimizers?: {[Glob]: RawParcelConfigPipeline, ...},
   reporters?: RawParcelConfigPipeline,
@@ -109,7 +109,9 @@ export type EnvironmentContext =
   | 'service-worker'
   | 'node'
   | 'electron-main'
-  | 'electron-renderer';
+  | 'electron-renderer'
+  | 'script'
+  | 'module';
 
 /** The JS module format for the bundle output */
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
@@ -120,7 +122,7 @@ export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
  * See Environment and Target.
  */
 export type PackageTargetDescriptor = {|
-  +context?: EnvironmentContext,
+  +context?: EnvironmentContext | Array<EnvironmentContext>,
   +engines?: Engines,
   +includeNodeModules?:
     | boolean
@@ -149,7 +151,7 @@ export type TargetDescriptor = {|
  * This is used when creating an Environment (see that).
  */
 export type EnvironmentOpts = {|
-  +context?: EnvironmentContext,
+  +context?: EnvironmentContext | Iterable<EnvironmentContext>,
   +engines?: Engines,
   +includeNodeModules?:
     | boolean
@@ -159,7 +161,8 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
-  +sourceMap?: ?TargetSourceMapOptions
+  +sourceMap?: ?TargetSourceMapOptions,
+  +loc?: ?SourceLocation
 |};
 
 /**
@@ -179,11 +182,17 @@ export type VersionMap = {
   ...,
 };
 
+export type EnvironmentFeature =
+  | 'esmodules'
+  | 'dynamic-import'
+  | 'worker-type'
+  | 'service-worker-type';
+
 /**
  * Defines the environment in for the output bundle
  */
 export interface Environment {
-  +context: EnvironmentContext;
+  +context: Set<EnvironmentContext>;
   +engines: Engines;
   /** Whether to include all/none packages \
    *  (<code>true / false</code>), an array of package names to include, or an object \
@@ -201,6 +210,7 @@ export interface Environment {
   /** Whether scope hoisting is enabled. */
   +scopeHoist: boolean;
   +sourceMap: ?TargetSourceMapOptions;
+  +loc: ?SourceLocation;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -213,6 +223,7 @@ export interface Environment {
   /** Whether <code>context</code> specifies an isolated context (can't access other loaded ancestor bundles). */
   isIsolated(): boolean;
   matchesEngines(minVersions: VersionMap): boolean;
+  supports(feature: EnvironmentFeature): boolean;
 }
 
 /**
@@ -1129,6 +1140,7 @@ export type RuntimeAsset = {|
   +code: string,
   +dependency?: Dependency,
   +isEntry?: boolean,
+  +env?: EnvironmentOpts,
 |};
 
 /**

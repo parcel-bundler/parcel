@@ -27,9 +27,13 @@ export default function extractInlineAssets(
   new PostHTML().walk.call(program, (node: PostHTMLNode) => {
     let parcelKey = md5FromString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
-      let value = node.content && node.content.join('').trim();
+      let value = node.content && node.content.join('');
       if (value != null) {
         let type, env;
+
+        let context = new Set(asset.env.context);
+        context.delete('module');
+        context.delete('script');
 
         if (node.tag === 'style') {
           if (node.attrs && node.attrs.type) {
@@ -37,7 +41,7 @@ export default function extractInlineAssets(
           } else {
             type = 'css';
           }
-        } else if (node.attrs && node.attrs.type) {
+        } else if (node.attrs && node.attrs.type != null) {
           // Skip JSON
           if (SCRIPT_TYPES[node.attrs.type] === false) {
             return node;
@@ -49,13 +53,33 @@ export default function extractInlineAssets(
             type = node.attrs.type.split('/')[1];
           }
 
-          if (node.attrs.type === 'module' && asset.env.scopeHoist) {
-            env = {
-              outputFormat: 'esmodule',
-            };
+          let outputFormat = 'global';
+          if (node.attrs.type === 'module') {
+            if (
+              asset.env.scopeHoist &&
+              (asset.env.engines.browsers == null ||
+                asset.env.supports('esmodules'))
+            ) {
+              outputFormat = 'esmodule';
+            } else {
+              delete node.attrs.type;
+            }
+
+            context.add('module');
+          } else {
+            context.add('script');
           }
+
+          env = {
+            context,
+            outputFormat,
+          };
         } else {
           type = 'js';
+          context.add('script');
+          env = {
+            context,
+          };
         }
 
         if (!node.attrs) {
@@ -69,12 +93,7 @@ export default function extractInlineAssets(
         }
 
         // Inform packager to remove type, since CSS and JS are the defaults.
-        // Unless it's application/ld+json
-        if (
-          node.attrs &&
-          (node.tag === 'style' ||
-            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
-        ) {
+        if (node.attrs?.type && node.tag === 'style') {
           delete node.attrs.type;
         }
 
@@ -95,6 +114,7 @@ export default function extractInlineAssets(
           meta: {
             type: 'tag',
             node,
+            loc: node.loc,
           },
         });
       }

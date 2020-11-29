@@ -2,26 +2,35 @@
 import type {
   Environment as IEnvironment,
   EnvironmentContext,
+  EnvironmentFeature,
   Engines,
   OutputFormat,
   PackageName,
   VersionMap,
   TargetSourceMapOptions,
+  SourceLocation,
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
 import browserslist from 'browserslist';
 import semver from 'semver';
+import {setIntersects} from '@parcel/utils';
 
-export const BROWSER_ENVS: Set<string> = new Set<string>([
+export const BROWSER_ENVS: Set<EnvironmentContext> = new Set([
   'browser',
   'web-worker',
   'service-worker',
   'electron-renderer',
 ]);
-const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
-const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
-const WORKER_ENVS = new Set(['web-worker', 'service-worker']);
+const ELECTRON_ENVS = new Set<EnvironmentContext>([
+  'electron-main',
+  'electron-renderer',
+]);
+const NODE_ENVS = new Set<EnvironmentContext>(['node', ...ELECTRON_ENVS]);
+const WORKER_ENVS = new Set<EnvironmentContext>([
+  'web-worker',
+  'service-worker',
+]);
 const ISOLATED_ENVS = WORKER_ENVS;
 
 const ALL_BROWSERS = [
@@ -45,17 +54,39 @@ const ALL_BROWSERS = [
   'kaios',
 ];
 
-const ESMODULE_BROWSERS = {
-  edge: '16',
-  firefox: '60',
-  chrome: '61',
-  safari: '11',
-  opera: '48',
-  ios: '11',
-  android: '76',
-  and_chr: '76',
-  and_ff: '68',
-  samsung: '8.2',
+const supportData = {
+  esmodules: {
+    edge: '16',
+    firefox: '60',
+    chrome: '61',
+    safari: '11',
+    opera: '48',
+    ios: '11',
+    android: '76',
+    and_chr: '76',
+    and_ff: '68',
+    samsung: '8.2',
+  },
+  'dynamic-import': {
+    edge: '76',
+    firefox: '67',
+    chrome: '63',
+    safari: '11.1',
+    opera: '50',
+    ios: '11.3',
+    android: '63',
+    and_chr: '63',
+    and_ff: '67',
+    samsung: '8',
+  },
+  'worker-type': {
+    edge: '80',
+    chrome: '80',
+    opera: '67',
+    android: '81',
+    and_chr: '86',
+  },
+  'service-worker-type': {},
 };
 
 const internalEnvironmentToEnvironment: WeakMap<
@@ -87,7 +118,7 @@ export default class Environment implements IEnvironment {
     return this;
   }
 
-  get context(): EnvironmentContext {
+  get context(): Set<EnvironmentContext> {
     return this.#environment.context;
   }
 
@@ -122,24 +153,28 @@ export default class Environment implements IEnvironment {
     return this.#environment.sourceMap;
   }
 
+  get loc(): ?SourceLocation {
+    return this.#environment.loc;
+  }
+
   isBrowser(): boolean {
-    return BROWSER_ENVS.has(this.#environment.context);
+    return setIntersects(this.#environment.context, BROWSER_ENVS);
   }
 
   isNode(): boolean {
-    return NODE_ENVS.has(this.#environment.context);
+    return setIntersects(this.#environment.context, NODE_ENVS);
   }
 
   isElectron(): boolean {
-    return ELECTRON_ENVS.has(this.#environment.context);
+    return setIntersects(this.#environment.context, ELECTRON_ENVS);
   }
 
   isIsolated(): boolean {
-    return ISOLATED_ENVS.has(this.#environment.context);
+    return setIntersects(this.#environment.context, ISOLATED_ENVS);
   }
 
   isWorker(): boolean {
-    return WORKER_ENVS.has(this.#environment.context);
+    return setIntersects(this.#environment.context, WORKER_ENVS);
   }
 
   matchesEngines(minVersions: VersionMap): boolean {
@@ -155,7 +190,7 @@ export default class Environment implements IEnvironment {
 
       // If outputting esmodules, exclude browsers without support.
       if (this.outputFormat === 'esmodule') {
-        browsers = [...browsers, ...getExcludedBrowsers(ESMODULE_BROWSERS)];
+        browsers = [...browsers, ...getExcludedBrowsers(supportData.esmodules)];
       }
 
       let matchedBrowsers = browserslist(browsers);
@@ -167,6 +202,15 @@ export default class Environment implements IEnvironment {
     }
 
     return false;
+  }
+
+  supports(feature: EnvironmentFeature): boolean {
+    let engines = supportData[feature];
+    if (!engines) {
+      throw new Error('Unknown environment feature: ' + feature);
+    }
+
+    return this.matchesEngines(engines);
   }
 }
 

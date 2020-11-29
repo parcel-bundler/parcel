@@ -23,7 +23,12 @@ import assert from 'assert';
 import invariant from 'assert';
 import crypto from 'crypto';
 import nullthrows from 'nullthrows';
-import {flatMap, objectSortedEntriesDeep, unique} from '@parcel/utils';
+import {
+  flatMap,
+  objectSortedEntriesDeep,
+  unique,
+  isSubset,
+} from '@parcel/utils';
 
 import {getBundleGroupId, getPublicId} from './utils';
 import Graph, {ALL_EDGE_TYPES, mapVisitor, type GraphOpts} from './Graph';
@@ -615,7 +620,7 @@ export default class BundleGraph {
       visitedBundles.add(descendant);
       if (
         descendant.type !== bundle.type ||
-        descendant.env.context !== bundle.env.context
+        !isSubset(descendant.env.context, bundle.env.context)
       ) {
         actions.skipChildren();
         return;
@@ -630,7 +635,7 @@ export default class BundleGraph {
       let similarSiblings = this.getSiblingBundles(descendant).filter(
         sibling =>
           sibling.type === bundle.type &&
-          sibling.env.context === bundle.env.context,
+          isSubset(sibling.env.context, bundle.env.context),
       );
       if (
         similarSiblings.some(
@@ -713,7 +718,7 @@ export default class BundleGraph {
             // Don't deduplicate when context changes
             if (
               node.type === 'bundle' &&
-              node.value.env.context !== bundle.env.context
+              !isSubset(node.value.env.context, bundle.env.context)
             ) {
               actions.skipChildren();
             }
@@ -766,7 +771,7 @@ export default class BundleGraph {
             // Stop when context changes
             if (
               node.type === 'bundle' &&
-              node.value.env.context !== bundle.env.context
+              !isSubset(node.value.env.context, bundle.env.context)
             ) {
               actions.skipChildren();
             }

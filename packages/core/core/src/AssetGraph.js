@@ -21,6 +21,7 @@ import {md5FromObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import Graph, {type GraphOpts} from './Graph';
 import {createDependency} from './Dependency';
+import {getAssetGroupId} from './assetUtils';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
@@ -55,13 +56,7 @@ export function nodeFromDep(dep: Dependency): DependencyNode {
 
 export function nodeFromAssetGroup(assetGroup: AssetGroup): AssetGroupNode {
   return {
-    id: md5FromObject({
-      ...assetGroup,
-      // only influences building the asset graph
-      canDefer: undefined,
-      // if only the isURL property is different, no need to re-run transformation.
-      isURL: undefined,
-    }),
+    id: getAssetGroupId(assetGroup),
     type: 'asset_group',
     value: assetGroup,
     usedSymbolsDownDirty: true,

@@ -7,7 +7,6 @@ import type {
   Bundler,
   Namer,
   Runtime,
-  EnvironmentContext,
   PackageName,
   Optimizer,
   Packager,
@@ -52,7 +51,7 @@ export default class ParcelConfig {
   transformers: GlobMap<ExtendableParcelConfigPipeline>;
   bundler: ?ParcelPluginNode;
   namers: PureParcelConfigPipeline;
-  runtimes: {[EnvironmentContext]: PureParcelConfigPipeline, ...};
+  runtimes: PureParcelConfigPipeline;
   packagers: GlobMap<ParcelPluginNode>;
   validators: GlobMap<ExtendableParcelConfigPipeline>;
   optimizers: GlobMap<ExtendableParcelConfigPipeline>;
@@ -71,7 +70,7 @@ export default class ParcelConfig {
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transformers = config.transformers || {};
-    this.runtimes = config.runtimes || {};
+    this.runtimes = config.runtimes || [];
     this.bundler = config.bundler;
     this.namers = config.namers || [];
     this.packagers = config.packagers || {};
@@ -266,10 +265,8 @@ export default class ParcelConfig {
     return this.loadPlugins<Namer>(this.namers);
   }
 
-  getRuntimes(
-    context: EnvironmentContext,
-  ): Promise<Array<LoadedPlugin<Runtime>>> {
-    let runtimes = this.runtimes[context];
+  getRuntimes(): Promise<Array<LoadedPlugin<Runtime>>> {
+    let runtimes = this.runtimes;
     if (!runtimes) {
       return Promise.resolve([]);
     }

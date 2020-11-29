@@ -269,7 +269,11 @@ export function processConfig(
           }
         : undefined,
     namers: processPipeline(configFile.namers, '/namers', configFile.filePath),
-    runtimes: processMap(configFile.runtimes, '/runtimes', configFile.filePath),
+    runtimes: processPipeline(
+      configFile.runtimes,
+      '/runtimes',
+      configFile.filePath,
+    ),
     packagers: processMap(
       configFile.packagers,
       '/packagers',
@@ -491,7 +495,7 @@ export function mergeConfigs(
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
     namers: mergePipelines(base.namers, ext.namers),
-    runtimes: mergeMaps(base.runtimes, ext.runtimes, mergePipelines),
+    runtimes: mergePipelines(base.runtimes, ext.runtimes),
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
     reporters: mergePipelines(base.reporters, ext.reporters),

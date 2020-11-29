@@ -421,7 +421,7 @@ export default class PackagerRunner {
         sourceRoot = bundle.env.sourceMap.sourceRoot;
       } else if (
         this.options.serve &&
-        bundle.target.env.context === 'browser'
+        bundle.target.env.context.has('browser')
       ) {
         sourceRoot = '/__parcel_source_root';
       }
@@ -431,7 +431,7 @@ export default class PackagerRunner {
         bundle.env.sourceMap.inlineSources !== undefined
       ) {
         inlineSources = bundle.env.sourceMap.inlineSources;
-      } else if (bundle.target.env.context !== 'node') {
+      } else if (!bundle.target.env.context.has('node')) {
         // inlining should only happen in production for browser targets by default
         inlineSources = this.options.mode === 'production';
       }

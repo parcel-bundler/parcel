@@ -1808,7 +1808,7 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('<script src="http://example.com'),
+            contents.includes('<script type="module" src="http://example.com'),
             'should include example.com',
           );
 
@@ -1832,7 +1832,9 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('<script src="http://mygreatwebsite.com'),
+        contents.includes(
+          '<script type="module" src="http://mygreatwebsite.com',
+        ),
         'should include example.com',
       );
     });
@@ -2146,7 +2148,7 @@ describe('cache', function() {
             'utf8',
           );
           assert(
-            contents.includes('<script src="http://example.com'),
+            contents.includes('<script type="module" src="http://example.com'),
             'should include example.com',
           );
 
@@ -2161,7 +2163,9 @@ describe('cache', function() {
         'utf8',
       );
       assert(
-        contents.includes('<script src="http://mygreatwebsite.com'),
+        contents.includes(
+          '<script type="module" src="http://mygreatwebsite.com',
+        ),
         'should include example.com',
       );
     });

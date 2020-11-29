@@ -76,3 +76,4 @@ export {
   loadSourceMapUrl,
   loadSourceMap,
 } from './sourcemap';
+export {setIntersects, isSetEqual, isSubset} from './set';

@@ -22,6 +22,7 @@ import {setDifference} from '@parcel/utils';
 import {PluginLogger} from '@parcel/logger';
 import ThrowableDiagnostic, {errorToDiagnostic} from '@parcel/diagnostic';
 import {dependencyToInternalDependency} from './public/Dependency';
+import {mergeEnvironments} from './Environment';
 
 type RuntimeConnection = {|
   bundle: InternalBundle,
@@ -46,7 +47,7 @@ export default async function applyRuntimes({
   let connections: Array<RuntimeConnection> = [];
 
   for (let bundle of bundleGraph.getBundles()) {
-    let runtimes = await config.getRuntimes(bundle.env.context);
+    let runtimes = await config.getRuntimes();
     for (let runtime of runtimes) {
       try {
         let applied = await runtime.plugin.apply({
@@ -62,11 +63,17 @@ export default async function applyRuntimes({
 
         if (applied) {
           let runtimeAssets = Array.isArray(applied) ? applied : [applied];
-          for (let {code, dependency, filePath, isEntry} of runtimeAssets) {
+          for (let {
+            code,
+            dependency,
+            filePath,
+            isEntry,
+            env,
+          } of runtimeAssets) {
             let assetGroup = {
               code,
               filePath,
-              env: bundle.env,
+              env: mergeEnvironments(bundle.env, env),
               // Runtime assets should be considered source, as they should be
               // e.g. compiled to run in the target environment
               isSource: true,

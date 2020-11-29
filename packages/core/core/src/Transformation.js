@@ -402,7 +402,17 @@ export default class Transformation {
           .filter(
             asset =>
               asset.ast != null &&
-              !(asset.value.type === 'js' && asset.value.env.scopeHoist),
+              !(
+                asset.value.type === 'js' &&
+                asset.value.env.scopeHoist &&
+                // HACK: also handle global scripts with no dependencies.
+                // JSPackager calls getCode() for these even with scope hoisting, so we
+                // need to generate here until we find a way to make generate happen on demand.
+                !(
+                  asset.value.env.context.has('script') &&
+                  asset.value.dependencies.size === 0
+                )
+              ),
           )
           .map(async asset => {
             if (asset.isASTDirty) {

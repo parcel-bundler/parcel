@@ -14,6 +14,7 @@ import type {
 } from '@parcel/types';
 import type {
   Asset,
+  AssetGroup,
   RequestInvalidation,
   Dependency,
   Environment,
@@ -24,6 +25,7 @@ import type {ConfigOutput} from '@parcel/utils';
 import {Readable} from 'stream';
 import crypto from 'crypto';
 import {PluginLogger} from '@parcel/logger';
+import {md5FromObject} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 import CommittedAsset from './CommittedAsset';
 import UncommittedAsset from './UncommittedAsset';
@@ -250,4 +252,15 @@ export async function getInvalidationHash(
   }
 
   return hash.digest('hex');
+}
+
+export function getAssetGroupId(assetGroup: AssetGroup): string {
+  return md5FromObject({
+    ...assetGroup,
+    env: getEnvironmentHash(assetGroup.env),
+    // only influences building the asset graph
+    canDefer: undefined,
+    // if only the isURL property is different, no need to re-run transformation.
+    isURL: undefined,
+  });
 }

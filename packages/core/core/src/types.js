@@ -50,7 +50,7 @@ export type ProcessedParcelConfig = {|
   transformers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   bundler: ?ParcelPluginNode,
   namers?: PureParcelConfigPipeline,
-  runtimes?: {[EnvironmentContext]: PureParcelConfigPipeline, ...},
+  runtimes?: PureParcelConfigPipeline,
   packagers?: {[Glob]: ParcelPluginNode, ...},
   optimizers?: {[Glob]: ExtendableParcelConfigPipeline, ...},
   reporters?: PureParcelConfigPipeline,
@@ -60,7 +60,7 @@ export type ProcessedParcelConfig = {|
 |};
 
 export type Environment = {|
-  context: EnvironmentContext,
+  context: Set<EnvironmentContext>,
   engines: Engines,
   includeNodeModules:
     | boolean
@@ -71,6 +71,7 @@ export type Environment = {|
   minify: boolean,
   scopeHoist: boolean,
   sourceMap: ?TargetSourceMapOptions,
+  loc: ?SourceLocation,
 |};
 
 export type Target = {|

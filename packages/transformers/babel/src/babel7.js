@@ -42,6 +42,8 @@ export default async function babel7(
       strictMode: false,
       sourceType: 'module',
       plugins: ['dynamicImport'],
+      // $FlowFixMe
+      startLine: asset.meta.loc?.start.line,
     },
     caller: {
       name: 'parcel',

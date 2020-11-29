@@ -25,6 +25,7 @@ import {isVariableDeclarator, isVariableDeclaration} from '@babel/types';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import {isSubset} from '@parcel/utils';
 
 export function getName(
   asset: Asset | MutableAsset,
@@ -125,7 +126,7 @@ export function hasAsyncDescendant(
       return;
     }
 
-    if (b.env.context !== bundle.env.context || b.type !== 'js') {
+    if (!isSubset(b.env.context, bundle.env.context) || b.type !== 'js') {
       actions.skipChildren();
       return;
     }

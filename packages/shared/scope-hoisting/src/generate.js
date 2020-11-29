@@ -90,6 +90,27 @@ export function generate({
       : [WRAPPER_TEMPLATE({STATEMENTS: statements})];
   }
 
+  let topLevelVars = mainEntry?.meta.topLevelVars;
+  if (
+    topLevelVars &&
+    typeof topLevelVars === 'object' &&
+    !Array.isArray(topLevelVars)
+  ) {
+    let vars = {};
+    for (let key in topLevelVars) {
+      let type = topLevelVars[key];
+      invariant(typeof type === 'string');
+      let decl = t.variableDeclarator(t.identifier(key));
+      if (vars[type]) {
+        vars[type].declarations.push(decl);
+      } else {
+        // $FlowFixMe
+        vars[type] = t.variableDeclaration(type, [decl]);
+        statements.unshift(vars[type]);
+      }
+    }
+  }
+
   ast = t.file(
     t.program(
       statements,

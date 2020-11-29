@@ -6,7 +6,7 @@ import {createEnvironment} from '../src/Environment';
 describe('Environment', () => {
   it('assigns a default environment with nothing passed', () => {
     assert.deepEqual(createEnvironment(), {
-      context: 'browser',
+      context: new Set(['browser']),
       engines: {
         browsers: ['> 0.25%'],
       },
@@ -16,12 +16,13 @@ describe('Environment', () => {
       minify: false,
       scopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
     });
   });
 
   it('assigns a node context if a node engine is given', () => {
     assert.deepEqual(createEnvironment({engines: {node: '>= 10.0.0'}}), {
-      context: 'node',
+      context: new Set(['node']),
       engines: {
         node: '>= 10.0.0',
       },
@@ -31,6 +32,7 @@ describe('Environment', () => {
       minify: false,
       scopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
     });
   });
 
@@ -38,7 +40,7 @@ describe('Environment', () => {
     assert.deepEqual(
       createEnvironment({engines: {browsers: ['last 1 version']}}),
       {
-        context: 'browser',
+        context: new Set(['browser']),
         engines: {
           browsers: ['last 1 version'],
         },
@@ -48,13 +50,14 @@ describe('Environment', () => {
         minify: false,
         scopeHoist: false,
         sourceMap: undefined,
+        loc: undefined,
       },
     );
   });
 
   it('assigns default engines for node', () => {
     assert.deepEqual(createEnvironment({context: 'node'}), {
-      context: 'node',
+      context: new Set(['node']),
       engines: {
         node: '>= 8.0.0',
       },
@@ -64,12 +67,13 @@ describe('Environment', () => {
       minify: false,
       scopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
     });
   });
 
   it('assigns default engines for browsers', () => {
     assert.deepEqual(createEnvironment({context: 'browser'}), {
-      context: 'browser',
+      context: new Set(['browser']),
       engines: {
         browsers: ['> 0.25%'],
       },
@@ -79,6 +83,7 @@ describe('Environment', () => {
       minify: false,
       scopeHoist: false,
       sourceMap: undefined,
+      loc: undefined,
     });
   });
 });

@@ -17,6 +17,7 @@ export function createEnvironment({
   isLibrary = false,
   scopeHoist = false,
   sourceMap,
+  loc,
 }: EnvironmentOpts = {}): Environment {
   if (context == null) {
     if (engines?.node) {
@@ -28,58 +29,63 @@ export function createEnvironment({
     }
   }
 
+  let ctx = new Set(typeof context === 'string' ? [context] : context);
+
   if (engines == null) {
-    switch (context) {
-      case 'node':
-      case 'electron-main':
-        engines = {
-          node: DEFAULT_ENGINES.node,
-        };
-        break;
-      case 'browser':
-      case 'web-worker':
-      case 'service-worker':
-      case 'electron-renderer':
-        engines = {
-          browsers: DEFAULT_ENGINES.browsers,
-        };
-        break;
-      default:
-        engines = {};
+    engines = {};
+    for (let context of ctx) {
+      switch (context) {
+        case 'node':
+        case 'electron-main':
+          engines.node = DEFAULT_ENGINES.node;
+          break;
+        case 'browser':
+        case 'web-worker':
+        case 'service-worker':
+        case 'electron-renderer':
+          engines.browsers = DEFAULT_ENGINES.browsers;
+          break;
+      }
     }
   }
 
   if (includeNodeModules == null) {
-    switch (context) {
-      case 'node':
-      case 'electron-main':
-      case 'electron-renderer':
-        includeNodeModules = false;
-        break;
-      case 'browser':
-      case 'web-worker':
-      case 'service-worker':
-      default:
-        includeNodeModules = true;
-        break;
+    includeNodeModules = true;
+    for (let context of ctx) {
+      switch (context) {
+        case 'node':
+        case 'electron-main':
+        case 'electron-renderer':
+          includeNodeModules = false;
+          break;
+        case 'browser':
+        case 'web-worker':
+        case 'service-worker':
+        default:
+          includeNodeModules = true;
+          break;
+      }
     }
   }
 
   if (outputFormat == null) {
-    switch (context) {
-      case 'node':
-      case 'electron-main':
-      case 'electron-renderer':
-        outputFormat = 'commonjs';
-        break;
-      default:
-        outputFormat = 'global';
-        break;
+    outputFormat = 'global';
+    for (let context of ctx) {
+      switch (context) {
+        case 'node':
+        case 'electron-main':
+        case 'electron-renderer':
+          outputFormat = 'commonjs';
+          break;
+        default:
+          outputFormat = 'global';
+          break;
+      }
     }
   }
 
   return {
-    context,
+    context: ctx,
     engines,
     includeNodeModules,
     outputFormat,
@@ -87,6 +93,7 @@ export function createEnvironment({
     minify,
     scopeHoist,
     sourceMap,
+    loc,
   };
 }
 
