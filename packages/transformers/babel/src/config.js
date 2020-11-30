@@ -7,7 +7,7 @@ import type {PluginLogger} from '@parcel/logger';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import * as bundledBabelCore from '@babel/core';
-import {md5FromObject, resolveConfig} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 import semver from 'semver';
 
 import getEnvOptions from './env';
@@ -26,23 +26,9 @@ export async function load(
   options: PluginOptions,
   logger: PluginLogger,
 ): Promise<void> {
-  // Don't look for a custom babel config if inside node_modules
+  // Don't transpile inside node_modules
   if (!config.isSource) {
-    return buildDefaultBabelConfig(options, config);
-  }
-
-  // If we are in a monorepo, also find .babelrc configs in the sub packages.
-  let babelrcRoots = [options.projectRoot];
-  let packageJSONPath = await resolveConfig(
-    options.inputFS,
-    config.searchPath,
-    ['package.json'],
-  );
-  if (packageJSONPath) {
-    let packageRoot = path.dirname(packageJSONPath);
-    if (packageRoot && packageRoot !== options.projectRoot) {
-      babelrcRoots.push(packageRoot);
-    }
+    return;
   }
 
   let resolved = await options.packageManager.resolve(
@@ -56,9 +42,7 @@ export async function load(
   );
   let babelOptions = {
     filename: config.searchPath,
-    cwd: path.dirname(config.searchPath),
-    root: options.projectRoot,
-    babelrcRoots,
+    cwd: options.projectRoot,
     envName:
       options.env.BABEL_ENV ??
       options.env.NODE_ENV ??
@@ -178,7 +162,7 @@ async function buildDefaultBabelConfig(options: PluginOptions, config: Config) {
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
   } else {
-    babelOptions = getFlowOptions(config);
+    babelOptions = await getFlowOptions(config, options);
   }
 
   let babelTargets;
