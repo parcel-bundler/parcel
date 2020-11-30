@@ -75,7 +75,8 @@ async function collectDependencies(
     }
     for (const locale of await fs.readdir(locales)) {
       asset.addURLDependency(posix.join('_locales', locale, 'messages.json'), {
-        pipeline: 'url'
+        isEntry: true,
+        pipeline: 'url',
       });
     }
   }
@@ -147,13 +148,16 @@ async function collectDependencies(
         program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(relative(dirname(filePath), fp).replace(new RegExp(sep, 'g'), '/'), {
-          isEntry: true,
-          loc: {
-            filePath,
-            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
+        asset.addURLDependency(
+          relative(dirname(filePath), fp).replace(new RegExp(sep, 'g'), '/'),
+          {
+            isEntry: true,
+            loc: {
+              filePath,
+              ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
+            },
           },
-        });
+        );
       }
     }
   }
@@ -167,31 +171,25 @@ async function collectDependencies(
     const lastLoc = loc[loc.length - 1];
     const obj = parent[lastLoc];
     if (typeof obj == 'string')
-      parent[lastLoc] = asset.addURLDependency(
-        obj,
-        {
+      parent[lastLoc] = asset.addURLDependency(obj, {
+        isEntry: true,
+        loc: {
+          filePath,
+          ...getJSONSourceLocation(ptrs[location], 'value'),
+        },
+        // TODO: not this, for sure
+        ...(extname(obj) == '.json' && {pipeline: 'url'}),
+      });
+    else {
+      for (const k of Object.keys(obj)) {
+        obj[k] = asset.addURLDependency(obj[k], {
           isEntry: true,
           loc: {
             filePath,
-            ...getJSONSourceLocation(ptrs[location], 'value'),
+            ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
           },
-          // TODO: not this, for sure
-          ...(extname(obj) == '.json' && { pipeline: 'url' })
-        },
-      );
-    else {
-      for (const k of Object.keys(obj)) {
-        obj[k] = asset.addURLDependency(
-          obj[k],
-          {
-            isEntry: true,
-            loc: {
-              filePath,
-              ...getJSONSourceLocation(ptrs[location + '/' + k], 'value'),
-            },
-            ...(extname(obj[k]) == '.json' && { pipeline: 'url' })
-          },
-        );
+          ...(extname(obj[k]) == '.json' && {pipeline: 'url'}),
+        });
       }
     }
   }

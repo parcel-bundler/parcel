@@ -101,10 +101,7 @@ export default (new Bundler({
           for (let asset of assets) {
             let bundle = bundleGraph.createBundle({
               entryAsset: asset,
-              isEntry:
-                asset.isIsolated || asset.isInline
-                  ? false
-                  : Boolean(dependency.isEntry),
+              isEntry: asset.isInline ? false : Boolean(dependency.isEntry),
               isInline: asset.isInline,
               target: bundleGroup.target,
             });
