@@ -29,6 +29,11 @@ export default async function getEnvOptions(
   >,
   targets: BabelTargets,
 |}> {
+  // Only compile if there are engines defined in the environment.
+  if (Object.keys(config.env.engines).length === 0) {
+    return null;
+  }
+
   // Load the target engines for the app and generate a @babel/preset-env config
   let appBabelTargets = enginesToBabelTargets(config.env);
 

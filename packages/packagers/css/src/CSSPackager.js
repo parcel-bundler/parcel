@@ -43,7 +43,7 @@ export default (new Packager({
 
               return css;
             }),
-            options.sourceMaps && asset.getMapBuffer(),
+            bundle.env.sourceMap && asset.getMapBuffer(),
           ]),
         );
       },
@@ -55,7 +55,7 @@ export default (new Packager({
     let lineOffset = 0;
     for (let [asset, code, mapBuffer] of outputs) {
       contents += code + '\n';
-      if (options.sourceMaps) {
+      if (bundle.env.sourceMap) {
         if (mapBuffer) {
           map.addBufferMappings(mapBuffer, lineOffset);
         } else {
@@ -72,7 +72,7 @@ export default (new Packager({
       }
     }
 
-    if (options.sourceMaps) {
+    if (bundle.env.sourceMap) {
       let reference = await getSourceMapReference(map);
       if (reference != null) {
         contents += '/*# sourceMappingURL=' + reference + ' */\n';

@@ -39,7 +39,7 @@ describe('CLIReporter', () => {
   let stdoutOutput;
   let stderrOutput;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Stub these out to avoid writing noise to real stdio and to read from these
     // otherwise only writable streams
     originalStdout = process.stdout;
@@ -53,6 +53,13 @@ describe('CLIReporter', () => {
     let mockStderr = new PassThrough();
     mockStderr.on('data', d => (stderrOutput += stripAnsi(d.toString())));
     _setStdio(mockStdout, mockStderr);
+
+    await _report(
+      {
+        type: 'buildStart',
+      },
+      EMPTY_OPTIONS,
+    );
   });
 
   afterEach(() => {

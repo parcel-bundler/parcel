@@ -78,8 +78,21 @@ export default (new Transformer({
         '@parcel/transformer-js',
         'Invalid config for @parcel/transformer-js',
       );
-      config.setResult(result.contents);
     }
+
+    // Check if we should ignore fs calls
+    // See https://github.com/defunctzombie/node-browser-resolve#skip
+    let pkg = await config.getPackage();
+    let ignoreFS =
+      pkg &&
+      pkg.browser &&
+      typeof pkg.browser === 'object' &&
+      pkg.browser.fs === false;
+
+    config.setResult({
+      ...result?.contents,
+      ignoreFS,
+    });
   },
 
   canReuseAST({ast}) {
@@ -118,7 +131,7 @@ export default (new Transformer({
       return [asset];
     }
 
-    let {inlineEnvironment = true, inlineFS = true} = config || {};
+    let {inlineEnvironment = true, inlineFS = true, ignoreFS} = config || {};
 
     let code = asset.isASTDirty() ? null : await asset.getCode();
 
@@ -141,16 +154,7 @@ export default (new Transformer({
     if (!asset.env.isNode()) {
       // Inline fs calls, run before globals to also collect Buffer
       if (code == null || FS_RE.test(code)) {
-        // Check if we should ignore fs calls
-        // See https://github.com/defunctzombie/node-browser-resolve#skip
-        let pkg = await asset.getPackage();
-        let ignore =
-          pkg &&
-          pkg.browser &&
-          typeof pkg.browser === 'object' &&
-          pkg.browser.fs === false;
-
-        if (!ignore) {
+        if (!ignoreFS) {
           traverse.cache.clearScope();
           traverse(ast.program, fsVisitor, null, {
             asset,

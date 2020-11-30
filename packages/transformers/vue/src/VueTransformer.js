@@ -268,7 +268,7 @@ async function processPipeline({
         type: 'js',
         uniqueKey: asset.id + '-template',
         ...(!template.src &&
-          options.sourceMaps && {
+          asset.env.sourceMap && {
             map: createMap(templateComp.map, options.projectRoot),
           }),
         content:
@@ -323,7 +323,7 @@ ${
         uniqueKey: asset.id + '-script',
         content: script.content,
         ...(!script.src &&
-          options.sourceMaps && {
+          asset.env.sourceMap && {
             map: createMap(script.map, options.projectRoot),
           }),
       };
@@ -396,7 +396,7 @@ ${
             content: styleComp.code,
             sideEffects: !style.module,
             ...(!style.src &&
-              options.sourceMaps && {
+              asset.env.sourceMap && {
                 map: createMap(style.map, options.projectRoot),
               }),
             uniqueKey: asset.id + '-style' + i,

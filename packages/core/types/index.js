@@ -96,7 +96,6 @@ export interface Target {
   /** The output folder */
   +distDir: FilePath;
   +env: Environment;
-  +sourceMap: ?TargetSourceMapOptions;
   +name: string;
   +publicUrl: string;
   /** The location that created this Target, e.g. `package.json#main`*/
@@ -160,6 +159,7 @@ export type EnvironmentOpts = {|
   +isLibrary?: boolean,
   +minify?: boolean,
   +scopeHoist?: boolean,
+  +sourceMap?: ?TargetSourceMapOptions
 |};
 
 /**
@@ -200,6 +200,7 @@ export interface Environment {
   +minify: boolean;
   /** Whether scope hoisting is enabled. */
   +scopeHoist: boolean;
+  +sourceMap: ?TargetSourceMapOptions;
 
   /** Whether <code>context</code> specifies a browser context. */
   isBrowser(): boolean;
@@ -292,7 +293,6 @@ export type InitialServerOptions = {|
 
 export interface PluginOptions {
   +mode: BuildMode;
-  +sourceMaps: boolean;
   +env: EnvMap;
   +hot: ?HMROptions;
   +serve: ServerOptions | false;
