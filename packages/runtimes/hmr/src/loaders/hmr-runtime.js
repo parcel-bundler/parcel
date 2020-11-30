@@ -1,4 +1,4 @@
-/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH */
+/* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE */
 
 var OVERLAY_ID = '__parcel__error__overlay__';
 

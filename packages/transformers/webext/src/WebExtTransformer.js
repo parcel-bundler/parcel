@@ -2,13 +2,12 @@
 
 import type {MutableAsset} from '@parcel/types';
 import {Transformer} from '@parcel/plugin';
-import {sep, posix, join, extname, dirname, relative} from 'path';
+import {posix, join, extname, dirname, relative} from 'path';
 import jsm from 'json-source-map';
 import parseCSP from 'content-security-policy-parser';
 import {validateSchema} from '@parcel/utils';
 import ThrowableDiagnostic, {getJSONSourceLocation} from '@parcel/diagnostic';
 import {glob} from '@parcel/utils';
-import type {DiagnosticCodeHighlight} from '@parcel/diagnostic';
 import WebExtSchema from './schema';
 
 const BASE_KEYS = ['manifest_version', 'name', 'version'];
@@ -148,16 +147,13 @@ async function collectDependencies(
         program.web_accessible_resources[i],
       );
       for (const fp of await glob(globQuery, fs, {})) {
-        asset.addURLDependency(
-          relative(dirname(filePath), fp).replace(new RegExp(sep, 'g'), '/'),
-          {
-            isEntry: true,
-            loc: {
-              filePath,
-              ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
-            },
+        asset.addURLDependency(relative(dirname(filePath), fp), {
+          isEntry: true,
+          loc: {
+            filePath,
+            ...getJSONSourceLocation(ptrs[`/web_accessible_resources/${i}`]),
           },
-        );
+        });
       }
     }
   }
