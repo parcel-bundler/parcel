@@ -1,4 +1,5 @@
-// @flow
+// @flow strict-local
+
 import ParcelConfig from '../src/ParcelConfig';
 import assert from 'assert';
 import path from 'path';
@@ -189,7 +190,7 @@ describe('ParcelConfig', () => {
         inputFS,
         false,
       );
-
+      // $FlowFixMe
       let parcelVersion = require('../package.json').version;
       let pkgJSON = path.join(
         __dirname,

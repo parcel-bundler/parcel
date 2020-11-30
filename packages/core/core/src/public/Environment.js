@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import type {
   Environment as IEnvironment,
   EnvironmentContext,
@@ -6,6 +6,7 @@ import type {
   OutputFormat,
   PackageName,
   VersionMap,
+  TargetSourceMapOptions,
 } from '@parcel/types';
 import type {Environment as InternalEnvironment} from '../types';
 import nullthrows from 'nullthrows';
@@ -115,6 +116,10 @@ export default class Environment implements IEnvironment {
 
   get scopeHoist(): boolean {
     return this.#environment.scopeHoist;
+  }
+
+  get sourceMap(): ?TargetSourceMapOptions {
+    return this.#environment.sourceMap;
   }
 
   isBrowser(): boolean {

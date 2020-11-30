@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "composite": true,
+  },
+  "files": [
+    "index.ts",
+    "add.ts"
+  ],
+  "references": []
+}
