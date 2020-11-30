@@ -150,3 +150,24 @@ export async function runPackage(
     runner.getBundleInfo(bundle, bundleGraph, cacheKeys, configs)
   );
 }
+
+const PKG_RE = /node_modules[/\\]((?:@[^/\\]+\/[^/\\]+)|[^/\\]+)(?!.*[/\\]node_modules[/\\])/;
+export function invalidateRequireCache(workerApi: WorkerApi, file: string) {
+  if (process.env.PARCEL_BUILD_ENV === 'test') {
+    // Delete this module and all children in the same node_modules folder
+    let module = require.cache[file];
+    if (module) {
+      delete require.cache[file];
+
+      let pkg = file.match(PKG_RE)?.[1];
+      for (let child of module.children) {
+        if (pkg === child.id.match(PKG_RE)?.[1]) {
+          invalidateRequireCache(workerApi, child.id);
+        }
+      }
+    }
+    return;
+  }
+
+  throw new Error('invalidateRequireCache is only for tests');
+}

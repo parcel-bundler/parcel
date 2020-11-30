@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 import NodeResolver from '..';
 import path from 'path';
 import assert from 'assert';

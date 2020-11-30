@@ -1,3 +1,5 @@
 import * as lodash from "./b";
 
-export default lodash.add(10,2);
+let x = lodash;
+
+export default x.add(10,2);

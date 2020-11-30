@@ -105,6 +105,8 @@ export function generateExports(
   replacements: Map<Symbol, Symbol>,
   // eslint-disable-next-line no-unused-vars
   options: PluginOptions,
+  // eslint-disable-next-line no-unused-vars
+  maybeReplaceIdentifier: (NodePath<Identifier>) => void,
 ): Set<Symbol> {
   let exported = new Set<Symbol>();
   let statements: Array<ExpressionStatement> = [];

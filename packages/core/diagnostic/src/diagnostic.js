@@ -2,9 +2,9 @@
 import type {FilePath} from '@parcel/types';
 
 import invariant from 'assert';
-// flowlint-next-line untyped-import:off
-import jsonMap from 'json-source-map';
 import nullthrows from 'nullthrows';
+import jsonMap from 'json-source-map';
+import type {Mapping} from 'json-source-map';
 
 /** These positions are 1-based (so <code>1</code> is the first line/column) */
 export type DiagnosticHighlightLocation = {|
@@ -226,16 +226,7 @@ export function generateJSONCodeHighlights(
  * <code>result.pointers</code> array.
  */
 export function getJSONSourceLocation(
-  pos: {|
-    value: {|line: number, column: number|},
-    valueEnd: {|line: number, column: number|},
-    ...
-      | {||}
-      | {|
-          key: {|line: number, column: number|},
-          keyEnd: {|line: number, column: number|},
-        |},
-  |},
+  pos: Mapping,
   type?: ?'key' | 'value',
 ): {|
   start: DiagnosticHighlightLocation,
@@ -248,7 +239,7 @@ export function getJSONSourceLocation(
       end: {line: pos.valueEnd.line + 1, column: pos.valueEnd.column},
     };
   } else if (type == 'key' || !pos.value) {
-    invariant(pos.key);
+    invariant(pos.key && pos.keyEnd);
     return {
       start: {line: pos.key.line + 1, column: pos.key.column + 1},
       end: {line: pos.keyEnd.line + 1, column: pos.keyEnd.column},

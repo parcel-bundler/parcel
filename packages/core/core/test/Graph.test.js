@@ -1,8 +1,9 @@
-// @flow
+// @flow strict-local
 
 import assert from 'assert';
 import sinon from 'sinon';
 
+// flowlint-next-line untyped-import:off
 import Graph from '../src/Graph';
 
 describe('Graph', () => {

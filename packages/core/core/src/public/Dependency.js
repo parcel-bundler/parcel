@@ -4,7 +4,7 @@ import type {
   Environment as IEnvironment,
   SourceLocation,
   Meta,
-  MutableSymbols as IMutableSymbols,
+  MutableDependencySymbols as IMutableDependencySymbols,
 } from '@parcel/types';
 import type {Dependency as InternalDependency} from '../types';
 
@@ -73,10 +73,6 @@ export default class Dependency implements IDependency {
     return !!this.#dep.isURL;
   }
 
-  get isWeak(): boolean {
-    return !!this.#dep.isWeak;
-  }
-
   get isIsolated(): boolean {
     return !!this.#dep.isIsolated;
   }
@@ -93,7 +89,7 @@ export default class Dependency implements IDependency {
     return this.#dep.meta;
   }
 
-  get symbols(): IMutableSymbols {
+  get symbols(): IMutableDependencySymbols {
     return new MutableDependencySymbols(this.#dep);
   }
 

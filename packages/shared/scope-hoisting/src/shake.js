@@ -84,7 +84,7 @@ function getUnusedBinding(path, name, exportsMap) {
     path =>
       !isExportAssignment(path, exportsMap) &&
       !isWildcardDest(path) &&
-      !isReexportDest(path),
+      !isExportDest(path),
   );
 
   if (!bailout) {
@@ -157,13 +157,13 @@ function isWildcardDest(path) {
   );
 }
 
-// check if the argument appears as $parcel$reexport(path, ...)
-function isReexportDest(path) {
+// check if the argument appears as $parcel$export(path, ...)
+function isExportDest(path) {
   let parent: Node = path.parent;
 
   return (
     isCallExpression(parent) &&
-    isIdentifier(parent.callee, {name: '$parcel$reexport'}) &&
+    isIdentifier(parent.callee, {name: '$parcel$export'}) &&
     parent.arguments[0] === path.node
   );
 }
@@ -214,7 +214,7 @@ function remove(
       );
       remove(path.parentPath, scope, exportsMap);
     }
-  } else if (isReexportDest(path)) {
+  } else if (isExportDest(path)) {
     remove(path.parentPath, scope, exportsMap);
   } else if (!path.removed) {
     if (isSequenceExpression(parent) && parent.expressions.length === 1) {
