@@ -32,8 +32,7 @@ import path from 'path';
 import assert from 'assert';
 
 import ParcelConfigSchema from '../ParcelConfig.schema';
-
-const NAMED_PIPELINE_REGEX = /^[\w-.+]+:/;
+import {optionsProxy} from '../utils';
 
 type ConfigMap<K, V> = {[K]: V, ...};
 
@@ -67,7 +66,7 @@ export default function createParcelConfigRequest(): ParcelConfigRequest {
     type,
     async run({api, options}: RunOpts): Promise<ConfigAndCachePath> {
       let {config, extendedFiles, usedDefault} = await loadParcelConfig(
-        options,
+        optionsProxy(options, api.invalidateOnOptionChange),
       );
 
       api.invalidateOnFileUpdate(config.filePath);
@@ -488,7 +487,6 @@ export function mergeConfigs(
       base.transformers,
       ext.transformers,
       mergePipelines,
-      true,
     ),
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
@@ -542,7 +540,6 @@ export function mergeMaps<K: string, V>(
   base: ?ConfigMap<K, V>,
   ext: ?ConfigMap<K, V>,
   merger?: (a: V, b: V) => V,
-  hasNamedPipelines: boolean = false,
 ): ConfigMap<K, V> {
   if (!ext || Object.keys(ext).length === 0) {
     return base || {};
@@ -553,29 +550,6 @@ export function mergeMaps<K: string, V>(
   }
 
   let res: ConfigMap<K, V> = {};
-  if (hasNamedPipelines) {
-    // in res, all named pipelines should come before the other pipelines
-    for (let k in ext) {
-      // $FlowFixMe Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
-      let key: K = (k: any);
-      if (NAMED_PIPELINE_REGEX.test(key)) {
-        res[key] =
-          merger && base[key] != null ? merger(base[key], ext[key]) : ext[key];
-      }
-    }
-
-    // Add base options that aren't defined in the extension
-    for (let k in base) {
-      // $FlowFixMe
-      let key: K = (k: any);
-      if (NAMED_PIPELINE_REGEX.test(key)) {
-        if (res[key] == null) {
-          res[key] = base[key];
-        }
-      }
-    }
-  }
-
   // Add the extension options first so they have higher precedence in the output glob map
   for (let k in ext) {
     //$FlowFixMe Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
