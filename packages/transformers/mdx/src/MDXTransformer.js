@@ -2,7 +2,14 @@
 import {Transformer} from '@parcel/plugin';
 
 export default (new Transformer({
-  async transform({asset, options}) {
+  async loadConfig({ config }) {
+    return await config.getConfig(
+      ['.mdxrc', 'mdx.config.js'],
+      {packageKey: 'mdx'},
+    );
+  }
+  
+  async transform({asset, options, config }) {
     let [mdx, code] = await Promise.all([
       options.packageManager.require('@mdx-js/mdx', asset.filePath, {
         autoinstall: options.autoinstall,
@@ -14,7 +21,7 @@ export default (new Transformer({
       }),
     ]);
 
-    const compiled = await mdx(code);
+    const compiled = await mdx(code, config);
 
     asset.type = 'js';
     asset.setCode(`/* @jsx mdx */
