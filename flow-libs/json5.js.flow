@@ -1,6 +1,7 @@
 // @flow
 
 // Derived from https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/json5/index.d.ts
+// And https://github.com/DefinitelyTyped/DefinitelyTyped#readme
 // Which is licensed MIT
 
 declare module 'json5' {
@@ -18,7 +19,7 @@ declare module 'json5' {
     replacer?: JSONReplacer,
   |};
 
-  declare module.exports: {
+  declare module.exports: {|
     parse(text: string, reviver?: Reviver): any,
     stringify(
       value: mixed,
@@ -31,6 +32,5 @@ declare module 'json5' {
       space?: string | number,
     ): string,
     stringify(value: mixed, options?: Options): string,
-    ...
-  };
+  |};
 }
