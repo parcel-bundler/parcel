@@ -20,6 +20,7 @@ import {
 import * as emoji from './emoji';
 
 const THROTTLE_DELAY = 100;
+const seenWarnings = new Set();
 
 let statusThrottle = throttle((message: string) => {
   updateSpinner(message);
@@ -34,6 +35,7 @@ export async function _report(
 
   switch (event.type) {
     case 'buildStart': {
+      seenWarnings.clear();
       if (logLevelFilter < logLevels.info) {
         break;
       }
@@ -116,7 +118,16 @@ export async function _report(
           await writeDiagnostic(options, event.diagnostics, 'blue');
           break;
         case 'warn':
-          await writeDiagnostic(options, event.diagnostics, 'yellow', true);
+          if (
+            event.diagnostics.some(
+              diagnostic => !seenWarnings.has(diagnostic.message),
+            )
+          ) {
+            await writeDiagnostic(options, event.diagnostics, 'yellow', true);
+            for (let diagnostic of event.diagnostics) {
+              seenWarnings.add(diagnostic.message);
+            }
+          }
           break;
         case 'error':
           await writeDiagnostic(options, event.diagnostics, 'red', true);

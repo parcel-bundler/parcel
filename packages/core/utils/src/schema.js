@@ -2,7 +2,6 @@
 import ThrowableDiagnostic, {
   generateJSONCodeHighlights,
 } from '@parcel/diagnostic';
-// flowlint-next-line untyped-import:off
 import levenshtein from 'fastest-levenshtein';
 
 export type SchemaEntity =

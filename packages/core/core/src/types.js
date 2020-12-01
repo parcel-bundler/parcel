@@ -70,13 +70,13 @@ export type Environment = {|
   isLibrary: boolean,
   minify: boolean,
   scopeHoist: boolean,
+  sourceMap: ?TargetSourceMapOptions,
 |};
 
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
-  sourceMap?: TargetSourceMapOptions,
   name: string,
   publicUrl: string,
   loc?: ?SourceLocation,
@@ -90,7 +90,6 @@ export type Dependency = {|
   isEntry: ?boolean,
   isOptional: boolean,
   isURL: boolean,
-  isWeak: ?boolean,
   isIsolated: boolean,
   loc: ?SourceLocation,
   env: Environment,
@@ -98,7 +97,10 @@ export type Dependency = {|
   target: ?Target,
   sourceAssetId: ?string,
   sourcePath: ?string,
-  symbols: Map<Symbol, {|local: Symbol, loc: ?SourceLocation|}>,
+  symbols: ?Map<
+    Symbol,
+    {|local: Symbol, loc: ?SourceLocation, isWeak: boolean|},
+  >,
   pipeline?: ?string,
 |};
 
@@ -141,7 +143,15 @@ export type EnvInvalidation = {|
   key: string,
 |};
 
-export type RequestInvalidation = FileInvalidation | EnvInvalidation;
+export type OptionInvalidation = {|
+  type: 'option',
+  key: string,
+|};
+
+export type RequestInvalidation =
+  | FileInvalidation
+  | EnvInvalidation
+  | OptionInvalidation;
 
 export type ParcelOptions = {|
   entries: Array<FilePath>,
@@ -199,7 +209,10 @@ export type AssetNode = {|
   id: string,
   +type: 'asset',
   value: Asset,
+  usedSymbols: Set<Symbol>,
   hasDeferred?: boolean,
+  usedSymbolsDownDirty: boolean,
+  usedSymbolsUpDirty: boolean,
 |};
 
 export type DependencyNode = {|
@@ -208,7 +221,18 @@ export type DependencyNode = {|
   value: Dependency,
   complete?: boolean,
   correspondingRequest?: string,
+  deferred: boolean,
+  /** dependency was deferred (= no used symbols (in immediate parents) & side-effect free) */
   hasDeferred?: boolean,
+  usedSymbolsDown: Set<Symbol>,
+  usedSymbolsUp: Set<Symbol>,
+  usedSymbolsDownDirty: boolean,
+  /** for the "up" pass, the parent asset needs to be updated */
+  usedSymbolsUpDirtyUp: boolean,
+  /** for the "up" pass, the dependency resolution asset needs to be updated */
+  usedSymbolsUpDirtyDown: boolean,
+  /** dependency was excluded (= no used symbols (globally) & side-effect free) */
+  excluded: boolean,
 |};
 
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
@@ -237,9 +261,11 @@ export type AssetGroupNode = {|
   id: string,
   +type: 'asset_group',
   value: AssetGroup,
-  deferred?: boolean,
   correspondingRequest?: string,
+  /** this node was deferred (= no used symbols (in immediate parents) & side-effect free) */
+  deferred?: boolean,
   hasDeferred?: boolean,
+  usedSymbolsDownDirty: boolean,
 |};
 
 export type DepPathRequestNode = {|

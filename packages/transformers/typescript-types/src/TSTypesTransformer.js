@@ -39,6 +39,8 @@ export default (new Transformer({
       emitDeclarationOnly: true,
       outFile: 'index.d.ts',
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
+      // createProgram doesn't support incremental mode
+      composite: false,
     };
 
     let host = new CompilerHost(options.inputFS, ts, logger);
@@ -155,6 +157,8 @@ export default (new Transformer({
     return [
       {
         type: 'ts',
+        // Stay on the types pipeline, even if the type changes
+        pipeline: asset.pipeline,
         content: code,
         map: sourceMap,
         includedFiles,

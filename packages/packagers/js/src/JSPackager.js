@@ -116,7 +116,7 @@ export default (new Packager({
         queue.add(async () => {
           let [code, mapBuffer] = await Promise.all([
             node.value.getCode(),
-            bundle.target.sourceMap && node.value.getMapBuffer(),
+            bundle.env.sourceMap && node.value.getMapBuffer(),
           ]);
           return {code, mapBuffer};
         });
@@ -176,7 +176,7 @@ export default (new Packager({
         wrapped += JSON.stringify(deps);
         wrapped += ']';
 
-        if (options.sourceMaps) {
+        if (bundle.env.sourceMap) {
           if (mapBuffer) {
             map.addBufferMappings(mapBuffer, lineOffset);
           } else {

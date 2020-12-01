@@ -493,6 +493,26 @@ export default class WorkerFarm extends EventEmitter {
     });
   }
 
+  async callAllWorkers(method: string, args: Array<any>) {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method,
+            args,
+            resolve,
+            reject,
+            retries: 0,
+          });
+        }),
+      );
+    }
+
+    promises.push(this.localWorker[method](this.workerApi, ...args));
+    await Promise.all(promises);
+  }
+
   async takeHeapSnapshot() {
     let snapshotId = getTimeId();
 

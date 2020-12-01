@@ -1,0 +1,10 @@
+{
+  "targets": {
+    "default": {
+      "outputFormat": "esmodule"
+    }
+  },
+  "sideEffects": [
+    "skipped.js"
+  ]
+}
