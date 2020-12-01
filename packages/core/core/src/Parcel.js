@@ -293,11 +293,19 @@ export default class Parcel {
       );
 
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381
-      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph, {signal});
+      let [
+        bundleGraph,
+        serializedBundleGraph,
+      ] = await this.#bundlerRunner.bundle(assetGraph, {
+        signal,
+      });
       // $FlowFixMe Added in Flow 0.121.0 upgrade in #4381 (Windows only)
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await this.#packagerRunner.writeBundles(bundleGraph);
+      await this.#packagerRunner.writeBundles(
+        bundleGraph,
+        serializedBundleGraph,
+      );
       assertSignalNotAborted(signal);
 
       let event = {

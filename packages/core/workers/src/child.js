@@ -16,6 +16,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import Logger, {patchConsole, unpatchConsole} from '@parcel/logger';
 import ThrowableDiagnostic, {anyToDiagnostic} from '@parcel/diagnostic';
+import {deserialize} from '@parcel/core';
 import bus from './bus';
 import Profiler from './Profiler';
 import _Handle from './Handle';
@@ -170,7 +171,13 @@ export class Child {
         result = errorResponseFromError(e);
       }
     } else if (method === 'createSharedReference') {
-      let [ref, value] = args;
+      let [ref, _value] = args;
+      let value =
+        _value instanceof ArrayBuffer
+          ? // In the case the value is pre-serialized as a buffer,
+            // deserialize it.
+            deserialize(Buffer.from(_value))
+          : _value;
       this.sharedReferences.set(ref, value);
       this.sharedReferencesByValue.set(value, ref);
       result = responseFromContent(null);
