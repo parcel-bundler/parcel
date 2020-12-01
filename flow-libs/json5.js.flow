@@ -1,0 +1,36 @@
+// @flow
+
+// Derived from https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/json5/index.d.ts
+// Which is licensed MIT
+
+declare module 'json5' {
+  declare type JSONReplacer = (
+    key: string,
+    value: mixed,
+  ) => mixed | (number | string)[] | null;
+
+  declare type Reviver = (key: mixed, value: mixed) => mixed;
+  declare type replacer1 = (key: string, value: mixed) => mixed;
+  declare type replacer2 = (number | string)[] | null;
+  declare type Options = {|
+    space?: number | string,
+    quote?: string,
+    replacer?: JSONReplacer,
+  |};
+
+  declare module.exports: {
+    parse(text: string, reviver?: Reviver): any,
+    stringify(
+      value: mixed,
+      replacer?: replacer1,
+      space?: string | number,
+    ): string,
+    stringify(
+      value: mixed,
+      replacer?: replacer2,
+      space?: string | number,
+    ): string,
+    stringify(value: mixed, options?: Options): string,
+    ...
+  };
+}
