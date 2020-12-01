@@ -20,7 +20,7 @@ declare module 'json5' {
   |};
 
   declare module.exports: {|
-    parse(text: string, reviver?: Reviver): any,
+    parse(text: string, reviver?: Reviver): any, // Not type safe !
     stringify(
       value: mixed,
       replacer?: replacer1,
